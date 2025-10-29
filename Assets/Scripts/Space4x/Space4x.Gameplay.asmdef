@@ -1,0 +1,22 @@
+{
+  "name": "Space4X.Gameplay",
+  "rootNamespace": "Space4X",
+  "references": [
+    "Unity.Entities",
+    "Unity.Transforms",
+    "Unity.Mathematics",
+    "Unity.Collections",
+    "Unity.Entities.Hybrid",
+    "PureDOTS.Runtime",
+    "PureDOTS.Systems"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
