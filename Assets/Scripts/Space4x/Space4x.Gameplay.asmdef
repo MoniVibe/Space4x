@@ -8,7 +8,8 @@
     "Unity.Collections",
     "Unity.Entities.Hybrid",
     "PureDOTS.Runtime",
-    "PureDOTS.Systems"
+    "PureDOTS.Systems",
+    "PureDOTS.Authoring"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

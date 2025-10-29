@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ad8ac3645f74f71a43d18ce9b194d43, type: 3}
+  m_Name: DefaultSpatialPartitionProfile
+  m_EditorClassIdentifier: 
+  _schemaVersion: 2
+  _center: {x: 0, y: 0, z: 0}
+  _extent: {x: 512, y: 64, z: 512}
+  _cellSize: 4
+  _minCellSize: 1
+  _overrideCellCounts: 0
+  _manualCellCounts: {x: 128, y: 1, z: 128}
+  _lockYAxisToOne: 1
+  _providerType: 1
+  _hashSeed: 0
+  _drawGizmo: 1
+  _gizmoColor: {r: 0.1, g: 0.8, b: 1, a: 0.35}
