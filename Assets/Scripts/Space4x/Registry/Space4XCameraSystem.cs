@@ -17,7 +17,6 @@ namespace Space4X.Registry
 
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<Space4XCameraControlState>();
             state.RequireForUpdate<Space4XCameraState>();
             state.RequireForUpdate<Space4XCameraConfig>();
             state.RequireForUpdate<TimeState>();
@@ -36,7 +35,12 @@ namespace Space4X.Registry
 
             if (!SystemAPI.TryGetSingleton<Space4XCameraControlState>(out var controlState))
             {
-                return;
+                controlState = new Space4XCameraControlState
+                {
+                    EnablePan = true,
+                    EnableZoom = true,
+                    EnableRotation = false
+                };
             }
 
             if (!SystemAPI.TryGetSingleton<Space4XCameraState>(out var cameraState))
@@ -67,7 +71,7 @@ namespace Space4X.Registry
             {
                 updatedPosition = cameraState.InitialPosition;
                 updatedRotation = cameraState.InitialRotation;
-                updatedZoomDistance = Vector3.Distance(cameraState.InitialPosition, cameraState.FocusPoint);
+                updatedZoomDistance = math.distance(cameraState.InitialPosition, cameraState.FocusPoint);
             }
             else
             {

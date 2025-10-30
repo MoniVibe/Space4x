@@ -51,5 +51,17 @@ namespace Space4X.Registry
         public float3 PanBoundsMax;
         public bool UsePanBounds;
     }
+
+    /// <summary>
+    /// Input system configuration for camera controls.
+    /// Stores reference GUID to InputActionAsset and enable flags.
+    /// Note: InputActionAsset reference stored as Entity-based singleton reference.
+    /// </summary>
+    public struct Space4XCameraInputConfig : IComponentData
+    {
+        public bool EnablePan;
+        public bool EnableZoom;
+        public bool EnableRotation;
+    }
 }
 
