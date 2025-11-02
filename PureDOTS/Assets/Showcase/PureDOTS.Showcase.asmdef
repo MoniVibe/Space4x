@@ -1,0 +1,23 @@
+{
+    "name": "PureDOTS.Showcase",
+    "rootNamespace": "PureDOTS.Showcase",
+    "references": [
+        "PureDOTS.Runtime",
+        "PureDOTS.Systems",
+        "PureDOTS.Presentation",
+        "Unity.Entities",
+        "Unity.Collections",
+        "Unity.Transforms",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
+

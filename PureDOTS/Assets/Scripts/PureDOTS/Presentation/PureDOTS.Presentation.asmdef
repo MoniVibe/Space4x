@@ -1,0 +1,26 @@
+{
+    "name": "PureDOTS.Presentation",
+    "rootNamespace": "PureDOTS.Presentation",
+    "references": [
+        "PureDOTS.Runtime",
+        "PureDOTS.Systems",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Entities.Graphics",
+        "Unity.Mathematics",
+        "Unity.Mathematics.Extensions",
+        "Unity.InputSystem",
+        "Unity.Rendering",
+        "Unity.Transforms"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
