@@ -1,0 +1,12 @@
+Library/
+Logs/
+Temp/
+UserSettings/
+Packages/Coplay/
+Assets/Readme.asset
+Assets/Readme.asset.meta
+Assets/Settings/
+Assets/Settings.meta
+Assets/InputSystem_Actions.inputactions.meta
+Assets/TutorialInfo/
+Assets/TutorialInfo.meta

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f67bc3f1570440d9388b4cf6294fa5e, type: 3}
+  m_Name: ShowcaseCatalog
+  m_EditorClassIdentifier: 
+  _scenes:
+  - _displayName: Godgame Loop
+    _scenePath: Assets/Showcase/Scenes/GodgameMining.unity
+    _sceneOffset: {x: -200, y: 0, z: 0}
+    _sceneAsset: {fileID: 102900000, guid: 34a7573ac3dc0f04f9b307698da0e854, type: 3}
+  - _displayName: Space4X Loop
+    _scenePath: Assets/Showcase/Scenes/Space4XMining.unity
+    _sceneOffset: {x: 200, y: 0, z: 0}
+    _sceneAsset: {fileID: 102900000, guid: 4970c8ec4f0a4270b5f8538d3f938c0f, type: 3}
+
