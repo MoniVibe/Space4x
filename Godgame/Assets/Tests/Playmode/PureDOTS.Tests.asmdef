@@ -1,0 +1,23 @@
+{
+    "name": "PureDOTS.Tests",
+    "rootNamespace": "PureDOTS.Tests",
+    "references": [
+        "PureDOTS.Runtime",
+        "PureDOTS.Systems",
+        "Unity.Entities",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Transforms"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

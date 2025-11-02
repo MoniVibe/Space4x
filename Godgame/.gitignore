@@ -1,68 +1,12 @@
-# Unity / DOTS generated content
 Library/
-Temp/
-Obj/
 Logs/
+Temp/
 UserSettings/
-
-# Build directories
-Builds/
-Build/
-
-# Crash reports
-*.stacktrace
-
-# Asset pipeline artifacts
-MemoryCaptures/
-*.pidb
-*.pdb.meta
-*.mdb
-*.mdb.meta
-*.mmdb
-*.mmdb.meta
-*.log
-*.log.meta
-
-# Visual Studio / Rider
-.vs/
-*.csproj
-*.sln
-*.suo
-*.user
-*.userprefs
-*.pidb.meta
-*.sln.dotsettings
-
-# Unity auto-generated
-Library.meta
-Temp.meta
-Logs.meta
-UserSettings.meta
-
-# Cache
-.idea/
-.gradle/
-*.swp
-*.tmp
-.DS_Store
-
-# Burst cache
-BurstCache/
-
-# Bee build cache
-Bee/
-
-# Addressables cache
-Assets/StreamingAssets/aa.meta
-Assets/StreamingAssets/aa/
-
-# Collaborate cache
-Collab/
-
-# Rider snapshots
-.fleet/
-
-# Scripted importers cache
-ScriptMapper/
-SourceAssetDB/
-
+Packages/Coplay/
+Assets/Readme.asset
+Assets/Readme.asset.meta
+Assets/Settings/
+Assets/Settings.meta
+Assets/InputSystem_Actions.inputactions.meta
+Assets/TutorialInfo/
+Assets/TutorialInfo.meta
