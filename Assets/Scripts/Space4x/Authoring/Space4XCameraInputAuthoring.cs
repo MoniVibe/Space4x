@@ -23,9 +23,28 @@ namespace Space4X.Registry
         private bool enableZoom = true;
 
         [SerializeField]
-        private bool enableRotation = false;
+        private bool enableVerticalMove = true;
+
+        [SerializeField]
+        private bool enableRotation = true;
+
+        [SerializeField]
+        [Tooltip("If true, rotation requires right mouse button to be held. If false, rotation works with mouse movement alone.")]
+        private bool requireRightMouseForRotation = true;
 
         public InputActionAsset InputActions => inputActions;
+
+        internal Space4XCameraInputConfig BuildConfigData()
+        {
+            return new Space4XCameraInputConfig
+            {
+                EnablePan = enablePan,
+                EnableZoom = enableZoom,
+                EnableVerticalMove = enableVerticalMove,
+                EnableRotation = enableRotation,
+                RequireRightMouseForRotation = requireRightMouseForRotation
+            };
+        }
 
         private sealed class Baker : Unity.Entities.Baker<Space4XCameraInputAuthoring>
         {
@@ -38,24 +57,10 @@ namespace Space4X.Registry
                 }
 
                 var entity = GetEntity(TransformUsageFlags.None);
-                if (HasComponent<Space4XCameraInputConfig>(entity))
-                {
-                    SetComponent(entity, new Space4XCameraInputConfig
-                    {
-                        EnablePan = authoring.enablePan,
-                        EnableZoom = authoring.enableZoom,
-                        EnableRotation = authoring.enableRotation
-                    });
-                }
-                else
-                {
-                    AddComponent(entity, new Space4XCameraInputConfig
-                    {
-                        EnablePan = authoring.enablePan,
-                        EnableZoom = authoring.enableZoom,
-                        EnableRotation = authoring.enableRotation
-                    });
-                }
+                var config = authoring.BuildConfigData();
+                
+                // AddComponent will replace if it already exists
+                AddComponent(entity, config);
             }
         }
     }

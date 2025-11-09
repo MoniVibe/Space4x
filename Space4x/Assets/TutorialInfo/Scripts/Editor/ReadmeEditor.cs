@@ -6,13 +6,15 @@ using System;
 using System.IO;
 using System.Reflection;
 
-[CustomEditor(typeof(Readme))]
-[InitializeOnLoad]
-public class ReadmeEditor : Editor
+namespace Space4xProject.TutorialInfo
 {
-    static string s_ShowedReadmeSessionStateName = "ReadmeEditor.showedReadme";
+    [CustomEditor(typeof(Readme))]
+    [InitializeOnLoad]
+    public class ReadmeEditor : Editor
+    {
+        static string s_ShowedReadmeSessionStateName = "ReadmeEditor.showedReadme";
     
-    static string s_ReadmeSourceDirectory = "Assets/TutorialInfo";
+        static string s_ReadmeSourceDirectory = "Assets/TutorialInfo";
 
     const float k_Space = 16f;
 
@@ -238,5 +240,6 @@ public class ReadmeEditor : Editor
         EditorGUIUtility.AddCursorRect(position, MouseCursor.Link);
 
         return GUI.Button(position, label, LinkStyle);
+    }
     }
 }

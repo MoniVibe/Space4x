@@ -1,0 +1,389 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ad9865b38bcc4efe85d4970c6d3a997, type: 3}
+  m_Name: McpPythonTools
+  m_EditorClassIdentifier: MCPForUnity.Editor::MCPForUnity.Editor.Data.PythonToolsAsset
+  pythonFiles:
+  - {fileID: 1042094116111776886, guid: 9a03ab79278128842bf174faa9407eea, type: 3}
+  - {fileID: 1042094116111776886, guid: 0e3abba0e85eaed4ca6c2a57eac0aa6c, type: 3}
+  - {fileID: 1042094116111776886, guid: 8affdf0c3360c9d42b7edac82cecd243, type: 3}
+  - {fileID: 1042094116111776886, guid: 3f1a589d50c1573418f54438487df2d8, type: 3}
+  - {fileID: 1042094116111776886, guid: d27baa0bb3bca0644ba43af12004bf0f, type: 3}
+  - {fileID: 1042094116111776886, guid: 92a625136b528b64889bd50af0a47493, type: 3}
+  - {fileID: 1042094116111776886, guid: fc22505fdfe8da742a0cd12609b6ceb4, type: 3}
+  - {fileID: 1042094116111776886, guid: 9e0197434fd917c439b678b938b1c6c1, type: 3}
+  - {fileID: 1042094116111776886, guid: 27215bc631325974b83c352656b515a8, type: 3}
+  - {fileID: 1042094116111776886, guid: 9f1ee6943c0e07a49ac156610fa1f8e4, type: 3}
+  - {fileID: 1042094116111776886, guid: 742afbe7ecaa4fa4485e92332404d6ab, type: 3}
+  - {fileID: 1042094116111776886, guid: c1e1cde97811d2145be5e0f98f67e2a7, type: 3}
+  - {fileID: 1042094116111776886, guid: 53ef29dc9d47cab49a8c2af890b6061d, type: 3}
+  - {fileID: 1042094116111776886, guid: e65c3d35f6095ec46983019099dc478d, type: 3}
+  - {fileID: 1042094116111776886, guid: b81d57c6483da3847881f20b096db12a, type: 3}
+  - {fileID: 1042094116111776886, guid: 419df5baff81d914998d0896b9882999, type: 3}
+  - {fileID: 1042094116111776886, guid: 5fb89768e8230da4c91ead8f35706be4, type: 3}
+  - {fileID: 1042094116111776886, guid: 1616364767dfd294393d6696898032bd, type: 3}
+  - {fileID: 1042094116111776886, guid: ccc0f22ce8b95004a8aa966aa0c7c8aa, type: 3}
+  - {fileID: 1042094116111776886, guid: a1188db46c74fbc4b91d6261c32c7d28, type: 3}
+  - {fileID: 1042094116111776886, guid: 36a47ba605410154ba2119024e4f8412, type: 3}
+  - {fileID: 1042094116111776886, guid: 4368af456e1156d47bf5a4733b248a69, type: 3}
+  - {fileID: 1042094116111776886, guid: 57b07ff55550a7d45a6d341123d5fecc, type: 3}
+  - {fileID: 1042094116111776886, guid: 42002f5618eebb640bccbfad3c7d7162, type: 3}
+  - {fileID: 1042094116111776886, guid: 043a8011caf62524e9d7ac22bc7beba6, type: 3}
+  - {fileID: 1042094116111776886, guid: e78d34811380a004fa284ad1c0509151, type: 3}
+  - {fileID: 1042094116111776886, guid: 306582f8357be3f4193a3278c75516db, type: 3}
+  - {fileID: 1042094116111776886, guid: 42a45c2a94784ba44b364c97443e5edb, type: 3}
+  - {fileID: 1042094116111776886, guid: 7cd76e8942f66b14ea284023193fc64c, type: 3}
+  - {fileID: 1042094116111776886, guid: 62036b7b733877045a619a982a827ff7, type: 3}
+  - {fileID: 1042094116111776886, guid: b00a01ef417ec4a4c9997ff1f5f6dcd3, type: 3}
+  - {fileID: 1042094116111776886, guid: 68111bff8db6d1443a965d723e441988, type: 3}
+  - {fileID: 1042094116111776886, guid: 5c2ca20704a4ab8448f325b061ad6e63, type: 3}
+  - {fileID: 1042094116111776886, guid: f5da1d618b388ed41bac9d4cb1b881b1, type: 3}
+  - {fileID: 1042094116111776886, guid: 421d27ce5e1f2c14db38638b97b579fd, type: 3}
+  - {fileID: 1042094116111776886, guid: 332907b86b893e74a832059112d1873d, type: 3}
+  - {fileID: 1042094116111776886, guid: a23ca902466afab43963d2d2c6c50e9b, type: 3}
+  - {fileID: 1042094116111776886, guid: 621d18f34e10a9c47957d343e0b9ed2c, type: 3}
+  - {fileID: 1042094116111776886, guid: 820fa9bc9c282fb4188e64fb2ac5b376, type: 3}
+  - {fileID: 1042094116111776886, guid: 1dc256351aaadb84aa6843a4f17cfe1f, type: 3}
+  - {fileID: 1042094116111776886, guid: c9bf7e36a5ab4274db2b6dfec569d8b7, type: 3}
+  - {fileID: 1042094116111776886, guid: ed0a3a532b34ef5448f4de053f02f5af, type: 3}
+  - {fileID: 1042094116111776886, guid: 71e7223341872354d8d4b274a27e050f, type: 3}
+  - {fileID: 1042094116111776886, guid: 36cbb477433fedb4189d0854d0ea531b, type: 3}
+  - {fileID: 1042094116111776886, guid: b6438cb3000cebe4b893415ae29351da, type: 3}
+  - {fileID: 1042094116111776886, guid: de286626950456d44a7feb7dee6dc8a4, type: 3}
+  - {fileID: 1042094116111776886, guid: 73e2d926f28ebef41a0e4055fc529bb9, type: 3}
+  - {fileID: 1042094116111776886, guid: 6f3b17db70084fe47a928982dbf1d999, type: 3}
+  - {fileID: 1042094116111776886, guid: 2b3a2f5ec60ef024f9fd9b45baa6fa45, type: 3}
+  - {fileID: 1042094116111776886, guid: 2bcca7ac239e52d43a836eed3830244a, type: 3}
+  - {fileID: 1042094116111776886, guid: b73f384d0b142d64baa350b72935551f, type: 3}
+  - {fileID: 1042094116111776886, guid: 777409fba10746f4ba0c3bb8f53bf4ce, type: 3}
+  - {fileID: 1042094116111776886, guid: d80b43dabd1bf9a4f9649f2498049e67, type: 3}
+  - {fileID: 1042094116111776886, guid: 1c1db27c4a8eb804393eab376f0ef8fe, type: 3}
+  - {fileID: 1042094116111776886, guid: 8a3599ecc5589fa4abfe3813270023b4, type: 3}
+  - {fileID: 1042094116111776886, guid: fd1557df1091e1f43a98161ec722cfed, type: 3}
+  - {fileID: 1042094116111776886, guid: 5ac9e74461356f54692236dce17cd95c, type: 3}
+  - {fileID: 1042094116111776886, guid: cf8c845318e672a4cbbe4fa3b551383e, type: 3}
+  - {fileID: 1042094116111776886, guid: 10e23b4c26ee5134cb7619897a0bd45f, type: 3}
+  - {fileID: 1042094116111776886, guid: 384d66c652a724449b63e636bf94c08a, type: 3}
+  - {fileID: 1042094116111776886, guid: 0afb86386a0344e43bc926e621212365, type: 3}
+  - {fileID: 1042094116111776886, guid: ae5e451e3390c564d96febfa32431990, type: 3}
+  - {fileID: 1042094116111776886, guid: dbda04cb68a04b84cab204182084fae4, type: 3}
+  - {fileID: 1042094116111776886, guid: a9efa585b225cf94d9b6f7401c3c9f20, type: 3}
+  - {fileID: 1042094116111776886, guid: b32854c1d9fc5e3449bcbf04de2c0da0, type: 3}
+  - {fileID: 1042094116111776886, guid: 56784708c6795b7459269ee6b6057419, type: 3}
+  - {fileID: 1042094116111776886, guid: 9306f3bb221e4e64e9e5e9829ca71c27, type: 3}
+  - {fileID: 1042094116111776886, guid: 324fb38f53b6c264e92bef3cb6459b04, type: 3}
+  - {fileID: 1042094116111776886, guid: c6accbfaedc3e074a8290fe4bde949aa, type: 3}
+  - {fileID: 1042094116111776886, guid: 8ffb97c3bf2468347b465a719e5b03ae, type: 3}
+  - {fileID: 1042094116111776886, guid: d9d726dbef3365b4181d14b78e319e36, type: 3}
+  - {fileID: 1042094116111776886, guid: 692759c7689b81641a798b7dd8c6ce53, type: 3}
+  - {fileID: 1042094116111776886, guid: 92cbabc9243b5ac47b983892367e2d10, type: 3}
+  - {fileID: 1042094116111776886, guid: 0e4ceb3709b92f740a47ae3626da2c25, type: 3}
+  - {fileID: 1042094116111776886, guid: 89bbe3af75ed5b749bbdc3c880b6b644, type: 3}
+  - {fileID: 1042094116111776886, guid: e7d05347a560f5a4a9482199592d0886, type: 3}
+  - {fileID: 1042094116111776886, guid: e9e1014b67128ae43b7bfa95425f74be, type: 3}
+  - {fileID: 1042094116111776886, guid: fa993c439677e0e4abd8112851451f27, type: 3}
+  - {fileID: 1042094116111776886, guid: 03829f38563e9084899bf17117ef0e4f, type: 3}
+  - {fileID: 1042094116111776886, guid: 7c5a01c85d8926a4f87964fd31494579, type: 3}
+  - {fileID: 1042094116111776886, guid: 78ac32759bd179440b3313b69412eac9, type: 3}
+  - {fileID: 1042094116111776886, guid: 436db2107ef911049af02b1992265301, type: 3}
+  - {fileID: 1042094116111776886, guid: 71c3110d75cd35d4b9db16600a343ce2, type: 3}
+  - {fileID: 1042094116111776886, guid: c1ab71ab0e61e30498b0c238bddd2c69, type: 3}
+  - {fileID: 1042094116111776886, guid: 624ff91c6343e5b43b1818712a4762db, type: 3}
+  - {fileID: 1042094116111776886, guid: 32b600df8ef0f234fb466c3e209fcdab, type: 3}
+  - {fileID: 1042094116111776886, guid: 1ba4ddfc0deac1242a7dc38cf6c269f1, type: 3}
+  - {fileID: 1042094116111776886, guid: 692d22425ebcba04cad67b2fd27e0a58, type: 3}
+  - {fileID: 1042094116111776886, guid: 739f9720667ab2c4c8158cc0aed2dc53, type: 3}
+  - {fileID: 1042094116111776886, guid: c12ad245c3b1c29469cb4a78066510e2, type: 3}
+  - {fileID: 1042094116111776886, guid: cba74c1e8322fbe4f9eb7cda0e979603, type: 3}
+  - {fileID: 1042094116111776886, guid: dedfea68463d88a4abad26495677e7c1, type: 3}
+  - {fileID: 1042094116111776886, guid: deb6ce62cd84b294cbdb7f2bf3c4a37a, type: 3}
+  useContentHashing: 1
+  fileStates:
+  - assetGuid: 0e3abba0e85eaed4ca6c2a57eac0aa6c
+    fileName: add_component_to_gameobject
+    contentHash: e057b3075ae1deb331fc3186cfe08b780bbc06f00c995ffdbc788b17d2c76b9c
+  - assetGuid: 5fb89768e8230da4c91ead8f35706be4
+    fileName: configure_component_property
+    contentHash: c529302dcda72a72b2b60da93568eff0f4d1a49ad87f7c4037bf929e843078c7
+  - assetGuid: 6f3b17db70084fe47a928982dbf1d999
+    fileName: get_component_info
+    contentHash: 888d290b5c9b710499e2edee1ba87339b31dba7103f144fabf7c147afa4a71bf
+  - assetGuid: 2bcca7ac239e52d43a836eed3830244a
+    fileName: get_project_info
+    contentHash: cfe8e7816805b668db332c88f33398be24a528fd69e5787467a0e69dd7f2b02e
+  - assetGuid: fd1557df1091e1f43a98161ec722cfed
+    fileName: identify_unity_instance
+    contentHash: 1b208dccae640ddb7bef03f1687401b53d93d8f19e0bc705ace24720f83f9911
+  - assetGuid: 56784708c6795b7459269ee6b6057419
+    fileName: list_unity_instances
+    contentHash: 9ceca2063d5eb586da0b94821595312ab6460309a18a76166d76b7bcb4aaff08
+  - assetGuid: c12ad245c3b1c29469cb4a78066510e2
+    fileName: switch_unity_instance
+    contentHash: fe885e93ea1a757fe1a53ac3b9e85a8ed010d73086128be693167ea4bd34e3af
+  - assetGuid: 8affdf0c3360c9d42b7edac82cecd243
+    fileName: add_node_to_graph
+    contentHash: b161da61f7be1c2236dc3fe70e5a0625db39ec8babc3204eae51f4b392026441
+  - assetGuid: ccc0f22ce8b95004a8aa966aa0c7c8aa
+    fileName: connect_graph_nodes
+    contentHash: a4641497513413a00e9d51aa05a4945f05319c5205c14d4ed38bc5053dc2202c
+  - assetGuid: 043a8011caf62524e9d7ac22bc7beba6
+    fileName: create_monobehaviour_script
+    contentHash: 811f20c4c68b86117a2bffc5d2b7c33b707a0237148720a12085fbbed62697bb
+  - assetGuid: e78d34811380a004fa284ad1c0509151
+    fileName: create_prefab
+    contentHash: 61faf0cae45273e4fb855a4dcb3bd28e05771ac790ca3f6cfd62bcae5a4d076a
+  - assetGuid: 306582f8357be3f4193a3278c75516db
+    fileName: create_scene_with_setup
+    contentHash: 3bebb0c71ddada7972102f5a923d4e80501ea595125cf4f0a271920ff0bd63e3
+  - assetGuid: 42a45c2a94784ba44b364c97443e5edb
+    fileName: create_scriptable_object_instance
+    contentHash: 76076c4e78609e8edfa414036e2106edde6fd71eae430c30b65c864fcba2ce94
+  - assetGuid: 73e2d926f28ebef41a0e4055fc529bb9
+    fileName: find_assets_by_type
+    contentHash: 17b6bf19f5587cf4e2d78926b387e439036350a9f92e844f0189095b1c157d4a
+  - assetGuid: 2b3a2f5ec60ef024f9fd9b45baa6fa45
+    fileName: get_graph_structure
+    contentHash: 79295f4d2814b602fd4b843a90a7ff9b5eeaedbc99201cf73176024f958e2f99
+  - assetGuid: 5ac9e74461356f54692236dce17cd95c
+    fileName: instantiate_prefab
+    contentHash: 09ca35cb14cd31c3376b893b3e799c478617a132c32a09966ced952771327433
+  - assetGuid: e9e1014b67128ae43b7bfa95425f74be
+    fileName: save_scene_as
+    contentHash: cf55f07dc16ba0827b2259c72f78d2be1f2660dbe00a9608c45c17dc9dcb92b5
+  - assetGuid: 9a03ab79278128842bf174faa9407eea
+    fileName: add_block_to_context
+    contentHash: 46717dcb873fa5219b9c292cf0adc4e0b88d774eb5bd2fd101dcc6b7145391f1
+  - assetGuid: 27215bc631325974b83c352656b515a8
+    fileName: align_nodes
+    contentHash: 81e3683885306a11b4b35b85c7bc393d62469f7e7ec8dabeaecb44120c94c3e6
+  - assetGuid: 9f1ee6943c0e07a49ac156610fa1f8e4
+    fileName: auto_layout_nodes
+    contentHash: 9f18dec07b59326933289d1510c611aeed4079538f00af933ae5b7d4e206fc5c
+  - assetGuid: 742afbe7ecaa4fa4485e92332404d6ab
+    fileName: bind_parameter_to_object
+    contentHash: ad8e2e67088e42203c01821e88cf3a1dbc9958f7d1790ac1e7363e1b348daeb7
+  - assetGuid: 1616364767dfd294393d6696898032bd
+    fileName: connect_flow_contexts
+    contentHash: 85e3da00623dc8ee4429ebdccded0e7aa96fcd9ee6590c65316a8f8f153dc796
+  - assetGuid: 36a47ba605410154ba2119024e4f8412
+    fileName: create_context
+    contentHash: 2d408416aadd281c8e0beafe9471cdccec284a168bb550f06b25e9c74abdad0f
+  - assetGuid: 4368af456e1156d47bf5a4733b248a69
+    fileName: create_exposed_parameter
+    contentHash: 78a94615eca168771f6e8334197cd5e62111c8c5693251df1a4e4704ab7c74fd
+  - assetGuid: 68111bff8db6d1443a965d723e441988
+    fileName: create_vfx_graph
+    contentHash: e7e996677fffdffb7983fbc97f70c3e7ead0c9a833c657b877370676f6379620
+  - assetGuid: f5da1d618b388ed41bac9d4cb1b881b1
+    fileName: delete_exposed_parameter
+    contentHash: ecd6cc70d4261fe87f53331b5054ce2434d7371cbef6ded9bb6d399bf2f5c102
+  - assetGuid: 421d27ce5e1f2c14db38638b97b579fd
+    fileName: describe_node_ports
+    contentHash: 751415e3394e35ab0c9851bcb9008b90544ab344e1d98a38d45891c3cdfc5e6c
+  - assetGuid: 332907b86b893e74a832059112d1873d
+    fileName: describe_node_settings
+    contentHash: 8e0b7f90601fa5f3d81ff6d2f0c9d0f6dce022d4118722febe1f479c65793c15
+  - assetGuid: 621d18f34e10a9c47957d343e0b9ed2c
+    fileName: disconnect_flow_contexts
+    contentHash: 4ad512fbdf9922ab119d804268cff44daace57336f44ddb7d3836d5421266b8e
+  - assetGuid: 820fa9bc9c282fb4188e64fb2ac5b376
+    fileName: disconnect_graph_nodes
+    contentHash: 2fa251ac1e7017c18922425596e5271d0fa63122df3187d71f26f42ca19a7886
+  - assetGuid: 1dc256351aaadb84aa6843a4f17cfe1f
+    fileName: duplicate_context
+    contentHash: 504befaea194b7ea2aaa55667cc9b5e3b6660ba8abdb16637cdd402dfd26f5db
+  - assetGuid: c9bf7e36a5ab4274db2b6dfec569d8b7
+    fileName: duplicate_graph
+    contentHash: 7da8c5320ed38d2aa0337e64a5446604e90ee14084a31b3ceb9214f29060d9e8
+  - assetGuid: ed0a3a532b34ef5448f4de053f02f5af
+    fileName: duplicate_node
+    contentHash: 13482651fd2b604f1b8943ff979f4c6ad00657e0c5a60c9de3163eaf98083425
+  - assetGuid: de286626950456d44a7feb7dee6dc8a4
+    fileName: export_graph_snapshot
+    contentHash: 55420997ebeadb070db3212dea0ecd6a8b014fd29ccfcabffcebb17f489b4f50
+  - assetGuid: d80b43dabd1bf9a4f9649f2498049e67
+    fileName: get_slot_metadata
+    contentHash: 3352550cf500bb7889950a44978280efa39bf19e129257cb1e5ec26e3c3e19f3
+  - assetGuid: 8a3599ecc5589fa4abfe3813270023b4
+    fileName: get_vfx_graph_diagnostics
+    contentHash: a85a61c5f3c82108907366e7e89ca6d3df3d9f27991f4303342ad5aab7309c4b
+  - assetGuid: cf8c845318e672a4cbbe4fa3b551383e
+    fileName: list_available_node_settings
+    contentHash: 7584264664853080c7c22eb26f5de80875ca6bae14437ea04da9157e89a8f984
+  - assetGuid: 10e23b4c26ee5134cb7619897a0bd45f
+    fileName: list_context_blocks
+    contentHash: 23ef1a6d37edd4d6d4f6450111bedd0d71cffcd0d4b17ead4c65f8fed903e090
+  - assetGuid: 384d66c652a724449b63e636bf94c08a
+    fileName: list_data_connections
+    contentHash: 3368d4237be80e428b896833a2e7a95fee7bda5ca9bca033b7255a4b964ad6c1
+  - assetGuid: 0afb86386a0344e43bc926e621212365
+    fileName: list_exposed_parameters
+    contentHash: 9ecbf96acc8102b45680d64f29e451e255eda00a30cd7cfce914b4505ec3be5d
+  - assetGuid: dbda04cb68a04b84cab204182084fae4
+    fileName: list_graph_instances
+    contentHash: 003f1ec82ebe5ef98abf31fb0985a354ceeed15a87ecfedafe75d0d0028ebba0
+  - assetGuid: a9efa585b225cf94d9b6f7401c3c9f20
+    fileName: list_graph_variants
+    contentHash: f0085b293ca8a00cf30bcef2a74a8e0bcb8aac348e9c8df6cabef483408689d7
+  - assetGuid: 9306f3bb221e4e64e9e5e9829ca71c27
+    fileName: move_block_in_context
+    contentHash: eb74d704397bf16a2c3ec6a98b5e47f7b8d6d09511460f91cc98e5efd4de0d42
+  - assetGuid: 324fb38f53b6c264e92bef3cb6459b04
+    fileName: move_graph_node
+    contentHash: eb74d704397bf16a2c3ec6a98b5e47f7b8d6d09511460f91cc98e5efd4de0d42
+  - assetGuid: 8ffb97c3bf2468347b465a719e5b03ae
+    fileName: play_effect
+    contentHash: b2cf2afc7ce9ad07dc43ae3e7a9abd9d3bbc3403838a513b7b89832b43b99ae8
+  - assetGuid: 692759c7689b81641a798b7dd8c6ce53
+    fileName: remove_block_from_context
+    contentHash: 5194b4145ff53a65c6d0a95730d18df56118cf8491232aebba29eb51429cfc22
+  - assetGuid: 92cbabc9243b5ac47b983892367e2d10
+    fileName: remove_node_from_graph
+    contentHash: 6d22ca224d691ba1eff51e4382c8f9c5414e1fef93d30c744e444e6c97dacf3f
+  - assetGuid: 89bbe3af75ed5b749bbdc3c880b6b644
+    fileName: rename_exposed_parameter
+    contentHash: ea4dc61f32146ee03b7c2a81f549258258f25f0e2c17d330ff2673693daa92b5
+  - assetGuid: fa993c439677e0e4abd8112851451f27
+    fileName: send_vfx_event
+    contentHash: 6e2016013670792c6ee71a33d769975af6c1c3e151545b2cca22048c7528b46c
+  - assetGuid: 7c5a01c85d8926a4f87964fd31494579
+    fileName: set_exposed_parameter_property
+    contentHash: 0f8f2680fdc3219235392f0102b792eebf1fb48e1d24f542694fa88db432d8a9
+  - assetGuid: 78ac32759bd179440b3313b69412eac9
+    fileName: set_graph_node_property
+    contentHash: 6d665b8acde84859a07ff02699fb73d48753bafbf914e40dd7929946b3cdc237
+  - assetGuid: 436db2107ef911049af02b1992265301
+    fileName: set_slot_value
+    contentHash: ee7f9102e1374fe87f7f8b8fe633a347f33401111163f9681062ac5369a65515
+  - assetGuid: 624ff91c6343e5b43b1818712a4762db
+    fileName: set_vfx_parameter
+    contentHash: 95292fc9f31b5bd930ddbef3df2817492cbfab954e367cac77526223804453a0
+  - assetGuid: 32b600df8ef0f234fb466c3e209fcdab
+    fileName: set_visual_effect_graph
+    contentHash: 21724e62be2156e72a223e9313138062637fb4693ead419ec5a14221dd544971
+  - assetGuid: 1ba4ddfc0deac1242a7dc38cf6c269f1
+    fileName: spawn_visual_effect_prefab
+    contentHash: 1d0aff0aed8700fa5078b0fa851e6fc8f45a157dc57f0e0676a0a9a57efd0936
+  - assetGuid: 692d22425ebcba04cad67b2fd27e0a58
+    fileName: stop_effect
+    contentHash: 7a25ddb794c8c2e8dd94dc15a2623f65279d92fd242b1c784ccc6b508afc7755
+  - assetGuid: 739f9720667ab2c4c8158cc0aed2dc53
+    fileName: swap_visual_effect_graph
+    contentHash: 84ce6c9db37db89a6cc24b9a2266d26886b71a28a3b9c07796162106fc146bfd
+  - assetGuid: cba74c1e8322fbe4f9eb7cda0e979603
+    fileName: toggle_block_enabled
+    contentHash: 4e7766bdb78358599c3bc6aecdd983ba662858d22e79116afa1af587fd5291fa
+  - assetGuid: dedfea68463d88a4abad26495677e7c1
+    fileName: toggle_context_enabled
+    contentHash: 257a6d59865d73005774de0c9c44fe4cc6c1c09e50a354b5795c9eba1b6e39b7
+  - assetGuid: deb6ce62cd84b294cbdb7f2bf3c4a37a
+    fileName: unbind_parameter
+    contentHash: b11507125ecfc3943be3b6f84ec5c4943de888d65b81431be009b702c6bfe18b
+  - assetGuid: 3f1a589d50c1573418f54438487df2d8
+    fileName: add_node_to_shader_graph
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: d27baa0bb3bca0644ba43af12004bf0f
+    fileName: add_scripting_define
+    contentHash: f44b1b52612eb9a7fab2ea547fba47adea9a8ff3b1e8f221a108e09e4e0b17e1
+  - assetGuid: 92a625136b528b64889bd50af0a47493
+    fileName: add_shader_graph_property
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: fc22505fdfe8da742a0cd12609b6ceb4
+    fileName: add_timeline_clip
+    contentHash: 8b9e862de41df01d93857011265ce40af3946ebb4cc7a7b024617d60658e269c
+  - assetGuid: 9e0197434fd917c439b678b938b1c6c1
+    fileName: add_timeline_track
+    contentHash: 96c5614d9fea2cdac5a02cc1d2b2fbe5de817281ac326a05279f435e03640ca2
+  - assetGuid: c1e1cde97811d2145be5e0f98f67e2a7
+    fileName: build_vfx_graph_tree
+    contentHash: 05fa0b3833c71d889209c7c4cf6173710d563b0881d4ba0c6f913336b99494ec
+  - assetGuid: a1188db46c74fbc4b91d6261c32c7d28
+    fileName: connect_shader_graph_nodes
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: 57b07ff55550a7d45a6d341123d5fecc
+    fileName: create_material
+    contentHash: 9bab66cd39c555f10ca1819ab798d9d36e7da7fd107d27d67480440a7172a26d
+  - assetGuid: 42002f5618eebb640bccbfad3c7d7162
+    fileName: create_mesh
+    contentHash: 8482fbba27e075f6667b89f5473bbd97dccf395b8cd3ee250f40f59eef718e4d
+  - assetGuid: 7cd76e8942f66b14ea284023193fc64c
+    fileName: create_shader_graph
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: 62036b7b733877045a619a982a827ff7
+    fileName: create_texture
+    contentHash: c764af7675dfcd9a69ce6c4a679bc4093e8ed58a1ddeb27649752f6deb2cd891
+  - assetGuid: b00a01ef417ec4a4c9997ff1f5f6dcd3
+    fileName: create_timeline_asset
+    contentHash: 96c5614d9fea2cdac5a02cc1d2b2fbe5de817281ac326a05279f435e03640ca2
+  - assetGuid: 71e7223341872354d8d4b274a27e050f
+    fileName: duplicate_shader_graph
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: 36cbb477433fedb4189d0854d0ea531b
+    fileName: enter_play_mode
+    contentHash: 548d86130e0cbf7dbadc04745215ae8766d83b7931edff26799828e962a75708
+  - assetGuid: b6438cb3000cebe4b893415ae29351da
+    fileName: exit_play_mode
+    contentHash: 548d86130e0cbf7dbadc04745215ae8766d83b7931edff26799828e962a75708
+  - assetGuid: b73f384d0b142d64baa350b72935551f
+    fileName: get_shader_graph_diagnostics
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: 777409fba10746f4ba0c3bb8f53bf4ce
+    fileName: get_shader_graph_structure
+    contentHash: db47a9ff0e030136af76eee886f7cac5233629dd0ac944e6415132fa38c11028
+  - assetGuid: 1c1db27c4a8eb804393eab376f0ef8fe
+    fileName: get_transform
+    contentHash: d83f43200d04cc740b1b7b0cad6a486e4cabfc534ef4abbcfa9c24c04c7bb2aa
+  - assetGuid: b32854c1d9fc5e3449bcbf04de2c0da0
+    fileName: list_scripting_defines
+    contentHash: 9f7df7f21118f4b4a76b558f943e62f69b7b4fbafd279672ea0a0cdd60000eb4
+  - assetGuid: c6accbfaedc3e074a8290fe4bde949aa
+    fileName: play_audio_clip
+    contentHash: 425052f48562f0d0153fdc6b577e3b4fb8c9c99207e2aed9f033e9fd3fcd0638
+  - assetGuid: d9d726dbef3365b4181d14b78e319e36
+    fileName: refresh_assets
+    contentHash: 38405235dd4b8c97f0b88bc5be7c6ebdcd6a3bd6a5f4e26eab4bdb1ba3a619d2
+  - assetGuid: 0e4ceb3709b92f740a47ae3626da2c25
+    fileName: remove_scripting_define
+    contentHash: 3511cd336762a578fc7f76ce9c64f55adfb10e2bbfe888b20f391e97e13095d6
+  - assetGuid: 03829f38563e9084899bf17117ef0e4f
+    fileName: set_audio_source_property
+    contentHash: 425052f48562f0d0153fdc6b577e3b4fb8c9c99207e2aed9f033e9fd3fcd0638
+  - assetGuid: 71c3110d75cd35d4b9db16600a343ce2
+    fileName: set_timeline_playhead
+    contentHash: 96c5614d9fea2cdac5a02cc1d2b2fbe5de817281ac326a05279f435e03640ca2
+  - assetGuid: c1ab71ab0e61e30498b0c238bddd2c69
+    fileName: set_transform
+    contentHash: dabafa04b5168d869af452e693a0a5b446ae139ab0eaa44daaa6d2bf52f63a9e
+  - assetGuid: 5c2ca20704a4ab8448f325b061ad6e63
+    fileName: create_vfx_instance
+    contentHash: c7cc7355e849837c357578cc197416b4100c1572d11aafb848b2c9c885b798c4
+  - assetGuid: a23ca902466afab43963d2d2c6c50e9b
+    fileName: describe_vfx_graph
+    contentHash: 4ea5dc811e16554d71c0f6ec17dd2ff454464b1a9f10536e13234fa9b433dae1
+  - assetGuid: ae5e451e3390c564d96febfa32431990
+    fileName: list_graphs
+    contentHash: b1b28ba792e4b978c572eccc91c9231f9b794ff620cb537957bf5ff1ce5eff27
+  - assetGuid: e7d05347a560f5a4a9482199592d0886
+    fileName: render_vfx_preview
+    contentHash: 1861699e01e92c9a29ec2879dce2c0f680c485ddd8b98dd0b53462e534b24ebe
+  - assetGuid: 419df5baff81d914998d0896b9882999
+    fileName: collect_vfx_dataset
+    contentHash: 7ef9082b816d052e158901a40ad4c248936c38503f1f20e41f2869cc36926a50
+  - assetGuid: b81d57c6483da3847881f20b096db12a
+    fileName: capture_vfx_preview_window
+    contentHash: 4b9c467ccd63da2790320ee2c8059e4af35500ba4b29f17fbd7c288b2f5b2329
+  - assetGuid: e65c3d35f6095ec46983019099dc478d
+    fileName: capture_vfx_multi_angle
+    contentHash: f94f9a1779a644b7ca38cba342cae5333af2739569db82770af2ee7f62b1618d
+  - assetGuid: 53ef29dc9d47cab49a8c2af890b6061d
+    fileName: capture_vfx_headless
+    contentHash: fd23e27fb3bd9e59739f74b220432994d2da96ccb815f0b4f851dca001fb9380

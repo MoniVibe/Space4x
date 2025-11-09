@@ -39,6 +39,13 @@ Facility archetypes define how processing, fabrication, and support capabilities
 - **Colony-Focused**: Terraforming Plants, Civic Works, Cultural Archives.
 - **Titan-Focused**: Titan Forge, Stellar Manipulators, Supercarrier Hangars.
 
+## Manufacturer Specialization
+
+- Multiple manufacturers can deliver the same module archetype with divergent tuning: fire rate, ammo/fuel type, damage profile, mount size, energy footprint, maintenance costs.
+- Signature traits scale with manufacturer experience; veteran shops unlock exclusive variants and legendary production runs that become collector blueprints.
+- Manufacturer traits tie into the Facility Tier Framework (quality/rarity/manufacturer matrices) and respond to acquisition/franchise systems.
+- Legendary runs may require specific crew ranks, officer titles, or tech diffusion milestones to commission.
+
 ## Development Constraints
 
 - Hosting entity development level and tech tier govern how many facilities and which sizes can be maintained simultaneously.

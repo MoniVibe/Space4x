@@ -46,6 +46,17 @@ namespace PureDOTS.Authoring
             });
 
             AddComponent<TimeControlSingletonTag>(entity);
+            AddComponent(entity, new TimeControlInputState
+            {
+                SampleTick = 0,
+                RewindHeld = 0,
+                RewindPressedThisFrame = 0,
+                RewindSpeedLevel = 0,
+                EnterGhostPreview = 0,
+                StepDownTriggered = 0,
+                StepUpTriggered = 0,
+                PauseToggleTriggered = 0
+            });
         }
     }
 }

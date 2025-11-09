@@ -1,0 +1,33 @@
+{
+    "name": "Space4X.Editor",
+    "rootNamespace": "",
+    "references": [
+        "PureDOTS.Authoring",
+        "PureDOTS.Runtime",
+        "PureDOTS.Editor",
+        "Unity.VisualEffectGraph.Runtime",
+        "Unity.VisualEffectGraph.Editor",
+        "Unity.Entities",
+        "Unity.Transforms",
+        "Unity.Scenes",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.InputSystem",
+        "Space4X.Gameplay",
+        "MCPForUnity.Editor",
+        "UnityEditor",
+        "UnityEngine"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
+

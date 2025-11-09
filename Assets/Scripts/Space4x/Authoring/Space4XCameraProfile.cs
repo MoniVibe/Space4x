@@ -32,6 +32,10 @@ namespace Space4X.Registry
         [Tooltip("Maximum zoom distance")]
         public float ZoomMaxDistance = 500f;
 
+        [Header("Vertical Movement Settings")]
+        [Tooltip("Speed of camera vertical movement (up/down on Y axis)")]
+        public float VerticalMoveSpeed = 10f;
+
         [Header("Rotation Settings")]
         [Tooltip("Speed of camera rotation")]
         public float RotationSpeed = 90f;

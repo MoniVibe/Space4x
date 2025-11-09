@@ -12,11 +12,27 @@ namespace Space4X.Registry
     {
         public float2 PanInput;
         public float ZoomInput;
+        public float VerticalMoveInput;
         public float2 RotateInput;
         public bool ResetRequested;
+        public bool ToggleVerticalModeRequested;
         public bool EnablePan;
         public bool EnableZoom;
+        public bool EnableVerticalMove;
         public bool EnableRotation;
+    }
+
+    /// <summary>
+    /// Persistent camera state for toggle modes and settings.
+    /// Tracks whether vertical movement is in world space or camera-relative mode.
+    /// </summary>
+    public struct Space4XCameraPersistentState : IComponentData
+    {
+        /// <summary>
+        /// If true, vertical movement (Q/E) moves relative to camera orientation.
+        /// If false, vertical movement moves along world Y axis (XZ plane locked).
+        /// </summary>
+        public bool VerticalMoveCameraRelative;
     }
 
     /// <summary>
@@ -41,6 +57,7 @@ namespace Space4X.Registry
     {
         public float PanSpeed;
         public float ZoomSpeed;
+        public float VerticalMoveSpeed;
         public float ZoomMinDistance;
         public float ZoomMaxDistance;
         public float RotationSpeed;
@@ -61,7 +78,9 @@ namespace Space4X.Registry
     {
         public bool EnablePan;
         public bool EnableZoom;
+        public bool EnableVerticalMove;
         public bool EnableRotation;
+        public bool RequireRightMouseForRotation; // If true, rotation only works when right mouse is held
     }
 }
 

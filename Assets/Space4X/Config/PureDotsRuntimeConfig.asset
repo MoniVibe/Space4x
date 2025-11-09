@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb942c4632d7412fba32e94bf19667fd, type: 3}
   m_Name: PureDotsRuntimeConfig
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PureDotsRuntimeConfig
   _schemaVersion: 1
   _time:
     fixedDeltaTime: 0.016666668
@@ -32,6 +32,7 @@ MonoBehaviour:
     maxTicksPerSecond: 120
     strideScale: 1
   _resourceTypes: {fileID: 11400000, guid: d27ccb53a5fa5e546b9b90fdc9e013ae, type: 2}
+  _recipeCatalog: {fileID: 11400000, guid: a9a9f577f2234b2387bfc72b82bcad99, type: 2}
   _pooling:
     nativeListCapacity: 64
     nativeQueueCapacity: 64

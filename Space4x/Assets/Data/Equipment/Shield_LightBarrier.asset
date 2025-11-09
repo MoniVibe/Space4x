@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0deecee3af341838d9b229761088fc1, type: 3}
+  m_Name: Shield_LightBarrier
+  m_EditorClassIdentifier: 
+  equipmentId: shield.light_barrier
+  displayName: Light Barrier Shield
+  equipmentType: 2
+  mass: 5
+  powerDraw: 5
+  heatGeneration: 4
+  description: Regenerative shield grid optimized for short sorties.

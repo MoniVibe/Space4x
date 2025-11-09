@@ -8,7 +8,7 @@
         "com.unity.inputsystem": "1.1.1",
         "com.unity.cloud.gltfast": "6.12.1"
       },
-      "hash": "88fad6c4b1c96b21d5f4f86eab457ce1ffde3fbc"
+      "hash": "345f25b161a11e2c148650f25948c69c3c706e93"
     },
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
@@ -17,7 +17,7 @@
       "dependencies": {
         "com.unity.nuget.newtonsoft-json": "3.0.2"
       },
-      "hash": "8f227ff5be77e3b0e4ec9cf8851a884565c78a1c"
+      "hash": "14b11ba073304b3aee5978dde4ac8ad32973de60"
     },
     "com.moni.puredots": {
       "version": "file:../../PureDOTS/Packages/com.moni.puredots",
@@ -330,6 +330,21 @@
       "dependencies": {
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
+      }
+    },
+    "com.unity.vfx-toolbox": {
+      "version": "file:C:/Users/Moni/Documents/claudeprojects/VFXToolbox-2.1.0-preview",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
+    },
+    "com.unity.visualeffectgraph": {
+      "version": "17.2.0",
+      "depth": 0,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.shadergraph": "17.2.0",
+        "com.unity.render-pipelines.core": "17.2.0"
       }
     },
     "com.unity.visualscripting": {
