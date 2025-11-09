@@ -136,8 +136,8 @@ MonoBehaviour:
   initialHealth: 100
   maxHealth: 100
   initialHunger: 30
-  initialEnergy: 80
-  initialMorale: 75
+  initialEnergy: 100
+  initialMorale: 50
   maxMana: 10
   initialMana: 10
   baseSpeed: 3
