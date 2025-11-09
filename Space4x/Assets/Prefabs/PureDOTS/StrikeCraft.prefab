@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 210001}
   - component: {fileID: 210010}
   - component: {fileID: 210011}
+  - component: {fileID: 210012}
   m_Layer: 0
   m_Name: StrikeCraft
   m_TagString: Untagged
@@ -66,3 +67,23 @@ MonoBehaviour:
   - definition: {fileID: 11400000, guid: e1a17fb2a83549108737e934d236e3c6, type: 2}
   - definition: {fileID: 11400000, guid: b7a0b4697897471baac0afac6a1641a9, type: 2}
   - definition: {fileID: 11400000, guid: 3d406178acec4b2c933b89cc4e18e668, type: 2}
+--- !u!114 &210012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 210000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36b59ce74b354bb2b4b39e569c6f3437, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PureDOTS.Authoring.Combat::PureDOTS.Authoring.Combat.CombatLoadoutAuthoring
+  patrolRadius: 30
+  engagementRange: 5
+  weaponCooldownSeconds: 2
+  retreatThreshold: 0.25
+  pilotExperience: 12
+  strafeThreshold: 10
+  kiteThreshold: 20
+  jTurnThreshold: 40
