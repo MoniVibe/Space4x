@@ -34,6 +34,7 @@ Thumbs.db
 projects/
 *.tmp
 
+Packages/Coplay/Editor/Checkpoints/
 
 
 
