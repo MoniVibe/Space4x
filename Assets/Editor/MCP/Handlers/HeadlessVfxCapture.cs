@@ -315,6 +315,15 @@ namespace PureDOTS.Editor.MCP
                 };
                 File.WriteAllText(manifestPath, Newtonsoft.Json.JsonConvert.SerializeObject(manifestData, settings));
 
+                // Extract and save parameters and asset bindings
+                if (visualEffect != null && graphAsset != null)
+                {
+                    Debug.Log("[HeadlessVfxCapture] Extracting parameters and asset bindings...");
+                    var (currentParams, assetBindings) = PureDOTS.Editor.MCP.Helpers.VfxParameterExtractor.ExtractParametersAndAssets(visualEffect);
+                    PureDOTS.Editor.MCP.Helpers.VfxParameterExtractor.SaveParametersAndAssets(absoluteOutputDir, graphName, currentParams, assetBindings);
+                    Debug.Log($"[HeadlessVfxCapture] Saved {currentParams.Count} parameters and {assetBindings.Count} asset bindings for {graphName}");
+                }
+
                 // Cleanup
                 foreach (var cameraInfo in cameras)
                 {

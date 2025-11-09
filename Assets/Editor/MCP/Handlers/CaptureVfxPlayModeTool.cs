@@ -198,6 +198,15 @@ namespace PureDOTS.Editor.MCP
                     }
                 }
 
+                // Extract and save parameters and asset bindings BEFORE exiting play mode
+                if (visualEffect != null && graphAsset != null)
+                {
+                    Debug.Log("[CaptureVfxPlayMode] Extracting parameters and asset bindings...");
+                    var (currentParams, assetBindings) = PureDOTS.Editor.MCP.Helpers.VfxParameterExtractor.ExtractParametersAndAssets(visualEffect);
+                    PureDOTS.Editor.MCP.Helpers.VfxParameterExtractor.SaveParametersAndAssets(absoluteOutputDir, graphName, currentParams, assetBindings);
+                    Debug.Log($"[CaptureVfxPlayMode] Saved {currentParams.Count} parameters and {assetBindings.Count} asset bindings for {graphName}");
+                }
+
                 // Cleanup RenderTextures
                 foreach (var cameraInfo in cameras)
                 {

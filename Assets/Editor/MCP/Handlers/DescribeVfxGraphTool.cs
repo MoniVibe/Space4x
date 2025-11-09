@@ -78,6 +78,19 @@ namespace PureDOTS.Editor.MCP
                 if (lod >= 2)
                 {
                     descriptor["path"] = graphPath;
+                    
+                    // Add graph structure (nodes, connections) for training
+                    var structure = GetGraphStructure(resource, lod);
+                    if (structure != null)
+                    {
+                        descriptor["structure"] = structure;
+                    }
+                }
+
+                var assetDependencies = GetAssetDependencies(graphPath);
+                if (assetDependencies != null && assetDependencies.Count > 0)
+                {
+                    descriptor["asset_dependencies"] = assetDependencies;
                 }
 
                 var serializer = new JsonSerializer
@@ -140,6 +153,120 @@ namespace PureDOTS.Editor.MCP
             }
 
             return tags;
+        }
+
+        private static Dictionary<string, object> GetAssetDependencies(string graphPath)
+        {
+            var result = new Dictionary<string, object>();
+
+            try
+            {
+                var dependencies = AssetDatabase.GetDependencies(graphPath, true);
+                if (dependencies == null || dependencies.Length == 0)
+                {
+                    return result;
+                }
+
+                var textures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var meshes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var materials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var shaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var dependencyPath in dependencies)
+                {
+                    if (string.IsNullOrEmpty(dependencyPath))
+                    {
+                        continue;
+                    }
+
+                    var normalizedPath = dependencyPath.Replace('\\', '/');
+                    if (string.Equals(normalizedPath, graphPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var mainType = AssetDatabase.GetMainAssetTypeAtPath(normalizedPath);
+                    if (mainType == null)
+                    {
+                        if (normalizedPath.EndsWith(".shadergraph", StringComparison.OrdinalIgnoreCase))
+                        {
+                            shaders.Add(normalizedPath);
+                        }
+                        continue;
+                    }
+
+                    if (typeof(Material).IsAssignableFrom(mainType))
+                    {
+                        materials.Add(normalizedPath);
+                        continue;
+                    }
+
+                    if (typeof(Texture).IsAssignableFrom(mainType))
+                    {
+                        textures.Add(normalizedPath);
+                        continue;
+                    }
+
+                    if (typeof(Mesh).IsAssignableFrom(mainType))
+                    {
+                        meshes.Add(normalizedPath);
+                        continue;
+                    }
+
+                    if (typeof(Shader).IsAssignableFrom(mainType))
+                    {
+                        shaders.Add(normalizedPath);
+                        continue;
+                    }
+
+                    if (normalizedPath.EndsWith(".shadergraph", StringComparison.OrdinalIgnoreCase))
+                    {
+                        shaders.Add(normalizedPath);
+                    }
+                }
+
+                if (textures.Count > 0)
+                {
+                    result["textures"] = textures
+                        .Select(path => path.Replace('\\', '/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+
+                if (meshes.Count > 0)
+                {
+                    result["meshes"] = meshes
+                        .Select(path => path.Replace('\\', '/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+
+                if (materials.Count > 0)
+                {
+                    result["materials"] = materials
+                        .Select(path => path.Replace('\\', '/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+
+                if (shaders.Count > 0)
+                {
+                    result["shaders"] = shaders
+                        .Select(path => path.Replace('\\', '/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[MCP Tools] describe_vfx_graph: Failed to gather asset dependencies: {ex.Message}");
+            }
+
+            return result;
         }
 
         private static List<Dictionary<string, object>> GetExposedParameters(string graphPath, object resource, int lod)
@@ -1027,6 +1154,240 @@ namespace PureDOTS.Editor.MCP
             }
 
             return null;
+        }
+
+        private static Dictionary<string, object> GetGraphStructure(object resource, int lod)
+        {
+            try
+            {
+                if (!VfxGraphReflectionHelpers.TryGetViewController(resource, true, out var controller, out var error))
+                {
+                    Debug.LogWarning($"[MCP Tools] describe_vfx_graph: Unable to get controller for structure: {error}");
+                    return null;
+                }
+
+                VfxGraphReflectionHelpers.InvokeInstanceMethod(controller, "LightApplyChanges");
+                var syncArgs = new object[] { false };
+                controller.GetType()
+                    .GetMethod("SyncControllerFromModel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    ?.Invoke(controller, syncArgs);
+
+                var nodes = BuildNodeSummaries(controller);
+                var dataConnections = BuildDataConnections(controller);
+                var flowConnections = BuildFlowConnections(controller);
+
+                // Extract node motifs (simplified types for training)
+                var nodeTypes = new Dictionary<string, int>();
+                var nodeMotifs = new List<string>();
+                
+                foreach (var node in nodes)
+                {
+                    var nodeType = node.ContainsKey("type") ? node["type"]?.ToString() : "";
+                    var nodeTitle = node.ContainsKey("title") ? node["title"]?.ToString() : "";
+                    
+                    // Extract motif from type name (e.g., "VFXSubgraphContext" -> "Subgraph", "Random" -> "Random")
+                    var motif = ExtractNodeMotif(nodeType, nodeTitle);
+                    if (!string.IsNullOrEmpty(motif))
+                    {
+                        nodeMotifs.Add(motif);
+                        nodeTypes[motif] = nodeTypes.GetValueOrDefault(motif, 0) + 1;
+                    }
+                }
+
+                return new Dictionary<string, object>
+                {
+                    ["node_count"] = nodes.Count,
+                    ["data_connection_count"] = dataConnections.Count,
+                    ["flow_connection_count"] = flowConnections.Count,
+                    ["node_motifs"] = nodeMotifs,
+                    ["node_type_counts"] = nodeTypes,
+                    ["nodes"] = nodes.Select(n => new Dictionary<string, object>
+                    {
+                        ["id"] = n.ContainsKey("id") ? n["id"] : 0,
+                        ["type"] = n.ContainsKey("type") ? n["type"] : "",
+                        ["title"] = n.ContainsKey("title") ? n["title"] : "",
+                        ["motif"] = ExtractNodeMotif(n.ContainsKey("type") ? n["type"]?.ToString() : "", n.ContainsKey("title") ? n["title"]?.ToString() : "")
+                    }).ToList(),
+                    ["connections"] = dataConnections.Select(c => new Dictionary<string, object>
+                    {
+                        ["source_id"] = c.ContainsKey("sourceNodeId") ? c["sourceNodeId"] : 0,
+                        ["target_id"] = c.ContainsKey("targetNodeId") ? c["targetNodeId"] : 0,
+                        ["source_port"] = c.ContainsKey("sourcePort") ? c["sourcePort"] : "",
+                        ["target_port"] = c.ContainsKey("targetPort") ? c["targetPort"] : ""
+                    }).ToList()
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[MCP Tools] describe_vfx_graph: Error getting structure: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string ExtractNodeMotif(string nodeType, string nodeTitle)
+        {
+            if (string.IsNullOrEmpty(nodeType)) return "";
+            
+            // Extract meaningful motif from type name
+            var typeLower = nodeType.ToLowerInvariant();
+            if (typeLower.Contains("subgraph")) return "Subgraph";
+            if (typeLower.Contains("random")) return "Random";
+            if (typeLower.Contains("noise")) return "Noise";
+            if (typeLower.Contains("multiply")) return "Multiply";
+            if (typeLower.Contains("add")) return "Add";
+            if (typeLower.Contains("remap")) return "Remap";
+            if (typeLower.Contains("parameter")) return "Parameter";
+            if (typeLower.Contains("operator")) return "Operator";
+            if (typeLower.Contains("context"))
+            {
+                if (typeLower.Contains("spawn")) return "SpawnContext";
+                if (typeLower.Contains("init")) return "InitContext";
+                if (typeLower.Contains("update")) return "UpdateContext";
+                if (typeLower.Contains("output")) return "OutputContext";
+                return "Context";
+            }
+            
+            // Use title if available and type is generic
+            if (!string.IsNullOrEmpty(nodeTitle))
+            {
+                return nodeTitle.Replace("|", "").Replace("_", "").Trim();
+            }
+            
+            return nodeType.Split('.').LastOrDefault() ?? "";
+        }
+
+        private static List<Dictionary<string, object>> BuildNodeSummaries(object controller)
+        {
+            var result = new List<Dictionary<string, object>>();
+            var nodesEnumerable = VfxGraphReflectionHelpers.GetProperty(controller, "nodes");
+            
+            foreach (var nodeController in VfxGraphReflectionHelpers.Enumerate(nodesEnumerable))
+            {
+                try
+                {
+                    var model = VfxGraphReflectionHelpers.GetProperty(nodeController, "model") as UnityEngine.Object;
+                    if (model == null) continue;
+                    
+                    var nodeId = model.GetInstanceID();
+                    var nodeType = model.GetType();
+                    var position = Vector2.zero;
+                    
+                    var positionProperty = nodeType.GetProperty("position", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (positionProperty != null)
+                    {
+                        var rawPosition = positionProperty.GetValue(model);
+                        if (rawPosition is Vector2 typedPosition)
+                        {
+                            position = typedPosition;
+                        }
+                    }
+                    
+                    var title = VfxGraphReflectionHelpers.GetProperty(nodeController, "title") as string ?? "";
+                    
+                    result.Add(new Dictionary<string, object>
+                    {
+                        ["id"] = nodeId,
+                        ["type"] = nodeType.FullName,
+                        ["title"] = title,
+                        ["position"] = new Dictionary<string, object> { ["x"] = position.x, ["y"] = position.y }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[MCP Tools] Failed to build node summary: {ex.Message}");
+                }
+            }
+            
+            return result;
+        }
+
+        private static List<Dictionary<string, object>> BuildDataConnections(object controller)
+        {
+            var connections = new List<Dictionary<string, object>>();
+            
+            try
+            {
+                var dataEdgesEnumerable = VfxGraphReflectionHelpers.GetProperty(controller, "dataEdges");
+                if (dataEdgesEnumerable == null) return connections;
+                
+                foreach (var edgeController in VfxGraphReflectionHelpers.Enumerate(dataEdgesEnumerable))
+                {
+                    try
+                    {
+                        var sourceNode = VfxGraphReflectionHelpers.GetProperty(edgeController, "source");
+                        var targetNode = VfxGraphReflectionHelpers.GetProperty(edgeController, "target");
+                        var sourceSlot = VfxGraphReflectionHelpers.GetProperty(edgeController, "inputSlot");
+                        var targetSlot = VfxGraphReflectionHelpers.GetProperty(edgeController, "outputSlot");
+                        
+                        var sourceModel = VfxGraphReflectionHelpers.GetProperty(sourceNode, "model") as UnityEngine.Object;
+                        var targetModel = VfxGraphReflectionHelpers.GetProperty(targetNode, "model") as UnityEngine.Object;
+                        
+                        if (sourceModel == null || targetModel == null) continue;
+                        
+                        var sourcePort = VfxGraphReflectionHelpers.GetProperty(sourceSlot, "path") as string ?? "";
+                        var targetPort = VfxGraphReflectionHelpers.GetProperty(targetSlot, "path") as string ?? "";
+                        
+                        connections.Add(new Dictionary<string, object>
+                        {
+                            ["sourceNodeId"] = sourceModel.GetInstanceID(),
+                            ["targetNodeId"] = targetModel.GetInstanceID(),
+                            ["sourcePort"] = sourcePort,
+                            ["targetPort"] = targetPort
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[MCP Tools] Failed to build data connection: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[MCP Tools] Error building data connections: {ex.Message}");
+            }
+            
+            return connections;
+        }
+
+        private static List<Dictionary<string, object>> BuildFlowConnections(object controller)
+        {
+            var connections = new List<Dictionary<string, object>>();
+            
+            try
+            {
+                var flowEdgesEnumerable = VfxGraphReflectionHelpers.GetProperty(controller, "flowEdges");
+                if (flowEdgesEnumerable == null) return connections;
+                
+                foreach (var edgeController in VfxGraphReflectionHelpers.Enumerate(flowEdgesEnumerable))
+                {
+                    try
+                    {
+                        var sourceNode = VfxGraphReflectionHelpers.GetProperty(edgeController, "source");
+                        var targetNode = VfxGraphReflectionHelpers.GetProperty(edgeController, "target");
+                        
+                        var sourceModel = VfxGraphReflectionHelpers.GetProperty(sourceNode, "model") as UnityEngine.Object;
+                        var targetModel = VfxGraphReflectionHelpers.GetProperty(targetNode, "model") as UnityEngine.Object;
+                        
+                        if (sourceModel == null || targetModel == null) continue;
+                        
+                        connections.Add(new Dictionary<string, object>
+                        {
+                            ["sourceNodeId"] = sourceModel.GetInstanceID(),
+                            ["targetNodeId"] = targetModel.GetInstanceID()
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[MCP Tools] Failed to build flow connection: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[MCP Tools] Error building flow connections: {ex.Message}");
+            }
+            
+            return connections;
         }
     }
 }
