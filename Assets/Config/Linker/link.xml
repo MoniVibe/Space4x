@@ -1,0 +1,8 @@
+<linker>
+  <!-- Preserve PureDOTS types for IL2CPP builds -->
+  <assembly fullname="PureDOTS.Runtime" preserve="all"/>
+  <assembly fullname="PureDOTS.Authoring" preserve="all"/>
+  <assembly fullname="PureDOTS.Systems" preserve="all"/>
+  <assembly fullname="Space4X.Registry" preserve="all"/>
+</linker>
+

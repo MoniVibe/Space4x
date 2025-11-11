@@ -7,6 +7,9 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+#if UNITY_EDITOR
+using UnityEngine;
+#endif
 
 namespace Space4X.Systems.AI
 {
@@ -84,7 +87,9 @@ namespace Space4X.Systems.AI
                 // (VesselMovementSystem will handle stopping when in Returning state, but we ensure it here)
 
                 // Close enough to deposit - transfer cargo to carrier
-                var cargoToDeposit = vessel.ValueRO.CurrentCargo;
+                var vesselValue = vessel.ValueRO;
+                var cargoToDeposit = vesselValue.CurrentCargo;
+                var cargoType = vesselValue.CargoResourceType;
                 
                 // Add to carrier inventory (using ResourceStorage buffer)
                 if (!_carrierInventoryLookup.HasBuffer(aiState.ValueRO.TargetEntity))
@@ -93,27 +98,56 @@ namespace Space4X.Systems.AI
                 }
 
                 var inventory = _carrierInventoryLookup[aiState.ValueRO.TargetEntity];
-                
-                // For now, deposit all cargo (simplified - assumes single resource type)
-                // TODO: Match resource types properly
-                if (inventory.Length > 0)
+                var remaining = DepositCargo(ref inventory, cargoType, cargoToDeposit);
+                var deposited = cargoToDeposit - remaining;
+
+                if (deposited <= 1e-4f)
                 {
-                    var item = inventory[0];
-                    item.Amount += cargoToDeposit;
-                    inventory[0] = item;
+#if UNITY_EDITOR
+                    UnityEngine.Debug.LogWarning($"[VesselDepositSystem] Carrier '{aiState.ValueRO.TargetEntity.Index}' cannot accept more cargo of type {cargoType}. Vessels will continue waiting.");
+#endif
+                    continue;
                 }
 
-                // Update vessel cargo
-                var vesselValue = vessel.ValueRO;
-                vesselValue.CurrentCargo = 0f;
-                vessel.ValueRW = vesselValue;
+                vesselValue.CurrentCargo = remaining;
+                if (remaining <= 1e-3f)
+                {
+                    vesselValue.CurrentCargo = 0f;
+                    vessel.ValueRW = vesselValue;
 
-                // If vessel is empty, return to idle to find new target
-                aiState.ValueRW.CurrentState = VesselAIState.State.Idle;
-                aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Idle;
-                aiState.ValueRW.TargetEntity = Entity.Null;
-                aiState.ValueRW.TargetPosition = float3.zero;
+                    aiState.ValueRW.CurrentState = VesselAIState.State.Idle;
+                    aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Idle;
+                    aiState.ValueRW.TargetEntity = Entity.Null;
+                    aiState.ValueRW.TargetPosition = float3.zero;
+                }
+                else
+                {
+                    vessel.ValueRW = vesselValue;
+                }
             }
+        }
+
+        private static float DepositCargo(ref DynamicBuffer<ResourceStorage> storage, ResourceType cargoType, float amount)
+        {
+            var remaining = amount;
+            for (var i = 0; i < storage.Length && remaining > 1e-4f; i++)
+            {
+                var slot = storage[i];
+                if (slot.Type != cargoType)
+                {
+                    continue;
+                }
+
+                remaining = slot.AddAmount(remaining);
+                storage[i] = slot;
+
+                if (remaining <= 1e-4f)
+                {
+                    break;
+                }
+            }
+
+            return remaining;
         }
     }
 }

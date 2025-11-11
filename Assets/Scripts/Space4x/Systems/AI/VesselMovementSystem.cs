@@ -45,11 +45,13 @@ namespace Space4X.Systems.AI
             var currentTick = timeState.Tick;
 
             // Debug logging (only first frame)
+#if UNITY_EDITOR
             if (currentTick == 1)
             {
                 var vesselCount = SystemAPI.QueryBuilder().WithAll<VesselMovement>().Build().CalculateEntityCount();
                 Debug.Log($"[VesselMovementSystem] Found {vesselCount} vessels, DeltaTime={deltaTime}, Tick={currentTick}");
             }
+#endif
 
             var job = new UpdateVesselMovementJob
             {

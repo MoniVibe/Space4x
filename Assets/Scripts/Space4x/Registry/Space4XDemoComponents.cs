@@ -111,6 +111,7 @@ namespace Space4X.Registry
         public float Speed;
         public float CargoCapacity;
         public float CurrentCargo;
+        public ResourceType CargoResourceType;
     }
 
     /// <summary>

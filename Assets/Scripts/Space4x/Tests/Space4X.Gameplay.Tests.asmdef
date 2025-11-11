@@ -17,7 +17,7 @@
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
-  "autoReferenced": false,
+  "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
   "noEngineReferences": false,
@@ -25,5 +25,3 @@
     "TestAssemblies"
   ]
 }
-
-

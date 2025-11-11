@@ -6,6 +6,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using Space4X.Runtime;
 
 namespace Space4X.Registry
 {
@@ -369,7 +370,8 @@ namespace Space4X.Registry
                         MiningEfficiency = math.clamp(vessel.MiningEfficiency, 0f, 1f),
                         Speed = math.max(0.1f, vessel.Speed),
                         CargoCapacity = math.max(1f, vessel.CargoCapacity),
-                        CurrentCargo = 0f
+                        CurrentCargo = 0f,
+                        CargoResourceType = ResourceType.Minerals
                     });
 
                     AddComponent(entity, new MiningJob
@@ -377,6 +379,26 @@ namespace Space4X.Registry
                         State = MiningJobState.None,
                         TargetAsteroid = Entity.Null,
                         MiningProgress = 0f
+                    });
+
+                    AddComponent(entity, new VesselAIState
+                    {
+                        CurrentState = VesselAIState.State.Idle,
+                        CurrentGoal = VesselAIState.Goal.None,
+                        TargetEntity = Entity.Null,
+                        TargetPosition = float3.zero,
+                        StateTimer = 0f,
+                        StateStartTick = 0
+                    });
+
+                    AddComponent(entity, new VesselMovement
+                    {
+                        Velocity = float3.zero,
+                        BaseSpeed = math.max(0.1f, vessel.Speed),
+                        CurrentSpeed = 0f,
+                        DesiredRotation = quaternion.identity,
+                        IsMoving = 0,
+                        LastMoveTick = 0
                     });
 #if UNITY_EDITOR
                     if (!s_loggedVessels)
@@ -432,4 +454,3 @@ namespace Space4X.Registry
         }
     }
 }
-

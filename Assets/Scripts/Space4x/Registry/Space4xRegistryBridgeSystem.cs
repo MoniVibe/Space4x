@@ -598,6 +598,89 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.miracles.active", snapshot.ActiveMiracleCount);
             buffer.AddMetric("space4x.miracles.energy", snapshot.MiracleTotalEnergyCost, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.miracles.cooldownSeconds", snapshot.MiracleTotalCooldownSeconds, TelemetryMetricUnit.Custom);
+
+            if (SystemAPI.TryGetSingletonEntity<VillagerRegistry>(out var villagerRegistryEntity) &&
+                state.EntityManager.HasBuffer<VillagerLessonRegistryEntry>(villagerRegistryEntity))
+            {
+                var lessons = state.EntityManager.GetBuffer<VillagerLessonRegistryEntry>(villagerRegistryEntity);
+                EmitLessonMetrics(ref buffer, lessons, new FixedString64Bytes("space4x"));
+            }
+        }
+
+        private static void EmitLessonMetrics(
+            ref DynamicBuffer<TelemetryMetric> buffer,
+            DynamicBuffer<VillagerLessonRegistryEntry> lessons,
+            in FixedString64Bytes prefix)
+        {
+            if (!lessons.IsCreated || lessons.Length == 0)
+            {
+                return;
+            }
+
+            var completed = 0;
+            var axisMap = new NativeHashMap<FixedString64Bytes, AxisAggregate>(math.max(lessons.Length, 8), Allocator.Temp);
+            try
+            {
+                for (var i = 0; i < lessons.Length; i++)
+                {
+                    var lesson = lessons[i];
+                    if (lesson.Progress >= 0.99f)
+                    {
+                        completed++;
+                    }
+
+                    if (lesson.AxisId.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    axisMap.TryGetValue(lesson.AxisId, out var aggregate);
+                    aggregate.Count++;
+                    aggregate.Progress += lesson.Progress;
+                    axisMap[lesson.AxisId] = aggregate;
+                }
+
+                var totalKey = new FixedString64Bytes(prefix);
+                totalKey.Append(".villagers.lessons.total");
+                buffer.AddMetric(totalKey, lessons.Length);
+
+                var completedKey = new FixedString64Bytes(prefix);
+                completedKey.Append(".villagers.lessons.completed");
+                buffer.AddMetric(completedKey, completed);
+
+                var kv = axisMap.GetKeyValueArrays(Allocator.Temp);
+                try
+                {
+                    for (var i = 0; i < kv.Length; i++)
+                    {
+                        var aggregate = kv.Values[i];
+                        if (aggregate.Count <= 0)
+                        {
+                            continue;
+                        }
+
+                        var key = new FixedString64Bytes(prefix);
+                        key.Append(".villagers.lessons.axis.");
+                        key.Append(kv.Keys[i]);
+                        var average = aggregate.Progress / aggregate.Count;
+                        buffer.AddMetric(key, average, TelemetryMetricUnit.Ratio);
+                    }
+                }
+                finally
+                {
+                    kv.Dispose();
+                }
+            }
+            finally
+            {
+                axisMap.Dispose();
+            }
+        }
+
+        private struct AxisAggregate
+        {
+            public float Progress;
+            public int Count;
         }
     }
 }

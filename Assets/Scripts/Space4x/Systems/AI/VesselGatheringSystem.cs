@@ -23,6 +23,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ResourceSourceState> _resourceStateLookup;
         private ComponentLookup<ResourceSourceConfig> _resourceConfigLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<Asteroid> _asteroidLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -30,6 +31,7 @@ namespace Space4X.Systems.AI
             _resourceStateLookup = state.GetComponentLookup<ResourceSourceState>(false);
             _resourceConfigLookup = state.GetComponentLookup<ResourceSourceConfig>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
 
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
@@ -50,6 +52,7 @@ namespace Space4X.Systems.AI
             _resourceStateLookup.Update(ref state);
             _resourceConfigLookup.Update(ref state);
             _transformLookup.Update(ref state);
+            _asteroidLookup.Update(ref state);
 
             var gatherDistance = 3f; // Vessels gather when within 3 units of asteroid
             var gatherDistanceSq = gatherDistance * gatherDistance;
@@ -79,6 +82,28 @@ namespace Space4X.Systems.AI
 
                 var resourceState = _resourceStateLookup[aiState.ValueRO.TargetEntity];
                 var resourceTransform = _transformLookup[aiState.ValueRO.TargetEntity];
+
+                // Ensure we know the asteroid metadata for resource typing
+                if (!_asteroidLookup.HasComponent(aiState.ValueRO.TargetEntity))
+                {
+                    continue;
+                }
+
+                var asteroid = _asteroidLookup[aiState.ValueRO.TargetEntity];
+
+                // Prevent mixing cargo types – if we're carrying something else, head back to carrier
+                var vesselValue = vessel.ValueRO;
+                if (vesselValue.CurrentCargo > 0.01f && vesselValue.CargoResourceType != asteroid.ResourceType)
+                {
+                    aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Returning;
+                    aiState.ValueRW.CurrentState = VesselAIState.State.Returning;
+                    continue;
+                }
+
+                if (vesselValue.CurrentCargo <= 0.01f)
+                {
+                    vesselValue.CargoResourceType = asteroid.ResourceType;
+                }
 
                 // Check distance to resource
                 var distSq = math.distancesq(transform.ValueRO.Position, resourceTransform.Position);
@@ -119,7 +144,7 @@ namespace Space4X.Systems.AI
                 var gatherAmount = gatherRate * deltaTime;
 
                 // Don't gather more than available or capacity remaining
-                var capacityRemaining = vessel.ValueRO.CargoCapacity - vessel.ValueRO.CurrentCargo;
+                var capacityRemaining = vesselValue.CargoCapacity - vesselValue.CurrentCargo;
                 gatherAmount = math.min(gatherAmount, resourceState.UnitsRemaining);
                 gatherAmount = math.min(gatherAmount, capacityRemaining);
 
@@ -133,7 +158,6 @@ namespace Space4X.Systems.AI
                 _resourceStateLookup[aiState.ValueRO.TargetEntity] = resourceState;
 
                 // Update vessel cargo
-                var vesselValue = vessel.ValueRO;
                 vesselValue.CurrentCargo += gatherAmount;
                 vessel.ValueRW = vesselValue;
 

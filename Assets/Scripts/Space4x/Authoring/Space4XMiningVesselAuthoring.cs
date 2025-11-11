@@ -1,4 +1,5 @@
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -59,6 +60,27 @@ namespace Space4X.Authoring
                     State = MiningJobState.None,
                     TargetAsteroid = Entity.Null,
                     MiningProgress = 0f
+                });
+
+                // Seed AI+movement data so the Burst vessel systems can take over immediately
+                AddComponent(entity, new VesselAIState
+                {
+                    CurrentState = VesselAIState.State.Idle,
+                    CurrentGoal = VesselAIState.Goal.None,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = float3.zero,
+                    StateTimer = 0f,
+                    StateStartTick = 0
+                });
+
+                AddComponent(entity, new VesselMovement
+                {
+                    Velocity = float3.zero,
+                    BaseSpeed = math.max(0.1f, authoring.speed),
+                    CurrentSpeed = 0f,
+                    DesiredRotation = quaternion.identity,
+                    IsMoving = 0,
+                    LastMoveTick = 0
                 });
 
                 // Add LocalTransform will be synced automatically
