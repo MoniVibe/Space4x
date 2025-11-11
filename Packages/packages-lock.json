@@ -34,6 +34,14 @@
         "com.unity.physics": "1.0.16"
       }
     },
+    "com.moni.vfxplayground.capture": {
+      "version": "file:../../VFXPlayground/Packages/com.moni.vfxplayground.capture",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.unity.visualeffectgraph": "17.2.0"
+      }
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.9",
       "depth": 0,
@@ -191,16 +199,16 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.physics": {
-      "version": "1.3.8",
+      "version": "1.3.14",
       "depth": 1,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.18",
-        "com.unity.entities": "1.3.8",
-        "com.unity.collections": "2.5.1",
+        "com.unity.burst": "1.8.19",
+        "com.unity.entities": "1.3.14",
+        "com.unity.collections": "2.5.7",
         "com.unity.mathematics": "1.3.2",
         "com.unity.modules.imgui": "1.0.0",
-        "com.unity.test-framework": "1.4.5",
+        "com.unity.test-framework": "1.4.6",
         "com.unity.modules.jsonserialize": "1.0.0"
       },
       "url": "https://packages.unity.com"
@@ -213,7 +221,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.render-pipelines.core": {
-      "version": "17.1.0",
+      "version": "17.2.0",
       "depth": 1,
       "source": "builtin",
       "dependencies": {
@@ -228,12 +236,12 @@
       }
     },
     "com.unity.render-pipelines.universal": {
-      "version": "17.1.0",
+      "version": "17.2.0",
       "depth": 0,
       "source": "builtin",
       "dependencies": {
-        "com.unity.render-pipelines.core": "17.1.0",
-        "com.unity.shadergraph": "17.1.0",
+        "com.unity.render-pipelines.core": "17.2.0",
+        "com.unity.shadergraph": "17.2.0",
         "com.unity.render-pipelines.universal-config": "17.0.3"
       }
     },
@@ -256,7 +264,7 @@
       }
     },
     "com.unity.scriptablebuildpipeline": {
-      "version": "2.4.0",
+      "version": "2.4.1",
       "depth": 1,
       "source": "registry",
       "dependencies": {
@@ -283,11 +291,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.shadergraph": {
-      "version": "17.1.0",
+      "version": "17.2.0",
       "depth": 1,
       "source": "builtin",
       "dependencies": {
-        "com.unity.render-pipelines.core": "17.1.0",
+        "com.unity.render-pipelines.core": "17.2.0",
         "com.unity.searcher": "4.9.3"
       }
     },
@@ -311,6 +319,14 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.textmeshpro": {
+      "version": "5.0.0",
+      "depth": 0,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.ugui": "2.0.0"
+      }
+    },
     "com.unity.timeline": {
       "version": "1.8.9",
       "depth": 0,
@@ -332,19 +348,13 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
-    "com.unity.vfx-toolbox": {
-      "version": "file:C:/Users/Moni/Documents/claudeprojects/VFXToolbox-2.1.0-preview",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {}
-    },
     "com.unity.visualeffectgraph": {
-      "version": "17.1.0",
+      "version": "17.2.0",
       "depth": 0,
       "source": "builtin",
       "dependencies": {
-        "com.unity.shadergraph": "17.1.0",
-        "com.unity.render-pipelines.core": "17.1.0"
+        "com.unity.shadergraph": "17.2.0",
+        "com.unity.render-pipelines.core": "17.2.0"
       }
     },
     "com.unity.visualscripting": {
@@ -505,7 +515,8 @@
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0",
         "com.unity.modules.jsonserialize": "1.0.0",
-        "com.unity.modules.hierarchycore": "1.0.0"
+        "com.unity.modules.hierarchycore": "1.0.0",
+        "com.unity.modules.physics": "1.0.0"
       }
     },
     "com.unity.modules.umbra": {
