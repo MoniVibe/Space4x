@@ -266,7 +266,7 @@ MonoBehaviour:
   m_Script: {fileID: 24059501}
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
-  profile: {fileID: 0}
+  profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
 --- !u!114 &579989115
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -279,7 +279,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab98e1166f44a43ae987ad2d0c419b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PureDotsConfigAuthoring
-  config: {fileID: 0}
+  config: {fileID: 11400000, guid: 562b7474caf1e50448a1cc7f4fce0836, type: 2}
 --- !u!4 &579989116
 Transform:
   m_ObjectHideFlags: 0
@@ -307,9 +307,106 @@ MonoBehaviour:
   m_Script: {fileID: 24059501}
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
-  profile: {fileID: 0}
+  profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 579989116}
+--- !u!1 &2100003000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2100003001}
+  - component: {fileID: 2100003002}
+  m_Layer: 0
+  m_Name: Space4XMiracleRig
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2100003001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100003000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 10, y: 0, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2100003002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100003000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44f3eb6a1702d4e48b808c0b0a6f5c72, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XMiracleAuthoring
+  miracles:
+  - Label: Orbital Strike
+    Type: 1
+    CastingMode: 2
+    BaseRadius: 12
+    BaseIntensity: 1
+    BaseCost: 40
+    SustainedCostPerSecond: 0
+    Lifecycle: 2
+    ChargePercent: 1
+    CurrentRadius: 12
+    CurrentIntensity: 1
+    CooldownSecondsRemaining: 0
+    LastCastTick: 0
+    AlignmentDelta: 0
+    UseAuthoringTransform: 1
+    Position:
+      x: 0
+      y: 0
+      z: 0
+    AddTarget: 0
+    TargetPosition:
+      x: 0
+      y: 0
+      z: 0
+    TargetEntity: {fileID: 0}
+    Caster: {fileID: 0}
+  - Label: Sustained Shield
+    Type: 3
+    CastingMode: 1
+    BaseRadius: 18
+    BaseIntensity: 0.699999988
+    BaseCost: 20
+    SustainedCostPerSecond: 5
+    Lifecycle: 1
+    ChargePercent: 0.5
+    CurrentRadius: 18
+    CurrentIntensity: 0.699999988
+    CooldownSecondsRemaining: 5
+    LastCastTick: 0
+    AlignmentDelta: 0
+    UseAuthoringTransform: 0
+    Position:
+      x: -10
+      y: 0
+      z: 10
+    AddTarget: 1
+    TargetPosition:
+      x: -10
+      y: 0
+      z: 10
+    TargetEntity: {fileID: 0}
+    Caster: {fileID: 0}

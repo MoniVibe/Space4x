@@ -97,20 +97,28 @@ namespace Space4X.Systems.AI
 #endif
                     }
 
-                    var job = new UpdateVesselAIJob
+                    if (hasResources)
                     {
-                        ResourceEntries = resourceEntries.AsNativeArray(),
-                        HasResources = hasResources,
-                        Carriers = carriers.AsArray(),
-                        CarrierTransforms = carrierTransforms.AsArray(),
-                        DeltaTime = timeState.FixedDeltaTime,
-                        CurrentTick = timeState.Tick
-                    };
+                        var job = new UpdateVesselAIJob
+                        {
+                            ResourceEntries = resourceEntries.AsNativeArray(),
+                            HasResources = hasResources,
+                            Carriers = carriers.AsArray(),
+                            CarrierTransforms = carrierTransforms.AsArray(),
+                            DeltaTime = timeState.FixedDeltaTime,
+                            CurrentTick = timeState.Tick
+                        };
 
-                    var jobHandle = job.ScheduleParallel(state.Dependency);
-                    var carriersDisposeHandle = carriers.Dispose(jobHandle);
-                    var carrierTransformsDisposeHandle = carrierTransforms.Dispose(jobHandle);
-                    state.Dependency = JobHandle.CombineDependencies(carriersDisposeHandle, carrierTransformsDisposeHandle);
+                        var jobHandle = job.ScheduleParallel(state.Dependency);
+                        var carriersDisposeHandle = carriers.Dispose(jobHandle);
+                        var carrierTransformsDisposeHandle = carrierTransforms.Dispose(jobHandle);
+                        state.Dependency = JobHandle.CombineDependencies(carriersDisposeHandle, carrierTransformsDisposeHandle);
+                    }
+                    else
+                    {
+                        carriers.Dispose();
+                        carrierTransforms.Dispose();
+                    }
                 }
                 else
                 {

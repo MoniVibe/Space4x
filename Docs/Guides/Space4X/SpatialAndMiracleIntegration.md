@@ -9,6 +9,7 @@ This guide captures the authoring and testing steps required to keep Space4X sce
 - Attach `SpatialPartitionAuthoring` to the same bootstrap object (or a sibling).
   - Choose the appropriate `SpatialPartitionProfile` asset for the scene’s scale (e.g. sector vs. orbital).
   - Designers can swap profiles per scene; the baker will patch `SpatialGridConfig`/`SpatialGridState` singletons at conversion.
+- **Space4X defaults:** the sample scenes now use `Assets/Space4X/Config/PureDotsRuntimeConfig.asset` together with `Assets/Space4X/Config/DefaultSpatialPartitionProfile.asset`. Reuse those assets unless a scene explicitly calls for different bounds.
 - Keep these bootstrap GameObjects inside the SubScene that owns gameplay DOTS data to guarantee deterministic conversion.
 
 ## 2. Tagging Gameplay Bakers
@@ -25,6 +26,7 @@ This guide captures the authoring and testing steps required to keep Space4X sce
   - The baker emits `MiracleDefinition`, `MiracleRuntimeState`, and optional targeting data compatible with the shared miracle registry.
 - Pair miracle authoring with the spatial bootstrap above so the registry bridge can resolve spatial metrics for active miracles.
 - For scripted spawners, instantiate prefabs that already carry `Space4XMiracleAuthoring` to avoid duplicating data wiring.
+- The demo scenes now include a `Space4XMiracleRig` authoring object that seeds both an instant strike and a sustained shield miracle so registry/telemetry coverage is available out of the box.
 
 ## 4. Telemetry & Test Verification
 
@@ -45,6 +47,8 @@ This guide captures the authoring and testing steps required to keep Space4X sce
 6. Convert the SubScene and confirm registry buffers populate via the playmode tests above.
 
 > Tip: keep this guide handy when onboarding new scenes so designers continue to deliver spatial-aware data to the shared registries.
+
+
 
 
 

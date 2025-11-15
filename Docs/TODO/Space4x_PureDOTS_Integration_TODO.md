@@ -18,9 +18,9 @@ Checklist for bringing the Space4X gameplay layer online with the shared `com.mo
 
 ## Spatial & Continuity Services
 
-- [ ] Configure the spatial grid provider/profile for orbital/sector scales and link Space4X systems to the PureDOTS spatial services. *(Docs exist; audit production scenes for correct profile assignments.)*
+- [x] Configure the spatial grid provider/profile for orbital/sector scales and link Space4X systems to the PureDOTS spatial services. *(All production scenes/subscenes now reference `Assets/Space4X/Config/DefaultSpatialPartitionProfile.asset`; see audit notes.)*
 - [x] Ensure every gameplay baker authoring Space4X entities adds `SpatialIndexedTag` (or equivalent) so residency lookups stay deterministic.
-- [ ] Author a scene bootstrap config that seeds the correct `SpatialGridConfig`/`SpatialGridState` for sector-scale play and document how designers override it per scene. *(Space4X guide captures the process; asset validation still pending.)*
+- [x] Author a scene bootstrap config that seeds the correct `SpatialGridConfig`/`SpatialGridState` for sector-scale play and document how designers override it per scene. *(Scenes now point at `Assets/Space4X/Config/PureDotsRuntimeConfig.asset`, and the guide calls out the asset.)*
 - [ ] Align time/continuity systems (time state, rewind, continuity validation) with PureDOTS expectations, ensuring deterministic fleet/colony updates.
 - [ ] Confirm Burst compatibility for bridge systems once spatial and continuity hookups are live.
 

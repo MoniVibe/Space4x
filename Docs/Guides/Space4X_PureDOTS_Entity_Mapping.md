@@ -151,6 +151,12 @@ AddComponent(planetEntity, new Space4XPlanetStations
    - Handle ship assignments
    - Render UI panels
 
+### Presentation Placeholder Swaps
+
+- Add `Space4XPresentationBindingAuthoring` to any prefab/SubScene root and pick a descriptor key from your `PresentationRegistry` (e.g. `space4x.vessel.miner`).
+- The baker writes a `Space4XPresentationBinding` component so the new `Space4XPresentationAssignmentSystem` queues presentation spawns and recycles per entity.
+- Swapping the descriptor key (or adding `Space4XPresentationDirtyTag`) lets you flip individual entities between placeholder meshes and production assets/animations without touching gameplay data.
+
 ---
 
 ## Key Differences from Godgame

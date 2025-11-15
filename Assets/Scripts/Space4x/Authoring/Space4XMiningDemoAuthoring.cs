@@ -1,12 +1,14 @@
 using System;
 using PureDOTS.Authoring;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
+using Space4X.Presentation;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
-using Space4X.Runtime;
 
 namespace Space4X.Registry
 {
@@ -167,14 +169,17 @@ namespace Space4X.Registry
             public Space4XMiningPrimitive CarrierPrimitive;
             [Min(0.05f)] public float CarrierScale;
             public Color CarrierColor;
+            public string CarrierDescriptorKey;
 
             public Space4XMiningPrimitive MiningVesselPrimitive;
             [Min(0.05f)] public float MiningVesselScale;
             public Color MiningVesselColor;
+            public string MiningVesselDescriptorKey;
 
             public Space4XMiningPrimitive AsteroidPrimitive;
             [Min(0.05f)] public float AsteroidScale;
             public Color AsteroidColor;
+            public string AsteroidDescriptorKey;
 
             public static MiningVisualSettings CreateDefault()
             {
@@ -183,12 +188,15 @@ namespace Space4X.Registry
                     CarrierPrimitive = Space4XMiningPrimitive.Capsule,
                     CarrierScale = 3f,
                     CarrierColor = new Color(0.35f, 0.4f, 0.62f, 1f),
+                    CarrierDescriptorKey = "space4x.vessel.carrier",
                     MiningVesselPrimitive = Space4XMiningPrimitive.Cylinder,
                     MiningVesselScale = 1.2f,
                     MiningVesselColor = new Color(0.25f, 0.52f, 0.84f, 1f),
+                    MiningVesselDescriptorKey = "space4x.vessel.miner",
                     AsteroidPrimitive = Space4XMiningPrimitive.Sphere,
                     AsteroidScale = 2.25f,
-                    AsteroidColor = new Color(0.52f, 0.43f, 0.34f, 1f)
+                    AsteroidColor = new Color(0.52f, 0.43f, 0.34f, 1f),
+                    AsteroidDescriptorKey = "space4x.prop.asteroid"
                 };
             }
         }
@@ -277,6 +285,8 @@ namespace Space4X.Registry
                     return;
                 }
 
+                var visuals = authoring.visuals;
+
                 foreach (var carrier in authoring.Carriers)
                 {
                     if (string.IsNullOrWhiteSpace(carrier.CarrierId))
@@ -285,7 +295,7 @@ namespace Space4X.Registry
                         continue;
                     }
 
-                    var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic);
+                    var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
                     AddComponent(entity, LocalTransform.FromPositionRotationScale(carrier.Position, quaternion.identity, 1f));
                     AddComponent<SpatialIndexedTag>(entity);
                     
@@ -317,6 +327,17 @@ namespace Space4X.Registry
                     var resourceBuffer = AddBuffer<ResourceStorage>(entity);
                     // Buffer starts empty, will be populated by mining vessels
 
+                    var carrierBinding = CreatePresentationBinding(
+                        visuals.CarrierDescriptorKey,
+                        visuals.CarrierScale,
+                        visuals.CarrierColor,
+                        (uint)math.hash(new float4(carrier.Position, carrier.Speed)),
+                        $"carrier '{carrier.CarrierId}'");
+                    if (carrierBinding.HasValue)
+                    {
+                        AddComponent(entity, carrierBinding.Value);
+                    }
+
                     // Store entity in map for vessel references
                     _carrierEntityMap.TryAdd(carrierIdBytes, entity);
 #if UNITY_EDITOR
@@ -336,6 +357,8 @@ namespace Space4X.Registry
                     return;
                 }
 
+                var visuals = authoring.visuals;
+
                 foreach (var vessel in authoring.MiningVessels)
                 {
                     if (string.IsNullOrWhiteSpace(vessel.VesselId))
@@ -344,7 +367,7 @@ namespace Space4X.Registry
                         continue;
                     }
 
-                    var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic);
+                    var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
                     AddComponent(entity, LocalTransform.FromPositionRotationScale(vessel.Position, quaternion.identity, 1f));
                     AddComponent<SpatialIndexedTag>(entity);
 
@@ -400,6 +423,17 @@ namespace Space4X.Registry
                         IsMoving = 0,
                         LastMoveTick = 0
                     });
+
+                    var vesselBinding = CreatePresentationBinding(
+                        visuals.MiningVesselDescriptorKey,
+                        visuals.MiningVesselScale,
+                        visuals.MiningVesselColor,
+                        (uint)math.hash(new float4(vessel.Position, vessel.Speed)),
+                        $"mining vessel '{vessel.VesselId}'");
+                    if (vesselBinding.HasValue)
+                    {
+                        AddComponent(entity, vesselBinding.Value);
+                    }
 #if UNITY_EDITOR
                     if (!s_loggedVessels)
                     {
@@ -417,6 +451,8 @@ namespace Space4X.Registry
                     return;
                 }
 
+                var visuals = authoring.visuals;
+
                 foreach (var asteroid in authoring.Asteroids)
                 {
                     if (string.IsNullOrWhiteSpace(asteroid.AsteroidId))
@@ -425,7 +461,7 @@ namespace Space4X.Registry
                         continue;
                     }
 
-                    var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic);
+                    var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
                     AddComponent(entity, LocalTransform.FromPositionRotationScale(asteroid.Position, quaternion.identity, 1f));
                     AddComponent<SpatialIndexedTag>(entity);
 
@@ -437,6 +473,46 @@ namespace Space4X.Registry
                         MaxResourceAmount = math.max(asteroid.ResourceAmount, asteroid.MaxResourceAmount),
                         MiningRate = math.max(0.1f, asteroid.MiningRate)
                     });
+
+                    var resourceTypeId = GetResourceTypeId(asteroid.ResourceType);
+                    if (!resourceTypeId.IsEmpty)
+                    {
+                        AddComponent(entity, new ResourceTypeId { Value = resourceTypeId });
+                    }
+
+                    var maxWorkers = math.clamp((int)math.ceil(asteroid.MiningRate / 5f), 1, 16);
+                    AddComponent(entity, new ResourceSourceConfig
+                    {
+                        GatherRatePerWorker = math.max(0.1f, asteroid.MiningRate),
+                        MaxSimultaneousWorkers = maxWorkers,
+                        RespawnSeconds = 0f,
+                        Flags = 0
+                    });
+
+                    AddComponent(entity, new ResourceSourceState
+                    {
+                        UnitsRemaining = math.max(0f, asteroid.ResourceAmount)
+                    });
+
+                    AddComponent(entity, new LastRecordedTick { Tick = 0 });
+                    AddComponent<RewindableTag>(entity);
+                    AddComponent(entity, new HistoryTier
+                    {
+                        Tier = HistoryTier.TierType.LowVisibility,
+                        OverrideStrideSeconds = 0f
+                    });
+                    AddBuffer<ResourceHistorySample>(entity);
+
+                    var asteroidBinding = CreatePresentationBinding(
+                        visuals.AsteroidDescriptorKey,
+                        visuals.AsteroidScale,
+                        visuals.AsteroidColor,
+                        (uint)math.hash(asteroid.Position),
+                        $"asteroid '{asteroid.AsteroidId}'");
+                    if (asteroidBinding.HasValue)
+                    {
+                        AddComponent(entity, asteroidBinding.Value);
+                    }
 #if UNITY_EDITOR
                     if (!s_loggedAsteroids)
                     {
@@ -450,6 +526,62 @@ namespace Space4X.Registry
             private static float4 ToFloat4(Color color)
             {
                 return new float4(color.r, color.g, color.b, color.a);
+            }
+
+            private Space4XPresentationBinding? CreatePresentationBinding(string descriptorKey, float scale, Color color, uint variantSeed, string typeName)
+            {
+                var descriptor = ResolveDescriptor(descriptorKey, typeName);
+                if (!descriptor.IsValid)
+                {
+#if UNITY_EDITOR
+                    Debug.LogWarning($"[Space4XMiningDemoAuthoring.Baker] Unable to resolve descriptor for {typeName}. Presentation binding skipped.");
+#endif
+                    return null;
+                }
+
+                var binding = Space4XPresentationBinding.Create(descriptor);
+                binding.ScaleMultiplier = math.max(0.05f, scale);
+                binding.Tint = ToFloat4(color);
+                binding.VariantSeed = variantSeed;
+                binding.Flags = Space4XPresentationFlagUtility.WithOverrides(true, true, false);
+                return binding;
+            }
+
+            private Hash128 ResolveDescriptor(string descriptorKey, string typeName)
+            {
+                var key = string.IsNullOrWhiteSpace(descriptorKey) ? string.Empty : descriptorKey.Trim();
+                if (!string.IsNullOrEmpty(key) && PresentationKeyUtility.TryParseKey(key, out var descriptor, out _))
+                {
+                    return descriptor;
+                }
+
+                const string fallbackKey = "space4x.placeholder";
+                if (PresentationKeyUtility.TryParseKey(fallbackKey, out var fallbackDescriptor, out _))
+                {
+#if UNITY_EDITOR
+                    Debug.LogWarning($"[Space4XMiningDemoAuthoring.Baker] Descriptor '{descriptorKey}' for {typeName} is invalid. Falling back to '{fallbackKey}'.");
+#endif
+                    return fallbackDescriptor;
+                }
+
+                return default;
+            }
+
+            private static FixedString64Bytes GetResourceTypeId(ResourceType resourceType)
+            {
+                switch (resourceType)
+                {
+                    case ResourceType.Minerals:
+                        return new FixedString64Bytes("space4x.resource.minerals");
+                    case ResourceType.RareMetals:
+                        return new FixedString64Bytes("space4x.resource.rare_metals");
+                    case ResourceType.EnergyCrystals:
+                        return new FixedString64Bytes("space4x.resource.energy_crystals");
+                    case ResourceType.OrganicMatter:
+                        return new FixedString64Bytes("space4x.resource.organic_matter");
+                    default:
+                        return new FixedString64Bytes("space4x.resource.unknown");
+                }
             }
         }
     }

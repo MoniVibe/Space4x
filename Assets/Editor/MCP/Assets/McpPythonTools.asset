@@ -212,7 +212,7 @@ MonoBehaviour:
     contentHash: 55420997ebeadb070db3212dea0ecd6a8b014fd29ccfcabffcebb17f489b4f50
   - assetGuid: d80b43dabd1bf9a4f9649f2498049e67
     fileName: get_slot_metadata
-    contentHash: 13c9d5e7f46889b259a4d8e40b696b11b4ecdd5d1e4c6f3698fe4fd1ddc58132
+    contentHash: 3352550cf500bb7889950a44978280efa39bf19e129257cb1e5ec26e3c3e19f3
   - assetGuid: 8a3599ecc5589fa4abfe3813270023b4
     fileName: get_vfx_graph_diagnostics
     contentHash: a85a61c5f3c82108907366e7e89ca6d3df3d9f27991f4303342ad5aab7309c4b
@@ -236,10 +236,10 @@ MonoBehaviour:
     contentHash: f0085b293ca8a00cf30bcef2a74a8e0bcb8aac348e9c8df6cabef483408689d7
   - assetGuid: 9306f3bb221e4e64e9e5e9829ca71c27
     fileName: move_block_in_context
-    contentHash: 449120c256509f4cfc9fd4380d4f335dbedbec53fed2d6917fb5cd75873cf3a7
+    contentHash: eb74d704397bf16a2c3ec6a98b5e47f7b8d6d09511460f91cc98e5efd4de0d42
   - assetGuid: 324fb38f53b6c264e92bef3cb6459b04
     fileName: move_graph_node
-    contentHash: 449120c256509f4cfc9fd4380d4f335dbedbec53fed2d6917fb5cd75873cf3a7
+    contentHash: eb74d704397bf16a2c3ec6a98b5e47f7b8d6d09511460f91cc98e5efd4de0d42
   - assetGuid: 8ffb97c3bf2468347b465a719e5b03ae
     fileName: play_effect
     contentHash: b2cf2afc7ce9ad07dc43ae3e7a9abd9d3bbc3403838a513b7b89832b43b99ae8
@@ -347,7 +347,7 @@ MonoBehaviour:
     contentHash: 9f7df7f21118f4b4a76b558f943e62f69b7b4fbafd279672ea0a0cdd60000eb4
   - assetGuid: c6accbfaedc3e074a8290fe4bde949aa
     fileName: play_audio_clip
-    contentHash: 4218ba34f78d253f3ee1ec050f11b5a79b69b62dc570876a3e94616c579735bd
+    contentHash: 425052f48562f0d0153fdc6b577e3b4fb8c9c99207e2aed9f033e9fd3fcd0638
   - assetGuid: d9d726dbef3365b4181d14b78e319e36
     fileName: refresh_assets
     contentHash: 38405235dd4b8c97f0b88bc5be7c6ebdcd6a3bd6a5f4e26eab4bdb1ba3a619d2
@@ -356,7 +356,7 @@ MonoBehaviour:
     contentHash: 3511cd336762a578fc7f76ce9c64f55adfb10e2bbfe888b20f391e97e13095d6
   - assetGuid: 03829f38563e9084899bf17117ef0e4f
     fileName: set_audio_source_property
-    contentHash: 4218ba34f78d253f3ee1ec050f11b5a79b69b62dc570876a3e94616c579735bd
+    contentHash: 425052f48562f0d0153fdc6b577e3b4fb8c9c99207e2aed9f033e9fd3fcd0638
   - assetGuid: 71c3110d75cd35d4b9db16600a343ce2
     fileName: set_timeline_playhead
     contentHash: 96c5614d9fea2cdac5a02cc1d2b2fbe5de817281ac326a05279f435e03640ca2

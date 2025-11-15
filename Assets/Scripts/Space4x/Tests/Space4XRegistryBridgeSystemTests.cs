@@ -158,6 +158,12 @@ namespace Space4X.Registry.Tests
             Assert.AreEqual(1, snapshot.LogisticsRouteCount);
             Assert.AreEqual(1, snapshot.ActiveLogisticsRouteCount);
             Assert.AreEqual(1, snapshot.HighRiskRouteCount);
+            var expectedDemand = Space4XColonySupply.ComputeDemand(150_000f);
+            Assert.AreEqual(expectedDemand, snapshot.ColonySupplyDemandTotal);
+            Assert.AreEqual(0f, snapshot.ColonySupplyShortageTotal);
+            Assert.Greater(snapshot.ColonyAverageSupplyRatio, 1f);
+            Assert.AreEqual(0, snapshot.ColonyBottleneckCount);
+            Assert.AreEqual(0, snapshot.ColonyCriticalCount);
             Assert.AreEqual(1, snapshot.AnomalyCount);
             Assert.AreEqual(1, snapshot.ActiveAnomalyCount);
             Assert.AreEqual(Space4XAnomalySeverity.Critical, snapshot.HighestAnomalySeverity);
@@ -165,6 +171,9 @@ namespace Space4X.Registry.Tests
             Assert.AreEqual(1, snapshot.ActiveMiracleCount);
             Assert.AreEqual(30f, snapshot.MiracleTotalEnergyCost);
             Assert.AreEqual(15f, snapshot.MiracleTotalCooldownSeconds);
+            Assert.AreEqual(0.625f, snapshot.MiracleAverageChargePercent, 1e-4f);
+            Assert.AreEqual(1f / 60f, snapshot.MiracleAverageCastLatencySeconds, 1e-4f);
+            Assert.AreEqual(1, snapshot.MiracleCancellationCount);
             Assert.AreEqual(42u, snapshot.LastRegistryTick);
 
             var telemetryBuffer = _entityManager.GetBuffer<TelemetryMetric>(_telemetryEntity);
@@ -176,6 +185,8 @@ namespace Space4X.Registry.Tests
             }
 
             Assert.Contains("space4x.registry.colonies", telemetryKeys);
+            Assert.Contains("space4x.registry.colonies.supply.demand", telemetryKeys);
+            Assert.Contains("space4x.registry.colonies.supply.avgRatio", telemetryKeys);
             Assert.Contains("space4x.registry.fleets", telemetryKeys);
             Assert.Contains("space4x.registry.fleets.engaging", telemetryKeys);
             Assert.Contains("space4x.registry.logisticsRoutes", telemetryKeys);
@@ -186,6 +197,9 @@ namespace Space4X.Registry.Tests
             Assert.Contains("space4x.miracles.active", telemetryKeys);
             Assert.Contains("space4x.miracles.energy", telemetryKeys);
             Assert.Contains("space4x.miracles.cooldownSeconds", telemetryKeys);
+            Assert.Contains("space4x.miracles.averageCharge", telemetryKeys);
+            Assert.Contains("space4x.miracles.castLatencyMs", telemetryKeys);
+            Assert.Contains("space4x.miracles.cancellations", telemetryKeys);
 
             AssertMetadataHasSpatialData(colonyRegistryEntity, resolved: 1, fallback: 0, unmapped: 0);
             AssertMetadataHasSpatialData(fleetRegistryEntity, resolved: 0, fallback: 1, unmapped: 0);

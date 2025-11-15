@@ -35,6 +35,9 @@ projects/
 *.tmp
 
 Packages/Coplay/Editor/Checkpoints/
+Packages/Coplay/Editor/CoplayLogs/
+
+
 
 
 

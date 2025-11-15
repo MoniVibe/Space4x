@@ -34,14 +34,6 @@
         "com.unity.physics": "1.0.16"
       }
     },
-    "com.moni.vfxplayground.capture": {
-      "version": "file:../../VFXPlayground/Packages/com.moni.vfxplayground.capture",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {
-        "com.unity.visualeffectgraph": "17.2.0"
-      }
-    },
     "com.unity.ai.navigation": {
       "version": "2.0.9",
       "depth": 0,

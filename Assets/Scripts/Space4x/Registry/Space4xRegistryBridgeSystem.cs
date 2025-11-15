@@ -82,7 +82,8 @@ namespace Space4X.Registry
 
         public void OnUpdate(ref SystemState state)
         {
-            var tick = SystemAPI.GetSingleton<TimeState>().Tick;
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            var tick = timeState.Tick;
 
             _residencyLookup.Update(ref state);
 
@@ -95,7 +96,7 @@ namespace Space4X.Registry
             UpdateFleetRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateLogisticsRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateAnomalyRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
-            UpdateMiracleSnapshot(ref state, tick);
+            UpdateMiracleSnapshot(ref state, tick, timeState.FixedDeltaTime);
         }
 
         private void UpdateColonyRegistry(ref SystemState state, uint tick, bool hasSpatial, in SpatialGridConfig gridConfig, in SpatialGridState gridState, bool hasSyncState, in RegistrySpatialSyncState syncState)
@@ -106,6 +107,12 @@ namespace Space4X.Registry
 
             float totalPopulation = 0f;
             float totalResources = 0f;
+            float totalSupplyDemand = 0f;
+            float totalSupplyShortage = 0f;
+            float supplyRatioSum = 0f;
+            int supplySamples = 0;
+            int bottleneckCount = 0;
+            int criticalCount = 0;
             int resolvedCount = 0;
             int fallbackCount = 0;
             int unmappedCount = 0;
@@ -115,7 +122,11 @@ namespace Space4X.Registry
             {
                 var colonyData = colony.ValueRO;
                 var position = transform.ValueRO.Position;
+                var demand = Space4XColonySupply.ComputeDemand(colonyData.Population);
+                var supplyRatio = Space4XColonySupply.ComputeSupplyRatio(colonyData.StoredResources, demand);
+                var supplyShortage = Space4XColonySupply.ComputeShortage(colonyData.StoredResources, demand);
                 var flags = Space4XRegistryFlags.FromColonyStatus(colonyData.Status);
+                flags |= Space4XRegistryFlags.ApplyColonySupply(supplyRatio);
 
                 var cellId = -1;
                 var usedResidency = false;
@@ -156,6 +167,9 @@ namespace Space4X.Registry
                     ColonyId = colonyData.ColonyId,
                     Population = colonyData.Population,
                     StoredResources = colonyData.StoredResources,
+                    SupplyDemand = demand,
+                    SupplyRatio = supplyRatio,
+                    SupplyShortage = supplyShortage,
                     WorldPosition = position,
                     SectorId = colonyData.SectorId,
                     Status = colonyData.Status,
@@ -166,6 +180,20 @@ namespace Space4X.Registry
 
                 totalPopulation += colonyData.Population;
                 totalResources += colonyData.StoredResources;
+                totalSupplyDemand += demand;
+                totalSupplyShortage += supplyShortage;
+                supplyRatioSum += supplyRatio;
+                supplySamples++;
+
+                if (supplyRatio < Space4XColonySupply.BottleneckThreshold)
+                {
+                    bottleneckCount++;
+                }
+
+                if (supplyRatio < Space4XColonySupply.CriticalThreshold)
+                {
+                    criticalCount++;
+                }
             }
 
             var buffer = state.EntityManager.GetBuffer<Space4XColonyRegistryEntry>(_colonyRegistryEntity);
@@ -182,6 +210,11 @@ namespace Space4X.Registry
             summary.ColonyCount = buffer.Length;
             summary.TotalPopulation = totalPopulation;
             summary.TotalStoredResources = totalResources;
+            summary.TotalSupplyDemand = totalSupplyDemand;
+            summary.TotalSupplyShortage = totalSupplyShortage;
+            summary.AverageSupplyRatio = supplySamples > 0 ? supplyRatioSum / supplySamples : 0f;
+            summary.BottleneckColonyCount = bottleneckCount;
+            summary.CriticalColonyCount = criticalCount;
             summary.LastUpdateTick = tick;
             summary.LastSpatialVersion = spatialVersion;
             summary.SpatialResolvedCount = resolvedCount;
@@ -190,6 +223,11 @@ namespace Space4X.Registry
 
             ref var snapshot = ref SystemAPI.GetComponentRW<Space4XRegistrySnapshot>(_snapshotEntity).ValueRW;
             snapshot.ColonyCount = buffer.Length;
+            snapshot.ColonySupplyDemandTotal = totalSupplyDemand;
+            snapshot.ColonySupplyShortageTotal = totalSupplyShortage;
+            snapshot.ColonyAverageSupplyRatio = summary.AverageSupplyRatio;
+            snapshot.ColonyBottleneckCount = bottleneckCount;
+            snapshot.ColonyCriticalCount = criticalCount;
             snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
         }
 
@@ -510,7 +548,7 @@ namespace Space4X.Registry
             snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
         }
 
-        private void UpdateMiracleSnapshot(ref SystemState state, uint tick)
+        private void UpdateMiracleSnapshot(ref SystemState state, uint tick, float fixedDeltaTime)
         {
             if (!SystemAPI.TryGetSingleton(out MiracleRegistry miracleRegistry))
             {
@@ -522,6 +560,46 @@ namespace Space4X.Registry
             snapshot.ActiveMiracleCount = miracleRegistry.ActiveMiracles;
             snapshot.MiracleTotalEnergyCost = miracleRegistry.TotalEnergyCost;
             snapshot.MiracleTotalCooldownSeconds = miracleRegistry.TotalCooldownSeconds;
+            snapshot.MiracleAverageChargePercent = 0f;
+            snapshot.MiracleAverageCastLatencySeconds = 0f;
+            snapshot.MiracleCancellationCount = 0;
+
+            if (SystemAPI.TryGetSingletonEntity<MiracleRegistry>(out var miracleRegistryEntity) &&
+                state.EntityManager.HasBuffer<MiracleRegistryEntry>(miracleRegistryEntity))
+            {
+                var entries = state.EntityManager.GetBuffer<MiracleRegistryEntry>(miracleRegistryEntity);
+                float totalCharge = 0f;
+                int chargeSamples = 0;
+                float totalLatencySeconds = 0f;
+                int latencySamples = 0;
+                int cancellationCount = 0;
+                var latencyStep = math.max(fixedDeltaTime, 1e-4f);
+
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    var entry = entries[i];
+                    totalCharge += entry.ChargePercent;
+                    chargeSamples++;
+
+                    if (entry.LastCastTick > 0)
+                    {
+                        var deltaTicks = tick >= entry.LastCastTick ? tick - entry.LastCastTick : 0u;
+                        totalLatencySeconds += deltaTicks * latencyStep;
+                        latencySamples++;
+                    }
+
+                    if (entry.Lifecycle == MiracleLifecycleState.CoolingDown &&
+                        (entry.Flags & MiracleRegistryFlags.Active) == 0)
+                    {
+                        cancellationCount++;
+                    }
+                }
+
+                snapshot.MiracleAverageChargePercent = chargeSamples > 0 ? totalCharge / chargeSamples : 0f;
+                snapshot.MiracleAverageCastLatencySeconds = latencySamples > 0 ? totalLatencySeconds / latencySamples : 0f;
+                snapshot.MiracleCancellationCount = cancellationCount;
+            }
+
             snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
         }
 
@@ -584,6 +662,11 @@ namespace Space4X.Registry
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
 
             buffer.AddMetric("space4x.registry.colonies", snapshot.ColonyCount);
+            buffer.AddMetric("space4x.registry.colonies.supply.demand", snapshot.ColonySupplyDemandTotal);
+            buffer.AddMetric("space4x.registry.colonies.supply.shortage", snapshot.ColonySupplyShortageTotal);
+            buffer.AddMetric("space4x.registry.colonies.supply.avgRatio", snapshot.ColonyAverageSupplyRatio, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("space4x.registry.colonies.supply.bottleneck", snapshot.ColonyBottleneckCount);
+            buffer.AddMetric("space4x.registry.colonies.supply.critical", snapshot.ColonyCriticalCount);
             buffer.AddMetric("space4x.registry.fleets", snapshot.FleetCount);
             buffer.AddMetric("space4x.registry.fleets.engaging", snapshot.FleetEngagementCount);
             buffer.AddMetric("space4x.registry.logisticsRoutes", snapshot.LogisticsRouteCount);
@@ -598,6 +681,9 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.miracles.active", snapshot.ActiveMiracleCount);
             buffer.AddMetric("space4x.miracles.energy", snapshot.MiracleTotalEnergyCost, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.miracles.cooldownSeconds", snapshot.MiracleTotalCooldownSeconds, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.miracles.averageCharge", snapshot.MiracleAverageChargePercent, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("space4x.miracles.castLatencyMs", snapshot.MiracleAverageCastLatencySeconds * 1000f, TelemetryMetricUnit.DurationMilliseconds);
+            buffer.AddMetric("space4x.miracles.cancellations", snapshot.MiracleCancellationCount);
 
             if (SystemAPI.TryGetSingletonEntity<VillagerRegistry>(out var villagerRegistryEntity) &&
                 state.EntityManager.HasBuffer<VillagerLessonRegistryEntry>(villagerRegistryEntity))

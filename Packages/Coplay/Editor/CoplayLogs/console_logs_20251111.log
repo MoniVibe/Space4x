@@ -309,101 +309,21 @@
 2025-11-11 05:48:28.007 +02:00 [INF] ConsoleDebugButtonService disposing
 2025-11-11 05:48:28.010 +02:00 [INF] Unsubscribed from error detection
 2025-11-11 05:48:28.012 +02:00 [INF] EditorThreadHelper disposed
-2025-11-11 17:09:38.760 +02:00 [INF] Initializing Coplay services
-2025-11-11 17:09:38.834 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 17:09:38.835 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 17:09:38.978 +02:00 [INF] Enabling console error detection
-2025-11-11 17:09:38.997 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 17:09:39.012 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 17:15:42.597 +02:00 [INF] Coplay container created
-2025-11-11 17:15:42.645 +02:00 [INF] Debug button created, initial visibility: visible
-2025-11-11 17:15:42.663 +02:00 [INF] Copy button created
-2025-11-11 17:15:42.663 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 17:15:42.682 +02:00 [INF] Subscribed to error detection
-2025-11-11 17:16:22.694 +02:00 [INF] Found 1 startup errors via direct console query - caching for downstream use
-2025-11-11 17:39:32.688 +02:00 [DBG] Compilation finished, refreshing error state
-2025-11-11 17:39:33.991 +02:00 [INF] Deinitializing Coplay services
-2025-11-11 17:39:34.003 +02:00 [INF] ConsoleDebugButtonService disposing
-2025-11-11 17:39:34.062 +02:00 [INF] Unsubscribed from error detection
-2025-11-11 17:39:34.093 +02:00 [INF] EditorThreadHelper disposed
-2025-11-11 17:40:15.290 +02:00 [INF] Initializing Coplay services
-2025-11-11 17:40:15.300 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 17:40:15.300 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 17:40:15.321 +02:00 [INF] Enabling console error detection
-2025-11-11 17:40:15.331 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 17:40:15.337 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 17:40:20.233 +02:00 [INF] Coplay container created
-2025-11-11 17:40:20.247 +02:00 [INF] Debug button created, initial visibility: visible
-2025-11-11 17:40:20.247 +02:00 [INF] Copy button created
-2025-11-11 17:40:20.247 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 17:40:20.248 +02:00 [INF] Subscribed to error detection
-2025-11-11 17:40:20.733 +02:00 [INF] Found 1 startup errors via direct console query - caching for downstream use
-2025-11-11 17:46:27.975 +02:00 [INF] Initializing Coplay services
-2025-11-11 17:46:27.990 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 17:46:27.990 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 17:46:28.008 +02:00 [INF] Enabling console error detection
-2025-11-11 17:46:28.024 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 17:46:28.031 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 17:48:13.975 +02:00 [INF] Coplay container created
-2025-11-11 17:48:13.978 +02:00 [INF] Debug button created, initial visibility: visible
-2025-11-11 17:48:13.981 +02:00 [INF] Copy button created
-2025-11-11 17:48:13.981 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 17:48:13.982 +02:00 [INF] Subscribed to error detection
-2025-11-11 17:48:14.993 +02:00 [INF] Found 1 startup errors via direct console query - caching for downstream use
-2025-11-11 17:52:02.489 +02:00 [INF] Initializing Coplay services
-2025-11-11 17:52:02.507 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 17:52:02.508 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 17:52:02.572 +02:00 [INF] Enabling console error detection
-2025-11-11 17:52:02.616 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 17:52:02.636 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 17:53:41.949 +02:00 [INF] Coplay container created
-2025-11-11 17:53:41.969 +02:00 [INF] Debug button created, initial visibility: visible
-2025-11-11 17:53:41.978 +02:00 [INF] Copy button created
-2025-11-11 17:53:41.978 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 17:53:41.981 +02:00 [INF] Subscribed to error detection
-2025-11-11 17:53:43.354 +02:00 [INF] Found 1 startup errors via direct console query - caching for downstream use
-2025-11-11 17:54:19.623 +02:00 [DBG] Compilation finished, refreshing error state
-2025-11-11 17:54:19.693 +02:00 [INF] Deinitializing Coplay services
-2025-11-11 17:54:19.698 +02:00 [INF] ConsoleDebugButtonService disposing
-2025-11-11 17:54:19.722 +02:00 [INF] Unsubscribed from error detection
-2025-11-11 17:54:19.731 +02:00 [INF] EditorThreadHelper disposed
-2025-11-11 17:54:30.214 +02:00 [INF] Initializing Coplay services
-2025-11-11 17:54:30.223 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 17:54:30.223 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 17:54:30.240 +02:00 [INF] Enabling console error detection
-2025-11-11 17:54:30.250 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 17:54:30.254 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 17:54:32.832 +02:00 [INF] Coplay container created
-2025-11-11 17:54:32.843 +02:00 [INF] Debug button created, initial visibility: visible
-2025-11-11 17:54:32.843 +02:00 [INF] Copy button created
-2025-11-11 17:54:32.843 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 17:54:32.843 +02:00 [INF] Subscribed to error detection
-2025-11-11 17:54:33.931 +02:00 [INF] Found 1 startup errors via direct console query - caching for downstream use
-2025-11-11 19:04:37.635 +02:00 [INF] Initializing Coplay services
-2025-11-11 19:04:37.650 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 19:04:37.650 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 19:04:37.671 +02:00 [INF] Enabling console error detection
-2025-11-11 19:04:37.684 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 19:04:37.694 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 19:05:07.514 +02:00 [INF] Coplay container created
-2025-11-11 19:05:07.538 +02:00 [INF] Debug button created, initial visibility: visible
-2025-11-11 19:05:07.546 +02:00 [INF] Copy button created
-2025-11-11 19:05:07.546 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 19:05:07.548 +02:00 [INF] Subscribed to error detection
-2025-11-11 19:05:08.041 +02:00 [INF] Found 1 startup errors via direct console query - caching for downstream use
-2025-11-11 19:05:32.143 +02:00 [INF] Deinitializing Coplay services
-2025-11-11 19:05:32.144 +02:00 [INF] ConsoleDebugButtonService disposing
-2025-11-11 19:05:32.152 +02:00 [INF] Unsubscribed from error detection
-2025-11-11 19:05:32.159 +02:00 [INF] EditorThreadHelper disposed
-2025-11-11 19:05:37.999 +02:00 [INF] Initializing Coplay services
-2025-11-11 19:05:38.008 +02:00 [INF] Initializing EditorThreadHelper
-2025-11-11 19:05:38.008 +02:00 [INF] EditorThreadHelper initialized successfully
-2025-11-11 19:05:38.022 +02:00 [INF] Enabling console error detection
-2025-11-11 19:05:38.031 +02:00 [INF] ConsoleDebugButtonService initializing
-2025-11-11 19:05:38.035 +02:00 [INF] ConsoleDebugButtonService initialized
-2025-11-11 19:05:42.995 +02:00 [INF] Coplay container created
-2025-11-11 19:05:42.997 +02:00 [INF] Debug button created, initial visibility: hidden
-2025-11-11 19:05:42.998 +02:00 [INF] Copy button created
-2025-11-11 19:05:42.998 +02:00 [INF] Debug With AI button successfully injected into console
-2025-11-11 19:05:42.998 +02:00 [INF] Subscribed to error detection
-2025-11-11 19:05:43.335 +02:00 [INF] No startup errors found after delayed check
+2025-11-11 05:48:31.509 +02:00 [INF] Initializing Coplay services
+2025-11-11 05:48:31.516 +02:00 [INF] Initializing EditorThreadHelper
+2025-11-11 05:48:31.516 +02:00 [INF] EditorThreadHelper initialized successfully
+2025-11-11 05:48:31.533 +02:00 [INF] Enabling console error detection
+2025-11-11 05:48:31.539 +02:00 [INF] ConsoleDebugButtonService initializing
+2025-11-11 05:48:31.542 +02:00 [INF] ConsoleDebugButtonService initialized
+2025-11-11 05:48:33.807 +02:00 [INF] Coplay container created
+2025-11-11 05:48:33.816 +02:00 [INF] Debug button created, initial visibility: hidden
+2025-11-11 05:48:33.817 +02:00 [INF] Copy button created
+2025-11-11 05:48:33.817 +02:00 [INF] Debug With AI button successfully injected into console
+2025-11-11 05:48:33.818 +02:00 [INF] Subscribed to error detection
+2025-11-11 05:48:34.097 +02:00 [INF] No startup errors found after delayed check
+2025-11-11 05:50:24.377 +02:00 [INF] Initializing Coplay services
+2025-11-11 05:50:24.384 +02:00 [INF] Initializing EditorThreadHelper
+2025-11-11 05:50:24.384 +02:00 [INF] EditorThreadHelper initialized successfully
+2025-11-11 05:50:24.395 +02:00 [INF] Enabling console error detection
+2025-11-11 05:50:24.402 +02:00 [INF] ConsoleDebugButtonService initializing
+2025-11-11 05:50:24.406 +02:00 [INF] ConsoleDebugButtonService initialized

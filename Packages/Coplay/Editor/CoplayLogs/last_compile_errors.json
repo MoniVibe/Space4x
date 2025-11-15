@@ -1,1 +1,1 @@
-[]
+["Assets\\Scripts\\Space4x\\Authoring\\Space4XMiningDemoAuthoring.cs(550,21): error CS0104: 'Hash128' is an ambiguous reference between 'Unity.Entities.Hash128' and 'UnityEngine.Hash128'"]

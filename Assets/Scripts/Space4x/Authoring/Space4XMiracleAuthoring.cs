@@ -1,5 +1,6 @@
 using System;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Spatial;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -96,6 +97,13 @@ namespace Space4X.Registry
                     : setup.Position;
 
                 AddComponent(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
+                AddComponent<SpatialIndexedTag>(entity);
+                AddComponent(entity, new SpatialGridResidency
+                {
+                    CellId = -1,
+                    LastPosition = position,
+                    Version = 0
+                });
                 AddComponent(entity, new MiracleDefinition
                 {
                     Type = setup.Type,
