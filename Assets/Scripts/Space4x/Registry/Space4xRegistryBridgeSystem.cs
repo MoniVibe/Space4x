@@ -684,6 +684,13 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.miracles.averageCharge", snapshot.MiracleAverageChargePercent, TelemetryMetricUnit.Ratio);
             buffer.AddMetric("space4x.miracles.castLatencyMs", snapshot.MiracleAverageCastLatencySeconds * 1000f, TelemetryMetricUnit.DurationMilliseconds);
             buffer.AddMetric("space4x.miracles.cancellations", snapshot.MiracleCancellationCount);
+            buffer.AddMetric("space4x.compliance.breaches", snapshot.ComplianceBreachCount);
+            buffer.AddMetric("space4x.compliance.mutiny", snapshot.ComplianceMutinyCount);
+            buffer.AddMetric("space4x.compliance.desertion", snapshot.ComplianceDesertionCount);
+            buffer.AddMetric("space4x.compliance.independence", snapshot.ComplianceIndependenceCount);
+            buffer.AddMetric("space4x.compliance.severity.avg", snapshot.ComplianceAverageSeverity, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("space4x.compliance.suspicion.mean", snapshot.ComplianceAverageSuspicion, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("space4x.compliance.suspicion.spyMean", snapshot.ComplianceAverageSpySuspicion, TelemetryMetricUnit.Ratio);
 
             if (SystemAPI.TryGetSingletonEntity<VillagerRegistry>(out var villagerRegistryEntity) &&
                 state.EntityManager.HasBuffer<VillagerLessonRegistryEntry>(villagerRegistryEntity))

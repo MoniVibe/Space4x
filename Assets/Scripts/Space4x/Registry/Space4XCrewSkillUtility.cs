@@ -21,5 +21,18 @@ namespace Space4X.Registry
 
             return clamped <= 0f ? 0f : -math.log(1f - clamped) / XpCurve;
         }
+
+        public static float ComputeDeltaXp(SkillDomain domain, float amount)
+        {
+            var magnitude = math.max(0.1f, amount);
+            return domain switch
+            {
+                SkillDomain.Hauling => magnitude * 0.07f,
+                SkillDomain.Combat => magnitude * 0.12f,
+                SkillDomain.Repair => magnitude * 0.08f,
+                SkillDomain.Exploration => magnitude * 0.05f,
+                _ => magnitude * 0.1f
+            };
+        }
     }
 }

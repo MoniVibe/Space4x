@@ -3,6 +3,7 @@ using PureDOTS.Systems;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine.Assertions;
 
 namespace Space4X.Registry
 {
@@ -87,6 +88,10 @@ namespace Space4X.Registry
                 for (int i = 0; i < affiliations.Length; i++)
                 {
                     var affiliation = affiliations[i];
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    Assert.IsTrue(affiliation.Target == Entity.Null || _doctrineLookup.HasComponent(affiliation.Target),
+                        $"Affiliation target {affiliation.Target.Index} missing DoctrineProfile for entity {entity.Index}");
+#endif
                     if (!_doctrineLookup.HasComponent(affiliation.Target))
                     {
                         continue;
@@ -273,7 +278,7 @@ namespace Space4X.Registry
 
         private struct OutlookSample
         {
-            public ushort Id;
+            public OutlookId Id;
             public float Weight;
             public float Magnitude;
         }
@@ -303,7 +308,7 @@ namespace Space4X.Registry
                 }
             }
 
-            public void Consider(ushort outlookId, float weight)
+            public void Consider(OutlookId outlookId, float weight)
             {
                 var sample = new OutlookSample
                 {
@@ -320,7 +325,7 @@ namespace Space4X.Registry
                 Insert(ref sample);
             }
 
-            public bool TryGet(ushort outlookId, out float weight)
+            public bool TryGet(OutlookId outlookId, out float weight)
             {
                 if (Count > 0 && First.Id == outlookId)
                 {

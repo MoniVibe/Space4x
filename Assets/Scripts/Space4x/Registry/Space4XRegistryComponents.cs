@@ -208,6 +208,14 @@ namespace Space4X.Registry
         public float MiracleAverageChargePercent;
         public float MiracleAverageCastLatencySeconds;
         public int MiracleCancellationCount;
+        public int ComplianceBreachCount;
+        public int ComplianceMutinyCount;
+        public int ComplianceDesertionCount;
+        public int ComplianceIndependenceCount;
+        public float ComplianceAverageSeverity;
+        public float ComplianceAverageSuspicion;
+        public float ComplianceAverageSpySuspicion;
+        public uint ComplianceLastUpdateTick;
         public uint LastRegistryTick;
     }
 

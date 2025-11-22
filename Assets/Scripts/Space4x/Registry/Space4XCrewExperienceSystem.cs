@@ -13,9 +13,6 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(HistorySystemGroup))]
     public partial struct Space4XCrewExperienceSystem : ISystem
     {
-        private const float MiningXpScalar = 0.1f;
-        private const float HaulingXpScalar = 0.07f;
-
         private ComponentLookup<SkillExperienceGain> _xpLookup;
         private ComponentLookup<CrewSkills> _skillsLookup;
 
@@ -82,7 +79,7 @@ namespace Space4X.Registry
             EnsureSkillComponents(ref state, entity, tick);
 
             var xpData = _xpLookup[entity];
-            var deltaXp = ComputeDeltaXp(domain, amount);
+            var deltaXp = Space4XSkillUtility.ComputeDeltaXp(domain, amount);
 
             switch (domain)
             {
@@ -151,24 +148,6 @@ namespace Space4X.Registry
             {
                 _xpLookup.Update(ref state);
                 _skillsLookup.Update(ref state);
-            }
-        }
-
-        private static float ComputeDeltaXp(SkillDomain domain, float amount)
-        {
-            var magnitude = math.max(0.1f, amount);
-            switch (domain)
-            {
-                case SkillDomain.Hauling:
-                    return magnitude * HaulingXpScalar;
-                case SkillDomain.Combat:
-                    return magnitude * 0.12f;
-                case SkillDomain.Repair:
-                    return magnitude * 0.08f;
-                case SkillDomain.Exploration:
-                    return magnitude * 0.05f;
-                default:
-                    return magnitude * MiningXpScalar;
             }
         }
 

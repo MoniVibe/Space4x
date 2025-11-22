@@ -66,12 +66,24 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Outlook identifiers shared across authoring, narrative, and DOTS systems.
+    /// </summary>
+    public enum OutlookId : ushort
+    {
+        Neutral = 0,
+        Loyalist = 1,
+        Opportunist = 2,
+        Fanatic = 3,
+        Mutinous = 4
+    }
+
+    /// <summary>
     /// Individual outlook weight. Multiple entries may exist, but only the top three are surfaced for crews.
     /// </summary>
     [InternalBufferCapacity(3)]
     public struct OutlookEntry : IBufferElementData
     {
-        public ushort OutlookId;
+        public OutlookId OutlookId;
         public half Weight;
     }
 
@@ -101,7 +113,7 @@ namespace Space4X.Registry
     [InternalBufferCapacity(3)]
     public struct TopOutlook : IBufferElementData
     {
-        public ushort OutlookId;
+        public OutlookId OutlookId;
         public half Weight;
     }
 
@@ -238,7 +250,7 @@ namespace Space4X.Registry
     [InternalBufferCapacity(3)]
     public struct DoctrineOutlookExpectation : IBufferElementData
     {
-        public ushort OutlookId;
+        public OutlookId OutlookId;
         public half MinimumWeight;
     }
 

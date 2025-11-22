@@ -4,7 +4,7 @@ Goal: minimal mine → haul loop validated against PureDOTS spines; visuals rema
 
 ## Slice 1 – Mining
 - [x] Miner ship reads scripted order; FixedStep state machine ticks “Mining” (MiningOrder/MiningState) and emits `PlayEffectRequest("FX.Mining.Sparks")` via effect stream.
-- [ ] Uses Registry/Continuity spine for mining entity definitions; no hybrid/service locator usage.
+- [ ] Uses Registry/Continuity spine for mining entity definitions; no hybrid/service locator usage. *(Open: validate and mark complete.)*
 
 ## Slice 2 – Carrier
 - [x] On threshold, emit `SpawnResource` entities; Carrier auto-picks via nearest-query system.
@@ -18,8 +18,8 @@ Goal: minimal mine → haul loop validated against PureDOTS spines; visuals rema
 
 ## Acceptance
 - [ ] Presentation driven solely by Presentation spine bindings; removing bindings leaves the sim intact.
-- [ ] PlayMode tests cover mining tick, carrier pickup, telemetry counter, and rewind determinism. (Mining tick covered by `Space4XMinerMiningSystemTests`)
-- [ ] Registry continuity validation passes for mining/haul entities before PlayMode.
+- [ ] PlayMode tests cover mining tick, carrier pickup, telemetry counter, and rewind determinism. (Mining tick covered by `Space4XMinerMiningSystemTests`; rewind/continuity tests outstanding.)
+- [ ] Registry continuity validation passes for mining/haul entities before PlayMode. *(Open.)*
 
 ### Shared mining schema notes
 - Miner authoring now seeds `MiningOrder`, `MiningState`, and `MiningYield` (resource id, tick interval, spawn threshold); mining ticks live in `Space4XMinerMiningSystem` (FixedStep).
