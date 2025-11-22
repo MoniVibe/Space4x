@@ -96,6 +96,13 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Tag applied when a carrier is docked at a station that allows station-only refits/overhauls.
+    /// </summary>
+    public struct DockedAtStation : IComponentData
+    {
+    }
+
+    /// <summary>
     /// Health and degradation state for an individual module instance.
     /// </summary>
     public struct ModuleHealth : IComponentData
@@ -116,5 +123,56 @@ namespace Space4X.Registry
         public float RepairRatePerSecond;
         public float CriticalRepairRate;
         public byte CanRepairCritical;
+    }
+
+    /// <summary>
+    /// Full overhaul capability available when docked at a station.
+    /// </summary>
+    public struct StationOverhaulFacility : IComponentData
+    {
+        public float OverhaulRatePerSecond;
+    }
+
+    public enum ModuleMaintenanceEventType : byte
+    {
+        RefitStarted = 0,
+        RefitCompleted = 1,
+        RepairApplied = 2,
+        ModuleFailed = 3
+    }
+
+    /// <summary>
+    /// Command-log style maintenance entry so rewind/telemetry can replay refits/repairs.
+    /// </summary>
+    public struct ModuleMaintenanceCommandLogEntry : IBufferElementData
+    {
+        public uint Tick;
+        public Entity Carrier;
+        public int SlotIndex;
+        public Entity Module;
+        public ModuleMaintenanceEventType EventType;
+        public float Amount;
+    }
+
+    /// <summary>
+    /// Aggregated maintenance telemetry counters.
+    /// </summary>
+    public struct ModuleMaintenanceTelemetry : IComponentData
+    {
+        public uint LastUpdateTick;
+        public uint RefitStarted;
+        public uint RefitCompleted;
+        public uint Failures;
+        public float RepairApplied;
+        public float RefitWorkApplied;
+    }
+
+    /// <summary>
+    /// Marker for the maintenance log singleton.
+    /// </summary>
+    public struct ModuleMaintenanceLog : IComponentData
+    {
+        public uint SnapshotHorizon;
+        public uint LastPlaybackTick;
     }
 }

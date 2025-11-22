@@ -276,6 +276,58 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Planner ticket produced from a compliance breach for AI/narrative consumers.
+    /// </summary>
+    [InternalBufferCapacity(1)]
+    public struct ComplianceTicket : IBufferElementData
+    {
+        public Entity Affiliation;
+        public ComplianceBreachType Type;
+        public half Severity;
+        public uint Tick;
+    }
+
+    /// <summary>
+    /// Singleton marker for the compliance ticket queue consumed by planner/narrative systems.
+    /// </summary>
+    public struct ComplianceTicketQueue : IComponentData
+    {
+    }
+
+    /// <summary>
+    /// Queue entry emitted by the ticket queue system.
+    /// </summary>
+    [InternalBufferCapacity(4)]
+    public struct ComplianceTicketQueueEntry : IBufferElementData
+    {
+        public Entity Source;
+        public Entity Affiliation;
+        public ComplianceBreachType Type;
+        public half Severity;
+        public uint Tick;
+    }
+
+    /// <summary>
+    /// Planner inbox marker for downstream AI/narrative systems to consume compliance tickets.
+    /// </summary>
+    public struct CompliancePlannerInbox : IComponentData
+    {
+    }
+
+    /// <summary>
+    /// Planner-friendly ticket entry.
+    /// </summary>
+    [InternalBufferCapacity(4)]
+    public struct CompliancePlannerTicket : IBufferElementData
+    {
+        public Entity Source;
+        public Entity Affiliation;
+        public ComplianceBreachType Type;
+        public half Severity;
+        public uint Tick;
+    }
+
+    /// <summary>
     /// Alignment helper utility functions.
     /// </summary>
     public static class AlignmentMath

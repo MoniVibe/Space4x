@@ -63,6 +63,11 @@ namespace Space4X.Registry
             _slotRequirementLookup.Update(ref state);
 
             var hasSkillLog = SystemAPI.TryGetSingletonBuffer<SkillChangeLogEntry>(out var skillLog);
+            var hasMaintenanceLog = SystemAPI.TryGetSingletonBuffer<ModuleMaintenanceCommandLogEntry>(out var maintenanceLog);
+            var hasMaintenanceTelemetry = SystemAPI.TryGetSingletonEntity<ModuleMaintenanceTelemetry>(out var maintenanceTelemetryEntity);
+            var maintenanceTelemetry = hasMaintenanceTelemetry ? state.EntityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceTelemetryEntity) : default;
+            var telemetryDirty = false;
+            var tick = time.Tick;
 
             using var carrierEntities = _carrierQuery.ToEntityArray(Allocator.Temp);
             foreach (var entity in carrierEntities)
@@ -81,6 +86,12 @@ namespace Space4X.Registry
                 }
 
                 var facility = _facilityLookup[entity];
+                var docked = state.EntityManager.HasComponent<DockedAtStation>(entity);
+                if (facility.SupportsFieldRefit == 0 && !docked)
+                {
+                    continue;
+                }
+
                 var requestIndex = GetNextRequestIndex(requests);
                 var request = requests[requestIndex];
                 var slotIndex = FindSlotIndex(slots, request.SlotIndex);
@@ -99,8 +110,18 @@ namespace Space4X.Registry
                 }
 
                 var requiredWork = math.max(0.1f, request.RequiredWork <= 0f ? 1f : request.RequiredWork);
+                var starting = slot.RefitProgress <= 0f && slot.State != ModuleSlotState.Removing && slot.State != ModuleSlotState.Installing;
                 slot.TargetModule = request.TargetModule;
                 slot.State = request.TargetModule == Entity.Null ? ModuleSlotState.Removing : ModuleSlotState.Installing;
+
+                if (starting)
+                {
+                    Space4XModuleMaintenanceUtility.LogEvent(hasMaintenanceLog, maintenanceLog, tick, entity, slot.SlotIndex, request.TargetModule, ModuleMaintenanceEventType.RefitStarted, requiredWork);
+                    if (hasMaintenanceTelemetry)
+                    {
+                        telemetryDirty |= Space4XModuleMaintenanceUtility.ApplyTelemetry(ModuleMaintenanceEventType.RefitStarted, requiredWork, tick, ref maintenanceTelemetry);
+                    }
+                }
 
                 var workDelta = ComputeWorkDelta(deltaTime, facility, GetRefitRateMultiplier(entity), GetRepairSkill(entity));
                 slot.RefitProgress += workDelta;
@@ -117,6 +138,17 @@ namespace Space4X.Registry
                 slot.State = request.TargetModule == Entity.Null ? ModuleSlotState.Empty : ModuleSlotState.Active;
                 slots[slotIndex] = slot;
                 requests.RemoveAt(requestIndex);
+
+                Space4XModuleMaintenanceUtility.LogEvent(hasMaintenanceLog, maintenanceLog, tick, entity, slot.SlotIndex, request.TargetModule, ModuleMaintenanceEventType.RefitCompleted, requiredWork);
+                if (hasMaintenanceTelemetry)
+                {
+                    telemetryDirty |= Space4XModuleMaintenanceUtility.ApplyTelemetry(ModuleMaintenanceEventType.RefitCompleted, requiredWork, tick, ref maintenanceTelemetry);
+                }
+            }
+
+            if (telemetryDirty && hasMaintenanceTelemetry)
+            {
+                state.EntityManager.SetComponentData(maintenanceTelemetryEntity, maintenanceTelemetry);
             }
         }
 

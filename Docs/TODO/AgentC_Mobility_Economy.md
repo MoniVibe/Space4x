@@ -15,7 +15,7 @@ Start/resume here when working on Agent C. Keep `Docs/Progress.md` updated when 
 ## Open items / next steps
 - Finish pathfinding + queue handling and interception/rendezvous broadcasts; add tests for mobility graph maintenance.
 - Extend batch inventory with dynamic pricing and FIFO/spoilage consumption; wire metrics into registry snapshots/telemetry.
-- Add tech diffusion components and apply upgrades; validate time-scale gates and disabled growth configs.
+- Extend tech diffusion: bridge per-faction metrics into registry telemetry snapshots, add command-log playback coverage, and audit TimeState scaling across mobility/economy systems.
 
 ## Notes
 - Status/hand-off lives in `Docs/Progress.md`. Update it when you start/stop to keep the single source of truth accurate.

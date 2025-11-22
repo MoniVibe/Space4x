@@ -215,7 +215,12 @@ namespace Space4X.Registry
         public float ComplianceAverageSeverity;
         public float ComplianceAverageSuspicion;
         public float ComplianceAverageSpySuspicion;
+        public float ComplianceMaxSuspicion;
+        public int ComplianceSuspicionAlertCount;
         public uint ComplianceLastUpdateTick;
+        public int TechDiffusionActiveCount;
+        public int TechDiffusionCompletedCount;
+        public uint TechDiffusionLastUpgradeTick;
         public uint LastRegistryTick;
     }
 

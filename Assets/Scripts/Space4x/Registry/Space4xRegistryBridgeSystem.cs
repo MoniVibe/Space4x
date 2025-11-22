@@ -97,6 +97,7 @@ namespace Space4X.Registry
             UpdateLogisticsRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateAnomalyRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateMiracleSnapshot(ref state, tick, timeState.FixedDeltaTime);
+            UpdateTechDiffusionSnapshot(ref state, tick);
         }
 
         private void UpdateColonyRegistry(ref SystemState state, uint tick, bool hasSpatial, in SpatialGridConfig gridConfig, in SpatialGridState gridState, bool hasSyncState, in RegistrySpatialSyncState syncState)
@@ -228,6 +229,20 @@ namespace Space4X.Registry
             snapshot.ColonyAverageSupplyRatio = summary.AverageSupplyRatio;
             snapshot.ColonyBottleneckCount = bottleneckCount;
             snapshot.ColonyCriticalCount = criticalCount;
+            snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
+        }
+
+        private void UpdateTechDiffusionSnapshot(ref SystemState state, uint tick)
+        {
+            if (!SystemAPI.TryGetSingleton<TechDiffusionTelemetry>(out var diffusionTelemetry))
+            {
+                return;
+            }
+
+            ref var snapshot = ref SystemAPI.GetComponentRW<Space4XRegistrySnapshot>(_snapshotEntity).ValueRW;
+            snapshot.TechDiffusionActiveCount = diffusionTelemetry.ActiveDiffusions;
+            snapshot.TechDiffusionCompletedCount = (int)diffusionTelemetry.CompletedUpgrades;
+            snapshot.TechDiffusionLastUpgradeTick = diffusionTelemetry.LastUpgradeTick;
             snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
         }
 
@@ -691,6 +706,11 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.compliance.severity.avg", snapshot.ComplianceAverageSeverity, TelemetryMetricUnit.Ratio);
             buffer.AddMetric("space4x.compliance.suspicion.mean", snapshot.ComplianceAverageSuspicion, TelemetryMetricUnit.Ratio);
             buffer.AddMetric("space4x.compliance.suspicion.spyMean", snapshot.ComplianceAverageSpySuspicion, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("space4x.compliance.suspicion.max", snapshot.ComplianceMaxSuspicion, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("space4x.compliance.suspicion.alerts", snapshot.ComplianceSuspicionAlertCount);
+            buffer.AddMetric("space4x.registry.techdiffusion.active", snapshot.TechDiffusionActiveCount);
+            buffer.AddMetric("space4x.registry.techdiffusion.completed", snapshot.TechDiffusionCompletedCount);
+            buffer.AddMetric("space4x.registry.techdiffusion.lastUpgradeTick", snapshot.TechDiffusionLastUpgradeTick, TelemetryMetricUnit.Custom);
 
             if (SystemAPI.TryGetSingletonEntity<VillagerRegistry>(out var villagerRegistryEntity) &&
                 state.EntityManager.HasBuffer<VillagerLessonRegistryEntry>(villagerRegistryEntity))

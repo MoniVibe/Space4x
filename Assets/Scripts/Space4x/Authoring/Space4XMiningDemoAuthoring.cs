@@ -31,7 +31,11 @@ namespace Space4X.Registry
                 PatrolCenter = new float3(0f, 0f, 0f),
                 PatrolRadius = 50f,
                 WaitTime = 2f,
-                Position = new float3(0f, 0f, 0f)
+                Position = new float3(0f, 0f, 0f),
+                Alignment = AlignmentDefinition.CreateNeutral(),
+                RaceId = 0,
+                CultureId = 0,
+                AffiliationId = "AFFILIATION-1"
             }
         };
 
@@ -48,7 +52,11 @@ namespace Space4X.Registry
                 OutputSpawnThreshold = 20f,
                 ResourceId = "space4x.resource.minerals",
                 Position = new float3(5f, 0f, 0f),
-                CarrierId = "CARRIER-1"
+                CarrierId = "CARRIER-1",
+                Alignment = AlignmentDefinition.CreateNeutral(),
+                RaceId = 0,
+                CultureId = 0,
+                AffiliationId = "AFFILIATION-1"
             },
             new MiningVesselDefinition
             {
@@ -60,7 +68,22 @@ namespace Space4X.Registry
                 OutputSpawnThreshold = 20f,
                 ResourceId = "space4x.resource.minerals",
                 Position = new float3(-5f, 0f, 0f),
-                CarrierId = "CARRIER-1"
+                CarrierId = "CARRIER-1",
+                Alignment = AlignmentDefinition.CreateNeutral(),
+                RaceId = 0,
+                CultureId = 0,
+                AffiliationId = "AFFILIATION-1"
+            }
+        };
+
+        [SerializeField]
+        private AffiliationDefinition[] affiliations = new AffiliationDefinition[]
+        {
+            new AffiliationDefinition
+            {
+                AffiliationId = "AFFILIATION-1",
+                DisplayName = "Starter Fleet",
+                Loyalty = 1f
             }
         };
 
@@ -94,6 +117,7 @@ namespace Space4X.Registry
         public MiningVesselDefinition[] MiningVessels => miningVessels;
         public AsteroidDefinition[] Asteroids => asteroids;
         public MiningVisualSettings Visuals => visuals;
+        public AffiliationDefinition[] Affiliations => affiliations;
 
         [Serializable]
         public struct CarrierDefinition
@@ -118,6 +142,12 @@ namespace Space4X.Registry
             
             [Tooltip("Starting position of the carrier")]
             public float3 Position;
+
+            [Header("Alignment / Affiliation")]
+            public AlignmentDefinition Alignment;
+            public ushort RaceId;
+            public ushort CultureId;
+            public string AffiliationId;
         }
 
         [Serializable]
@@ -154,6 +184,12 @@ namespace Space4X.Registry
             
             [Tooltip("Carrier ID that this vessel belongs to (must match a CarrierId)")]
             public string CarrierId;
+
+            [Header("Alignment / Affiliation")]
+            public AlignmentDefinition Alignment;
+            public ushort RaceId;
+            public ushort CultureId;
+            public string AffiliationId;
         }
 
         [Serializable]
@@ -179,6 +215,52 @@ namespace Space4X.Registry
             
             [Tooltip("Position of the asteroid")]
             public float3 Position;
+        }
+
+        [Serializable]
+        public struct AlignmentDefinition
+        {
+            [Range(-1f, 1f)] public float Law;
+            [Range(-1f, 1f)] public float Good;
+            [Range(-1f, 1f)] public float Integrity;
+            public EthicAxisDefinition[] Axes;
+            public OutlookDefinition[] Outlooks;
+
+            public static AlignmentDefinition CreateNeutral()
+            {
+                return new AlignmentDefinition
+                {
+                    Law = 0f,
+                    Good = 0f,
+                    Integrity = 0f,
+                    Axes = Array.Empty<EthicAxisDefinition>(),
+                    Outlooks = Array.Empty<OutlookDefinition>()
+                };
+            }
+        }
+
+        [Serializable]
+        public struct EthicAxisDefinition
+        {
+            public EthicAxisId Axis;
+            [Range(-2f, 2f)] public float Value;
+        }
+
+        [Serializable]
+        public struct OutlookDefinition
+        {
+            public OutlookId OutlookId;
+            [Range(-1f, 1f)] public float Weight;
+        }
+
+        [Serializable]
+        public struct AffiliationDefinition
+        {
+            [Tooltip("Stable identifier for this affiliation.")]
+            public string AffiliationId;
+            [Tooltip("Display name used by debug/integration surfaces.")]
+            public string DisplayName;
+            [Range(0f, 1f)] public float Loyalty;
         }
 
         [Serializable]
@@ -222,6 +304,8 @@ namespace Space4X.Registry
         private sealed class Baker : Unity.Entities.Baker<Space4XMiningDemoAuthoring>
         {
             private NativeHashMap<FixedString64Bytes, Entity> _carrierEntityMap;
+            private NativeHashMap<FixedString64Bytes, AffiliationCache> _affiliationMap;
+            private NativeHashMap<FixedString64Bytes, Entity> _affiliationEntityMap;
 #if UNITY_EDITOR
             private static bool s_loggedStart;
             private static bool s_loggedVisual;
@@ -247,6 +331,14 @@ namespace Space4X.Registry
                 _carrierEntityMap = new NativeHashMap<FixedString64Bytes, Entity>(
                     authoring.Carriers?.Length ?? 0, 
                     Allocator.Temp);
+                _affiliationMap = new NativeHashMap<FixedString64Bytes, AffiliationCache>(
+                    authoring.Affiliations?.Length ?? 0,
+                    Allocator.Temp);
+                _affiliationEntityMap = new NativeHashMap<FixedString64Bytes, Entity>(
+                    authoring.Affiliations?.Length ?? 0,
+                    Allocator.Temp);
+
+                CacheAffiliations(authoring);
 
                 // Bake carriers first and store their entities
                 BakeCarriers(authoring);
@@ -258,6 +350,8 @@ namespace Space4X.Registry
                 BakeAsteroids(authoring);
 
                 _carrierEntityMap.Dispose();
+                _affiliationMap.Dispose();
+                _affiliationEntityMap.Dispose();
                 
 #if UNITY_EDITOR
                 if (!s_loggedComplete)
@@ -322,11 +416,14 @@ namespace Space4X.Registry
                     AddComponent(entity, new Carrier
                     {
                         CarrierId = carrierIdBytes,
-                        AffiliationEntity = Entity.Null, // Can be set later if affiliations are used
+                        AffiliationEntity = ResolveAffiliation(carrier.AffiliationId),
                         Speed = math.max(0.1f, carrier.Speed),
                         PatrolCenter = carrier.PatrolCenter,
                         PatrolRadius = math.max(1f, carrier.PatrolRadius)
                     });
+
+                    AddAlignment(entity, carrier.Alignment, carrier.RaceId, carrier.CultureId);
+                    AddAffiliationTag(entity, carrier.AffiliationId);
 
                     AddComponent(entity, new PatrolBehavior
                     {
@@ -414,6 +511,9 @@ namespace Space4X.Registry
                         CurrentCargo = 0f,
                         CargoResourceType = ResourceType.Minerals
                     });
+
+                    AddAlignment(entity, vessel.Alignment, vessel.RaceId, vessel.CultureId);
+                    AddAffiliationTag(entity, vessel.AffiliationId);
 
                     var resourceId = ResolveResourceId(vessel);
 
@@ -574,6 +674,128 @@ namespace Space4X.Registry
             private static float4 ToFloat4(Color color)
             {
                 return new float4(color.r, color.g, color.b, color.a);
+            }
+
+            private struct AffiliationCache
+            {
+                public FixedString64Bytes DisplayName;
+                public float Loyalty;
+            }
+
+            private void CacheAffiliations(Space4XMiningDemoAuthoring authoring)
+            {
+                if (authoring.Affiliations == null)
+                {
+                    return;
+                }
+
+                foreach (var affiliation in authoring.Affiliations)
+                {
+                    if (string.IsNullOrWhiteSpace(affiliation.AffiliationId))
+                    {
+                        continue;
+                    }
+
+                    var key = new FixedString64Bytes(affiliation.AffiliationId);
+                    if (!_affiliationMap.ContainsKey(key))
+                    {
+                        _affiliationMap.Add(key, new AffiliationCache
+                        {
+                            DisplayName = string.IsNullOrWhiteSpace(affiliation.DisplayName)
+                                ? new FixedString64Bytes(affiliation.AffiliationId)
+                                : new FixedString64Bytes(affiliation.DisplayName),
+                            Loyalty = math.saturate(affiliation.Loyalty)
+                        });
+                    }
+                }
+            }
+
+            private Entity ResolveAffiliation(string affiliationId)
+            {
+                if (string.IsNullOrWhiteSpace(affiliationId))
+                {
+                    return Entity.Null;
+                }
+
+                var key = new FixedString64Bytes(affiliationId);
+                if (_affiliationEntityMap.TryGetValue(key, out var existing))
+                {
+                    return existing;
+                }
+
+                if (!_affiliationMap.TryGetValue(key, out var definition))
+                {
+                    return Entity.Null;
+                }
+
+                var entity = CreateAdditionalEntity(TransformUsageFlags.None);
+                var name = definition.DisplayName.IsEmpty ? key : definition.DisplayName;
+                AddComponent(entity, new AffiliationRelation { AffiliationName = name });
+                _affiliationEntityMap[key] = entity;
+                return entity;
+            }
+
+            private void AddAffiliationTag(Entity entity, string affiliationId)
+            {
+                if (string.IsNullOrWhiteSpace(affiliationId))
+                {
+                    return;
+                }
+
+                var key = new FixedString64Bytes(affiliationId);
+                if (!_affiliationMap.TryGetValue(key, out var definition))
+                {
+                    return;
+                }
+
+                var target = ResolveAffiliation(affiliationId);
+                if (target == Entity.Null)
+                {
+                    return;
+                }
+
+                var buffer = AddBuffer<AffiliationTag>(entity);
+                buffer.Add(new AffiliationTag
+                {
+                    Type = AffiliationType.Fleet,
+                    Target = target,
+                    Loyalty = (half)math.saturate(definition.Loyalty)
+                });
+            }
+
+            private void AddAlignment(Entity entity, AlignmentDefinition alignment, ushort raceId, ushort cultureId)
+            {
+                AddComponent(entity, AlignmentTriplet.FromFloats(alignment.Law, alignment.Good, alignment.Integrity));
+                AddComponent(entity, new RaceId { Value = raceId });
+                AddComponent(entity, new CultureId { Value = cultureId });
+
+                var axisBuffer = AddBuffer<EthicAxisValue>(entity);
+                if (alignment.Axes != null)
+                {
+                    for (int i = 0; i < alignment.Axes.Length; i++)
+                    {
+                        var axis = alignment.Axes[i];
+                        axisBuffer.Add(new EthicAxisValue
+                        {
+                            Axis = axis.Axis,
+                            Value = (half)math.clamp(axis.Value, -2f, 2f)
+                        });
+                    }
+                }
+
+                var outlookBuffer = AddBuffer<OutlookEntry>(entity);
+                if (alignment.Outlooks != null)
+                {
+                    for (int i = 0; i < alignment.Outlooks.Length; i++)
+                    {
+                        var outlook = alignment.Outlooks[i];
+                        outlookBuffer.Add(new OutlookEntry
+                        {
+                            OutlookId = outlook.OutlookId,
+                            Weight = (half)math.clamp(outlook.Weight, -1f, 1f)
+                        });
+                    }
+                }
             }
 
             private Space4XPresentationBinding? CreatePresentationBinding(string descriptorKey, float scale, Color color, uint variantSeed, string typeName)

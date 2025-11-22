@@ -17,6 +17,7 @@ namespace Space4X.Tests
             _world = new World("Space4XModuleSystemsTests");
             _entityManager = _world.EntityManager;
             CoreSingletonBootstrapSystem.EnsureSingletons(_entityManager);
+            CoreSingletonBootstrapSystem.EnsureModuleMaintenanceTelemetry(_entityManager);
         }
 
         [TearDown]
@@ -60,6 +61,15 @@ namespace Space4X.Tests
 
             var clearedEvents = _entityManager.GetBuffer<HazardDamageEvent>(module);
             Assert.AreEqual(0, clearedEvents.Length);
+
+            var maintenanceEntity = GetMaintenanceEntity();
+            var log = _entityManager.GetBuffer<ModuleMaintenanceCommandLogEntry>(maintenanceEntity);
+            Assert.AreEqual(1, log.Length);
+            Assert.AreEqual(ModuleMaintenanceEventType.ModuleFailed, log[0].EventType);
+            Assert.AreEqual(module, log[0].Module);
+
+            var telemetry = _entityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceEntity);
+            Assert.AreEqual(1u, telemetry.Failures);
         }
 
         [Test]
@@ -133,6 +143,15 @@ namespace Space4X.Tests
             Assert.IsTrue(_entityManager.HasComponent<SkillExperienceGain>(carrier));
             var xp = _entityManager.GetComponentData<SkillExperienceGain>(carrier);
             Assert.Greater(xp.RepairXp, 0f);
+
+            var maintenanceEntity = GetMaintenanceEntity();
+            var log = _entityManager.GetBuffer<ModuleMaintenanceCommandLogEntry>(maintenanceEntity);
+            Assert.IsTrue(log.Length > 0);
+            Assert.AreEqual(ModuleMaintenanceEventType.RepairApplied, log[0].EventType);
+            Assert.AreEqual(carrier, log[0].Carrier);
+
+            var telemetry = _entityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceEntity);
+            Assert.Greater(telemetry.RepairApplied, 0f);
         }
 
         [Test]
@@ -198,6 +217,165 @@ namespace Space4X.Tests
             Assert.IsTrue(_entityManager.HasComponent<SkillExperienceGain>(carrier));
             var xp = _entityManager.GetComponentData<SkillExperienceGain>(carrier);
             Assert.Greater(xp.RepairXp, 0f);
+
+            var maintenanceEntity = GetMaintenanceEntity();
+            var log = _entityManager.GetBuffer<ModuleMaintenanceCommandLogEntry>(maintenanceEntity);
+            Assert.AreEqual(2, log.Length);
+            Assert.AreEqual(ModuleMaintenanceEventType.RefitStarted, log[0].EventType);
+            Assert.AreEqual(ModuleMaintenanceEventType.RefitCompleted, log[1].EventType);
+            Assert.AreEqual(targetModule, log[1].Module);
+
+            var telemetry = _entityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceEntity);
+            Assert.AreEqual(1u, telemetry.RefitStarted);
+            Assert.AreEqual(1u, telemetry.RefitCompleted);
+        }
+
+        [Test]
+        public void RefitRequiresDockingWhenFacilityIsStationOnly()
+        {
+            SetTimeAndRewind(0.5f, RewindMode.Record);
+
+            var targetModule = _entityManager.CreateEntity(typeof(ModuleSlotRequirement));
+            _entityManager.SetComponentData(targetModule, new ModuleSlotRequirement
+            {
+                SlotSize = ModuleSlotSize.Medium
+            });
+
+            var carrier = _entityManager.CreateEntity(typeof(ModuleRefitFacility));
+            _entityManager.SetComponentData(carrier, new ModuleRefitFacility
+            {
+                RefitRatePerSecond = 1f,
+                SupportsFieldRefit = 0
+            });
+
+            var slots = _entityManager.AddBuffer<CarrierModuleSlot>(carrier);
+            slots.Add(new CarrierModuleSlot
+            {
+                SlotIndex = 0,
+                SlotSize = ModuleSlotSize.Medium,
+                CurrentModule = Entity.Null,
+                TargetModule = Entity.Null,
+                State = ModuleSlotState.Empty
+            });
+
+            var requests = _entityManager.AddBuffer<ModuleRefitRequest>(carrier);
+            requests.Add(new ModuleRefitRequest
+            {
+                SlotIndex = 0,
+                TargetModule = targetModule,
+                Priority = 0,
+                RequestTick = 1,
+                RequiredWork = 0.25f
+            });
+
+            var system = _world.GetOrCreateSystem<Space4XCarrierModuleRefitSystem>();
+            system.Update(_world.Unmanaged);
+
+            slots = _entityManager.GetBuffer<CarrierModuleSlot>(carrier);
+            Assert.AreEqual(ModuleSlotState.Empty, slots[0].State);
+
+            _entityManager.AddComponent<DockedAtStation>(carrier);
+            system.Update(_world.Unmanaged);
+
+            slots = _entityManager.GetBuffer<CarrierModuleSlot>(carrier);
+            Assert.AreEqual(ModuleSlotState.Installing, slots[0].State);
+        }
+
+        [Test]
+        public void StationOverhaulRepairsBeyondFieldCap()
+        {
+            SetTimeAndRewind(0.25f, RewindMode.Record);
+
+            var carrier = _entityManager.CreateEntity(typeof(StationOverhaulFacility), typeof(ModuleStatAggregate));
+            _entityManager.SetComponentData(carrier, new StationOverhaulFacility
+            {
+                OverhaulRatePerSecond = 4f
+            });
+            _entityManager.SetComponentData(carrier, new ModuleStatAggregate
+            {
+                SpeedMultiplier = 1f,
+                CargoMultiplier = 1f,
+                EnergyMultiplier = 1f,
+                RefitRateMultiplier = 1f,
+                RepairRateMultiplier = 1f
+            });
+            _entityManager.AddComponent<DockedAtStation>(carrier);
+
+            var module = _entityManager.CreateEntity(typeof(ModuleHealth));
+            _entityManager.SetComponentData(module, new ModuleHealth
+            {
+                CurrentHealth = 0.3f,
+                MaxHealth = 1f,
+                MaxFieldRepairHealth = 0.6f,
+                DegradationPerSecond = 0f,
+                RepairPriority = 5,
+                Failed = 0
+            });
+
+            var slots = _entityManager.AddBuffer<CarrierModuleSlot>(carrier);
+            slots.Add(new CarrierModuleSlot
+            {
+                SlotIndex = 0,
+                SlotSize = ModuleSlotSize.Medium,
+                CurrentModule = module,
+                State = ModuleSlotState.Active
+            });
+
+            var system = _world.GetOrCreateSystem<Space4XStationOverhaulSystem>();
+            system.Update(_world.Unmanaged);
+
+            var health = _entityManager.GetComponentData<ModuleHealth>(module);
+            Assert.AreEqual(1f, health.CurrentHealth, 1e-3f);
+
+            var telemetry = _entityManager.GetComponentData<ModuleMaintenanceTelemetry>(GetMaintenanceEntity());
+            Assert.Greater(telemetry.RepairApplied, 0f);
+        }
+
+        [Test]
+        public void MaintenancePlaybackRebuildsTelemetry()
+        {
+            SetTimeAndRewind(0.5f, RewindMode.Record);
+
+            var logEntity = GetMaintenanceEntity();
+            var log = _entityManager.GetBuffer<ModuleMaintenanceCommandLogEntry>(logEntity);
+            log.Add(new ModuleMaintenanceCommandLogEntry
+            {
+                Tick = 5,
+                Carrier = Entity.Null,
+                SlotIndex = 0,
+                Module = Entity.Null,
+                EventType = ModuleMaintenanceEventType.RefitStarted,
+                Amount = 1f
+            });
+            log.Add(new ModuleMaintenanceCommandLogEntry
+            {
+                Tick = 7,
+                Carrier = Entity.Null,
+                SlotIndex = 0,
+                Module = Entity.Null,
+                EventType = ModuleMaintenanceEventType.RefitCompleted,
+                Amount = 1f
+            });
+
+            var playbackSystem = _world.GetOrCreateSystem<Space4XModuleMaintenancePlaybackSystem>();
+            var timeEntity = _entityManager.CreateEntityQuery(ComponentType.ReadWrite<TimeState>()).GetSingletonEntity();
+            var rewindEntity = _entityManager.CreateEntityQuery(ComponentType.ReadWrite<RewindState>()).GetSingletonEntity();
+
+            var rewindState = _entityManager.GetComponentData<RewindState>(rewindEntity);
+            rewindState.Mode = RewindMode.Playback;
+            rewindState.PlaybackTick = 6;
+            _entityManager.SetComponentData(rewindEntity, rewindState);
+
+            var timeState = _entityManager.GetComponentData<TimeState>(timeEntity);
+            timeState.Tick = 10;
+            _entityManager.SetComponentData(timeEntity, timeState);
+
+            playbackSystem.Update(_world.Unmanaged);
+
+            var telemetry = _entityManager.GetComponentData<ModuleMaintenanceTelemetry>(logEntity);
+            Assert.AreEqual(1u, telemetry.RefitStarted);
+            Assert.AreEqual(0u, telemetry.RefitCompleted);
+            Assert.AreEqual(5u, telemetry.LastUpdateTick);
         }
 
         private void SetTimeAndRewind(float fixedDeltaTime, RewindMode mode)
@@ -217,6 +395,11 @@ namespace Space4X.Tests
             var rewindState = _entityManager.GetComponentData<RewindState>(rewindEntity);
             rewindState.Mode = mode;
             _entityManager.SetComponentData(rewindEntity, rewindState);
+        }
+
+        private Entity GetMaintenanceEntity()
+        {
+            return _entityManager.CreateEntityQuery(ComponentType.ReadOnly<ModuleMaintenanceLog>()).GetSingletonEntity();
         }
     }
 }

@@ -39,12 +39,26 @@ namespace Space4X.Registry
 
             var deltaTime = SystemAPI.GetSingleton<GameplayFixedStep>().FixedDeltaTime;
 
-            foreach (var health in SystemAPI.Query<RefRW<ModuleHealth>>().WithNone<HazardDamageEvent>())
+            var hasMaintenanceLog = SystemAPI.TryGetSingletonBuffer<ModuleMaintenanceCommandLogEntry>(out var maintenanceLog);
+            var hasMaintenanceTelemetry = SystemAPI.TryGetSingletonEntity<ModuleMaintenanceTelemetry>(out var maintenanceTelemetryEntity);
+            var maintenanceTelemetry = hasMaintenanceTelemetry ? state.EntityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceTelemetryEntity) : default;
+            var telemetryDirty = false;
+            var tick = time.Tick;
+
+            foreach (var (health, entity) in SystemAPI.Query<RefRW<ModuleHealth>>().WithNone<HazardDamageEvent>().WithEntityAccess())
             {
-                ApplyDegradation(ref health.ValueRW, deltaTime, 0f);
+                var failed = ApplyDegradation(ref health.ValueRW, deltaTime, 0f);
+                if (failed)
+                {
+                    Space4XModuleMaintenanceUtility.LogEvent(hasMaintenanceLog, maintenanceLog, tick, Entity.Null, -1, entity, ModuleMaintenanceEventType.ModuleFailed, 0f);
+                    if (hasMaintenanceTelemetry)
+                    {
+                        telemetryDirty |= Space4XModuleMaintenanceUtility.ApplyTelemetry(ModuleMaintenanceEventType.ModuleFailed, 0f, tick, ref maintenanceTelemetry);
+                    }
+                }
             }
 
-            foreach (var (health, hazardEvents) in SystemAPI.Query<RefRW<ModuleHealth>, DynamicBuffer<HazardDamageEvent>>())
+            foreach (var (health, hazardEvents, entity) in SystemAPI.Query<RefRW<ModuleHealth>, DynamicBuffer<HazardDamageEvent>>().WithEntityAccess())
             {
                 var damage = 0f;
                 for (var i = 0; i < hazardEvents.Length; i++)
@@ -53,25 +67,40 @@ namespace Space4X.Registry
                 }
 
                 hazardEvents.Clear();
-                ApplyDegradation(ref health.ValueRW, deltaTime, damage);
+                var failed = ApplyDegradation(ref health.ValueRW, deltaTime, damage);
+                if (failed)
+                {
+                    Space4XModuleMaintenanceUtility.LogEvent(hasMaintenanceLog, maintenanceLog, tick, Entity.Null, -1, entity, ModuleMaintenanceEventType.ModuleFailed, damage);
+                    if (hasMaintenanceTelemetry)
+                    {
+                        telemetryDirty |= Space4XModuleMaintenanceUtility.ApplyTelemetry(ModuleMaintenanceEventType.ModuleFailed, damage, tick, ref maintenanceTelemetry);
+                    }
+                }
+            }
+
+            if (telemetryDirty && hasMaintenanceTelemetry)
+            {
+                state.EntityManager.SetComponentData(maintenanceTelemetryEntity, maintenanceTelemetry);
             }
         }
 
-        private static void ApplyDegradation(ref ModuleHealth health, float deltaTime, float incomingDamage)
+        private static bool ApplyDegradation(ref ModuleHealth health, float deltaTime, float incomingDamage)
         {
             var degradation = math.max(0f, health.DegradationPerSecond) * math.max(0f, deltaTime);
             var newHealth = health.CurrentHealth - degradation - math.max(0f, incomingDamage);
             newHealth = math.min(newHealth, health.MaxHealth);
 
+            var wasFailed = health.Failed != 0;
             if (newHealth <= 0f)
             {
                 health.CurrentHealth = 0f;
                 health.Failed = 1;
-                return;
+                return !wasFailed;
             }
 
             health.CurrentHealth = newHealth;
             health.Failed = 0;
+            return false;
         }
     }
 }

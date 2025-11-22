@@ -200,6 +200,8 @@ namespace Space4X.Registry.Tests
             Assert.Contains("space4x.miracles.averageCharge", telemetryKeys);
             Assert.Contains("space4x.miracles.castLatencyMs", telemetryKeys);
             Assert.Contains("space4x.miracles.cancellations", telemetryKeys);
+            Assert.Contains("space4x.registry.techdiffusion.active", telemetryKeys);
+            Assert.Contains("space4x.registry.techdiffusion.completed", telemetryKeys);
 
             AssertMetadataHasSpatialData(colonyRegistryEntity, resolved: 1, fallback: 0, unmapped: 0);
             AssertMetadataHasSpatialData(fleetRegistryEntity, resolved: 0, fallback: 1, unmapped: 0);

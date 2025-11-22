@@ -24,6 +24,8 @@ namespace Space4X.Registry
         private FixedString64Bytes _severityKey;
         private FixedString64Bytes _suspicionKey;
         private FixedString64Bytes _spySuspicionKey;
+        private FixedString64Bytes _suspicionAlertKey;
+        private FixedString64Bytes _suspicionMaxKey;
 
         public void OnCreate(ref SystemState state)
         {
@@ -45,6 +47,8 @@ namespace Space4X.Registry
             _severityKey = "space4x.compliance.severity.avg";
             _suspicionKey = "space4x.compliance.suspicion.mean";
             _spySuspicionKey = "space4x.compliance.suspicion.spyMean";
+            _suspicionAlertKey = "space4x.compliance.suspicion.alerts";
+            _suspicionMaxKey = "space4x.compliance.suspicion.max";
         }
 
         public void OnUpdate(ref SystemState state)
@@ -91,6 +95,8 @@ namespace Space4X.Registry
 
             float suspicionSum = 0f;
             float spySuspicionSum = 0f;
+            float maxSuspicion = 0f;
+            int suspicionAlerts = 0;
             int suspicionSamples = 0;
             int spySamples = 0;
 
@@ -101,6 +107,11 @@ namespace Space4X.Registry
                     var value = math.max(0f, (float)suspicion.ValueRO.Value);
                     suspicionSum += value;
                     suspicionSamples++;
+                    maxSuspicion = math.max(maxSuspicion, value);
+                    if (value >= 0.25f)
+                    {
+                        suspicionAlerts++;
+                    }
 
                     if (SystemAPI.HasComponent<SpyRole>(entity))
                     {
@@ -120,6 +131,8 @@ namespace Space4X.Registry
             snapshot.ValueRW.ComplianceAverageSeverity = severitySamples > 0 ? severitySum / severitySamples : 0f;
             snapshot.ValueRW.ComplianceAverageSuspicion = suspicionSamples > 0 ? suspicionSum / suspicionSamples : 0f;
             snapshot.ValueRW.ComplianceAverageSpySuspicion = spySamples > 0 ? spySuspicionSum / spySamples : 0f;
+            snapshot.ValueRW.ComplianceMaxSuspicion = maxSuspicion;
+            snapshot.ValueRW.ComplianceSuspicionAlertCount = suspicionAlerts;
             snapshot.ValueRW.ComplianceLastUpdateTick = timeState.Tick;
 
             if (SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity) &&
@@ -133,6 +146,8 @@ namespace Space4X.Registry
                 buffer.AddMetric(_severityKey, snapshot.ValueRO.ComplianceAverageSeverity, TelemetryMetricUnit.Ratio);
                 buffer.AddMetric(_suspicionKey, snapshot.ValueRO.ComplianceAverageSuspicion, TelemetryMetricUnit.Ratio);
                 buffer.AddMetric(_spySuspicionKey, snapshot.ValueRO.ComplianceAverageSpySuspicion, TelemetryMetricUnit.Ratio);
+                buffer.AddMetric(_suspicionAlertKey, suspicionAlerts);
+                buffer.AddMetric(_suspicionMaxKey, maxSuspicion, TelemetryMetricUnit.Ratio);
             }
         }
     }

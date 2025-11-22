@@ -76,6 +76,14 @@ namespace Space4X.Registry
                     breachBuffer.Clear();
                 }
 
+                bool hasTicketBuffer = SystemAPI.HasBuffer<ComplianceTicket>(entity);
+                DynamicBuffer<ComplianceTicket> ticketBuffer = default;
+                if (hasTicketBuffer)
+                {
+                    ticketBuffer = SystemAPI.GetBuffer<ComplianceTicket>(entity);
+                    ticketBuffer.Clear();
+                }
+
                 var isSpy = SystemAPI.HasComponent<SpyRole>(entity);
 
                 if (!isSpy)
@@ -137,6 +145,20 @@ namespace Space4X.Registry
                         Affiliation = affiliation.Target,
                         Type = breachType,
                         Severity = (half)math.saturate(severity)
+                    });
+
+                    if (!hasTicketBuffer)
+                    {
+                        ticketBuffer = state.EntityManager.AddBuffer<ComplianceTicket>(entity);
+                        hasTicketBuffer = true;
+                    }
+
+                    ticketBuffer.Add(new ComplianceTicket
+                    {
+                        Affiliation = affiliation.Target,
+                        Type = breachType,
+                        Severity = (half)math.saturate(severity),
+                        Tick = timeState.Tick
                     });
                 }
             }

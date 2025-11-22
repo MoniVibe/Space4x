@@ -7,12 +7,12 @@ using Unity.Mathematics;
 namespace Space4X.Registry
 {
     /// <summary>
-    /// Repairs damaged modules in priority order, respecting field repair caps and crew skill.
+    /// Fully repairs modules when docked at a station with overhaul capability.
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XComponentDegradationSystem))]
-    public partial struct Space4XFieldRepairSystem : ISystem
+    [UpdateAfter(typeof(Space4XFieldRepairSystem))]
+    public partial struct Space4XStationOverhaulSystem : ISystem
     {
         private ComponentLookup<ModuleHealth> _healthLookup;
         private ComponentLookup<CrewSkills> _skillsLookup;
@@ -61,43 +61,28 @@ namespace Space4X.Registry
             var telemetryDirty = false;
             var tick = time.Tick;
 
-            foreach (var (slots, capability, entity) in SystemAPI.Query<DynamicBuffer<CarrierModuleSlot>, RefRO<FieldRepairCapability>>().WithEntityAccess())
+            foreach (var (slots, facility, entity) in SystemAPI.Query<DynamicBuffer<CarrierModuleSlot>, RefRO<StationOverhaulFacility>>()
+                         .WithAll<DockedAtStation>()
+                         .WithEntityAccess())
             {
-                var repairBudget = capability.ValueRO.RepairRatePerSecond * deltaTime;
-                var criticalBudget = capability.ValueRO.CriticalRepairRate * deltaTime;
+                var repairRate = facility.ValueRO.OverhaulRatePerSecond * deltaTime;
                 var skillFactor = 1f + GetRepairSkill(entity) * 0.75f;
                 var moduleMultiplier = GetRepairMultiplier(entity);
+                var budget = repairRate * moduleMultiplier * skillFactor;
 
-                repairBudget *= moduleMultiplier * skillFactor;
-                criticalBudget *= moduleMultiplier * skillFactor;
-
-                while (repairBudget > 0f || (capability.ValueRO.CanRepairCritical != 0 && criticalBudget > 0f))
+                while (budget > 0f && TrySelectModule(slots, out var module, out var health, out var slotIndex))
                 {
-                    if (!TrySelectModule(slots, capability.ValueRO.CanRepairCritical != 0, out var module, out var health, out var slotIndex))
-                    {
-                        break;
-                    }
-
-                    var maxHealth = capability.ValueRO.CanRepairCritical != 0 ? health.MaxHealth : health.MaxFieldRepairHealth;
-                    var budget = health.CurrentHealth <= 0f ? criticalBudget : repairBudget;
-                    var toHeal = math.min(budget, math.max(0f, maxHealth - health.CurrentHealth));
-
+                    var toHeal = math.min(budget, math.max(0f, health.MaxHealth - health.CurrentHealth));
                     if (toHeal <= 0f)
                     {
-                        // Nothing usable for this module, avoid tight loops.
-                        health.Failed = (byte)(health.CurrentHealth <= 0f ? 1 : 0);
-                        _healthLookup[module] = health;
                         break;
                     }
 
-                    health.CurrentHealth = math.min(maxHealth, health.CurrentHealth + toHeal);
+                    health.CurrentHealth = math.min(health.MaxHealth, health.CurrentHealth + toHeal);
                     health.Failed = (byte)(health.CurrentHealth <= 0f ? 1 : 0);
                     _healthLookup[module] = health;
 
-                    if (health.CurrentHealth > 0f)
-                    {
-                        AwardRepairSkill(ref state, entity, toHeal, time.Tick, hasSkillLog ? skillLog : default);
-                    }
+                    AwardRepairSkill(ref state, entity, toHeal, tick, hasSkillLog ? skillLog : default);
 
                     Space4XModuleMaintenanceUtility.LogEvent(hasMaintenanceLog, maintenanceLog, tick, entity, slotIndex, module, ModuleMaintenanceEventType.RepairApplied, toHeal);
                     if (hasMaintenanceTelemetry)
@@ -105,14 +90,7 @@ namespace Space4X.Registry
                         telemetryDirty |= Space4XModuleMaintenanceUtility.ApplyTelemetry(ModuleMaintenanceEventType.RepairApplied, toHeal, tick, ref maintenanceTelemetry);
                     }
 
-                    if (health.CurrentHealth <= 0f)
-                    {
-                        criticalBudget = math.max(0f, criticalBudget - toHeal);
-                    }
-                    else
-                    {
-                        repairBudget = math.max(0f, repairBudget - toHeal);
-                    }
+                    budget = math.max(0f, budget - toHeal);
                 }
             }
 
@@ -122,7 +100,7 @@ namespace Space4X.Registry
             }
         }
 
-        private bool TrySelectModule(DynamicBuffer<CarrierModuleSlot> slots, bool canRepairCritical, out Entity module, out ModuleHealth health, out int slotIndex)
+        private bool TrySelectModule(DynamicBuffer<CarrierModuleSlot> slots, out Entity module, out ModuleHealth health, out int slotIndex)
         {
             module = Entity.Null;
             health = default;
@@ -140,13 +118,7 @@ namespace Space4X.Registry
                 }
 
                 var candidateHealth = _healthLookup[candidate];
-                var maxHealth = canRepairCritical ? candidateHealth.MaxHealth : candidateHealth.MaxFieldRepairHealth;
-                if (maxHealth <= 0f || candidateHealth.CurrentHealth >= maxHealth - 1e-4f)
-                {
-                    continue;
-                }
-
-                if (candidateHealth.CurrentHealth <= 0f && !canRepairCritical)
+                if (candidateHealth.CurrentHealth >= candidateHealth.MaxHealth - 1e-4f)
                 {
                     continue;
                 }
@@ -162,7 +134,7 @@ namespace Space4X.Registry
                 }
             }
 
-            slotIndex = found ? bestSlot : -1;
+            slotIndex = bestSlot;
             return found;
         }
 
@@ -183,7 +155,20 @@ namespace Space4X.Registry
                 return;
             }
 
-            EnsureSkillComponents(ref state, entity, tick);
+            if (!_xpLookup.HasComponent(entity))
+            {
+                state.EntityManager.AddComponentData(entity, new SkillExperienceGain
+                {
+                    LastProcessedTick = tick
+                });
+                _xpLookup.Update(ref state);
+            }
+
+            if (!_skillsLookup.HasComponent(entity))
+            {
+                state.EntityManager.AddComponentData(entity, new CrewSkills());
+                _skillsLookup.Update(ref state);
+            }
 
             var xpData = _xpLookup[entity];
             var deltaXp = Space4XSkillUtility.ComputeDeltaXp(SkillDomain.Repair, amount);
@@ -205,32 +190,6 @@ namespace Space4X.Registry
                     DeltaXp = deltaXp,
                     NewSkill = skills.RepairSkill
                 });
-            }
-        }
-
-        private void EnsureSkillComponents(ref SystemState state, Entity entity, uint tick)
-        {
-            var updated = false;
-
-            if (!_xpLookup.HasComponent(entity))
-            {
-                state.EntityManager.AddComponentData(entity, new SkillExperienceGain
-                {
-                    LastProcessedTick = tick
-                });
-                updated = true;
-            }
-
-            if (!_skillsLookup.HasComponent(entity))
-            {
-                state.EntityManager.AddComponentData(entity, new CrewSkills());
-                updated = true;
-            }
-
-            if (updated)
-            {
-                _xpLookup.Update(ref state);
-                _skillsLookup.Update(ref state);
             }
         }
     }

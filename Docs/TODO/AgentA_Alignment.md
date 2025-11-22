@@ -23,6 +23,6 @@ Scope: alignment/affiliation data, aggregation, compliance, doctrine authoring, 
 - Runtime assertions in aggregation/compliance for missing doctrine data or empty affiliation buffers.
 
 ## Integration Hooks
-- AI planner: consume `ComplianceBreach` to spawn mutiny/desertion behaviors.
-- Telemetry: extend registry snapshot with breach counts/mean suspicion (`space4x.compliance.*`).
+- AI planner: consume `ComplianceBreach` to spawn mutiny/desertion behaviors (ComplianceTicket + ComplianceTicketQueue provided for deterministic routing).
+- Telemetry: extend registry snapshot with breach counts/mean suspicion (`space4x.compliance.*` including suspicion max/alerts).
 - Narrative triggers: forward breach events to bark/incident systems.

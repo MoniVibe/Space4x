@@ -104,6 +104,55 @@ namespace Space4X.Tests
             });
         }
 
+        public static void EnsureTechDiffusionTelemetry(EntityManager entityManager)
+        {
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<TechDiffusionTelemetry>());
+            if (!query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var entity = entityManager.CreateEntity(
+                typeof(TechDiffusionTelemetry));
+            entityManager.AddBuffer<TechDiffusionCommandLogEntry>(entity);
+            entityManager.SetComponentData(entity, new TechDiffusionTelemetry
+            {
+                LastUpdateTick = 0,
+                LastUpgradeTick = 0,
+                ActiveDiffusions = 0,
+                CompletedUpgrades = 0
+            });
+        }
+
+        public static void EnsureModuleMaintenanceTelemetry(EntityManager entityManager)
+        {
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<ModuleMaintenanceLog>());
+            if (!query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var entity = entityManager.CreateEntity(
+                typeof(ModuleMaintenanceLog),
+                typeof(ModuleMaintenanceTelemetry));
+
+            entityManager.AddBuffer<ModuleMaintenanceCommandLogEntry>(entity);
+            entityManager.SetComponentData(entity, new ModuleMaintenanceTelemetry
+            {
+                LastUpdateTick = 0,
+                RefitStarted = 0,
+                RefitCompleted = 0,
+                Failures = 0,
+                RepairApplied = 0f,
+                RefitWorkApplied = 0f
+            });
+            entityManager.SetComponentData(entity, new ModuleMaintenanceLog
+            {
+                SnapshotHorizon = 512,
+                LastPlaybackTick = 0
+            });
+        }
+
         private static void EnsureSingleton<T>(EntityManager entityManager, T data)
             where T : unmanaged, IComponentData
         {
