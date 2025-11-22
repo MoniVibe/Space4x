@@ -55,6 +55,30 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Queues a resource spawn to be instantiated near a miner once a chunk threshold is reached.
+    /// </summary>
+    [InternalBufferCapacity(1)]
+    public struct SpawnResourceRequest : IBufferElementData
+    {
+        public ResourceType Type;
+        public float Amount;
+        public float3 Position;
+        public Entity SourceEntity;
+        public uint RequestedTick;
+    }
+
+    /// <summary>
+    /// Represents a spawned pickup on the map for carriers to collect.
+    /// </summary>
+    public struct SpawnResource : IComponentData
+    {
+        public ResourceType Type;
+        public float Amount;
+        public Entity SourceEntity;
+        public uint SpawnTick;
+    }
+
+    /// <summary>
     /// Identifies a carrier ship that patrols and receives resources from mining vessels.
     /// </summary>
     public struct Carrier : IComponentData
@@ -112,6 +136,15 @@ namespace Space4X.Registry
         public float CargoCapacity;
         public float CurrentCargo;
         public ResourceType CargoResourceType;
+    }
+
+    /// <summary>
+    /// Aggregated mining telemetry cached for presentation bindings.
+    /// </summary>
+    public struct Space4XMiningTelemetry : IComponentData
+    {
+        public float OreInHold;
+        public uint LastUpdateTick;
     }
 
     /// <summary>

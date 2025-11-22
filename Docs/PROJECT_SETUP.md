@@ -4,6 +4,13 @@
 
 Space4x is an independent Unity project that consumes the PureDOTS package for its DOTS framework.
 
+## Repository boundaries
+
+- Root workspace: `C:/Users/shonh/OneDrive/Documents/claudeprojects/Unity`.
+- Keep Space4x as a standalone project in `C:/Users/shonh/OneDrive/Documents/claudeprojects/Unity/Space4x`.
+- PureDOTS lives beside it at `C:/Users/shonh/OneDrive/Documents/claudeprojects/Unity/PureDOTS` and Godgame at `C:/Users/shonh/OneDrive/Documents/claudeprojects/Unity/Godgame` (see `TRI_PROJECT_BRIEFING.md`).
+- Do not nest copies of those projects inside this repo; the manifests already point at the external PureDOTS package.
+
 ## Structure
 
 - `Assets/Scenes/` - All Space4x scenes

@@ -57,6 +57,7 @@ namespace Space4X.Systems.AI
             var depositDistanceSq = depositDistance * depositDistance;
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<VesselAIState>, RefRO<LocalTransform>>()
+                         .WithNone<MiningOrder>()
                          .WithEntityAccess())
             {
                 // Only deposit if returning and has cargo

@@ -1,0 +1,27 @@
+{
+  "name": "Space4X.Gameplay.PlayMode.Tests",
+  "rootNamespace": "Space4X.Tests",
+  "references": [
+    "Unity.Collections",
+    "Unity.Entities",
+    "Unity.Transforms",
+    "Unity.Mathematics",
+    "PureDOTS.Runtime",
+    "PureDOTS.Systems",
+    "Space4X.Gameplay"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

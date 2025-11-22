@@ -57,8 +57,10 @@ namespace Space4X.Systems.AI
             var gatherDistance = 3f; // Vessels gather when within 3 units of asteroid
             var gatherDistanceSq = gatherDistance * gatherDistance;
             var deltaTime = timeState.FixedDeltaTime;
+            var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<VesselAIState>, RefRO<LocalTransform>>()
+                         .WithNone<MiningOrder>()
                          .WithEntityAccess())
             {
                 // Only gather if we're in mining state and have a target
@@ -160,6 +162,20 @@ namespace Space4X.Systems.AI
                 // Update vessel cargo
                 vesselValue.CurrentCargo += gatherAmount;
                 vessel.ValueRW = vesselValue;
+
+                if (hasCommandLog)
+                {
+                    commandLog.Add(new MiningCommandLogEntry
+                    {
+                        Tick = timeState.Tick,
+                        CommandType = MiningCommandType.Gather,
+                        SourceEntity = aiState.ValueRO.TargetEntity,
+                        TargetEntity = entity,
+                        ResourceType = asteroid.ResourceType,
+                        Amount = gatherAmount,
+                        Position = resourceTransform.Position
+                    });
+                }
 
                 // If vessel is full, transition to returning state
                 if (vesselValue.CurrentCargo >= vesselValue.CargoCapacity * 0.95f)

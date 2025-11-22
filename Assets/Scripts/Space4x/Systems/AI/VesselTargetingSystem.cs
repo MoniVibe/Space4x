@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Registry;
 using PureDOTS.Systems;
 using Space4X.Runtime;
+using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -102,6 +103,7 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
+        [WithNone(typeof(MiningOrder))]
         public partial struct ResolveVesselTargetPositionsJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;

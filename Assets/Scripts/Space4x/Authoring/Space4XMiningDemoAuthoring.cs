@@ -9,6 +9,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using Hash128 = Unity.Entities.Hash128;
 
 namespace Space4X.Registry
 {
@@ -43,6 +44,9 @@ namespace Space4X.Registry
                 Speed = 10f,
                 MiningEfficiency = 0.8f,
                 CargoCapacity = 100f,
+                MiningTickInterval = 0.5f,
+                OutputSpawnThreshold = 20f,
+                ResourceId = "space4x.resource.minerals",
                 Position = new float3(5f, 0f, 0f),
                 CarrierId = "CARRIER-1"
             },
@@ -52,6 +56,9 @@ namespace Space4X.Registry
                 Speed = 10f,
                 MiningEfficiency = 0.8f,
                 CargoCapacity = 100f,
+                MiningTickInterval = 0.5f,
+                OutputSpawnThreshold = 20f,
+                ResourceId = "space4x.resource.minerals",
                 Position = new float3(-5f, 0f, 0f),
                 CarrierId = "CARRIER-1"
             }
@@ -126,10 +133,21 @@ namespace Space4X.Registry
             [Tooltip("Mining efficiency multiplier (0-1)")]
             [Range(0f, 1f)]
             public float MiningEfficiency;
+
+            [Tooltip("Registry resource identifier to mine (falls back to the vessel cargo type)")]
+            public string ResourceId;
+
+            [Tooltip("Seconds between mining ticks when actively mining")]
+            [Min(0.05f)]
+            public float MiningTickInterval;
             
             [Tooltip("Maximum cargo capacity")]
             [Min(1f)]
             public float CargoCapacity;
+
+            [Tooltip("Accumulated mined units before toggling spawn-ready output")]
+            [Min(0f)]
+            public float OutputSpawnThreshold;
             
             [Tooltip("Starting position of the vessel")]
             public float3 Position;
@@ -397,6 +415,34 @@ namespace Space4X.Registry
                         CargoResourceType = ResourceType.Minerals
                     });
 
+                    var resourceId = ResolveResourceId(vessel);
+
+                    AddComponent(entity, new MiningOrder
+                    {
+                        ResourceId = resourceId,
+                        Source = MiningOrderSource.Scripted,
+                        Status = MiningOrderStatus.Pending,
+                        PreferredTarget = Entity.Null,
+                        TargetEntity = Entity.Null,
+                        IssuedTick = 0
+                    });
+
+                    AddComponent(entity, new MiningState
+                    {
+                        Phase = MiningPhase.Idle,
+                        ActiveTarget = Entity.Null,
+                        MiningTimer = 0f,
+                        TickInterval = vessel.MiningTickInterval > 0f ? vessel.MiningTickInterval : 0.5f
+                    });
+
+                    AddComponent(entity, new MiningYield
+                    {
+                        ResourceId = resourceId,
+                        PendingAmount = 0f,
+                        SpawnThreshold = vessel.OutputSpawnThreshold > 0f ? vessel.OutputSpawnThreshold : math.max(1f, vessel.CargoCapacity * 0.25f),
+                        SpawnReady = 0
+                    });
+
                     AddComponent(entity, new MiningJob
                     {
                         State = MiningJobState.None,
@@ -434,6 +480,8 @@ namespace Space4X.Registry
                     {
                         AddComponent(entity, vesselBinding.Value);
                     }
+
+                    AddBuffer<SpawnResourceRequest>(entity);
 #if UNITY_EDITOR
                     if (!s_loggedVessels)
                     {
@@ -565,6 +613,16 @@ namespace Space4X.Registry
                 }
 
                 return default;
+            }
+
+            private static FixedString64Bytes ResolveResourceId(MiningVesselDefinition vessel)
+            {
+                if (!string.IsNullOrWhiteSpace(vessel.ResourceId))
+                {
+                    return new FixedString64Bytes(vessel.ResourceId.Trim());
+                }
+
+                return GetResourceTypeId(ResourceType.Minerals);
             }
 
             private static FixedString64Bytes GetResourceTypeId(ResourceType resourceType)

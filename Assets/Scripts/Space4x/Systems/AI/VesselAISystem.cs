@@ -31,6 +31,7 @@ namespace Space4X.Systems.AI
         {
             _vesselQuery = SystemAPI.QueryBuilder()
                 .WithAll<VesselAIState, MiningVessel, LocalTransform>()
+                .WithNone<MiningOrder>()
                 .Build();
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
@@ -142,6 +143,7 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
+        [WithNone(typeof(MiningOrder))]
         public partial struct UpdateVesselAIJob : IJobEntity
         {
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;

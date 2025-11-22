@@ -197,6 +197,7 @@ namespace Space4X.Registry
 
             var vesselQuery = SystemAPI.QueryBuilder()
                 .WithAll<MiningVessel, MiningJob, LocalTransform>()
+                .WithNone<MiningOrder>()
                 .Build();
             var vesselCount = vesselQuery.CalculateEntityCount();
 
@@ -206,7 +207,7 @@ namespace Space4X.Registry
                 return;
             }
 
-            foreach (var (vessel, job, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<MiningJob>, RefRW<LocalTransform>>().WithEntityAccess())
+            foreach (var (vessel, job, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<MiningJob>, RefRW<LocalTransform>>().WithNone<MiningOrder>().WithEntityAccess())
             {
                 var vesselData = vessel.ValueRO;
                 var jobData = job.ValueRO;

@@ -161,6 +161,14 @@ struct SkillExperienceGain : IComponentData
 - `SkillModifierSystem`: Applies skill multipliers to relevant operations.
 - `HazardResistanceSystem`: Reduces hazard impact based on crew experience.
 
+### 2025-02-04 progress (Agent 2)
+- Added `CrewSkills`, `SkillExperienceGain`, `HazardResistance`, and `SkillChangeLogEntry` components (buffers live on the mining time spine for replay/telemetry).
+- `Space4XCrewExperienceSystem` reads `MiningCommandLogEntry` (gather/pickup) to award XP, updates skill multipliers via a deterministic curve, and logs deltas for rewind.
+- `Space4XMinerMiningSystem` now multiplies mining rate by the crew’s `MiningSkill` (up to +50%); `Space4XCrewSkillTelemetrySystem` publishes average skill metrics under `space4x.skills.*`.
+- Tests: `Space4XCrewExperienceSystemTests` (XP/skill update + log) and `Space4XMinerMiningSystemTests.MiningSkillAmplifiesMiningTick`.
+- Authoring: `Space4XCrewSkillsAuthoring` seeds skills/XP/hazard resistance with clamping; mining time spine records skill snapshots and reapplies skill logs during rewind to keep XP deterministic.
+- Hazard: `Space4XHazardMitigationSystem` reduces `HazardDamageEvent` amounts using `HazardResistance` and reports mitigated totals to telemetry; covered by `Space4XHazardMitigationSystemTests`.
+
 ---
 
 ## Waypoint & Infrastructure Framework
@@ -280,6 +288,8 @@ struct SpoilageSettings : IComponentData
 
 ## Fleet Interception & Rendezvous Framework
 
+**Status:** Broadcast/queue/systems and edit-mode tests landed (FleetInterceptSystemsTests); telemetry keys/logs available for rewind bindings.
+
 ### Requirements
 - **Position Broadcasting**: Moving fleets broadcast position/velocity for interception.
 - **Predictive Pathfinding**: Haulers calculate intercept courses for moving targets.
@@ -308,6 +318,14 @@ struct InterceptCourse : IComponentData
 - `FleetBroadcastSystem`: Updates fleet position/velocity broadcasts.
 - `InterceptPathfindingSystem`: Calculates intercept courses for haulers.
 - `RendezvousCoordinationSystem`: Manages static waypoint meetups (low-tech).
+
+### Status / Notes (2025-02-05)
+- Authoring: `Space4XFleetInterceptAuthoring` seeds `FleetMovementBroadcast` + optional `InterceptCourse/InterceptCapability` and now adds `SpatialGridResidency` for spatial queries.
+- Runtime: `FleetBroadcastSystem` (FixedStep) stamps `LastUpdateTick` from `TimeState`, respects `RewindState` playback, carries velocity from `FleetKinematics`, and mirrors positions into `SpatialGridResidency.LastPosition`.
+- Intercept queue: `InterceptPathfindingSystem` sorts requests by `Priority`, `RequestTick`, `Requester.Index` and writes `FleetInterceptCommandLogEntry` + telemetry counters (`space4x.intercept.*`). Rendezvous system reapplies live positions when interception is disabled or gated by tech.
+- Spatial query path: `FleetInterceptRequestSystem` (FixedStep) selects nearest broadcast fleets within ~250u for entities with `InterceptCapability`, writing `InterceptRequest` (priority = tech tier, request tick) into the queue. This keeps request ordering deterministic before path calculation.
+- Tests: `FleetInterceptSystemsTests` now cover broadcast tick/velocity/residency updates and request → path → command-log flow, ensuring nearest selection and command log entries are written.
+- `Space4XFleetInterceptQueue` holds `InterceptRequest` (sorted by Priority, RequestTick, EntityIndex) and logs `FleetInterceptCommandLogEntry` for rewind; telemetry keys: `space4x.intercept.attempts`, `space4x.intercept.rendezvous`, `space4x.intercept.lastTick`.
 
 ---
 
@@ -370,6 +388,8 @@ struct TechDiffusionState : IComponentData
 ---
 
 ## Crew Breeding/Cloning Framework (Deferred)
+
+**Status:** Data + authoring + gated stubs landed (CrewGrowthSettings/State/Telemetry, Space4XCrewGrowthAuthoring, Space4XCrewGrowthSystem). Defaults remain disabled; stub logs telemetry only.
 
 ### Requirements
 - **Passive Growth**: Crews expand over time without player intervention (if policies allow).

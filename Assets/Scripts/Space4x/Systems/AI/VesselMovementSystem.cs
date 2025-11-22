@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Space4X.Runtime;
+using Space4X.Registry;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -65,6 +66,7 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
+        [WithNone(typeof(MiningOrder))]
         public partial struct UpdateVesselMovementJob : IJobEntity
         {
             public float DeltaTime;

@@ -51,7 +51,8 @@ namespace Space4X.Authoring
                     MiningEfficiency = math.clamp(authoring.miningEfficiency, 0f, 1f),
                     Speed = math.max(0.1f, authoring.speed),
                     CargoCapacity = math.max(1f, authoring.cargoCapacity),
-                    CurrentCargo = 0f
+                    CurrentCargo = 0f,
+                    CargoResourceType = ResourceType.Minerals
                 });
 
                 // Add MiningJob component
@@ -82,6 +83,8 @@ namespace Space4X.Authoring
                     IsMoving = 0,
                     LastMoveTick = 0
                 });
+
+                AddBuffer<SpawnResourceRequest>(entity);
 
                 // Add LocalTransform will be synced automatically
             }

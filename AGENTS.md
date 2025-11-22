@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This Unity project keeps gameplay code under `Assets/Scripts/Space4x`. Authoring components live in `Authoring/`, runtime systems in `Registry/`, and editor-safe tests in `Tests/`. Scenes sit in `Assets/Scenes` (`SampleScene.unity` is the entry point). Render pipeline assets and profiles reside in `Assets/Settings`, while reference material belongs in `Docs/`.
+This Unity project keeps gameplay code under `Assets/Scripts/Space4x`. Authoring components live in `Authoring/`, runtime systems in `Registry/`, and editor-safe tests in `Tests/`. Scenes sit in `Assets/Scenes` (`SampleScene.unity` is the entry point). Render pipeline assets and profiles reside in `Assets/Settings`, while reference material belongs in `Docs/`. Keep this repo Space4x-only; PureDOTS and Godgame live as sibling projects in `C:/Users/shonh/OneDrive/Documents/claudeprojects/Unity` (see `TRI_PROJECT_BRIEFING.md`) and should not be nested here.
 
 ## Build, Test, and Development Commands
 - `Unity -projectPath .` opens the project in the Unity Editor; load `SampleScene.unity` for play-mode checks.
