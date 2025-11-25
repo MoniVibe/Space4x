@@ -23,6 +23,7 @@ namespace Space4X.Systems.AI
     {
         private ComponentLookup<LocalTransform> _transformLookup;
         private BufferLookup<ResourceRegistryEntry> _resourceEntriesLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
         private EntityQuery _resourceRegistryQuery;
 
         [BurstCompile]
@@ -30,6 +31,7 @@ namespace Space4X.Systems.AI
         {
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _resourceEntriesLookup = state.GetBufferLookup<ResourceRegistryEntry>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
                 .WithAll<ResourceRegistry, ResourceRegistryEntry>()
@@ -55,6 +57,7 @@ namespace Space4X.Systems.AI
             }
 
             _transformLookup.Update(ref state);
+            _statsLookup.Update(ref state);
 
             // Initialize with empty array to ensure it's always valid (Burst requirement)
             NativeArray<ResourceRegistryEntry> resourceEntries = new NativeArray<ResourceRegistryEntry>(0, Allocator.TempJob);
@@ -84,6 +87,7 @@ namespace Space4X.Systems.AI
             var job = new ResolveVesselTargetPositionsJob
             {
                 TransformLookup = _transformLookup,
+                StatsLookup = _statsLookup,
                 ResourceEntries = resourceEntries,
                 HasResourceEntries = hasResourceEntries
             };
@@ -103,14 +107,14 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
-        [WithNone(typeof(MiningOrder))]
         public partial struct ResolveVesselTargetPositionsJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
+            [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;
             public bool HasResourceEntries;
 
-            public void Execute(ref VesselAIState aiState)
+            public void Execute(ref VesselAIState aiState, Entity entity)
             {
                 if (aiState.TargetEntity == Entity.Null)
                 {
@@ -121,7 +125,26 @@ namespace Space4X.Systems.AI
                 // Try to get transform directly first (for GameObjects and carriers)
                 if (TransformLookup.TryGetComponent(aiState.TargetEntity, out var targetTransform))
                 {
-                    aiState.TargetPosition = targetTransform.Position;
+                    var targetPos = targetTransform.Position;
+                    
+                    // Tactics stat improves targeting accuracy (reduces position error)
+                    float tacticsAccuracy = 1f;
+                    if (StatsLookup.HasComponent(entity))
+                    {
+                        var stats = StatsLookup[entity];
+                        var tacticsModifier = stats.Tactics / 100f; // 0-1 normalized
+                        // Higher tactics = more accurate targeting (less position drift)
+                        tacticsAccuracy = 1f - (tacticsModifier * 0.1f); // Up to 10% reduction in position error
+                    }
+                    
+                    // Apply small random offset based on tactics (lower tactics = more error)
+                    var error = (1f - tacticsAccuracy) * 0.5f; // Max 0.5 unit error for low tactics
+                    var hash = (uint)entity.Index ^ (uint)aiState.TargetEntity.Index;
+                    var randomX = (hash % 1000) / 1000f - 0.5f;
+                    var randomZ = ((hash >> 10) % 1000) / 1000f - 0.5f;
+                    var offset = new float3(randomX, 0f, randomZ) * error;
+                    
+                    aiState.TargetPosition = targetPos + offset;
                     return;
                 }
 

@@ -25,6 +25,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Carrier> _carrierLookup;
         private BufferLookup<ResourceStorage> _carrierInventoryLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -32,6 +33,7 @@ namespace Space4X.Systems.AI
             _carrierLookup = state.GetComponentLookup<Carrier>(false);
             _carrierInventoryLookup = state.GetBufferLookup<ResourceStorage>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
 
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
@@ -52,12 +54,12 @@ namespace Space4X.Systems.AI
             _carrierLookup.Update(ref state);
             _carrierInventoryLookup.Update(ref state);
             _transformLookup.Update(ref state);
+            _statsLookup.Update(ref state);
 
             var depositDistance = 2f; // Vessels deposit when within 2 units of carrier
             var depositDistanceSq = depositDistance * depositDistance;
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<VesselAIState>, RefRO<LocalTransform>>()
-                         .WithNone<MiningOrder>()
                          .WithEntityAccess())
             {
                 // Only deposit if returning and has cargo
@@ -92,6 +94,14 @@ namespace Space4X.Systems.AI
                 var cargoToDeposit = vesselValue.CurrentCargo;
                 var cargoType = vesselValue.CargoResourceType;
                 
+                // Logistics stat from carrier affects transfer speed/efficiency
+                float logisticsBonus = 1f;
+                if (_statsLookup.HasComponent(aiState.ValueRO.TargetEntity))
+                {
+                    var carrierStats = _statsLookup[aiState.ValueRO.TargetEntity];
+                    logisticsBonus = 1f + (carrierStats.Logistics / 100f) * 0.25f; // Up to 25% faster transfer
+                }
+                
                 // Add to carrier inventory (using ResourceStorage buffer)
                 if (!_carrierInventoryLookup.HasBuffer(aiState.ValueRO.TargetEntity))
                 {
@@ -99,8 +109,10 @@ namespace Space4X.Systems.AI
                 }
 
                 var inventory = _carrierInventoryLookup[aiState.ValueRO.TargetEntity];
-                var remaining = DepositCargo(ref inventory, cargoType, cargoToDeposit);
-                var deposited = cargoToDeposit - remaining;
+                // Apply logistics bonus: higher logistics = more efficient transfer (less waste)
+                var effectiveAmount = cargoToDeposit * logisticsBonus;
+                var remaining = DepositCargo(ref inventory, cargoType, effectiveAmount);
+                var deposited = effectiveAmount - remaining;
 
                 if (deposited <= 1e-4f)
                 {

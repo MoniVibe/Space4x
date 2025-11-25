@@ -1,0 +1,79 @@
+{
+  "Version": "1.0",
+  "GeneratedAt": "2025-11-23T23:08:23.4254754Z",
+  "Categories": {
+    "Hull": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Module": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Station": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Resource": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Product": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Aggregate": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Effect": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    },
+    "Individual": {
+      "CatalogCount": 0,
+      "PrefabCount": 0,
+      "BindingCount": 0,
+      "PrefabCoverage": 0.0,
+      "BindingCoverage": 0.0,
+      "MissingPrefabs": [],
+      "MissingBindings": []
+    }
+  },
+  "OverallCoverage": 0.0
+}

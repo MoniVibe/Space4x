@@ -221,6 +221,20 @@ namespace Space4X.Registry
         public int TechDiffusionActiveCount;
         public int TechDiffusionCompletedCount;
         public uint TechDiffusionLastUpgradeTick;
+        public int ModuleRefitCount;
+        public int ModuleRefitFieldCount;
+        public int ModuleRefitFacilityCount;
+        public int ModuleRepairCount;
+        public int ModuleRepairFieldCount;
+        public float ModuleRepairDurationAvgSeconds;
+        public float ModuleRefitDurationAvgSeconds;
+        public int ModuleDegradedCount;
+        public int ModuleRepairingCount;
+        public int ModuleRefittingCount;
+        public int ModuleOffenseRatingTotal;
+        public int ModuleDefenseRatingTotal;
+        public int ModuleUtilityRatingTotal;
+        public float ModulePowerBalanceMW;
         public uint LastRegistryTick;
     }
 

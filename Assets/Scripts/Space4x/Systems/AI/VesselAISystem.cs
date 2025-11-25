@@ -31,7 +31,6 @@ namespace Space4X.Systems.AI
         {
             _vesselQuery = SystemAPI.QueryBuilder()
                 .WithAll<VesselAIState, MiningVessel, LocalTransform>()
-                .WithNone<MiningOrder>()
                 .Build();
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
@@ -100,12 +99,22 @@ namespace Space4X.Systems.AI
 
                     if (hasResources)
                     {
+                        var miningOrderLookup = state.GetComponentLookup<MiningOrder>(false);
+                        var resourceTypeLookup = state.GetComponentLookup<ResourceTypeId>(true);
+                        var asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+                        miningOrderLookup.Update(ref state);
+                        resourceTypeLookup.Update(ref state);
+                        asteroidLookup.Update(ref state);
+
                         var job = new UpdateVesselAIJob
                         {
                             ResourceEntries = resourceEntries.AsNativeArray(),
                             HasResources = hasResources,
                             Carriers = carriers.AsArray(),
                             CarrierTransforms = carrierTransforms.AsArray(),
+                            MiningOrderLookup = miningOrderLookup,
+                            ResourceTypeLookup = resourceTypeLookup,
+                            AsteroidLookup = asteroidLookup,
                             DeltaTime = timeState.FixedDeltaTime,
                             CurrentTick = timeState.Tick
                         };
@@ -143,21 +152,104 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
-        [WithNone(typeof(MiningOrder))]
         public partial struct UpdateVesselAIJob : IJobEntity
         {
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;
             public bool HasResources;
             [ReadOnly] public NativeArray<Entity> Carriers;
             [ReadOnly] public NativeArray<LocalTransform> CarrierTransforms;
+            public ComponentLookup<MiningOrder> MiningOrderLookup;
+            [ReadOnly] public ComponentLookup<ResourceTypeId> ResourceTypeLookup;
+            [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
             public float DeltaTime;
             public uint CurrentTick;
 
-            public void Execute(ref VesselAIState aiState, in MiningVessel vessel, in LocalTransform transform)
+            public void Execute(ref VesselAIState aiState, in MiningVessel vessel, in LocalTransform transform, Entity entity)
             {
                 aiState.StateTimer += DeltaTime;
 
-                // If vessel is idle and has capacity, find a target asteroid
+                // Check if vessel has MiningOrder that needs target assignment
+                bool hasMiningOrder = MiningOrderLookup.HasComponent(entity);
+                if (hasMiningOrder)
+                {
+                    var miningOrder = MiningOrderLookup.GetRefRW(entity).ValueRO;
+                    
+                    // Assign target to MiningOrder if pending and no target
+                    if (miningOrder.Status == MiningOrderStatus.Pending && 
+                        miningOrder.TargetEntity == Entity.Null &&
+                        vessel.CurrentCargo < vessel.CargoCapacity * 0.95f)
+                    {
+                        Entity bestTarget = Entity.Null;
+                        float bestDistance = float.MaxValue;
+
+                        if (HasResources)
+                        {
+                            // Find nearest asteroid matching MiningOrder.ResourceId
+                            for (int i = 0; i < ResourceEntries.Length; i++)
+                            {
+                                var entry = ResourceEntries[i];
+
+                                if (entry.Tier != ResourceTier.Raw)
+                                {
+                                    continue;
+                                }
+
+                                if (entry.ResourceTypeIndex == ushort.MaxValue)
+                                {
+                                    continue;
+                                }
+
+                                // Check if resource matches MiningOrder.ResourceId
+                                if (ResourceTypeLookup.HasComponent(entry.SourceEntity))
+                                {
+                                    var resourceTypeId = ResourceTypeLookup[entry.SourceEntity];
+                                    if (resourceTypeId.Value == miningOrder.ResourceId)
+                                    {
+                                        var distance = math.distance(transform.Position, entry.Position);
+                                        if (distance < bestDistance)
+                                        {
+                                            bestTarget = entry.SourceEntity;
+                                            bestDistance = distance;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bestTarget != Entity.Null)
+                        {
+                            // Assign target to MiningOrder
+                            miningOrder.TargetEntity = bestTarget;
+                            miningOrder.Status = MiningOrderStatus.Active;
+                            MiningOrderLookup.GetRefRW(entity).ValueRW = miningOrder;
+                        }
+                    }
+
+                    // Sync MiningOrder.TargetEntity to VesselAIState if MiningOrder has a target
+                    if (miningOrder.TargetEntity != Entity.Null && 
+                        miningOrder.Status == MiningOrderStatus.Active)
+                    {
+                        // If MiningOrder has a target, use it for movement (unless vessel is full and needs to return)
+                        if (vessel.CurrentCargo < vessel.CargoCapacity * 0.95f)
+                        {
+                            if (aiState.TargetEntity != miningOrder.TargetEntity)
+                            {
+                                aiState.TargetEntity = miningOrder.TargetEntity;
+                                aiState.CurrentGoal = VesselAIState.Goal.Mining;
+                                if (aiState.CurrentState == VesselAIState.State.Idle)
+                                {
+                                    aiState.CurrentState = VesselAIState.State.MovingToTarget;
+                                    aiState.StateTimer = 0f;
+                                    aiState.StateStartTick = CurrentTick;
+                                }
+                            }
+                            // Skip legacy AI target finding if MiningOrder is active and vessel not full
+                            // But continue to check return logic below
+                        }
+                    }
+                }
+
+                // If vessel is idle and has capacity, find a target asteroid (legacy path for vessels without MiningOrder)
                 if (aiState.CurrentState == VesselAIState.State.Idle && vessel.CurrentCargo < vessel.CargoCapacity * 0.95f)
                 {
                     // Find nearest asteroid that matches vessel's resource type

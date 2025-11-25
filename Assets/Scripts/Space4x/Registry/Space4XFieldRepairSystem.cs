@@ -9,7 +9,6 @@ namespace Space4X.Registry
     /// <summary>
     /// Repairs damaged modules in priority order, respecting field repair caps and crew skill.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XComponentDegradationSystem))]
     public partial struct Space4XFieldRepairSystem : ISystem
@@ -18,8 +17,8 @@ namespace Space4X.Registry
         private ComponentLookup<CrewSkills> _skillsLookup;
         private ComponentLookup<SkillExperienceGain> _xpLookup;
         private ComponentLookup<ModuleStatAggregate> _aggregateLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -30,9 +29,9 @@ namespace Space4X.Registry
             _skillsLookup = state.GetComponentLookup<CrewSkills>(false);
             _xpLookup = state.GetComponentLookup<SkillExperienceGain>(false);
             _aggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var time = SystemAPI.GetSingleton<TimeState>();
@@ -53,6 +52,7 @@ namespace Space4X.Registry
             _skillsLookup.Update(ref state);
             _xpLookup.Update(ref state);
             _aggregateLookup.Update(ref state);
+            _statsLookup.Update(ref state);
 
             var hasSkillLog = SystemAPI.TryGetSingletonBuffer<SkillChangeLogEntry>(out var skillLog);
             var hasMaintenanceLog = SystemAPI.TryGetSingletonBuffer<ModuleMaintenanceCommandLogEntry>(out var maintenanceLog);
@@ -61,15 +61,30 @@ namespace Space4X.Registry
             var telemetryDirty = false;
             var tick = time.Tick;
 
+            bool hasTuning = ModuleCatalogUtility.TryGetTuning(ref state, out var tuning);
+            
             foreach (var (slots, capability, entity) in SystemAPI.Query<DynamicBuffer<CarrierModuleSlot>, RefRO<FieldRepairCapability>>().WithEntityAccess())
             {
-                var repairBudget = capability.ValueRO.RepairRatePerSecond * deltaTime;
-                var criticalBudget = capability.ValueRO.CriticalRepairRate * deltaTime;
+                var inFacility = state.EntityManager.HasComponent<InRefitFacilityTag>(entity);
+                var repairRate = inFacility && hasTuning 
+                    ? tuning.RepairRateEffPerSecStation 
+                    : (hasTuning ? tuning.RepairRateEffPerSecField : 0.005f);
+                
+                var repairBudget = repairRate * deltaTime;
+                var criticalBudget = repairRate * deltaTime;
                 var skillFactor = 1f + GetRepairSkill(entity) * 0.75f;
                 var moduleMultiplier = GetRepairMultiplier(entity);
+                
+                // Engineering stat boosts repair speed and efficiency
+                float engineeringBonus = 1f;
+                if (_statsLookup.HasComponent(entity))
+                {
+                    var stats = _statsLookup[entity];
+                    engineeringBonus = 1f + (stats.Engineering / 100f) * 0.3f; // Up to 30% faster repair
+                }
 
-                repairBudget *= moduleMultiplier * skillFactor;
-                criticalBudget *= moduleMultiplier * skillFactor;
+                repairBudget *= moduleMultiplier * skillFactor * engineeringBonus;
+                criticalBudget *= moduleMultiplier * skillFactor * engineeringBonus;
 
                 while (repairBudget > 0f || (capability.ValueRO.CanRepairCritical != 0 && criticalBudget > 0f))
                 {
@@ -80,7 +95,9 @@ namespace Space4X.Registry
 
                     var maxHealth = capability.ValueRO.CanRepairCritical != 0 ? health.MaxHealth : health.MaxFieldRepairHealth;
                     var budget = health.CurrentHealth <= 0f ? criticalBudget : repairBudget;
-                    var toHeal = math.min(budget, math.max(0f, maxHealth - health.CurrentHealth));
+                    var efficiencyDelta = budget;
+                    var currentEfficiency = health.CurrentHealth / math.max(0.01f, health.MaxHealth);
+                    var toHeal = math.min(budget * health.MaxHealth, math.max(0f, maxHealth - health.CurrentHealth));
 
                     if (toHeal <= 0f)
                     {

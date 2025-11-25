@@ -10,6 +10,8 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using Hash128 = Unity.Entities.Hash128;
+using PresentationBinding = Space4X.Presentation.Space4XPresentationBinding;
+using PresentationFlagUtility = Space4X.Presentation.Space4XPresentationFlagUtility;
 
 namespace Space4X.Registry
 {
@@ -798,7 +800,7 @@ namespace Space4X.Registry
                 }
             }
 
-            private Space4XPresentationBinding? CreatePresentationBinding(string descriptorKey, float scale, Color color, uint variantSeed, string typeName)
+            private PresentationBinding? CreatePresentationBinding(string descriptorKey, float scale, Color color, uint variantSeed, string typeName)
             {
                 var descriptor = ResolveDescriptor(descriptorKey, typeName);
                 if (!descriptor.IsValid)
@@ -809,11 +811,11 @@ namespace Space4X.Registry
                     return null;
                 }
 
-                var binding = Space4XPresentationBinding.Create(descriptor);
+                var binding = PresentationBinding.Create(descriptor);
                 binding.ScaleMultiplier = math.max(0.05f, scale);
                 binding.Tint = ToFloat4(color);
                 binding.VariantSeed = variantSeed;
-                binding.Flags = Space4XPresentationFlagUtility.WithOverrides(true, true, false);
+                binding.Flags = PresentationFlagUtility.WithOverrides(true, true, false);
                 return binding;
             }
 

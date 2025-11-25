@@ -13,6 +13,8 @@ using UnityEngine;
 using UnityEngine.VFX;
 using VFXPlayground.Capture;
 
+#nullable enable
+
 namespace PureDOTS.Editor.MCP
 {
     [McpForUnityTool("capture_vfx_multi_angle")]
@@ -77,7 +79,7 @@ namespace PureDOTS.Editor.MCP
                 string baseOutputDir = @params["output_dir"]?.ToString() ?? "Data/MCP_Exports";
 
                 // Auto-detect VFX from active scene if not provided
-                VisualEffectAsset? detectedGraphAsset = null;
+                VisualEffectAsset detectedGraphAsset = null;
                 if (string.IsNullOrEmpty(graphPath) && string.IsNullOrEmpty(graphId))
                 {
                     var activeVfx = FindActiveVisualEffect();

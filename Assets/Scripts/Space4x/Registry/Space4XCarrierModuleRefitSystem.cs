@@ -1,6 +1,5 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -10,9 +9,9 @@ namespace Space4X.Registry
     /// <summary>
     /// Processes carrier module refit queues deterministically and awards repair XP.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(GameplayFixedStepSyncSystem))]
+    [UpdateAfter(typeof(FacilityProximitySystem))]
     public partial struct Space4XCarrierModuleRefitSystem : ISystem
     {
         private ComponentLookup<ModuleRefitFacility> _facilityLookup;
@@ -20,9 +19,10 @@ namespace Space4X.Registry
         private ComponentLookup<SkillExperienceGain> _xpLookup;
         private ComponentLookup<ModuleStatAggregate> _aggregateLookup;
         private ComponentLookup<ModuleSlotRequirement> _slotRequirementLookup;
+        private ComponentLookup<CarrierHullId> _hullIdLookup;
+        private ComponentLookup<ModuleTypeId> _moduleTypeLookup;
         private EntityQuery _carrierQuery;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -34,12 +34,13 @@ namespace Space4X.Registry
             _xpLookup = state.GetComponentLookup<SkillExperienceGain>(false);
             _aggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
             _slotRequirementLookup = state.GetComponentLookup<ModuleSlotRequirement>(true);
+            _hullIdLookup = state.GetComponentLookup<CarrierHullId>(true);
+            _moduleTypeLookup = state.GetComponentLookup<ModuleTypeId>(true);
             _carrierQuery = SystemAPI.QueryBuilder()
                 .WithAll<CarrierModuleSlot, ModuleRefitRequest>()
                 .Build();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var time = SystemAPI.GetSingleton<TimeState>();
@@ -61,6 +62,8 @@ namespace Space4X.Registry
             _xpLookup.Update(ref state);
             _aggregateLookup.Update(ref state);
             _slotRequirementLookup.Update(ref state);
+            _hullIdLookup.Update(ref state);
+            _moduleTypeLookup.Update(ref state);
 
             var hasSkillLog = SystemAPI.TryGetSingletonBuffer<SkillChangeLogEntry>(out var skillLog);
             var hasMaintenanceLog = SystemAPI.TryGetSingletonBuffer<ModuleMaintenanceCommandLogEntry>(out var maintenanceLog);
@@ -86,8 +89,10 @@ namespace Space4X.Registry
                 }
 
                 var facility = _facilityLookup[entity];
-                var docked = state.EntityManager.HasComponent<DockedAtStation>(entity);
-                if (facility.SupportsFieldRefit == 0 && !docked)
+                var hasInFacilityTag = state.EntityManager.HasComponent<InRefitFacilityTag>(entity);
+                var hullId = _hullIdLookup.HasComponent(entity) ? _hullIdLookup[entity].HullId : default;
+                
+                if (!ModuleCatalogUtility.CanPerformFieldRefit(ref state, hullId, hasInFacilityTag))
                 {
                     continue;
                 }
@@ -109,7 +114,13 @@ namespace Space4X.Registry
                     continue;
                 }
 
-                var requiredWork = math.max(0.1f, request.RequiredWork <= 0f ? 1f : request.RequiredWork);
+                var requiredWork = request.RequiredWork;
+                if (requiredWork <= 0f)
+                {
+                    requiredWork = CalculateRefitTime(ref state, slot.CurrentModule, request.TargetModule, hasInFacilityTag);
+                }
+                
+                requiredWork = math.max(0.1f, requiredWork);
                 var starting = slot.RefitProgress <= 0f && slot.State != ModuleSlotState.Removing && slot.State != ModuleSlotState.Installing;
                 slot.TargetModule = request.TargetModule;
                 slot.State = request.TargetModule == Entity.Null ? ModuleSlotState.Removing : ModuleSlotState.Installing;
@@ -232,6 +243,40 @@ namespace Space4X.Registry
             var skillFactor = 1f + repairSkill * 0.75f;
             var multiplier = math.max(0.01f, refitMultiplier);
             return deltaTime * rate * skillFactor * multiplier;
+        }
+
+        private float CalculateRefitTime(ref SystemState state, Entity currentModule, Entity targetModule, bool inFacility)
+        {
+            if (!ModuleCatalogUtility.TryGetTuning(ref state, out var tuning))
+            {
+                return 60f;
+            }
+
+            ModuleSpec targetSpec = default;
+            bool hasTargetSpec = false;
+            if (targetModule != Entity.Null && _moduleTypeLookup.HasComponent(targetModule))
+            {
+                var moduleId = _moduleTypeLookup[targetModule].Value;
+                hasTargetSpec = ModuleCatalogUtility.TryGetModuleSpec(ref state, moduleId, out targetSpec);
+            }
+
+            if (!hasTargetSpec)
+            {
+                return tuning.BaseRefitSeconds;
+            }
+
+            bool changedTypeOrSize = false;
+            if (currentModule != Entity.Null && _moduleTypeLookup.HasComponent(currentModule))
+            {
+                var currentId = _moduleTypeLookup[currentModule].Value;
+                if (ModuleCatalogUtility.TryGetModuleSpec(ref state, currentId, out var currentSpec))
+                {
+                    changedTypeOrSize = currentSpec.RequiredMount != targetSpec.RequiredMount ||
+                                        currentSpec.RequiredSize != targetSpec.RequiredSize;
+                }
+            }
+
+            return ModuleCatalogUtility.CalculateRefitTime(tuning, targetSpec, inFacility, changedTypeOrSize);
         }
 
         private void AwardRepairSkill(ref SystemState state, Entity entity, float workDelta, uint tick, DynamicBuffer<SkillChangeLogEntry> skillLog)

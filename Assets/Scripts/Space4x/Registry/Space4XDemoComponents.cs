@@ -91,6 +91,14 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Stores the hull type identifier for a carrier, used for refit eligibility checks.
+    /// </summary>
+    public struct CarrierHullId : IComponentData
+    {
+        public FixedString64Bytes HullId;
+    }
+
+    /// <summary>
     /// States for mining job execution.
     /// </summary>
     public enum MiningJobState : byte

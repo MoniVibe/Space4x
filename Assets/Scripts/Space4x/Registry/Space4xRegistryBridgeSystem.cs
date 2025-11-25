@@ -711,6 +711,20 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.registry.techdiffusion.active", snapshot.TechDiffusionActiveCount);
             buffer.AddMetric("space4x.registry.techdiffusion.completed", snapshot.TechDiffusionCompletedCount);
             buffer.AddMetric("space4x.registry.techdiffusion.lastUpgradeTick", snapshot.TechDiffusionLastUpgradeTick, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.modules.ratings.offense", snapshot.ModuleOffenseRatingTotal);
+            buffer.AddMetric("space4x.modules.ratings.defense", snapshot.ModuleDefenseRatingTotal);
+            buffer.AddMetric("space4x.modules.ratings.utility", snapshot.ModuleUtilityRatingTotal);
+            buffer.AddMetric("space4x.modules.power.balanceMW", snapshot.ModulePowerBalanceMW, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.modules.degraded", snapshot.ModuleDegradedCount);
+            buffer.AddMetric("space4x.modules.repairing", snapshot.ModuleRepairingCount);
+            buffer.AddMetric("space4x.modules.refitting", snapshot.ModuleRefittingCount);
+            buffer.AddMetric("space4x.modules.refit.count", snapshot.ModuleRefitCount);
+            buffer.AddMetric("space4x.modules.refit.field", snapshot.ModuleRefitFieldCount);
+            buffer.AddMetric("space4x.modules.refit.facility", snapshot.ModuleRefitFacilityCount);
+            buffer.AddMetric("space4x.modules.repair.count", snapshot.ModuleRepairCount);
+            buffer.AddMetric("space4x.modules.repair.field", snapshot.ModuleRepairFieldCount);
+            buffer.AddMetric("space4x.modules.repair.duration.avg_s", snapshot.ModuleRepairDurationAvgSeconds, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.modules.refit.duration.avg_s", snapshot.ModuleRefitDurationAvgSeconds, TelemetryMetricUnit.Custom);
 
             if (SystemAPI.TryGetSingletonEntity<VillagerRegistry>(out var villagerRegistryEntity) &&
                 state.EntityManager.HasBuffer<VillagerLessonRegistryEntry>(villagerRegistryEntity))

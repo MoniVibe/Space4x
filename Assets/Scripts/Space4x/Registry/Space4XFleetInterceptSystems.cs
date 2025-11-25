@@ -121,6 +121,7 @@ namespace Space4X.Registry
         {
             _broadcastLookup = state.GetComponentLookup<FleetMovementBroadcast>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
 
             state.RequireForUpdate<Space4XFleetInterceptQueue>();
             state.RequireForUpdate<TimeState>();
@@ -143,6 +144,7 @@ namespace Space4X.Registry
 
             _broadcastLookup.Update(ref state);
             _transformLookup.Update(ref state);
+            _statsLookup.Update(ref state);
 
             var queueEntity = SystemAPI.GetSingletonEntity<Space4XFleetInterceptQueue>();
             var requests = state.EntityManager.GetBuffer<InterceptRequest>(queueEntity);
@@ -189,13 +191,27 @@ namespace Space4X.Registry
                     continue;
                 }
 
+                // Diplomacy stat influences interception decisions
+                // Higher diplomacy = more likely to attempt diplomatic rendezvous vs aggressive intercept
+                byte requireRendezvous = capability.ValueRO.AllowIntercept == 0 ? (byte)1 : (byte)0;
+                if (_statsLookup.HasComponent(requesterEntity))
+                {
+                    var stats = _statsLookup[requesterEntity];
+                    var diplomacyModifier = stats.Diplomacy / 100f; // 0-1 normalized
+                    // High diplomacy increases chance of peaceful rendezvous
+                    if (diplomacyModifier > 0.6f && capability.ValueRO.AllowIntercept != 0)
+                    {
+                        requireRendezvous = 1; // Prefer diplomatic approach
+                    }
+                }
+
                 requests.Add(new InterceptRequest
                 {
                     Requester = requesterEntity,
                     Target = bestTarget,
                     Priority = capability.ValueRO.TechTier,
                     RequestTick = time.Tick,
-                    RequireRendezvous = capability.ValueRO.AllowIntercept == 0 ? (byte)1 : (byte)0
+                    RequireRendezvous = requireRendezvous
                 });
             }
         }

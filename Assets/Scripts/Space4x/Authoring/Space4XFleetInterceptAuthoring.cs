@@ -12,6 +12,13 @@ namespace Space4X.Authoring
     [DisallowMultipleComponent]
     public sealed class Space4XFleetInterceptAuthoring : MonoBehaviour
     {
+        [Header("Fleet Registry (Optional)")]
+        public bool addFleetComponent = false;
+        public string fleetId = "FLEET-1";
+        public int shipCount = 1;
+        public Space4XFleetPosture posture = Space4XFleetPosture.Patrol;
+        public int taskForce = 0;
+
         [Header("Broadcast")]
         public bool allowsInterception = true;
         public byte techTier = 1;
@@ -28,6 +35,18 @@ namespace Space4X.Authoring
                 var entity = GetEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
                 var position = (float3)authoring.transform.position;
                 var velocity = (float3)authoring.initialVelocity;
+
+                // Optionally add Space4XFleet component for registry bridge visibility
+                if (authoring.addFleetComponent)
+                {
+                    AddComponent(entity, new Space4XFleet
+                    {
+                        FleetId = new FixedString64Bytes(authoring.fleetId),
+                        ShipCount = authoring.shipCount,
+                        Posture = authoring.posture,
+                        TaskForce = authoring.taskForce
+                    });
+                }
 
                 AddComponent(entity, new FleetMovementBroadcast
                 {

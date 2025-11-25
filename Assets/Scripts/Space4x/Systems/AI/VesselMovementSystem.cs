@@ -54,25 +54,33 @@ namespace Space4X.Systems.AI
             }
 #endif
 
+            var threatLookup = state.GetComponentLookup<ThreatProfile>(true);
+            var transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            threatLookup.Update(ref state);
+            transformLookup.Update(ref state);
+
             var job = new UpdateVesselMovementJob
             {
                 DeltaTime = deltaTime,
                 CurrentTick = currentTick,
                 ArrivalDistance = 2f, // Vessels stop 2 units away from target
-                RotationSpeed = 2f // Rotate speed in radians per second
+                RotationSpeed = 2f, // Rotate speed in radians per second
+                ThreatLookup = threatLookup,
+                TransformLookup = transformLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
         }
 
         [BurstCompile]
-        [WithNone(typeof(MiningOrder))]
         public partial struct UpdateVesselMovementJob : IJobEntity
         {
             public float DeltaTime;
             public uint CurrentTick;
             public float ArrivalDistance;
             public float RotationSpeed;
+            [ReadOnly] public ComponentLookup<ThreatProfile> ThreatLookup;
+            [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
 
             public void Execute(ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
@@ -110,6 +118,10 @@ namespace Space4X.Systems.AI
                 }
 
                 var direction = math.normalize(toTarget);
+                
+                // Apply threat avoidance
+                direction = AvoidThreats(direction, transform.Position);
+
                 movement.CurrentSpeed = movement.BaseSpeed;
                 movement.Velocity = direction * movement.CurrentSpeed;
                 transform.Position += movement.Velocity * DeltaTime;
@@ -122,6 +134,45 @@ namespace Space4X.Systems.AI
 
                 movement.IsMoving = 1;
                 movement.LastMoveTick = CurrentTick;
+            }
+
+            private float3 AvoidThreats(float3 desiredDirection, float3 position)
+            {
+                float avoidanceRadius = 30f; // Avoid threats within this radius
+                float avoidanceRadiusSq = avoidanceRadius * avoidanceRadius;
+                float avoidanceStrength = 0.5f; // How much to steer away
+                float3 avoidanceVector = float3.zero;
+
+                // Check for nearby threats
+                foreach (var (threat, threatTransform, threatEntity) in SystemAPI.Query<RefRO<ThreatProfile>, RefRO<LocalTransform>>()
+                    .WithEntityAccess())
+                {
+                    // Only avoid aggressive threats
+                    if ((float)threat.ValueRO.AggressionLevel < 0.5f)
+                    {
+                        continue;
+                    }
+
+                    var toThreat = threatTransform.ValueRO.Position - position;
+                    var threatDistanceSq = math.lengthsq(toThreat);
+
+                    if (threatDistanceSq < avoidanceRadiusSq && threatDistanceSq > 0.001f)
+                    {
+                        // Steer away from threat
+                        var threatDirection = math.normalize(toThreat);
+                        var avoidanceWeight = 1f - (math.sqrt(threatDistanceSq) / avoidanceRadius);
+                        avoidanceVector -= threatDirection * avoidanceWeight * avoidanceStrength;
+                    }
+                }
+
+                // Combine desired direction with avoidance
+                if (math.lengthsq(avoidanceVector) > 0.001f)
+                {
+                    var combinedDirection = math.normalize(desiredDirection + avoidanceVector);
+                    return combinedDirection;
+                }
+
+                return desiredDirection;
             }
         }
     }
