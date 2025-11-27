@@ -7,7 +7,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Publishes aggregated crew skill metrics for debug and HUD bindings.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XMiningTelemetrySystem))]
     public partial struct Space4XCrewSkillTelemetrySystem : ISystem
     {

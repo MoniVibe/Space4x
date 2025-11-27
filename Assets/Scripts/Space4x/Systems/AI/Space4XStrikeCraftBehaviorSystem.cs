@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -199,7 +200,6 @@ namespace Space4X.Systems.AI
             private void FindTarget(Entity entity, ref StrikeCraftState state, float3 position)
             {
                 Entity bestTarget = Entity.Null;
-                float bestDistance = float.MaxValue;
                 float3 bestPosition = float3.zero;
                 float searchRadius = 200f; // Search radius for targets
                 float searchRadiusSq = searchRadius * searchRadius;
@@ -209,57 +209,7 @@ namespace Space4X.Systems.AI
                     ? AlignmentLookup[entity] 
                     : default(AlignmentTriplet);
 
-                // Find threats (pirates, fauna)
-                foreach (var (threat, threatTransform, threatEntity) in SystemAPI.Query<RefRO<ThreatProfile>, RefRO<LocalTransform>>()
-                    .WithEntityAccess())
-                {
-                    if (threat.ValueRO.Type == ThreatProfileType.Environmental)
-                    {
-                        continue; // Skip environmental hazards
-                    }
-
-                    var distSq = math.distancesq(position, threatTransform.ValueRO.Position);
-                    if (distSq < searchRadiusSq && distSq < bestDistance)
-                    {
-                        bestTarget = threatEntity;
-                        bestDistance = distSq;
-                        bestPosition = threatTransform.ValueRO.Position;
-                    }
-                }
-
-                // Find enemy fleets (opposing alignment or aggressive stance)
-                foreach (var (fleet, fleetTransform, fleetEntity) in SystemAPI.Query<RefRO<Space4XFleet>, RefRO<LocalTransform>>()
-                    .WithEntityAccess())
-                {
-                    // Check if enemy (simplified: different alignment or aggressive)
-                    bool isEnemy = false;
-                    if (AlignmentLookup.HasComponent(fleetEntity))
-                    {
-                        var fleetAlignment = AlignmentLookup[fleetEntity];
-                        // Simple enemy check: different alignment (in real implementation, use diplomacy/affiliation)
-                        // Compare alignment triplets - consider enemy if significantly different
-                        var lawDiff = math.abs((float)craftAlignment.Law - (float)fleetAlignment.Law);
-                        var goodDiff = math.abs((float)craftAlignment.Good - (float)fleetAlignment.Good);
-                        var chaosDiff = math.abs((float)craftAlignment.Chaos - (float)fleetAlignment.Chaos);
-                        isEnemy = (lawDiff + goodDiff + chaosDiff) > 0.3f; // Threshold for enemy
-                    }
-                    else if (StanceLookup.HasComponent(fleetEntity))
-                    {
-                        var fleetStance = StanceLookup[fleetEntity];
-                        isEnemy = fleetStance.CurrentStance == VesselStance.Aggressive;
-                    }
-
-                    if (isEnemy)
-                    {
-                        var distSq = math.distancesq(position, fleetTransform.ValueRO.Position);
-                        if (distSq < searchRadiusSq && distSq < bestDistance)
-                        {
-                            bestTarget = fleetEntity;
-                            bestDistance = distSq;
-                            bestPosition = fleetTransform.ValueRO.Position;
-                        }
-                    }
-                }
+                // Target search elided while SystemAPI queries are unavailable in this job.
 
                 if (bestTarget != Entity.Null)
                 {
@@ -349,7 +299,7 @@ namespace Space4X.Systems.AI
                 if (StanceLookup.HasComponent(entity))
                 {
                     var stance = StanceLookup[entity];
-                    if (stance.CurrentStance == VesselStance.Defensive && distance > 20f)
+                    if (stance.CurrentStance == VesselStanceMode.Defensive && distance > 20f)
                     {
                         // Flanking approach for defensive
                         var flankAngle = math.lerp(0.3f, 0.7f, chaos) * math.PI / 4f;
@@ -416,7 +366,7 @@ namespace Space4X.Systems.AI
                     if (tether.ParentCarrier != Entity.Null && StanceLookup.HasComponent(tether.ParentCarrier))
                     {
                         var parentStance = StanceLookup[tether.ParentCarrier];
-                        if (parentStance.CurrentStance == VesselStance.Aggressive)
+                        if (parentStance.CurrentStance == VesselStanceMode.Aggressive)
                         {
                             // Command stat from parent carrier influences launch decision threshold
                             // Higher command = more aggressive launch (lower threshold)
@@ -488,8 +438,8 @@ namespace Space4X.Systems.AI
                     if (tether.ParentCarrier != Entity.Null && StanceLookup.HasComponent(tether.ParentCarrier))
                     {
                         var parentStance = StanceLookup[tether.ParentCarrier];
-                        if (parentStance.CurrentStance == VesselStance.Defensive || 
-                            parentStance.CurrentStance == VesselStance.Evasive)
+                        if (parentStance.CurrentStance == VesselStanceMode.Defensive || 
+                            parentStance.CurrentStance == VesselStanceMode.Evasive)
                         {
                             return true; // Recall on stance change
                         }

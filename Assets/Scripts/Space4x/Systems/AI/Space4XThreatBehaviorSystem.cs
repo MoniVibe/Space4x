@@ -64,72 +64,45 @@ namespace Space4X.Systems.AI
             _outlookLookup.Update(ref state);
             _reputationLookup.Update(ref state);
 
-            var job = new ProcessThreatBehaviorJob
+            var currentTick = timeState.Tick;
+            var deltaTime = timeState.FixedDeltaTime;
+
+            foreach (var (threatRef, transformRef, entity) in
+                     SystemAPI.Query<RefRW<ThreatProfile>, RefRW<LocalTransform>>()
+                         .WithEntityAccess())
             {
-                CurrentTick = timeState.Tick,
-                DeltaTime = timeState.FixedDeltaTime,
-                ThreatLookup = _threatLookup,
-                AlignmentLookup = _alignmentLookup,
-                TransformLookup = _transformLookup,
-                MiningVesselLookup = _miningVesselLookup,
-                CarrierLookup = _carrierLookup,
-                MovementLookup = _movementLookup,
-                FleetBroadcastLookup = _fleetBroadcastLookup,
-                OutlookLookup = _outlookLookup,
-                ReputationLookup = _reputationLookup
-            };
-
-            state.Dependency = job.ScheduleParallel(state.Dependency);
-        }
-
-        [BurstCompile]
-        [WithAll(typeof(ThreatProfile))]
-        public partial struct ProcessThreatBehaviorJob : IJobEntity
-        {
-            public uint CurrentTick;
-            public float DeltaTime;
-            public ComponentLookup<ThreatProfile> ThreatLookup;
-            [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
-            [ReadOnly] public ComponentLookup<MiningVessel> MiningVesselLookup;
-            [ReadOnly] public ComponentLookup<Carrier> CarrierLookup;
-            public ComponentLookup<VesselMovement> MovementLookup;
-            public ComponentLookup<FleetMovementBroadcast> FleetBroadcastLookup;
-            [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
-            public ComponentLookup<Reputation> ReputationLookup;
-
-            public void Execute(ref LocalTransform transform, Entity entity)
-            {
-                var threat = ThreatLookup.GetRefRW(entity).ValueRW;
+                var threat = threatRef.ValueRW;
+                var transform = transformRef.ValueRW;
 
                 switch (threat.Type)
                 {
                     case ThreatProfileType.Pirate:
-                        ProcessPirateBehavior(ref threat, ref transform, entity);
+                        ProcessPirateBehavior(ref state, ref threat, ref transform, entity, deltaTime, currentTick);
                         break;
 
                     case ThreatProfileType.SpaceFauna:
-                        ProcessFaunaBehavior(ref threat, ref transform, entity);
+                        ProcessFaunaBehavior(ref state, ref threat, ref transform, entity, deltaTime, currentTick);
                         break;
 
                     case ThreatProfileType.Environmental:
                         ProcessEnvironmentalBehavior(ref threat, entity);
                         break;
-
-                    default:
-                        break;
                 }
 
-                ThreatLookup.GetRefRW(entity).ValueRW = threat;
+                threatRef.ValueRW = threat;
+                transformRef.ValueRW = transform;
             }
+        }
 
-            private void ProcessPirateBehavior(ref ThreatProfile threat, ref LocalTransform transform, Entity entity)
-            {
+        private void ProcessPirateBehavior(ref SystemState state, ref ThreatProfile threat, ref LocalTransform transform, Entity entity, float deltaTime, uint currentTick)
+        {
+                _ = state; // state required for SystemAPI queries (source generation)
+
                 // Pirates evaluate risk vs reward; avoid fortified targets unless desperate
                 // Alignment/outlook-based: range from opportunistic raiders to fanatics
-                if (AlignmentLookup.HasComponent(entity))
+                if (_alignmentLookup.HasComponent(entity))
                 {
-                    var alignment = AlignmentLookup[entity];
+                    var alignment = _alignmentLookup[entity];
                     var chaos = AlignmentMath.Chaos(alignment);
                     var integrity = AlignmentMath.IntegrityNormalized(alignment);
 
@@ -182,7 +155,7 @@ namespace Space4X.Systems.AI
                     if (bestTarget != Entity.Null)
                     {
                         threat.TargetEntity = bestTarget;
-                        MoveTowardTarget(ref transform, targetPosition, entity, 8f); // Pirate speed
+                        MoveTowardTarget(ref transform, targetPosition, entity, 8f, deltaTime, currentTick);
                     }
                     else
                     {
@@ -197,10 +170,12 @@ namespace Space4X.Systems.AI
 
                 // Success breeds aggression; repeated defeats push relocation
                 // In full implementation, would track success/failure history
-            }
+        }
 
-            private void ProcessFaunaBehavior(ref ThreatProfile threat, ref LocalTransform transform, Entity entity)
-            {
+        private void ProcessFaunaBehavior(ref SystemState state, ref ThreatProfile threat, ref LocalTransform transform, Entity entity, float deltaTime, uint currentTick)
+        {
+                _ = state; // state required for SystemAPI queries (source generation)
+
                 // Fauna behaviors revolve around feeding, breeding, or defending territory
                 // Generally neutral until provoked or when players encroach on habitats
                 threat.AggressionLevel = (half)0.2f; // Low base aggression
@@ -231,7 +206,7 @@ namespace Space4X.Systems.AI
                 {
                     threat.TargetEntity = nearestIntruder;
                     threat.AggressionLevel = (half)0.8f; // Increase aggression when defending
-                    MoveTowardTarget(ref transform, intruderPosition, entity, 6f); // Fauna speed
+                    MoveTowardTarget(ref transform, intruderPosition, entity, 6f, deltaTime, currentTick); // Fauna speed
                 }
                 else
                 {
@@ -244,10 +219,10 @@ namespace Space4X.Systems.AI
                 // - Track habitat boundaries
                 // - Respond to resource extraction (mining noise)
                 // - Migrate if habitats collapse
-            }
+        }
 
-            private void MoveTowardTarget(ref LocalTransform transform, float3 targetPosition, Entity entity, float speed)
-            {
+        private void MoveTowardTarget(ref LocalTransform transform, float3 targetPosition, Entity entity, float speed, float deltaTime, uint currentTick)
+        {
                 var toTarget = targetPosition - transform.Position;
                 var distance = math.length(toTarget);
 
@@ -257,35 +232,33 @@ namespace Space4X.Systems.AI
                 }
 
                 var direction = math.normalize(toTarget);
-                transform.Position += direction * speed * DeltaTime;
+                transform.Position += direction * speed * deltaTime;
 
                 // Update movement component if present
-                if (MovementLookup.HasComponent(entity))
+                if (_movementLookup.HasComponent(entity))
                 {
-                    var movement = MovementLookup.GetRefRW(entity).ValueRW;
+                    var movement = _movementLookup.GetRefRW(entity).ValueRW;
                     movement.Velocity = direction * speed;
                     movement.IsMoving = 1;
-                    movement.LastMoveTick = CurrentTick;
+                    movement.LastMoveTick = currentTick;
                 }
 
                 // Update fleet broadcast if present
-                if (FleetBroadcastLookup.HasComponent(entity))
+                if (_fleetBroadcastLookup.HasComponent(entity))
                 {
-                    var broadcast = FleetBroadcastLookup.GetRefRW(entity).ValueRW;
+                    var broadcast = _fleetBroadcastLookup.GetRefRW(entity).ValueRW;
                     broadcast.Position = transform.Position;
                     broadcast.Velocity = direction * speed;
-                    broadcast.LastUpdateTick = CurrentTick;
+                    broadcast.LastUpdateTick = currentTick;
                 }
             }
 
-            private void ProcessEnvironmentalBehavior(ref ThreatProfile threat, Entity entity)
-            {
-                // Environmental phenomena: semi-predictable patterns
-                // Affects navigation and logistics
-                threat.AggressionLevel = (half)0f; // Not aggressive, just hazardous
-                threat.CanNegotiate = 0; // No negotiation with storms
-            }
+        private static void ProcessEnvironmentalBehavior(ref ThreatProfile threat, Entity entity)
+        {
+            // Environmental phenomena: semi-predictable patterns
+            // Affects navigation and logistics
+            threat.AggressionLevel = (half)0f; // Not aggressive, just hazardous
+            threat.CanNegotiate = 0; // No negotiation with storms
         }
     }
 }
-

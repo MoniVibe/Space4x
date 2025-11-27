@@ -634,7 +634,7 @@ namespace Space4X.Registry
                     AddComponent(entity, new ResourceSourceConfig
                     {
                         GatherRatePerWorker = math.max(0.1f, asteroid.MiningRate),
-                        MaxSimultaneousWorkers = maxWorkers,
+                        MaxSimultaneousWorkers = (ushort)maxWorkers,
                         RespawnSeconds = 0f,
                         Flags = 0
                     });

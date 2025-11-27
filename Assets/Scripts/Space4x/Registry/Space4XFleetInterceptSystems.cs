@@ -113,6 +113,7 @@ namespace Space4X.Registry
     {
         private ComponentLookup<FleetMovementBroadcast> _broadcastLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
 
         private const float DefaultDetectionRadius = 250f;
         private const float DefaultDetectionRadiusSq = DefaultDetectionRadius * DefaultDetectionRadius;
@@ -500,7 +501,7 @@ namespace Space4X.Registry
     /// Publishes basic intercept telemetry for debug HUD bindings.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XCrewSkillTelemetrySystem))]
     public partial struct Space4XFleetInterceptTelemetrySystem : ISystem
     {

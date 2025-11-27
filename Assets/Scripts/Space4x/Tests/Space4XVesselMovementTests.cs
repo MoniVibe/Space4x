@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Resource;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -8,12 +9,15 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using ResourceSourceState = Space4X.Registry.ResourceSourceState;
+using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
+using ResourceTypeId = Space4X.Registry.ResourceTypeId;
 
 namespace Space4X.Tests
 {
     public class Space4XVesselMovementTests
     {
-        private World _world;
+        private Space4X.Tests.TestHarness.ISystemTestHarness _harness;
         private EntityManager _entityManager;
         private Entity _timeEntity;
         private Entity _rewindEntity;
@@ -21,22 +25,23 @@ namespace Space4X.Tests
         [SetUp]
         public void SetUp()
         {
-            _world = new World("Space4XVesselMovementTests");
-            _entityManager = _world.EntityManager;
+            _harness = new Space4X.Tests.TestHarness.ISystemTestHarness(fixedDelta: 0.1f);
+            _entityManager = _harness.World.EntityManager;
             CoreSingletonBootstrapSystem.EnsureSingletons(_entityManager);
             CoreSingletonBootstrapSystem.EnsureMiningSpine(_entityManager);
 
             _timeEntity = _entityManager.CreateEntityQuery(typeof(TimeState)).GetSingletonEntity();
             _rewindEntity = _entityManager.CreateEntityQuery(typeof(RewindState)).GetSingletonEntity();
+
+            _harness.Add<VesselAISystem>();
+            _harness.Add<VesselTargetingSystem>();
+            _harness.Add<VesselMovementSystem>();
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (_world.IsCreated)
-            {
-                _world.Dispose();
-            }
+            _harness?.Dispose();
         }
 
         private Entity CreateAsteroid(float resourceAmount, ResourceType resourceType, float3 position)
@@ -62,7 +67,7 @@ namespace Space4X.Tests
             });
             _entityManager.AddComponentData(entity, new ResourceTypeId
             {
-                Value = resourceType
+                Value = new Unity.Collections.FixedString64Bytes(resourceType.ToString())
             });
             return entity;
         }
@@ -158,26 +163,11 @@ namespace Space4X.Tests
                 SourceEntity = asteroid,
                 Position = new float3(20f, 0f, 0f),
                 ResourceTypeIndex = 0,
-                Tier = ResourceTier.Raw
+                Tier = 0
             });
 
-            var vesselAISystem = _world.GetOrCreateSystemManaged<VesselAISystem>();
-            var vesselTargetingSystem = _world.GetOrCreateSystemManaged<VesselTargetingSystem>();
-            var vesselMovementSystem = _world.GetOrCreateSystemManaged<VesselMovementSystem>();
-
-            // Run systems
-            vesselAISystem.Update(_world.Unmanaged);
-            vesselTargetingSystem.Update(_world.Unmanaged);
-            vesselMovementSystem.Update(_world.Unmanaged);
-
-            // Advance time
-            var timeState = _entityManager.GetComponentData<TimeState>(_timeEntity);
-            timeState.Tick = 1;
-            timeState.FixedDeltaTime = 0.1f;
-            _entityManager.SetComponentData(_timeEntity, timeState);
-
-            // Run movement again
-            vesselMovementSystem.Update(_world.Unmanaged);
+            // Run systems twice (initial + after tick advance)
+            _harness.Step(2);
 
             // Verify vessel moved toward asteroid
             var transform = _entityManager.GetComponentData<LocalTransform>(vessel);
@@ -202,21 +192,7 @@ namespace Space4X.Tests
             aiState.TargetEntity = carrier;
             _entityManager.SetComponentData(vessel, aiState);
 
-            var vesselTargetingSystem = _world.GetOrCreateSystemManaged<VesselTargetingSystem>();
-            var vesselMovementSystem = _world.GetOrCreateSystemManaged<VesselMovementSystem>();
-
-            // Run systems
-            vesselTargetingSystem.Update(_world.Unmanaged);
-            vesselMovementSystem.Update(_world.Unmanaged);
-
-            // Advance time
-            var timeState = _entityManager.GetComponentData<TimeState>(_timeEntity);
-            timeState.Tick = 1;
-            timeState.FixedDeltaTime = 0.1f;
-            _entityManager.SetComponentData(_timeEntity, timeState);
-
-            // Run movement again
-            vesselMovementSystem.Update(_world.Unmanaged);
+            _harness.Step(2);
 
             // Verify vessel moved toward carrier
             var transform = _entityManager.GetComponentData<LocalTransform>(vessel);

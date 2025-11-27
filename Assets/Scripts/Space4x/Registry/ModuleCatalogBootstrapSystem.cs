@@ -57,7 +57,6 @@ namespace Space4X.Registry
             moduleArray[13] = new ModuleSpec { Id = new FixedString64Bytes("shield-m-1"), Class = ModuleClass.Shield, RequiredMount = MountType.Defense, RequiredSize = MountSize.M, MassTons = 22f, PowerDrawMW = 50f, OffenseRating = 0, DefenseRating = 6, UtilityRating = 0, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("") };
 
             var blobAsset = builder.CreateBlobAssetReference<ModuleCatalogBlob>(Allocator.Persistent);
-            builder.Dispose();
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new ModuleCatalogSingleton { Catalog = blobAsset });
@@ -111,7 +110,6 @@ namespace Space4X.Registry
             };
 
             var blobAsset = builder.CreateBlobAssetReference<HullCatalogBlob>(Allocator.Persistent);
-            builder.Dispose();
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new HullCatalogSingleton { Catalog = blobAsset });
@@ -137,7 +135,6 @@ namespace Space4X.Registry
             };
 
             var blobAsset = builder.CreateBlobAssetReference<RefitRepairTuning>(Allocator.Persistent);
-            builder.Dispose();
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new RefitRepairTuningSingleton { Tuning = blobAsset });

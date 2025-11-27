@@ -55,6 +55,35 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// String identifier for a resource type (used by mining systems).
+    /// </summary>
+    public struct ResourceTypeId : IComponentData
+    {
+        public FixedString64Bytes Value;
+    }
+
+    /// <summary>
+    /// Runtime state for a resource source (e.g., asteroid node).
+    /// Tracks remaining units and last harvest tick.
+    /// </summary>
+    public struct ResourceSourceState : IComponentData
+    {
+        public float UnitsRemaining;
+        public uint LastHarvestTick;
+    }
+
+    /// <summary>
+    /// Configuration for how a resource source can be gathered from.
+    /// </summary>
+    public struct ResourceSourceConfig : IComponentData
+    {
+        public float GatherRatePerWorker;
+        public ushort MaxSimultaneousWorkers;
+        public float RespawnSeconds;
+        public byte Flags;
+    }
+
+    /// <summary>
     /// Queues a resource spawn to be instantiated near a miner once a chunk threshold is reached.
     /// </summary>
     [InternalBufferCapacity(1)]
@@ -182,6 +211,7 @@ namespace Space4X.Registry
         public float ArrivalThreshold;
     }
 }
+
 
 
 

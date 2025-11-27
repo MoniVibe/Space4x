@@ -131,7 +131,7 @@ namespace Space4X.Registry
     /// Publishes crew growth counters for HUD/debug bindings.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XCrewSkillTelemetrySystem))]
     public partial struct Space4XCrewGrowthTelemetrySystem : ISystem
     {

@@ -27,7 +27,10 @@ namespace Space4X.Runtime
             None = 0,
             Mining = 1,
             Returning = 2,
-            Idle = 3
+            Idle = 3,
+            Formation = 4,
+            Patrol = 5,
+            Escort = 6
         }
 
         public enum State : byte

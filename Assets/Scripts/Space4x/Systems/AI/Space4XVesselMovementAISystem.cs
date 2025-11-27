@@ -105,8 +105,8 @@ namespace Space4X.Systems.AI
                     // Initialize with neutral stance
                     stanceLookup.GetRefRW(entity).ValueRW = new VesselStanceComponent
                     {
-                        CurrentStance = VesselStance.Neutral,
-                        DesiredStance = VesselStance.Neutral,
+                        CurrentStance = VesselStanceMode.Neutral,
+                        DesiredStance = VesselStanceMode.Neutral,
                         StanceChangeTick = CurrentTick
                     };
                     return;
@@ -151,11 +151,11 @@ namespace Space4X.Systems.AI
                     
                     switch (stance.CurrentStance)
                     {
-                        case VesselStance.Aggressive:
+                        case VesselStanceMode.Aggressive:
                             // Tight formation for strike runs
                             formation.FormationRadius = baseRadius * 0.7f;
                             break;
-                        case VesselStance.Defensive:
+                        case VesselStanceMode.Defensive:
                             // Wider formation for coverage
                             formation.FormationRadius = baseRadius * 1.3f;
                             break;

@@ -644,7 +644,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Appends Space4X specific metrics to the shared telemetry buffer after the debug HUD snapshot is populated.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(DebugDisplaySystem))]
     public partial struct Space4XRegistryTelemetrySystem : ISystem
     {

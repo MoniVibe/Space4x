@@ -913,12 +913,13 @@ namespace Space4X.Registry
         Escalated = 7
     }
 
-    public enum VesselStance : byte
+    public enum VesselStanceMode : byte
     {
-        Defensive = 0,
-        Aggressive = 1,
-        Neutral = 2,
-        Evasive = 3
+        Balanced = 0,
+        Defensive = 1,
+        Aggressive = 2,
+        Evasive = 3,
+        Neutral = Balanced
     }
 
     [InternalBufferCapacity(8)]
@@ -960,9 +961,23 @@ namespace Space4X.Registry
 
     public struct VesselStanceComponent : IComponentData
     {
-        public VesselStance CurrentStance;
-        public VesselStance DesiredStance;
+        // Backing bytes keep the component trivially blittable for ComponentLookup/RefRW.
+        public VesselStanceMode CurrentStance
+        {
+            readonly get => (VesselStanceMode)_currentStance;
+            set => _currentStance = (byte)value;
+        }
+
+        public VesselStanceMode DesiredStance
+        {
+            readonly get => (VesselStanceMode)_desiredStance;
+            set => _desiredStance = (byte)value;
+        }
+
         public uint StanceChangeTick;
+
+        private byte _currentStance;
+        private byte _desiredStance;
     }
 
     public struct FormationData : IComponentData

@@ -112,7 +112,7 @@ namespace Space4X.Systems.AI
 
                 var stance = StanceLookup.HasComponent(entity) 
                     ? StanceLookup[entity].CurrentStance 
-                    : VesselStance.Neutral;
+                    : VesselStanceMode.Neutral;
 
                 // AI factors stance, mission urgency, and proximity to friendly facilities
                 // Lawful captains prioritize safety, chaotic may push limits

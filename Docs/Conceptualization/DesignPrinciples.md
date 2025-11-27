@@ -36,35 +36,41 @@ Design principles are practical guidelines that inform how we build features and
 
 ---
 
-## Principle: [Add Your Own]
+## Principle: Data-Driven Balance
 
-**Statement**: *[What is the principle?]*
+**Statement**: Game balance should be driven by data assets (catalogs, tuning tables, ScriptableObjects) rather than hardcoded values, enabling rapid iteration and designer control without code changes.
 
 **Application**:
-- 
-- 
-- 
+- Module/hull catalogs define stats, refit times, and capabilities
+- Tuning assets control degradation rates, repair speeds, compliance thresholds
+- Scenario JSON files define test cases and starting conditions
+- Resource definitions, tech trees, and facility configs live in data assets
+- Balance changes require asset edits, not code recompilation
 
 **Anti-patterns to Avoid**:
-- 
-- 
-- 
+- Hardcoded magic numbers in systems
+- Balance values embedded in C# code
+- Requiring code changes for tuning adjustments
+- Inconsistent data formats that prevent tooling
 
 ---
 
-## Principle: [Add Your Own]
+## Principle: Scale Over Micro
 
-**Statement**: *[What is the principle?]*
+**Statement**: Systems should prioritize performance at scale (~1 million entities) over fine-grained individual unit control. Automation and aggregation are preferred over manual micromanagement.
 
 **Application**:
-- 
-- 
-- 
+- Registry systems aggregate entity state for efficient queries
+- Telemetry provides aggregate metrics, not per-entity details
+- AI systems handle routine tasks autonomously
+- Player decisions operate at fleet/colony level, not individual vessel level
+- Systems use Burst compilation and ECS patterns for performance
 
 **Anti-patterns to Avoid**:
-- 
-- 
-- 
+- Per-entity UI updates that don't scale
+- Manual control systems that require constant player input
+- Systems that require iterating over all entities every frame
+- Features that only work at small scales
 
 ---
 
@@ -78,6 +84,7 @@ Design principles are practical guidelines that inform how we build features and
 ---
 
 *Last Updated: October 31, 2025*
+
 
 
 

@@ -20,8 +20,8 @@ namespace Space4X.Authoring
         public int taskForce = 0;
 
         [Header("Stance")]
-        public VesselStance initialStance = VesselStance.Neutral;
-        public VesselStance desiredStance = VesselStance.Neutral;
+        public VesselStanceMode initialStance = VesselStanceMode.Neutral;
+        public VesselStanceMode desiredStance = VesselStanceMode.Neutral;
 
         [Header("Formation (Optional)")]
         public bool addFormationData = false;

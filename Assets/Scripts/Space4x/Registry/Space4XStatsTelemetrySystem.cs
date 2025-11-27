@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Systems;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -12,7 +13,7 @@ namespace Space4X.Registry
     /// Tracks how stats affect various gameplay outcomes for tuning and debugging.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(TelemetrySystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XTelemetryBootstrapSystem))]
     public partial struct Space4XStatsTelemetrySystem : ISystem
     {
@@ -94,53 +95,12 @@ namespace Space4X.Registry
                 var avgEngineering = totalEngineering / entityCount;
                 var avgResolve = totalResolve / entityCount;
 
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.command.avg"),
-                    Value = avgCommand,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.tactics.avg"),
-                    Value = avgTactics,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.logistics.avg"),
-                    Value = avgLogistics,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.diplomacy.avg"),
-                    Value = avgDiplomacy,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.engineering.avg"),
-                    Value = avgEngineering,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.resolve.avg"),
-                    Value = avgResolve,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
+                telemetryBuffer.AddMetric("space4x.stats.command.avg", avgCommand, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.tactics.avg", avgTactics, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.logistics.avg", avgLogistics, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.diplomacy.avg", avgDiplomacy, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.engineering.avg", avgEngineering, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.resolve.avg", avgResolve, TelemetryMetricUnit.None);
             }
 
             if (physiqueCount > 0)
@@ -149,31 +109,10 @@ namespace Space4X.Registry
                 var avgFinesse = totalFinesse / physiqueCount;
                 var avgWill = totalWill / physiqueCount;
 
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.physique.avg"),
-                    Value = avgPhysique,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.finesse.avg"),
-                    Value = avgFinesse,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
-
-                telemetryBuffer.Add(new TelemetryMetric
-                {
-                    Key = new FixedString64Bytes("space4x.stats.will.avg"),
-                    Value = avgWill,
-                    Unit = TelemetryMetricUnit.None,
-                    Timestamp = timeState.Tick
-                });
+                telemetryBuffer.AddMetric("space4x.stats.physique.avg", avgPhysique, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.finesse.avg", avgFinesse, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric("space4x.stats.will.avg", avgWill, TelemetryMetricUnit.None);
             }
         }
     }
 }
-

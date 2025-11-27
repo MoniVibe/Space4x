@@ -1,7 +1,8 @@
 using NUnit.Framework;
 using PureDOTS.Runtime.Components;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Spatial;
 using Space4X.Registry;
+using Space4X.Tests.TestHarness;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -11,24 +12,22 @@ namespace Space4X.Tests
 {
     public class Space4XFleetRegistryIntegrationTests
     {
-        private World _world;
+        private ISystemTestHarness _harness;
         private EntityManager _entityManager;
 
         [SetUp]
         public void SetUp()
         {
-            _world = new World("Space4XFleetRegistryIntegrationTests");
-            _entityManager = _world.EntityManager;
+            _harness = new ISystemTestHarness();
+            _entityManager = _harness.World.EntityManager;
             CoreSingletonBootstrapSystem.EnsureSingletons(_entityManager);
+            _harness.Add<Space4XRegistryBridgeSystem>();
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (_world.IsCreated)
-            {
-                _world.Dispose();
-            }
+            _harness?.Dispose();
         }
 
         private Entity CreateCarrierWithFleet(float3 position, string fleetId, Space4XFleetPosture posture)
@@ -65,8 +64,7 @@ namespace Space4X.Tests
             var carrier = CreateCarrierWithFleet(new float3(0f, 0f, 0f), "FLEET-1", Space4XFleetPosture.Patrol);
 
             // Run registry bridge system
-            var registryBridgeSystem = _world.GetOrCreateSystemManaged<Space4xRegistryBridgeSystem>();
-            registryBridgeSystem.Update(_world.Unmanaged);
+            _harness.Step();
 
             // Query for fleet registry
             var fleetRegistryQuery = _entityManager.CreateEntityQuery(typeof(Space4XFleetRegistry));
@@ -113,8 +111,7 @@ namespace Space4X.Tests
             _entityManager.AddComponent<SpatialIndexedTag>(carrier);
 
             // Run registry bridge - should not see carrier
-            var registryBridgeSystem = _world.GetOrCreateSystemManaged<Space4xRegistryBridgeSystem>();
-            registryBridgeSystem.Update(_world.Unmanaged);
+            _harness.Step();
 
             var fleetRegistryQuery = _entityManager.CreateEntityQuery(typeof(Space4XFleetRegistry));
             int fleetCountBefore = 0;
@@ -133,7 +130,7 @@ namespace Space4X.Tests
             });
 
             // Run registry bridge again - should now see carrier
-            registryBridgeSystem.Update(_world.Unmanaged);
+            _harness.Step();
 
             if (!fleetRegistryQuery.IsEmptyIgnoreFilter)
             {

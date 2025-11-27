@@ -8,7 +8,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Publishes mining telemetry metrics for debug and HUD bindings without direct UI references.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XRegistryTelemetrySystem))]
     public partial struct Space4XMiningTelemetrySystem : ISystem
     {

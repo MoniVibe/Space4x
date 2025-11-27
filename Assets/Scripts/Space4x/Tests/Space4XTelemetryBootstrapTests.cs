@@ -1,40 +1,39 @@
 using NUnit.Framework;
+using NUnit.Framework;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Telemetry;
-using PureDOTS.Systems;
 using Space4X.Registry;
+using Space4X.Tests.TestHarness;
 using Unity.Entities;
 
 namespace Space4X.Tests
 {
     public class Space4XTelemetryBootstrapTests
     {
-        private World _world;
+        private ISystemTestHarness _harness;
         private EntityManager _entityManager;
 
         [SetUp]
         public void SetUp()
         {
-            _world = new World("Space4XTelemetryBootstrapTests");
-            _entityManager = _world.EntityManager;
+            _harness = new ISystemTestHarness();
+            _entityManager = _harness.World.EntityManager;
             CoreSingletonBootstrapSystem.EnsureSingletons(_entityManager);
+            _harness.Add<Space4XTelemetryBootstrapSystem>();
+            _harness.Add<Space4XMiningTelemetrySystem>();
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (_world.IsCreated)
-            {
-                _world.Dispose();
-            }
+            _harness?.Dispose();
         }
 
         [Test]
         public void TelemetryStreamExistsInDemoScenes()
         {
             // Run telemetry bootstrap system
-            var bootstrapSystem = _world.GetOrCreateSystemManaged<Space4XTelemetryBootstrapSystem>();
-            bootstrapSystem.Update(_world.Unmanaged);
+            _harness.Step();
 
             // Verify TelemetryStream singleton exists
             var telemetryQuery = _entityManager.CreateEntityQuery(typeof(TelemetryStream));
@@ -61,8 +60,7 @@ namespace Space4X.Tests
             });
 
             // Run mining telemetry system
-            var telemetrySystem = _world.GetOrCreateSystemManaged<Space4XMiningTelemetrySystem>();
-            telemetrySystem.Update(_world.Unmanaged);
+            _harness.Step();
 
             // Verify metrics published
             var metricsBuffer = _entityManager.GetBuffer<TelemetryMetric>(telemetryEntity);

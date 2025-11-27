@@ -19,3 +19,12 @@ Available commits show short, imperative subjects (e.g., `Add registry bridge te
 
 ## Scene & Asset Management
 Create new scenes or prefabs inside feature-specific subfolders under `Assets/Scenes` or `Assets/Prefabs`, and update assembly definitions if scripts accompany the assets. When modifying render pipeline assets in `Assets/Settings`, clone the existing profile first to avoid breaking shared configurations, and document notable changes in `Docs/` for future tuning.
+
+## Error Prevention (Required Reading)
+Before adding new ECS components, systems, or modifying existing code, read `Docs/Guides/Unity_DOTS_Common_Errors.md`. This guide covers:
+- **CS0101 Duplicate Types:** Always grep before creating new types
+- **CS0104 Ambiguous References:** Use fully-qualified names for `Random`, `PresentationSystemGroup`
+- **CS8377 ECS Blittability:** Components must use only blittable types (no strings, no nullable)
+- **CS0315 Interface Mismatches:** Match `ComponentLookup` vs `BufferLookup` to interface type
+- **CS0246 Missing Types:** Common `using` statements for Space4X namespaces
+- **Burst Errors:** No managed types in Burst code; use `FixedString` instead of `string`

@@ -19,22 +19,22 @@ namespace Space4x.Scenario
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(ModuleCatalogBootstrapSystem))]
-    public partial struct Space4XRefitScenarioSystem : ISystem
+    public partial class Space4XRefitScenarioSystem : SystemBase
     {
         private bool _hasLoaded;
         private RefitScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
 
-        public void OnCreate(ref SystemState state)
+        protected override void OnCreate()
         {
-            state.RequireForUpdate<TimeState>();
+            RequireForUpdate<TimeState>();
         }
 
-        public void OnUpdate(ref SystemState state)
+        protected override void OnUpdate()
         {
             if (_hasLoaded)
             {
-                state.Enabled = false;
+                Enabled = false;
                 return;
             }
 
@@ -47,7 +47,7 @@ namespace Space4x.Scenario
             if (string.IsNullOrEmpty(scenarioPath) || !File.Exists(scenarioPath))
             {
                 Debug.LogWarning($"[Space4XRefitScenario] Scenario file not found: {scenarioPath}");
-                state.Enabled = false;
+                Enabled = false;
                 return;
             }
 
@@ -56,16 +56,16 @@ namespace Space4x.Scenario
             if (_scenarioData == null || _scenarioData.spawn == null)
             {
                 Debug.LogError("[Space4XRefitScenario] Failed to parse scenario JSON");
-                state.Enabled = false;
+                Enabled = false;
                 return;
             }
 
             _spawnedEntities = new Dictionary<string, Entity>();
-            SpawnEntities(ref state);
-            ScheduleActions(ref state);
+            SpawnEntities();
+            ScheduleActions();
 
             _hasLoaded = true;
-            state.Enabled = false;
+            Enabled = false;
         }
 
         private string FindScenarioPath(string scenarioId)
@@ -88,34 +88,34 @@ namespace Space4x.Scenario
             return null;
         }
 
-        private void SpawnEntities(ref SystemState state)
+        private void SpawnEntities()
         {
             foreach (var spawn in _scenarioData.spawn)
             {
                 if (spawn.kind == "Hull")
                 {
-                    SpawnHull(ref state, spawn);
+                    SpawnHull(spawn);
                 }
                 else if (spawn.kind == "Station")
                 {
-                    SpawnStation(ref state, spawn);
+                    SpawnStation(spawn);
                 }
             }
         }
 
-        private void SpawnHull(ref SystemState state, SpawnDefinition spawn)
+        private void SpawnHull(SpawnDefinition spawn)
         {
             var position = spawn.position != null && spawn.position.Length >= 2
                 ? new float3(spawn.position[0], spawn.position.Length > 2 ? spawn.position[2] : 0f, spawn.position[1])
                 : float3.zero;
 
-            var entity = state.EntityManager.CreateEntity();
-            state.EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
-            state.EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            var entity = EntityManager.CreateEntity();
+            EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
+            EntityManager.AddComponent<SpatialIndexedTag>(entity);
 
             var hullId = new FixedString64Bytes(spawn.hullId ?? "lcv-sparrow");
-            state.EntityManager.AddComponentData(entity, new CarrierHullId { HullId = hullId });
-            state.EntityManager.AddComponentData(entity, new Carrier
+            EntityManager.AddComponentData(entity, new CarrierHullId { HullId = hullId });
+            EntityManager.AddComponentData(entity, new Carrier
             {
                 CarrierId = new FixedString64Bytes($"ship-{_spawnedEntities.Count}"),
                 AffiliationEntity = Entity.Null,
@@ -124,47 +124,47 @@ namespace Space4x.Scenario
                 PatrolRadius = 50f
             });
 
-            state.EntityManager.AddComponentData(entity, new PatrolBehavior
+            EntityManager.AddComponentData(entity, new PatrolBehavior
             {
                 CurrentWaypoint = float3.zero,
                 WaitTime = 0f,
                 WaitTimer = 0f
             });
 
-            state.EntityManager.AddComponentData(entity, new MovementCommand
+            EntityManager.AddComponentData(entity, new MovementCommand
             {
                 TargetPosition = position,
                 ArrivalThreshold = 1f
             });
 
-            state.EntityManager.AddComponentData(entity, new ModuleRefitFacility
+            EntityManager.AddComponentData(entity, new ModuleRefitFacility
             {
                 RefitRatePerSecond = 1f,
                 SupportsFieldRefit = 1
             });
 
-            state.EntityManager.AddComponentData(entity, new FieldRepairCapability
+            EntityManager.AddComponentData(entity, new FieldRepairCapability
             {
                 RepairRatePerSecond = 10f,
                 CriticalRepairRate = 5f,
                 CanRepairCritical = 1
             });
 
-            var slotsBuffer = state.EntityManager.AddBuffer<CarrierModuleSlot>(entity);
-            InitializeSlotsFromHull(ref state, hullId, slotsBuffer);
+            var slotsBuffer = EntityManager.AddBuffer<CarrierModuleSlot>(entity);
+            InitializeSlotsFromHull(hullId, slotsBuffer);
 
             if (spawn.loadout != null)
             {
-                InstallLoadout(ref state, entity, slotsBuffer, spawn.loadout);
+                InstallLoadout(entity, slotsBuffer, spawn.loadout);
             }
 
             var entityKey = $"ship[{_spawnedEntities.Count}]";
             _spawnedEntities[entityKey] = entity;
         }
 
-        private void InitializeSlotsFromHull(ref SystemState state, FixedString64Bytes hullId, DynamicBuffer<CarrierModuleSlot> slots)
+        private void InitializeSlotsFromHull(FixedString64Bytes hullId, DynamicBuffer<CarrierModuleSlot> slots)
         {
-            if (!ModuleCatalogUtility.TryGetHullSpec(ref state, hullId, out var catalogRef, out var hullIndex))
+            if (!ModuleCatalogUtility.TryGetHullSpec(EntityManager, hullId, out var catalogRef, out var hullIndex))
             {
                 Debug.LogWarning($"[Space4XRefitScenario] Hull spec not found: {hullId}");
                 return;
@@ -198,7 +198,7 @@ namespace Space4x.Scenario
             };
         }
 
-        private void InstallLoadout(ref SystemState state, Entity carrier, DynamicBuffer<CarrierModuleSlot> slots, List<LoadoutEntry> loadout)
+        private void InstallLoadout(Entity carrier, DynamicBuffer<CarrierModuleSlot> slots, List<LoadoutEntry> loadout)
         {
             foreach (var entry in loadout)
             {
@@ -207,7 +207,7 @@ namespace Space4x.Scenario
                     continue;
                 }
 
-                var moduleEntity = CreateModuleEntity(ref state, entry.moduleId);
+                var moduleEntity = CreateModuleEntity(entry.moduleId);
                 if (moduleEntity == Entity.Null)
                 {
                     continue;
@@ -220,7 +220,7 @@ namespace Space4x.Scenario
             }
         }
 
-        private Entity CreateModuleEntity(ref SystemState state, string moduleId)
+        private Entity CreateModuleEntity(string moduleId)
         {
             if (string.IsNullOrEmpty(moduleId))
             {
@@ -228,20 +228,20 @@ namespace Space4x.Scenario
             }
 
             var moduleIdFixed = new FixedString64Bytes(moduleId);
-            if (!ModuleCatalogUtility.TryGetModuleSpec(ref state, moduleIdFixed, out var spec))
+            if (!ModuleCatalogUtility.TryGetModuleSpec(EntityManager, moduleIdFixed, out var spec))
             {
                 Debug.LogWarning($"[Space4XRefitScenario] Module spec not found: {moduleId}");
                 return Entity.Null;
             }
 
-            var entity = state.EntityManager.CreateEntity();
-            state.EntityManager.AddComponentData(entity, new ModuleTypeId { Value = moduleIdFixed });
-            state.EntityManager.AddComponentData(entity, new ModuleSlotRequirement
+            var entity = EntityManager.CreateEntity();
+            EntityManager.AddComponentData(entity, new ModuleTypeId { Value = moduleIdFixed });
+            EntityManager.AddComponentData(entity, new ModuleSlotRequirement
             {
                 SlotSize = ConvertMountSize(spec.RequiredSize)
             });
 
-            state.EntityManager.AddComponentData(entity, new ModuleStatModifier
+            EntityManager.AddComponentData(entity, new ModuleStatModifier
             {
                 SpeedMultiplier = 1f,
                 CargoMultiplier = 1f,
@@ -251,7 +251,7 @@ namespace Space4x.Scenario
             });
 
             var maxHealth = 100f;
-            state.EntityManager.AddComponentData(entity, new ModuleHealth
+            EntityManager.AddComponentData(entity, new ModuleHealth
             {
                 MaxHealth = maxHealth,
                 CurrentHealth = maxHealth * spec.DefaultEfficiency,
@@ -264,26 +264,26 @@ namespace Space4x.Scenario
             return entity;
         }
 
-        private void SpawnStation(ref SystemState state, SpawnDefinition spawn)
+        private void SpawnStation(SpawnDefinition spawn)
         {
             var position = spawn.position != null && spawn.position.Length >= 2
                 ? new float3(spawn.position[0], spawn.position.Length > 2 ? spawn.position[2] : 0f, spawn.position[1])
                 : float3.zero;
 
-            var entity = state.EntityManager.CreateEntity();
-            state.EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
-            state.EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            var entity = EntityManager.CreateEntity();
+            EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
+            EntityManager.AddComponent<SpatialIndexedTag>(entity);
 
             if (spawn.components != null)
             {
                 if (spawn.components.RefitFacilityTag)
                 {
-                    state.EntityManager.AddComponent<RefitFacilityTag>(entity);
+                    EntityManager.AddComponent<RefitFacilityTag>(entity);
                 }
 
                 if (spawn.components.FacilityZone != null)
                 {
-                    state.EntityManager.AddComponentData(entity, new FacilityZone
+                    EntityManager.AddComponentData(entity, new FacilityZone
                     {
                         RadiusMeters = spawn.components.FacilityZone.radiusMeters
                     });
@@ -296,15 +296,15 @@ namespace Space4x.Scenario
             }
         }
 
-        private void ScheduleActions(ref SystemState state)
+        private void ScheduleActions()
         {
             if (_scenarioData.actions == null)
             {
                 return;
             }
 
-            var actionEntity = state.EntityManager.CreateEntity();
-            var actionsBuffer = state.EntityManager.AddBuffer<ScenarioActionEntry>(actionEntity);
+            var actionEntity = EntityManager.CreateEntity();
+            var actionsBuffer = EntityManager.AddBuffer<ScenarioActionEntry>(actionEntity);
             
             foreach (var action in _scenarioData.actions)
             {
@@ -327,7 +327,7 @@ namespace Space4x.Scenario
                 });
             }
 
-            state.EntityManager.AddComponentData(actionEntity, new ScenarioActionScheduler
+            EntityManager.AddComponentData(actionEntity, new ScenarioActionScheduler
             {
                 LastProcessedTime = -1f
             });

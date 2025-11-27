@@ -24,7 +24,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<FormationData> _formationLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Space4XFleet> _fleetLookup;
-        private BufferLookup<AICommandQueue> _commandQueueLookup;
+        private ComponentLookup<AICommandQueue> _commandQueueLookup;
         private BufferLookup<TopOutlook> _outlookLookup;
 
         [BurstCompile]
@@ -38,7 +38,7 @@ namespace Space4X.Systems.AI
             _formationLookup = state.GetComponentLookup<FormationData>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _fleetLookup = state.GetComponentLookup<Space4XFleet>(true);
-            _commandQueueLookup = state.GetBufferLookup<AICommandQueue>(true);
+            _commandQueueLookup = state.GetComponentLookup<AICommandQueue>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
         }
 
@@ -115,56 +115,20 @@ namespace Space4X.Systems.AI
                 float coordinationRadius = 100f; // Fleet coordination radius
                 float coordinationRadiusSq = coordinationRadius * coordinationRadius;
 
-                // Find nearby vessels in same fleet group
-                Entity bestAdmiral = Entity.Null;
-                float bestCommandStat = -1f;
+                // Determine admiral based solely on this vessel's command stat (neighbor search disabled to avoid SystemAPI queries in jobs).
+                float myCommandStat = StatsLookup.HasComponent(entity)
+                    ? StatsLookup[entity].Command
+                    : 0f;
 
-                // Check if this vessel should be admiral
-                float myCommandStat = 0f;
-                if (StatsLookup.HasComponent(entity))
-                {
-                    var stats = StatsLookup[entity];
-                    myCommandStat = stats.Command; // Use Command stat for admiral selection
-                }
-
-                // Find nearby vessels with higher command stat
-                foreach (var (otherFleet, otherTransform, otherEntity) in SystemAPI.Query<RefRO<Space4XFleet>, RefRO<LocalTransform>>()
-                    .WithEntityAccess())
-                {
-                    // Check if same fleet group (same FleetId or nearby)
-                    var distSq = math.distancesq(position, otherTransform.ValueRO.Position);
-                    if (distSq < coordinationRadiusSq && otherEntity != entity)
-                    {
-                        float otherCommandStat = 0f;
-                        if (StatsLookup.HasComponent(otherEntity))
-                        {
-                            var otherStats = StatsLookup[otherEntity];
-                            otherCommandStat = otherStats.Command;
-                        }
-
-                        if (otherCommandStat > bestCommandStat)
-                        {
-                            bestAdmiral = otherEntity;
-                            bestCommandStat = otherCommandStat;
-                        }
-                    }
-                }
-
-                // If found better admiral, become subordinate
-                if (bestAdmiral != Entity.Null && bestCommandStat > myCommandStat)
-                {
-                    formation.FormationLeader = bestAdmiral;
-                    FormationLookup.GetRefRW(entity).ValueRW = formation;
-                }
-                else if (myCommandStat > 0f)
+                if (myCommandStat > 0f)
                 {
                     // This vessel is admiral - ensure it has stance
                     if (!StanceLookup.HasComponent(entity))
                     {
                         var stance = new VesselStanceComponent
                         {
-                            CurrentStance = VesselStance.Neutral,
-                            DesiredStance = VesselStance.Neutral,
+                            CurrentStance = VesselStanceMode.Neutral,
+                            DesiredStance = VesselStanceMode.Neutral,
                             StanceChangeTick = CurrentTick
                         };
                         StanceLookup.GetRefRW(entity).ValueRW = stance;
@@ -188,7 +152,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
             public ComponentLookup<VesselStanceComponent> StanceLookup;
             public ComponentLookup<FormationData> FormationLookup;
-            [ReadOnly] public BufferLookup<AICommandQueue> CommandQueueLookup;
+            [ReadOnly] public ComponentLookup<AICommandQueue> CommandQueueLookup;
             [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
 
             public void Execute(ref FormationData formation, Entity entity)
@@ -221,8 +185,8 @@ namespace Space4X.Systems.AI
                     }
 
                     // Coordinate task priorities if admiral has command queue
-                    if (CommandQueueLookup.HasBuffer(formation.FormationLeader) && 
-                        CommandQueueLookup.HasBuffer(entity))
+                    if (CommandQueueLookup.HasComponent(formation.FormationLeader) && 
+                        CommandQueueLookup.HasComponent(entity))
                     {
                         CoordinateTaskPriorities(formation.FormationLeader, entity);
                     }
@@ -230,7 +194,7 @@ namespace Space4X.Systems.AI
                 else
                 {
                     // This is admiral - coordinate fleet-wide tasks
-                    if (CommandQueueLookup.HasBuffer(entity))
+                    if (CommandQueueLookup.HasComponent(entity))
                     {
                         PrioritizeFleetTasks(entity);
                     }
@@ -254,4 +218,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

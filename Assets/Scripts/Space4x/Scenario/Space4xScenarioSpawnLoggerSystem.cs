@@ -31,7 +31,7 @@ namespace Space4x.Scenario
             var info = SystemAPI.GetSingleton<ScenarioInfo>();
             var counts = SystemAPI.GetSingletonBuffer<ScenarioEntityCountElement>();
 
-            Debug.Log($"[Space4x ScenarioRunner] Scenario={info.ScenarioId} seed={info.Seed} ticks={info.RunTicks} entries={counts.Length}. TODO: wire spawns to registries (see Docs/PureDOTS_ScenarioRunner_Wiring.md).");
+            Debug.Log($"[Space4x ScenarioRunner] Scenario={info.ScenarioId} seed={info.Seed} ticks={info.RunTicks} entries={counts.Length}. Spawned entities are automatically registered via Space4XResourceRegistryPopulationSystem and Space4XRegistryBridgeSystem.");
 
             for (int i = 0; i < counts.Length; i++)
             {

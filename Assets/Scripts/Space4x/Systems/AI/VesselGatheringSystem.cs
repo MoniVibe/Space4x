@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Runtime.Resource;
+using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
@@ -8,6 +8,8 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using ResourceSourceState = Space4X.Registry.ResourceSourceState;
+using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 
 namespace Space4X.Systems.AI
 {

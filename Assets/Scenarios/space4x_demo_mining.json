@@ -1,0 +1,66 @@
+{
+  "seed": 42,
+  "duration_s": 120,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-1",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000},
+          {"type": "RareMetals", "capacity": 10000}
+        ]
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-1",
+      "position": [10, 0],
+      "carrierId": "carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 5.0,
+      "cargoCapacity": 100.0
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-2",
+      "position": [15, 0],
+      "carrierId": "carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.75,
+      "speed": 5.0,
+      "cargoCapacity": 100.0
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-3",
+      "position": [20, 0],
+      "carrierId": "carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.85,
+      "speed": 5.0,
+      "cargoCapacity": 100.0
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-1",
+      "position": [50, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1000.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    }
+  ],
+  "actions": [],
+  "telemetryExpectations": {
+    "expectMiningYield": true,
+    "expectCarrierPickup": true,
+    "export": {
+      "csv": "Reports/space4x_demo_mining_metrics.csv",
+      "json": "Reports/space4x_demo_mining_metrics.json"
+    }
+  }
+}
+

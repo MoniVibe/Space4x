@@ -1,7 +1,5 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Runtime.Registry;
 using PureDOTS.Runtime.Resource;
-using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
 using Unity.Burst;
@@ -10,6 +8,9 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Jobs;
+using ResourceTypeId = Space4X.Registry.ResourceTypeId;
+using ResourceRegistry = PureDOTS.Runtime.Components.ResourceRegistry;
+using ResourceRegistryEntry = PureDOTS.Runtime.Components.ResourceRegistryEntry;
 
 namespace Space4X.Systems.AI
 {
@@ -100,7 +101,7 @@ namespace Space4X.Systems.AI
                     if (hasResources)
                     {
                         var miningOrderLookup = state.GetComponentLookup<MiningOrder>(false);
-                        var resourceTypeLookup = state.GetComponentLookup<ResourceTypeId>(true);
+            var resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
                         var asteroidLookup = state.GetComponentLookup<Asteroid>(true);
                         miningOrderLookup.Update(ref state);
                         resourceTypeLookup.Update(ref state);
@@ -159,7 +160,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public NativeArray<Entity> Carriers;
             [ReadOnly] public NativeArray<LocalTransform> CarrierTransforms;
             public ComponentLookup<MiningOrder> MiningOrderLookup;
-            [ReadOnly] public ComponentLookup<ResourceTypeId> ResourceTypeLookup;
+            [ReadOnly] public ComponentLookup<Space4X.Registry.ResourceTypeId> ResourceTypeLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
             public float DeltaTime;
             public uint CurrentTick;

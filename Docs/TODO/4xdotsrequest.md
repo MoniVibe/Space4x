@@ -2,6 +2,24 @@
 
 Use this file as the jump-off for active DOTS tasks. Detailed scopes live in per-agent TODOs.
 
+## Active Error Fix Requests (2025-11-27)
+
+Requests submitted to PureDOTS team in `PureDOTS/Docs/ExtensionRequests/`:
+
+- ~~**🔴 P0** Burst BC1016 errors: `2025-11-27-burst-bc1016-fixedstring-errors.md`~~ (RESOLVED but broken)
+- **🔴 P0 BLOCKING** Burst BC1091 static constructor: `2025-11-27-burst-bc1091-static-constructor-errors.md` ← **NEW**
+- **🟡 P1 MEDIUM** Missing SpatialPartitionAuthoring: `2025-11-27-spatial-partition-authoring-export.md`
+- **🟢 P2 LOW** CreateAssetMenu warnings: `2025-11-27-createassetmenu-warnings.md`
+
+**⚠️ NOTE:** The BC1016 fix used `static readonly FixedString*` fields which causes BC1091.
+The correct fix is to use instance fields initialized in `OnCreate()`.
+
+## Feature Requests
+
+- Stat simulation support: `Docs/PureDOTS_Request_Space4xStats.md`
+
+## Task TODOs
+
 - Alignment/compliance/doctrine: `Docs/TODO/AgentA_Alignment.md`
 - Modules, degradation, skills follow-through: `Docs/TODO/AgentB_Modules_Degradation.md`
 - Mobility/economy/tech/time: `Docs/TODO/AgentC_Mobility_Economy.md`

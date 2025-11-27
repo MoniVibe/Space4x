@@ -22,6 +22,22 @@ Scope: module slot/refit pipeline, degradation/repair flows, and extending skill
 - Telemetry/command-log entries for refit/repair outcomes.
 - Progress: repair/refit award XP and log maintenance events. Next: hook combat/hauling/hazard XP and replay-safe command-log streams.
 
+### Specific Tasks for Skills Integration
+- **Combat XP**: Add XP awards to combat systems when modules are used in combat (weapon modules fire, shields absorb damage, point defense intercepts)
+  - Hook into combat damage/defense systems to award `CrewSkills.CombatSkill` XP
+  - Log combat events to command log for replay support
+- **Hauling XP**: Add XP awards when vessels successfully haul resources between carriers/stations
+  - Hook into `CarrierPickupSystem` and `VesselDepositSystem` to award `CrewSkills.LogisticsSkill` XP
+  - Track haul distance/efficiency for XP scaling
+- **Hazard XP**: Add XP awards when vessels mitigate hazards (radiation, debris, anomalies)
+  - Hook into `Space4XHazardMitigationSystem` to award hazard-specific skill XP
+  - Different hazards may award different skill types (Engineering for system failures, Tactics for combat hazards)
+- **Skill Modifiers**: Apply skill bonuses to refit/repair/combat/haul operations
+  - Engineering skill → faster refit/repair times, reduced failure chance
+  - Logistics skill → faster haul speeds, increased cargo capacity
+  - Combat skill → improved weapon accuracy, faster targeting
+  - Mining skill → already implemented (+50% output at max skill)
+
 ## Testing
 - Module swap sequences (remove → install → activate) and archetype transition determinism (rewind-safe).
 - Stat aggregation with multiple modules; repair priority ordering.

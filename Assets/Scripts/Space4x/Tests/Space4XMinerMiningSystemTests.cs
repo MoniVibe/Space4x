@@ -8,6 +8,9 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using PlayEffectRequest = Space4X.Registry.PlayEffectRequest;
+using ResourceSourceState = Space4X.Registry.ResourceSourceState;
+using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
+using ResourceTypeId = Space4X.Registry.ResourceTypeId;
 
 namespace Space4X.Tests
 {

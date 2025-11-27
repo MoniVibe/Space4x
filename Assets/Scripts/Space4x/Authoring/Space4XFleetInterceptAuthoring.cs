@@ -1,5 +1,6 @@
 using Space4X.Registry;
 using PureDOTS.Runtime.Spatial;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;

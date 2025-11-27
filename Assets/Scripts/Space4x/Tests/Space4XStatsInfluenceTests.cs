@@ -2,11 +2,15 @@ using NUnit.Framework;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Space4X.Registry;
+using Space4X.Runtime;
+using Space4X.Tests.TestHarness;
+using Space4X.Systems.AI;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using static Space4X.Tests.TestHarness.HalfUtil;
 
 namespace Space4X.Tests
 {
@@ -15,14 +19,14 @@ namespace Space4X.Tests
     /// </summary>
     public class Space4XStatsInfluenceTests
     {
-        private World _world;
+        private ISystemTestHarness _harness;
         private EntityManager _entityManager;
 
         [SetUp]
         public void SetUp()
         {
-            _world = new World("TestWorld");
-            _entityManager = _world.EntityManager;
+            _harness = new ISystemTestHarness();
+            _entityManager = _harness.World.EntityManager;
 
             // Create required singletons
             var timeEntity = _entityManager.CreateEntity();
@@ -43,10 +47,7 @@ namespace Space4X.Tests
         [TearDown]
         public void TearDown()
         {
-            if (_world != null && _world.IsCreated)
-            {
-                _world.Dispose();
-            }
+            _harness?.Dispose();
         }
 
         [Test]
@@ -56,12 +57,12 @@ namespace Space4X.Tests
             var carrierEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(carrierEntity, new IndividualStats
             {
-                Command = 80f,
-                Tactics = 50f,
-                Logistics = 50f,
-                Diplomacy = 50f,
-                Engineering = 50f,
-                Resolve = 50f
+                Command = H(80f),
+                Tactics = H(50f),
+                Logistics = H(50f),
+                Diplomacy = H(50f),
+                Engineering = H(50f),
+                Resolve = H(50f)
             });
             _entityManager.AddComponentData(carrierEntity, new FormationData
             {
@@ -84,8 +85,8 @@ namespace Space4X.Tests
             });
 
             // Run fleet coordination system
-            var system = _world.GetOrCreateSystemManaged<Space4XFleetCoordinationAISystem>();
-            system.Update(_world.Unmanaged);
+            _harness.Add<Space4XFleetCoordinationAISystem>();
+            _harness.Step();
 
             // Verify formation radius is reduced (tighter formation) due to high command
             var formation = _entityManager.GetComponentData<FormationData>(carrierEntity);
@@ -100,12 +101,12 @@ namespace Space4X.Tests
             var vesselEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(vesselEntity, new IndividualStats
             {
-                Command = 50f,
-                Tactics = 90f, // High tactics
-                Logistics = 50f,
-                Diplomacy = 50f,
-                Engineering = 50f,
-                Resolve = 50f
+                Command = H(50f),
+                Tactics = H(90f), // High tactics
+                Logistics = H(50f),
+                Diplomacy = H(50f),
+                Engineering = H(50f),
+                Resolve = H(50f)
             });
             _entityManager.AddComponentData(vesselEntity, new VesselAIState
             {
@@ -131,8 +132,8 @@ namespace Space4X.Tests
             _entityManager.SetComponentData(vesselEntity, aiState);
 
             // Run targeting system
-            var system = _world.GetOrCreateSystemManaged<VesselTargetingSystem>();
-            system.Update(_world.Unmanaged);
+            _harness.Add<VesselTargetingSystem>();
+            _harness.Step();
 
             // Verify target position is resolved (high tactics should have minimal error)
             var updatedState = _entityManager.GetComponentData<VesselAIState>(vesselEntity);
@@ -147,12 +148,12 @@ namespace Space4X.Tests
             var carrierEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(carrierEntity, new IndividualStats
             {
-                Command = 50f,
-                Tactics = 50f,
-                Logistics = 85f, // High logistics
-                Diplomacy = 50f,
-                Engineering = 50f,
-                Resolve = 50f
+                Command = H(50f),
+                Tactics = H(50f),
+                Logistics = H(85f), // High logistics
+                Diplomacy = H(50f),
+                Engineering = H(50f),
+                Resolve = H(50f)
             });
             _entityManager.AddComponentData(carrierEntity, new Carrier
             {
@@ -173,7 +174,7 @@ namespace Space4X.Tests
             {
                 Type = ResourceType.Minerals,
                 Capacity = 1000f,
-                CurrentAmount = 500f
+                Amount = 500f
             });
 
             // Create vessel with cargo to deposit
@@ -183,8 +184,7 @@ namespace Space4X.Tests
                 VesselId = new FixedString64Bytes("TestVessel"),
                 CargoCapacity = 100f,
                 CurrentCargo = 50f,
-                CargoResourceType = ResourceType.Minerals,
-                MiningSpeed = 1f
+                CargoResourceType = ResourceType.Minerals
             });
             _entityManager.AddComponentData(vesselEntity, new VesselAIState
             {
@@ -201,13 +201,13 @@ namespace Space4X.Tests
             });
 
             // Run deposit system
-            var system = _world.GetOrCreateSystemManaged<VesselDepositSystem>();
-            system.Update(_world.Unmanaged);
+            _harness.Add<VesselDepositSystem>();
+            _harness.Step();
 
             // Verify cargo was deposited (high logistics should improve transfer efficiency)
             var vessel = _entityManager.GetComponentData<MiningVessel>(vesselEntity);
             var storage = _entityManager.GetBuffer<ResourceStorage>(carrierEntity);
-            Assert.Greater(storage[0].CurrentAmount, 500f, "High logistics should improve transfer efficiency");
+            Assert.Greater(storage[0].Amount, 500f, "High logistics should improve transfer efficiency");
         }
 
         [Test]
@@ -217,12 +217,12 @@ namespace Space4X.Tests
             var carrierEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(carrierEntity, new IndividualStats
             {
-                Command = 50f,
-                Tactics = 50f,
-                Logistics = 50f,
-                Diplomacy = 50f,
-                Engineering = 90f, // High engineering
-                Resolve = 50f
+                Command = H(50f),
+                Tactics = H(50f),
+                Logistics = H(50f),
+                Diplomacy = H(50f),
+                Engineering = H(90f), // High engineering
+                Resolve = H(50f)
             });
             _entityManager.AddComponentData(carrierEntity, new FieldRepairCapability
             {
@@ -245,8 +245,8 @@ namespace Space4X.Tests
             });
 
             // Run repair system
-            var system = _world.GetOrCreateSystemManaged<Space4XFieldRepairSystem>();
-            system.Update(_world.Unmanaged);
+            _harness.Add<Space4XFieldRepairSystem>();
+            _harness.Step();
 
             // Verify module was repaired (high engineering should boost repair speed)
             var health = _entityManager.GetComponentData<ModuleHealth>(moduleEntity);
@@ -260,12 +260,12 @@ namespace Space4X.Tests
             var craftEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(craftEntity, new IndividualStats
             {
-                Command = 50f,
-                Tactics = 50f,
-                Logistics = 50f,
-                Diplomacy = 50f,
-                Engineering = 50f,
-                Resolve = 85f // High resolve
+                Command = H(50f),
+                Tactics = H(50f),
+                Logistics = H(50f),
+                Diplomacy = H(50f),
+                Engineering = H(50f),
+                Resolve = H(85f) // High resolve
             });
             _entityManager.AddComponentData(craftEntity, new StrikeCraftState
             {
@@ -277,10 +277,9 @@ namespace Space4X.Tests
             });
             _entityManager.AddComponentData(craftEntity, new AlignmentTriplet
             {
-                Law = 0,
-                Good = 0,
-                Chaos = 0,
-                Integrity = 0
+                Law = H(0f),
+                Good = H(0f),
+                Integrity = H(0f)
             });
             _entityManager.AddComponentData(craftEntity, new ChildVesselTether
             {
@@ -296,7 +295,7 @@ namespace Space4X.Tests
             });
 
             // Set time state to simulate long engagement
-            var timeEntity = SystemAPI.GetSingletonEntity<TimeState>();
+            var timeEntity = _entityManager.CreateEntityQuery(ComponentType.ReadWrite<TimeState>()).GetSingletonEntity();
             _entityManager.SetComponentData(timeEntity, new TimeState
             {
                 Tick = 400, // Long engagement
@@ -305,8 +304,8 @@ namespace Space4X.Tests
             });
 
             // Run strike craft behavior system
-            var system = _world.GetOrCreateSystemManaged<Space4XStrikeCraftBehaviorSystem>();
-            system.Update(_world.Unmanaged);
+            _harness.Add<Space4XStrikeCraftBehaviorSystem>();
+            _harness.Step();
 
             // Verify craft hasn't disengaged yet (high resolve extends engagement time)
             var state = _entityManager.GetComponentData<StrikeCraftState>(craftEntity);
@@ -326,9 +325,9 @@ namespace Space4X.Tests
             var craftEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(craftEntity, new PhysiqueFinesseWill
             {
-                Physique = 90f, // High physique
-                Finesse = 50f,
-                Will = 50f,
+                Physique = H(90f), // High physique
+                Finesse = H(50f),
+                Will = H(50f),
                 PhysiqueInclination = 8,
                 FinesseInclination = 5,
                 WillInclination = 5,
@@ -344,10 +343,9 @@ namespace Space4X.Tests
             });
             _entityManager.AddComponentData(craftEntity, new AlignmentTriplet
             {
-                Law = 0,
-                Good = 0,
-                Chaos = 0,
-                Integrity = 0
+                Law = H(0f),
+                Good = H(0f),
+                Integrity = H(0f)
             });
             _entityManager.AddComponentData(craftEntity, new LocalTransform
             {
@@ -357,8 +355,8 @@ namespace Space4X.Tests
             });
 
             // Run strike craft behavior system
-            var system = _world.GetOrCreateSystemManaged<Space4XStrikeCraftBehaviorSystem>();
-            system.Update(_world.Unmanaged);
+            _harness.Add<Space4XStrikeCraftBehaviorSystem>();
+            _harness.Step();
 
             // Verify movement component shows speed boost from physique
             if (_entityManager.HasComponent<VesselMovement>(craftEntity))

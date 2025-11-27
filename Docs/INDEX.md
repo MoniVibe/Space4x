@@ -9,9 +9,11 @@ Quick pointers to the active documentation:
 - Concept vision: `Docs/Conceptualization/GameVision.md`, `Docs/Conceptualization/CorePillars.md`, `Docs/Conceptualization/DesignPrinciples.md`
 - Rolling status: `Docs/Progress.md`
 - Integration guide: `Docs/Guides/Space4X_PureDOTS_Entity_Mapping.md` (update or archive if stale)
+- **Error Prevention (REQUIRED):** `Docs/Guides/Unity_DOTS_Common_Errors.md`
 - Active TODOs:
   - Phase 2 rewind/time: `Docs/TODO/Phase2_Demo_TODO.md`
   - Agent A (alignment/compliance/doctrine): `Docs/TODO/AgentA_Alignment.md`
   - Agent B (modules/degradation/skills): `Docs/TODO/AgentB_Modules_Degradation.md`
   - Agent C (mobility/economy/tech/time): `Docs/TODO/AgentC_Mobility_Economy.md`
   - Integration index: `Docs/TODO/4xdotsrequest.md`
+  - **Error Fix Prompts:** `Docs/TODO/Error_Fix_Agent_Prompts.md`
