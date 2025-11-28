@@ -21,11 +21,14 @@ namespace Space4X.Registry
     [UpdateBefore(typeof(Space4X.Systems.AI.VesselTargetingSystem))]
     public partial struct Space4XMiningMovementBridgeSystem : ISystem
     {
+        private ComponentLookup<LocalTransform> _transformLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         [BurstCompile]
@@ -44,6 +47,7 @@ namespace Space4X.Registry
             }
 
             var currentTick = timeState.Tick;
+            _transformLookup.Update(ref state);
 
             foreach (var (miningState, miningOrder, aiState, entity) in SystemAPI.Query<RefRO<MiningState>, RefRO<MiningOrder>, RefRW<VesselAIState>>()
                          .WithAll<MiningOrder>()
@@ -87,13 +91,13 @@ namespace Space4X.Registry
                 {
                     aiState.ValueRW.CurrentState = newState;
                     aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Mining;
-                    
+
                     // Sync target entity from MiningState if available
                     if (targetEntity != Entity.Null && aiState.ValueRO.TargetEntity != targetEntity)
                     {
                         aiState.ValueRW.TargetEntity = targetEntity;
                     }
-                    
+
                     // Update state timing
                     if (newState != VesselAIState.State.Idle)
                     {
@@ -105,6 +109,13 @@ namespace Space4X.Registry
                 {
                     // Update target even if state hasn't changed
                     aiState.ValueRW.TargetEntity = targetEntity;
+                }
+
+                // Populate TargetPosition directly when we have a transform so movement systems don't skip MiningOrder vessels
+                if (targetEntity != Entity.Null && _transformLookup.HasComponent(targetEntity))
+                {
+                    var targetTransform = _transformLookup[targetEntity];
+                    aiState.ValueRW.TargetPosition = targetTransform.Position;
                 }
             }
         }

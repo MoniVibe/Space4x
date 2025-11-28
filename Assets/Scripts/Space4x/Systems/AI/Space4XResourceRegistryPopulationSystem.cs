@@ -41,18 +41,21 @@ namespace Space4X.Systems.AI
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            // Find the registry entity
+            // Ensure a registry entity exists and is correctly configured
+            Entity registryEntity;
             if (_registryQuery.IsEmptyIgnoreFilter)
             {
-                // Registry not set up yet, wait for bootstrap
-                return;
+                registryEntity = state.EntityManager.CreateEntity();
+                state.EntityManager.AddComponent<ResourceRegistry>(registryEntity);
+            }
+            else
+            {
+                registryEntity = _registryQuery.GetSingletonEntity();
             }
 
-            var registryEntity = _registryQuery.GetSingletonEntity();
             if (!state.EntityManager.HasBuffer<ResourceRegistryEntry>(registryEntity))
             {
-                // Buffer not set up yet
-                return;
+                state.EntityManager.AddBuffer<ResourceRegistryEntry>(registryEntity);
             }
 
             var registryBuffer = state.EntityManager.GetBuffer<ResourceRegistryEntry>(registryEntity);

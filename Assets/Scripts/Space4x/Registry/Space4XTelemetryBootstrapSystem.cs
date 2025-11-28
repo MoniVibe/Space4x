@@ -23,8 +23,12 @@ namespace Space4X.Registry
         public void OnUpdate(ref SystemState state)
         {
             // Check if TelemetryStream already exists
-            if (SystemAPI.TryGetSingletonEntity<TelemetryStream>(out _))
+            if (SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity))
             {
+                if (!state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
+                {
+                    state.EntityManager.AddBuffer<TelemetryMetric>(telemetryEntity);
+                }
                 // Already exists, disable system
                 state.Enabled = false;
                 return;
