@@ -15,6 +15,7 @@ namespace Space4X.CameraSystem
         [Header("Movement")]
         [SerializeField] private float _moveSpeed = 30f;
         [SerializeField] private float _verticalSpeed = 20f;
+        [SerializeField] private float _panSpeedPerPixel = 0.1f;
 
         [Header("Rotation")]
         [SerializeField] private float _rotationSpeed = 0.2f; // degrees per pixel
@@ -46,9 +47,7 @@ namespace Space4X.CameraSystem
 
         // Zoom and drag state
         private Plane _groundPlane = new Plane(Vector3.up, Vector3.zero);
-        private bool _isDragging;
-        private Vector3 _dragStartCameraPos;
-        private Vector3 _dragStartHit;
+        private bool _isDraggingPan;
 
         private void Awake()
         {
@@ -97,7 +96,7 @@ namespace Space4X.CameraSystem
 
             // Zoom and drag-pan
             HandleZoom(mouse, UnityEngine.Time.deltaTime);
-            HandleDragPan(mouse);
+            HandleDragPan(mouse, UnityEngine.Time.deltaTime);
 
             float dt = UnityEngine.Time.deltaTime;
 
@@ -201,34 +200,41 @@ namespace Space4X.CameraSystem
             }
         }
 
-        private void HandleDragPan(Mouse mouse)
+        private void HandleDragPan(Mouse mouse, float dt)
         {
-            if (_unityCamera == null)
+            // If button not held, reset state
+            if (!mouse.leftButton.isPressed)
+            {
+                _isDraggingPan = false;
+                return;
+            }
+
+            // First frame of drag: just mark, don't move yet (prevents jump)
+            if (!_isDraggingPan)
+            {
+                _isDraggingPan = true;
+                // Swallow the first delta to avoid jump
+                return;
+            }
+
+            Vector2 delta = mouse.delta.ReadValue();
+            if (delta.sqrMagnitude < 0.0001f)
                 return;
 
-            if (mouse.leftButton.wasPressedThisFrame)
-            {
-                if (TryGetGroundHit(mouse.position.ReadValue(), out var hit))
-                {
-                    _isDragging = true;
-                    _dragStartCameraPos = _position;
-                    _dragStartHit = hit;
-                }
-            }
+            // We pan opposite to drag (drag right -> world goes right, camera moves left)
+            // Only use yaw so we stay on the ground plane
+            Quaternion yawRot = Quaternion.Euler(0f, _yaw, 0f);
+            Vector3 right = yawRot * Vector3.right;
+            Vector3 forward = yawRot * Vector3.forward;
 
-            if (_isDragging && mouse.leftButton.isPressed)
-            {
-                if (TryGetGroundHit(mouse.position.ReadValue(), out var currentHit))
-                {
-                    Vector3 delta = _dragStartHit - currentHit;
-                    _position = _dragStartCameraPos + delta;
-                }
-            }
+            // Convert pixels to world movement (no dt here: delta is per-frame already)
+            float scale = _panSpeedPerPixel;
+            Vector3 pan =
+                (-right * delta.x +   // dragging mouse right moves camera left
+                 -forward * delta.y)  // dragging mouse up moves camera forward/back
+                * scale;
 
-            if (mouse.leftButton.wasReleasedThisFrame)
-            {
-                _isDragging = false;
-            }
+            _position += pan;
         }
 
         private bool TryGetGroundHit(Vector2 screenPos, out Vector3 hitPoint)

@@ -208,7 +208,7 @@ namespace Space4X.Registry
             panCompositeArrows.With("Down", "<Keyboard>/downArrow");
             panCompositeArrows.With("Left", "<Keyboard>/leftArrow");
             panCompositeArrows.With("Right", "<Keyboard>/rightArrow");
-            pan.AddBinding("<Mouse>/delta");
+            // Note: Mouse delta is NOT bound to Pan - LMB drag is handled by Space4XCameraController directly
 
             var rotate = map.AddAction("Rotate", InputActionType.Value);
             rotate.AddBinding("<Mouse>/delta");
