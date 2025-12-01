@@ -40,7 +40,6 @@ namespace VFXPlayground.Capture
         private List<Camera> _captureCameras = new List<Camera>();
         private List<RenderTexture> _previewTextures = new List<RenderTexture>();
         private VisualEffect _targetVfx;
-        private bool _isInitialized = false;
         
         private void OnEnable()
         {
@@ -79,7 +78,7 @@ namespace VFXPlayground.Capture
             }
             
             // Find target VFX
-            _targetVfx = FindObjectOfType<VisualEffect>();
+            _targetVfx = Object.FindFirstObjectByType<VisualEffect>();
             
             // Ensure we have preview textures
             while (_previewTextures.Count < _captureCameras.Count)
@@ -106,8 +105,6 @@ namespace VFXPlayground.Capture
                     }
                 }
             }
-            
-            _isInitialized = true;
         }
         
         private void HandleInput()

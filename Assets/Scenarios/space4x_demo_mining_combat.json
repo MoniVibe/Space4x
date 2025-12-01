@@ -1,0 +1,233 @@
+{
+  "seed": 42,
+  "duration_s": 120,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-1",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000},
+          {"type": "RareMetals", "capacity": 10000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-FLEET-1",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-2",
+      "position": [100, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-FLEET-2",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "hostile-carrier-1",
+      "position": [400, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000}
+        ],
+        "Fleet": {
+          "fleetId": "HOSTILE-FLEET-1",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-f1-1",
+      "position": [0, 0],
+      "carrierId": "friendly-carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-f1-2",
+      "position": [0, 0],
+      "carrierId": "friendly-carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-f1-3",
+      "position": [0, 0],
+      "carrierId": "friendly-carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.85,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-f2-1",
+      "position": [100, 0],
+      "carrierId": "friendly-carrier-2",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-f2-2",
+      "position": [100, 0],
+      "carrierId": "friendly-carrier-2",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.75,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-h1-1",
+      "position": [400, 0],
+      "carrierId": "hostile-carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.75,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-h1-2",
+      "position": [400, 0],
+      "carrierId": "hostile-carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.75,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-cluster-1",
+      "position": [0, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1000.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 5
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-cluster-2",
+      "position": [150, 50],
+      "resourceId": "Minerals",
+      "unitsRemaining": 800.0,
+      "gatherRatePerWorker": 12.0,
+      "maxSimultaneousWorkers": 4
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-cluster-3",
+      "position": [-200, -100],
+      "resourceId": "Minerals",
+      "unitsRemaining": 600.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-contested",
+      "position": [200, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1200.0,
+      "gatherRatePerWorker": 15.0,
+      "maxSimultaneousWorkers": 6
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-sparse-1",
+      "position": [300, 150],
+      "resourceId": "Minerals",
+      "unitsRemaining": 400.0,
+      "gatherRatePerWorker": 8.0,
+      "maxSimultaneousWorkers": 2
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-sparse-2",
+      "position": [-350, -180],
+      "resourceId": "Minerals",
+      "unitsRemaining": 500.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 30,
+      "kind": "MoveFleet",
+      "fleetId": "HOSTILE-FLEET-1",
+      "targetPosition": [250, 0],
+      "description": "Hostile carrier advances into belt"
+    },
+    {
+      "time_s": 60,
+      "kind": "MoveFleet",
+      "fleetId": "HOSTILE-FLEET-1",
+      "targetPosition": [200, 0],
+      "description": "Hostile carrier reaches contested deposit"
+    },
+    {
+      "time_s": 90,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "FRIENDLY-FLEET-1",
+      "targetFleetId": "HOSTILE-FLEET-1",
+      "description": "Friendly escorts intercept hostile carrier"
+    }
+  ],
+  "telemetryExpectations": {
+    "expectMiningYield": true,
+    "expectCarrierPickup": true,
+    "expectInterceptAttempts": true,
+    "expectFleetRegistry": true,
+    "expectResourceRegistry": true,
+    "export": {
+      "csv": "Reports/space4x_demo_mining_combat_metrics.csv",
+      "json": "Reports/space4x_demo_mining_combat_metrics.json"
+    }
+  }
+}
+

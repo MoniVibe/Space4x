@@ -2,39 +2,93 @@ using PureDOTS.Runtime.Hybrid;
 using PureDOTS.Systems;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Burst;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Space4X.Registry
 {
     /// <summary>
-    /// Pure DOTS system that reads Input System actions directly and writes to camera control state.
-    /// Runs early in PresentationSystemGroup to capture input before camera update.
+    /// MonoBehaviour that reads Input System actions directly and writes to camera control state.
+    /// Runs every frame to capture input before camera update.
     /// Non-Burst compatible due to Input System access.
     /// </summary>
-    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
-    public partial struct Space4XCameraInputSystem : ISystem
+    public class Space4XCameraInputSystem : MonoBehaviour
     {
-        public void OnCreate(ref SystemState state)
+        private bool _initialized;
+        private bool _loggedFallback;
+        private bool _loggedEnabled;
+        private bool _warnedMissing;
+        private bool _loggedInputAssetName;
+        private InputActionMap _cameraMap;
+        private World _world;
+        private EntityQuery _controlStateQuery;
+        private EntityQuery _configQuery;
+        private int _inputLogFramesRemaining = 120;
+
+        private void Awake()
         {
+            _world = World.DefaultGameObjectInjectionWorld;
+            
+            if (_world != null)
+            {
+                // Create cached queries
+                _configQuery = _world.EntityManager.CreateEntityQuery(typeof(Space4XCameraInputConfig));
+                _controlStateQuery = _world.EntityManager.CreateEntityQuery(typeof(Space4XCameraControlState));
+                
+                // Provide a fallback config so camera controls work when no authoring component is present.
+                if (_configQuery.IsEmptyIgnoreFilter)
+                {
+                    var entity = _world.EntityManager.CreateEntity(typeof(Space4XCameraInputConfig));
+                    _world.EntityManager.SetComponentData(entity, new Space4XCameraInputConfig
+                    {
+                        EnablePan = true,
+                        EnableZoom = true,
+                        EnableVerticalMove = true,
+                        EnableRotation = true,
+                        RequireRightMouseForRotation = true
+                    });
+
+#if UNITY_EDITOR
+                    Debug.Log("[Space4XCameraInputSystem] Created default Space4XCameraInputConfig (no authoring found).");
+#endif
+                }
+            }
+
+            Debug.Log("[Space4XCameraInputSystem] System is running and looking for input...");
         }
 
-        public void OnDestroy(ref SystemState state)
+        private void OnDestroy()
         {
+            DisableCameraInputs();
         }
 
-        [BurstDiscard]
-        public void OnUpdate(ref SystemState state)
+        private void Update()
         {
+            if (_world == null)
+            {
+                _world = World.DefaultGameObjectInjectionWorld;
+                if (_world == null)
+                    return;
+            }
+
+            // Ensure queries exist (they may be null if world was recreated)
+            if (_configQuery == null)
+            {
+                _configQuery = _world.EntityManager.CreateEntityQuery(typeof(Space4XCameraInputConfig));
+            }
+            if (_controlStateQuery == null)
+            {
+                _controlStateQuery = _world.EntityManager.CreateEntityQuery(typeof(Space4XCameraControlState));
+            }
+
             if (!HybridControlCoordinator.Space4XInputEnabled)
             {
                 DisableCameraInputs();
-                ZeroOutCameraControlState(ref state);
+                ZeroOutCameraControlState();
                 return;
             }
 
-            if (!TryEnsureConfig(ref state, out var inputConfig))
+            if (!TryEnsureConfig(out var inputConfig))
             {
                 return;
             }
@@ -45,124 +99,167 @@ namespace Space4X.Registry
                 Debug.Log("[Space4XCameraInputSystem] System is running and looking for input...");
             }
 
-            var inputActions = FindInputActionAsset();
-            if (inputActions == null)
+            if (!_initialized)
             {
-                return;
-            }
-
-            // Always get fresh references - don't cache Unity objects in struct systems
-            InputActionMap cameraActionMap = null;
-            InputAction panAction = null;
-            InputAction zoomAction = null;
-            InputAction verticalMoveAction = null;
-            InputAction rotateAction = null;
-            InputAction resetAction = null;
-            InputAction toggleVerticalModeAction = null;
-
-            try
-            {
-                cameraActionMap = inputActions.FindActionMap("Camera");
-                if (cameraActionMap != null)
+                if (!TryFindInputActionAsset(out var inputActions))
                 {
-                    panAction = cameraActionMap.FindAction("Pan");
-                    zoomAction = cameraActionMap.FindAction("Zoom");
-                    verticalMoveAction = cameraActionMap.FindAction("VerticalMove");
-                    rotateAction = cameraActionMap.FindAction("Rotate");
-                    resetAction = cameraActionMap.FindAction("Reset");
-                    toggleVerticalModeAction = cameraActionMap.FindAction("ToggleVerticalMode");
-
-                    if (!cameraActionMap.enabled)
+                    if (!_loggedFallback)
                     {
-                        cameraActionMap.Enable();
-                        Debug.Log("[Space4XCameraInputSystem] Enabled Camera action map");
+                        Debug.Log("[Space4XCameraInputSystem] Using built-in default camera input.");
+                        _loggedFallback = true;
                     }
-                    
-                    // Ensure the InputActionAsset itself is enabled
-                    if (!inputActions.enabled)
-                    {
-                        inputActions.Enable();
-                        Debug.Log("[Space4XCameraInputSystem] Enabled InputActionAsset");
-                    }
+                    inputActions = BuildDefaultCameraInputAsset();
+                }
+
+                _cameraMap = inputActions.FindActionMap("Camera") ?? (inputActions.actionMaps.Count > 0 ? inputActions.actionMaps[0] : null);
+                if (!_loggedInputAssetName && inputActions != null)
+                {
+                    Debug.Log($"[Space4XCameraInputSystem] Using InputActionAsset '{inputActions.name}' for camera controls.");
+                    _loggedInputAssetName = true;
+                }
+                _initialized = true;
+            }
+
+            if (_cameraMap == null)
+                return;
+
+            // Ensure the InputActionAsset and map are enabled once
+            if (!_cameraMap.enabled)
+            {
+                _cameraMap.Enable();
+                if (!_cameraMap.asset.enabled)
+                    _cameraMap.asset.Enable();
+                if (!_loggedEnabled)
+                {
+                    Debug.Log("[Space4XCameraInputSystem] Enabled Camera action map");
+                    _loggedEnabled = true;
                 }
             }
-            catch (System.Exception ex)
+
+            var panAction = _cameraMap.FindAction("Pan");
+            var zoomAction = _cameraMap.FindAction("Zoom");
+            var verticalMoveAction = _cameraMap.FindAction("VerticalMove") ?? _cameraMap.FindAction("Vertical");
+            var rotateAction = _cameraMap.FindAction("Rotate");
+            var resetAction = _cameraMap.FindAction("Reset");
+            var toggleVerticalModeAction = _cameraMap.FindAction("ToggleVerticalMode");
+
+            var missingPan = panAction == null;
+            var missingZoom = zoomAction == null;
+            var missingVertical = verticalMoveAction == null;
+            var missingRotate = rotateAction == null;
+            var missingReset = resetAction == null;
+            var missingToggle = toggleVerticalModeAction == null;
+
+            if (missingPan && missingZoom)
             {
-                Debug.LogWarning($"Space4XCameraInputSystem: Error initializing input actions: {ex.Message}");
+                if (UnityEngine.Time.frameCount % 60 == 0)
+                {
+                    Debug.LogWarning("[Space4XCameraInputSystem] Camera input action map is missing both pan and zoom actions. Cannot drive camera input.");
+                }
                 return;
             }
 
-            if (cameraActionMap == null)
+            if (UnityEngine.Time.frameCount % 120 == 0 && (missingPan || missingZoom || missingVertical || missingRotate || missingReset || missingToggle))
             {
-                if (UnityEngine.Time.frameCount % 300 == 0)
-                {
-                    Debug.LogWarning("[Space4XCameraInputSystem] Camera action map not found! Check InputActionAsset has 'Camera' action map.");
-                }
-                return;
-            }
-            
-            if (panAction == null || zoomAction == null || verticalMoveAction == null || rotateAction == null || resetAction == null || toggleVerticalModeAction == null)
-            {
-                if (UnityEngine.Time.frameCount % 300 == 0)
-                {
-                    Debug.LogWarning($"[Space4XCameraInputSystem] Missing actions - Pan: {panAction != null}, Zoom: {zoomAction != null}, VerticalMove: {verticalMoveAction != null}, Rotate: {rotateAction != null}, Reset: {resetAction != null}, ToggleVerticalMode: {toggleVerticalModeAction != null}");
-                }
-                return;
+                Debug.LogWarning($"[Space4XCameraInputSystem] Missing actions - Pan:{!missingPan} Zoom:{!missingZoom} Vertical:{!missingVertical} Rotate:{!missingRotate} Reset:{!missingReset} ToggleVertical:{!missingToggle}. Continuing with available inputs.");
             }
 
             var controlState = ReadInputActions(inputConfig, panAction, zoomAction, verticalMoveAction, rotateAction, resetAction, toggleVerticalModeAction);
             
-            // Debug logging (include rotation input)
-            if (UnityEngine.Time.frameCount % 60 == 0 && (math.lengthsq(controlState.PanInput) > 0f || math.abs(controlState.ZoomInput) > 0f || math.abs(controlState.VerticalMoveInput) > 0f || math.lengthsq(controlState.RotateInput) > 0f))
+            var shouldLogFrame = _inputLogFramesRemaining > 0;
+            if (shouldLogFrame)
+            {
+                Debug.Log($"[Space4XCameraInputSystem] Frame {UnityEngine.Time.frameCount}: Pan {controlState.PanInput}, Zoom {controlState.ZoomInput}, Vertical {controlState.VerticalMoveInput}, Rotate {controlState.RotateInput}, RotationEnabled {controlState.EnableRotation}");
+                _inputLogFramesRemaining--;
+            }
+            else if (UnityEngine.Time.frameCount % 60 == 0 && (math.lengthsq(controlState.PanInput) > 0f || math.abs(controlState.ZoomInput) > 0f || math.abs(controlState.VerticalMoveInput) > 0f || math.lengthsq(controlState.RotateInput) > 0f))
             {
                 Debug.Log($"[Space4XCameraInputSystem] Input - Pan: {controlState.PanInput}, Zoom: {controlState.ZoomInput}, Vertical: {controlState.VerticalMoveInput}, Rotate: {controlState.RotateInput}, RotationEnabled: {controlState.EnableRotation}");
             }
             
-            if (!SystemAPI.HasSingleton<Space4XCameraControlState>())
+            // Check for singleton using cached query
+            if (_controlStateQuery.IsEmptyIgnoreFilter)
             {
-                var entity = state.EntityManager.CreateEntity(typeof(Space4XCameraControlState));
-                SystemAPI.SetComponent(entity, controlState);
+                var entity = _world.EntityManager.CreateEntity(typeof(Space4XCameraControlState));
+                _world.EntityManager.SetComponentData(entity, controlState);
                 Debug.Log("[Space4XCameraInputSystem] Created Space4XCameraControlState singleton");
             }
             else
             {
-                var entity = SystemAPI.GetSingletonEntity<Space4XCameraControlState>();
-                SystemAPI.SetComponent(entity, controlState);
+                var entity = _controlStateQuery.GetSingletonEntity();
+                _world.EntityManager.SetComponentData(entity, controlState);
             }
         }
 
-        [BurstDiscard]
-        private InputActionAsset FindInputActionAsset()
+        static bool sWarned;
+        static InputActionAsset BuildDefaultCameraInputAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var map = new InputActionMap("Camera");
+
+            var pan = map.AddAction("Pan", InputActionType.Value);
+            var panComposite = pan.AddCompositeBinding("2DVector");
+            panComposite.With("Up", "<Keyboard>/w");
+            panComposite.With("Down", "<Keyboard>/s");
+            panComposite.With("Left", "<Keyboard>/a");
+            panComposite.With("Right", "<Keyboard>/d");
+            var panCompositeArrows = pan.AddCompositeBinding("2DVector");
+            panCompositeArrows.With("Up", "<Keyboard>/upArrow");
+            panCompositeArrows.With("Down", "<Keyboard>/downArrow");
+            panCompositeArrows.With("Left", "<Keyboard>/leftArrow");
+            panCompositeArrows.With("Right", "<Keyboard>/rightArrow");
+            pan.AddBinding("<Mouse>/delta");
+
+            var rotate = map.AddAction("Rotate", InputActionType.Value);
+            rotate.AddBinding("<Mouse>/delta");
+
+            var zoom = map.AddAction("Zoom", InputActionType.Value);
+            zoom.AddBinding("<Mouse>/scroll/y");
+            zoom.AddBinding("<Keyboard>/equals");
+            zoom.AddBinding("<Keyboard>/minus");
+
+            var vertical = map.AddAction("VerticalMove", InputActionType.Value);
+            var verticalComposite = vertical.AddCompositeBinding("1DAxis");
+            verticalComposite.With("Negative", "<Keyboard>/q");
+            verticalComposite.With("Positive", "<Keyboard>/e");
+
+            asset.AddActionMap(map);
+            return asset;
+        }
+
+        private bool TryFindInputActionAsset(out InputActionAsset asset)
         {
             try
             {
-                var authoring = Object.FindFirstObjectByType<Space4XCameraInputAuthoring>();
+                Space4XCameraInputAuthoring authoring = null;
+#if UNITY_2022_2_OR_NEWER
+                authoring = Object.FindFirstObjectByType<Space4XCameraInputAuthoring>(FindObjectsInactive.Include);
+#else
+                var list = Object.FindObjectsOfType<Space4XCameraInputAuthoring>(true);
+                if (list.Length > 0) authoring = list[0];
+#endif
+
                 if (authoring != null)
                 {
-                    var actions = authoring.InputActions;
-                    if (actions != null)
-                    {
-                        return actions;
-                    }
-                    else
-                    {
-                        Debug.LogWarning("Space4XCameraInputSystem: InputActionAsset is null on authoring component.");
-                    }
+                    asset = authoring.InputActions;
+                    sWarned = false;
+                    return asset != null;
                 }
-                else
+
+                if (!sWarned)
                 {
                     Debug.LogWarning("Space4XCameraInputSystem: Space4XCameraInputAuthoring component not found in scene.");
+                    sWarned = true;
                 }
             }
             catch (System.Exception ex)
             {
                 Debug.LogWarning($"Space4XCameraInputSystem: Error finding InputActionAsset: {ex.Message}");
             }
-            
-            return null;
+            asset = null;
+            return false;
         }
 
-        [BurstDiscard]
         private Space4XCameraControlState ReadInputActions(
             Space4XCameraInputConfig config,
             InputAction panAction,
@@ -185,8 +282,8 @@ namespace Space4X.Registry
                 zoomScalar = ReadScalarSafe(zoomAction);
                 verticalMoveValue = ReadScalarSafe(verticalMoveAction);
                 rotateValue = ReadVector2Safe(rotateAction);
-                resetPressed = resetAction.WasPressedThisFrame();
-                toggleVerticalModePressed = toggleVerticalModeAction.WasPressedThisFrame();
+                resetPressed = resetAction != null && resetAction.WasPressedThisFrame();
+                toggleVerticalModePressed = toggleVerticalModeAction != null && toggleVerticalModeAction.WasPressedThisFrame();
             }
             catch (System.Exception ex)
             {
@@ -316,21 +413,37 @@ namespace Space4X.Registry
             }
         }
 
-        private void ZeroOutCameraControlState(ref SystemState state)
+        private void ZeroOutCameraControlState()
         {
-            if (!SystemAPI.HasSingleton<Space4XCameraControlState>())
+            if (_world == null || _controlStateQuery == null)
+                return;
+
+            if (_controlStateQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }
 
-            var entity = SystemAPI.GetSingletonEntity<Space4XCameraControlState>();
-            SystemAPI.SetComponent(entity, default(Space4XCameraControlState));
+            var entity = _controlStateQuery.GetSingletonEntity();
+            _world.EntityManager.SetComponentData(entity, default(Space4XCameraControlState));
         }
 
-        private bool TryEnsureConfig(ref SystemState state, out Space4XCameraInputConfig config)
+        private bool TryEnsureConfig(out Space4XCameraInputConfig config)
         {
-            if (SystemAPI.TryGetSingleton<Space4XCameraInputConfig>(out config))
+            if (_world == null)
             {
+                _world = World.DefaultGameObjectInjectionWorld;
+                if (_world == null)
+                {
+                    config = default;
+                    return false;
+                }
+            }
+
+            // Try to get singleton using cached query
+            if (_configQuery != null && !_configQuery.IsEmptyIgnoreFilter)
+            {
+                var configEntity = _configQuery.GetSingletonEntity();
+                config = _world.EntityManager.GetComponentData<Space4XCameraInputConfig>(configEntity);
                 return true;
             }
 
@@ -366,8 +479,8 @@ namespace Space4X.Registry
 
             config = authoring.BuildConfigData();
 
-            var entity = state.EntityManager.CreateEntity(typeof(Space4XCameraInputConfig));
-            state.EntityManager.SetComponentData(entity, config);
+            var entity = _world.EntityManager.CreateEntity(typeof(Space4XCameraInputConfig));
+            _world.EntityManager.SetComponentData(entity, config);
             Debug.Log("[Space4XCameraInputSystem] Created Space4XCameraInputConfig singleton at runtime from authoring component.");
             return true;
         }

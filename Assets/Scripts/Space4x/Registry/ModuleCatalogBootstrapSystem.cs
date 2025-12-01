@@ -35,6 +35,36 @@ namespace Space4X.Registry
             state.Enabled = false;
         }
 
+        public void OnDestroy(ref SystemState state)
+        {
+            foreach (var catalogRef in SystemAPI.Query<RefRW<ModuleCatalogSingleton>>())
+            {
+                if (catalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    catalogRef.ValueRO.Catalog.Dispose();
+                    catalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var hullRef in SystemAPI.Query<RefRW<HullCatalogSingleton>>())
+            {
+                if (hullRef.ValueRO.Catalog.IsCreated)
+                {
+                    hullRef.ValueRO.Catalog.Dispose();
+                    hullRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var tuningRef in SystemAPI.Query<RefRW<RefitRepairTuningSingleton>>())
+            {
+                if (tuningRef.ValueRO.Tuning.IsCreated)
+                {
+                    tuningRef.ValueRO.Tuning.Dispose();
+                    tuningRef.ValueRW.Tuning = default;
+                }
+            }
+        }
+
         private void CreateDefaultModuleCatalog(ref SystemState state)
         {
             using var builder = new BlobBuilder(Allocator.Temp);

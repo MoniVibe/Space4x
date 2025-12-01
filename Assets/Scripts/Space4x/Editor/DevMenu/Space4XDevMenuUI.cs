@@ -4,6 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Space4X.Editor.DevMenu
 {
@@ -16,8 +17,8 @@ namespace Space4X.Editor.DevMenu
     {
         [Header("Configuration")]
         [SerializeField] private Space4XDevSpawnRegistry spawnRegistry;
-        [SerializeField] private KeyCode toggleKey = KeyCode.F12;
-        [SerializeField] private KeyCode altToggleKey = KeyCode.BackQuote; // Tilde
+        [SerializeField] private Key toggleKey = Key.F12;
+        [SerializeField] private Key altToggleKey = Key.Backquote; // Tilde
 
         [Header("Spawn Settings")]
         [SerializeField] private string currentFactionId = "player";
@@ -55,7 +56,7 @@ namespace Space4X.Editor.DevMenu
         private void Update()
         {
             // Toggle menu
-            if (Input.GetKeyDown(toggleKey) || Input.GetKeyDown(altToggleKey))
+            if (KeyPressed(toggleKey) || KeyPressed(altToggleKey))
             {
                 _isOpen = !_isOpen;
             }
@@ -581,7 +582,11 @@ namespace Space4X.Editor.DevMenu
             var camera = Camera.main;
             if (camera == null) return;
 
-            Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+
+            var screenPos = mouse.position.ReadValue();
+            Ray ray = camera.ScreenPointToRay(new Vector3(screenPos.x, screenPos.y, 0f));
             Plane ground = new Plane(Vector3.up, Vector3.zero);
 
             if (ground.Raycast(ray, out float distance))
@@ -602,6 +607,16 @@ namespace Space4X.Editor.DevMenu
         }
 
         // Helper for bold label style
+        private static bool KeyPressed(Key key)
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard == null || !Enum.IsDefined(typeof(Key), key))
+                return false;
+
+            var control = keyboard[key];
+            return control != null && control.wasPressedThisFrame;
+        }
+
         private static class EditorStyles
         {
             public static GUIStyle boldLabel => new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };

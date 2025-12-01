@@ -11,9 +11,9 @@ namespace Space4X.Registry
     /// DOTS system that reads camera control input and updates the Camera GameObject transform.
     /// Runs in PresentationSystemGroup to align with PureDOTS update order.
     /// Non-Burst compatible due to Unity GameObject/Transform access.
+    /// Note: Space4XCameraInputSystem is now a MonoBehaviour, so UpdateAfter ordering is not applicable.
     /// </summary>
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XCameraInputSystem))]
     public partial struct Space4XCameraSystem : ISystem
     {
         private bool _loggedSystemReady;

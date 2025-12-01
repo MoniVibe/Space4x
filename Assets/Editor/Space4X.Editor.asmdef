@@ -4,6 +4,9 @@
     "references": [
         "PureDOTS.Authoring",
         "PureDOTS.Runtime",
+        "PureDOTS.Systems",
+        "PureDOTS.Runtime.Demo",
+        "PureDOTS.Camera",
         "PureDOTS.Editor",
         "Unity.VisualEffectGraph.Runtime",
         "Unity.VisualEffectGraph.Editor",
@@ -16,7 +19,9 @@
         "Space4X.Gameplay",
         "MCPForUnity.Editor",
         "UnityEditor",
-        "UnityEngine"
+        "UnityEngine",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [
         "Editor"
@@ -30,4 +35,3 @@
     "versionDefines": [],
     "noEngineReferences": false
 }
-

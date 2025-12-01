@@ -8,7 +8,7 @@
         "com.unity.inputsystem": "1.1.1",
         "com.unity.cloud.gltfast": "6.12.1"
       },
-      "hash": "95d138310292da57970fb76d44bbaed32937e08a"
+      "hash": "fb148b2065d2d393cb291aa5c76061663838bc6e"
     },
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
@@ -17,7 +17,7 @@
       "dependencies": {
         "com.unity.nuget.newtonsoft-json": "3.0.2"
       },
-      "hash": "7b25f7ce3edb92a9fa7efe234bc5ebe993d5a784"
+      "hash": "2f634050696bd7e073233885c2a520cdfe4daacf"
     },
     "com.moni.puredots": {
       "version": "file:../../PureDOTS/Packages/com.moni.puredots",
@@ -55,7 +55,7 @@
     },
     "com.unity.cloud.gltfast": {
       "version": "6.12.1",
-      "depth": 1,
+      "depth": 0,
       "source": "registry",
       "dependencies": {
         "com.unity.burst": "1.8.4",

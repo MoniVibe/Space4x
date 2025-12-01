@@ -45,7 +45,8 @@ namespace Space4X.Tests.PlayMode
             _entityManager = _world.EntityManager;
 
             CoreSingletonBootstrapSystem.EnsureSingletons(_entityManager);
-            CoreSingletonBootstrapSystem.EnsureMiningSpine(_entityManager);
+            var spineBootstrap = _world.GetOrCreateSystem<Space4XMiningTimeSpineBootstrapSystem>();
+            spineBootstrap.Update(_world.Unmanaged);
 
             _rewindableHandle = _world.GetOrCreateSystem<Space4XMiningRewindableSystem>();
             _miningSystemHandle = _world.GetOrCreateSystem<Space4XMinerMiningSystem>();

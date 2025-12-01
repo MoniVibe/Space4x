@@ -283,11 +283,31 @@ Burst error BC1091: External and internal calls are not allowed inside static co
        string name = "test";  // ERROR in Burst!
    }
    
-   // ✅ GOOD - fixed string
+   // ✅ GOOD - fixed string built without managed string in Burst
    [BurstCompile]
    void MyBurstMethod()
    {
-       var name = new FixedString64Bytes("test");
+       var name = MyIds.DefaultName; // prebuilt in OnCreate
+   }
+
+   // ✅ Pattern: prebuild tokens outside Burst and read them inside Burst
+   [BurstDiscard] static FixedString64Bytes FS(string s)
+   {
+       var fs = default(FixedString64Bytes);
+       for (int i = 0; i < s.Length; i++) fs.Append(s[i]);
+       return fs;
+   }
+
+   public void OnCreate(ref SystemState state)
+   {
+       var e = state.EntityManager.CreateEntity(typeof(MyIds));
+       state.EntityManager.SetComponentData(e, new MyIds { DefaultName = FS("Shield") });
+   }
+
+   [BurstCompile]
+   public void OnUpdate(ref SystemState state)
+   {
+       var ids = SystemAPI.GetSingleton<MyIds>(); // safe in Burst
    }
    ```
 

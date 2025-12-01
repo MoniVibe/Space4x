@@ -1,6 +1,8 @@
 using PureDOTS.Systems;
 using Unity.Entities;
 
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+
 namespace Space4X.Registry
 {
     /// <summary>

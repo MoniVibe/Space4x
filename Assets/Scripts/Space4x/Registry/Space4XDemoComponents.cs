@@ -12,7 +12,8 @@ namespace Space4X.Registry
         Minerals = 0,
         RareMetals = 1,
         EnergyCrystals = 2,
-        OrganicMatter = 3
+        OrganicMatter = 3,
+        Ore = 4
     }
 
     /// <summary>

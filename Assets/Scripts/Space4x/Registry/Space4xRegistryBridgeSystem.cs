@@ -9,6 +9,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+
 namespace Space4X.Registry
 {
     /// <summary>
@@ -645,7 +647,6 @@ namespace Space4X.Registry
     /// Appends Space4X specific metrics to the shared telemetry buffer after the debug HUD snapshot is populated.
     /// </summary>
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
-    [UpdateAfter(typeof(DebugDisplaySystem))]
     public partial struct Space4XRegistryTelemetrySystem : ISystem
     {
         private EntityQuery _telemetryQuery;

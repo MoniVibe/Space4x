@@ -71,6 +71,8 @@ This workspace contains three interconnected Unity DOTS projects:
 4. **Burst/IL2CPP Safe** - All hot paths Burst-compiled
 5. **Scalable** - Target 50k-100k complex entities
 
+**Patterns (group/individual):** Pattern evaluation lives in `Packages/com.moni.puredots/Runtime/Systems/Patterns/PatternSystem.cs`, writing `GroupPatternModifiers` + `ActivePatternTag`. Pattern IDs are enums (`Runtime/Patterns/PatternComponents.cs`) to keep Burst happy—avoid FixedString construction in static contexts. Demo patterns: HardworkingVillage, ChaoticBand, OverstressedGroup.
+
 ### Key Documentation
 
 - `README_BRIEFING.md` - Project briefing
@@ -424,6 +426,66 @@ public struct AnchoredSimConfig { [MarshalAs(UnmanagedType.U1)] public bool Alwa
 - `SpellEffectExecutionSystem.ApplyShieldEffect` (line 311)
 - `WhatIfSimulationSystem.OnUpdate` (line 108)
 - `LessonAcquisitionSystem.CheckAttributeRequirement` (line 358)
+
+### P16: Presentation Code Uses Frame-Time, Not Tick-Time
+
+```csharp
+// ❌ WRONG - Don't drive presentation off deterministic tick
+[BurstCompile]
+public void OnUpdate(ref SystemState state)
+{
+    // This would make camera stutter/jerk during rewind/pause
+    var cameraPos = SystemAPI.GetSingleton<CameraState>();
+    cameraPos.Position += moveVector * SystemAPI.Time.DeltaTime;  // Fixed tick time!
+}
+
+// ✅ CORRECT - Presentation uses frame time
+public class CameraController : MonoBehaviour
+{
+    void Update()
+    {
+        // Smooth camera movement using frame time
+        transform.position += moveVector * Time.deltaTime;  // Frame time for smooth movement
+    }
+}
+```
+
+**Rule**: "Presentation" code (camera & HUD) uses frame-time, not tick-time, unless there is a deliberate reason otherwise.
+
+Use `Time.deltaTime` in camera scripts and HUD animations.
+
+Use `TickTimeState` / sim time only for things that must stay aligned with the deterministic tick (e.g., playback scrubbers, sim-time displays).
+
+### P17: Simulation vs Presentation Separation
+
+Deterministic simulation lives in PureDOTS packages. Cameras, HUD, and presentation code live in game projects.
+
+```csharp
+// ✅ CORRECT - Simulation stays deterministic
+public partial struct MovementSystem : ISystem
+{
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
+    {
+        // Pure simulation logic here
+        var time = SystemAPI.GetSingleton<TimeState>();
+        // ... deterministic movement ...
+    }
+}
+
+// ✅ CORRECT - Presentation in game projects
+namespace Space4X.Presentation  // Not in PureDOTS!
+{
+    public class CameraRig : MonoBehaviour
+    {
+        void Update()
+        {
+            // Non-deterministic presentation here
+            transform.position = Vector3.Lerp(current, target, Time.deltaTime * speed);
+        }
+    }
+}
+```
 
 ---
 

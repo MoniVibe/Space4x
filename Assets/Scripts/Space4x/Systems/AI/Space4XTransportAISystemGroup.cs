@@ -1,5 +1,8 @@
-using PureDOTS.Systems;
 using Unity.Entities;
+using PureDOTS.Systems;
+
+using GameplaySystemGroup = PureDOTS.Systems.GameplaySystemGroup;
+using AISystemGroup = PureDOTS.Systems.AISystemGroup;
 
 namespace Space4X.Systems.AI
 {

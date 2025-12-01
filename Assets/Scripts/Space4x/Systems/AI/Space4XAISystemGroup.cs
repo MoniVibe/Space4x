@@ -1,5 +1,7 @@
-using PureDOTS.Systems;
 using Unity.Entities;
+using PureDOTS.Systems;
+
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Systems.AI
 {

@@ -6,6 +6,8 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+
 namespace Space4X.Registry
 {
     /// <summary>

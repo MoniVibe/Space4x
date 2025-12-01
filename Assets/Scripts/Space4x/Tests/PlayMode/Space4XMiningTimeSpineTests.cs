@@ -4,10 +4,13 @@ using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Systems.AI;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using ResourceSourceState = Space4X.Registry.ResourceSourceState;
+using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 
 namespace Space4X.Tests.PlayMode
 {
@@ -35,7 +38,9 @@ namespace Space4X.Tests.PlayMode
             _entityManager = _world.EntityManager;
 
             CoreSingletonBootstrapSystem.EnsureSingletons(_entityManager);
-            CoreSingletonBootstrapSystem.EnsureMiningSpine(_entityManager);
+            // Ensure mining spine via gameplay bootstrap system (available in gameplay assembly)
+            var spineBootstrap = _world.GetOrCreateSystem<Space4XMiningTimeSpineBootstrapSystem>();
+            spineBootstrap.Update(_world.Unmanaged);
 
             _rewindableHandle = _world.GetOrCreateSystem<Space4XMiningRewindableSystem>();
             _gatherHandle = _world.GetOrCreateSystem<VesselGatheringSystem>();

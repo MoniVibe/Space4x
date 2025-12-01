@@ -7,6 +7,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+
 namespace Space4X.Systems.AI
 {
     /// <summary>

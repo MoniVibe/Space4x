@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Unity.Entities;
@@ -151,6 +152,18 @@ namespace Space4X.Tests
                 SnapshotHorizon = 512,
                 LastPlaybackTick = 0
             });
+        }
+
+        public static void EnsureTelemetryStream(EntityManager entityManager)
+        {
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<TelemetryStream>());
+            if (!query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var entity = entityManager.CreateEntity(typeof(TelemetryStream));
+            entityManager.AddBuffer<TelemetryMetric>(entity);
         }
 
         private static void EnsureSingleton<T>(EntityManager entityManager, T data)
