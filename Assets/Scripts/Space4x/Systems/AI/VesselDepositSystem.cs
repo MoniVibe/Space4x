@@ -122,6 +122,12 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                // Update global player resources when cargo is deposited
+                if (SystemAPI.TryGetSingletonRW<PlayerResources>(out var playerResources))
+                {
+                    playerResources.ValueRW.AddResource(cargoType, deposited);
+                }
+
                 vesselValue.CurrentCargo = remaining;
                 if (remaining <= 1e-3f)
                 {

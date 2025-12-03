@@ -25,6 +25,7 @@ namespace Space4X.Registry
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<ComplianceTicketQueue>();
 
             _queueQuery = SystemAPI.QueryBuilder()

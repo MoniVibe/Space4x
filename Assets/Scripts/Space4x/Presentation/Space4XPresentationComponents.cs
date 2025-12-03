@@ -1,14 +1,55 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+
+// PureDOTS component type aliases - these should reference PureDOTS.Runtime.Rendering components when available
+// For now, we provide compatibility types that match PureDOTS structure
+#if false
+// When PureDOTS components are available, use these:
+using RenderLODData = PureDOTS.Runtime.Rendering.RenderLODData;
+using RenderCullable = PureDOTS.Runtime.Rendering.RenderCullable;
+using RenderSampleIndex = PureDOTS.Runtime.Rendering.RenderSampleIndex;
+#endif
 
 namespace Space4X.Presentation
 {
     // ============================================================================
-    // LOD Components
+    // PureDOTS-Compatible LOD Components
+    // ============================================================================
+
+    /// <summary>
+    /// PureDOTS-compatible LOD data component.
+    /// Matches PureDOTS.Runtime.Rendering.RenderLODData structure.
+    /// </summary>
+    public struct RenderLODData : IComponentData
+    {
+        /// <summary>Recommended LOD level (0-3 = render, >= 4 = cull)</summary>
+        public byte RecommendedLOD;
+        /// <summary>Distance to camera for LOD calculation</summary>
+        public float DistanceToCamera;
+        /// <summary>Importance value for LOD prioritization</summary>
+        public float Importance;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible cullable component.
+    /// Matches PureDOTS.Runtime.Rendering.RenderCullable structure.
+    /// </summary>
+    public struct RenderCullable : IComponentData
+    {
+        /// <summary>Cull distance threshold</summary>
+        public float CullDistance;
+        /// <summary>Priority for culling decisions</summary>
+        public byte Priority;
+    }
+
+    // ============================================================================
+    // Legacy LOD Components (deprecated - use RenderLODData instead)
     // ============================================================================
 
     /// <summary>
     /// LOD level for presentation rendering.
+    /// DEPRECATED: Use RenderLODData.RecommendedLOD instead.
     /// </summary>
     public enum PresentationLODLevel : byte
     {
@@ -20,6 +61,7 @@ namespace Space4X.Presentation
 
     /// <summary>
     /// Per-entity LOD level assigned by the LOD system based on camera distance.
+    /// DEPRECATED: Use RenderLODData instead.
     /// </summary>
     public struct PresentationLOD : IComponentData
     {
@@ -237,10 +279,13 @@ namespace Space4X.Presentation
 
     /// <summary>
     /// Per-entity sample index for stable render density sampling.
+    /// Matches PureDOTS RenderSampleIndex structure.
     /// </summary>
     public struct RenderSampleIndex : IComponentData
     {
         public uint Index;
+        /// <summary>Should this entity render based on density sampling? 0 = no, 1 = yes</summary>
+        public byte ShouldRender;
     }
 
     // ============================================================================
@@ -284,5 +329,106 @@ namespace Space4X.Presentation
         public float NormalizedStrength; // 0-1
         public int IndicatorLevel; // 1-5 bars/pips
     }
+
+    // ============================================================================
+    // PureDOTS-Compatible Fleet & Aggregate Components
+    // ============================================================================
+
+    /// <summary>
+    /// PureDOTS-compatible fleet state component.
+    /// Matches PureDOTS aggregate fleet state structure.
+    /// </summary>
+    public struct FleetState : IComponentData
+    {
+        public int MemberCount;
+        public float3 AveragePosition;
+        public float3 BoundsMin;
+        public float3 BoundsMax;
+        public float TotalStrength;
+        public float TotalHealth;
+        public float TotalCargoCapacity;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible fleet render summary component.
+    /// Matches PureDOTS aggregate render summary structure.
+    /// </summary>
+    public struct FleetRenderSummary : IComponentData
+    {
+        public int MemberCount;
+        public float3 AveragePosition;
+        public float3 BoundsCenter;
+        public float BoundsRadius;
+        public float TotalStrength;
+        public float TotalHealth;
+        /// <summary>Dominant ship type as numeric index (byte) - presentation layer maps to names/icons</summary>
+        public byte DominantShipType;
+        public int FactionIndex;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible aggregate state component.
+    /// Matches PureDOTS aggregate state structure.
+    /// </summary>
+    public struct AggregateState : IComponentData
+    {
+        public int MemberCount;
+        public float3 AveragePosition;
+        public float3 BoundsMin;
+        public float3 BoundsMax;
+        public float TotalHealth;
+        public float AverageMorale;
+        public float TotalStrength;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible aggregate render summary component.
+    /// Matches PureDOTS aggregate render summary structure.
+    /// </summary>
+    public struct AggregateRenderSummary : IComponentData
+    {
+        public int MemberCount;
+        public float3 AveragePosition;
+        public float3 BoundsCenter;
+        public float BoundsRadius;
+        public float TotalStrength;
+        public float AverageMorale;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible aggregate member element buffer.
+    /// Matches PureDOTS aggregate member element structure.
+    /// </summary>
+    public struct AggregateMemberElement : IBufferElementData
+    {
+        public Entity MemberEntity;
+        public float StrengthContribution;
+        public float Health;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible fleet member reference component.
+    /// Matches PureDOTS fleet member ref structure.
+    /// </summary>
+    public struct FleetMemberRef : IComponentData
+    {
+        public Entity FleetEntity;
+        public int MemberIndex;
+    }
+
+    /// <summary>
+    /// PureDOTS-compatible aggregate membership component.
+    /// Matches PureDOTS aggregate membership structure.
+    /// </summary>
+    public struct AggregateMembership : IComponentData
+    {
+        public Entity AggregateEntity;
+        public int MemberIndex;
+    }
+
+    /// <summary>
+    /// Tag component for fleet aggregate entities.
+    /// </summary>
+    public struct FleetTag : IComponentData { }
 }
 

@@ -10,6 +10,7 @@
         "Unity.Entities.Hybrid",
         "Unity.InputSystem",
         "Unity.TextMeshPro",
+        "Unity.Physics",
         "PureDOTS.Runtime",
         "PureDOTS.Runtime.Demo",
         "PureDOTS.Systems",

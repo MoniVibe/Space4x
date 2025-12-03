@@ -67,7 +67,7 @@ namespace Space4X.Registry
                 requestCount++;
             }
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR && SPACE4X_DEBUG_VISUAL
             if (requestCount > 0)
             {
                 UnityEngine.Debug.Log($"[Space4XVesselVisualRequestSystem] Added {requestCount} vessel visual requests");
@@ -133,7 +133,7 @@ namespace Space4X.Registry
                 requestCount++;
             }
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR && SPACE4X_DEBUG_VISUAL
             if (requestCount > 0)
             {
                 UnityEngine.Debug.Log($"[Space4XCarrierVisualRequestSystem] Added {requestCount} carrier visual requests");

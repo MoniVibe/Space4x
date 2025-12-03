@@ -25,10 +25,16 @@ namespace Space4X.Demo
 
     /// <summary>
     /// Reads TelemetryStream buffer and produces a simple snapshot for UI/debug.
+    /// Samples every 0.5 seconds instead of every frame to reduce CPU cost.
+    /// Disabled by default - enable only when telemetry debugging is needed.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XDemoTelemetrySnapshotSystem : ISystem
     {
+        private float _nextSampleTime;
+        private const float SampleInterval = 0.5f; // Sample twice per second
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TelemetryStream>();
@@ -38,12 +44,21 @@ namespace Space4X.Demo
                 var entity = state.EntityManager.CreateEntity();
                 state.EntityManager.AddComponent<TelemetrySnapshot>(entity);
             }
+
+            _nextSampleTime = 0f;
         }
 
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.HasSingleton<TelemetrySnapshot>())
                 return;
+
+            // Sample only every SampleInterval seconds instead of every frame
+            var time = (float)SystemAPI.Time.ElapsedTime;
+            if (time < _nextSampleTime)
+                return;
+
+            _nextSampleTime = time + SampleInterval;
 
             var telemetryEntity = SystemAPI.GetSingletonEntity<TelemetryStream>();
             if (!state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))

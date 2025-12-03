@@ -235,20 +235,136 @@ namespace Space4X.Presentation
                 CycleFleetsPressed = _cycleFleetsAction?.WasPressedThisFrame() ?? false,
                 ToggleOverlaysPressed = _toggleOverlaysAction?.WasPressedThisFrame() ?? false,
                 DebugViewPressed = _debugViewAction?.WasPressedThisFrame() ?? false,
-                IssueMoveCommand = rightClickPressed, // Right-click issues move command for now
-                IssueAttackCommand = false, // Would need target detection
-                IssueMineCommand = false, // Would need asteroid detection
+                IssueMoveCommand = false,
+                IssueAttackCommand = false,
+                IssueMineCommand = false,
                 CancelCommand = false,
-                CommandTargetPosition = float3.zero, // Would convert screen to world
+                CommandTargetPosition = float3.zero,
                 CommandTargetEntity = Entity.Null
             };
 
+            if (rightClickPressed)
+            {
+                // Convert screen point to world position/ray
+                Camera mainCamera = Camera.main;
+                if (mainCamera != null)
+                {
+                    Ray ray = mainCamera.ScreenPointToRay(mousePos);
+                    
+                    // Cast ray to find hit entity or ground plane
+                    // For now, use a simple ground plane at Z=0 (2D space)
+                    float3 worldPos = float3.zero;
+
+                    // Simple ground plane intersection (assuming camera looks down at Z=0 plane)
+                    if (math.abs(ray.direction.z) > 0.001f)
+                    {
+                        float t = -ray.origin.z / ray.direction.z;
+                        if (t > 0f)
+                        {
+                            worldPos = new float3(ray.origin.x + ray.direction.x * t,
+                                                  ray.origin.y + ray.direction.y * t,
+                                                  0f);
+                        }
+                    }
+
+                    // Try to find entity under cursor
+                    Entity hitEntity = FindEntityUnderCursor(ray, mousePos);
+
+                    // Determine command type based on hit entity
+                    if (hitEntity != Entity.Null && _world.EntityManager.Exists(hitEntity))
+                    {
+                        // Check if hit entity is an asteroid -> mine command
+                        if (_world.EntityManager.HasComponent<Asteroid>(hitEntity))
+                        {
+                            commandInput.IssueMineCommand = true;
+                            commandInput.CommandTargetEntity = hitEntity;
+                            commandInput.CommandTargetPosition = worldPos;
+                        }
+                        // Check if hit entity is a carrier/fleet -> attack command (if different faction)
+                        else if (_world.EntityManager.HasComponent<Carrier>(hitEntity) ||
+                                 _world.EntityManager.HasComponent<FleetImpostorTag>(hitEntity))
+                        {
+                            // TODO: Check faction difference for attack command
+                            // For now, treat as move command toward target
+                            commandInput.IssueMoveCommand = true;
+                            commandInput.CommandTargetPosition = worldPos;
+                            commandInput.CommandTargetEntity = hitEntity;
+                        }
+                        else
+                        {
+                            // Other entity -> move command
+                            commandInput.IssueMoveCommand = true;
+                            commandInput.CommandTargetPosition = worldPos;
+                        }
+                    }
+                    else
+                    {
+                        // No entity hit -> move command to ground position
+                        commandInput.IssueMoveCommand = true;
+                        commandInput.CommandTargetPosition = worldPos;
+                    }
+                }
+            }
+
             WriteCommandInput(commandInput);
 
-            if (DebugLog && (commandInput.CycleFleetsPressed || commandInput.ToggleOverlaysPressed || commandInput.DebugViewPressed))
+            if (DebugLog && rightClickPressed)
             {
-                Debug.Log($"[Space4XSelectionInputBridge] CycleFleets: {commandInput.CycleFleetsPressed}, ToggleOverlays: {commandInput.ToggleOverlaysPressed}, DebugView: {commandInput.DebugViewPressed}");
+                Debug.Log($"[Space4XSelectionInputBridge] Right-click: Move={commandInput.IssueMoveCommand}, Mine={commandInput.IssueMineCommand}, TargetPos={commandInput.CommandTargetPosition}");
             }
+        }
+
+        private Entity FindEntityUnderCursor(Ray ray, Vector2 screenPos)
+        {
+            // Simplified entity finding - would use proper raycast in full implementation
+            Entity closestEntity = Entity.Null;
+            float closestDistance = float.MaxValue;
+            float3 cameraPos = ray.origin;
+            float3 cameraForward = ray.direction;
+
+            // Query carriers
+            var carrierQuery = _world.EntityManager.CreateEntityQuery(typeof(Unity.Transforms.LocalTransform), typeof(CarrierPresentationTag));
+            var carrierTransforms = carrierQuery.ToComponentDataArray<Unity.Transforms.LocalTransform>(Unity.Collections.Allocator.Temp);
+            var carrierEntities = carrierQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+            
+            for (int i = 0; i < carrierTransforms.Length; i++)
+            {
+                float3 toEntity = carrierTransforms[i].Position - cameraPos;
+                float distance = math.length(toEntity);
+                float3 direction = math.normalize(toEntity);
+                float dot = math.dot(direction, cameraForward);
+                
+                if (dot > 0.5f && distance < closestDistance && distance < 1000f)
+                {
+                    closestDistance = distance;
+                    closestEntity = carrierEntities[i];
+                }
+            }
+            carrierTransforms.Dispose();
+            carrierEntities.Dispose();
+
+            // Query asteroids
+            var asteroidQuery = _world.EntityManager.CreateEntityQuery(typeof(Unity.Transforms.LocalTransform), typeof(AsteroidPresentationTag));
+            var asteroidTransforms = asteroidQuery.ToComponentDataArray<Unity.Transforms.LocalTransform>(Unity.Collections.Allocator.Temp);
+            var asteroidEntities = asteroidQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+            
+            for (int i = 0; i < asteroidTransforms.Length; i++)
+            {
+                float3 toEntity = asteroidTransforms[i].Position - cameraPos;
+                float distance = math.length(toEntity);
+                float3 direction = math.normalize(toEntity);
+                float dot = math.dot(direction, cameraForward);
+                
+                if (dot > 0.5f && distance < closestDistance && distance < 1000f)
+                {
+                    closestDistance = distance;
+                    closestEntity = asteroidEntities[i];
+                }
+            }
+            asteroidTransforms.Dispose();
+            asteroidEntities.Dispose();
+
+            return closestEntity;
         }
 
         private void WriteSelectionInput(SelectionInput input)

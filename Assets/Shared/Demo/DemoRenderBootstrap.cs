@@ -51,8 +51,17 @@ namespace Shared.Demo
             if (!em.HasComponent<LocalTransform>(e))
                 em.AddComponentData(e, LocalTransform.Identity);
 
-            em.AddSharedComponentManaged(e, rma);
-            em.AddComponentData(e, MaterialMeshInfo.FromRenderMeshArrayIndices(mat, mesh));
+            var desc = new RenderMeshDescription(
+                shadowCastingMode: UnityEngine.Rendering.ShadowCastingMode.On,
+                receiveShadows: true);
+
+            RenderMeshUtility.AddComponents(
+                e, 
+                em, 
+                desc, 
+                rma, 
+                MaterialMeshInfo.FromRenderMeshArrayIndices(mat, mesh));
+
             em.AddComponentData(e, new URPMaterialPropertyBaseColor { Value = rgba });
         }
 

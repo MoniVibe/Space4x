@@ -52,6 +52,10 @@ namespace Space4X.Presentation
         public int MaxFullDetailCrafts = 1000;
         public bool AutoAdjustLOD = true;
         public bool AutoAdjustDensity = true;
+
+        [Header("Debug")]
+        [Tooltip("Enable LOD debug visualization (colors entities by LOD level)")]
+        public bool EnableLODDebug = false;
     }
 
     /// <summary>
@@ -97,7 +101,7 @@ namespace Space4X.Presentation
                 ShowResourceFields = false,
                 ShowFactionZones = false,
                 ShowDebugPaths = false,
-                ShowLODVisualization = false,
+                ShowLODVisualization = authoring.EnableLODDebug,
                 ShowMetrics = true,
                 ShowInspector = true
             });

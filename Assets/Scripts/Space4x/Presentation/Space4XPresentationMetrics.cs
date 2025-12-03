@@ -87,7 +87,7 @@ namespace Space4X.Presentation
     /// <summary>
     /// System that collects presentation metrics.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup), OrderLast = true)]
     public partial struct Space4XPresentationMetricsSystem : ISystem
     {
         private uint _frameCount;
@@ -117,53 +117,59 @@ namespace Space4X.Presentation
                 LastUpdateTick = _frameCount
             };
 
-            // Count entities by LOD level
-            foreach (var lod in SystemAPI.Query<RefRO<PresentationLOD>>())
+            // Count entities by LOD level (using PureDOTS RenderLODData)
+            foreach (var lodData in SystemAPI.Query<RefRO<RenderLODData>>())
             {
                 metrics.TotalPresentationEntities++;
 
-                switch (lod.ValueRO.Level)
+                byte lod = lodData.ValueRO.RecommendedLOD;
+                if (lod < 4) // Visible (0-3)
                 {
-                    case PresentationLODLevel.FullDetail:
-                        metrics.FullDetailCount++;
-                        metrics.VisibleEntities++;
-                        break;
-                    case PresentationLODLevel.ReducedDetail:
-                        metrics.ReducedDetailCount++;
-                        metrics.VisibleEntities++;
-                        break;
-                    case PresentationLODLevel.Impostor:
-                        metrics.ImpostorCount++;
-                        metrics.VisibleEntities++;
-                        break;
-                    case PresentationLODLevel.Hidden:
-                        metrics.HiddenCount++;
-                        break;
+                    metrics.VisibleEntities++;
+                    
+                    switch (lod)
+                    {
+                        case 0:
+                            metrics.FullDetailCount++;
+                            break;
+                        case 1:
+                            metrics.ReducedDetailCount++;
+                            break;
+                        case 2:
+                            metrics.ImpostorCount++;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else // Hidden/Culled (>= 4)
+                {
+                    metrics.HiddenCount++;
                 }
             }
 
             // Count visible carriers
-            foreach (var lod in SystemAPI.Query<RefRO<PresentationLOD>>().WithAll<CarrierPresentationTag>())
+            foreach (var lodData in SystemAPI.Query<RefRO<RenderLODData>>().WithAll<CarrierPresentationTag>())
             {
-                if (lod.ValueRO.Level != PresentationLODLevel.Hidden)
+                if (lodData.ValueRO.RecommendedLOD < 4)
                 {
                     metrics.VisibleCarriers++;
                 }
             }
 
             // Count visible crafts
-            foreach (var lod in SystemAPI.Query<RefRO<PresentationLOD>>().WithAll<CraftPresentationTag>())
+            foreach (var lodData in SystemAPI.Query<RefRO<RenderLODData>>().WithAll<CraftPresentationTag>())
             {
-                if (lod.ValueRO.Level != PresentationLODLevel.Hidden)
+                if (lodData.ValueRO.RecommendedLOD < 4)
                 {
                     metrics.VisibleCrafts++;
                 }
             }
 
             // Count visible asteroids
-            foreach (var lod in SystemAPI.Query<RefRO<PresentationLOD>>().WithAll<AsteroidPresentationTag>())
+            foreach (var lodData in SystemAPI.Query<RefRO<RenderLODData>>().WithAll<AsteroidPresentationTag>())
             {
-                if (lod.ValueRO.Level != PresentationLODLevel.Hidden)
+                if (lodData.ValueRO.RecommendedLOD < 4)
                 {
                     metrics.VisibleAsteroids++;
                 }
@@ -202,7 +208,7 @@ namespace Space4X.Presentation
     /// <summary>
     /// System that auto-adjusts LOD and render density based on performance budgets.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup), OrderLast = true)]
     [UpdateAfter(typeof(Space4XPresentationMetricsSystem))]
     public partial struct Space4XPerformanceBudgetSystem : ISystem
     {

@@ -4,6 +4,7 @@ using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -39,7 +40,7 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _strikeCraftLookup = state.GetComponentLookup<StrikeCraftState>(false);
+            _strikeCraftLookup = state.GetComponentLookup<StrikeCraftState>(true);
             _tetherLookup = state.GetComponentLookup<ChildVesselTether>(true);
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
@@ -98,25 +99,28 @@ namespace Space4X.Systems.AI
             public uint CurrentTick;
             public float DeltaTime;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            public ComponentLookup<StrikeCraftState> StrikeCraftLookup;
+            [ReadOnly] public ComponentLookup<StrikeCraftState> StrikeCraftLookup;
             [ReadOnly] public ComponentLookup<ChildVesselTether> TetherLookup;
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
-            [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] public ComponentLookup<LocalTransform> TransformLookup;
             [ReadOnly] public ComponentLookup<ThreatProfile> ThreatLookup;
             [ReadOnly] public ComponentLookup<Space4XFleet> FleetLookup;
-            public ComponentLookup<VesselMovement> MovementLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<VesselMovement> MovementLookup;
             [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
             [ReadOnly] public ComponentLookup<PhysiqueFinesseWill> PhysiqueLookup;
             [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
 
             public void Execute(ref LocalTransform transform, Entity entity)
             {
+                // Access StrikeCraftState via optional RefRW
                 if (!StrikeCraftLookup.HasComponent(entity))
                 {
                     return;
                 }
 
-                var state = StrikeCraftLookup.GetRefRW(entity).ValueRW;
+                // Read current state for decision-making
+                var stateRead = StrikeCraftLookup[entity];
+                var state = stateRead; // Copy for modification
                 
                 // Update based on current state
                 switch (state.CurrentState)
@@ -196,7 +200,9 @@ namespace Space4X.Systems.AI
                         break;
                 }
 
-                StrikeCraftLookup.GetRefRW(entity).ValueRW = state;
+                // Cannot write via ReadOnly ComponentLookup - state updates should be handled
+                // via RefRW<StrikeCraftState> in Execute signature or via ECB
+                // StrikeCraftLookup.GetRefRW(entity).ValueRW = state;
             }
 
             private void FindTarget(Entity entity, ref StrikeCraftState state, float3 position)

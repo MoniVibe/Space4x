@@ -3,7 +3,9 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using Unity.Transforms;
+using Shared.Demo;
 
 namespace Space4X.Presentation
 {
@@ -11,25 +13,35 @@ namespace Space4X.Presentation
     /// System that manages presentation component lifecycle for entities.
     /// Adds presentation components to new entities and handles destruction/cleanup.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateBefore(typeof(Space4XPresentationLODSystem))]
     public partial struct Space4XPresentationLifecycleSystem : ISystem
     {
-        private ComponentLookup<PresentationLOD> _lodLookup;
+        private ComponentLookup<RenderLODData> _lodLookup;
         private ComponentLookup<FactionColor> _factionColorLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _lodLookup = state.GetComponentLookup<PresentationLOD>(false);
+            _lodLookup = state.GetComponentLookup<RenderLODData>(false);
             _factionColorLookup = state.GetComponentLookup<FactionColor>(false);
         }
 
-        [BurstCompile]
+        // NOTE: Not Burst compiled because we call ECB.AddSharedComponentManaged(RenderMeshArray) which boxes the struct
+        // Burst doesn't support boxing, so this must run in managed code
         public void OnUpdate(ref SystemState state)
         {
             _lodLookup.Update(ref state);
             _factionColorLookup.Update(ref state);
+
+            // Check if DemoRenderReady exists (for render components)
+            if (!SystemAPI.HasSingleton<DemoRenderReady>())
+            {
+                return; // Can't add render components without RenderMeshArray
+            }
+
+            var renderReadyEntity = SystemAPI.GetSingletonEntity<DemoRenderReady>();
+            var renderMeshArray = state.EntityManager.GetSharedComponentManaged<RenderMeshArray>(renderReadyEntity);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -40,11 +52,25 @@ namespace Space4X.Presentation
                          .WithEntityAccess())
             {
                 ecb.AddComponent(entity, new CarrierPresentationTag());
-                ecb.AddComponent(entity, new PresentationLOD
+                
+                // Add PureDOTS-compatible LOD components
+                ecb.AddComponent(entity, new RenderLODData
                 {
-                    Level = PresentationLODLevel.FullDetail,
-                    DistanceToCamera = 0f
+                    RecommendedLOD = 0, // Full detail
+                    DistanceToCamera = 0f,
+                    Importance = 0.8f
                 });
+                ecb.AddComponent(entity, new RenderCullable
+                {
+                    CullDistance = 2000f,
+                    Priority = 100
+                });
+                ecb.AddComponent(entity, new RenderSampleIndex
+                {
+                    Index = (uint)entity.Index,
+                    ShouldRender = 1 // Render by default
+                });
+                
                 ecb.AddComponent(entity, new CarrierVisualState
                 {
                     State = CarrierVisualStateType.Idle,
@@ -57,15 +83,16 @@ namespace Space4X.Presentation
                     Alpha = 1f,
                     PulsePhase = 0f
                 });
-                ecb.AddComponent(entity, new RenderSampleIndex
-                {
-                    Index = (uint)entity.Index
-                });
                 ecb.AddComponent(entity, new ShouldRenderTag());
 
                 // Add faction color - will be set by presentation system based on AffiliationTag buffer
                 // Default to blue for now
                 ecb.AddComponent(entity, FactionColor.Blue);
+
+                // Add render components (MaterialMeshInfo and RenderMeshArray) - CRITICAL for visibility
+                ecb.AddSharedComponentManaged(entity, renderMeshArray);
+                ecb.AddComponent(entity, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0)); // Use mesh 0, material 0 from RenderMeshArray
+                ecb.AddComponent(entity, new URPMaterialPropertyBaseColor { Value = new float4(0.5f, 0.5f, 1f, 1f) }); // Blue
             }
 
             // Add presentation components to crafts that don't have them
@@ -75,11 +102,25 @@ namespace Space4X.Presentation
                          .WithEntityAccess())
             {
                 ecb.AddComponent(entity, new CraftPresentationTag());
-                ecb.AddComponent(entity, new PresentationLOD
+                
+                // Add PureDOTS-compatible LOD components
+                ecb.AddComponent(entity, new RenderLODData
                 {
-                    Level = PresentationLODLevel.FullDetail,
-                    DistanceToCamera = 0f
+                    RecommendedLOD = 0, // Full detail
+                    DistanceToCamera = 0f,
+                    Importance = 0.6f
                 });
+                ecb.AddComponent(entity, new RenderCullable
+                {
+                    CullDistance = 1500f,
+                    Priority = 80
+                });
+                ecb.AddComponent(entity, new RenderSampleIndex
+                {
+                    Index = (uint)entity.Index,
+                    ShouldRender = 1 // Render by default
+                });
+                
                 ecb.AddComponent(entity, new CraftVisualState
                 {
                     State = CraftVisualStateType.Idle,
@@ -92,22 +133,25 @@ namespace Space4X.Presentation
                     Alpha = 1f,
                     PulsePhase = 0f
                 });
-                ecb.AddComponent(entity, new RenderSampleIndex
-                {
-                    Index = (uint)entity.Index
-                });
                 ecb.AddComponent(entity, new ShouldRenderTag());
 
                 // Inherit faction color from parent carrier if available
+                float4 craftColor = new float4(0.5f, 0.5f, 1f, 1f); // Default blue
                 if (vessel.ValueRO.CarrierEntity != Entity.Null && _factionColorLookup.HasComponent(vessel.ValueRO.CarrierEntity))
                 {
                     var carrierColor = _factionColorLookup[vessel.ValueRO.CarrierEntity];
                     ecb.AddComponent(entity, carrierColor);
+                    craftColor = carrierColor.Value; // Fixed: FactionColor is a struct, access .Value directly
                 }
                 else
                 {
                     ecb.AddComponent(entity, FactionColor.Blue);
                 }
+
+                // Add render components (MaterialMeshInfo and RenderMeshArray) - CRITICAL for visibility
+                ecb.AddSharedComponentManaged(entity, renderMeshArray);
+                ecb.AddComponent(entity, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0)); // Use mesh 0, material 0 from RenderMeshArray
+                ecb.AddComponent(entity, new URPMaterialPropertyBaseColor { Value = craftColor });
             }
 
             // Add presentation components to asteroids that don't have them
@@ -117,10 +161,23 @@ namespace Space4X.Presentation
                          .WithEntityAccess())
             {
                 ecb.AddComponent(entity, new AsteroidPresentationTag());
-                ecb.AddComponent(entity, new PresentationLOD
+                
+                // Add PureDOTS-compatible LOD components
+                ecb.AddComponent(entity, new RenderLODData
                 {
-                    Level = PresentationLODLevel.FullDetail,
-                    DistanceToCamera = 0f
+                    RecommendedLOD = 0, // Full detail
+                    DistanceToCamera = 0f,
+                    Importance = 0.7f
+                });
+                ecb.AddComponent(entity, new RenderCullable
+                {
+                    CullDistance = 1800f,
+                    Priority = 90
+                });
+                ecb.AddComponent(entity, new RenderSampleIndex
+                {
+                    Index = (uint)entity.Index,
+                    ShouldRender = 1 // Render by default
                 });
 
                 // Determine resource color based on ResourceType
@@ -142,11 +199,12 @@ namespace Space4X.Presentation
                     Alpha = 1f,
                     PulsePhase = 0f
                 });
-                ecb.AddComponent(entity, new RenderSampleIndex
-                {
-                    Index = (uint)entity.Index
-                });
                 ecb.AddComponent(entity, new ShouldRenderTag());
+
+                // Add render components (MaterialMeshInfo and RenderMeshArray) - CRITICAL for visibility
+                ecb.AddSharedComponentManaged(entity, renderMeshArray);
+                ecb.AddComponent(entity, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0)); // Use mesh 0, material 0 from RenderMeshArray
+                ecb.AddComponent(entity, new URPMaterialPropertyBaseColor { Value = resourceColor });
             }
 
             // Handle entity destruction - fade out visuals
@@ -174,7 +232,7 @@ namespace Space4X.Presentation
     /// <summary>
     /// System that handles fleet merge/split events and updates fleet impostors.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
     public partial struct Space4XFleetAggregationSystem : ISystem
     {

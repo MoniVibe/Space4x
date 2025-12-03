@@ -101,11 +101,15 @@ namespace Space4X.Systems.AI
                     if (hasResources)
                     {
                         var miningOrderLookup = state.GetComponentLookup<MiningOrder>(false);
-            var resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
+                        var resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
                         var asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+                        var targetStrategyLookup = state.GetComponentLookup<MinerTargetStrategy>(true);
+                        var resourceStateLookup = state.GetComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState>(true);
                         miningOrderLookup.Update(ref state);
                         resourceTypeLookup.Update(ref state);
                         asteroidLookup.Update(ref state);
+                        targetStrategyLookup.Update(ref state);
+                        resourceStateLookup.Update(ref state);
 
                         var job = new UpdateVesselAIJob
                         {
@@ -116,6 +120,8 @@ namespace Space4X.Systems.AI
                             MiningOrderLookup = miningOrderLookup,
                             ResourceTypeLookup = resourceTypeLookup,
                             AsteroidLookup = asteroidLookup,
+                            TargetStrategyLookup = targetStrategyLookup,
+                            ResourceStateLookup = resourceStateLookup,
                             DeltaTime = timeState.FixedDeltaTime,
                             CurrentTick = timeState.Tick
                         };
@@ -162,6 +168,8 @@ namespace Space4X.Systems.AI
             public ComponentLookup<MiningOrder> MiningOrderLookup;
             [ReadOnly] public ComponentLookup<Space4X.Registry.ResourceTypeId> ResourceTypeLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
+            [ReadOnly] public ComponentLookup<MinerTargetStrategy> TargetStrategyLookup;
+            [ReadOnly] public ComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState> ResourceStateLookup;
             public float DeltaTime;
             public uint CurrentTick;
 
@@ -180,12 +188,19 @@ namespace Space4X.Systems.AI
                         miningOrder.TargetEntity == Entity.Null &&
                         vessel.CurrentCargo < vessel.CargoCapacity * 0.95f)
                     {
+                        // Get target selection strategy (default to Nearest if not specified)
+                        var strategy = MinerTargetStrategy.Strategy.Nearest;
+                        if (TargetStrategyLookup.HasComponent(entity))
+                        {
+                            strategy = TargetStrategyLookup[entity].SelectionStrategy;
+                        }
+
                         Entity bestTarget = Entity.Null;
-                        float bestDistance = float.MaxValue;
+                        float bestScore = strategy == MinerTargetStrategy.Strategy.Nearest ? float.MaxValue : float.MinValue;
 
                         if (HasResources)
                         {
-                            // Find nearest asteroid matching MiningOrder.ResourceId
+                            // Find best asteroid matching MiningOrder.ResourceId based on strategy
                             for (int i = 0; i < ResourceEntries.Length; i++)
                             {
                                 var entry = ResourceEntries[i];
@@ -201,18 +216,78 @@ namespace Space4X.Systems.AI
                                 }
 
                                 // Check if resource matches MiningOrder.ResourceId
-                                if (ResourceTypeLookup.HasComponent(entry.SourceEntity))
+                                if (!ResourceTypeLookup.HasComponent(entry.SourceEntity))
                                 {
-                                    var resourceTypeId = ResourceTypeLookup[entry.SourceEntity];
-                                    if (resourceTypeId.Value == miningOrder.ResourceId)
-                                    {
-                                        var distance = math.distance(transform.Position, entry.Position);
-                                        if (distance < bestDistance)
+                                    continue;
+                                }
+
+                                var resourceTypeId = ResourceTypeLookup[entry.SourceEntity];
+                                if (resourceTypeId.Value != miningOrder.ResourceId)
+                                {
+                                    continue;
+                                }
+
+                                // Skip if asteroid is depleted
+                                if (ResourceStateLookup.HasComponent(entry.SourceEntity) &&
+                                    ResourceStateLookup[entry.SourceEntity].UnitsRemaining <= 0f)
+                                {
+                                    continue;
+                                }
+
+                                var distance = math.distance(transform.Position, entry.Position);
+                                float score = 0f;
+
+                                switch (strategy)
+                                {
+                                    case MinerTargetStrategy.Strategy.Nearest:
+                                        // Lower distance is better
+                                        score = -distance; // Negate so higher is better
+                                        break;
+
+                                    case MinerTargetStrategy.Strategy.BestYield:
+                                        // Higher yield (ResourceAmount / MiningRate) is better
+                                        if (AsteroidLookup.HasComponent(entry.SourceEntity))
                                         {
-                                            bestTarget = entry.SourceEntity;
-                                            bestDistance = distance;
+                                            var asteroid = AsteroidLookup[entry.SourceEntity];
+                                            var yield = asteroid.MiningRate > 0f 
+                                                ? asteroid.ResourceAmount / asteroid.MiningRate 
+                                                : asteroid.ResourceAmount;
+                                            score = yield;
                                         }
-                                    }
+                                        else
+                                        {
+                                            // Fallback: use ResourceAmount if no Asteroid component
+                                            score = ResourceStateLookup.HasComponent(entry.SourceEntity)
+                                                ? ResourceStateLookup[entry.SourceEntity].UnitsRemaining
+                                                : 0f;
+                                        }
+                                        break;
+
+                                    case MinerTargetStrategy.Strategy.Balanced:
+                                        // Score = yield / (distance + 1)
+                                        float yieldValue = 0f;
+                                        if (AsteroidLookup.HasComponent(entry.SourceEntity))
+                                        {
+                                            var asteroid = AsteroidLookup[entry.SourceEntity];
+                                            yieldValue = asteroid.MiningRate > 0f 
+                                                ? asteroid.ResourceAmount / asteroid.MiningRate 
+                                                : asteroid.ResourceAmount;
+                                        }
+                                        else
+                                        {
+                                            yieldValue = ResourceStateLookup.HasComponent(entry.SourceEntity)
+                                                ? ResourceStateLookup[entry.SourceEntity].UnitsRemaining
+                                                : 0f;
+                                        }
+                                        score = yieldValue / (distance + 1f);
+                                        break;
+                                }
+
+                                if ((strategy == MinerTargetStrategy.Strategy.Nearest && score > bestScore) ||
+                                    (strategy != MinerTargetStrategy.Strategy.Nearest && score > bestScore))
+                                {
+                                    bestTarget = entry.SourceEntity;
+                                    bestScore = score;
                                 }
                             }
                         }

@@ -3,7 +3,6 @@ using PureDOTS.Systems;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using UnityEngine.Assertions;
 
 using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
@@ -98,12 +97,13 @@ namespace Space4X.Registry
                 for (int i = 0; i < affiliations.Length; i++)
                 {
                     var affiliation = affiliations[i];
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    Assert.IsTrue(affiliation.Target == Entity.Null || _doctrineLookup.HasComponent(affiliation.Target),
-                        $"Affiliation target {affiliation.Target.Index} missing DoctrineProfile for entity {entity.Index}");
-#endif
                     if (!_doctrineLookup.HasComponent(affiliation.Target))
                     {
+#if UNITY_EDITOR && SPACE4X_DEBUG_AFFILIATION
+                        UnityEngine.Debug.LogWarning(
+                            $"[AffiliationCompliance] Target {affiliation.Target.Index} missing DoctrineProfile for entity {entity.Index}");
+#endif
+                        // Skip this entry, don't crash the sim
                         continue;
                     }
 

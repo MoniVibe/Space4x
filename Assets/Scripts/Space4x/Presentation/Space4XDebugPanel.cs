@@ -124,6 +124,10 @@ namespace Space4X.Presentation
             GUILayout.Label("=== Render Density ===", GUI.skin.box);
             DrawRenderDensityControl();
 
+            // LOD threshold controls
+            GUILayout.Label("=== LOD Thresholds ===", GUI.skin.box);
+            DrawLODThresholdControls();
+
             // Metrics logging control
             GUILayout.Label("=== Metrics Logging ===", GUI.skin.box);
             DrawMetricsLoggingControl();
@@ -228,18 +232,22 @@ namespace Space4X.Presentation
             var debugConfig = debugOverlayQuery.GetSingleton<DebugOverlayConfig>();
 
             bool showLOD = GUILayout.Toggle(debugConfig.ShowLODVisualization, "Show LOD Colors");
+            bool showFleetCentroids = GUILayout.Toggle(debugConfig.ShowFactionZones, "Show Fleet Centroids");
+            bool showResourceFields = GUILayout.Toggle(debugConfig.ShowResourceFields, "Show Resource Fields");
             bool showMetrics = GUILayout.Toggle(debugConfig.ShowMetrics, "Show Metrics");
             bool showInspector = GUILayout.Toggle(debugConfig.ShowInspector, "Show Inspector");
 
             if (showLOD != debugConfig.ShowLODVisualization ||
+                showFleetCentroids != debugConfig.ShowFactionZones ||
+                showResourceFields != debugConfig.ShowResourceFields ||
                 showMetrics != debugConfig.ShowMetrics ||
                 showInspector != debugConfig.ShowInspector)
             {
                 var entity = debugOverlayQuery.GetSingletonEntity();
                 _world.EntityManager.SetComponentData(entity, new DebugOverlayConfig
                 {
-                    ShowResourceFields = debugConfig.ShowResourceFields,
-                    ShowFactionZones = debugConfig.ShowFactionZones,
+                    ShowResourceFields = showResourceFields,
+                    ShowFactionZones = showFleetCentroids,
                     ShowDebugPaths = debugConfig.ShowDebugPaths,
                     ShowLODVisualization = showLOD,
                     ShowMetrics = showMetrics,
@@ -274,6 +282,10 @@ namespace Space4X.Presentation
 
             GUILayout.Label($"Current Density: {currentDensity:P0}");
             
+            // Calculate "Render 1 in N crafts"
+            int renderN = currentDensity > 0.001f ? (int)(1f / currentDensity) : 999;
+            GUILayout.Label($"Render 1 in {renderN} crafts");
+            
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("-0.1"))
             {
@@ -284,6 +296,14 @@ namespace Space4X.Presentation
             {
                 var newDensity = math.min(1f, currentDensity + 0.1f);
                 UpdateRenderDensity(newDensity);
+            }
+            if (GUILayout.Button("0.5"))
+            {
+                UpdateRenderDensity(0.5f);
+            }
+            if (GUILayout.Button("1.0"))
+            {
+                UpdateRenderDensity(1f);
             }
             GUILayout.EndHorizontal();
 
@@ -305,6 +325,58 @@ namespace Space4X.Presentation
             var config = _world.EntityManager.GetComponentData<RenderDensityConfig>(entity);
             config.Density = density;
             _world.EntityManager.SetComponentData(entity, config);
+        }
+
+        private void DrawLODThresholdControls()
+        {
+            if (_lodConfigQuery.IsEmptyIgnoreFilter)
+            {
+                GUILayout.Label("No LOD config");
+                return;
+            }
+
+            var entity = _lodConfigQuery.GetSingletonEntity();
+            var lodConfig = _world.EntityManager.GetComponentData<PresentationLODConfig>(entity);
+
+            // FullDetail Max Distance
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"FullDetail: 0-{lodConfig.FullDetailMaxDistance:F0}", GUILayout.Width(150));
+            float newFullDetail = GUILayout.HorizontalSlider(lodConfig.FullDetailMaxDistance, 0f, 200f);
+            if (math.abs(newFullDetail - lodConfig.FullDetailMaxDistance) > 0.5f)
+            {
+                lodConfig.FullDetailMaxDistance = newFullDetail;
+                _world.EntityManager.SetComponentData(entity, lodConfig);
+            }
+            GUILayout.EndHorizontal();
+
+            // ReducedDetail Max Distance
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"ReducedDetail: {lodConfig.FullDetailMaxDistance:F0}-{lodConfig.ReducedDetailMaxDistance:F0}", GUILayout.Width(150));
+            float newReducedDetail = GUILayout.HorizontalSlider(lodConfig.ReducedDetailMaxDistance, lodConfig.FullDetailMaxDistance, 1000f);
+            if (math.abs(newReducedDetail - lodConfig.ReducedDetailMaxDistance) > 0.5f)
+            {
+                lodConfig.ReducedDetailMaxDistance = newReducedDetail;
+                _world.EntityManager.SetComponentData(entity, lodConfig);
+            }
+            GUILayout.EndHorizontal();
+
+            // Impostor Max Distance
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Impostor: {lodConfig.ReducedDetailMaxDistance:F0}-{lodConfig.ImpostorMaxDistance:F0}", GUILayout.Width(150));
+            float newImpostor = GUILayout.HorizontalSlider(lodConfig.ImpostorMaxDistance, lodConfig.ReducedDetailMaxDistance, 5000f);
+            if (math.abs(newImpostor - lodConfig.ImpostorMaxDistance) > 0.5f)
+            {
+                lodConfig.ImpostorMaxDistance = newImpostor;
+                _world.EntityManager.SetComponentData(entity, lodConfig);
+            }
+            GUILayout.EndHorizontal();
+
+            // Reset button
+            if (GUILayout.Button("Reset to Defaults"))
+            {
+                var defaultConfig = PresentationLODConfig.Default;
+                _world.EntityManager.SetComponentData(entity, defaultConfig);
+            }
         }
 
         private void DrawMetricsLoggingControl()

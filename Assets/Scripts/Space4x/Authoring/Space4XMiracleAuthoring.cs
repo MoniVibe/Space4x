@@ -1,10 +1,14 @@
 using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
+using Space4x.Miracles;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+
+using RuntimeMiracleLifecycleState = PureDOTS.Runtime.Components.MiracleLifecycleState;
+using RuntimeMiracleCaster = PureDOTS.Runtime.Components.MiracleCaster;
 
 namespace Space4X.Registry
 {
@@ -26,7 +30,7 @@ namespace Space4X.Registry
                 BaseIntensity = 1f,
                 BaseCost = 40f,
                 SustainedCostPerSecond = 0f,
-                Lifecycle = MiracleLifecycleState.Ready,
+                Lifecycle = default,
                 ChargePercent = 1f,
                 CurrentRadius = 12f,
                 CurrentIntensity = 1f,
@@ -54,7 +58,7 @@ namespace Space4X.Registry
             public float BaseCost;
             [Min(0f)]
             public float SustainedCostPerSecond;
-            public MiracleLifecycleState Lifecycle;
+            public RuntimeMiracleLifecycleState Lifecycle;
             [Range(0f, 1f)]
             public float ChargePercent;
             [Min(0f)]
@@ -141,7 +145,7 @@ namespace Space4X.Registry
                 if (setup.Caster != null)
                 {
                     var casterEntity = GetEntity(setup.Caster, TransformUsageFlags.Dynamic);
-                    AddComponent(entity, new MiracleCaster
+                    AddComponent(entity, new RuntimeMiracleCaster
                     {
                         CasterEntity = casterEntity
                     });

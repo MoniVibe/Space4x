@@ -10,6 +10,8 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+using RuntimeMiracleRegistry = PureDOTS.Runtime.Registry.MiracleRegistry;
+using RuntimeMiracleRegistryEntry = PureDOTS.Runtime.Registry.MiracleRegistryEntry;
 
 namespace Space4X.Registry
 {
@@ -32,12 +34,13 @@ namespace Space4X.Registry
         private Entity _snapshotEntity;
 
         private ComponentLookup<SpatialGridResidency> _residencyLookup;
+        private ComponentLookup<RuntimeMiracleRegistry> _miracleRegistryLookup;
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RegistryDirectory>();
             state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<MiracleRegistry>();
+            state.RequireForUpdate<RuntimeMiracleRegistry>();
 
             _colonyQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4XColony, LocalTransform, SpatialIndexedTag>()
@@ -66,6 +69,7 @@ namespace Space4X.Registry
             _anomalyRegistryEntity = EnsureRegistryEntity<Space4XAnomalyRegistry, Space4XAnomalyRegistryEntry>(ref state, anomalyLabel, Space4XRegistryIds.AnomalyArchetype, RegistryHandleFlags.SupportsSpatialQueries);
 
             _residencyLookup = state.GetComponentLookup<SpatialGridResidency>(true);
+            _miracleRegistryLookup = state.GetComponentLookup<RuntimeMiracleRegistry>(true);
 
             using var snapshotQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XRegistrySnapshot>());
             if (snapshotQuery.IsEmptyIgnoreFilter)
@@ -88,6 +92,7 @@ namespace Space4X.Registry
             var tick = timeState.Tick;
 
             _residencyLookup.Update(ref state);
+            _miracleRegistryLookup.Update(ref state);
 
             var hasGridConfig = SystemAPI.TryGetSingleton(out SpatialGridConfig gridConfig);
             var hasGridState = SystemAPI.TryGetSingleton(out SpatialGridState gridState);
@@ -567,10 +572,17 @@ namespace Space4X.Registry
 
         private void UpdateMiracleSnapshot(ref SystemState state, uint tick, float fixedDeltaTime)
         {
-            if (!SystemAPI.TryGetSingleton(out MiracleRegistry miracleRegistry))
+            if (!SystemAPI.TryGetSingletonEntity<RuntimeMiracleRegistry>(out var miracleRegistryEntity))
             {
                 return;
             }
+
+            if (!_miracleRegistryLookup.HasComponent(miracleRegistryEntity))
+            {
+                return;
+            }
+
+            var miracleRegistry = _miracleRegistryLookup[miracleRegistryEntity];
 
             ref var snapshot = ref SystemAPI.GetComponentRW<Space4XRegistrySnapshot>(_snapshotEntity).ValueRW;
             snapshot.MiracleCount = miracleRegistry.TotalMiracles;
@@ -581,10 +593,9 @@ namespace Space4X.Registry
             snapshot.MiracleAverageCastLatencySeconds = 0f;
             snapshot.MiracleCancellationCount = 0;
 
-            if (SystemAPI.TryGetSingletonEntity<MiracleRegistry>(out var miracleRegistryEntity) &&
-                state.EntityManager.HasBuffer<MiracleRegistryEntry>(miracleRegistryEntity))
+            if (state.EntityManager.HasBuffer<RuntimeMiracleRegistryEntry>(miracleRegistryEntity))
             {
-                var entries = state.EntityManager.GetBuffer<MiracleRegistryEntry>(miracleRegistryEntity);
+                var entries = state.EntityManager.GetBuffer<RuntimeMiracleRegistryEntry>(miracleRegistryEntity);
                 float totalCharge = 0f;
                 int chargeSamples = 0;
                 float totalLatencySeconds = 0f;
@@ -605,8 +616,8 @@ namespace Space4X.Registry
                         latencySamples++;
                     }
 
-                    if (entry.Lifecycle == MiracleLifecycleState.CoolingDown &&
-                        (entry.Flags & MiracleRegistryFlags.Active) == 0)
+                    if (entry.Lifecycle == PureDOTS.Runtime.Components.MiracleLifecycleState.Cooldown &&
+                        (entry.Flags & PureDOTS.Runtime.Registry.MiracleRegistryFlags.Active) == 0)
                     {
                         cancellationCount++;
                     }

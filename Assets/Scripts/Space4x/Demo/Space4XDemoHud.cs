@@ -1,6 +1,7 @@
 using System;
 using TMPro;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Time;
 using Unity.Entities;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -171,11 +172,7 @@ namespace Space4X.Demo
                 if (_entityManager.HasBuffer<TimeControlCommand>(rewindEntity))
                 {
                     var buffer = _entityManager.GetBuffer<TimeControlCommand>(rewindEntity);
-                    buffer.Add(new TimeControlCommand
-                    {
-                        Type = TimeControlCommand.CommandType.StepTicks,
-                        UintParam = 1
-                    });
+                    buffer.Add(TimeControlHelpers.MakeStepTicks(1));
                 }
             }
         }
@@ -199,11 +196,7 @@ namespace Space4X.Demo
                 if (_entityManager.HasBuffer<TimeControlCommand>(rewindEntity))
                 {
                     var buffer = _entityManager.GetBuffer<TimeControlCommand>(rewindEntity);
-                    buffer.Add(new TimeControlCommand
-                    {
-                        Type = TimeControlCommand.CommandType.SetSpeed,
-                        FloatParam = newScale
-                    });
+                    buffer.Add(TimeControlHelpers.MakeSetSpeed(newScale));
                 }
             }
         }
@@ -227,12 +220,9 @@ namespace Space4X.Demo
                 if (_entityManager.HasBuffer<TimeControlCommand>(rewindEntity))
                 {
                     var buffer = _entityManager.GetBuffer<TimeControlCommand>(rewindEntity);
-                    buffer.Add(new TimeControlCommand
-                    {
-                        Type = rewindEnabled == 1
-                            ? TimeControlCommand.CommandType.StartRewind
-                            : TimeControlCommand.CommandType.StopRewind
-                    });
+                    buffer.Add(rewindEnabled == 1
+                        ? TimeControlHelpers.MakeStartRewind()
+                        : TimeControlHelpers.MakeStopRewind());
                 }
             }
         }

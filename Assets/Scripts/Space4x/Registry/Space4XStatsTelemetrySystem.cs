@@ -11,7 +11,9 @@ namespace Space4X.Registry
     /// <summary>
     /// Publishes telemetry metrics for stat influences on gameplay systems.
     /// Tracks how stats affect various gameplay outcomes for tuning and debugging.
+    /// Disabled by default - enable only when stat telemetry debugging is needed.
     /// </summary>
+    [DisableAutoCreation]
     [BurstCompile]
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XTelemetryBootstrapSystem))]

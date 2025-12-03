@@ -134,7 +134,10 @@ namespace Space4X.Registry
 
     /// <summary>
     /// Captures deterministic snapshots of mining/haul state after each simulation tick.
+    /// Uses ring buffer pattern to cap memory usage at SnapshotHorizon capacity.
+    /// Disabled by default - enable only when rewind/debugging is needed.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(HistorySystemGroup))]
     [UpdateAfter(typeof(ResourceSystemGroup))]
     public partial struct Space4XMiningTimeSpineRecordSystem : ISystem
@@ -167,11 +170,19 @@ namespace Space4X.Registry
             var horizon = spine.ValueRO.SnapshotHorizon > 0 ? spine.ValueRO.SnapshotHorizon : Space4XMiningTimeSpine.DefaultSnapshotHorizon;
             var cutoff = ComputeCutoff(time.Tick, horizon);
 
+            // Prune old entries to enforce ring buffer capacity
             PruneSnapshotBuffer(snapshots, cutoff);
             PruneTelemetryBuffer(telemetrySnapshots, cutoff);
             PruneCommandLog(commandLog, cutoff);
             PruneSkillLog(skillLog, cutoff);
             PruneSkillSnapshots(skillSnapshots, cutoff);
+
+            // Enforce capacity limits to prevent unbounded growth
+            EnforceBufferCapacity(snapshots, (int)horizon);
+            EnforceBufferCapacity(telemetrySnapshots, (int)horizon);
+            EnforceBufferCapacity(commandLog, (int)horizon);
+            EnforceBufferCapacity(skillLog, (int)horizon);
+            EnforceBufferCapacity(skillSnapshots, (int)horizon);
 
             RemoveTickEntries(snapshots, time.Tick);
             RemoveTelemetryTick(telemetrySnapshots, time.Tick);
@@ -244,6 +255,22 @@ namespace Space4X.Registry
                 {
                     buffer.RemoveAt(i);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Enforces ring buffer capacity by removing oldest entries if buffer exceeds capacity.
+        /// </summary>
+        private static void EnforceBufferCapacity<T>(DynamicBuffer<T> buffer, int capacity) where T : unmanaged
+        {
+            if (buffer.Length <= capacity)
+                return;
+
+            // Remove oldest entries (assuming they're sorted by tick or insertion order)
+            var toRemove = buffer.Length - capacity;
+            for (var i = 0; i < toRemove; i++)
+            {
+                buffer.RemoveAt(0);
             }
         }
 

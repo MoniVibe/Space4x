@@ -19,8 +19,8 @@ namespace Space4X.Registry
     /// Authoring component for creating carriers, mining vessels, and asteroids in the mining demo scene.
     /// </summary>
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(PureDotsConfigAuthoring))]
-    [RequireComponent(typeof(SpatialPartitionAuthoring))]
+    //[RequireComponent(typeof(PureDotsConfigAuthoring))]
+    //[RequireComponent(typeof(SpatialPartitionAuthoring))]
     public sealed class Space4XMiningDemoAuthoring : MonoBehaviour
     {
         [SerializeField]

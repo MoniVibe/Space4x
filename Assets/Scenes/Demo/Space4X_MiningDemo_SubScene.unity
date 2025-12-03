@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!115 &24059501
+--- !u!115 &371890135
 MonoScript:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -134,6 +134,51 @@ MonoScript:
   m_ClassName: SpatialPartitionAuthoring
   m_Namespace: PureDOTS.Authoring
   m_AssemblyName: PureDOTS.Authoring
+--- !u!1 &388320582
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 388320583}
+  - component: {fileID: 388320584}
+  m_Layer: 0
+  m_Name: PureDotsConfigRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &388320583
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 388320582}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &388320584
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 388320582}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ab98e1166f44a43ae987ad2d0c419b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PureDotsConfigAuthoring
+  config: {fileID: 11400000, guid: 562b7474caf1e50448a1cc7f4fce0836, type: 2}
 --- !u!1 &579989112
 GameObject:
   m_ObjectHideFlags: 0
@@ -143,10 +188,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 579989116}
-  - component: {fileID: 579989115}
-  - component: {fileID: 579989114}
   - component: {fileID: 579989113}
-  - component: {fileID: 579989117}
   m_Layer: 0
   m_Name: Space4X_MiningDemo
   m_TagString: Untagged
@@ -179,34 +221,91 @@ MonoBehaviour:
       x: 0
       y: 0
       z: 0
+    IsHostile: 0
+    FleetPosture: 0
+    FleetId: 
+    CanIntercept: 0
+    InterceptSpeed: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
   miningVessels:
   - VesselId: MINER-1
     Speed: 10
     MiningEfficiency: 0.8
+    ResourceId: 
+    MiningTickInterval: 0
     CargoCapacity: 100
+    OutputSpawnThreshold: 0
     Position:
       x: 5
       y: 0
       z: 0
     CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: 
   - VesselId: MINER-2
     Speed: 10
     MiningEfficiency: 0.8
+    ResourceId: 
+    MiningTickInterval: 0
     CargoCapacity: 100
+    OutputSpawnThreshold: 0
     Position:
       x: -5
       y: 0
       z: 0
     CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: 
   - VesselId: MINER-2
     Speed: 10
     MiningEfficiency: 0.8
+    ResourceId: 
+    MiningTickInterval: 0
     CargoCapacity: 100
+    OutputSpawnThreshold: 0
     Position:
       x: -5
       y: 0
       z: 0
     CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: 
+  affiliations:
+  - AffiliationId: AFFILIATION-1
+    DisplayName: Starter Fleet
+    Loyalty: 1
   asteroids:
   - AsteroidId: ASTEROID-1
     ResourceType: 0
@@ -248,38 +347,15 @@ MonoBehaviour:
     CarrierPrimitive: 2
     CarrierScale: 3
     CarrierColor: {r: 0.35, g: 0.4, b: 0.62, a: 1}
+    CarrierDescriptorKey: space4x.vessel.carrier
     MiningVesselPrimitive: 3
     MiningVesselScale: 1.2
     MiningVesselColor: {r: 0.25, g: 0.52, b: 0.84, a: 1}
+    MiningVesselDescriptorKey: space4x.vessel.miner
     AsteroidPrimitive: 1
     AsteroidScale: 2.25
     AsteroidColor: {r: 0.52, g: 0.43, b: 0.34, a: 1}
---- !u!114 &579989114
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 579989112}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 24059501}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
-  profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
---- !u!114 &579989115
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 579989112}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2ab98e1166f44a43ae987ad2d0c419b7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PureDotsConfigAuthoring
-  config: {fileID: 11400000, guid: 562b7474caf1e50448a1cc7f4fce0836, type: 2}
+    AsteroidDescriptorKey: space4x.prop.asteroid
 --- !u!4 &579989116
 Transform:
   m_ObjectHideFlags: 0
@@ -295,24 +371,107 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &579989117
+--- !u!1 &854846836
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 854846837}
+  - component: {fileID: 854846838}
+  m_Layer: 0
+  m_Name: PhysicsStep
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &854846837
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 854846836}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &854846838
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 579989112}
+  m_GameObject: {fileID: 854846836}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 24059501}
+  m_Script: {fileID: 11500000, guid: 4d30974bf68d61043b1572197db94cdc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Physics.Hybrid::Unity.Physics.Authoring.PhysicsStepAuthoring
+  m_SimulationType: 1
+  m_Gravity:
+    x: -0
+    y: -9.81
+    z: -0
+  m_SolverIterationCount: 4
+  m_EnableSolverStabilizationHeuristic: 0
+  m_MultiThreaded: 1
+  m_CollisionTolerance: 0.01
+  m_SynchronizeCollisionWorld: 0
+  m_IncrementalDynamicBroadphase: 0
+  m_IncrementalStaticBroadphase: 0
+--- !u!1 &1447636901
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1447636902}
+  - component: {fileID: 1447636903}
+  m_Layer: 0
+  m_Name: SpatialPartitionRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1447636902
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1447636901}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1447636903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1447636901}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 371890135}
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
   profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
---- !u!1660057539 &9223372036854775807
-SceneRoots:
-  m_ObjectHideFlags: 0
-  m_Roots:
-  - {fileID: 579989116}
 --- !u!1 &2100003000
 GameObject:
   m_ObjectHideFlags: 0
@@ -388,13 +547,13 @@ MonoBehaviour:
     Type: 3
     CastingMode: 1
     BaseRadius: 18
-    BaseIntensity: 0.699999988
+    BaseIntensity: 0.7
     BaseCost: 20
     SustainedCostPerSecond: 5
     Lifecycle: 1
     ChargePercent: 0.5
     CurrentRadius: 18
-    CurrentIntensity: 0.699999988
+    CurrentIntensity: 0.7
     CooldownSecondsRemaining: 5
     LastCastTick: 0
     AlignmentDelta: 0
@@ -410,3 +569,12 @@ MonoBehaviour:
       z: 10
     TargetEntity: {fileID: 0}
     Caster: {fileID: 0}
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 579989116}
+  - {fileID: 2100003001}
+  - {fileID: 388320583}
+  - {fileID: 1447636902}
+  - {fileID: 854846837}

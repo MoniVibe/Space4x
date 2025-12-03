@@ -1,3 +1,4 @@
+using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
@@ -26,6 +27,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ResourceSourceConfig> _resourceConfigLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<ResourceDeposit> _resourceDepositLookup;
+        private ComponentLookup<ResourceNodeTag> _resourceNodeTagLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -34,6 +37,8 @@ namespace Space4X.Systems.AI
             _resourceConfigLookup = state.GetComponentLookup<ResourceSourceConfig>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+            _resourceDepositLookup = state.GetComponentLookup<ResourceDeposit>(false);
+            _resourceNodeTagLookup = state.GetComponentLookup<ResourceNodeTag>(true);
 
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
@@ -55,6 +60,8 @@ namespace Space4X.Systems.AI
             _resourceConfigLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
+            _resourceDepositLookup.Update(ref state);
+            _resourceNodeTagLookup.Update(ref state);
 
             var gatherDistance = 3f; // Vessels gather when within 3 units of asteroid
             var gatherDistanceSq = gatherDistance * gatherDistance;
@@ -72,9 +79,15 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                var targetEntity = aiState.ValueRO.TargetEntity;
+                
                 // Check if target resource still exists
-                if (!_resourceStateLookup.HasComponent(aiState.ValueRO.TargetEntity) ||
-                    !_transformLookup.HasComponent(aiState.ValueRO.TargetEntity))
+                bool hasResourceSource = _resourceStateLookup.HasComponent(targetEntity);
+                bool hasResourceDeposit = _resourceDepositLookup.HasComponent(targetEntity) && 
+                                         _resourceNodeTagLookup.HasComponent(targetEntity);
+                
+                if ((!hasResourceSource && !hasResourceDeposit) ||
+                    !_transformLookup.HasComponent(targetEntity))
                 {
                     // Target lost, return to idle
                     aiState.ValueRW.CurrentState = VesselAIState.State.Idle;
@@ -83,20 +96,56 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                var resourceState = _resourceStateLookup[aiState.ValueRO.TargetEntity];
-                var resourceTransform = _transformLookup[aiState.ValueRO.TargetEntity];
-
-                // Ensure we know the asteroid metadata for resource typing
-                if (!_asteroidLookup.HasComponent(aiState.ValueRO.TargetEntity))
+                var resourceTransform = _transformLookup[targetEntity];
+                
+                // Determine resource type and amount from either ResourceSourceState or ResourceDeposit
+                ResourceType resourceType;
+                float unitsRemaining = 0f;
+                
+                if (hasResourceDeposit)
+                {
+                    // Use ResourceDeposit (rocks)
+                    var deposit = _resourceDepositLookup[targetEntity];
+                    unitsRemaining = deposit.CurrentAmount;
+                    
+                    // Map ResourceTypeId to ResourceType enum (simplified - would need proper mapping)
+                    // For now, default to Minerals if we can't determine from Asteroid component
+                    resourceType = ResourceType.Minerals;
+                    
+                    // Try to get resource type from Asteroid if it exists (for compatibility)
+                    if (_asteroidLookup.HasComponent(targetEntity))
+                    {
+                        resourceType = _asteroidLookup[targetEntity].ResourceType;
+                    }
+                }
+                else if (hasResourceSource)
+                {
+                    // Use legacy ResourceSourceState (asteroids)
+                    var resourceState = _resourceStateLookup[targetEntity];
+                    unitsRemaining = resourceState.UnitsRemaining;
+                    
+                    if (!_asteroidLookup.HasComponent(targetEntity))
+                    {
+                        continue;
+                    }
+                    resourceType = _asteroidLookup[targetEntity].ResourceType;
+                }
+                else
                 {
                     continue;
                 }
 
-                var asteroid = _asteroidLookup[aiState.ValueRO.TargetEntity];
+                var asteroid = _asteroidLookup.HasComponent(targetEntity) 
+                    ? _asteroidLookup[targetEntity] 
+                    : default(Asteroid);
 
                 // Prevent mixing cargo types – if we're carrying something else, head back to carrier
                 var vesselValue = vessel.ValueRO;
-                if (vesselValue.CurrentCargo > 0.01f && vesselValue.CargoResourceType != asteroid.ResourceType)
+                ResourceType targetResourceType = _asteroidLookup.HasComponent(targetEntity) 
+                    ? asteroid.ResourceType 
+                    : resourceType;
+                    
+                if (vesselValue.CurrentCargo > 0.01f && vesselValue.CargoResourceType != targetResourceType)
                 {
                     aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Returning;
                     aiState.ValueRW.CurrentState = VesselAIState.State.Returning;
@@ -105,7 +154,7 @@ namespace Space4X.Systems.AI
 
                 if (vesselValue.CurrentCargo <= 0.01f)
                 {
-                    vesselValue.CargoResourceType = asteroid.ResourceType;
+                    vesselValue.CargoResourceType = targetResourceType;
                 }
 
                 // Check distance to resource
@@ -129,7 +178,7 @@ namespace Space4X.Systems.AI
                 }
 
                 // Check if resource is depleted
-                if (resourceState.UnitsRemaining <= 0f)
+                if (unitsRemaining <= 0f)
                 {
                     // Resource depleted, return to idle to find new target
                     aiState.ValueRW.CurrentState = VesselAIState.State.Idle;
@@ -138,17 +187,19 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                // Get gather rate from config
-                var config = _resourceConfigLookup.HasComponent(aiState.ValueRO.TargetEntity)
-                    ? _resourceConfigLookup[aiState.ValueRO.TargetEntity]
-                    : new ResourceSourceConfig { GatherRatePerWorker = 8f };
+                // Get gather rate from config (or use default)
+                float gatherRate = 8f; // Default gather rate
+                if (_resourceConfigLookup.HasComponent(targetEntity))
+                {
+                    var config = _resourceConfigLookup[targetEntity];
+                    gatherRate = math.max(0.1f, config.GatherRatePerWorker);
+                }
 
-                var gatherRate = math.max(0.1f, config.GatherRatePerWorker);
                 var gatherAmount = gatherRate * deltaTime;
 
                 // Don't gather more than available or capacity remaining
                 var capacityRemaining = vesselValue.CargoCapacity - vesselValue.CurrentCargo;
-                gatherAmount = math.min(gatherAmount, resourceState.UnitsRemaining);
+                gatherAmount = math.min(gatherAmount, unitsRemaining);
                 gatherAmount = math.min(gatherAmount, capacityRemaining);
 
                 if (gatherAmount <= 0f)
@@ -156,9 +207,31 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                // Update resource state
-                resourceState.UnitsRemaining -= gatherAmount;
-                _resourceStateLookup[aiState.ValueRO.TargetEntity] = resourceState;
+                // Update resource state (either ResourceSourceState or ResourceDeposit)
+                if (hasResourceDeposit)
+                {
+                    var deposit = _resourceDepositLookup[targetEntity];
+                    deposit.CurrentAmount -= gatherAmount;
+                    
+                    // Handle depletion
+                    if (deposit.CurrentAmount <= 0f)
+                    {
+                        deposit.CurrentAmount = 0f;
+                        // Optionally add DepletedTag
+                        if (!state.EntityManager.HasComponent<DepletedTag>(targetEntity))
+                        {
+                            state.EntityManager.AddComponent<DepletedTag>(targetEntity);
+                        }
+                    }
+                    
+                    _resourceDepositLookup[targetEntity] = deposit;
+                }
+                else if (hasResourceSource)
+                {
+                    var resourceState = _resourceStateLookup[targetEntity];
+                    resourceState.UnitsRemaining -= gatherAmount;
+                    _resourceStateLookup[targetEntity] = resourceState;
+                }
 
                 // Update vessel cargo
                 vesselValue.CurrentCargo += gatherAmount;
@@ -170,9 +243,9 @@ namespace Space4X.Systems.AI
                     {
                         Tick = timeState.Tick,
                         CommandType = MiningCommandType.Gather,
-                        SourceEntity = aiState.ValueRO.TargetEntity,
+                        SourceEntity = targetEntity,
                         TargetEntity = entity,
-                        ResourceType = asteroid.ResourceType,
+                        ResourceType = targetResourceType,
                         Amount = gatherAmount,
                         Position = resourceTransform.Position
                     });

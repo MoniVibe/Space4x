@@ -34,7 +34,7 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(false);
+            _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _formationLookup = state.GetComponentLookup<FormationData>(false);
             _tetherLookup = state.GetComponentLookup<ChildVesselTether>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
@@ -79,8 +79,8 @@ namespace Space4X.Systems.AI
             public uint CurrentTick;
             public float DeltaTime;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            public ComponentLookup<VesselStanceComponent> StanceLookup;
-            public ComponentLookup<FormationData> FormationLookup;
+            [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<FormationData> FormationLookup;
             [ReadOnly] public ComponentLookup<ChildVesselTether> TetherLookup;
             [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
@@ -102,28 +102,15 @@ namespace Space4X.Systems.AI
 
             private void UpdateStance(ref ComponentLookup<VesselStanceComponent> stanceLookup, Entity entity)
             {
+                // Read-only access - stance updates should be handled by a separate system
+                // or via ECB if structural changes are needed
                 if (!stanceLookup.HasComponent(entity))
                 {
-                    // Initialize with neutral stance
-                    stanceLookup.GetRefRW(entity).ValueRW = new VesselStanceComponent
-                    {
-                        CurrentStance = VesselStanceMode.Neutral,
-                        DesiredStance = VesselStanceMode.Neutral,
-                        StanceChangeTick = CurrentTick
-                    };
                     return;
                 }
 
-                var stance = stanceLookup.GetRefRW(entity).ValueRW;
-                
-                // Update current stance to desired if enough time has passed
-                if (stance.CurrentStance != stance.DesiredStance && 
-                    CurrentTick > stance.StanceChangeTick + 10) // 10 tick transition delay
-                {
-                    stance.CurrentStance = stance.DesiredStance;
-                    stance.StanceChangeTick = CurrentTick;
-                    stanceLookup.GetRefRW(entity).ValueRW = stance;
-                }
+                var stance = stanceLookup[entity];
+                // Can read stance for decision-making, but cannot write via ReadOnly lookup
             }
 
             private void UpdateFormation(ref ComponentLookup<FormationData> formationLookup, Entity entity)

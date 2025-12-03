@@ -30,11 +30,7 @@ namespace Space4X.Demo
                 em.SetComponentData(e, new DemoOptions { ScenarioPath = FS("Scenarios/space4x/combat_duel_weapons.json"), BindingsSet = 0 });
 #endif
             }
-            if (!SystemAPI.TryGetSingleton<TimeState>(out _))
-            {
-                var t = em.CreateEntity(typeof(TimeState));
-                em.SetComponentData(t, new TimeState { IsPaused = false, FixedDeltaTime = 1f / 60f });
-            }
+            // TimeState is handled by CoreSingletonBootstrapSystem.
             if (!SystemAPI.TryGetSingleton<RewindState>(out _))
             {
                 var r = em.CreateEntity(typeof(RewindState));

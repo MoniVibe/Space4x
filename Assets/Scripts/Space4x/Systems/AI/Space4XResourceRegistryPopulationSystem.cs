@@ -41,24 +41,15 @@ namespace Space4X.Systems.AI
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            // Ensure a registry entity exists and is correctly configured
-            Entity registryEntity;
             if (_registryQuery.IsEmptyIgnoreFilter)
             {
-                registryEntity = state.EntityManager.CreateEntity();
-                state.EntityManager.AddComponent<ResourceRegistry>(registryEntity);
-            }
-            else
-            {
-                registryEntity = _registryQuery.GetSingletonEntity();
+                return;
             }
 
-            if (!state.EntityManager.HasBuffer<ResourceRegistryEntry>(registryEntity))
-            {
-                state.EntityManager.AddBuffer<ResourceRegistryEntry>(registryEntity);
-            }
-
+            var registryEntity = _registryQuery.GetSingletonEntity();
             var registryBuffer = state.EntityManager.GetBuffer<ResourceRegistryEntry>(registryEntity);
+            var beginInitEcbSingleton = SystemAPI.GetSingleton<BeginInitializationEntityCommandBufferSystem.Singleton>();
+            var ecb = beginInitEcbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
 
             // Process unregistered asteroids
             if (_unregisteredAsteroidQuery.IsEmptyIgnoreFilter)
@@ -103,7 +94,7 @@ namespace Space4X.Systems.AI
                 registryBuffer.Add(entry);
 
                 // Mark as registered
-                state.EntityManager.AddComponent<ResourceRegistryRegisteredTag>(entity);
+                ecb.AddComponent<ResourceRegistryRegisteredTag>(entity);
             }
 
             asteroids.Dispose();

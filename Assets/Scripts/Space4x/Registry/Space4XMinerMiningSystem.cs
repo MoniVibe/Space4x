@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Space4X.Registry
 {
@@ -98,9 +99,21 @@ namespace Space4X.Registry
             var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
             var currentTick = timeState.Tick;
 
+            // Debug instrumentation: count miners
+            int minerCount = 0;
             foreach (var (order, miningState, vessel, yield, transform, entity) in SystemAPI.Query<RefRW<MiningOrder>, RefRW<MiningState>, RefRW<MiningVessel>, RefRW<MiningYield>, RefRO<LocalTransform>>()
                          .WithEntityAccess())
             {
+                minerCount++;
+#if UNITY_EDITOR
+                // Log miner state details (only occasionally to avoid spam - every ~5 seconds)
+                var elapsedTime = SystemAPI.Time.ElapsedTime;
+                if ((elapsedTime % 5f) < SystemAPI.Time.DeltaTime)
+                {
+                    Debug.Log($"[Space4XMinerMiningSystem] Miner @ {transform.ValueRO.Position}, OrderStatus={order.ValueRO.Status}, Phase={miningState.ValueRO.Phase}");
+                }
+#endif
+
                 if (!EnsureOrderResource(ref order.ValueRW, yield.ValueRO.ResourceId))
                 {
                     continue;
@@ -118,6 +131,22 @@ namespace Space4X.Registry
                 }
 
                 var target = miningState.ValueRO.ActiveTarget;
+                
+                // Check if cargo is full or asteroid is empty - should return to carrier
+                var vesselData = vessel.ValueRO;
+                var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * 0.95f;
+                var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) && 
+                                      _resourceStateLookup[target].UnitsRemaining <= 0f;
+                
+                if (isCargoFull || isAsteroidEmpty)
+                {
+                    // Signal that miner should return to carrier
+                    // VesselAISystem will handle the actual state transition to Returning
+                    miningState.ValueRW.Phase = MiningPhase.Seeking; // Reset to seeking so AI can assign return target
+                    order.ValueRW.Status = MiningOrderStatus.Completed;
+                    continue;
+                }
+                
                 if (!IsTargetInRange(target, transform.ValueRO.Position))
                 {
                     miningState.ValueRW.Phase = MiningPhase.MovingToTarget;
@@ -135,6 +164,7 @@ namespace Space4X.Registry
                     var mined = ApplyMiningTick(entity, target, tickInterval, ref vessel.ValueRW, order.ValueRO.ResourceId);
                     if (mined <= 0f)
                     {
+                        // Asteroid depleted or cargo full - break and let state transition handle it
                         break;
                     }
 
@@ -143,8 +173,27 @@ namespace Space4X.Registry
                     EmitEffect(effectBuffer, entity, tickInterval);
                     order.ValueRW.Status = MiningOrderStatus.Active;
                     safetyCounter++;
+                    
+                    // Check again after mining tick if we should return
+                    if (vessel.ValueRO.CurrentCargo >= vessel.ValueRO.CargoCapacity * 0.95f)
+                    {
+                        miningState.ValueRW.Phase = MiningPhase.Seeking;
+                        order.ValueRW.Status = MiningOrderStatus.Completed;
+                        break;
+                    }
                 }
             }
+
+#if UNITY_EDITOR
+            if (minerCount > 0)
+            {
+                var elapsedTime = SystemAPI.Time.ElapsedTime;
+                if ((elapsedTime % 5f) < SystemAPI.Time.DeltaTime)
+                {
+                    Debug.Log($"[Space4XMinerMiningSystem] Updating {minerCount} miners.");
+                }
+            }
+#endif
         }
 
         private static bool EnsureOrderResource(ref MiningOrder order, FixedString64Bytes fallbackResourceId)

@@ -330,10 +330,12 @@ namespace Space4X.Registry
                 
                 // Also log occasionally to confirm rendering is happening (use static class for cross-call tracking)
                 DrawMeshLogger.drawCount++;
+#if UNITY_EDITOR && SPACE4X_DEBUG_MINING
                 if (DrawMeshLogger.drawCount % 100 == 0)
                 {
                     Debug.Log($"[Space4XMiningDebugRenderSystem] DrawMesh called {DrawMeshLogger.drawCount} times. Mesh={mesh.name}, Material={material.shader.name}, Camera={camera.name}");
                 }
+#endif
             }
             else
             {

@@ -5,6 +5,8 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+//#define SPACE4X_CAMERA_DEBUG
+
 namespace Space4X.Registry
 {
     /// <summary>
@@ -54,7 +56,9 @@ namespace Space4X.Registry
                 }
             }
 
+#if SPACE4X_CAMERA_DEBUG
             Debug.Log("[Space4XCameraInputSystem] System is running and looking for input...");
+#endif
         }
 
         private void OnDestroy()
@@ -93,11 +97,13 @@ namespace Space4X.Registry
                 return;
             }
             
+#if SPACE4X_CAMERA_DEBUG
             // Log once that system is running
             if (UnityEngine.Time.frameCount == 1)
             {
                 Debug.Log("[Space4XCameraInputSystem] System is running and looking for input...");
             }
+#endif
 
             if (!_initialized)
             {
@@ -166,6 +172,7 @@ namespace Space4X.Registry
 
             var controlState = ReadInputActions(inputConfig, panAction, zoomAction, verticalMoveAction, rotateAction, resetAction, toggleVerticalModeAction);
             
+#if SPACE4X_CAMERA_DEBUG
             var shouldLogFrame = _inputLogFramesRemaining > 0;
             if (shouldLogFrame)
             {
@@ -176,6 +183,7 @@ namespace Space4X.Registry
             {
                 Debug.Log($"[Space4XCameraInputSystem] Input - Pan: {controlState.PanInput}, Zoom: {controlState.ZoomInput}, Vertical: {controlState.VerticalMoveInput}, Rotate: {controlState.RotateInput}, RotationEnabled: {controlState.EnableRotation}");
             }
+#endif
             
             // Check for singleton using cached query
             if (_controlStateQuery.IsEmptyIgnoreFilter)

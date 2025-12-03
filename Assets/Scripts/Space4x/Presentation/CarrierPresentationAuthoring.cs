@@ -1,7 +1,10 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
+using Unity.Transforms;
 using UnityEngine;
+using Shared.Demo;
 
 namespace Space4X.Presentation
 {
@@ -60,11 +63,17 @@ namespace Space4X.Presentation
                 StateTimer = 0f
             });
 
-            // Add LOD component (will be updated by LOD system)
-            AddComponent(entity, new PresentationLOD
+            // Add PureDOTS-compatible LOD components
+            AddComponent(entity, new RenderLODData
             {
-                Level = PresentationLODLevel.FullDetail,
-                DistanceToCamera = 0f
+                RecommendedLOD = 0, // Full detail
+                DistanceToCamera = 0f,
+                Importance = 0.8f
+            });
+            AddComponent(entity, new RenderCullable
+            {
+                CullDistance = 2000f,
+                Priority = 100
             });
 
             // Add material property override
@@ -80,14 +89,19 @@ namespace Space4X.Presentation
                 PulsePhase = 0f
             });
 
-            // Add render sample index for density sampling
+            // Add render sample index for density sampling (PureDOTS-compatible)
             AddComponent(entity, new RenderSampleIndex
             {
-                Index = (uint)entity.Index
+                Index = (uint)entity.Index,
+                ShouldRender = 1 // Render by default
             });
 
             // Add should render tag (all entities render by default)
             AddComponent(entity, new ShouldRenderTag());
+
+            // Note: Render components (MaterialMeshInfo and RenderMeshArray) are added at runtime
+            // by Space4XPresentationLifecycleSystem using the shared RenderMeshArray from DemoRenderReady.
+            // This ensures all entities use the same render mesh array for efficient batching.
         }
     }
 }

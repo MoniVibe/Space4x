@@ -3,8 +3,11 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
+//#define SPACE4X_DEBUG_CUBES
+
 namespace Space4X.Demo
 {
+#if SPACE4X_DEBUG_CUBES
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XDebugCubeOrbitSystem : ISystem
     {
@@ -44,12 +47,8 @@ namespace Space4X.Demo
                     quaternion.AxisAngle(math.up(), angularSpeed * dt));
 
                 transform.ValueRW = lt;
-
-                if (_debugFrames-- > 0)
-                {
-                    UnityEngine.Debug.Log($"[Space4XDebugCubeOrbitSystem] pos={lt.Position}");
-                }
             }
         }
     }
+#endif
 }

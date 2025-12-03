@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3971621073238495346
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4485863287974957153}
+  - component: {fileID: 7614814552455940538}
+  - component: {fileID: 3747807642440783944}
+  m_Layer: 0
+  m_Name: Craft
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4485863287974957153
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3971621073238495346}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7614814552455940538
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3971621073238495346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73044103784050f4c89ccfef3f9143b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Authoring.Space4XMiningVesselAuthoring
+  vesselId: Vessel_01
+  carrierId: 
+  miningEfficiency: 0.5
+  speed: 5
+  cargoCapacity: 50
+--- !u!114 &3747807642440783944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3971621073238495346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64ed0194275082d47a01afcda7a428a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.CraftPresentationAuthoring
+  CraftTypeId: mining_craft_basic
+  ParentCarrierObject: {fileID: 0}
+  FactionColorValue: {r: 0, g: 0, b: 1, a: 1}
+  CraftMesh: {fileID: 0}
+  CraftMaterial: {fileID: 0}
+  InitialState: 0

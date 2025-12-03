@@ -21,7 +21,11 @@
         "UnityEditor",
         "UnityEngine",
         "Unity.RenderPipelines.Universal.Runtime",
-        "Unity.RenderPipelines.Core.Runtime"
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.Burst",
+        "Unity.Burst.Editor",
+        "Unity.Physics",
+        "Unity.Physics.Hybrid"
     ],
     "includePlatforms": [
         "Editor"

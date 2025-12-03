@@ -12,7 +12,7 @@ namespace Space4X.Presentation
     /// Runs early in PresentationSystemGroup before other presentation systems.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup), OrderFirst = true)]
     public partial struct Space4XPresentationLODSystem : ISystem
     {
         [BurstCompile]
@@ -37,7 +37,7 @@ namespace Space4X.Presentation
 
             var cameraPosition = cameraState.Position;
 
-            // Update LOD for all entities with PresentationLOD component
+            // Update LOD for all entities with RenderLODData component (PureDOTS-compatible)
             new UpdateLODJob
             {
                 CameraPosition = cameraPosition,
@@ -55,28 +55,28 @@ namespace Space4X.Presentation
             public float ReducedDetailMaxDistance;
             public float ImpostorMaxDistance;
 
-            public void Execute(ref PresentationLOD lod, in LocalTransform transform)
+            public void Execute(ref RenderLODData lodData, in LocalTransform transform)
             {
                 // Calculate distance to camera
                 float distance = math.distance(transform.Position, CameraPosition);
-                lod.DistanceToCamera = distance;
+                lodData.DistanceToCamera = distance;
 
-                // Assign LOD level based on distance
+                // Assign RecommendedLOD based on distance (per PureDOTS guide: 0-3 = render, >= 4 = cull)
                 if (distance <= FullDetailMaxDistance)
                 {
-                    lod.Level = PresentationLODLevel.FullDetail;
+                    lodData.RecommendedLOD = 0; // Full detail
                 }
                 else if (distance <= ReducedDetailMaxDistance)
                 {
-                    lod.Level = PresentationLODLevel.ReducedDetail;
+                    lodData.RecommendedLOD = 1; // Reduced detail
                 }
                 else if (distance <= ImpostorMaxDistance)
                 {
-                    lod.Level = PresentationLODLevel.Impostor;
+                    lodData.RecommendedLOD = 2; // Impostor
                 }
                 else
                 {
-                    lod.Level = PresentationLODLevel.Hidden;
+                    lodData.RecommendedLOD = 4; // Hidden (culled)
                 }
             }
         }
@@ -86,7 +86,7 @@ namespace Space4X.Presentation
     /// System that manages render density by enabling/disabling ShouldRenderTag based on density settings.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLODSystem))]
     public partial struct Space4XRenderDensitySystem : ISystem
     {
@@ -118,15 +118,19 @@ namespace Space4X.Presentation
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            // For crafts, apply density sampling
-            foreach (var (sampleIndex, lod, entity) in SystemAPI
-                         .Query<RefRO<RenderSampleIndex>, RefRO<PresentationLOD>>()
+            // For crafts, apply density sampling and update RenderSampleIndex.ShouldRender
+            foreach (var (sampleIndex, lodData, entity) in SystemAPI
+                         .Query<RefRW<RenderSampleIndex>, RefRO<RenderLODData>>()
                          .WithAll<CraftPresentationTag>()
                          .WithEntityAccess())
             {
                 bool shouldRender = ShouldRenderEntity(sampleIndex.ValueRO.Index, densityConfig.Density);
+                
+                // Update RenderSampleIndex.ShouldRender (per PureDOTS guide)
+                sampleIndex.ValueRW.ShouldRender = shouldRender ? (byte)1 : (byte)0;
+                
+                // Also update ShouldRenderTag for compatibility
                 bool hasRenderTag = state.EntityManager.HasComponent<ShouldRenderTag>(entity);
-
                 if (shouldRender && !hasRenderTag)
                 {
                     ecb.AddComponent<ShouldRenderTag>(entity);

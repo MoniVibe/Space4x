@@ -32,6 +32,36 @@ namespace Space4X.Registry
                 return;
             }
 
+            var em = state.EntityManager;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+
+            // Phase A: Ensure buffers exist via ECB (no structural changes during iteration)
+            foreach (var (_, entity) in SystemAPI.Query<RefRO<AlignmentTriplet>>().WithEntityAccess())
+            {
+                // Ensure TopOutlook buffer exists
+                if (!em.HasBuffer<TopOutlook>(entity))
+                {
+                    ecb.AddBuffer<TopOutlook>(entity);
+                }
+
+                // Ensure RacePresence buffer exists if entity has RaceId
+                if (SystemAPI.HasComponent<RaceId>(entity) && !em.HasBuffer<RacePresence>(entity))
+                {
+                    ecb.AddBuffer<RacePresence>(entity);
+                }
+
+                // Ensure CulturePresence buffer exists if entity has CultureId
+                if (SystemAPI.HasComponent<CultureId>(entity) && !em.HasBuffer<CulturePresence>(entity))
+                {
+                    ecb.AddBuffer<CulturePresence>(entity);
+                }
+            }
+
+            // Playback ECB to apply structural changes
+            ecb.Playback(em);
+            ecb.Dispose();
+
+            // Phase B: Pure aggregation, NO structural changes here
             foreach (var (_, entity) in SystemAPI.Query<RefRO<AlignmentTriplet>>().WithEntityAccess())
             {
                 AggregateOutlooks(ref state, entity);
@@ -42,19 +72,23 @@ namespace Space4X.Registry
 
         private void AggregateOutlooks(ref SystemState state, Entity entity)
         {
+            // Buffer should already exist from Phase A
+            if (!SystemAPI.HasBuffer<TopOutlook>(entity))
+            {
+                return; // Should not happen after Phase A, but guard anyway
+            }
+
+            var topBuffer = SystemAPI.GetBuffer<TopOutlook>(entity);
+
+            // Buffer should already exist from Phase A
             if (!SystemAPI.HasBuffer<OutlookEntry>(entity))
             {
-                var existing = SystemAPI.HasBuffer<TopOutlook>(entity)
-                    ? SystemAPI.GetBuffer<TopOutlook>(entity)
-                    : state.EntityManager.AddBuffer<TopOutlook>(entity);
-                existing.Clear();
+                // No source data, just clear the output buffer
+                topBuffer.Clear();
                 return;
             }
 
             var entries = SystemAPI.GetBuffer<OutlookEntry>(entity);
-            var topBuffer = SystemAPI.HasBuffer<TopOutlook>(entity)
-                ? SystemAPI.GetBuffer<TopOutlook>(entity)
-                : state.EntityManager.AddBuffer<TopOutlook>(entity);
 
             topBuffer.Clear();
 
@@ -70,10 +104,14 @@ namespace Space4X.Registry
                 return;
             }
 
+            // Buffer should already exist from Phase A
+            if (!SystemAPI.HasBuffer<RacePresence>(entity))
+            {
+                return; // Should not happen after Phase A, but guard anyway
+            }
+
             var race = SystemAPI.GetComponentRO<RaceId>(entity).ValueRO;
-            var buffer = SystemAPI.HasBuffer<RacePresence>(entity)
-                ? SystemAPI.GetBuffer<RacePresence>(entity)
-                : state.EntityManager.AddBuffer<RacePresence>(entity);
+            var buffer = SystemAPI.GetBuffer<RacePresence>(entity);
 
             buffer.Clear();
             buffer.Add(new RacePresence
@@ -90,10 +128,14 @@ namespace Space4X.Registry
                 return;
             }
 
+            // Buffer should already exist from Phase A
+            if (!SystemAPI.HasBuffer<CulturePresence>(entity))
+            {
+                return; // Should not happen after Phase A, but guard anyway
+            }
+
             var culture = SystemAPI.GetComponentRO<CultureId>(entity).ValueRO;
-            var buffer = SystemAPI.HasBuffer<CulturePresence>(entity)
-                ? SystemAPI.GetBuffer<CulturePresence>(entity)
-                : state.EntityManager.AddBuffer<CulturePresence>(entity);
+            var buffer = SystemAPI.GetBuffer<CulturePresence>(entity);
 
             buffer.Clear();
             buffer.Add(new CulturePresence

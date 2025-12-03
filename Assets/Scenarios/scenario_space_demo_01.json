@@ -1,0 +1,118 @@
+{
+  "seed": 12345,
+  "duration_s": 300,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-a-1",
+      "position": [ -100, 0 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-A", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-a-2",
+      "position": [ -120, 20 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-A", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-a-3",
+      "position": [ -120, -20 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-A", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-a-4",
+      "position": [ -140, 0 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-A", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-b-1",
+      "position": [ 100, 0 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-B", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-b-2",
+      "position": [ 120, 20 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-B", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-b-3",
+      "position": [ 120, -20 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-B", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-b-4",
+      "position": [ 140, 0 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-B", "posture": "Patrol", "shipCount": 4 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    },
+    { "kind": "MiningVessel", "entityId": "miner-a1-1", "carrierId": "carrier-a-1", "resourceId": "Minerals", "position": [ -100, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a1-2", "carrierId": "carrier-a-1", "resourceId": "Minerals", "position": [ -100, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a1-3", "carrierId": "carrier-a-1", "resourceId": "Minerals", "position": [ -100, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a2-1", "carrierId": "carrier-a-2", "resourceId": "Minerals", "position": [ -120, 20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a2-2", "carrierId": "carrier-a-2", "resourceId": "Minerals", "position": [ -120, 20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a2-3", "carrierId": "carrier-a-2", "resourceId": "Minerals", "position": [ -120, 20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a3-1", "carrierId": "carrier-a-3", "resourceId": "Minerals", "position": [ -120, -20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a3-2", "carrierId": "carrier-a-3", "resourceId": "Minerals", "position": [ -120, -20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a3-3", "carrierId": "carrier-a-3", "resourceId": "Minerals", "position": [ -120, -20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a4-1", "carrierId": "carrier-a-4", "resourceId": "Minerals", "position": [ -140, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a4-2", "carrierId": "carrier-a-4", "resourceId": "Minerals", "position": [ -140, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-a4-3", "carrierId": "carrier-a-4", "resourceId": "Minerals", "position": [ -140, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b1-1", "carrierId": "carrier-b-1", "resourceId": "Minerals", "position": [ 100, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b1-2", "carrierId": "carrier-b-1", "resourceId": "Minerals", "position": [ 100, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b1-3", "carrierId": "carrier-b-1", "resourceId": "Minerals", "position": [ 100, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b2-1", "carrierId": "carrier-b-2", "resourceId": "Minerals", "position": [ 120, 20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b2-2", "carrierId": "carrier-b-2", "resourceId": "Minerals", "position": [ 120, 20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b2-3", "carrierId": "carrier-b-2", "resourceId": "Minerals", "position": [ 120, 20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b3-1", "carrierId": "carrier-b-3", "resourceId": "Minerals", "position": [ 120, -20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b3-2", "carrierId": "carrier-b-3", "resourceId": "Minerals", "position": [ 120, -20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b3-3", "carrierId": "carrier-b-3", "resourceId": "Minerals", "position": [ 120, -20 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b4-1", "carrierId": "carrier-b-4", "resourceId": "Minerals", "position": [ 140, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b4-2", "carrierId": "carrier-b-4", "resourceId": "Minerals", "position": [ 140, 0 ], "startDocked": true },
+    { "kind": "MiningVessel", "entityId": "miner-b4-3", "carrierId": "carrier-b-4", "resourceId": "Minerals", "position": [ 140, 0 ], "startDocked": true },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-1", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 0, 50 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-2", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 20, 60 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-3", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ -20, 60 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-4", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 0, -50 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-5", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 20, -60 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-6", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ -20, -60 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-7", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 50, 0 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-8", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 60, 20 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-9", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ 60, -20 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-10", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ -50, 0 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-11", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ -60, 20 ] },
+    { "kind": "ResourceDeposit", "entityId": "asteroid-12", "resourceId": "Minerals", "unitsRemaining": 1000, "position": [ -60, -20 ] }
+  ],
+  "telemetryExpectations": {
+    "expectCarrierPickup": true,
+    "expectMiningYield": true
+  }
+}

@@ -4,8 +4,11 @@ using Unity.Transforms;
 using UnityEngine;
 using Shared.Demo;
 
+//#define SPACE4X_DEBUG_CUBES
+
 namespace Space4X.Demo
 {
+#if SPACE4X_DEBUG_CUBES
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(SharedDemoRenderBootstrap))]
     public partial struct Space4XDebugCubeSpawnerSystem : ISystem
@@ -66,4 +69,5 @@ namespace Space4X.Demo
             state.Enabled = false;
         }
     }
+#endif
 }

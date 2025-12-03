@@ -1,0 +1,26 @@
+{
+  "seed": 12345,
+  "duration_s": 300,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-scale-1",
+      "position": [ 0, 0 ],
+      "components": {
+        "Fleet": { "fleetId": "FLEET-SCALE", "posture": "Patrol", "shipCount": 1000 },
+        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+      }
+    }
+  ],
+  "telemetryExpectations": {
+    "expectCarrierPickup": true,
+    "expectMiningYield": true
+  },
+  "scale": {
+    "carrierCount": 1000,
+    "craftsPerCarrier": 50,
+    "asteroidCount": 5000,
+    "description": "100k entity scale test (1000 carriers, 50000 crafts, 5000 asteroids)"
+  }
+}
+

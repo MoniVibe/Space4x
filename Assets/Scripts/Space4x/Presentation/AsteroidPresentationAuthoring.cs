@@ -56,11 +56,17 @@ namespace Space4X.Presentation
                 StateTimer = 0f
             });
 
-            // Add LOD component (will be updated by LOD system)
-            AddComponent(entity, new PresentationLOD
+            // Add PureDOTS-compatible LOD components
+            AddComponent(entity, new RenderLODData
             {
-                Level = PresentationLODLevel.FullDetail,
-                DistanceToCamera = 0f
+                RecommendedLOD = 0, // Full detail
+                DistanceToCamera = 0f,
+                Importance = 0.7f
+            });
+            AddComponent(entity, new RenderCullable
+            {
+                CullDistance = 1800f,
+                Priority = 90
             });
 
             // Add material property override
@@ -72,10 +78,11 @@ namespace Space4X.Presentation
                 PulsePhase = 0f
             });
 
-            // Add render sample index for density sampling
+            // Add render sample index for density sampling (PureDOTS-compatible)
             AddComponent(entity, new RenderSampleIndex
             {
-                Index = (uint)entity.Index
+                Index = (uint)entity.Index,
+                ShouldRender = 1 // Render by default
             });
 
             // Add should render tag (all entities render by default)
