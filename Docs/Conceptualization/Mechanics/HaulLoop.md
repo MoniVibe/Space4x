@@ -2,10 +2,6 @@
 
 ## Overview
 
-**Status**: Concept  
-**Complexity**: Moderate  
-**Category**: Economy / Logistics
-
 **One-line description**: Carriers shuttle mined resources, trade goods, and construction materials between extraction sites, stations, and colonies to keep the empire supplied.
 
 ## Core Concept
@@ -62,7 +58,7 @@ Veteran players dynamically rebalance routes, anticipate combat threats, and lev
 - Numerical: Supply dashboards showing inflow/outflow rates, backlog timers, and resource deficits.
 - Audio: Alerts for stalled deliveries or route blockages.
 
-## Balance and Tuning
+## Balance Considerations
 
 ### Balance Goals
 
@@ -89,7 +85,7 @@ Veteran players dynamically rebalance routes, anticipate combat threats, and lev
 
 - TBD until logistics simulations expose dominant bottlenecks.
 
-## Integration with Other Systems
+## Integration Points
 
 | System/Mechanic | Type of Interaction | Priority |
 |-----------------|---------------------|----------|
@@ -102,29 +98,41 @@ Veteran players dynamically rebalance routes, anticipate combat threats, and lev
 - Player-created modular carriers that switch between hauling and combat roles depending on doctrine triggers.
 - Dynamic trade agreements with NPC factions once diplomacy layers exist, using haul routes as the enforcement mechanism.
 
-## Implementation Notes
+## Shareability Assessment
+
+**PureDOTS Candidate:** Partial
+
+**Rationale:** Core logistics mechanics (routes, waypoints, load/unload) could be shared, but carrier-specific implementation and Space4x trade mechanics are game-specific.
+
+**Shared Components:**
+- `RouteComponent`: Route definition and waypoints
+- `WaypointComponent`: Spatial waypoint entities
+- `CargoComponent`: Generic cargo tracking
+- `LoadUnloadCommand`: Generic transfer commands
+
+**Game-Specific Adapters:**
+- Space4x: Carrier modules, fleet interception, trade pricing
+- Godgame: Would need different transport mechanics (villager-based logistics)
+
+## Technical Implementation
 
 ### Technical Approach
 
 - Represent routes as serialized graphs so modders can predefine or alter initial logistics networks.
 - Use DOTS command buffers to queue load/unload operations, ensuring deterministic sequencing under heavy entity counts.
-- Integrate with registry telemetry to track supply metrics outlined in `Docs/TODO/Space4x_PureDOTS_Integration_TODO.md`.
+- Integrate with registry telemetry to track supply metrics.
 - **Waypoint System**: Spatial waypoints stored as persistent entities with spatial grid registration.
   - Carriers query nearby waypoints for route planning.
   - Hyper highways/gateways modify pathfinding costs and travel times.
 - **Supply/Demand Pricing**: Station pricing components track inflow/outflow; Burst jobs recalculate prices per tick.
 - **Fleet Interception**: High-tech fleets broadcast position/velocity; haulers use spatial queries + predictive pathfinding for intercepts.
 
-### Performance Considerations
+## Performance Budget
 
-- Batch route calculations per tick, reusing spatial partition for pathfinding.
-- Avoid per-entity coroutine logic; rely on state machines encoded in components for Burst efficiency.
-
-### Testing Strategy
-
-1. Unit tests for load/unload sequencing and capacity handling.
-2. Scenario tests that simulate route disruption and automatic rerouting.
-3. Stress tests with thousands of concurrent routes validating throughput at the million-entity target.
+- **Max Entities:** 1,000 active routes, 5,000 waypoints
+- **Update Frequency:** Per tick (route calculations batched)
+- **Burst Compatibility:** Yes - all route/pathfinding systems Burst-compiled
+- **Memory Budget:** ~128 bytes per route, ~32 bytes per waypoint
 
 ## Examples
 
@@ -144,15 +152,3 @@ Veteran players dynamically rebalance routes, anticipate combat threats, and lev
 
 - **EVE Online** hauling logistics and convoy gameplay.
 - **Supreme Commander** mass/fabricator transport mechanics.
-
-## Revision History
-
-| Date | Change | Reason |
-|------|--------|--------|
-| 2025-11-02 | Added waypoint systems, fleet resupply, trading mechanics, spoilage | Answered mechanics questions |
-| 2025-10-31 | Initial draft | Defined foundational haul loop |
-
----
-
-*Last Updated: November 2, 2025*  
-*Document Owner: Design Team*

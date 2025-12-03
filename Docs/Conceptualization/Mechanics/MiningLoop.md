@@ -2,11 +2,7 @@
 
 ## Overview
 
-**Status**: Concept  
-**Complexity**: Moderate  
-**Category**: Economy
-
-**One-line description**: Carriers extract raw resources from celestial deposits and feed the empire’s first production chain.
+**One-line description**: Carriers extract raw resources from celestial deposits and feed the empire's first production chain.
 
 ## Core Concept
 
@@ -68,7 +64,7 @@ Experienced players anticipate depletion curves, rotate carriers before downtime
 - Numerical: Carrier dashboards showing extraction per tick and time-to-fill for holds.
 - Audio: Drills, alarms, or hazard warnings cueing intervention needs.
 
-## Balance and Tuning
+## Balance Considerations
 
 ### Balance Goals
 
@@ -86,7 +82,7 @@ Experienced players anticipate depletion curves, rotate carriers before downtime
 
 - TBD once prototype data reveals throughput imbalances.
 
-## Integration with Other Systems
+## Integration Points
 
 | System/Mechanic | Type of Interaction | Priority |
 |-----------------|---------------------|----------|
@@ -99,7 +95,23 @@ Experienced players anticipate depletion curves, rotate carriers before downtime
 - Hazard zones that spawn pirate interest, forcing combat choices to secure premium ores.
 - Logistics bottlenecks that push players to build forward refineries on-the-fly.
 
-## Implementation Notes
+## Shareability Assessment
+
+**PureDOTS Candidate:** Partial
+
+**Rationale:** Core mining mechanics (deposits, extraction, node management) could be shared, but carrier-specific implementation details are Space4x-specific.
+
+**Shared Components:**
+- `DepositComponent`: Richness, regeneration rate, node capacity
+- `HarvestNodeBuffer`: Node attachment system
+- `ExtractionRateComponent`: Base extraction calculation
+- `HazardComponent`: Generic hazard system
+
+**Game-Specific Adapters:**
+- Space4x: Carrier-specific rig types, module integration, crew experience
+- Godgame: Would need different extraction mechanics (villager-based harvesting)
+
+## Technical Implementation
 
 ### Technical Approach
 
@@ -118,16 +130,12 @@ Experienced players anticipate depletion curves, rotate carriers before downtime
 - **Component Degradation**: Track component health separately; integrate with repair systems (field repairs vs station overhauls).
 - **Crew Experience**: Hazard resistance stored as crew skill levels; query during hazard evaluation to modify damage/morale impact.
 
-### Performance Considerations
+## Performance Budget
 
-- Batch deposit evaluations per sector to keep the one-million-entity target feasible.
-- Reuse alignment and morale data to influence hazard response without extra components.
-
-### Testing Strategy
-
-1. Unit tests for extraction rate decay and depletion handling.
-2. Simulation tests verifying multi-carrier diminishing returns.
-3. Stress tests measuring performance when thousands of carriers mine simultaneously.
+- **Max Entities:** 10,000 deposits, 1,000 active mining carriers
+- **Update Frequency:** Per tick (5s default)
+- **Burst Compatibility:** Yes - all systems Burst-compiled
+- **Memory Budget:** ~64 bytes per deposit, ~128 bytes per carrier mining state
 
 ## Examples
 
@@ -147,15 +155,3 @@ Experienced players anticipate depletion curves, rotate carriers before downtime
 
 - **Sins of a Solar Empire**: Long-haul mining that demands defence.  
 - **Factorio**: Resource depletion driving expansion.
-
-## Revision History
-
-| Date | Change | Reason |
-|------|--------|--------|
-| 2025-11-02 | Expanded hazards, rig types, component degradation, crew experience | Answered mechanics questions |
-| 2025-10-31 | Initial draft | Captured foundational mining loop vision |
-
----
-
-*Last Updated: November 2, 2025*  
-*Document Owner: Design Team*

@@ -2,10 +2,6 @@
 
 ## Overview
 
-**Status**: [Concept / In Design / Implemented / Needs Revision]  
-**Complexity**: [Simple / Moderate / Complex]  
-**Category**: [Economy / Combat / Exploration / Diplomacy / etc.]
-
 **One-line description**: *[Brief description of what this mechanic does]*
 
 ## Core Concept
@@ -52,7 +48,7 @@
 - Numerical feedback:
 - Audio feedback:
 
-## Balance and Tuning
+## Balance Considerations
 
 ### Balance Goals
 *[What is this mechanic supposed to achieve from a balance perspective?]*
@@ -69,7 +65,7 @@
 - 
 - 
 
-## Integration with Other Systems
+## Integration Points
 
 ### Interacts With
 *[What other mechanics or systems does this connect to?]*
@@ -84,20 +80,43 @@
 - 
 - 
 
-## Implementation Notes
+## Shareability Assessment
+
+**PureDOTS Candidate:** [Yes/No/Partial]
+
+**Rationale:** [Why this can/cannot be shared between games]
+
+**Shared Components:** [List components that could be PureDOTS]
+- Component A: [description]
+- Component B: [description]
+
+**Game-Specific Adapters:** [What games would need to implement]
+- Space4x: [specific adapters needed]
+- Godgame: [specific adapters needed]
+
+## Technical Implementation
 
 ### Technical Approach
 *[High-level technical strategy for implementing this mechanic]*
 
-### Performance Considerations
-*[Any performance implications, especially at scale]*
+```csharp
+// Example component structure
+public struct MyComponent : IComponentData
+{
+    // Fields
+}
+```
 
-### Testing Strategy
-*[How to verify this mechanic works correctly]*
+### System Design
+- [System name]: [What it does]
+- [Integration points]: [How it connects]
 
-1. Unit tests for:
-2. Playtests should verify:
-3. Balance tests should measure:
+## Performance Budget
+
+- **Max Entities:** [count]
+- **Update Frequency:** [per frame/tick]
+- **Burst Compatibility:** [Yes/No - constraints]
+- **Memory Budget:** [per entity/component]
 
 ## Examples
 
@@ -121,26 +140,3 @@
 
 - **[Game/Source]**: *How they do it and what we can learn*
 - 
-
-## Revision History
-
-| Date | Change | Reason |
-|------|--------|--------|
-| [Date] | Initial draft | - |
-
----
-
-*Last Updated: [Date]*
-*Document Owner: [Name or role]*
-
-
-
-
-
-
-
-
-
-
-
-

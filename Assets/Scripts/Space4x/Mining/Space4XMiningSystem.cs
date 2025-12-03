@@ -8,6 +8,7 @@ using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using MiningStateEnum = PureDOTS.Runtime.Mining.MiningState;
@@ -24,7 +25,6 @@ namespace Space4X.Mining
     [UpdateBefore(typeof(TransformSystemGroup))]
     public partial struct Space4XMiningSystem : ISystem
     {
-        private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<MineableSource> _mineableSourceLookup;
@@ -52,7 +52,6 @@ namespace Space4X.Mining
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
 
-            _transformLookup = state.GetComponentLookup<LocalTransform>(false);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(false);
             _mineableSourceLookup = state.GetComponentLookup<MineableSource>(false);
@@ -88,7 +87,6 @@ namespace Space4X.Mining
                 return;
             }
 
-            _transformLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
             _mineableSourceLookup.Update(ref state);
@@ -108,7 +106,7 @@ namespace Space4X.Mining
             var currentTick = timeState.Tick;
 
             // Collect available asteroids for discovery
-            var asteroidList = new NativeList<(Entity entity, float3 position, Asteroid asteroid)>(Allocator.Temp);
+            var asteroidList = new NativeList<(Entity entity, float3 position, Asteroid asteroid)>(Allocator.TempJob);
             foreach (var (asteroid, transform, entity) in SystemAPI.Query<RefRO<Asteroid>, RefRO<LocalTransform>>().WithEntityAccess())
             {
                 if (asteroid.ValueRO.ResourceAmount > 0f)
@@ -118,7 +116,7 @@ namespace Space4X.Mining
             }
 
             // Collect available carriers for discovery
-            var carrierList = new NativeList<(Entity entity, float3 position)>(Allocator.Temp);
+            var carrierList = new NativeList<(Entity entity, float3 position)>(Allocator.TempJob);
             foreach (var (carrier, transform, entity) in SystemAPI.Query<RefRO<Carrier>, RefRO<LocalTransform>>().WithEntityAccess())
             {
                 carrierList.Add((entity, transform.ValueRO.Position));
@@ -137,7 +135,6 @@ namespace Space4X.Mining
 
             var job = new ProcessMiningJob
             {
-                TransformLookup = _transformLookup,
                 CarrierLookup = _carrierLookup,
                 AsteroidLookup = _asteroidLookup,
                 MineableSourceLookup = _mineableSourceLookup,
@@ -164,13 +161,13 @@ namespace Space4X.Mining
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
+            state.Dependency = asteroidList.Dispose(state.Dependency);
+            state.Dependency = carrierList.Dispose(state.Dependency);
 
 #if UNITY_EDITOR
+            state.Dependency.Complete();
             UpdateDiagnostics(ref state, currentTick, deltaTime);
 #endif
-
-            asteroidList.Dispose();
-            carrierList.Dispose();
         }
 
 #if UNITY_EDITOR
@@ -213,8 +210,6 @@ namespace Space4X.Mining
         [BurstCompile]
         public partial struct ProcessMiningJob : IJobEntity
         {
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<LocalTransform> TransformLookup;
             [ReadOnly] public ComponentLookup<Carrier> CarrierLookup;
             [NativeDisableParallelForRestriction]
             public ComponentLookup<Asteroid> AsteroidLookup;
@@ -266,7 +261,7 @@ namespace Space4X.Mining
                 }
 
                 var hasSession = MiningSessionLookup.HasComponent(entity);
-                var session = hasSession ? MiningSessionLookup[entity] : default(MiningSession);
+                var session = hasSession ? MiningSessionLookup[entity] : default;
                 var hasState = MiningStateLookup.HasComponent(entity);
                 var miningState = hasState ? MiningStateLookup[entity] : new MiningStateComponent { State = MiningStateEnum.Idle };
 
@@ -278,7 +273,7 @@ namespace Space4X.Mining
                     // Check if source is still valid
                     if (session.Source == Entity.Null ||
                         !AsteroidLookup.HasComponent(session.Source) ||
-                        !TransformLookup.HasComponent(session.Source))
+                        GetPositionFromAsteroidList(session.Source).Equals(float3.zero))
                     {
                         // Invalid source - clear session and reset
                         Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
@@ -328,7 +323,7 @@ namespace Space4X.Mining
                     if (hasSession && session.Carrier != Entity.Null)
                     {
                         if (!CarrierLookup.HasComponent(session.Carrier) ||
-                            !TransformLookup.HasComponent(session.Carrier))
+                            GetPositionFromCarrierList(session.Carrier).Equals(float3.zero))
                         {
                             // Invalid carrier - try to find a new one or clear session
                             var newCarrier = FindNearestCarrier(position);
@@ -383,7 +378,7 @@ namespace Space4X.Mining
                 if (!hasSession || session.Source == Entity.Null)
                 {
                     // Idle: Find a source
-                                miningState.State = MiningStateEnum.Idle;
+                    miningState.State = MiningStateEnum.Idle;
                     var nearestAsteroid = FindNearestAsteroid(position);
                     if (nearestAsteroid != Entity.Null)
                     {
@@ -399,19 +394,29 @@ namespace Space4X.Mining
                             StartTick = CurrentTick
                         };
 
-                        MiningSessionLookup[entity] = newSession;
+                        if (hasSession)
+                        {
+                            MiningSessionLookup[entity] = newSession;
+                        }
+                        else
+                        {
+                            Ecb.AddComponent(entityInQueryIndex, entity, newSession);
+                            hasSession = true;
+                        }
+
                         session = newSession;
 
                         // Update MineableSource component if missing
                         if (!MineableSourceLookup.HasComponent(nearestAsteroid) && AsteroidLookup.HasComponent(nearestAsteroid))
                         {
                             var asteroid = AsteroidLookup[nearestAsteroid];
-                            MineableSourceLookup[entity] = new MineableSource
+                            var newSource = new MineableSource
                             {
                                 CurrentAmount = asteroid.ResourceAmount,
                                 MaxAmount = asteroid.MaxResourceAmount,
                                 ExtractionRate = asteroid.MiningRate
                             };
+                            Ecb.AddComponent(entityInQueryIndex, nearestAsteroid, newSource);
                         }
 
                         miningState.State = MiningStateEnum.GoingToSource;
@@ -425,7 +430,19 @@ namespace Space4X.Mining
                 else
                 {
                     // We have a valid session
-                    var sourcePos = TransformLookup[session.Source].Position;
+                    var sourcePos = GetPositionFromAsteroidList(session.Source);
+                    if (sourcePos.Equals(float3.zero) && session.Source != Entity.Null)
+                    {
+                        // Source not found in list - invalid session
+                        Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
+                        miningState.State = MiningStateEnum.Idle;
+                        miningState.LastStateChangeTick = CurrentTick;
+                        if (hasState)
+                        {
+                            MiningStateLookup[entity] = miningState;
+                        }
+                        return;
+                    }
                     var distanceToSource = math.distance(position, sourcePos);
 
                     if (miningState.State == MiningStateEnum.GoingToSource || miningState.State == MiningStateEnum.Idle)
@@ -567,7 +584,19 @@ namespace Space4X.Mining
                             }
                         }
 
-                        var carrierPos = TransformLookup[session.Carrier].Position;
+                        var carrierPos = GetPositionFromCarrierList(session.Carrier);
+                        if (carrierPos.Equals(float3.zero) && session.Carrier != Entity.Null)
+                        {
+                            // Carrier not found - reset
+                            Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
+                            miningState.State = MiningStateEnum.Idle;
+                            miningState.LastStateChangeTick = CurrentTick;
+                            if (hasState)
+                            {
+                                MiningStateLookup[entity] = miningState;
+                            }
+                            return;
+                        }
                         var distanceToCarrier = math.distance(position, carrierPos);
 
                         if (distanceToCarrier <= DeliveryRange)
@@ -607,7 +636,19 @@ namespace Space4X.Mining
                             return;
                         }
 
-                        var carrierPos = TransformLookup[session.Carrier].Position;
+                        var carrierPos = GetPositionFromCarrierList(session.Carrier);
+                        if (carrierPos.Equals(float3.zero) && session.Carrier != Entity.Null)
+                        {
+                            // Carrier not found - reset
+                            Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
+                            miningState.State = MiningStateEnum.Idle;
+                            miningState.LastStateChangeTick = CurrentTick;
+                            if (hasState)
+                            {
+                                MiningStateLookup[entity] = miningState;
+                            }
+                            return;
+                        }
                         var distanceToCarrier = math.distance(position, carrierPos);
 
                         if (distanceToCarrier > DeliveryRange * 1.5f)
@@ -729,6 +770,30 @@ namespace Space4X.Mining
                 }
 
                 return nearest;
+            }
+
+            private float3 GetPositionFromAsteroidList(Entity entity)
+            {
+                for (int i = 0; i < AsteroidList.Length; i++)
+                {
+                    if (AsteroidList[i].entity == entity)
+                    {
+                        return AsteroidList[i].position;
+                    }
+                }
+                return float3.zero;
+            }
+
+            private float3 GetPositionFromCarrierList(Entity entity)
+            {
+                for (int i = 0; i < CarrierList.Length; i++)
+                {
+                    if (CarrierList[i].entity == entity)
+                    {
+                        return CarrierList[i].position;
+                    }
+                }
+                return float3.zero;
             }
         }
     }

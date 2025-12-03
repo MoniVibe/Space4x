@@ -69,7 +69,7 @@ namespace Space4X.Systems.Physics
                     // For now, just log the collision
                     if (logCollisions)
                     {
-                        UnityEngine.Debug.Log($"[Space4XCollision] Entity {entity.Index} hit Entity {evt.OtherEntity.Index} impulse={evt.Impulse:F2} damage={damage:F2}");
+                        LogCollision(entity, evt.OtherEntity, evt.Impulse, damage);
                     }
 
                     // TODO: Apply damage to health components if they exist
@@ -80,6 +80,15 @@ namespace Space4X.Systems.Physics
                     // }
                 }
             }
+        }
+
+        [BurstDiscard]
+        private static void LogCollision(Entity entity, Entity otherEntity, float impulse, float damage)
+        {
+            // Round values for display (already rounded, no format specifier needed)
+            float roundedImpulse = math.round(impulse * 100f) * 0.01f;
+            float roundedDamage = math.round(damage * 100f) * 0.01f;
+            UnityEngine.Debug.Log($"[Space4XCollision] Entity {entity.Index} hit Entity {otherEntity.Index} impulse={roundedImpulse} damage={roundedDamage}");
         }
     }
 }

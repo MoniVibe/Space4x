@@ -28,3 +28,10 @@ Before adding new ECS components, systems, or modifying existing code, read `Doc
 - **CS0315 Interface Mismatches:** Match `ComponentLookup` vs `BufferLookup` to interface type
 - **CS0246 Missing Types:** Common `using` statements for Space4X namespaces
 - **Burst Errors:** No managed types in Burst code; use `FixedString` instead of `string`
+
+## Cross-Project Features
+When implementing features that should work across both Space4x and Godgame, follow the **recipe templates** documented in `PureDOTS/Docs/Recipes/`. See the catalog (`PureDOTS/Docs/Recipes/README.md`) for available recipe types and worked examples. This ensures:
+- Shared contracts are defined in `PureDOTS/Docs/Contracts.md` (if needed)
+- Generic spine lives in PureDOTS
+- Game-specific adapters stay in this project under `Assets/Scripts/Space4x/Adapters/`
+- Start from the recipe template, then specialize for your feature type.
