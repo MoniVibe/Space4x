@@ -6,6 +6,8 @@
 **Complexity**: Complex  
 **Category**: Economy / Governance
 
+> **Foundation:** This system must comply with the principles defined in [`Economy_Spine_And_Principles.md`](Economy_Spine_And_Principles.md). All economy operations must use explicit transactions, inventories, and respect layer boundaries.
+
 **One-line description**: Empires and factions mint currencies layered atop resource value, while black markets and corruption siphon goods, influence laws, and destabilize governance.
 
 ## Currency Systems
