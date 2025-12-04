@@ -123,3 +123,4 @@ SystemAPI.SetSingleton(config);
 
 This enables additional logging in `Space4XCollisionDebugSystem` (separate from the always-on debug logs).
 
+
