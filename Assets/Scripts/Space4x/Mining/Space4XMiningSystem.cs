@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Time;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
+using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -208,6 +209,7 @@ namespace Space4X.Mining
 #endif
 
         [BurstCompile]
+        [StructLayout(LayoutKind.Sequential)]
         public partial struct ProcessMiningJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<Carrier> CarrierLookup;
