@@ -17,7 +17,7 @@
       "dependencies": {
         "com.unity.nuget.newtonsoft-json": "3.0.2"
       },
-      "hash": "0d6c274e3c1836a68584a43bef98be9610d5935b"
+      "hash": "b09e48a3958f0637638fd2e791eb1663bcbfc494"
     },
     "com.moni.puredots": {
       "version": "file:../../PureDOTS/Packages/com.moni.puredots",

@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -19,12 +20,19 @@ namespace Space4X.Combat
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct SpaceCombatSystem : ISystem
     {
+        private EntityQuery _enemyQuery;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<TickTimeState>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<DemoScenarioState>();
+
+            _enemyQuery = SystemAPI.QueryBuilder()
+                .WithAll<Health, LocalTransform, PlatformTag>()
+                .Build();
         }
 
         [BurstCompile]
@@ -39,16 +47,17 @@ namespace Space4X.Combat
                 return;
             }
 
-            var currentTime = (float)timeState.WorldSeconds;
+            var tickTimeState = SystemAPI.GetSingleton<TickTimeState>();
+            var currentTime = tickTimeState.WorldSeconds;
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
 
             // Query Space4X entities with Health, AttackStats, and PlatformTag
-            foreach (var (entity, health, attackStats, transform) in SystemAPI.Query<
-                Entity,
+            foreach (var (health, attackStats, transform, entity) in SystemAPI.Query<
                 RefRW<Health>,
                 RefRW<AttackStats>,
                 RefRO<LocalTransform>>()
-                .WithAll<PlatformTag>())
+                .WithAll<PlatformTag>()
+                .WithEntityAccess())
             {
                 // Check cooldown
                 ref var attackStatsRef = ref attackStats.ValueRW;
@@ -62,12 +71,8 @@ namespace Space4X.Combat
                 float nearestDistance = float.MaxValue;
                 float3 enemyPosition = float3.zero;
 
-                var enemyQuery = state.GetEntityQuery(
-                    ComponentType.ReadOnly<Health>(),
-                    ComponentType.ReadOnly<LocalTransform>(),
-                    ComponentType.ReadOnly<PlatformTag>());
-                var enemyEntities = enemyQuery.ToEntityArray(Allocator.Temp);
-                var enemyTransforms = enemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+                var enemyEntities = _enemyQuery.ToEntityArray(Allocator.Temp);
+                var enemyTransforms = _enemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
 
                 for (int i = 0; i < enemyEntities.Length; i++)
                 {
@@ -116,4 +121,3 @@ namespace Space4X.Combat
         }
     }
 }
-

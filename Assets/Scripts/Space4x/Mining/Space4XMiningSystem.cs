@@ -43,6 +43,19 @@ namespace Space4X.Mining
         private const float DeliveryRange = 3f;
         private const float MaxSearchRadius = 1000f;
 
+        public struct AsteroidEntry
+        {
+            public Entity Entity;
+            public float3 Position;
+            public Asteroid Asteroid;
+        }
+
+        public struct CarrierEntry
+        {
+            public Entity Entity;
+            public float3 Position;
+        }
+
 #if UNITY_EDITOR
         private ComponentLookup<MiningDiagnostics> _diagnosticsLookup;
 #endif
@@ -107,20 +120,29 @@ namespace Space4X.Mining
             var currentTick = timeState.Tick;
 
             // Collect available asteroids for discovery
-            var asteroidList = new NativeList<(Entity entity, float3 position, Asteroid asteroid)>(Allocator.TempJob);
+            var asteroidList = new NativeList<AsteroidEntry>(Allocator.TempJob);
             foreach (var (asteroid, transform, entity) in SystemAPI.Query<RefRO<Asteroid>, RefRO<LocalTransform>>().WithEntityAccess())
             {
                 if (asteroid.ValueRO.ResourceAmount > 0f)
                 {
-                    asteroidList.Add((entity, transform.ValueRO.Position, asteroid.ValueRO));
+                    asteroidList.Add(new AsteroidEntry
+                    {
+                        Entity = entity,
+                        Position = transform.ValueRO.Position,
+                        Asteroid = asteroid.ValueRO
+                    });
                 }
             }
 
             // Collect available carriers for discovery
-            var carrierList = new NativeList<(Entity entity, float3 position)>(Allocator.TempJob);
+            var carrierList = new NativeList<CarrierEntry>(Allocator.TempJob);
             foreach (var (carrier, transform, entity) in SystemAPI.Query<RefRO<Carrier>, RefRO<LocalTransform>>().WithEntityAccess())
             {
-                carrierList.Add((entity, transform.ValueRO.Position));
+                carrierList.Add(new CarrierEntry
+                {
+                    Entity = entity,
+                    Position = transform.ValueRO.Position
+                });
             }
 
             var ecbSingleton = SystemAPI.GetSingletonRW<BeginSimulationEntityCommandBufferSystem.Singleton>();
@@ -230,8 +252,8 @@ namespace Space4X.Mining
             public BufferLookup<ResourceStorage> ResourceStorageLookup;
             public EntityCommandBuffer.ParallelWriter Ecb;
 
-            [ReadOnly] public NativeList<(Entity entity, float3 position, Asteroid asteroid)> AsteroidList;
-            [ReadOnly] public NativeList<(Entity entity, float3 position)> CarrierList;
+            [ReadOnly] public NativeList<AsteroidEntry> AsteroidList;
+            [ReadOnly] public NativeList<CarrierEntry> CarrierList;
 
             public float DeltaTime;
             public uint CurrentTick;
@@ -744,11 +766,11 @@ namespace Space4X.Mining
                 for (int i = 0; i < AsteroidList.Length; i++)
                 {
                     var asteroid = AsteroidList[i];
-                    var distance = math.distance(position, asteroid.position);
+                    var distance = math.distance(position, asteroid.Position);
                     if (distance < nearestDistance && distance < MaxSearchRadius)
                     {
                         nearestDistance = distance;
-                        nearest = asteroid.entity;
+                        nearest = asteroid.Entity;
                     }
                 }
 
@@ -763,11 +785,11 @@ namespace Space4X.Mining
                 for (int i = 0; i < CarrierList.Length; i++)
                 {
                     var carrier = CarrierList[i];
-                    var distance = math.distance(position, carrier.position);
+                    var distance = math.distance(position, carrier.Position);
                     if (distance < nearestDistance && distance < MaxSearchRadius)
                     {
                         nearestDistance = distance;
-                        nearest = carrier.entity;
+                        nearest = carrier.Entity;
                     }
                 }
 
@@ -778,9 +800,9 @@ namespace Space4X.Mining
             {
                 for (int i = 0; i < AsteroidList.Length; i++)
                 {
-                    if (AsteroidList[i].entity == entity)
+                    if (AsteroidList[i].Entity == entity)
                     {
-                        return AsteroidList[i].position;
+                        return AsteroidList[i].Position;
                     }
                 }
                 return float3.zero;
@@ -790,9 +812,9 @@ namespace Space4X.Mining
             {
                 for (int i = 0; i < CarrierList.Length; i++)
                 {
-                    if (CarrierList[i].entity == entity)
+                    if (CarrierList[i].Entity == entity)
                     {
-                        return CarrierList[i].position;
+                        return CarrierList[i].Position;
                     }
                 }
                 return float3.zero;
@@ -800,4 +822,3 @@ namespace Space4X.Mining
         }
     }
 }
-

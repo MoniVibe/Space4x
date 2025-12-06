@@ -227,17 +227,14 @@ namespace Space4X.Platform.Systems
                     }
                 }
 
-                root.Modules[moduleIndex] = new ModuleDef
-                {
-                    ModuleId = moduleAuthoring.ModuleId,
-                    Category = moduleAuthoring.Category,
-                    Mass = moduleAuthoring.Mass,
-                    PowerDraw = moduleAuthoring.PowerDraw,
-                    Volume = moduleAuthoring.Volume,
-                    AllowedPlacementMask = moduleList[moduleIndex].AllowedPlacementMask,
-                    AllowedLayoutMask = moduleList[moduleIndex].AllowedLayoutMask,
-                    CapabilityPayload = payloadArray
-                };
+                // Update module fields (CapabilityPayload already allocated above)
+                root.Modules[moduleIndex].ModuleId = moduleAuthoring.ModuleId;
+                root.Modules[moduleIndex].Category = moduleAuthoring.Category;
+                root.Modules[moduleIndex].Mass = moduleAuthoring.Mass;
+                root.Modules[moduleIndex].PowerDraw = moduleAuthoring.PowerDraw;
+                root.Modules[moduleIndex].Volume = moduleAuthoring.Volume;
+                root.Modules[moduleIndex].AllowedPlacementMask = moduleList[moduleIndex].AllowedPlacementMask;
+                root.Modules[moduleIndex].AllowedLayoutMask = moduleList[moduleIndex].AllowedLayoutMask;
                 moduleIndex++;
             }
 

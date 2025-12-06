@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Focus;
 using PureDOTS.Runtime.Groups;
 using PureDOTS.Runtime.Individual;
@@ -29,6 +30,8 @@ namespace Space4X.Mining
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            state.RequireForUpdate<TimeState>();
+            
             _miningProfileLookup = state.GetComponentLookup<MiningPatternProfile>(true);
             _craftFrameLookup = state.GetComponentLookup<CraftFrameRef>(true);
             _intentLookup = state.GetComponentLookup<IndividualCombatIntent>(true);
@@ -49,7 +52,7 @@ namespace Space4X.Mining
 
             var job = new ProcessMiningWingsJob
             {
-                CurrentTick = timeState.CurrentTick,
+                CurrentTick = timeState.Tick,
                 MiningProfileLookup = _miningProfileLookup,
                 CraftFrameLookup = _craftFrameLookup,
                 IntentLookup = _intentLookup,
@@ -88,15 +91,15 @@ namespace Space4X.Mining
                 for (int i = 0; i < members.Length; i++)
                 {
                     var member = members[i];
-                    if (member.Member == Entity.Null)
+                    if (member.MemberEntity == Entity.Null)
                     {
                         continue;
                     }
 
                     // Check member intent (may override group orders)
-                    if (IntentLookup.HasComponent(member.Member))
+                    if (IntentLookup.HasComponent(member.MemberEntity))
                     {
-                        var intent = IntentLookup[member.Member];
+                        var intent = IntentLookup[member.MemberEntity];
                         if (intent.Intent == IndividualTacticalIntent.Flee ||
                             intent.Intent == IndividualTacticalIntent.Desert ||
                             intent.Intent == IndividualTacticalIntent.Mutiny)
@@ -106,16 +109,15 @@ namespace Space4X.Mining
                     }
 
                     // Get craft frame and mining profile
-                    if (!CraftFrameLookup.HasComponent(member.Member))
+                    if (!CraftFrameLookup.HasComponent(member.MemberEntity))
                     {
                         continue;
                     }
 
-                    var frameRef = CraftFrameLookup[member.Member];
+                    var frameRef = CraftFrameLookup[member.MemberEntity];
                     // Would look up MiningPatternProfile by FrameId here
                     // For now, use default values
 
-                    float optimalRange = 5f; // Default
                     float retreatHullThreshold = 0.3f; // Default 30% hull
 
                     // Follow group's stance on risk
@@ -131,10 +133,10 @@ namespace Space4X.Mining
                     }
 
                     // Personality/Fear: Craven/low Focus craft bail earlier
-                    if (FocusLookup.HasComponent(member.Member) && PersonalityLookup.HasComponent(member.Member))
+                    if (FocusLookup.HasComponent(member.MemberEntity) && PersonalityLookup.HasComponent(member.MemberEntity))
                     {
-                        var focus = FocusLookup[member.Member];
-                        var personality = PersonalityLookup[member.Member];
+                        var focus = FocusLookup[member.MemberEntity];
+                        var personality = PersonalityLookup[member.MemberEntity];
 
                         // Craven or low Focus → bail earlier
                         if (personality.Boldness < -0.3f || focus.Current < focus.SoftThreshold)

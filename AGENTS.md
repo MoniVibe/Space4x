@@ -1,7 +1,11 @@
-# Agents – DOTS 1.4 Guidelines Scope & Project LayoutThis repo has three main pieces:
+# Agents – DOTS 1.4 Guidelines Scope & Project Layout
+
+This repo has three main pieces:
 `PureDOTS/` → shared engine-level DOTS package (`Packages/com.moni.puredots`).
 `Godgame/` → game project using PureDOTS.
 `Space4x/` → game project using PureDOTS.
+
+**Redundancy Detection**: Before creating new types, check for duplicates using `python Scripts/redundancy_scanner.py`. See `Docs/REDUNDANCY_SWEEP_GUIDE.md` for consolidation workflows.
 Treat `Foundation1/` and `Project1/` as read-only references unless the user explicitly says otherwise.
 Put engine / generic systems in `PureDOTS/Packages/com.moni.puredots/Runtime/<Module>/`.
 Put game-specific glue or behavior in:

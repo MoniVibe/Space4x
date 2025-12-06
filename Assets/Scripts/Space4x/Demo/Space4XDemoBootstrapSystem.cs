@@ -128,7 +128,7 @@ namespace Space4X.Demo
                 var hotkeyConfigEntity = em.CreateEntity();
                 em.AddComponentData(hotkeyConfigEntity, new DemoHotkeyConfig
                 {
-                    EnableEcsHotkeys = 0 // HUD handles hotkeys by default
+                    EnableEcsHotkeys = 1 // Enable ECS hotkeys by default for demo controls/spawns
                 });
             }
 

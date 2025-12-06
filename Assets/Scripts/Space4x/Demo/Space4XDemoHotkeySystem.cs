@@ -32,6 +32,17 @@ namespace Space4X.Demo
 
             if (!SystemAPI.TryGetSingletonRW<DemoBootstrapState>(out var demoState))
                 return;
+            uint seedBase;
+            if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            {
+                seedBase = timeState.Tick == 0 ? 0x9E3779B9u : timeState.Tick;
+            }
+            else
+            {
+                // Fallback to frame-based seed; non-deterministic but stable enough for dev hotkeys
+                seedBase = (uint)(UnityEngine.Time.frameCount + 1);
+            }
+            var em = state.EntityManager;
 
             // P - Pause/Play
             if (KeyPressed(Key.P))
@@ -77,6 +88,24 @@ namespace Space4X.Demo
                 demoState.ValueRW.RewindEnabled = (byte)(demoState.ValueRO.RewindEnabled == 1 ? 0 : 1);
                 Debug.Log($"[Demo] Rewind toggled: {demoState.ValueRO.RewindEnabled == 1}");
             }
+
+            // H - Spawn miner near origin
+            if (KeyPressed(Key.H))
+            {
+                EnqueueSpawn(em, Space4XSpawnKind.Miner, 1, new float3(0f, 0f, 0f), 15f, seedBase);
+            }
+
+            // N - Spawn asteroid near origin
+            if (KeyPressed(Key.N))
+            {
+                EnqueueSpawn(em, Space4XSpawnKind.Asteroid, 1, new float3(0f, 0f, 0f), 18f, seedBase + 1u);
+            }
+
+            // C - Spawn carrier near origin
+            if (KeyPressed(Key.C))
+            {
+                EnqueueSpawn(em, Space4XSpawnKind.Carrier, 1, new float3(0f, 0f, 0f), 22f, seedBase + 2u);
+            }
         }
 
         private static bool KeyPressed(Key key)
@@ -87,6 +116,31 @@ namespace Space4X.Demo
 
             var control = keyboard[key];
             return control != null && control.wasPressedThisFrame;
+        }
+
+        private static void EnqueueSpawn(EntityManager em, Space4XSpawnKind kind, int count, float3 center, float radius, uint seedBase)
+        {
+            Entity queue;
+            using (var q = em.CreateEntityQuery(ComponentType.ReadOnly<Space4XSpawnRequest>()))
+            {
+                queue = q.IsEmptyIgnoreFilter ? em.CreateEntity() : q.GetSingletonEntity();
+            }
+
+            if (!em.HasBuffer<Space4XSpawnRequest>(queue))
+            {
+                em.AddBuffer<Space4XSpawnRequest>(queue);
+            }
+
+            var buffer = em.GetBuffer<Space4XSpawnRequest>(queue);
+            var requestSeed = math.hash(new uint2(seedBase == 0 ? 0x9E3779B9u : seedBase, (uint)(buffer.Length + 1))) | 1u;
+            buffer.Add(new Space4XSpawnRequest
+            {
+                Kind = kind,
+                Count = count,
+                Center = center,
+                Radius = radius,
+                Seed = requestSeed
+            });
         }
     }
 }

@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Focus;
 using PureDOTS.Runtime.Groups;
 using PureDOTS.Runtime.Individual;
@@ -17,6 +18,7 @@ namespace Space4X.StrikeCraft
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(TimeSystemGroup))]
+    [UpdateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
     [UpdateAfter(typeof(GroupIntentResolutionSystem))]
     public partial struct StrikeWingBehaviorSystem : ISystem
     {
@@ -29,6 +31,8 @@ namespace Space4X.StrikeCraft
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            state.RequireForUpdate<TimeState>();
+            
             _attackProfileLookup = state.GetComponentLookup<AttackRunProfile>(true);
             _craftFrameLookup = state.GetComponentLookup<CraftFrameRef>(true);
             _intentLookup = state.GetComponentLookup<IndividualCombatIntent>(true);
@@ -49,7 +53,7 @@ namespace Space4X.StrikeCraft
 
             var job = new ProcessStrikeWingsJob
             {
-                CurrentTick = timeState.CurrentTick,
+                CurrentTick = timeState.Tick,
                 AttackProfileLookup = _attackProfileLookup,
                 CraftFrameLookup = _craftFrameLookup,
                 IntentLookup = _intentLookup,
@@ -110,15 +114,15 @@ namespace Space4X.StrikeCraft
                 for (int i = 0; i < members.Length; i++)
                 {
                     var member = members[i];
-                    if (member.Member == Entity.Null)
+                    if (member.MemberEntity == Entity.Null)
                     {
                         continue;
                     }
 
                     // Check member intent (may override group orders)
-                    if (IntentLookup.HasComponent(member.Member))
+                    if (IntentLookup.HasComponent(member.MemberEntity))
                     {
-                        var intent = IntentLookup[member.Member];
+                        var intent = IntentLookup[member.MemberEntity];
                         if (intent.Intent == IndividualTacticalIntent.Flee ||
                             intent.Intent == IndividualTacticalIntent.Desert ||
                             intent.Intent == IndividualTacticalIntent.Mutiny)
@@ -128,12 +132,12 @@ namespace Space4X.StrikeCraft
                     }
 
                     // Get craft frame and attack profile
-                    if (!CraftFrameLookup.HasComponent(member.Member))
+                    if (!CraftFrameLookup.HasComponent(member.MemberEntity))
                     {
                         continue;
                     }
 
-                    var frameRef = CraftFrameLookup[member.Member];
+                    var frameRef = CraftFrameLookup[member.MemberEntity];
                     // Would look up AttackRunProfile by FrameId here
                     // For now, use default values
 
@@ -142,10 +146,10 @@ namespace Space4X.StrikeCraft
                     float breakDistance = 10f; // Default
                     float commitDepth = 1.0f; // Default commitment
 
-                    if (FocusLookup.HasComponent(member.Member) && PersonalityLookup.HasComponent(member.Member))
+                    if (FocusLookup.HasComponent(member.MemberEntity) && PersonalityLookup.HasComponent(member.MemberEntity))
                     {
-                        var focus = FocusLookup[member.Member];
-                        var personality = PersonalityLookup[member.Member];
+                        var focus = FocusLookup[member.MemberEntity];
+                        var personality = PersonalityLookup[member.MemberEntity];
 
                         // Bold + high Focus → commit deeper, dodge aggressively
                         if (personality.Boldness > 0.5f && focus.Current > focus.SoftThreshold)
