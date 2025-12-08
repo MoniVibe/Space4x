@@ -63,6 +63,25 @@ The galaxy is a dynamic, reactive environment that responds to player actions an
 
 ---
 
+## Pillar 4: Deterministic Telemetry & Rewind
+
+### Description
+Simulation outcomes are deterministic and observable. Every tick can be rewound, inspected, and replayed identically so designers and players can trust what happened and why. Telemetry is emitted as first-class data for HUDs, scenario playback, and automated tests.
+
+### Design Implications
+- Time spine + rewind safety on all simulation systems (mining, hauling, refit, combat)
+- Registry snapshots capture resources, fleets, anomalies, miracles, and module states every tick
+- ScenarioRunner timelines stay deterministic under batchmode and PlayMode rewind tests
+- Tooling (Prefab Maker, scenario seeds) produces idempotent outputs for repeatable CI runs
+
+### Examples in Practice
+- Mining/haul PlayMode tests rewind to tick N and replay to identical carrier storage totals
+- Resource registry snapshot/telemetry includes asteroids/deposits for debug overlays
+- ScenarioRunner timelines (mining/haul/combat) can be replayed from JSON with identical metrics
+- Prefab Maker dry-run mode reports deltas without touching assets, enabling deterministic validation
+
+---
+
 ## Balancing Pillars
 
 These pillars work together to create a strategic command experience where players orchestrate carrier fleets across a living galaxy through interdependent systems. The tension comes from balancing immediate tactical needs (combat, resource shortages) with long-term strategic goals (expansion, tech progression, empire stability).

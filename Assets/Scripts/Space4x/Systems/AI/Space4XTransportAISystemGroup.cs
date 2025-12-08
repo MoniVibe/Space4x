@@ -1,5 +1,5 @@
 using Unity.Entities;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 
 using GameplaySystemGroup = PureDOTS.Systems.GameplaySystemGroup;
 using AISystemGroup = PureDOTS.Systems.AISystemGroup;
@@ -19,4 +19,5 @@ namespace Space4X.Systems.AI
     [UpdateBefore(typeof(PureDOTS.Systems.ResourceSystemGroup))]
     public partial class Space4XTransportAISystemGroup : ComponentSystemGroup { }
 }
+
 

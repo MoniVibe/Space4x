@@ -1,6 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Time;
-using PureDOTS.Systems.Time;
+using PureDOTS.Runtime.Systems.Time;
 using Unity.Burst;
 using Unity.Entities;
 using UnityEngine;
@@ -62,4 +62,5 @@ namespace Space4X.Features.Time
         }
     }
 }
+
 

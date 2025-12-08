@@ -81,6 +81,8 @@ namespace Space4X.Tests
                             "Asteroid should be registered as Raw tier");
                         Assert.AreEqual(new float3(10f, 0f, 10f), registryBuffer[i].Position,
                             "Position should match asteroid position");
+                        Assert.Greater(registryBuffer[i].UnitsRemaining, 0f,
+                            "Asteroid entry should report remaining units");
                         break;
                     }
                 }

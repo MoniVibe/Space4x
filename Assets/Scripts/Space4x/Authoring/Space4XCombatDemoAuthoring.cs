@@ -1,5 +1,5 @@
 using System;
-using PureDOTS.Authoring;
+using PureDOTS.Runtime.Authoring;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Editor.DevMenu;
 using Space4X.Registry;
@@ -562,4 +562,5 @@ namespace Space4X.Authoring
         public byte EnemyFleetSpawned;
     }
 }
+
 

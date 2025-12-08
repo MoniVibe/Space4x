@@ -62,3 +62,4 @@ namespace Space4X.Registry
         public byte SpawnReady;
     }
 }
+

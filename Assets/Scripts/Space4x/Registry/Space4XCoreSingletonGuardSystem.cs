@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Unity.Entities;
 
 namespace Space4X.Registry
@@ -22,3 +22,4 @@ namespace Space4X.Registry
         }
     }
 }
+

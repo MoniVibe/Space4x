@@ -1,6 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Registry;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
 using Unity.Burst;
@@ -34,7 +34,7 @@ namespace Space4X.Systems.AI
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
-                .WithAll<ResourceRegistry, ResourceRegistryEntry>()
+                .WithAll<ResourceRegistry, DynamicBuffer<ResourceRegistryEntry>>()
                 .Build();
 
             state.RequireForUpdate<TimeState>();
@@ -169,6 +169,7 @@ namespace Space4X.Systems.AI
         }
     }
 }
+
 
 
 

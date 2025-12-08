@@ -78,6 +78,9 @@ This workspace contains three interconnected Unity DOTS projects:
 - `README_BRIEFING.md` - Project briefing
 - `Docs/Vision.md` - Design pillars and roadmap
 - `Docs/PUREDOTS_INTEGRATION_SPEC.md` - Integration patterns
+- `Docs/Architecture/ThreePillarECS_Architecture.md` - Three Pillar ECS overview
+- `Docs/Architecture/AgentSyncBus_Specification.md` - AgentSyncBus API and cadence
+- `Docs/Guides/MultiECS_Integration_Guide.md` - Multi-ECS integration cookbook
 - `Docs/FoundationGuidelines.md` - Coding guidelines
 
 ---
@@ -489,6 +492,62 @@ namespace Space4X.Presentation  // Not in PureDOTS!
 
 ---
 
+## Camera Organization & Artifacts Warning
+
+### **CRITICAL: Game Code Belongs in Game Projects**
+
+**🚨 DO NOT implement Game folders in PureDOTS workspace!**
+
+Camera controllers, input bridges, and presentation rigs belong in their respective **game project directories**, not in the PureDOTS framework workspace. The PureDOTS workspace should contain only:
+
+- ✅ Framework infrastructure (CameraRigService, CameraRigApplier, CameraRigState)
+- ✅ Shared camera components and systems
+- ✅ BW2-style reusable camera rig
+- ❌ Game-specific implementations
+
+**📖 OFFICIAL CONTRACT: See `Packages/com.moni.puredots/Runtime/Camera/README.md`**
+
+### **Recognizing Artifacts vs Real Code**
+
+If you find camera controller files in PureDOTS workspace paths like:
+- `Assets/Projects/Space4X/Scripts/...`
+- `Assets/Scripts/Space4x/Camera/...`
+
+**These are likely development artifacts that should be moved or removed.** Check the actual project directories:
+- **Space4X**: `C:\Users\Moni\Documents\claudeprojects\unity\Space4x`
+- **Godgame**: `C:\Users\Moni\Documents\claudeprojects\unity\Godgame`
+
+### **Proper Camera Architecture**
+
+```
+PureDOTS Framework (Shared)
+├── CameraRigService.cs         ✅ Framework
+├── CameraRigApplier.cs         ✅ Framework
+├── BW2StyleCameraController.cs ✅ Reusable rig
+└── CameraRigState.cs           ✅ Shared types
+
+Space4X Game Project
+└── Assets/Scripts/Space4x/
+    ├── Camera/
+    │   ├── Space4XCameraController.cs    ✅ Game-specific
+    │   └── Space4XCameraInputBridge.cs  ✅ Game-specific
+    └── Authoring/
+        └── Space4XCameraAuthoring.cs     ✅ Game-specific
+
+Godgame Game Project
+└── Assets/Scripts/Godgame/
+    └── Camera/
+        └── GodgameCameraController.cs    ✅ Game-specific
+```
+
+### **Before Implementing Cameras**
+
+1. **Verify location**: Are you in the correct project directory?
+2. **Check existing**: Does the real game project already have camera code?
+3. **Avoid artifacts**: Don't leave development code in PureDOTS workspace
+
+---
+
 ## Pre-Commit Checklist
 
 Before completing ANY task:
@@ -539,6 +598,12 @@ Before completing ANY task:
 | CS0246 | Type not found | Grep for type, update using or remove ref |
 | CS0618 | Obsolete API | Use `FindObjectsByType`/`FindFirstObjectByType` |
 | CreateAssetMenu warning | Attribute on non-SO | Remove attribute or inherit `ScriptableObject` |
+| CS0101 | Duplicate type from lingering stubs | Delete/`#if false` stub files when real types return |
+
+**Stub cleanup rule (canonical names):**
+- If you add a stub in the canonical namespace, mark it `// STUB: REMOVE when real <Type>` and track it (e.g., `Docs/StubTypes.md`), then delete it as soon as the real implementation lands.
+- Prefer minimal canonical files (`Detectable.cs`, `CombatLearningState.cs`, etc.) over mega `*Stubs.cs` files so they can be expanded instead of duplicated.
+- Never ship stubs alongside real types; before closing work, `grep -r "Stubs.cs"` in `com.moni.puredots` and remove or `#if false` any leftovers.
 
 ---
 

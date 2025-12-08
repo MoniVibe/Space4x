@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Burst;
@@ -342,3 +342,4 @@ namespace Space4X.Registry
         }
     }
 }
+

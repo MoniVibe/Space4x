@@ -32,7 +32,7 @@ namespace Space4X.Systems.AI
                 .Build();
 
             _registryQuery = SystemAPI.QueryBuilder()
-                .WithAll<ResourceRegistry, ResourceRegistryEntry>()
+                .WithAll<ResourceRegistry, DynamicBuffer<ResourceRegistryEntry>>()
                 .Build();
 
             state.RequireForUpdate<TimeState>();
@@ -41,6 +41,7 @@ namespace Space4X.Systems.AI
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var timeState = SystemAPI.GetSingleton<TimeState>();
             if (_registryQuery.IsEmptyIgnoreFilter)
             {
                 return;
@@ -89,7 +90,11 @@ namespace Space4X.Systems.AI
                     SourceEntity = entity,
                     Position = position,
                     ResourceTypeIndex = resourceTypeIndex,
-                    Tier = ResourceTier.Raw
+                    Tier = ResourceTier.Raw,
+                    UnitsRemaining = resourceState.UnitsRemaining,
+                    ActiveTickets = 0,
+                    ClaimFlags = 0,
+                    LastMutationTick = timeState.Tick
                 };
                 registryBuffer.Add(entry);
 

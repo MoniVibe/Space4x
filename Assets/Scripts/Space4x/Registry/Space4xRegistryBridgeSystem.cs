@@ -1,9 +1,10 @@
 using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Registry;
+using PureDOTS.Runtime.Resource;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Telemetry;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -26,6 +27,9 @@ namespace Space4X.Registry
         private EntityQuery _fleetQuery;
         private EntityQuery _logisticsRouteQuery;
         private EntityQuery _anomalyQuery;
+        private EntityQuery _gridConfigQuery;
+        private EntityQuery _gridStateQuery;
+        private EntityQuery _syncStateQuery;
 
         private Entity _colonyRegistryEntity;
         private Entity _fleetRegistryEntity;
@@ -35,6 +39,11 @@ namespace Space4X.Registry
 
         private ComponentLookup<SpatialGridResidency> _residencyLookup;
         private ComponentLookup<RuntimeMiracleRegistry> _miracleRegistryLookup;
+        private ComponentLookup<Space4XColony> _colonyLookup;
+        private ComponentLookup<Space4XFleet> _fleetLookup;
+        private ComponentLookup<Space4XLogisticsRoute> _logisticsRouteLookup;
+        private ComponentLookup<Space4XAnomaly> _anomalyLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
 
         public void OnCreate(ref SystemState state)
         {
@@ -58,6 +67,18 @@ namespace Space4X.Registry
                 .WithAll<Space4XAnomaly, LocalTransform, SpatialIndexedTag>()
                 .Build();
 
+            _gridConfigQuery = SystemAPI.QueryBuilder()
+                .WithAll<SpatialGridConfig>()
+                .Build();
+
+            _gridStateQuery = SystemAPI.QueryBuilder()
+                .WithAll<SpatialGridState>()
+                .Build();
+
+            _syncStateQuery = SystemAPI.QueryBuilder()
+                .WithAll<RegistrySpatialSyncState>()
+                .Build();
+
             var colonyLabel = new FixedString64Bytes("Space4X Colonies");
             var fleetLabel = new FixedString64Bytes("Space4X Fleets");
             var logisticsLabel = new FixedString64Bytes("Space4X Logistics Routes");
@@ -70,6 +91,11 @@ namespace Space4X.Registry
 
             _residencyLookup = state.GetComponentLookup<SpatialGridResidency>(true);
             _miracleRegistryLookup = state.GetComponentLookup<RuntimeMiracleRegistry>(true);
+            _colonyLookup = state.GetComponentLookup<Space4XColony>(true);
+            _fleetLookup = state.GetComponentLookup<Space4XFleet>(true);
+            _logisticsRouteLookup = state.GetComponentLookup<Space4XLogisticsRoute>(true);
+            _anomalyLookup = state.GetComponentLookup<Space4XAnomaly>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
 
             using var snapshotQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XRegistrySnapshot>());
             if (snapshotQuery.IsEmptyIgnoreFilter)
@@ -93,16 +119,37 @@ namespace Space4X.Registry
 
             _residencyLookup.Update(ref state);
             _miracleRegistryLookup.Update(ref state);
+            _colonyLookup.Update(ref state);
+            _fleetLookup.Update(ref state);
+            _logisticsRouteLookup.Update(ref state);
+            _anomalyLookup.Update(ref state);
+            _transformLookup.Update(ref state);
 
-            var hasGridConfig = SystemAPI.TryGetSingleton(out SpatialGridConfig gridConfig);
-            var hasGridState = SystemAPI.TryGetSingleton(out SpatialGridState gridState);
+            var hasGridConfig = !_gridConfigQuery.IsEmptyIgnoreFilter;
+            var hasGridState = !_gridStateQuery.IsEmptyIgnoreFilter;
+            SpatialGridConfig gridConfig = default;
+            SpatialGridState gridState = default;
+            if (hasGridConfig)
+            {
+                gridConfig = SystemAPI.GetComponent<SpatialGridConfig>(_gridConfigQuery.GetSingletonEntity());
+            }
+            if (hasGridState)
+            {
+                gridState = SystemAPI.GetComponent<SpatialGridState>(_gridStateQuery.GetSingletonEntity());
+            }
             var hasSpatial = hasGridConfig && hasGridState && gridConfig.CellCount > 0 && gridConfig.CellSize > 0f;
-            var hasSyncState = SystemAPI.TryGetSingleton(out RegistrySpatialSyncState syncState);
+            var hasSyncState = !_syncStateQuery.IsEmptyIgnoreFilter;
+            RegistrySpatialSyncState syncState = default;
+            if (hasSyncState)
+            {
+                syncState = SystemAPI.GetComponent<RegistrySpatialSyncState>(_syncStateQuery.GetSingletonEntity());
+            }
 
             UpdateColonyRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateFleetRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateLogisticsRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
             UpdateAnomalyRegistry(ref state, tick, hasSpatial, gridConfig, gridState, hasSyncState, syncState);
+            UpdateResourceSnapshot(ref state, tick);
             UpdateMiracleSnapshot(ref state, tick, timeState.FixedDeltaTime);
             UpdateTechDiffusionSnapshot(ref state, tick);
         }
@@ -126,10 +173,12 @@ namespace Space4X.Registry
             int unmappedCount = 0;
             var syncHasData = hasSyncState && syncState.HasSpatialData;
 
-            foreach (var (colony, transform, entity) in SystemAPI.Query<RefRO<Space4XColony>, RefRO<LocalTransform>>().WithAll<SpatialIndexedTag>().WithEntityAccess())
+            using var colonyEntities = _colonyQuery.ToEntityArray(Allocator.Temp);
+            for (var i = 0; i < colonyEntities.Length; i++)
             {
-                var colonyData = colony.ValueRO;
-                var position = transform.ValueRO.Position;
+                var entity = colonyEntities[i];
+                var colonyData = _colonyLookup[entity];
+                var position = _transformLookup[entity].Position;
                 var demand = Space4XColonySupply.ComputeDemand(colonyData.Population);
                 var supplyRatio = Space4XColonySupply.ComputeSupplyRatio(colonyData.StoredResources, demand);
                 var supplyShortage = Space4XColonySupply.ComputeShortage(colonyData.StoredResources, demand);
@@ -266,10 +315,12 @@ namespace Space4X.Registry
             int unmappedCount = 0;
             var syncHasData = hasSyncState && syncState.HasSpatialData;
 
-            foreach (var (fleet, transform, entity) in SystemAPI.Query<RefRO<Space4XFleet>, RefRO<LocalTransform>>().WithAll<SpatialIndexedTag>().WithEntityAccess())
+            using var fleetEntities = _fleetQuery.ToEntityArray(Allocator.Temp);
+            for (var i = 0; i < fleetEntities.Length; i++)
             {
-                var fleetData = fleet.ValueRO;
-                var position = transform.ValueRO.Position;
+                var entity = fleetEntities[i];
+                var fleetData = _fleetLookup[entity];
+                var position = _transformLookup[entity].Position;
                 var flags = Space4XRegistryFlags.FromFleetPosture(fleetData.Posture);
 
                 var cellId = -1;
@@ -365,10 +416,12 @@ namespace Space4X.Registry
             int unmappedCount = 0;
             var syncHasData = hasSyncState && syncState.HasSpatialData;
 
-            foreach (var (route, transform, entity) in SystemAPI.Query<RefRO<Space4XLogisticsRoute>, RefRO<LocalTransform>>().WithAll<SpatialIndexedTag>().WithEntityAccess())
+            using var routeEntities = _logisticsRouteQuery.ToEntityArray(Allocator.Temp);
+            for (var i = 0; i < routeEntities.Length; i++)
             {
-                var routeData = route.ValueRO;
-                var position = transform.ValueRO.Position;
+                var entity = routeEntities[i];
+                var routeData = _logisticsRouteLookup[entity];
+                var position = _transformLookup[entity].Position;
                 var flags = Space4XLogisticsRegistryFlags.FromRoute(routeData.Status, routeData.Risk);
 
                 var cellId = -1;
@@ -478,10 +531,12 @@ namespace Space4X.Registry
             int unmappedCount = 0;
             var syncHasData = hasSyncState && syncState.HasSpatialData;
 
-            foreach (var (anomaly, transform, entity) in SystemAPI.Query<RefRO<Space4XAnomaly>, RefRO<LocalTransform>>().WithAll<SpatialIndexedTag>().WithEntityAccess())
+            using var anomalyEntities = _anomalyQuery.ToEntityArray(Allocator.Temp);
+            for (var i = 0; i < anomalyEntities.Length; i++)
             {
-                var anomalyData = anomaly.ValueRO;
-                var position = transform.ValueRO.Position;
+                var entity = anomalyEntities[i];
+                var anomalyData = _anomalyLookup[entity];
+                var position = _transformLookup[entity].Position;
                 var flags = Space4XAnomalyRegistryFlags.FromAnomaly(anomalyData.State, anomalyData.Severity);
 
                 var cellId = -1;
@@ -567,6 +622,50 @@ namespace Space4X.Registry
             snapshot.AnomalyCount = buffer.Length;
             snapshot.ActiveAnomalyCount = activeAnomalies;
             snapshot.HighestAnomalySeverity = highestSeverity;
+            snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
+        }
+
+        private void UpdateResourceSnapshot(ref SystemState state, uint tick)
+        {
+            if (!SystemAPI.TryGetSingleton<ResourceRegistry>(out var resourceRegistry))
+            {
+                return;
+            }
+
+            var registryEntity = SystemAPI.GetSingletonEntity<ResourceRegistry>();
+            var nodeCount = resourceRegistry.TotalResources;
+            var activeCount = resourceRegistry.TotalActiveResources;
+            float unitsRemaining = 0f;
+
+            if (state.EntityManager.HasBuffer<ResourceRegistryEntry>(registryEntity))
+            {
+                var entries = state.EntityManager.GetBuffer<ResourceRegistryEntry>(registryEntity);
+                nodeCount = math.max(nodeCount, entries.Length);
+
+                if (activeCount == 0 && entries.Length > 0)
+                {
+                    var computedActive = 0;
+                    for (int i = 0; i < entries.Length; i++)
+                    {
+                        if (entries[i].UnitsRemaining > 0f)
+                        {
+                            computedActive++;
+                        }
+                    }
+                    activeCount = computedActive;
+                }
+
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    unitsRemaining += entries[i].UnitsRemaining;
+                }
+            }
+
+            ref var snapshot = ref SystemAPI.GetComponentRW<Space4XRegistrySnapshot>(_snapshotEntity).ValueRW;
+            snapshot.ResourceNodeCount = nodeCount;
+            snapshot.ActiveResourceNodeCount = activeCount;
+            snapshot.ResourceUnitsRemaining = unitsRemaining;
+            snapshot.ResourceRegistryLastUpdateTick = resourceRegistry.LastUpdateTick;
             snapshot.LastRegistryTick = math.max(snapshot.LastRegistryTick, tick);
         }
 
@@ -704,6 +803,9 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.registry.anomalies", snapshot.AnomalyCount);
             buffer.AddMetric("space4x.registry.anomalies.active", snapshot.ActiveAnomalyCount);
             buffer.AddMetric("space4x.registry.anomalies.highestSeverity", (float)snapshot.HighestAnomalySeverity);
+            buffer.AddMetric("space4x.resources.nodes", snapshot.ResourceNodeCount);
+            buffer.AddMetric("space4x.resources.nodes.active", snapshot.ActiveResourceNodeCount);
+            buffer.AddMetric("space4x.resources.unitsRemaining", snapshot.ResourceUnitsRemaining, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.miracles.total", snapshot.MiracleCount);
             buffer.AddMetric("space4x.miracles.active", snapshot.ActiveMiracleCount);
             buffer.AddMetric("space4x.miracles.energy", snapshot.MiracleTotalEnergyCost, TelemetryMetricUnit.Custom);
@@ -823,3 +925,4 @@ namespace Space4X.Registry
         }
     }
 }
+

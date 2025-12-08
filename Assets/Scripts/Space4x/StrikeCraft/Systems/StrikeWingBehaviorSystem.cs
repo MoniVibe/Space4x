@@ -3,7 +3,7 @@ using PureDOTS.Runtime.Focus;
 using PureDOTS.Runtime.Groups;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Vehicles;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -27,6 +27,9 @@ namespace Space4X.StrikeCraft
         ComponentLookup<IndividualCombatIntent> _intentLookup;
         ComponentLookup<FocusState> _focusLookup;
         ComponentLookup<PersonalityAxes> _personalityLookup;
+        ComponentLookup<GroupStanceState> _groupStanceLookup;
+        BufferLookup<GroupMember> _groupMemberLookup;
+        ComponentLookup<GroupMeta> _groupMetaLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -38,6 +41,9 @@ namespace Space4X.StrikeCraft
             _intentLookup = state.GetComponentLookup<IndividualCombatIntent>(true);
             _focusLookup = state.GetComponentLookup<FocusState>(true);
             _personalityLookup = state.GetComponentLookup<PersonalityAxes>(true);
+            _groupStanceLookup = state.GetComponentLookup<GroupStanceState>(true);
+            _groupMetaLookup = state.GetComponentLookup<GroupMeta>(true);
+            _groupMemberLookup = state.GetBufferLookup<GroupMember>(true);
         }
 
         [BurstCompile]
@@ -48,6 +54,9 @@ namespace Space4X.StrikeCraft
             _intentLookup.Update(ref state);
             _focusLookup.Update(ref state);
             _personalityLookup.Update(ref state);
+            _groupStanceLookup.Update(ref state);
+            _groupMetaLookup.Update(ref state);
+            _groupMemberLookup.Update(ref state);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
 
@@ -58,7 +67,10 @@ namespace Space4X.StrikeCraft
                 CraftFrameLookup = _craftFrameLookup,
                 IntentLookup = _intentLookup,
                 FocusLookup = _focusLookup,
-                PersonalityLookup = _personalityLookup
+                PersonalityLookup = _personalityLookup,
+                GroupStanceLookup = _groupStanceLookup,
+                GroupMetaLookup = _groupMetaLookup,
+                GroupMemberLookup = _groupMemberLookup
             };
             job.ScheduleParallel();
         }
@@ -72,18 +84,37 @@ namespace Space4X.StrikeCraft
             [ReadOnly] public ComponentLookup<IndividualCombatIntent> IntentLookup;
             [ReadOnly] public ComponentLookup<FocusState> FocusLookup;
             [ReadOnly] public ComponentLookup<PersonalityAxes> PersonalityLookup;
+            [ReadOnly] public ComponentLookup<GroupStanceState> GroupStanceLookup;
+            [ReadOnly] public ComponentLookup<GroupMeta> GroupMetaLookup;
+            [ReadOnly] public BufferLookup<GroupMember> GroupMemberLookup;
 
-            void Execute(
-                in GroupTag groupTag,
-                in GroupMeta groupMeta,
-                in GroupStanceState groupStance,
-                DynamicBuffer<GroupMember> members)
+            void Execute(Entity groupEntity)
             {
+                if (!GroupMetaLookup.HasComponent(groupEntity))
+                {
+                    return;
+                }
+
+                var groupMeta = GroupMetaLookup[groupEntity];
                 // Only process StrikeWing groups
                 if (groupMeta.Kind != GroupKind.StrikeWing)
                 {
                     return;
                 }
+
+                if (!GroupStanceLookup.HasComponent(groupEntity))
+                {
+                    return;
+                }
+
+                var groupStance = GroupStanceLookup[groupEntity];
+
+                if (!GroupMemberLookup.HasBuffer(groupEntity))
+                {
+                    return;
+                }
+
+                var members = GroupMemberLookup[groupEntity];
 
                 // Decide attack pattern based on GroupStance
                 switch (groupStance.Stance)

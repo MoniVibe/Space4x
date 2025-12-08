@@ -1,5 +1,5 @@
 using System;
-using PureDOTS.Authoring;
+using PureDOTS.Runtime.Authoring;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Presentation;
@@ -943,3 +943,4 @@ namespace Space4X.Registry
         }
     }
 }
+

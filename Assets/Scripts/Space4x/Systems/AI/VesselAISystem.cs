@@ -35,7 +35,7 @@ namespace Space4X.Systems.AI
                 .Build();
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
-                .WithAll<ResourceRegistry, ResourceRegistryEntry>()
+                .WithAll<ResourceRegistry, DynamicBuffer<ResourceRegistryEntry>>()
                 .Build();
 
             _carrierQuery = SystemAPI.QueryBuilder()
@@ -312,12 +312,12 @@ namespace Space4X.Systems.AI
                             {
                                 aiState.TargetEntity = miningOrder.TargetEntity;
                                 aiState.CurrentGoal = VesselAIState.Goal.Mining;
-                                if (aiState.CurrentState == VesselAIState.State.Idle)
+                                if (aiState.CurrentState == VesselAIState.State.Idle || aiState.CurrentState == VesselAIState.State.Mining)
                                 {
                                     aiState.CurrentState = VesselAIState.State.MovingToTarget;
-                                    aiState.StateTimer = 0f;
-                                    aiState.StateStartTick = CurrentTick;
                                 }
+                                aiState.StateTimer = 0f;
+                                aiState.StateStartTick = CurrentTick;
                             }
                             // Skip legacy AI target finding if MiningOrder is active and vessel not full
                             // But continue to check return logic below
@@ -407,16 +407,7 @@ namespace Space4X.Systems.AI
                     aiState.StateTimer = 0f;
                     aiState.StateStartTick = CurrentTick;
                 }
-                // If vessel is at target and not full, transition to mining state
-                else if (aiState.CurrentState == VesselAIState.State.MovingToTarget && 
-                         aiState.TargetEntity != Entity.Null &&
-                         vessel.CurrentCargo < vessel.CargoCapacity * 0.95f)
-                {
-                    // Transition to mining state - VesselGatheringSystem will handle actual gathering
-                    aiState.CurrentState = VesselAIState.State.Mining;
-                    aiState.StateTimer = 0f;
-                    aiState.StateStartTick = CurrentTick;
-                }
+                // VesselGatheringSystem will promote to Mining when within range; avoid forcing mining here
             }
         }
     }

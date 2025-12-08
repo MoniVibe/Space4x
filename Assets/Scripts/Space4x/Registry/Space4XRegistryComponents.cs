@@ -235,6 +235,10 @@ namespace Space4X.Registry
         public int ModuleDefenseRatingTotal;
         public int ModuleUtilityRatingTotal;
         public float ModulePowerBalanceMW;
+        public int ResourceNodeCount;
+        public int ActiveResourceNodeCount;
+        public float ResourceUnitsRemaining;
+        public uint ResourceRegistryLastUpdateTick;
         public uint LastRegistryTick;
     }
 
@@ -540,3 +544,4 @@ namespace Space4X.Registry
         public const ushort AnomalyArchetype = 0x5304;
     }
 }
+

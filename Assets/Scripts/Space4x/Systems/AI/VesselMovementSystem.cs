@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
 using Unity.Burst;
@@ -89,18 +89,11 @@ namespace Space4X.Systems.AI
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
-                // Don't move if mining - stay in place to gather resources
-                if (aiState.CurrentState == VesselAIState.State.Mining)
-                {
-                    movement.Velocity = float3.zero;
-                    movement.IsMoving = 0;
-                    return;
-                }
-
                 // Only check TargetEntity - TargetPosition will be resolved by targeting system
                 if (aiState.TargetEntity == Entity.Null)
                 {
                     movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     return;
                 }
@@ -108,15 +101,21 @@ namespace Space4X.Systems.AI
                 // If TargetPosition is still zero, wait for targeting system to resolve it
                 if (aiState.TargetPosition.Equals(float3.zero))
                 {
+                    movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
+                    movement.IsMoving = 0;
                     return;
                 }
 
                 var toTarget = aiState.TargetPosition - transform.Position;
                 var distance = math.length(toTarget);
 
+                // Allow miners to keep moving toward their target even if their AI state is set to Mining.
+                // Stop only when we've actually arrived.
                 if (distance <= ArrivalDistance)
                 {
                     movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     // VesselGatheringSystem will transition to Mining state when close enough
                     return;

@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using Unity.Entities;
-using PureDOTS.Authoring;
+using PureDOTS.Runtime.Authoring;
 
 namespace Space4X.Editor
 {
@@ -256,4 +256,5 @@ namespace Space4X.Editor
     }
 }
 #endif
+
 

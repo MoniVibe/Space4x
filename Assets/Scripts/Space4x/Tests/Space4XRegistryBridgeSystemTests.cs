@@ -6,7 +6,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Registry;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Spatial;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -452,3 +452,4 @@ namespace Space4X.Registry.Tests
     }
 }
 #endif
+

@@ -3,7 +3,7 @@ using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
@@ -344,6 +344,7 @@ namespace Space4x.Scenario
         public FixedString64Bytes Mode;
         public int SlotIndex;
         public FixedString64Bytes NewModuleId;
+        public float3 TargetPosition;
     }
 
     public struct ScenarioActionScheduler : IComponentData
@@ -351,4 +352,5 @@ namespace Space4x.Scenario
         public float LastProcessedTime;
     }
 }
+
 

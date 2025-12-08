@@ -2,7 +2,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Mining;
 using PureDOTS.Runtime.Time;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
 using System.Runtime.InteropServices;
@@ -822,3 +822,4 @@ namespace Space4X.Mining
         }
     }
 }
+

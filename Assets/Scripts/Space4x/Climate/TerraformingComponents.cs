@@ -1,4 +1,4 @@
-using PureDOTS.Environment;
+using PureDOTS.Runtime.Environment;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -46,4 +46,5 @@ namespace Space4X.Climate
         public BiomeType Biome;
     }
 }
+
 

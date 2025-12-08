@@ -78,3 +78,4 @@ namespace Space4X.Registry
         public float NewSkill;
     }
 }
+

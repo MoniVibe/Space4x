@@ -3,7 +3,7 @@ using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
@@ -66,6 +66,7 @@ namespace Space4x.Scenario
 
             _spawnedEntities = new Dictionary<string, Entity>();
             SpawnEntities();
+            ScheduleActions();
 
             _hasLoaded = true;
             Enabled = false;
@@ -292,6 +293,36 @@ namespace Space4x.Scenario
             }
         }
 
+        private void ScheduleActions()
+        {
+            if (_scenarioData.actions == null || _scenarioData.actions.Count == 0)
+            {
+                return;
+            }
+
+            var actionEntity = EntityManager.CreateEntity();
+            var actionsBuffer = EntityManager.AddBuffer<ScenarioActionEntry>(actionEntity);
+
+            foreach (var action in _scenarioData.actions)
+            {
+                actionsBuffer.Add(new ScenarioActionEntry
+                {
+                    TimeSeconds = action.time_s,
+                    ActionType = new FixedString64Bytes(action.type ?? string.Empty),
+                    Target = new FixedString128Bytes(action.resourceId ?? string.Empty),
+                    TargetEntityId = new FixedString64Bytes(action.targetEntity ?? string.Empty),
+                    FloatValue = action.amount,
+                    Mode = new FixedString64Bytes(action.mode ?? string.Empty),
+                    TargetPosition = GetPosition(action.position)
+                });
+            }
+
+            EntityManager.AddComponentData(actionEntity, new ScenarioActionScheduler
+            {
+                LastProcessedTime = -1f
+            });
+        }
+
         private float3 GetPosition(float[] position)
         {
             if (position != null && position.Length >= 2)
@@ -320,7 +351,7 @@ namespace Space4x.Scenario
         public int seed;
         public float duration_s;
         public List<MiningSpawnDefinition> spawn;
-        public List<object> actions;
+        public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
     }
 
@@ -363,10 +394,23 @@ namespace Space4x.Scenario
     }
 
     [System.Serializable]
+    public class MiningScenarioAction
+    {
+        public float time_s;
+        public string type;
+        public string targetEntity;
+        public string resourceId;
+        public float amount;
+        public string mode;
+        public float[] position;
+    }
+
+    [System.Serializable]
     public class MiningTelemetryExport
     {
         public string csv;
         public string json;
     }
 }
+
 

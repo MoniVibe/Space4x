@@ -18,14 +18,14 @@ namespace Space4X.Systems.AI
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<ResourceRegistryEntry>();
+            state.RequireForUpdate<DynamicBuffer<ResourceRegistryEntry>>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var registryQuery = SystemAPI.QueryBuilder()
-                .WithAll<ResourceRegistryEntry>()
+                .WithAll<DynamicBuffer<ResourceRegistryEntry>>()
                 .Build();
 
             if (registryQuery.IsEmptyIgnoreFilter)
@@ -56,3 +56,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
+

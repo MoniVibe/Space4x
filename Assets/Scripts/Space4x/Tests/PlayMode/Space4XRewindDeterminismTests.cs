@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Telemetry;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Registry;
 using Space4X.Systems.AI;
 using Unity.Collections;
@@ -207,6 +207,35 @@ namespace Space4X.Tests.PlayMode
                 "State after first rewind should match original");
             Assert.AreEqual(stateAtTick5, stateAfterRewind2, 0.01f,
                 "State after second rewind should match original");
+        }
+
+        [Test]
+        public void MultiMinerHaul_RemainsDeterministicAfterRewind()
+        {
+            var asteroidA = CreateAsteroid(180f, ResourceType.Minerals, new float3(0f, 0f, 0f));
+            var asteroidB = CreateAsteroid(150f, ResourceType.Minerals, new float3(8f, 0f, 0f));
+            var carrier = CreateCarrier(new float3(4f, 0f, 0f));
+            var vesselA = CreateMiningVessel(asteroidA, new float3(1f, 0f, 0f));
+            var vesselB = CreateMiningVessel(asteroidB, new float3(7f, 0f, 0f));
+
+            AdvanceAndUpdate(6);
+            var carrierAfterFirstPass = GetCarrierStorage(carrier);
+            var vesselACargo = GetVesselCargo(vesselA);
+            var vesselBCargo = GetVesselCargo(vesselB);
+
+            RewindToTick(2);
+            AdvanceToTick(6);
+
+            var carrierAfterReplay = GetCarrierStorage(carrier);
+            var vesselAReplayCargo = GetVesselCargo(vesselA);
+            var vesselBReplayCargo = GetVesselCargo(vesselB);
+
+            Assert.AreEqual(carrierAfterFirstPass, carrierAfterReplay, 0.01f,
+                "Carrier storage should be deterministic across rewinds with multiple miners");
+            Assert.AreEqual(vesselACargo, vesselAReplayCargo, 0.01f,
+                "Vessel A cargo should replay deterministically");
+            Assert.AreEqual(vesselBCargo, vesselBReplayCargo, 0.01f,
+                "Vessel B cargo should replay deterministically");
         }
 
         [Test]
@@ -503,4 +532,5 @@ namespace Space4X.Tests.PlayMode
         }
     }
 }
+
 

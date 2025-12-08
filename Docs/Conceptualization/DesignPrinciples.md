@@ -74,6 +74,24 @@ Design principles are practical guidelines that inform how we build features and
 
 ---
 
+## Principle: Deterministic & Observable
+
+**Statement**: Every simulation tick should be reproducible and auditable. Rewind must restore the same state, and telemetry must surface why outcomes occurred.
+
+**Application**:
+- Add rewind guards to all mutating systems and keep time-driven state in time spines
+- Emit registry snapshots (resources, fleets, anomalies, modules) for HUD/debug overlays
+- Keep ScenarioRunner timelines idempotent; JSON seeds and batch runs must replay identically
+- Tooling (Prefab Maker dry-runs, binding hashes) reports changes without side effects
+
+**Anti-patterns to Avoid**:
+- Hidden randomness or unmanaged allocations inside Burst systems
+- Time-state reads without guarding against rewind/pause
+- Tooling that mutates assets without a dry-run or hash report
+- Telemetry that omits critical loop data (e.g., resources not in registry)
+
+---
+
 ## Using These Principles
 
 1. **During Brainstorming**: Use principles to generate ideas aligned with our design philosophy

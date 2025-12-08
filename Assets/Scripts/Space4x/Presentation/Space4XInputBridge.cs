@@ -139,3 +139,4 @@ namespace Space4X.Presentation
         public bool ShowLogisticsOverlay;
     }
 }
+

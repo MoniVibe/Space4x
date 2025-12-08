@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using PureDOTS.Authoring;
+using PureDOTS.Runtime.Authoring;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Authoring;
@@ -200,4 +200,5 @@ namespace Space4X.Editor
         }
     }
 }
+
 

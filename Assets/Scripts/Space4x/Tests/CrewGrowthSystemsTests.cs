@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using PureDOTS.Runtime.Components;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Registry;
 using Unity.Entities;
 
@@ -98,3 +98,4 @@ namespace Space4X.Tests
         }
     }
 }
+

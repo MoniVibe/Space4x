@@ -1,7 +1,7 @@
 #if UNITY_EDITOR || UNITY_STANDALONE
-using PureDOTS.Authoring.Motivation;
+using PureDOTS.Runtime.Authoring.Motivation;
 using PureDOTS.Runtime.Motivation;
-using PureDOTS.Systems.Motivation;
+using PureDOTS.Runtime.Systems.Motivation;
 using Unity.Entities;
 using UnityEngine;
 
@@ -112,4 +112,5 @@ namespace Space4X.Motivation
     }
 }
 #endif
+
 

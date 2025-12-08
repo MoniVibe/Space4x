@@ -1,7 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Time;
-using PureDOTS.Systems.Physics;
+using PureDOTS.Runtime.Systems.Physics;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -92,3 +92,4 @@ namespace Space4X.Systems.Physics
         }
     }
 }
+

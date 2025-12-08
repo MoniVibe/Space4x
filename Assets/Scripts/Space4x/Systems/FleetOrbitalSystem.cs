@@ -21,6 +21,9 @@ namespace Space4X.Systems
     {
         private const float FleetUpdateFrequency = 0.01f; // 0.01 Hz
         private uint _lastUpdateTick;
+        ComponentLookup<Space4XFleet> _fleetLookup;
+        ComponentLookup<SixDoFState> _sixDoFLookup;
+        ComponentLookup<ShellMembership> _shellMembershipLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -29,6 +32,9 @@ namespace Space4X.Systems
             state.RequireForUpdate<TickTimeState>();
             state.RequireForUpdate<RewindState>();
             _lastUpdateTick = 0;
+            _sixDoFLookup = state.GetComponentLookup<SixDoFState>(false);
+            _shellMembershipLookup = state.GetComponentLookup<ShellMembership>(true);
+            _fleetLookup = state.GetComponentLookup<Space4XFleet>(true);
         }
 
         [BurstCompile]
@@ -52,10 +58,17 @@ namespace Space4X.Systems
 
             _lastUpdateTick = currentTick;
 
+            _sixDoFLookup.Update(ref state);
+            _shellMembershipLookup.Update(ref state);
+            _fleetLookup.Update(ref state);
+
             // Process fleet orbital motion
             var job = new UpdateFleetOrbitalMotionJob
             {
-                CurrentTick = currentTick
+                CurrentTick = currentTick,
+                SixDoFLookup = _sixDoFLookup,
+                ShellMembershipLookup = _shellMembershipLookup,
+                FleetLookup = _fleetLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -65,12 +78,22 @@ namespace Space4X.Systems
         private partial struct UpdateFleetOrbitalMotionJob : IJobEntity
         {
             public uint CurrentTick;
+            public ComponentLookup<SixDoFState> SixDoFLookup;
+            [ReadOnly] public ComponentLookup<ShellMembership> ShellMembershipLookup;
+            [ReadOnly] public ComponentLookup<Space4XFleet> FleetLookup;
 
-            public void Execute(
-                ref SixDoFState sixDoF,
-                in Space4XFleet fleet,
-                in ShellMembership shell)
+            public void Execute(Entity fleetEntity)
             {
+                if (!SixDoFLookup.HasComponent(fleetEntity) ||
+                    !ShellMembershipLookup.HasComponent(fleetEntity) ||
+                    !FleetLookup.HasComponent(fleetEntity))
+                {
+                    return;
+                }
+
+                ref var sixDoF = ref SixDoFLookup[fleetEntity];
+                var shell = ShellMembershipLookup[fleetEntity];
+
                 // Fleet orbital motion inherits from parent stellar system
                 // For now, apply simple orbital drift based on shell membership
                 // In full implementation, this would:
@@ -95,4 +118,5 @@ namespace Space4X.Systems
         }
     }
 }
+
 

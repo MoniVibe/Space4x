@@ -403,3 +403,4 @@ namespace Space4X.CameraSystem
         public static Space4XCameraInputBridge Instance => _instance;
     }
 }
+

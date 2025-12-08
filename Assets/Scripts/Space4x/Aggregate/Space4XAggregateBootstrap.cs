@@ -1,6 +1,6 @@
 #if UNITY_EDITOR || UNITY_STANDALONE
 using PureDOTS.Runtime.Aggregate;
-using PureDOTS.Authoring.Aggregate;
+using PureDOTS.Runtime.Authoring.Aggregate;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -55,6 +55,11 @@ namespace Space4X.Aggregate
     }
 }
 #endif
+
+
+
+
+
 
 
 

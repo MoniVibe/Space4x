@@ -11,6 +11,7 @@
         "Unity.InputSystem",
         "Unity.TextMeshPro",
         "Unity.Physics",
+        "Unity.Physics.Systems",
         "PureDOTS.Runtime",
         "PureDOTS.Runtime.Demo",
         "PureDOTS.Systems",

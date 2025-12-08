@@ -69,6 +69,11 @@ namespace Space4X.Editor
             CoverageHeatmap.PrintReport(coverageReport);
             
             var logMsg = $"PrefabMaker CLI Run ({preset}): Created={result.CreatedCount}, Updated={result.UpdatedCount}, Skipped={result.SkippedCount}";
+            if (options.DryRun)
+            {
+                logMsg = "[DRY RUN] " + logMsg;
+                logMsg += " (no assets were modified)";
+            }
             logMsg += $"\nCoverage: {coverageReport.OverallCoverage:F1}% overall";
             
             if (result.Warnings.Count > 0)

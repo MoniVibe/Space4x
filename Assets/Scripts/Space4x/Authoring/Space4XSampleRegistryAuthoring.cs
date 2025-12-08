@@ -1,5 +1,5 @@
 using System;
-using PureDOTS.Authoring;
+using PureDOTS.Runtime.Authoring;
 using PureDOTS.Runtime.Spatial;
 using Unity.Collections;
 using Unity.Entities;
@@ -255,3 +255,4 @@ namespace Space4X.Registry
         }
     }
 }
+

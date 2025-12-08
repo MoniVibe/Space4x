@@ -3,7 +3,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Registry;
 using PureDOTS.Runtime.Resource;
 using PureDOTS.Runtime.Spatial;
-using PureDOTS.Systems;
+using PureDOTS.Runtime.Systems;
 using Space4X.Registry;
 using Space4X.Systems.AI;
 using Space4X.Runtime;
@@ -107,6 +107,23 @@ namespace Space4X.Tests
                 }
                 Assert.IsTrue(found, "Asteroid should appear in ResourceRegistryEntry buffer");
             }
+        }
+
+        [Test]
+        public void ResourceSnapshotPopulatesFromRegistry()
+        {
+            var asteroid = CreateAsteroid(80f, ResourceType.Minerals, new float3(5f, 0f, 5f));
+
+            UpdateSystem(_populationHandle);
+            UpdateSystem(_bridgeHandle);
+
+            using var snapshotQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XRegistrySnapshot>());
+            Assert.IsFalse(snapshotQuery.IsEmptyIgnoreFilter, "Snapshot entity should exist");
+
+            var snapshot = snapshotQuery.GetSingleton<Space4XRegistrySnapshot>();
+            Assert.GreaterOrEqual(snapshot.ResourceNodeCount, 1, "ResourceNodeCount should include the asteroid");
+            Assert.Greater(snapshot.ResourceUnitsRemaining, 0f, "ResourceUnitsRemaining should track asteroid units");
+            Assert.GreaterOrEqual(snapshot.ActiveResourceNodeCount, 1, "ActiveResourceNodeCount should be populated");
         }
 
         [Test]
@@ -441,4 +458,5 @@ namespace Space4X.Tests
         }
     }
 }
+
 

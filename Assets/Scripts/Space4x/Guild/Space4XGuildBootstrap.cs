@@ -1,5 +1,5 @@
 #if UNITY_EDITOR || UNITY_STANDALONE
-using PureDOTS.Authoring.Guild;
+using PureDOTS.Runtime.Authoring.Guild;
 using PureDOTS.Runtime.Guild;
 using Unity.Entities;
 using UnityEngine;
@@ -108,6 +108,11 @@ namespace Space4X.Guild
     }
 }
 #endif
+
+
+
+
+
 
 
 

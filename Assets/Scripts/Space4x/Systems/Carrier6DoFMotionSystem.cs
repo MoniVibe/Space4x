@@ -20,12 +20,16 @@ namespace Space4X.Systems
     [UpdateAfter(typeof(PureDOTS.Systems.Orbital.AngularVelocityIntegrationSystem))]
     public partial struct Carrier6DoFMotionSystem : ISystem
     {
-        [BurstCompile]
+        ComponentLookup<OrbitalObjectTag> _orbitalTagLookup;
+        ComponentLookup<SixDoFState> _sixDoFLookup;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SixDoFState>();
             state.RequireForUpdate<TickTimeState>();
             state.RequireForUpdate<RewindState>();
+            _orbitalTagLookup = state.GetComponentLookup<OrbitalObjectTag>(true);
+            _sixDoFLookup = state.GetComponentLookup<SixDoFState>(false);
         }
 
         [BurstCompile]
@@ -41,9 +45,14 @@ namespace Space4X.Systems
             float deltaTime = tickTimeState.FixedDeltaTime;
 
             // Process carriers with 6-DoF motion
+            _orbitalTagLookup.Update(ref state);
+            _sixDoFLookup.Update(ref state);
+
             var job = new ApplyCarrierConstraintsJob
             {
-                DeltaTime = deltaTime
+                DeltaTime = deltaTime,
+                OrbitalTagLookup = _orbitalTagLookup,
+                SixDoFLookup = _sixDoFLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -53,11 +62,22 @@ namespace Space4X.Systems
         private partial struct ApplyCarrierConstraintsJob : IJobEntity
         {
             public float DeltaTime;
+            [ReadOnly] public ComponentLookup<OrbitalObjectTag> OrbitalTagLookup;
+            public ComponentLookup<SixDoFState> SixDoFLookup;
 
-            public void Execute(
-                ref SixDoFState sixDoF,
-                in OrbitalObjectTag orbitalTag)
+            public void Execute(Entity carrierEntity)
             {
+                if (!OrbitalTagLookup.HasComponent(carrierEntity))
+                {
+                    return;
+                }
+
+                if (!SixDoFLookup.HasComponent(carrierEntity))
+                {
+                    return;
+                }
+
+                ref var sixDoF = ref SixDoFLookup[carrierEntity];
                 // Carrier-specific constraints:
                 // 1. Limit angular velocity for stability
                 // 2. Apply damping to prevent excessive rotation
@@ -82,4 +102,5 @@ namespace Space4X.Systems
         }
     }
 }
+
 

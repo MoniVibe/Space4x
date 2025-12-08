@@ -22,3 +22,4 @@ namespace Space4X.Registry
         public float3 Position;
     }
 }
+
