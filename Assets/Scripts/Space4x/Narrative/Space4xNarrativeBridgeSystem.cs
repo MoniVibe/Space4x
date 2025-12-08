@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Narrative;
+using Space4X.Demo;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -22,13 +23,20 @@ namespace Space4x.Narrative
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var timeState = SystemAPI.GetSingleton<TimeState>();
-            var rewindState = SystemAPI.GetSingleton<RewindState>();
-            
-            if (timeState.IsPaused || rewindState.Mode != RewindMode.Record)
+            if (!SystemAPI.TryGetSingleton<RewindState>(out var rewindState) ||
+                rewindState.Mode != RewindMode.Record)
             {
                 return;
             }
+
+            if (!SystemAPI.TryGetSingleton<DemoScenarioState>(out var demo) ||
+                !demo.EnableSpace4x ||
+                !demo.IsInitialized)
+            {
+                return;
+            }
+
+            var timeState = SystemAPI.GetSingleton<TimeState>();
 
             // Get or create event feed singleton
             Entity eventFeedEntity;

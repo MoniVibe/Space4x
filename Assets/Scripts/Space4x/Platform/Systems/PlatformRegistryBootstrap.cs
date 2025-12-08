@@ -214,7 +214,7 @@ namespace Space4X.Platform.Systems
 
                 var payloadSize = moduleAuthoring.CapabilityPayload != null ? moduleAuthoring.CapabilityPayload.Length * 4 : 0;
                 var payloadArray = builder.Allocate(ref root.Modules[moduleIndex].CapabilityPayload, payloadSize);
-                
+
                 if (moduleAuthoring.CapabilityPayload != null)
                 {
                     for (int j = 0; j < moduleAuthoring.CapabilityPayload.Length; j++)
@@ -227,17 +227,14 @@ namespace Space4X.Platform.Systems
                     }
                 }
 
-                root.Modules[moduleIndex] = new ModuleDef
-                {
-                    ModuleId = moduleAuthoring.ModuleId,
-                    Category = moduleAuthoring.Category,
-                    Mass = moduleAuthoring.Mass,
-                    PowerDraw = moduleAuthoring.PowerDraw,
-                    Volume = moduleAuthoring.Volume,
-                    AllowedPlacementMask = moduleList[moduleIndex].AllowedPlacementMask,
-                    AllowedLayoutMask = moduleList[moduleIndex].AllowedLayoutMask,
-                    CapabilityPayload = payloadArray
-                };
+                ref var moduleDef = ref root.Modules[moduleIndex];
+                moduleDef.ModuleId = moduleAuthoring.ModuleId;
+                moduleDef.Category = moduleAuthoring.Category;
+                moduleDef.Mass = moduleAuthoring.Mass;
+                moduleDef.PowerDraw = moduleAuthoring.PowerDraw;
+                moduleDef.Volume = moduleAuthoring.Volume;
+                moduleDef.AllowedPlacementMask = moduleList[moduleIndex].AllowedPlacementMask;
+                moduleDef.AllowedLayoutMask = moduleList[moduleIndex].AllowedLayoutMask;
                 moduleIndex++;
             }
 
@@ -260,4 +257,3 @@ namespace Space4X.Platform.Systems
         }
     }
 }
-

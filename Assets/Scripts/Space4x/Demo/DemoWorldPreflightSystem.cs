@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using Space4X.Registry;
 using Space4X.Runtime;
+using PureDOTS.Runtime;
 using Unity.Rendering;
 using UnityEngine;
 using Shared.Demo;
@@ -24,7 +25,28 @@ namespace Space4X.Demo
         uint warmup;
         bool done;
 
-        [BurstCompile] public void OnCreate(ref SystemState s) { warmup = 8; } // let bootstrap/scenario run
+        [BurstCompile]
+        public void OnCreate(ref SystemState s)
+        {
+            warmup = 8; // let bootstrap/scenario run
+
+            // Ensure a demo scenario marker exists so systems can gate on it.
+            if (!SystemAPI.TryGetSingleton<DemoScenarioState>(out _))
+            {
+                var e = s.EntityManager.CreateEntity(typeof(DemoScenarioState));
+                s.EntityManager.SetComponentData(e, new DemoScenarioState
+                {
+                    IsActive = true,
+                    StartWorldSeconds = 0f,
+                    EnableSpace4x = true,
+                    EnableGodgame = false,
+                    EnableEconomy = false,
+                    Current = DemoScenario.Space4XPhysicsOnly,
+                    IsInitialized = true,
+                    BootPhase = DemoBootPhase.Done
+                });
+            }
+        }
 
         public void OnUpdate(ref SystemState s)
         {

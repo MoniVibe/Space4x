@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Time;
 using Space4X.Runtime;
+using Space4X.Demo;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -43,12 +44,12 @@ namespace Space4X.Combat
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
 
             // Query Space4X entities with Health, AttackStats, and PlatformTag
-            foreach (var (entity, health, attackStats, transform) in SystemAPI.Query<
-                Entity,
-                RefRW<Health>,
-                RefRW<AttackStats>,
-                RefRO<LocalTransform>>()
-                .WithAll<PlatformTag>())
+            foreach (var (health, attackStats, transform, entity) in SystemAPI.Query<
+                    RefRW<Health>,
+                    RefRW<AttackStats>,
+                    RefRO<LocalTransform>>()
+                .WithAll<PlatformTag>()
+                .WithEntityAccess())
             {
                 // Check cooldown
                 ref var attackStatsRef = ref attackStats.ValueRW;

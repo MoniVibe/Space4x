@@ -60,7 +60,7 @@ namespace Space4X.Platform.Authoring
         [System.Serializable]
         public struct CrewAssignmentDefinition
         {
-            public Entity crewEntity;
+            public GameObject crewEntity;
             public int roleId;
         }
 

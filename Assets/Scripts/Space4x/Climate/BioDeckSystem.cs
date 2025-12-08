@@ -76,7 +76,8 @@ namespace Space4X.Climate.Systems
         {
             var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.TempJob);
 
-            foreach (var (moduleEntity, module, transform) in SystemAPI.Query<Entity, RefRO<BioDeckModule>, RefRO<LocalTransform>>())
+            foreach (var (module, transform, moduleEntity) in SystemAPI.Query<RefRO<BioDeckModule>, RefRO<LocalTransform>>()
+                         .WithEntityAccess())
             {
                 if (!SystemAPI.HasBuffer<BioDeckCell>(moduleEntity))
                 {

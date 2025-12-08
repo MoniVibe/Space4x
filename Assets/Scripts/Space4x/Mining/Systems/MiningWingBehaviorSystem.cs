@@ -2,7 +2,10 @@ using PureDOTS.Runtime.Focus;
 using PureDOTS.Runtime.Groups;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Vehicles;
+using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Time;
 using PureDOTS.Systems;
+using Space4X.Demo;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -34,22 +37,32 @@ namespace Space4X.Mining
             _intentLookup = state.GetComponentLookup<IndividualCombatIntent>(true);
             _focusLookup = state.GetComponentLookup<FocusState>(true);
             _personalityLookup = state.GetComponentLookup<PersonalityAxes>(true);
+
+            state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<DemoScenarioState>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (!SystemAPI.TryGetSingleton<DemoScenarioState>(out var scenario) ||
+                !scenario.EnableSpace4x ||
+                !scenario.IsInitialized)
+            {
+                return;
+            }
+
             _miningProfileLookup.Update(ref state);
             _craftFrameLookup.Update(ref state);
             _intentLookup.Update(ref state);
             _focusLookup.Update(ref state);
             _personalityLookup.Update(ref state);
 
-            var timeState = SystemAPI.GetSingleton<TimeState>();
+            var time = SystemAPI.Time;
 
             var job = new ProcessMiningWingsJob
             {
-                CurrentTick = timeState.CurrentTick,
+                CurrentTick = (uint)time.ElapsedTime, // use elapsed time seconds cast to uint ticks for now
                 MiningProfileLookup = _miningProfileLookup,
                 CraftFrameLookup = _craftFrameLookup,
                 IntentLookup = _intentLookup,

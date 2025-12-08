@@ -1,4 +1,5 @@
 using PureDOTS.Environment;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Time;
 using PureDOTS.Systems;
 using Space4X.Climate;
@@ -47,7 +48,7 @@ namespace Space4X.Climate.Systems
                 ref TerraformingProject project,
                 in Entity entity)
             {
-                if (!project.Planet.Index.IsValid)
+                if (project.Planet == Entity.Null)
                 {
                     return;
                 }
@@ -82,11 +83,13 @@ namespace Space4X.Climate.Systems
         {
             var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.TempJob);
 
-            foreach (var (sectorEntity, sector, transform) in SystemAPI.Query<Entity, RefRO<SectorClimateProfile>, RefRO<LocalTransform>>())
+            foreach (var (sector, transform, sectorEntity) in SystemAPI.Query<RefRO<SectorClimateProfile>, RefRO<LocalTransform>>()
+                         .WithEntityAccess())
             {
                 // Find or create climate control source for this sector
                 Entity? existingSource = null;
-                foreach (var (sourceEntity, source) in SystemAPI.Query<Entity, RefRO<ClimateControlSource>>())
+                foreach (var (source, sourceEntity) in SystemAPI.Query<RefRO<ClimateControlSource>>()
+                             .WithEntityAccess())
                 {
                     if (math.distance(source.ValueRO.Center, transform.ValueRO.Position) < sector.ValueRO.InfluenceRadius * 0.1f)
                     {
