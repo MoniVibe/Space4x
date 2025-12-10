@@ -1,5 +1,5 @@
 using UnityEngine;
-using Space4X.Time;
+using Space4X.Temporal;
 
 namespace Space4X.TimeDebug
 {

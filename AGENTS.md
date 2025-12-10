@@ -44,3 +44,23 @@ When asked:
 Use short, descriptive commit messages (optionally with `feat:`, `chore:` prefixes).
 Summarize gameplay/engine impact in a few bullet points. When You’re UnsureIf a detail is ambiguous but not critical, make a reasonable assumption and state it briefly.
 If a detail is critical (API choice, breaking change), ask the user once rather than inventing a complex scheme.Remember: this user is a heavy power user; they prefer practical code and minimal fluff over long essays.
+
+## 6.1. Hard rules
+
+- Do not add new asmdefs.
+- Do not modify existing asmdefs except to match AsmdefLayout.md.
+- Do not introduce runtime Monos to “force” ECS systems into the world or to “force” singletons, unless explicitly requested in design.
+- Do not touch com.moni.puredots.demo or import any of its systems into game asmdefs.
+- Do use the canonical render pipeline per game:
+  - `<Game>RenderCatalogDefinition → <Game>RenderCatalogAuthoring → Baker → <Game>RenderCatalogSingleton + <Game>RenderMeshArraySingleton → <Game>ApplyRenderCatalogSystem.`
+- Do respect the unified RenderKey type per game and use it in:
+  - Spawners.
+  - Rendering.
+  - Sanity systems.
+
+## 6.2. Error patterns
+
+- CS0118/CS0119 related to Camera → namespace hygiene issue; use aliases per NamespaceHygiene doc.
+- SystemAPI.* in static methods or non-system contexts → move the logic into OnUpdate or use SystemState APIs.
+- GetSingleton<T>() requires exactly one entity → never hack around it; ensure the singleton is baked/created by the canonical pipeline.
+- Any deviation from these rules is a design bug to correct, not tolerate.

@@ -3,6 +3,7 @@ using UnityEditor;
 using Unity.Entities;
 using Unity.Transforms;
 using Unity.Collections;
+using Space4X.Mining;
 using Space4X.Registry;
 
 namespace Space4X.Editor
@@ -40,12 +41,12 @@ namespace Space4X.Editor
             var carrierQuery = entityManager.CreateEntityQuery(typeof(Carrier), typeof(Unity.Transforms.LocalTransform));
             var vesselQuery = entityManager.CreateEntityQuery(typeof(MiningVessel), typeof(Unity.Transforms.LocalTransform));
             var asteroidQuery = entityManager.CreateEntityQuery(typeof(Asteroid), typeof(Unity.Transforms.LocalTransform));
-            var configQuery = entityManager.CreateEntityQuery(typeof(Space4XMiningVisualConfig));
 
             var carrierCount = carrierQuery.CalculateEntityCount();
             var vesselCount = vesselQuery.CalculateEntityCount();
             var asteroidCount = asteroidQuery.CalculateEntityCount();
-            var hasConfig = !configQuery.IsEmpty;
+            var configAssets = Resources.FindObjectsOfTypeAll<Space4XMiningVisualConfig>();
+            var hasConfig = configAssets != null && configAssets.Length > 0;
 
             Debug.Log($"\n--- Entity Counts ---");
             Debug.Log($"Carriers: {carrierCount}");
@@ -119,7 +120,6 @@ namespace Space4X.Editor
             carrierQuery.Dispose();
             vesselQuery.Dispose();
             asteroidQuery.Dispose();
-            configQuery.Dispose();
 
             Debug.Log("\n=== Check Complete ===");
         }

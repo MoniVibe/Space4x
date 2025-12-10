@@ -2,7 +2,7 @@
 
 Keep this file up to date; overwrite status as work advances. Snapshot to `Docs/Archive/` after major milestones.
 
-Last updated: 2025-11-23 (Agent B: Module/hull catalog system with blob assets, facility proximity detection, catalog-based refit time calculation, rating aggregation, scenario loader/action processor, and telemetry wiring complete. Demo-ready pending final verification.)
+Last updated: 2025-12-11 (Stub pass: PureDOTS shared concepts + Space4X/Godgame scene glue components added to unblock demo wiring while scenes are built.)
 
 When told to "proceed work," open your agent TODO (A/B/C below) and update this file at start and end. This is the single source of truth for current status.
 
@@ -18,7 +18,7 @@ When told to "proceed work," open your agent TODO (A/B/C below) and update this 
 ## Next 3 steps
 1) Add PlayMode rewind determinism tests for mining → haul and registry continuity assertions.
 2) Wire alignment/affiliation buffers into prefabs + sample mutiny/desertion scene; bridge breach tickets into planner/narrative consumers (planner inbox + queue in place).
-3) Extend skill XP + command-log coverage into combat/haul/hazard flows and add maintenance authoring/registry hooks (Agent B); audit mobility/economy TimeState scaling and pricing/trade-op hooks (Agent C).
+3) Extend skill XP + command-log coverage into combat/haul/hazard flows and add maintenance authoring/registry hooks (Agent B); audit mobility/economy TimeState scaling and pricing/trade-op hooks (Agent C). Stubbed components are ready for hookup across scenes.
 
 ## Links
 - Agent A: `Docs/TODO/AgentA_Alignment.md`

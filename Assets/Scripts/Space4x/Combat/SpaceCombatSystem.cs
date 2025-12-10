@@ -20,12 +20,18 @@ namespace Space4X.Combat
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct SpaceCombatSystem : ISystem
     {
+        private EntityQuery _enemyQuery;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<DemoScenarioState>();
+
+            _enemyQuery = SystemAPI.QueryBuilder()
+                .WithAll<Health, LocalTransform, PlatformTag>()
+                .Build();
         }
 
         [BurstCompile]
@@ -63,12 +69,8 @@ namespace Space4X.Combat
                 float nearestDistance = float.MaxValue;
                 float3 enemyPosition = float3.zero;
 
-                var enemyQuery = state.GetEntityQuery(
-                    ComponentType.ReadOnly<Health>(),
-                    ComponentType.ReadOnly<LocalTransform>(),
-                    ComponentType.ReadOnly<PlatformTag>());
-                var enemyEntities = enemyQuery.ToEntityArray(Allocator.Temp);
-                var enemyTransforms = enemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+                var enemyEntities = _enemyQuery.ToEntityArray(Allocator.Temp);
+                var enemyTransforms = _enemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
 
                 for (int i = 0; i < enemyEntities.Length; i++)
                 {

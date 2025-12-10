@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Space4X.Authoring;
 using Space4X.Registry;
+using Space4X.Presentation.Config;
 using UnityEditor;
 using UnityEngine;
 
@@ -119,8 +120,9 @@ namespace Space4X.Editor
             if (binding != null)
             {
                 var bindingCategory = GetBindingCategory(categoryName);
-                var bindingIds = binding.GetBindingsForCategory(bindingCategory).Select(b => b.entityId).ToHashSet();
-                coverage.BindingCount = bindingIds.Count;
+                var categoryBindings = binding.GetBindingsForCategory(bindingCategory);
+                var bindingIds = categoryBindings.Select(b => b.entityId).Where(id => !string.IsNullOrWhiteSpace(id)).ToHashSet();
+                coverage.BindingCount = categoryBindings.Count;
                 coverage.BindingCoverage = coverage.CatalogCount > 0 ? (float)coverage.BindingCount / coverage.CatalogCount * 100f : 0f;
                 coverage.MissingBindings = catalogIds.Except(bindingIds).ToList();
             }

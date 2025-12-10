@@ -20,7 +20,7 @@ namespace Space4X.Mining
     /// Hardened mining system for Space4X vessels with robust state machine and physics disruption handling.
     /// Integrates with PureDOTS mining components for cross-game compatibility.
     /// </summary>
-    [BurstCompile]
+    // [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(CarrierPatrolSystem))]
     [UpdateBefore(typeof(TransformSystemGroup))]
@@ -47,7 +47,6 @@ namespace Space4X.Mining
         private ComponentLookup<MiningDiagnostics> _diagnosticsLookup;
 #endif
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -77,7 +76,6 @@ namespace Space4X.Mining
 #endif
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -208,7 +206,7 @@ namespace Space4X.Mining
         }
 #endif
 
-        [BurstCompile]
+        // [BurstCompile]
         [StructLayout(LayoutKind.Sequential)]
         public partial struct ProcessMiningJob : IJobEntity
         {

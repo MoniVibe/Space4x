@@ -579,7 +579,7 @@ namespace Space4X.Editor.DevMenu
 
         private void UpdateSpawnPositionFromMouse()
         {
-            var camera = Camera.main;
+            var camera = UnityEngine.Camera.main;
             if (camera == null) return;
 
             var mouse = Mouse.current;
@@ -598,7 +598,7 @@ namespace Space4X.Editor.DevMenu
 
         private void FocusCameraOnPosition(float3 position)
         {
-            var camera = Camera.main;
+            var camera = UnityEngine.Camera.main;
             if (camera == null) return;
 
             // Simple camera move - in production, you'd integrate with your camera system

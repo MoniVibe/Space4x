@@ -1,0 +1,54 @@
+using Unity.Burst;
+using Unity.Entities;
+using UnityEngine;
+using PureDOTS.Runtime.Components;
+
+namespace Space4X
+{
+    /// <summary>
+    /// Ensures a baseline RewindState exists in the Default world for Space4X.
+    /// </summary>
+    [BurstCompile]
+    [WorldSystemFilter(WorldSystemFilterFlags.Default)]
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    public partial struct Space4XRewindBootstrapSystem : ISystem
+    {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            // If a baked RewindState already exists, do nothing.
+            var rewindQuery = SystemAPI.QueryBuilder().WithAll<RewindState>().Build();
+            if (!rewindQuery.IsEmptyIgnoreFilter)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            var e = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(e, new RewindState
+            {
+                Mode = RewindMode.Play,
+                CurrentTick = 0,
+                TargetTick = 0,
+                TickDuration = 1f / 60f,
+                MaxHistoryTicks = 30000,
+                PendingStepTicks = 0
+            });
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            if (!Application.isPlaying)
+                return;
+
+            // Bootstrap is one-shot.
+            state.Enabled = false;
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) { }
+    }
+}
+
+

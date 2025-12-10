@@ -84,7 +84,7 @@ namespace Space4X.Systems.Interaction
             bool rmbWasReleased = mouse.rightButton.wasReleasedThisFrame;
 
             // Get camera for raycast
-            var camera = Camera.main;
+            var camera = UnityEngine.Camera.main;
             if (camera == null)
             {
                 return;
@@ -268,4 +268,3 @@ namespace Space4X.Systems.Interaction
         }
     }
 }
-

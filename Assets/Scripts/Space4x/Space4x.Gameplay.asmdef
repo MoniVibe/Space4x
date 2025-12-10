@@ -5,6 +5,7 @@
         "Unity.Entities",
         "Unity.Transforms",
         "Unity.Mathematics",
+        "Unity.Mathematics.Extensions",
         "Unity.Collections",
         "Unity.Burst",
         "Unity.Entities.Hybrid",
@@ -15,10 +16,11 @@
         "PureDOTS.Runtime.Demo",
         "PureDOTS.Systems",
         "PureDOTS.Authoring",
+        "PureDOTS.Rendering",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.Entities.Graphics",
         "Shared.Demo",
-        "Shared.CameraRig"
+        "PureDOTS.Camera"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

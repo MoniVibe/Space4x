@@ -1,22 +1,31 @@
-using PureDOTS.Runtime;
 using Unity.Entities;
 
 namespace Space4X.Demo
 {
     /// <summary>
-    /// Tracks whether the Space4X demo scenario is active and when it started.
+    /// Shared high-level state for the current demo scenario.
+    /// Behavior and narrative systems expect a single singleton of this.
     /// </summary>
     public struct DemoScenarioState : IComponentData
     {
-        public bool IsActive;
-        public float StartWorldSeconds;
+        public int ScenarioId;
 
-        // Compatibility fields to mirror shared demo scenario state expectations.
-        public DemoScenario Current;
-        public bool IsInitialized;
-        public DemoBootPhase BootPhase;
-        public bool EnableGodgame;
+        public bool CombatEnabled;
+        public bool MiningEnabled;
+        public bool StrikeCraftEnabled;
+        public bool NarrativeEnabled;
+
+        public float TimeSinceStart;
+        public int Phase;
+
+        // Compatibility flags used by existing systems.
         public bool EnableSpace4x;
+        public bool EnableGodgame;
         public bool EnableEconomy;
+        public bool IsInitialized;
+
+        // Optional fields commonly referenced by callers; safe to leave defaulted.
+        public bool IsActive;
+        public int Stage;
     }
 }

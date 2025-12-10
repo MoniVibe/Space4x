@@ -584,6 +584,46 @@ namespace Space4X.Temporal
             return SpawnLocalTimeField(world, center, radius, TimeBubbleMode.Stasis, 0f, 
                 durationTicks, 200, moduleEntity, ownerPlayerId);
         }
+
+        /// <summary>
+        /// Begins a rewind preview/scrub. Placeholder - implement when preview flow is ready.
+        /// </summary>
+        public static void BeginRewindPreview(float scrubSpeed = 1f)
+        {
+            // TODO: Implement preview rewind hook.
+        }
+
+        /// <summary>
+        /// Updates rewind preview speed. Placeholder.
+        /// </summary>
+        public static void UpdateRewindPreviewSpeed(float scrubSpeed = 1f)
+        {
+            // TODO: Implement preview rewind speed update.
+        }
+
+        /// <summary>
+        /// Ends the current rewind scrub without committing. Placeholder.
+        /// </summary>
+        public static void EndRewindScrub()
+        {
+            // TODO: Implement preview rewind end.
+        }
+
+        /// <summary>
+        /// Commits the current rewind preview. Placeholder.
+        /// </summary>
+        public static void CommitRewindFromPreview()
+        {
+            // TODO: Implement preview rewind commit.
+        }
+
+        /// <summary>
+        /// Cancels the current rewind preview. Placeholder.
+        /// </summary>
+        public static void CancelRewindPreview()
+        {
+            // TODO: Implement preview rewind cancel.
+        }
     }
 }
 

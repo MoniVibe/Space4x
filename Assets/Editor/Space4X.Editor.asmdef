@@ -11,6 +11,7 @@
         "Unity.VisualEffectGraph.Runtime",
         "Unity.VisualEffectGraph.Editor",
         "Unity.Entities",
+        "Unity.Entities.Graphics",
         "Unity.Transforms",
         "Unity.Scenes",
         "Unity.Collections",

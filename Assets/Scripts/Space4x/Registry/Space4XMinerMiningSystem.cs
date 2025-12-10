@@ -24,7 +24,6 @@ namespace Space4X.Registry
         private ComponentLookup<LocalTransform> _transformLookup;
         private BufferLookup<PlayEffectRequest> _effectRequestLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
-        private EntityQuery _effectStreamQuery;
         private Entity _effectStreamEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
 
@@ -65,7 +64,6 @@ namespace Space4X.Registry
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _effectRequestLookup = state.GetBufferLookup<PlayEffectRequest>();
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
-            _effectStreamQuery = SystemAPI.QueryBuilder().WithAll<Space4XEffectRequestStream>().Build();
 
             EnsureEffectStream(ref state);
         }
@@ -442,9 +440,8 @@ namespace Space4X.Registry
                 return;
             }
 
-            if (!_effectStreamQuery.IsEmptyIgnoreFilter)
+            if (SystemAPI.TryGetSingletonEntity<Space4XEffectRequestStream>(out _effectStreamEntity))
             {
-                _effectStreamEntity = _effectStreamQuery.GetSingletonEntity();
                 if (!state.EntityManager.HasBuffer<PlayEffectRequest>(_effectStreamEntity))
                 {
                     state.EntityManager.AddBuffer<PlayEffectRequest>(_effectStreamEntity);

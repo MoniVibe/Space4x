@@ -88,7 +88,7 @@ namespace Space4X.Systems.Interaction
             bool shiftHeld = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
 
             // Get camera for direction calculation
-            var camera = Camera.main;
+            var camera = UnityEngine.Camera.main;
             if (camera == null)
             {
                 return;
@@ -182,7 +182,7 @@ namespace Space4X.Systems.Interaction
         private void HandleThrow(
             ref SystemState state,
             Entity targetEntity,
-            Camera camera,
+            UnityEngine.Camera camera,
             PickupState pickupState)
         {
             if (targetEntity == Entity.Null || !state.EntityManager.Exists(targetEntity))
@@ -246,7 +246,7 @@ namespace Space4X.Systems.Interaction
             ref SystemState state,
             Entity godHandEntity,
             Entity targetEntity,
-            Camera camera,
+            UnityEngine.Camera camera,
             PickupState pickupState)
         {
             if (targetEntity == Entity.Null || !state.EntityManager.Exists(targetEntity))
@@ -298,7 +298,7 @@ namespace Space4X.Systems.Interaction
         }
 
         [BurstDiscard]
-        private void HandleSettleToTerrain(ref SystemState state, Entity targetEntity, Camera camera)
+        private void HandleSettleToTerrain(ref SystemState state, Entity targetEntity, UnityEngine.Camera camera)
         {
             if (targetEntity == Entity.Null || !state.EntityManager.Exists(targetEntity))
             {

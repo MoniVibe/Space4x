@@ -409,10 +409,10 @@ namespace Space4X.Tests.PlayMode
         private void RewindToTick(uint targetTick)
         {
             var rewind = _entityManager.GetComponentData<RewindState>(_rewindEntity);
-            rewind.Mode = RewindMode.Playback;
+            rewind.Mode = RewindMode.Rewind;
             rewind.StartTick = _entityManager.GetComponentData<TimeState>(_timeEntity).Tick;
             rewind.PlaybackTick = targetTick;
-            rewind.TargetTick = targetTick;
+            rewind.TargetTick = (int)targetTick;
             _entityManager.SetComponentData(_rewindEntity, rewind);
 
             UpdateSystem(_playbackHandle);
@@ -421,8 +421,8 @@ namespace Space4X.Tests.PlayMode
             time.Tick = targetTick;
             _entityManager.SetComponentData(_timeEntity, time);
 
-            rewind.Mode = RewindMode.CatchUp;
-            rewind.TargetTick = targetTick;
+            rewind.Mode = RewindMode.Step;
+            rewind.TargetTick = (int)targetTick;
             _entityManager.SetComponentData(_rewindEntity, rewind);
 
             UpdateSystem(_playbackHandle);

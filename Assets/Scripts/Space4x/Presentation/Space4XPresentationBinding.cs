@@ -1,68 +1,91 @@
-using System.Runtime.CompilerServices;
-using PureDOTS.Runtime.Components;
-using Unity.Entities;
-using Unity.Mathematics;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
 
-namespace Space4X.Presentation
+namespace Space4X.Presentation.Config
 {
-    /// <summary>
-    /// Per-entity presentation descriptor binding that tells the presentation queue which prefab to spawn.
-    /// </summary>
-    public struct Space4XPresentationBinding : IComponentData
+    [CreateAssetMenu(fileName = "Space4XPresentationBinding", menuName = "Space4X/Presentation/Presentation Binding")]
+    public class Space4XPresentationBinding : ScriptableObject
     {
-        public Unity.Entities.Hash128 Descriptor;
-        public float3 PositionOffset;
-        public quaternion RotationOffset;
-        public float ScaleMultiplier;
-        public float4 Tint;
-        public uint VariantSeed;
-        public PresentationSpawnFlags Flags;
-
-        public static Space4XPresentationBinding Create(Unity.Entities.Hash128 descriptor)
+        [Serializable]
+        public struct BindingEntry
         {
-            return new Space4XPresentationBinding
-            {
-                Descriptor = descriptor,
-                PositionOffset = float3.zero,
-                RotationOffset = quaternion.identity,
-                ScaleMultiplier = 1f,
-                Tint = float4.zero,
-                VariantSeed = 0u,
-                Flags = PresentationSpawnFlags.AllowPooling
-            };
+            public string entityId;
+            public string prefabPath;
+            public EntityCategory category;
         }
-    }
 
-    /// <summary>
-    /// Tag to request a refresh of the currently spawned visual. The assignment system recycles and respawns the next frame.
-    /// </summary>
-    public struct Space4XPresentationDirtyTag : IComponentData { }
-
-    public static class Space4XPresentationFlagUtility
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static PresentationSpawnFlags WithOverrides(
-            bool overrideTint,
-            bool overrideScale,
-            bool overrideTransform)
+        public enum EntityCategory : byte
         {
-            var flags = PresentationSpawnFlags.AllowPooling;
-            if (overrideTint)
+            Hull,
+            Module,
+            Station,
+            Resource,
+            Product,
+            Aggregate,
+            Effect,
+            Individual,
+            Weapon,
+            Projectile,
+            Turret
+        }
+
+        [SerializeField] private List<BindingEntry> bindings = new List<BindingEntry>();
+
+        public int Count => bindings?.Count ?? 0;
+
+        public IReadOnlyList<BindingEntry> GetBindingsForCategory(EntityCategory category)
+        {
+            if (bindings == null || bindings.Count == 0)
             {
-                flags |= PresentationSpawnFlags.OverrideTint;
+                return Array.Empty<BindingEntry>();
             }
 
-            if (overrideScale)
+            return bindings.Where(b => b.category == category).ToList();
+        }
+
+        public void SetBinding(string entityId, string prefabPath, EntityCategory category)
+        {
+            if (string.IsNullOrWhiteSpace(entityId) || string.IsNullOrWhiteSpace(prefabPath))
             {
-                flags |= PresentationSpawnFlags.OverrideScale;
+                return;
             }
 
-            if (overrideTransform)
+            if (bindings == null)
             {
-                flags |= PresentationSpawnFlags.OverrideTransform;
+                bindings = new List<BindingEntry>();
             }
 
-            return flags;
+            var entry = new BindingEntry
+            {
+                entityId = entityId,
+                prefabPath = prefabPath.Replace('\\', '/'),
+                category = category
+            };
+
+            var index = bindings.FindIndex(b =>
+                string.Equals(b.entityId, entityId, StringComparison.OrdinalIgnoreCase) &&
+                b.category == category);
+
+            if (index >= 0)
+            {
+                bindings[index] = entry;
+            }
+            else
+            {
+                bindings.Add(entry);
+            }
+
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        }
+
+        public void Clear()
+        {
+            bindings?.Clear();
         }
     }
 }
+

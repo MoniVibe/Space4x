@@ -4,6 +4,9 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Presentation;
 using Space4X.Runtime;
+using Space4X.Demo;
+using Space4X.Rendering;
+using MiningPrimitive = Space4X.Presentation.Space4XMiningPrimitive;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -12,6 +15,10 @@ using UnityEngine;
 using Hash128 = Unity.Entities.Hash128;
 using PresentationBinding = Space4X.Presentation.Space4XPresentationBinding;
 using PresentationFlagUtility = Space4X.Presentation.Space4XPresentationFlagUtility;
+using RenderKeys = Space4X.Rendering.Space4XRenderKeys;
+using RenderKey = Space4X.Rendering.RenderKey;
+using RenderFlags = Space4X.Rendering.RenderFlags;
+using Space4X.Rendering.Catalog;
 
 namespace Space4X.Registry
 {
@@ -288,17 +295,17 @@ namespace Space4X.Registry
         [Serializable]
         public struct MiningVisualSettings
         {
-            public Space4XMiningPrimitive CarrierPrimitive;
+            public MiningPrimitive CarrierPrimitive;
             [Min(0.05f)] public float CarrierScale;
             public Color CarrierColor;
             public string CarrierDescriptorKey;
 
-            public Space4XMiningPrimitive MiningVesselPrimitive;
+            public MiningPrimitive MiningVesselPrimitive;
             [Min(0.05f)] public float MiningVesselScale;
             public Color MiningVesselColor;
             public string MiningVesselDescriptorKey;
 
-            public Space4XMiningPrimitive AsteroidPrimitive;
+            public MiningPrimitive AsteroidPrimitive;
             [Min(0.05f)] public float AsteroidScale;
             public Color AsteroidColor;
             public string AsteroidDescriptorKey;
@@ -307,15 +314,15 @@ namespace Space4X.Registry
             {
                 return new MiningVisualSettings
                 {
-                    CarrierPrimitive = Space4XMiningPrimitive.Capsule,
+                    CarrierPrimitive = MiningPrimitive.Capsule,
                     CarrierScale = 3f,
                     CarrierColor = new Color(0.35f, 0.4f, 0.62f, 1f),
                     CarrierDescriptorKey = "space4x.vessel.carrier",
-                    MiningVesselPrimitive = Space4XMiningPrimitive.Cylinder,
+                    MiningVesselPrimitive = MiningPrimitive.Cylinder,
                     MiningVesselScale = 1.2f,
                     MiningVesselColor = new Color(0.25f, 0.52f, 0.84f, 1f),
                     MiningVesselDescriptorKey = "space4x.vessel.miner",
-                    AsteroidPrimitive = Space4XMiningPrimitive.Sphere,
+                    AsteroidPrimitive = MiningPrimitive.Sphere,
                     AsteroidScale = 2.25f,
                     AsteroidColor = new Color(0.52f, 0.43f, 0.34f, 1f),
                     AsteroidDescriptorKey = "space4x.prop.asteroid"
@@ -339,6 +346,7 @@ namespace Space4X.Registry
 
             public override void Bake(Space4XMiningDemoAuthoring authoring)
             {
+                Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Baking... Adding RenderKey type: {typeof(RenderKey).FullName}");
 #if UNITY_EDITOR
                 if (!s_loggedStart)
                 {
@@ -387,6 +395,12 @@ namespace Space4X.Registry
             private void AddVisualConfig(Space4XMiningDemoAuthoring authoring)
             {
                 var configEntity = GetEntity(TransformUsageFlags.None);
+                
+                // Ensure RenderCatalogSingleton exists on this entity or create a new one if needed
+                // But typically RenderCatalog is baked separately. 
+                // Just in case, let's add a dummy RenderCatalogSingleton if it doesn't exist to satisfy the system?
+                // No, that would be wrong. The system needs a valid blob.
+                
                 var visuals = authoring.visuals;
 
                 var config = new Space4XMiningVisualConfig
@@ -498,6 +512,9 @@ namespace Space4X.Registry
                             });
                         }
                     }
+
+                    AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Carrier });
+                    AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
 
                     var carrierBinding = CreatePresentationBinding(
                         visuals.CarrierDescriptorKey,
@@ -647,6 +664,9 @@ namespace Space4X.Registry
                         LastMoveTick = 0
                     });
 
+                    AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Miner });
+                    AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
+
                     var vesselBinding = CreatePresentationBinding(
                         visuals.MiningVesselDescriptorKey,
                         visuals.MiningVesselScale,
@@ -727,6 +747,9 @@ namespace Space4X.Registry
                         OverrideStrideSeconds = 0f
                     });
                     AddBuffer<ResourceHistorySample>(entity);
+
+                    AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Asteroid });
+                    AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
 
                     var asteroidBinding = CreatePresentationBinding(
                         visuals.AsteroidDescriptorKey,

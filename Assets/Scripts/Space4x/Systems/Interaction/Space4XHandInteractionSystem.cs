@@ -5,6 +5,7 @@ using Space4X.Physics;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Space4X.Runtime.Interaction;
+using Space4X.Presentation.Camera;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -377,4 +378,3 @@ namespace Space4X.Systems.Interaction
         }
     }
 }
-

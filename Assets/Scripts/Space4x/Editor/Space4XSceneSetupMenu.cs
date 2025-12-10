@@ -116,11 +116,11 @@ namespace Space4X.Editor
         private static void SetupCombatDemoScene()
         {
             // Find or create the main camera
-            var mainCamera = Camera.main;
+            var mainCamera = UnityEngine.Camera.main;
             if (mainCamera == null)
             {
                 var cameraGo = new GameObject("Main Camera");
-                mainCamera = cameraGo.AddComponent<Camera>();
+                mainCamera = cameraGo.AddComponent<UnityEngine.Camera>();
                 cameraGo.tag = "MainCamera";
                 cameraGo.AddComponent<AudioListener>();
             }
@@ -141,6 +141,24 @@ namespace Space4X.Editor
             // Create ECS Bootstrap
             CreateECSBootstrap("Combat Demo Bootstrap", setupCombatDemo: true);
 
+            // Camera Bootstrap
+            var cameraBootstrapGo = new GameObject("Space4X Camera Bootstrap");
+            var cameraBootstrap = cameraBootstrapGo.AddComponent<Space4X.Camera.Space4XCameraBootstrap>();
+
+            // Try to find and assign the camera prefab
+            var cameraPrefabGuid = AssetDatabase.FindAssets("Space4XCamera t:Prefab");
+            if (cameraPrefabGuid.Length > 0)
+            {
+                var prefabPath = AssetDatabase.GUIDToAssetPath(cameraPrefabGuid[0]);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (prefab != null)
+                {
+                    var serializedObj = new SerializedObject(cameraBootstrap);
+                    serializedObj.FindProperty("cameraPrefab").objectReferenceValue = prefab;
+                    serializedObj.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+
             // Create Dev Menu
             var devMenuGo = new GameObject("Space4X Dev Menu");
             devMenuGo.AddComponent<DevMenu.Space4XDevMenuUI>();
@@ -160,11 +178,11 @@ namespace Space4X.Editor
         private static void SetupMiningDemoScene()
         {
             // Camera
-            var mainCamera = Camera.main;
+            var mainCamera = UnityEngine.Camera.main;
             if (mainCamera == null)
             {
                 var cameraGo = new GameObject("Main Camera");
-                mainCamera = cameraGo.AddComponent<Camera>();
+                mainCamera = cameraGo.AddComponent<UnityEngine.Camera>();
                 cameraGo.tag = "MainCamera";
                 cameraGo.AddComponent<AudioListener>();
             }
@@ -180,6 +198,24 @@ namespace Space4X.Editor
 
             // ECS Bootstrap
             CreateECSBootstrap("Mining Demo Bootstrap", setupMiningDemo: true);
+
+            // Camera Bootstrap
+            var cameraBootstrapGo = new GameObject("Space4X Camera Bootstrap");
+            var cameraBootstrap = cameraBootstrapGo.AddComponent<Space4X.Camera.Space4XCameraBootstrap>();
+
+            // Try to find and assign the camera prefab
+            var cameraPrefabGuid = AssetDatabase.FindAssets("Space4XCamera t:Prefab");
+            if (cameraPrefabGuid.Length > 0)
+            {
+                var prefabPath = AssetDatabase.GUIDToAssetPath(cameraPrefabGuid[0]);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (prefab != null)
+                {
+                    var serializedObj = new SerializedObject(cameraBootstrap);
+                    serializedObj.FindProperty("cameraPrefab").objectReferenceValue = prefab;
+                    serializedObj.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
 
             // Dev Menu
             var devMenuGo = new GameObject("Space4X Dev Menu");
@@ -215,7 +251,7 @@ namespace Space4X.Editor
             int issues = 0;
 
             // Check for main camera
-            if (Camera.main == null)
+            if (UnityEngine.Camera.main == null)
             {
                 Debug.LogWarning("[Space4X] No main camera found in scene");
                 issues++;
@@ -234,6 +270,14 @@ namespace Space4X.Editor
             if (spatialPartition == null)
             {
                 Debug.LogWarning("[Space4X] No SpatialPartitionAuthoring found. Spatial queries won't work.");
+                issues++;
+            }
+
+            // Check for camera bootstrap
+            var cameraBootstrap = Object.FindFirstObjectByType<Space4X.Camera.Space4XCameraBootstrap>();
+            if (cameraBootstrap == null)
+            {
+                Debug.LogWarning("[Space4X] No Camera Bootstrap in scene. Camera may not initialize properly.");
                 issues++;
             }
 

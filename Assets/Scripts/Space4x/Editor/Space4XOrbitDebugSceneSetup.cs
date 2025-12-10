@@ -43,7 +43,7 @@ namespace Space4X.Editor
             if (cameraObj == null)
             {
                 cameraObj = new GameObject("Main Camera");
-                cameraObj.AddComponent<Camera>();
+                cameraObj.AddComponent<UnityEngine.Camera>();
                 cameraObj.tag = "MainCamera";
             }
 
@@ -52,7 +52,7 @@ namespace Space4X.Editor
             cameraObj.transform.LookAt(Vector3.zero);
             
             // Set camera settings
-            var camera = cameraObj.GetComponent<Camera>();
+            var camera = cameraObj.GetComponent<UnityEngine.Camera>();
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 1000f;
 

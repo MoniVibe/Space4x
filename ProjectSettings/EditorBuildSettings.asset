@@ -20,6 +20,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Space4X/Demos/Demo_Space4X_01_SubScene.unity
     guid: da7de6eb757f62a4bb5f75fee5fd4bab
+  - enabled: 1
+    path: Assets/Scenes/Demo/Space4X_MiningDemo_SubScene_New.unity
+    guid: 387bb0429e258d04182f354675b34b20
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
