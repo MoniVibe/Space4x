@@ -4,6 +4,10 @@
 
 Space4x is an independent Unity project that consumes the PureDOTS package for its DOTS framework.
 
+Primary orientation flow:
+- `../TRI_PROJECT_BRIEFING.md` (canonical TRI briefing)
+- `AGENTS.md` (Space4X agent workflow + smoke scene)
+
 ## Repository boundaries
 
 - Root workspace: `C:/Users/shonh/OneDrive/Documents/claudeprojects/Unity`.

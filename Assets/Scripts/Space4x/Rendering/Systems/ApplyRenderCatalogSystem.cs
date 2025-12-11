@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Rendering;
+using UnityEngine;
 using Space4X.Rendering;
 
 namespace Space4X.Rendering.Systems
@@ -10,6 +11,8 @@ namespace Space4X.Rendering.Systems
     {
         private EntityQuery _catalogQuery;
         private EntityQuery _renderKeyQuery;
+        private bool _warnedNoCatalog;
+        private bool _warnedNoRenderKeys;
 
         protected override void OnCreate()
         {
@@ -26,8 +29,25 @@ namespace Space4X.Rendering.Systems
 
         protected override void OnUpdate()
         {
-            if (_catalogQuery.IsEmptyIgnoreFilter || _renderKeyQuery.IsEmptyIgnoreFilter)
+            if (_catalogQuery.IsEmptyIgnoreFilter)
+            {
+                if (!_warnedNoCatalog)
+                {
+                    Debug.LogWarning("[Space4X RenderCatalog] No catalog singleton found in world; render mapping skipped.");
+                    _warnedNoCatalog = true;
+                }
                 return;
+            }
+
+            if (_renderKeyQuery.IsEmptyIgnoreFilter)
+            {
+                if (!_warnedNoRenderKeys)
+                {
+                    Debug.LogWarning("[Space4X RenderCatalog] No RenderKey entities found; nothing to map.");
+                    _warnedNoRenderKeys = true;
+                }
+                return;
+            }
 
             var em = EntityManager;
 

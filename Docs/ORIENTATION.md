@@ -3,6 +3,8 @@
 **Last Updated**: 2025-11-23  
 **Purpose**: Comprehensive overview of project structure, current state, and readiness for game development
 
+**Start Here**: `../TRI_PROJECT_BRIEFING.md` (master orientation) → `AGENTS.md` (Space4X agent workflow + smoke scene)
+
 ---
 
 ## Project Overview
