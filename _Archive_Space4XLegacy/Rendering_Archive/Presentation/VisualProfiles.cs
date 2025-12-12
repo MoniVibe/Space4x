@@ -57,6 +57,7 @@ namespace Space4X.Presentation
     /// <summary>
     /// Bootstrap system that creates the visual profile catalog blob.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct VisualProfileBootstrapSystem : ISystem
     {
@@ -135,6 +136,7 @@ namespace Space4X.Presentation
     /// <summary>
     /// System that assigns visual components (MaterialMeshInfo) to entities based on their visual profile.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(VisualProfileBootstrapSystem))]
     public partial struct AssignVisualsSystem : ISystem

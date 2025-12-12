@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Platform.Blobs;
 using Space4X.Platform.Authoring;
@@ -159,25 +160,35 @@ namespace Space4X.Platform.Systems
                 return;
             }
 
+            var validModules = new List<ModuleAuthoring>(modules.Length);
+            for (int i = 0; i < modules.Length; i++)
+            {
+                if (modules[i] != null)
+                {
+                    validModules.Add(modules[i]);
+                }
+            }
+
+            if (validModules.Count == 0)
+            {
+                return;
+            }
+
             var builder = new BlobBuilder(Allocator.Temp);
             ref var root = ref builder.ConstructRoot<ModuleDefRegistryBlob>();
+            builder.Allocate(ref root.Modules, validModules.Count);
 
-            var moduleList = new NativeList<ModuleDef>(modules.Length, Allocator.Temp);
-
-            foreach (var moduleAuthoring in modules)
+            for (int i = 0; i < validModules.Count; i++)
             {
-                if (moduleAuthoring == null)
-                {
-                    continue;
-                }
+                var moduleAuthoring = validModules[i];
 
-                var placementMask = (byte)0;
+                byte placementMask = 0;
                 if (moduleAuthoring.AllowedInternal)
                     placementMask |= 1;
                 if (moduleAuthoring.AllowedExternal)
                     placementMask |= 2;
 
-                var layoutMask = (byte)0;
+                byte layoutMask = 0;
                 if (moduleAuthoring.AllowedMassMode)
                     layoutMask |= 1;
                 if (moduleAuthoring.AllowedHardpointMode)
@@ -185,62 +196,34 @@ namespace Space4X.Platform.Systems
                 if (moduleAuthoring.AllowedVoxelMode)
                     layoutMask |= 4;
 
-                var payloadSize = moduleAuthoring.CapabilityPayload != null ? moduleAuthoring.CapabilityPayload.Length * 4 : 0;
-                
-                var moduleDef = new ModuleDef
+                ref var moduleDef = ref root.Modules[i];
+                moduleDef.ModuleId = moduleAuthoring.ModuleId;
+                moduleDef.Category = moduleAuthoring.Category;
+                moduleDef.Mass = moduleAuthoring.Mass;
+                moduleDef.PowerDraw = moduleAuthoring.PowerDraw;
+                moduleDef.Volume = moduleAuthoring.Volume;
+                moduleDef.AllowedPlacementMask = placementMask;
+                moduleDef.AllowedLayoutMask = layoutMask;
+
+                var payload = moduleAuthoring.CapabilityPayload;
+                var payloadSize = payload != null ? payload.Length * 4 : 0;
+                var payloadArray = builder.Allocate(ref moduleDef.CapabilityPayload, payloadSize);
+
+                if (payload != null && payloadArray.Length > 0)
                 {
-                    ModuleId = moduleAuthoring.ModuleId,
-                    Category = moduleAuthoring.Category,
-                    Mass = moduleAuthoring.Mass,
-                    PowerDraw = moduleAuthoring.PowerDraw,
-                    Volume = moduleAuthoring.Volume,
-                    AllowedPlacementMask = placementMask,
-                    AllowedLayoutMask = layoutMask,
-                    CapabilityPayload = default
-                };
-
-                moduleList.Add(moduleDef);
-            }
-
-            builder.Allocate(ref root.Modules, moduleList.Length);
-            int moduleIndex = 0;
-            for (int i = 0; i < modules.Length; i++)
-            {
-                var moduleAuthoring = modules[i];
-                if (moduleAuthoring == null)
-                {
-                    continue;
-                }
-
-                var payloadSize = moduleAuthoring.CapabilityPayload != null ? moduleAuthoring.CapabilityPayload.Length * 4 : 0;
-                var payloadArray = builder.Allocate(ref root.Modules[moduleIndex].CapabilityPayload, payloadSize);
-
-                if (moduleAuthoring.CapabilityPayload != null)
-                {
-                    for (int j = 0; j < moduleAuthoring.CapabilityPayload.Length; j++)
+                    for (int j = 0; j < payload.Length; j++)
                     {
-                        var bytes = System.BitConverter.GetBytes(moduleAuthoring.CapabilityPayload[j]);
+                        var bytes = System.BitConverter.GetBytes(payload[j]);
                         for (int k = 0; k < 4; k++)
                         {
                             payloadArray[j * 4 + k] = bytes[k];
                         }
                     }
                 }
-
-                ref var moduleDef = ref root.Modules[moduleIndex];
-                moduleDef.ModuleId = moduleAuthoring.ModuleId;
-                moduleDef.Category = moduleAuthoring.Category;
-                moduleDef.Mass = moduleAuthoring.Mass;
-                moduleDef.PowerDraw = moduleAuthoring.PowerDraw;
-                moduleDef.Volume = moduleAuthoring.Volume;
-                moduleDef.AllowedPlacementMask = moduleList[moduleIndex].AllowedPlacementMask;
-                moduleDef.AllowedLayoutMask = moduleList[moduleIndex].AllowedLayoutMask;
-                moduleIndex++;
             }
 
             var blob = builder.CreateBlobAssetReference<ModuleDefRegistryBlob>(Allocator.Persistent);
             builder.Dispose();
-            moduleList.Dispose();
 
             using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<ModuleDefRegistry>());
             Entity registryEntity;

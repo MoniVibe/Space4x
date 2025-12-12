@@ -12,6 +12,7 @@ namespace Space4X.Demo
     /// and logs their count, positions, and render component status.
     /// Useful for verifying that OrbitCubeSystem is spawning entities correctly.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XOrbitDebugSystem : ISystem
     {

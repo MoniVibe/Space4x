@@ -1,43 +1,35 @@
 using UnityEngine;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using Unity.Scenes;
-using Space4X.Rendering.Catalog;
 
 public class SetupSubScene
 {
-    [MenuItem("Space4X/Setup/Fix SubScene")]
-    public static void Fix()
+    public static void Execute()
     {
-        var bootstrapScenePath = "Assets/Scenes/Space4X_Bootstrap.unity";
-        var mainScenePath = "Assets/temp12.unity";
+        var go = GameObject.Find("MiningDemoSubScene");
+        if (go == null)
+        {
+            Debug.LogError("GameObject 'MiningDemoSubScene' not found.");
+            return;
+        }
+
+        var subScene = go.GetComponent<SubScene>();
+        if (subScene == null)
+        {
+            Debug.LogError("SubScene component not found.");
+            return;
+        }
+
+        var scenePath = "Assets/Scenes/Demo/Space4X_MiningDemo_SubScene.unity";
+        var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath);
         
-        // 1. Create Bootstrap Scene
-        var bootstrapScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        
-        // 2. Create Catalog GO
-        var go = new GameObject("Space4XRenderCatalog");
-        var authoring = go.AddComponent<RenderCatalogAuthoring>();
-        var assetPath = "Assets/Data/Space4XRenderCatalog.asset";
-        var catalog = AssetDatabase.LoadAssetAtPath<Space4XRenderCatalogDefinition>(assetPath);
-        authoring.CatalogDefinition = catalog;
-        
-        // 3. Save Bootstrap Scene
-        EditorSceneManager.SaveScene(bootstrapScene, bootstrapScenePath);
-        
-        // 4. Open Main Scene
-        var mainScene = EditorSceneManager.OpenScene(mainScenePath);
-        
-        // 5. Create SubScene GO
-        var subSceneGO = new GameObject("Space4X_Bootstrap");
-        var subScene = subSceneGO.AddComponent<SubScene>();
-        var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(bootstrapScenePath);
+        if (sceneAsset == null)
+        {
+            Debug.LogError($"SceneAsset not found at {scenePath}");
+            return;
+        }
+
         subScene.SceneAsset = sceneAsset;
-        
-        // 6. Ensure AutoLoad
-        subScene.AutoLoadScene = true;
-        
-        EditorSceneManager.SaveScene(mainScene);
-        Debug.Log("Fixed SubScene setup.");
+        Debug.Log("Successfully assigned SceneAsset to SubScene.");
     }
 }

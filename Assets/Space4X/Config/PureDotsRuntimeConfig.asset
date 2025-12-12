@@ -31,6 +31,7 @@ MonoBehaviour:
     minTicksPerSecond: 60
     maxTicksPerSecond: 120
     strideScale: 1
+    enableInputRecording: 1
   _resourceTypes: {fileID: 11400000, guid: d27ccb53a5fa5e546b9b90fdc9e013ae, type: 2}
   _recipeCatalog: {fileID: 11400000, guid: a9a9f577f2234b2387bfc72b82bcad99, type: 2}
   _pooling:
@@ -41,3 +42,9 @@ MonoBehaviour:
     ecbPoolCapacity: 32
     ecbWriterPoolCapacity: 32
     resetOnRewind: 1
+  _threading:
+    overrideWorkerCount: 0
+    enableColdThrottling: 1
+    historySnapshotCadence: 3
+    coldPathTimeBudget: 0.002
+    burstCompileSynchronously: 1

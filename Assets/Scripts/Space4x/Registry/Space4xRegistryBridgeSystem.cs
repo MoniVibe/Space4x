@@ -90,6 +90,7 @@ namespace Space4X.Registry
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var tick = timeState.Tick;
+            state.CompleteDependency();
 
             _residencyLookup.Update(ref state);
             _miracleRegistryLookup.Update(ref state);

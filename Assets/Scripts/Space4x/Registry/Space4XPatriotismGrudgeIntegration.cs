@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
@@ -10,7 +11,7 @@ namespace Space4X.Registry
     /// High patriotism to faction reduces mutiny risk.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XMutinySystem))]
     public partial struct Space4XPatriotismMutinyIntegrationSystem : ISystem
     {
@@ -57,7 +58,7 @@ namespace Space4X.Registry
     /// Grudges create negative relation modifiers.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     public partial struct Space4XGrudgeDiplomacyIntegrationSystem : ISystem
     {
         [BurstCompile]
@@ -126,7 +127,7 @@ namespace Space4X.Registry
     /// Grudge targets get priority boost in combat.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XTargetPrioritySystem))]
     public partial struct Space4XGrudgeTargetingIntegrationSystem : ISystem
     {
@@ -179,7 +180,7 @@ namespace Space4X.Registry
     /// High patriotism in home territory boosts morale.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XMoraleSystem))]
     public partial struct Space4XPatriotismMoraleIntegrationSystem : ISystem
     {
@@ -241,7 +242,7 @@ namespace Space4X.Registry
     /// Integrates grudges into morale (working with grudge targets hurts morale).
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XMoraleSystem))]
     public partial struct Space4XGrudgeMoraleIntegrationSystem : ISystem
     {

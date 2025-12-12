@@ -8,7 +8,7 @@ namespace Space4X.Registry
     /// Aggregates module stat multipliers for carriers.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XCarrierModuleRefitSystem))]
     public partial struct Space4XModuleStatAggregationSystem : ISystem
     {

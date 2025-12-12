@@ -8,7 +8,7 @@ namespace Space4X.Registry
     /// Publishes tech diffusion counters to telemetry for HUD/debug dashboards.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XTechDiffusionSystem))]
     public partial struct Space4XTechDiffusionTelemetrySystem : ISystem
     {

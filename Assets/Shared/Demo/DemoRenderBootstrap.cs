@@ -8,6 +8,7 @@ namespace Shared.Demo
 {
     public struct DemoRenderReady : IComponentData {}
 
+    #if SPACE4X_LEGACY_RENDER
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial class SharedDemoRenderBootstrap : SystemBase
     {
@@ -38,6 +39,7 @@ namespace Shared.Demo
 
         protected override void OnUpdate() {}
     }
+    #endif
 
     public static class DemoRenderUtil
     {

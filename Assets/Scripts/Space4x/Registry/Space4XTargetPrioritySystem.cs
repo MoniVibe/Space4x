@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
@@ -10,7 +11,7 @@ namespace Space4X.Registry
     /// Scores potential targets and selects based on alignment-driven profile.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XCaptainOrderSystem))]
     public partial struct Space4XTargetPrioritySystem : ISystem
     {
@@ -166,7 +167,7 @@ namespace Space4X.Registry
     /// Updates target selection profiles based on alignment changes.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XTargetPrioritySystem))]
     public partial struct Space4XTargetProfileUpdateSystem : ISystem
     {
@@ -219,7 +220,7 @@ namespace Space4X.Registry
     /// Tracks damage history for target continuity bonuses.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XTargetPrioritySystem))]
     public partial struct Space4XDamageHistorySystem : ISystem
     {
@@ -252,7 +253,7 @@ namespace Space4X.Registry
     /// Applies hostile species bonuses to target scoring.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XTargetPrioritySystem))]
     public partial struct Space4XHostileSpeciesTargetingSystem : ISystem
     {

@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Time;
+using PureDOTS.Systems;
 using PureDOTS.Systems.Time;
 using Unity.Burst;
 using Unity.Entities;
@@ -13,7 +14,7 @@ namespace Space4X.Features.Time
     /// This is a thin adapter layer - all core logic is in PureDOTS shared systems.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(EnvironmentSystemGroup))]
     [UpdateAfter(typeof(TimeOfDaySystem))]
     public partial struct Space4XTimeOfDayAdapterSystem : ISystem
     {

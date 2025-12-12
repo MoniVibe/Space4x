@@ -101,6 +101,36 @@ If you are looking for them, you are looking for namespaces, bootstraps, and sys
 - `Docs/Guides/MultiECS_Integration_Guide.md` - Multi-ECS integration cookbook
 - `Docs/FoundationGuidelines.md` - Coding guidelines
 
+## Burst Rulebook (PureDOTS + Space4X + Godgame)
+
+**Always Burst (pure, no logs/strings/allocs):** movement/steering/pathing/orbits; per-tick AI math (targeting, mining internals, combat resolution); needs/resource deltas/regen/decay/facility processing; aggregation jobs (morale/power/workforce/fleet stats); PureDOTS spines (time/tick/rewind, spatial/proximity, logistics math, identity/focus/morale numeric updates); render mapping systems (catalog → MaterialMeshInfo/RenderBounds) incl. ApplyRenderCatalogSystem/Space4XAssignRenderKeySystem.
+
+**Never Burst:** UI/camera/input/presentation; ECS↔Mono bridges touching GameObject/Transform/Canvas; high-level orchestration/meta (WorldSnapshot orchestration, narrative bridges, diplomacy controllers, mission board, captain escalation); IntergroupRelations cluster (OrgIntegration/OrgOwnership/OrgRelationInit/OrgRelationEventImpact/OrgPolicyCompute, etc.) until a dedicated Burst pass; editor/tools/menus/gizmos/scene wizards.
+
+**Split (Burst core + [BurstDiscard] logs):** runtime debug counters/sanity checks (mining debug, render sanity, time/rewind debug, registry sanity); render sanity systems. Pattern:
+
+```csharp
+[BurstCompile]
+public partial struct SomeDebugSystem : ISystem
+{
+    public void OnUpdate(ref SystemState state)
+    {
+        int count = 0;
+        foreach (var _ in SystemAPI.Query<RefRO<SomeTag>>()) count++;
+#if UNITY_EDITOR
+        LogCount(count);
+#endif
+    }
+
+    [BurstDiscard]
+    static void LogCount(int count) => UnityEngine.Debug.Log($"[SomeDebug] count:{count}");
+}
+```
+
+**Banned in Burst paths:** `new ComponentType[] { ... }`, `new EntityQueryDesc[] { ... }`, `new[] { ComponentType... }`, `new[] { EntityQueryDesc... }`; Debug.Log* or any string concat/interpolation; List/Dictionary/allocs; FixedString constructors or enum .ToString(); managed references. All diagnostics go through [BurstDiscard] helpers. Allowed Burst-safe query patterns: `state.GetEntityQuery(ComponentType.ReadOnly<A>(), ComponentType.Exclude<B>());`; `foreach (var _ in SystemAPI.Query<RefRO<TagX>>()) { … }`; `EntityQueryBuilder` / `SystemAPI.QueryBuilder().WithAll<...>().Build();`. If a system truly needs `EntityQueryDesc`, build it in non-Burst code or keep that system non-Burst.
+
+**Special handling:** IntergroupRelations stays non-Burst/stub until rework; WorldSnapshotPlaybackSystem may stay non-Burst or stubbed (empty OnUpdate) until a small Burst core exists; render catalog systems stay Burst but move all diagnostics to [BurstDiscard] helpers; Space4X_MiningEntityDebugSystem and similar follow the Split pattern.
+
 ---
 
 ## Space4X Game
@@ -508,6 +538,21 @@ namespace Space4X.Presentation  // Not in PureDOTS!
 }
 ```
 
+### P18: Shared Component Access - Use EntityManager
+
+SystemAPI has no GetSharedComponent<T>() method. Use EntityManager for shared component access.
+
+```csharp
+// ❌ WRONG - SystemAPI.GetSharedComponent doesn't exist
+var rma = SystemAPI.GetSharedComponent<RenderMeshArray>(catalogEntity);
+
+// ✅ CORRECT - Use EntityManager.GetSharedComponentManaged
+var rma = state.EntityManager.GetSharedComponentManaged<RenderMeshArray>(catalogEntity);
+
+// For setting shared components:
+state.EntityManager.SetSharedComponentManaged(entity, new RenderMeshArray { ... });
+```
+
 ---
 
 ## Camera Organization & Artifacts Warning
@@ -577,6 +622,7 @@ Before completing ANY task:
 - [ ] **Blob access uses ref**: All `blobRef.Value` accessed with `ref`
 - [ ] **Explicit casts present**: Enum↔byte conversions have casts
 - [ ] **Rewind guards present**: Mutating systems check `RewindState.Mode`
+- [ ] **Shared components use EntityManager**: No `SystemAPI.GetSharedComponent`, use `state.EntityManager.GetSharedComponentManaged`
 
 ### C# / Unity Compatibility
 - [ ] **No `ref readonly`**: Use `ref` for returns, `in` for parameters
@@ -618,6 +664,7 @@ Before completing ANY task:
 | CreateAssetMenu warning | Attribute on non-SO | Remove attribute or inherit `ScriptableObject` |
 | CS0101 | Duplicate type from lingering stubs | Delete/`#if false` stub files when real types return |
 | RewindState duplicate | Multiple bootstrap paths created another singleton | Only RewindBootstrapSystem seeds RewindState from RewindConfig; remove manual AddComponentData |
+| CS1061 | 'SystemAPI' does not contain a definition for 'GetSharedComponent' | SystemAPI has no shared component methods | Use `state.EntityManager.GetSharedComponentManaged<T>()` |
 
 **Stub cleanup rule (canonical names):**
 - If you add a stub in the canonical namespace, mark it `// STUB: REMOVE when real <Type>` and track it (e.g., `Docs/StubTypes.md`), then delete it as soon as the real implementation lands.
@@ -687,6 +734,7 @@ When fixing errors:
 | Obsolete APIs | `CS0618: Obsolete` | Use modern Unity APIs |
 | Burst String Ops | `BC1016: Managed function` | Pre-define string constants |
 | Bad Attributes | `CreateAssetMenu ignored` | Only on ScriptableObject subclasses |
+| Shared Component API | `SystemAPI.GetSharedComponent not found` | Use EntityManager for shared components |
 
 ---
 
@@ -826,6 +874,8 @@ CreateAssetMenu on non-SO → P12
 SystemAPI in static context (EA0004/EA0006) → P14
 
 Bool in blittable struct with function pointer (BC1063) → P15
+
+Shared component access (CS1061) → P18
 
 Then fix errors by bucket, applying the same patch pattern everywhere. That way you never “invent” ad-hoc fixes system by system.
 
@@ -1008,6 +1058,24 @@ Fix pattern:
 For structs passed through Burst function pointers, change bool fields to byte or mark with [MarshalAs(UnmanagedType.U1)] as listed in the brief.
 
 Prefer using byte flags for configs to keep everything trivially blittable.
+
+3.9. Shared component access (P18)
+
+Symptom:
+CS1061: 'SystemAPI' does not contain a definition for 'GetSharedComponent'
+
+Fix pattern:
+
+// Before
+var rma = SystemAPI.GetSharedComponent<RenderMeshArray>(catalogEntity);
+
+// After
+var rma = state.EntityManager.GetSharedComponentManaged<RenderMeshArray>(catalogEntity);
+
+// For setting shared components:
+state.EntityManager.SetSharedComponentManaged(entity, new RenderMeshArray { ... });
+
+Apply this to all shared component access in systems. SystemAPI only provides methods for regular components, buffers, and singletons.
 
 3.8. C# version compatibility (P3)
 

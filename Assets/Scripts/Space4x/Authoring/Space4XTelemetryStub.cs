@@ -7,3 +7,7 @@ namespace Space4X.Authoring
     public struct Space4XTelemetryStub : IComponentData { }
 }
 
+
+
+
+

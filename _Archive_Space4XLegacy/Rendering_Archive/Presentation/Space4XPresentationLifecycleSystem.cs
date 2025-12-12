@@ -13,6 +13,7 @@ namespace Space4X.Presentation
     /// System that manages presentation component lifecycle for entities.
     /// Adds presentation components to new entities and handles destruction/cleanup.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateBefore(typeof(Space4XPresentationLODSystem))]
     public partial struct Space4XPresentationLifecycleSystem : ISystem

@@ -14,6 +14,7 @@ namespace Space4X.Registry
     {
         public void OnCreate(ref SystemState state)
         {
+            UnityEngine.Debug.Log("[Space4XCoreSingletonGuardSystem] OnCreate called. Checking singletons...");
             // Idempotent call that seeds time/rewind/registry singletons if the scene forgot to bake PureDotsConfigAuthoring.
             CoreSingletonBootstrapSystem.EnsureSingletons(state.EntityManager);
 #if UNITY_EDITOR

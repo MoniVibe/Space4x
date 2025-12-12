@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5500804797241761367}
+  - component: {fileID: 7200000000000000003}
   - component: {fileID: 3191000739529957319}
   - component: {fileID: 8024092787733125370}
   m_Layer: 0
@@ -50,6 +51,23 @@ MonoBehaviour:
   ResourceAmount: 1000
   MaxResourceAmount: 1000
   MiningRate: 10
+--- !u!114 &7200000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7424386120355634278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b838b5952e598b4caa6144590085e7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ArchetypeId: 220
+  LOD: 0
+  Visible: 1
+  ShadowCaster: 1
+  HighlightMask: 0
 --- !u!114 &8024092787733125370
 MonoBehaviour:
   m_ObjectHideFlags: 0

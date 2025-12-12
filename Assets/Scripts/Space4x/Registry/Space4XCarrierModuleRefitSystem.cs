@@ -10,7 +10,7 @@ namespace Space4X.Registry
     /// Processes carrier module refit queues deterministically and awards repair XP.
     /// </summary>
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
-    [UpdateAfter(typeof(GameplayFixedStepSyncSystem))]
+    // Removed invalid UpdateAfter: GameplayFixedStepSyncSystem runs in TimeSystemGroup.
     [UpdateAfter(typeof(FacilityProximitySystem))]
     public partial struct Space4XCarrierModuleRefitSystem : ISystem
     {

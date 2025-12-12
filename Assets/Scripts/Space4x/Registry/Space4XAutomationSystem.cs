@@ -8,6 +8,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 
 using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+using TransportAISystemGroup = Space4X.Systems.AI.Space4XTransportAISystemGroup;
 
 namespace Space4X.Registry
 {
@@ -15,7 +16,7 @@ namespace Space4X.Registry
     /// Evaluates automation policies and triggers automated behaviors.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(Space4X.Systems.AI.Space4XTransportAISystemGroup))]
+    [UpdateInGroup(typeof(TransportAISystemGroup))]
     [UpdateBefore(typeof(Space4XRecallSystem))]
     public partial struct Space4XAutomationSystem : ISystem
     {
@@ -201,7 +202,7 @@ namespace Space4X.Registry
     /// Clears completed automation behaviors.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SpatialSystemGroup))]
+    [UpdateInGroup(typeof(TransportAISystemGroup))]
     [UpdateAfter(typeof(Space4XAutomationSystem))]
     public partial struct Space4XAutomationCleanupSystem : ISystem
     {
@@ -269,7 +270,7 @@ namespace Space4X.Registry
     /// Logs automation events for debugging and UI.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SpatialSystemGroup))]
+    [UpdateInGroup(typeof(TransportAISystemGroup))]
     [UpdateAfter(typeof(Space4XAutomationCleanupSystem))]
     public partial struct Space4XAutomationLoggingSystem : ISystem
     {

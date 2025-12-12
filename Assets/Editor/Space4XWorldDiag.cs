@@ -42,6 +42,8 @@ public static class Space4XWorldDiag
         }
 
         ref var catalog = ref catSingleton.Catalog.Value;
-        Debug.Log($"[Space4XWorldDiag] RMA: {rma.Materials.Length} mats, {rma.Meshes.Length} meshes. Catalog entries: {catalog.Entries.Length}");
+        var materialCount = rma.MaterialReferences?.Length ?? 0;
+        var meshCount = rma.MeshReferences?.Length ?? 0;
+        Debug.Log($"[Space4XWorldDiag] RMA: {materialCount} mats, {meshCount} meshes. Catalog entries: {catalog.Entries.Length}");
     }
 }

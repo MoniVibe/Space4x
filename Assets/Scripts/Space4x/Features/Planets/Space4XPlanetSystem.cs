@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Space;
+using PureDOTS.Systems;
 using PureDOTS.Systems.Space;
 using Unity.Burst;
 using Unity.Entities;
@@ -12,8 +13,8 @@ namespace Space4X.Features.Planets
     /// This is a thin adapter layer - all core logic is in PureDOTS shared systems.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(PlanetAppealSystem))]
+    [UpdateInGroup(typeof(GameplaySystemGroup))]
+    // Remove invalid UpdateAfter targeting PlanetAppealSystem (runs in EnvironmentSystemGroup).
     [UpdateAfter(typeof(SpeciesPreferenceMatchingSystem))]
     public partial struct Space4XPlanetSystem : ISystem
     {

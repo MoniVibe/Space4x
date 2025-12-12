@@ -2,7 +2,7 @@
 
 Keep this file up to date; overwrite status as work advances. Snapshot to `Docs/Archive/` after major milestones.
 
-Last updated: 2025-12-11 (Stub pass: PureDOTS shared concepts + Space4X/Godgame scene glue + AI behavior/perception + fighter squadron/formation + navigation/movement + economy placeholders + shared service bridges + sensors/time/narrative/save + behavior/initiative/needs + aggregate (bands/fleets/guilds) + crafting hooks added to unblock demo wiring while scenes are built.)
+Last updated: 2025-12-11 (Stub pass: PureDOTS shared concepts + Space4X/Godgame scene glue + AI behavior/perception + fighter squadron/formation + navigation/movement + economy placeholders + shared service bridges + sensors/time/narrative/save + behavior/initiative/needs MVP + decision + ambition + interception + communication + trade + morphing scaffolding + aggregate (bands/fleets/guilds) + crafting hooks added to unblock demo wiring while scenes are built.)
 
 When told to "proceed work," open your agent TODO (A/B/C below) and update this file at start and end. This is the single source of truth for current status.
 

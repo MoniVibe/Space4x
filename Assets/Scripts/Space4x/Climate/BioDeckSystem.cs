@@ -17,7 +17,7 @@ namespace Space4X.Climate.Systems
     /// Manages biodeck climate grids and evaluates species comfort for crew on ships/stations.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(GameplaySystemGroup))]
+    [UpdateInGroup(typeof(EnvironmentSystemGroup))]
     [UpdateAfter(typeof(ClimateControlSystem))]
     public partial struct BioDeckSystem : ISystem
     {

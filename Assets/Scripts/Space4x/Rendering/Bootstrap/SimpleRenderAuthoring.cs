@@ -28,6 +28,7 @@ namespace Space4X.Rendering.Bootstrap
             spacing = Mathf.Max(0.1f, spacing);
         }
 
+        #if SPACE4X_LEGACY_RENDER
         private class Baker : Baker<SimpleRenderAuthoring>
         {
             public override void Bake(SimpleRenderAuthoring authoring)
@@ -67,5 +68,6 @@ namespace Space4X.Rendering.Bootstrap
                 }
             }
         }
+        #endif
     }
 }

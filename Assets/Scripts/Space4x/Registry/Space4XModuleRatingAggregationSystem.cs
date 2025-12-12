@@ -9,7 +9,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Aggregates module ratings (offense/defense/utility) and power balance from installed modules.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XModuleStatAggregationSystem))]
     public partial struct Space4XModuleRatingAggregationSystem : ISystem
     {

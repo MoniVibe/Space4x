@@ -101,6 +101,11 @@ namespace Space4X.Runtime
         public int FleetId;
     }
 
+    public struct InterceptState : IComponentData
+    {
+        public byte Active;
+    }
+
     public struct FleetMembershipElement : IBufferElementData
     {
         public Entity Member;

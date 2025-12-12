@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
@@ -198,7 +199,7 @@ namespace Space4X.Registry
     /// Applies focus modifiers to target priority calculations.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XTargetPrioritySystem))]
     public partial struct Space4XFocusTargetingIntegrationSystem : ISystem
     {
@@ -256,7 +257,7 @@ namespace Space4X.Registry
     /// Applies focus modifiers to formation cohesion.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XFormationSystem))]
     public partial struct Space4XFocusFormationIntegrationSystem : ISystem
     {
@@ -321,7 +322,7 @@ namespace Space4X.Registry
     /// Applies focus modifiers to morale updates.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XMoraleSystem))]
     public partial struct Space4XFocusMoraleIntegrationSystem : ISystem
     {
@@ -352,7 +353,7 @@ namespace Space4X.Registry
     /// Applies focus modifiers to department stress.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XDepartmentSystem))]
     public partial struct Space4XFocusDepartmentIntegrationSystem : ISystem
     {
@@ -427,7 +428,7 @@ namespace Space4X.Registry
     /// Applies focus modifiers to hull repair.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XFieldRepairHullSystem))]
     public partial struct Space4XFocusRepairIntegrationSystem : ISystem
     {

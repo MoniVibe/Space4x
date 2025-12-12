@@ -1,0 +1,42 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../Godgame"
+		},
+		{
+			"path": "../PureDOTS"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.integrated.profiles.windows": {
+			"PowerShell 7": {
+				"path": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+				"args": []
+			},
+			"PowerShell Codex": {
+				"source": "PowerShell",
+				"args": [
+					"-NoLogo",
+					"-NoProfile",
+					"-Command",
+					"codex resume"
+				],
+				"icon": "terminal-powershell",
+				"name": "Codex"
+			}
+		},
+		"terminal.integrated.defaultProfile.windows": "PowerShell 7",
+		"terminal.integrated.shellIntegration.enabled": false,
+		"terminal.integrated.shellIntegration.decorationsEnabled": "never",
+		"terminal.integrated.sendKeybindingsToShell": false,
+		"terminal.integrated.smoothScrolling": true,
+		"terminal.integrated.enableVisualBell": false,
+		"git.ignoreLimitWarning": true
+	}
+}

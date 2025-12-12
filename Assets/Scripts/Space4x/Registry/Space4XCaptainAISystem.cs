@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
@@ -10,7 +11,7 @@ namespace Space4X.Registry
     /// Processes captain orders through the pipeline: receive, validate, execute, feedback.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XMoraleSystem))]
     public partial struct Space4XCaptainOrderSystem : ISystem
     {
@@ -90,7 +91,7 @@ namespace Space4X.Registry
     /// Evaluates captain readiness with alignment-influenced thresholds.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XCaptainOrderSystem))]
     public partial struct Space4XCaptainReadinessSystem : ISystem
     {
@@ -239,7 +240,7 @@ namespace Space4X.Registry
     /// Handles escalation requests from captains.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XCaptainOrderSystem))]
     public partial struct Space4XCaptainEscalationSystem : ISystem
     {
@@ -348,7 +349,7 @@ namespace Space4X.Registry
     /// Handles alignment-influenced decision making for captains.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XCaptainReadinessSystem))]
     public partial struct Space4XCaptainAlignmentBehaviorSystem : ISystem
     {

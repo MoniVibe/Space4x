@@ -19,7 +19,7 @@ namespace Space4X.Mining
     /// individual craft follow MiningPatternProfile, risk-based retreat, personality-driven bailout.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(TimeSystemGroup))]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(GroupIntentResolutionSystem))]
     public partial struct MiningWingBehaviorSystem : ISystem
     {
@@ -124,11 +124,9 @@ namespace Space4X.Mining
                         continue;
                     }
 
-                    var frameRef = CraftFrameLookup[member.Member];
                     // Would look up MiningPatternProfile by FrameId here
                     // For now, use default values
 
-                    float optimalRange = 5f; // Default
                     float retreatHullThreshold = 0.3f; // Default 30% hull
 
                     // Follow group's stance on risk

@@ -16,7 +16,7 @@ namespace Space4X.Registry
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(Space4XTransportAISystemGroup))]
-    [UpdateAfter(typeof(Space4XMinerMiningSystem))]
+    // Removed invalid UpdateAfter: Space4XMinerMiningSystem runs in FixedStepSimulationSystemGroup.
     [UpdateAfter(typeof(Space4X.Systems.AI.VesselAISystem))]
     [UpdateBefore(typeof(Space4X.Systems.AI.VesselTargetingSystem))]
     public partial struct Space4XMiningMovementBridgeSystem : ISystem

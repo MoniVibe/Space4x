@@ -8,6 +8,7 @@ namespace Space4X.Camera
     /// Bootstrap script that ensures a Space4X camera exists at runtime.
     /// Creates the camera prefab if no main camera exists.
     /// </summary>
+    [DefaultExecutionOrder(-1000)]
     public class Space4XCameraBootstrap : MonoBehaviour
     {
         [Header("Camera Setup")]
@@ -17,6 +18,17 @@ namespace Space4X.Camera
         [Header("Default Input Actions")]
         [SerializeField]
         private InputActionAsset defaultInputActions;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void EnsureBootstrapExistsOnLoad()
+        {
+            if (Object.FindFirstObjectByType<Space4XCameraBootstrap>() != null)
+                return;
+
+            var bootstrapGo = new GameObject("Space4X Camera Bootstrap (Runtime)");
+            bootstrapGo.AddComponent<Space4XCameraBootstrap>();
+            UnityEngine.Object.DontDestroyOnLoad(bootstrapGo);
+        }
 
         private void Awake()
         {

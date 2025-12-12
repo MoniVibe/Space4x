@@ -18,16 +18,28 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SpatialSystemGroup))]
     public partial struct Space4XDockingSystem : ISystem
     {
+        private ComponentLookup<DockingCapacity> _dockingLookup;
+        private ComponentLookup<CommandLoad> _commandLookup;
+        private BufferLookup<DockedEntity> _dockedBufferLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+
+            _dockingLookup = state.GetComponentLookup<DockingCapacity>(false);
+            _commandLookup = state.GetComponentLookup<CommandLoad>(false);
+            _dockedBufferLookup = state.GetBufferLookup<DockedEntity>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _dockingLookup.Update(ref state);
+            _commandLookup.Update(ref state);
+            _dockedBufferLookup.Update(ref state);
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
             {
@@ -43,13 +55,6 @@ namespace Space4X.Registry
             var currentTick = timeState.Tick;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            var dockingLookup = state.GetComponentLookup<DockingCapacity>(false);
-            var commandLookup = state.GetComponentLookup<CommandLoad>(false);
-            var dockedBufferLookup = state.GetBufferLookup<DockedEntity>(false);
-            dockingLookup.Update(ref state);
-            commandLookup.Update(ref state);
-            dockedBufferLookup.Update(ref state);
-
             // Process docking requests
             foreach (var (request, entity) in SystemAPI.Query<RefRO<DockingRequest>>()
                 .WithNone<DockedTag>()
@@ -58,9 +63,9 @@ namespace Space4X.Registry
                 ProcessDockingRequest(
                     in entity,
                     request.ValueRO,
-                    ref dockingLookup,
-                    ref commandLookup,
-                    ref dockedBufferLookup,
+                    ref _dockingLookup,
+                    ref _commandLookup,
+                    ref _dockedBufferLookup,
                     currentTick,
                     ref ecb);
             }

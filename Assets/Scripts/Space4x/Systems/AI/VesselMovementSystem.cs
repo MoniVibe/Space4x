@@ -17,15 +17,20 @@ namespace Space4X.Systems.AI
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
-    [UpdateAfter(typeof(Space4XTransportAISystemGroup))]
     public partial struct VesselMovementSystem : ISystem
     {
+        private ComponentLookup<ThreatProfile> _threatLookup;
+        private ComponentLookup<VesselStanceComponent> _stanceLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<VesselMovement>();
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+
+            _threatLookup = state.GetComponentLookup<ThreatProfile>(true);
+            _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
         }
 
         [BurstCompile]
@@ -55,12 +60,8 @@ namespace Space4X.Systems.AI
             }
 #endif
 
-            var threatLookup = state.GetComponentLookup<ThreatProfile>(true);
-            var transformLookup = state.GetComponentLookup<LocalTransform>(true);
-            var stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
-            threatLookup.Update(ref state);
-            transformLookup.Update(ref state);
-            stanceLookup.Update(ref state);
+            _threatLookup.Update(ref state);
+            _stanceLookup.Update(ref state);
 
             var job = new UpdateVesselMovementJob
             {
@@ -68,9 +69,8 @@ namespace Space4X.Systems.AI
                 CurrentTick = currentTick,
                 ArrivalDistance = 2f, // Vessels stop 2 units away from target
                 BaseRotationSpeed = 2f, // Base rotate speed in radians per second
-                ThreatLookup = threatLookup,
-                TransformLookup = transformLookup,
-                StanceLookup = stanceLookup
+                ThreatLookup = _threatLookup,
+                StanceLookup = _stanceLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -84,7 +84,6 @@ namespace Space4X.Systems.AI
             public float ArrivalDistance;
             public float BaseRotationSpeed;
             [ReadOnly] public ComponentLookup<ThreatProfile> ThreatLookup;
-            [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
@@ -172,4 +171,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

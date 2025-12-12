@@ -10,7 +10,7 @@ namespace Space4X.Registry
     /// Aggregates module ratings and maintenance telemetry into the registry snapshot.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XModuleRatingAggregationSystem))]
     [UpdateAfter(typeof(Space4XModuleMaintenanceTelemetrySystem))]
     public partial struct Space4XModuleTelemetryAggregationSystem : ISystem

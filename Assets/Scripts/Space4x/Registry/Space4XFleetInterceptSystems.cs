@@ -48,7 +48,7 @@ namespace Space4X.Registry
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
-    [UpdateAfter(typeof(GameplayFixedStepSyncSystem))]
+    // Removed invalid UpdateAfter: GameplayFixedStepSyncSystem runs in TimeSystemGroup.
     public partial struct FleetBroadcastSystem : ISystem
     {
         private ComponentLookup<FleetKinematics> _kinematicsLookup;
@@ -76,6 +76,7 @@ namespace Space4X.Registry
                 return;
             }
 
+            state.CompleteDependency();
             _kinematicsLookup.Update(ref state);
             _residencyLookup.Update(ref state);
             var tick = time.Tick;

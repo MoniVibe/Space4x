@@ -15,6 +15,7 @@ namespace Space4X.Demo
     /// Assigns simple render components to Space4X mining demo entities (carriers, miners, asteroids)
     /// that are missing MaterialMeshInfo. Runs once per world to guarantee visibility.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(Space4XMiningDemoBootstrapSystem))]
     [UpdateAfter(typeof(PureDOTS.Systems.Bootstrap.DemoScenarioRunnerSystem))]

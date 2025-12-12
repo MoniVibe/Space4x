@@ -12,5 +12,69 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b93d2b1b1f74a7d987c4f046f0c7c1c, type: 3}
   m_Name: ResourceRecipeCatalog
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.ResourceRecipeCatalog
-  _families: []
-  _recipes: []
+  _families:
+  - id: metals
+    displayName: Metals
+    rawResourceId: iron_ore
+    refinedResourceId: iron_ingot
+    compositeResourceId: 
+    description: Baseline structural materials forged from iron.
+  - id: organics
+    displayName: Organics
+    rawResourceId: biomass
+    refinedResourceId: nutrients
+    compositeResourceId: biopolymers
+    description: Biological inputs refined into life-support consumables.
+  - id: petrochemicals
+    displayName: Petrochemicals
+    rawResourceId: hydrocarbon_ice
+    refinedResourceId: refined_fuels
+    compositeResourceId: polymers
+    description: Hydrocarbon streams cracked into fuels and versatile polymer chains.
+  - id: electronics
+    displayName: Electronics
+    rawResourceId: rare_earths
+    refinedResourceId: conductors
+    compositeResourceId: 
+    description: Rare elements processed into high-density conductors.
+  _recipes:
+  - id: refine_iron_ingot
+    kind: 0
+    facilityTag: refinery
+    outputResourceId: iron_ingot
+    outputAmount: 1
+    processSeconds: 6
+    inputs:
+    - resourceId: iron_ore
+      amount: 2
+    notes: Smelt ore from terrestrial deposits into workable ingots.
+  - id: refine_nutrients
+    kind: 0
+    facilityTag: bio_lab
+    outputResourceId: nutrients
+    outputAmount: 1
+    processSeconds: 5
+    inputs:
+    - resourceId: biomass
+      amount: 2
+    notes: Convert biomass into balanced nutrient slurry for colonies.
+  - id: refine_refined_fuels
+    kind: 0
+    facilityTag: refinery
+    outputResourceId: refined_fuels
+    outputAmount: 1
+    processSeconds: 6
+    inputs:
+    - resourceId: hydrocarbon_ice
+      amount: 2
+    notes: Crack hydrocarbon ice into stable propulsion-grade fuels.
+  - id: refine_conductors
+    kind: 0
+    facilityTag: electronics_fab
+    outputResourceId: conductors
+    outputAmount: 1
+    processSeconds: 6
+    inputs:
+    - resourceId: rare_earths
+      amount: 2
+    notes: Pull conductive filaments from concentrated rare earth deposits.

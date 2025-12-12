@@ -15,7 +15,7 @@ namespace Space4X.Registry
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
-    [UpdateAfter(typeof(GameplayFixedStepSyncSystem))]
+    // Removed invalid UpdateAfter: GameplayFixedStepSyncSystem runs in TimeSystemGroup.
     public partial struct Space4XMinerMiningSystem : ISystem
     {
         private ComponentLookup<ResourceSourceState> _resourceStateLookup;

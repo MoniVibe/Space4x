@@ -8,7 +8,10 @@ public static class RemoveMissingScripts
     public static void CleanOpenScenes()
     {
         int removed = 0;
-        foreach (var go in Object.FindObjectsOfType<GameObject>(true))
+        var objects = Object.FindObjectsByType<GameObject>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        foreach (var go in objects)
             removed += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
         Debug.Log($"[Cleanup] Removed {removed} missing script components from open scenes.");
     }

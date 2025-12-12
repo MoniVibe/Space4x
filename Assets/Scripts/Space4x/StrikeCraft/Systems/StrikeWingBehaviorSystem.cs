@@ -19,7 +19,7 @@ namespace Space4X.StrikeCraft
     /// uses AttackRunProfile, weights by pilot Focus & PersonalityAxes.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(TimeSystemGroup))]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(GroupIntentResolutionSystem))]
     public partial struct StrikeWingBehaviorSystem : ISystem
     {
@@ -146,14 +146,11 @@ namespace Space4X.StrikeCraft
                         continue;
                     }
 
-                    var frameRef = CraftFrameLookup[member.Member];
                     // Would look up AttackRunProfile by FrameId here
                     // For now, use default values
 
                     // Weight by pilot Focus & PersonalityAxes
-                    float approachDistance = 50f; // Default
                     float breakDistance = 10f; // Default
-                    float commitDepth = 1.0f; // Default commitment
 
                     if (FocusLookup.HasComponent(member.Member) && PersonalityLookup.HasComponent(member.Member))
                     {
@@ -163,14 +160,12 @@ namespace Space4X.StrikeCraft
                         // Bold + high Focus → commit deeper, dodge aggressively
                         if (personality.Boldness > 0.5f && focus.Current > focus.SoftThreshold)
                         {
-                            commitDepth = 1.5f; // Deeper commitment
                             breakDistance *= 0.7f; // Closer break-off
                         }
 
                         // Craven + low Focus → earlier break, may loiter
                         if (personality.Boldness < -0.3f || focus.Current < focus.SoftThreshold)
                         {
-                            commitDepth = 0.6f; // Shallow commitment
                             breakDistance *= 1.5f; // Earlier break-off
                         }
                     }

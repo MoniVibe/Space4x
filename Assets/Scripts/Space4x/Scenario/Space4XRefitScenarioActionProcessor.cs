@@ -13,7 +13,7 @@ namespace Space4x.Scenario
     /// Processes timed scenario actions (degrade, repair, refit, move) based on current simulation time.
     /// Note: Not Burst-compiled due to EntityManager operations and string parsing requirements.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(FacilityProximitySystem))]
     public partial struct Space4XRefitScenarioActionProcessor : ISystem
     {

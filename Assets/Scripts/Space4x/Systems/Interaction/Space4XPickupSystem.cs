@@ -21,7 +21,7 @@ namespace Space4X.Systems.Interaction
     /// Implements state machine: Empty → AboutToPick → Holding
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(PhysicsPostEventSystemGroup))]
+    // Removed invalid UpdateAfter: PhysicsPostEventSystemGroup lives in FixedStep; cross-group ordering handled by event adapters.
     public partial struct Space4XPickupSystem : ISystem
     {
         private ComponentLookup<Pickable> _pickableLookup;

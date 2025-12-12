@@ -1,0 +1,117 @@
+{
+  "seed": 341,
+  "duration_s": 240,
+  "spawn": [
+    {
+      "kind": "ResearchAnomaly",
+      "entityId": "anomaly-alpha",
+      "position": [40.0, 0.0],
+      "components": {
+        "PureDOTS.Runtime.Research.AnomalyConfig": {
+          "FieldId": 1,
+          "BaseYieldPerTick": 6.0,
+          "ChargeCapacity": 320.0,
+          "RechargePerTick": 1.0,
+          "BandwidthCost": 2.5,
+          "IsPermanent": 1
+        },
+        "PureDOTS.Runtime.Research.AnomalyState": {
+          "RemainingCharge": 320.0,
+          "ActiveHarvesters": 0,
+          "RechargeProgress": 0.0
+        },
+        "PureDOTS.Runtime.Research.AnomalyVisualIntent": {
+          "FieldId": 1,
+          "StrengthBucket": 180
+        }
+      }
+    },
+    {
+      "kind": "ResearchAnomaly",
+      "entityId": "anomaly-beta",
+      "position": [-60.0, -5.0],
+      "components": {
+        "PureDOTS.Runtime.Research.AnomalyConfig": {
+          "FieldId": 2,
+          "BaseYieldPerTick": 10.0,
+          "ChargeCapacity": 420.0,
+          "RechargePerTick": 0.5,
+          "BandwidthCost": 3.5,
+          "IsPermanent": 0
+        },
+        "PureDOTS.Runtime.Research.AnomalyState": {
+          "RemainingCharge": 420.0,
+          "ActiveHarvesters": 0,
+          "RechargeProgress": 0.0
+        },
+        "PureDOTS.Runtime.Research.AnomalyVisualIntent": {
+          "FieldId": 2,
+          "StrengthBucket": 200
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-research-01",
+      "position": [0.0, 0.0],
+      "components": {
+        "PureDOTS.Runtime.Research.CarrierResearchModuleTag": {},
+        "PureDOTS.Runtime.Research.CarrierResearchAssignment": {
+          "CooldownTicks": 3.0,
+          "NextHarvestInTicks": 0.25
+        },
+        "PureDOTS.Runtime.Research.ResearchBandwidthState": {
+          "CurrentBandwidth": 18.0,
+          "Capacity": 18.0,
+          "RefillPerTick": 2.0,
+          "LossFraction": 0.1
+        },
+        "PureDOTS.Runtime.Research.ResearchHarvestState": {
+          "PendingRawPoints": 0.0,
+          "RefinedPoints": 0.0,
+          "FocusField": 1
+        },
+        "PureDOTS.Runtime.Research.CarrierThreatIntent": {
+          "Intent": 1,
+          "Confidence": 32
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-research-02",
+      "position": [10.0, 8.0],
+      "components": {
+        "PureDOTS.Runtime.Research.CarrierResearchModuleTag": {},
+        "PureDOTS.Runtime.Research.CarrierResearchAssignment": {
+          "CooldownTicks": 2.0,
+          "NextHarvestInTicks": 0.25
+        },
+        "PureDOTS.Runtime.Research.ResearchBandwidthState": {
+          "CurrentBandwidth": 15.0,
+          "Capacity": 20.0,
+          "RefillPerTick": 2.5,
+          "LossFraction": 0.2
+        },
+        "PureDOTS.Runtime.Research.ResearchHarvestState": {
+          "PendingRawPoints": 0.0,
+          "RefinedPoints": 0.0,
+          "FocusField": 2
+        },
+        "PureDOTS.Runtime.Research.CarrierThreatIntent": {
+          "Intent": 2,
+          "Confidence": 45
+        }
+      }
+    }
+  ],
+  "telemetryExpectations": {
+    "expectResearchHarvest": true,
+    "expectBandwidthLoss": true,
+    "minimumHarvests": 8,
+    "export": {
+      "csv": "Reports/space4x_research_mvp_metrics.csv",
+      "json": "Reports/space4x_research_mvp_metrics.json"
+    }
+  }
+}

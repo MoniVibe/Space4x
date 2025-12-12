@@ -37,7 +37,7 @@ namespace Space4X.Mining
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
 
-            _transformLookup = state.GetComponentLookup<LocalTransform>(false);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _resourceDepositLookup = state.GetComponentLookup<ResourceDeposit>(true);
             _platformResourcesLookup = state.GetComponentLookup<PlatformResources>(false);
             _frameDefLookup = state.GetComponentLookup<MiningVesselFrameDef>(true);
@@ -121,7 +121,7 @@ namespace Space4X.Mining
             public float MovementSpeed;
             public float MiningRate;
             [ReadOnly] public NativeList<AsteroidInfo> Asteroids;
-            public ComponentLookup<LocalTransform> TransformLookup;
+            [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
             public ComponentLookup<ResourceDeposit> ResourceDepositLookup;
             public ComponentLookup<PlatformResources> PlatformResourcesLookup;
             [ReadOnly] public ComponentLookup<MiningVesselFrameDef> FrameDefLookup;

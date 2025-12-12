@@ -8,7 +8,7 @@ namespace Space4X.Registry
     /// Publishes module maintenance counters to telemetry.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XFieldRepairSystem))]
     public partial struct Space4XModuleMaintenanceTelemetrySystem : ISystem
     {

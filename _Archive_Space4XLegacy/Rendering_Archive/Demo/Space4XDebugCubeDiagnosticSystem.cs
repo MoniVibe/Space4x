@@ -13,6 +13,7 @@ namespace Space4X.Demo
     /// Logs entity counts, positions, and render component status.
     /// </summary>
 #if SPACE4X_DEBUG_CUBES
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XDebugCubeSpawnerSystem))]
     public partial struct Space4XDebugCubeDiagnosticSystem : ISystem

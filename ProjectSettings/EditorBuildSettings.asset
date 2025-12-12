@@ -7,7 +7,7 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    guid: 1d8ae36a4954f764285d5bfb0fe6008e
   - enabled: 1
     path: Assets/Scenes/Demo/Space4XRegistryDemo.unity
     guid: f3436692bb8245b45a102c3703557cc1
@@ -20,9 +20,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Space4X/Demos/Demo_Space4X_01_SubScene.unity
     guid: da7de6eb757f62a4bb5f75fee5fd4bab
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Demo/Space4X_MiningDemo_SubScene_New.unity
     guid: 387bb0429e258d04182f354675b34b20
+  - enabled: 1
+    path: Assets/Scenes/Space4XConfig.unity
+    guid: 3448579597b6d43408eac98ec9a8ec94
   m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

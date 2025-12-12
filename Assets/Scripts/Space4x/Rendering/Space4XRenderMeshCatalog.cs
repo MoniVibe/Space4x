@@ -13,6 +13,8 @@ namespace Space4X.Rendering
         public int MaterialIndex;
         public int MeshIndex;
         public ushort SubMesh;
+        public float3 BoundsCenter;
+        public float3 BoundsExtents;
     }
 
     // Blob root

@@ -7,3 +7,7 @@
 | Assets/Scripts/Space4x/Authoring/Space4XTelemetryStub.cs | Telemetry placeholder | Replace with real telemetry authoring/data |
 | Assets/Scripts/Space4x/Miracles/Space4XMiracleStubs.cs | Miracle placeholders | Replace with real miracle implementations |
 
+
+
+
+

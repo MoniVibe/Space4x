@@ -128,3 +128,7 @@ Entities with RenderKey → MaterialMeshInfo + RenderBounds
 - **Shared Component**: `Space4XRenderMeshArraySingleton` is ISharedComponentData with managed RenderMeshArray
 - **Fallback Assignment**: `Space4XAssignRenderKeySystem` assigns default ArchetypeIds to entities without RenderKey
 
+
+
+
+

@@ -6,8 +6,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-
-using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
+using Space4X.Systems.AI;
 
 namespace Space4X.Registry
 {
@@ -200,7 +199,7 @@ namespace Space4X.Registry
     /// Updates VesselResourceLevels from combat/damage systems.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SpatialSystemGroup))]
+    [UpdateInGroup(typeof(Space4XTransportAISystemGroup))]
     [UpdateBefore(typeof(Space4XRecallSystem))]
     public partial struct Space4XResourceLevelUpdateSystem : ISystem
     {
