@@ -4,6 +4,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Space4x.Narrative
 {
@@ -28,7 +29,7 @@ namespace Space4x.Narrative
             }
 
             // Check for 'N' key press
-            if (!Input.GetKeyDown(KeyCode.N))
+            if (Keyboard.current == null || !Keyboard.current.nKey.wasPressedThisFrame)
             {
                 return;
             }

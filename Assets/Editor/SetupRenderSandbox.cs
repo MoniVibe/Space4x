@@ -36,7 +36,7 @@ public class SetupRenderSandbox
         {
             catalog = ScriptableObject.CreateInstance<Space4XRenderCatalogDefinition>();
             var cube = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
-            var mat = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Material.mat");
+            var mat = Space4X.EditorUtilities.MaterialAssetUtility.GetOrCreateDefaultLitMaterial();
             
             catalog.Entries = new Space4XRenderCatalogDefinition.Entry[]
             {

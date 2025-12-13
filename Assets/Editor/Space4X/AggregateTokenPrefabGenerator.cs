@@ -8,6 +8,8 @@ using Object = UnityEngine.Object;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     public static class AggregateTokenPrefabGenerator
     {
         private const string PrefabBasePath = "Assets/Prefabs/Space4X/Aggregates";

@@ -13,19 +13,19 @@ namespace Space4X.Rendering.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            if (state.WorldUnmanaged.Name != "Game World")
+            {
+                state.Enabled = false;
+                return;
+            }
             state.RequireForUpdate<Space4XRenderCatalogSingleton>();
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
-            if (!SystemAPI.TryGetSingleton<Space4XRenderCatalogSingleton>(out var catalog))
-                return;
-
-            if (catalog.Catalog.IsCreated)
-            {
-                catalog.Catalog.Dispose();
-            }
+            // Do NOT dispose Space4XRenderCatalogSingleton.Catalog here.
+            // Baked/deserialized blobs are auto-released on scene unload.
+            // Runtime-created blobs are already disposed by RenderCatalogAuthoring.CleanupRuntimeCatalog().
         }
 
         [BurstCompile]

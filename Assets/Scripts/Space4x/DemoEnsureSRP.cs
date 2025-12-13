@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using PureDOTS.Runtime.Core;
 
 [DefaultExecutionOrder(-10000)]
 public sealed class DemoEnsureSRP : MonoBehaviour
@@ -10,6 +11,9 @@ public sealed class DemoEnsureSRP : MonoBehaviour
 
     void Awake()
     {
+        if (RuntimeMode.IsHeadless)
+            return;
+
         if (GraphicsSettings.currentRenderPipeline != null) 
         {
              if (ShouldLog())

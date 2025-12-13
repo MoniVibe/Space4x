@@ -8,6 +8,8 @@ using Unity.Mathematics;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Validates all materials and meshes used by Space4X mining debug rendering.
     /// Helps diagnose purple material issues.

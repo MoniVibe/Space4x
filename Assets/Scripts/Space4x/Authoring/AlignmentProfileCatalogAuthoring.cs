@@ -8,7 +8,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
-    [DisallowMultipleComponent]
+    using Debug = UnityEngine.Debug;
+
+        [DisallowMultipleComponent]
     [AddComponentMenu("Space4X/Alignment Profile Catalog")]
     public sealed class AlignmentProfileCatalogAuthoring : MonoBehaviour
     {

@@ -1,7 +1,9 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using PureDOTS.Runtime.Core;
 using RenderFlags = PureDOTS.Rendering.RenderFlags;
 using RenderKey = PureDOTS.Rendering.RenderKey;
 
@@ -14,9 +16,22 @@ namespace Godgame.Rendering.Systems
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Godgame_TestRenderKeySpawnerSystem : ISystem
     {
+        private bool _spawned;
+
         public void OnCreate(ref SystemState state)
         {
+            _spawned = false;
+            if (state.WorldUnmanaged.Name != "Game World")
+            {
+                state.Enabled = false;
+                return;
+            }
 #if UNITY_EDITOR
+            if (RuntimeMode.IsHeadless)
+            {
+                state.Enabled = false;
+                return;
+            }
             if (!Application.isPlaying)
             {
                 state.Enabled = false;
@@ -32,6 +47,23 @@ namespace Godgame.Rendering.Systems
         public void OnUpdate(ref SystemState state)
         {
 #if UNITY_EDITOR
+            if (RuntimeMode.IsHeadless)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            if (_spawned)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            if (state.WorldUnmanaged.Name != "Game World")
+            {
+                return;
+            }
+
             var em = state.EntityManager;
             const int count = 5;
 
@@ -56,6 +88,7 @@ namespace Godgame.Rendering.Systems
             }
 
             Debug.Log("[Godgame_TestRenderKeySpawnerSystem] Spawned demo RenderKey entities.");
+            _spawned = true;
             state.Enabled = false;
 #else
             state.Enabled = false;
@@ -65,3 +98,5 @@ namespace Godgame.Rendering.Systems
         public void OnDestroy(ref SystemState state) { }
     }
 }
+
+#endif

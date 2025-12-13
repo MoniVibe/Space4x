@@ -3,7 +3,9 @@ using UnityEngine;
 
 namespace Space4X.Debugging
 {
-    public static class MissingBehaviourRuntimeProbe
+    using Debug = UnityEngine.Debug;
+
+        public static class MissingBehaviourRuntimeProbe
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void DumpFirstMissing()

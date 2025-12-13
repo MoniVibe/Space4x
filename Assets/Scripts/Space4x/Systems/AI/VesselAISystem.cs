@@ -90,13 +90,16 @@ namespace Space4X.Systems.AI
                         }
                     }
                     
-                    // Debug logging (only first frame)
+                    // Debug logging (only first few ticks)
+#if UNITY_EDITOR
                     if (timeState.Tick <= 5)
                     {
-#if UNITY_EDITOR
-                        UnityEngine.Debug.Log($"[VesselAISystem] Tick {timeState.Tick}: vessels={_vesselQuery.CalculateEntityCount()}, resources={resourceEntries.Length}, carriers={carriers.Length}, HasResources={hasResources}");
-#endif
+                        var vesselCount = _vesselQuery.CalculateEntityCount();
+                        var resourceCount = resourceEntries.Length;
+                        var carrierCount = carriers.Length;
+                        LogEditorInfo(timeState.Tick, vesselCount, resourceCount, carrierCount, hasResources);
                     }
+#endif
 
                     if (hasResources)
                     {
@@ -142,7 +145,7 @@ namespace Space4X.Systems.AI
                     if (timeState.Tick <= 5)
                     {
 #if UNITY_EDITOR
-                        UnityEngine.Debug.LogWarning("[VesselAISystem] ResourceRegistry entity found but has no ResourceRegistryEntry buffer!");
+                        LogEditorWarning("[VesselAISystem] ResourceRegistry entity found but has no ResourceRegistryEntry buffer!");
 #endif
                     }
                 }
@@ -152,7 +155,7 @@ namespace Space4X.Systems.AI
                 if (timeState.Tick <= 5)
                 {
 #if UNITY_EDITOR
-                    UnityEngine.Debug.LogWarning("[VesselAISystem] ResourceRegistry singleton NOT FOUND! Resources won't be registered, vessels can't find targets.");
+                    LogEditorWarning("[VesselAISystem] ResourceRegistry singleton NOT FOUND! Resources won't be registered, vessels can't find targets.");
 #endif
                 }
             }
@@ -419,6 +422,24 @@ namespace Space4X.Systems.AI
                 }
             }
         }
+
+#if UNITY_EDITOR
+        [BurstDiscard]
+        private static void LogEditorInfo(
+            uint tick,
+            int vesselCount,
+            int resourceCount,
+            int carrierCount,
+            bool hasResources)
+        {
+            UnityEngine.Debug.Log($"[VesselAISystem] Tick {tick}: vessels={vesselCount}, resources={resourceCount}, carriers={carrierCount}, HasResources={hasResources}");
+        }
+
+        [BurstDiscard]
+        private static void LogEditorWarning(string message)
+        {
+            UnityEngine.Debug.LogWarning(message);
+        }
+#endif
     }
 }
-

@@ -1,8 +1,11 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Space4X.Temporal;
 
 namespace Space4X.TimeDebug
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Debug MonoBehaviour for testing preview rewind functionality in Space4X.
     /// Hold R to scrub backwards through time (ghosts preview rewind).
@@ -14,13 +17,13 @@ namespace Space4X.TimeDebug
     {
         [Header("Rewind Debug Controls")]
         [Tooltip("Key to hold for scrubbing rewind")]
-        [SerializeField] private KeyCode rewindKey = KeyCode.R;
+        [SerializeField] private Key keyRewind = Key.R;
         
         [Tooltip("Key to commit rewind from preview")]
-        [SerializeField] private KeyCode commitKey = KeyCode.Space;
+        [SerializeField] private Key keyCommit = Key.Space;
         
         [Tooltip("Key to cancel rewind preview")]
-        [SerializeField] private KeyCode cancelKey = KeyCode.C;
+        [SerializeField] private Key keyCancel = Key.C;
         
         [Tooltip("Rewind scrub speed multiplier (1-4x)")]
         [Range(1f, 4f)]
@@ -39,8 +42,10 @@ namespace Space4X.TimeDebug
 
         private void Update()
         {
+            if (Keyboard.current == null) return;
+
             // Start preview rewind on R down
-            if (!_isScrubbing && Input.GetKeyDown(rewindKey))
+            if (!_isScrubbing && Keyboard.current[keyRewind].wasPressedThisFrame)
             {
                 _isScrubbing = true;
                 Debug.Log($"[Space4XRewindDebug] R key pressed - calling BeginRewindPreview({scrubSpeed:F2}x)");
@@ -53,7 +58,7 @@ namespace Space4X.TimeDebug
             }
 
             // While holding, you *could* change scrubSpeed and push updates here
-            if (_isScrubbing && Input.GetKey(rewindKey))
+            if (_isScrubbing && Keyboard.current[keyRewind].isPressed)
             {
                 // For now just send the same speed.
                 // Could add dynamic speed adjustment here if needed
@@ -61,7 +66,7 @@ namespace Space4X.TimeDebug
             }
 
             // Release → freeze preview
-            if (_isScrubbing && Input.GetKeyUp(rewindKey))
+            if (_isScrubbing && Keyboard.current[keyRewind].wasReleasedThisFrame)
             {
                 _isScrubbing = false;
                 Debug.Log("[Space4XRewindDebug] R key released - calling EndRewindScrub()");
@@ -74,7 +79,7 @@ namespace Space4X.TimeDebug
             }
 
             // Commit from preview
-            if (Input.GetKeyDown(commitKey))
+            if (Keyboard.current[keyCommit].wasPressedThisFrame)
             {
                 Debug.Log("[Space4XRewindDebug] Space key pressed - calling CommitRewindFromPreview()");
                 Space4XTimeAPI.CommitRewindFromPreview();
@@ -88,7 +93,7 @@ namespace Space4X.TimeDebug
             }
 
             // Cancel preview
-            if (Input.GetKeyDown(cancelKey) || Input.GetKeyDown(KeyCode.Escape))
+            if (Keyboard.current[keyCancel].wasPressedThisFrame || Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 Debug.Log("[Space4XRewindDebug] Cancel key pressed - calling CancelRewindPreview()");
                 Space4XTimeAPI.CancelRewindPreview();

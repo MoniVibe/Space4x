@@ -7,6 +7,9 @@ using Space4X.Rendering;
 
 namespace Space4X.Rendering.Systems
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Safety net for Entities Graphics:
     /// - Any entity with RenderKey + MaterialMeshInfo where Material or Mesh is negative
@@ -17,9 +20,8 @@ namespace Space4X.Rendering.Systems
     /// - This is a guard, not the primary render pipeline.
     ///   ApplyRenderCatalogSystem is still responsible for assigning valid MaterialMeshInfo.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
     [UpdateAfter(typeof(ApplyRenderCatalogSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct StripInvalidMaterialMeshInfoSystem : ISystem
     {
         private EntityQuery _invalidQuery;
@@ -59,10 +61,10 @@ namespace Space4X.Rendering.Systems
                 ecb.RemoveComponent<MaterialMeshInfo>(entity);
             }
 
+
 #if UNITY_EDITOR
             if (invalidCount > 0)
             {
-                Debug.LogWarning($"[StripInvalidMMI] Removed {invalidCount} entities");
                 LogRemoved(invalidCount);
             }
 #endif
@@ -82,5 +84,3 @@ namespace Space4X.Rendering.Systems
 #endif
     }
 }
-
-

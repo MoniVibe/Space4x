@@ -11,6 +11,9 @@ using UnityEngine;
 
 namespace Space4X.Systems.AI
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Moves vessels toward their current target positions with simple steering.
     /// Similar to VillagerMovementSystem but designed for vessels.

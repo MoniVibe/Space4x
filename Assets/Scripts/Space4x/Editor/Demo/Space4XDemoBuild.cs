@@ -9,6 +9,9 @@ using UnityEngine;
 
 namespace Space4X.Editor.Demo
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Build pipeline for demo executables.
     /// Sets scripting symbols, runs preflight, builds executable, and creates package.

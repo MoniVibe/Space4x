@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Space4X.Rendering
 {
@@ -34,19 +35,21 @@ namespace Space4X.Rendering
 
         void LateUpdate()
         {
+            if (Mouse.current == null) return;
+
             float dt = Time.deltaTime;
 
-            if (Input.GetMouseButton(1))
+            if (Mouse.current.rightButton.isPressed)
             {
-                float dx = Input.GetAxis("Mouse X");
-                float dy = -Input.GetAxis("Mouse Y");
+                float dx = Mouse.current.delta.x.ReadValue() * 0.1f; // Scale down delta
+                float dy = -Mouse.current.delta.y.ReadValue() * 0.1f;
 
                 _yaw += dx * orbitSpeed * dt;
                 _pitch += dy * orbitSpeed * dt;
                 _pitch = Mathf.Clamp(_pitch, -80f, 80f);
             }
 
-            float scroll = Input.mouseScrollDelta.y;
+            float scroll = Mouse.current.scroll.ReadValue().y / 120f; // Normalize scroll
             if (Mathf.Abs(scroll) > 0.001f)
             {
                 _distance -= scroll * zoomSpeed * dt;

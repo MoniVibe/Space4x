@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Authoring component that identifies an aggregate (faction/outlook/alignment group) by its catalog ID.
     /// </summary>

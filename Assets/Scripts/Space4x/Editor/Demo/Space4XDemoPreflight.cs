@@ -7,6 +7,9 @@ using UnityEngine;
 
 namespace Space4X.Editor.Demo
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Preflight validation pipeline for demo builds.
     /// Validates Prefab Maker, determinism, budgets, and binding swaps.

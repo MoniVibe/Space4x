@@ -4,12 +4,20 @@ using Space4X.Rendering.Systems;
 
 namespace Space4X.Core
 {
+    using Debug = UnityEngine.Debug;
+
+    
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XCoreSingletonGuardSystem : ISystem
     {
         public void OnCreate(ref SystemState state)
         {
+            if (state.WorldUnmanaged.Name != "Game World")
+            {
+                state.Enabled = false;
+                return;
+            }
             // Force creation of ApplyRenderCatalogSystem if it doesn't exist
             if (!state.WorldUnmanaged.GetExistingSystemState<ApplyRenderCatalogSystem>().Enabled)
             {

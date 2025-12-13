@@ -6,6 +6,8 @@ using UnityEngine;
 
 namespace Space4X.Editor.PrefabMakerTool.Models
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Serialization helpers for template models.
     /// Supports JSON export/import for diff-friendly bulk editing.

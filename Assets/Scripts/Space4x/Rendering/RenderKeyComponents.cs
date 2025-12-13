@@ -29,4 +29,11 @@ namespace Space4X.Rendering
     {
         public Entity Owner;
     }
+
+    /// <summary>
+    /// Tag indicating the render catalog has already assigned Entities Graphics components.
+    /// </summary>
+    public struct RenderCatalogAppliedTag : IComponentData
+    {
+    }
 }

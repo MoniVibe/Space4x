@@ -2,9 +2,15 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Unity.Burst;
 using Unity.Entities;
+#if UNITY_EDITOR
+using Space4X.Debug;
+#endif
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Ensures core PureDOTS singletons (TimeState, RewindState, registries, etc.) exist in the world before other systems run.
     /// </summary>
@@ -14,17 +20,25 @@ namespace Space4X.Registry
     {
         public void OnCreate(ref SystemState state)
         {
-            UnityEngine.Debug.Log("[Space4XCoreSingletonGuardSystem] OnCreate called. Checking singletons...");
+            LogInfo("[Space4XCoreSingletonGuardSystem] OnCreate called. Checking singletons...");
             // Idempotent call that seeds time/rewind/registry singletons if the scene forgot to bake PureDotsConfigAuthoring.
             CoreSingletonBootstrapSystem.EnsureSingletons(state.EntityManager);
-#if UNITY_EDITOR
-            UnityEngine.Debug.Log("[Space4XCoreSingletonGuardSystem] Core singletons ensured.");
-#endif
+            LogInfo("[Space4XCoreSingletonGuardSystem] Core singletons ensured.");
             state.Enabled = false;
         }
 
         public void OnUpdate(ref SystemState state)
         {
         }
+
+#if UNITY_EDITOR
+        [BurstDiscard]
+        private static void LogInfo(string message)
+        {
+            Space4XBurstDebug.Log(message);
+        }
+#else
+        private static void LogInfo(string message) { }
+#endif
     }
 }

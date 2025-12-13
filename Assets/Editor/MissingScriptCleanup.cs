@@ -4,6 +4,8 @@ using UnityEngine.SceneManagement;
 
 namespace Space4X.EditorUtilities
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Removes Missing Script components from every GameObject in the active scene
     /// so the Inspector stops throwing InvalidOperationException during serialization.

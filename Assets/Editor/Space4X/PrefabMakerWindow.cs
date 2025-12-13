@@ -17,6 +17,8 @@ using System.Text.RegularExpressions;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     public class PrefabMakerWindow : EditorWindow
     {
         private int selectedTab = 0;

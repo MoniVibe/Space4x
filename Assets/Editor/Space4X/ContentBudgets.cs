@@ -6,6 +6,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Content budgets - derives runtime budget caps from catalogs; asserts in editor/test harness.
     /// </summary>

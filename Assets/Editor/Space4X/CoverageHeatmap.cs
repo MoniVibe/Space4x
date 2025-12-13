@@ -12,6 +12,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Coverage heatmap reporting - tracks % of catalog IDs with generated prefabs/bindings.
     /// </summary>

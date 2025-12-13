@@ -3,6 +3,8 @@ using UnityEditor;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// CLI entry point for Prefab Maker that can be called from command line:
     /// Unity -batchmode -projectPath . -executeMethod Space4X.Editor.PrefabMakerCLI.Run --set=Minimal --dryRun

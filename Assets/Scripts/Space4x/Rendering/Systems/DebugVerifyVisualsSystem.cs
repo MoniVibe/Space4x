@@ -1,21 +1,27 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Rendering;
 using UnityEngine;
+using PureDOTS.Runtime.Core;
 using Space4X.Rendering;
 using Space4XRenderKey = Space4X.Rendering.RenderKey;
 
 namespace Space4X.Rendering.Systems
 {
-    [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    using Debug = UnityEngine.Debug;
+
+    [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
     [UpdateAfter(typeof(StripInvalidMaterialMeshInfoSystem))]
     [UpdateAfter(typeof(ApplyRenderCatalogSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct DebugVerifyVisualsSystem : ISystem
     {
+        private bool _loggedOnce;
+        private int _lastInvalid;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XRenderKey>();
@@ -23,6 +29,15 @@ namespace Space4X.Rendering.Systems
 
         public void OnUpdate(ref SystemState state)
         {
+#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+            return; // no O(N) scan in player builds
+#endif
+            if (RuntimeMode.IsHeadless)
+            {
+                state.Enabled = false;
+                return;
+            }
+
             int count = 0;
             int invalidCount = 0;
 
@@ -62,14 +77,19 @@ namespace Space4X.Rendering.Systems
                 return;
             }
 
-            LogCounts(
-                count,
-                invalidCount,
-                firstEntity,
-                firstKey,
-                firstMmi,
-                firstXform,
-                firstBounds);
+            if (!_loggedOnce || invalidCount != _lastInvalid)
+            {
+                LogCounts(
+                    count,
+                    invalidCount,
+                    firstEntity,
+                    firstKey,
+                    firstMmi,
+                    firstXform,
+                    firstBounds);
+                _loggedOnce = true;
+                _lastInvalid = invalidCount;
+            }
         }
 
         static bool IsDefaultMaterialMeshInfo(MaterialMeshInfo mmi)
@@ -114,3 +134,5 @@ namespace Space4X.Rendering.Systems
         }
     }
 }
+#endif
+#endif

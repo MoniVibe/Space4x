@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Rendering;
@@ -84,3 +85,5 @@ namespace Shared.Demo
         }
     }
 }
+
+#endif

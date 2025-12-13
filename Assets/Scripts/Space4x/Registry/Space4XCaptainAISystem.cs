@@ -7,6 +7,9 @@ using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Processes captain orders through the pipeline: receive, validate, execute, feedback.
     /// </summary>

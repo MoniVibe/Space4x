@@ -7,6 +7,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Baker for Space4XMutinyDemoAuthoring - converts authoring data to ECS components.
     /// </summary>

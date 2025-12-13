@@ -5,6 +5,9 @@ using UnityEditor.SceneManagement;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Editor utility to set up the Space4X_OrbitDebug scene with camera and light.
     /// </summary>

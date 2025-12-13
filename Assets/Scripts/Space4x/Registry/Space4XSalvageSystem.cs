@@ -6,6 +6,9 @@ using Unity.Transforms;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Manages derelict state and decay over time.
     /// </summary>

@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using PureDOTS.Runtime.Core;
 
 static class EnsureSrpEarly
 {
@@ -9,6 +10,11 @@ static class EnsureSrpEarly
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
     static void Ensure()
     {
+        if (RuntimeMode.IsHeadless)
+            return;
+        if (Application.platform == RuntimePlatform.LinuxPlayer)
+            return;
+
         if (GraphicsSettings.currentRenderPipeline != null)
         {
             if (ShouldLog())

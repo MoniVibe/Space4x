@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Quick fix for the DualMiningDemo.unity nested folder issue.
     /// This menu item will delete the problematic folder so the scene can be saved.

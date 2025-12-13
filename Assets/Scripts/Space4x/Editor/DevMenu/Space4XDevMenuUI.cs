@@ -8,6 +8,9 @@ using UnityEngine.InputSystem;
 
 namespace Space4X.Editor.DevMenu
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// RimWorld-style developer menu for Space4X.
     /// Provides runtime spawning, inspection, and manipulation of entities.
@@ -55,6 +58,8 @@ namespace Space4X.Editor.DevMenu
 
         private void Update()
         {
+            if (Keyboard.current == null) return;
+
             // Toggle menu
             if (KeyPressed(toggleKey) || KeyPressed(altToggleKey))
             {

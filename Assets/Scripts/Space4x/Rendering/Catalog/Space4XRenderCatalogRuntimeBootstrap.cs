@@ -5,6 +5,9 @@ using Space4X.Rendering;
 
 namespace Space4X.Rendering.Catalog
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Runtime sanity check for the Space4X render catalog singleton.
     /// </summary>

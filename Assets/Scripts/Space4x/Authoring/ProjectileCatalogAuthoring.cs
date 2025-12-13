@@ -8,6 +8,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     [DisallowMultipleComponent]
     [AddComponentMenu("Space4X/Projectile Catalog")]
     public sealed class ProjectileCatalogAuthoring : MonoBehaviour

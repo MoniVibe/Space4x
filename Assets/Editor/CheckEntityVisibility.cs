@@ -8,6 +8,8 @@ using Space4X.Registry;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Diagnoses why entities may not be visible - checks baking, subscenes, and render systems.
     /// </summary>

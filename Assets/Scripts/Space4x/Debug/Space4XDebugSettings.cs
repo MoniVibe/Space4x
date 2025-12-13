@@ -3,6 +3,9 @@ using UnityEditor;
 
 namespace Space4X.DebugSystems
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Simple editor-only toggles to trigger one-shot debug dumps from ECS systems.
     /// </summary>

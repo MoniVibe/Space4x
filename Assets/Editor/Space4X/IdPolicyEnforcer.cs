@@ -9,6 +9,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// ID/name policy enforcer - enforces k-case, path policy, and duplicate-ID bans with auto-fix.
     /// </summary>

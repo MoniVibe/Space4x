@@ -31,3 +31,15 @@ MonoBehaviour:
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
+  - ArchetypeId: 230
+    Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.1, y: 0.1, z: 0.6}
+  - ArchetypeId: 240
+    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 4, y: 0.5, z: 4}

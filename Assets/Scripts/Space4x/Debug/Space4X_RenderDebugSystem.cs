@@ -1,12 +1,13 @@
 #if UNITY_EDITOR
 using Space4X.Rendering;
-using Unity.Burst;
+using Space4X.Debug;
 using Unity.Entities;
 using Unity.Rendering;
 
 namespace Space4X.DebugSystems
 {
-    [BurstCompile]
+    using Debug = UnityEngine.Debug;
+
     [WorldSystemFilter(WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4X_RenderDebugSystem : ISystem
@@ -36,12 +37,11 @@ namespace Space4X.DebugSystems
             int keyCount = _renderKeyQuery.CalculateEntityCount();
             int meshCount = _materialMeshQuery.CalculateEntityCount();
 
-            UnityEngine.Debug.Log($"[Space4X RenderDebug] keys:{keyCount} meshEntities:{meshCount}");
+            Space4XBurstDebug.Log($"[Space4X RenderDebug] keys:{keyCount} meshEntities:{meshCount}");
         }
     }
 }
 #endif
-
 
 
 

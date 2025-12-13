@@ -1,11 +1,13 @@
-using Unity.Burst;
 using Unity.Entities;
 using Space4X.Registry;
 
 #if UNITY_EDITOR
+using Space4X.Debug;
+
 namespace Space4X.DebugSystems
 {
-    [BurstCompile]
+    using Debug = UnityEngine.Debug;
+
     [WorldSystemFilter(WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4X_MiningEntityDebugSystem : ISystem
@@ -32,7 +34,7 @@ namespace Space4X.DebugSystems
             int minerCount = _minerQuery.CalculateEntityCount();
             int rockCount = _rockQuery.CalculateEntityCount();
 
-            UnityEngine.Debug.Log($"[Space4X MiningDebug] carriers:{carrierCount} miners:{minerCount} rocks:{rockCount}");
+            Space4XBurstDebug.Log($"[Space4X MiningDebug] carriers:{carrierCount} miners:{minerCount} rocks:{rockCount}");
         }
     }
 }

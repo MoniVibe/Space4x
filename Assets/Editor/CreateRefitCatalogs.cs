@@ -6,6 +6,8 @@ using UnityEngine.SceneManagement;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     public static class CreateRefitCatalogs
     {
         [MenuItem("Tools/Space4X/Create Refit Catalog Assets")]

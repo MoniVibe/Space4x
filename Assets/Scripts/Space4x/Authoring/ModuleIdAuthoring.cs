@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Authoring component that identifies a module by its catalog ID.
     /// </summary>

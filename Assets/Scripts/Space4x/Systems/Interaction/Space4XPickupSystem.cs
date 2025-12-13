@@ -79,6 +79,13 @@ namespace Space4X.Systems.Interaction
                 return;
             }
 
+            // Check if pointer is over UI
+            if (UnityEngine.EventSystems.EventSystem.current != null && 
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
             bool rmbDown = mouse.rightButton.isPressed;
             bool rmbWasPressed = mouse.rightButton.wasPressedThisFrame;
             bool rmbWasReleased = mouse.rightButton.wasReleasedThisFrame;

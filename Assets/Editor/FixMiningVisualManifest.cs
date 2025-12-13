@@ -4,6 +4,8 @@ using PureDOTS.Authoring;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Quick fix to add MiningVisualManifest GameObject to the scene.
     /// </summary>

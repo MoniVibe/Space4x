@@ -6,6 +6,9 @@ using Unity.Transforms;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Main state machine for strike craft attack runs.
     /// </summary>

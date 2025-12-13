@@ -7,6 +7,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     [DisallowMultipleComponent]
     [AddComponentMenu("Space4X/Theme Profile Catalog")]
     public sealed class ThemeProfileCatalogAuthoring : MonoBehaviour

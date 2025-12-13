@@ -447,6 +447,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Rendering.Catalog.RenderCatalogAuthoring
   CatalogDefinition: {fileID: 11400000, guid: 0755b13fe5c6fdc4e9c3ef98a5f72759, type: 2}
+  fallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+  fallbackMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!114 &1874550487
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -7,6 +7,9 @@ using UnityEngine;
 
 namespace Space4X.Motivation
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Bootstrap system for Space4X motivation system.
     /// Creates Space4X-specific MotivationCatalog with crew/empire ambitions.

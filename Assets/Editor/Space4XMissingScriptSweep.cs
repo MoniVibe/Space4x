@@ -7,6 +7,8 @@ using UnityEngine.SceneManagement;
 
 namespace Space4X.EditorUtilities
 {
+    using Debug = UnityEngine.Debug;
+
     [InitializeOnLoad]
     public static class Space4XMissingScriptSweep
     {

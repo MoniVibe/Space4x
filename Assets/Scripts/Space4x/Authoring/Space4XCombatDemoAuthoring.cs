@@ -12,6 +12,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Authoring component for creating a combat demo scene with carriers, strike craft, and combat ships.
     /// Designed for testing AI behaviors, formation systems, and combat resolution.

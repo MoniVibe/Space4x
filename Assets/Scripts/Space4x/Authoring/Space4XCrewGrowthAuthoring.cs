@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Authoring hook for crew growth policies. Defaults to fully disabled.
     /// </summary>

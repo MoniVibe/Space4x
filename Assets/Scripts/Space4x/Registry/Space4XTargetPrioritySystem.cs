@@ -7,6 +7,9 @@ using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Scores potential targets and selects based on alignment-driven profile.
     /// </summary>

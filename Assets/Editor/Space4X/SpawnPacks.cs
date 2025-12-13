@@ -8,6 +8,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Spawn packs - composes encounter/resource packs (weighted lists) as data; generators verify all referenced tokens/prefabs exist.
     /// </summary>

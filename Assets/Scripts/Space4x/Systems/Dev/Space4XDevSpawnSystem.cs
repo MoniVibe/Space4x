@@ -11,6 +11,8 @@ using Random = Unity.Mathematics.Random;
 
 namespace Space4X.Systems.Dev
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Processes DevSpawnRequest components and creates fully-configured entities.
     /// Works with the Space4XDevMenuUI to provide runtime entity spawning.

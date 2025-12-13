@@ -22,6 +22,8 @@ using Space4X.Rendering.Catalog;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Authoring component for creating carriers, mining vessels, and asteroids in the mining demo scene.
     /// </summary>

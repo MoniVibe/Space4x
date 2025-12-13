@@ -13,6 +13,7 @@ using Unity.Physics;
 using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 using DemoScenario = PureDOTS.Runtime.DemoScenario;
 using DemoScenarioState = PureDOTS.Runtime.DemoScenarioState;
@@ -20,6 +21,8 @@ using Space4XHandState = Space4X.Runtime.Interaction.HandState;
 
 namespace Space4X.Systems.Interaction
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Debug-only hand interaction system for grabbing and throwing entities.
     /// Allows grabbing entities via mouse raycast and throwing them.
@@ -345,19 +348,45 @@ namespace Space4X.Systems.Interaction
         }
 
         [BurstDiscard]
-        private bool GetMouseButtonDown(int button) => Input.GetMouseButtonDown(button);
+        private bool GetMouseButtonDown(int button)
+        {
+            if (Mouse.current == null) return false;
+            return button == 0 ? Mouse.current.leftButton.wasPressedThisFrame : 
+                   button == 1 ? Mouse.current.rightButton.wasPressedThisFrame : 
+                   Mouse.current.middleButton.wasPressedThisFrame;
+        }
 
         [BurstDiscard]
-        private bool GetMouseButton(int button) => Input.GetMouseButton(button);
+        private bool GetMouseButton(int button)
+        {
+            if (Mouse.current == null) return false;
+            return button == 0 ? Mouse.current.leftButton.isPressed : 
+                   button == 1 ? Mouse.current.rightButton.isPressed : 
+                   Mouse.current.middleButton.isPressed;
+        }
 
         [BurstDiscard]
-        private bool GetMouseButtonUp(int button) => Input.GetMouseButtonUp(button);
+        private bool GetMouseButtonUp(int button)
+        {
+            if (Mouse.current == null) return false;
+            return button == 0 ? Mouse.current.leftButton.wasReleasedThisFrame : 
+                   button == 1 ? Mouse.current.rightButton.wasReleasedThisFrame : 
+                   Mouse.current.middleButton.wasReleasedThisFrame;
+        }
 
         [BurstDiscard]
-        private float GetScrollDelta() => Input.mouseScrollDelta.y;
+        private float GetScrollDelta()
+        {
+            if (Mouse.current == null) return 0f;
+            return Mouse.current.scroll.ReadValue().y / 120f; // Normalize scroll
+        }
 
         [BurstDiscard]
-        private bool GetModifierKey() => Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.LeftControl);
+        private bool GetModifierKey()
+        {
+            if (Keyboard.current == null) return false;
+            return Keyboard.current.leftShiftKey.isPressed || Keyboard.current.leftCtrlKey.isPressed;
+        }
 
         [BurstDiscard]
         private void ReleaseGrab(ref SystemState state, ref Space4XHandState handState)

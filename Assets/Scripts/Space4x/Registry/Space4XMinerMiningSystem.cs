@@ -9,6 +9,9 @@ using UnityEngine;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Fixed-step miner state machine that claims registry-driven resources, applies mining ticks,
     /// and publishes presentation effect requests without hybrid lookups.

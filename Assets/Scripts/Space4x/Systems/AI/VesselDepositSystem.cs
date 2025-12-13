@@ -13,6 +13,9 @@ using UnityEngine;
 
 namespace Space4X.Systems.AI
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Handles vessels depositing resources to carriers when they return.
     /// Similar to ResourceDepositSystem but for vessels and carriers.

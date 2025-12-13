@@ -9,6 +9,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Hash report for idempotency checking. Tracks per-asset hashes to detect changes.
     /// </summary>

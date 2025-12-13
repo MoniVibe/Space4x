@@ -7,6 +7,8 @@ using System;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Diagnoses Space4X_MiningDemo GameObject without freezing the editor.
     /// Uses direct component access instead of Unity MCP get_components.

@@ -64,9 +64,9 @@ namespace Space4X.Camera
 
             float dt = Time.deltaTime;
 
-            var orbit = orbitAction != null ? orbitAction.action.ReadValue<Vector2>() : Vector2.zero;
-            var pan = panAction != null ? panAction.action.ReadValue<Vector2>() : Vector2.zero;
-            float zoom = zoomAction != null ? zoomAction.action.ReadValue<float>() : 0f;
+            var orbit = orbitAction != null && orbitAction.action != null ? orbitAction.action.ReadValue<Vector2>() : Vector2.zero;
+            var pan = panAction != null && panAction.action != null ? panAction.action.ReadValue<Vector2>() : Vector2.zero;
+            float zoom = zoomAction != null && zoomAction.action != null ? zoomAction.action.ReadValue<float>() : 0f;
 
             yawDegrees += orbit.x * orbitDegreesPerSecond * dt;
             pitchDegrees = Mathf.Clamp(pitchDegrees + orbit.y * orbitDegreesPerSecond * dt, minPitch, maxPitch);

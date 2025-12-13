@@ -11,6 +11,8 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     public static class AggregateComboBuilder
     {
         public class ComboBuildResult

@@ -7,6 +7,9 @@ using PureDOTS.Authoring;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Editor menu for quickly setting up Space4X demo scenes.
     /// </summary>

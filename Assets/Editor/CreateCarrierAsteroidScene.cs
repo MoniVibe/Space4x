@@ -7,6 +7,8 @@ using PureDOTS.Runtime.Spatial;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Editor tool to create a scene with carriers and asteroids.
     /// Run via Menu: Tools/Space4X/Create Carrier & Asteroid Scene

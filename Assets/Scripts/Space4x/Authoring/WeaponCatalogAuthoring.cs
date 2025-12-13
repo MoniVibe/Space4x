@@ -8,6 +8,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     [DisallowMultipleComponent]
     [AddComponentMenu("Space4X/Weapon Catalog")]
     public sealed class WeaponCatalogAuthoring : MonoBehaviour

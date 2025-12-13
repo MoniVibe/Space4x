@@ -2,21 +2,32 @@ using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
 using Unity.Entities.Graphics;
+using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
+using PureDOTS.Runtime.Core;
 using Space4X.Rendering;
 
 namespace Space4X.Rendering.Systems
 {
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
+    using Debug = UnityEngine.Debug;
+
+    [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
     [UpdateBefore(typeof(StripInvalidMaterialMeshInfoSystem))]
     [UpdateBefore(typeof(DebugVerifyVisualsSystem))]
+    public struct RenderCatalogAppliedTag : IComponentData { }
+
+    [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
     public partial struct ApplyRenderCatalogSystem : ISystem
     {
+        private NativeParallelHashMap<int, Space4XRenderMeshCatalogEntry> _catalogMap;
+        private BlobAssetReference<Space4XRenderMeshCatalog> _cachedCatalog;
+        private EntityQuery _unprocessedQuery;
+        private EntityQuery _renderKeyQuery;
+        private static readonly float3 s_placeholderBoundsExtents = new float3(32f);
+
         private static bool s_loggedFirstPass;
         private static readonly HashSet<int> s_fallbackWarningKeys = new();
         private static readonly HashSet<int> s_missingKeyLogIds = new();
@@ -33,12 +44,33 @@ namespace Space4X.Rendering.Systems
 
         public void OnCreate(ref SystemState state)
         {
+            if (state.WorldUnmanaged.Name != "Game World")
+            {
+                state.Enabled = false;
+                return;
+            }
             state.RequireForUpdate<Space4XRenderCatalogSingleton>();
             state.RequireForUpdate<RenderKey>();
+            state.RequireForUpdate<RenderFlags>();
+            _unprocessedQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<RenderKey>(),
+                ComponentType.ReadOnly<RenderFlags>(),
+                ComponentType.Exclude<RenderCatalogAppliedTag>());
+            _renderKeyQuery = state.GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
+            _catalogMap = new NativeParallelHashMap<int, Space4XRenderMeshCatalogEntry>(1, Allocator.Persistent);
+            _cachedCatalog = default;
         }
 
         public void OnUpdate(ref SystemState state)
         {
+            if (RuntimeMode.IsHeadless)
+                return;
+
+            if (_unprocessedQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
             var em = state.EntityManager;
             var catalogEntity = SystemAPI.GetSingletonEntity<Space4XRenderCatalogSingleton>();
             var catalog = SystemAPI.GetComponent<Space4XRenderCatalogSingleton>(catalogEntity);
@@ -56,35 +88,14 @@ namespace Space4X.Rendering.Systems
             var materialCount = materialRefs?.Length ?? 0;
             var meshCount = meshRefs?.Length ?? 0;
 
-            var map = new NativeParallelHashMap<int, Space4XRenderMeshCatalogEntry>(entries.Length + s_requiredKeys.Length, Allocator.Temp);
-            for (int i = 0; i < entries.Length; i++)
-            {
-                map.TryAdd(entries[i].ArchetypeId, entries[i]);
-            }
-
+            EnsureCatalogMap(ref catalogBlob, materialCount, meshCount);
             var fallback = entries[0];
-            foreach (var key in s_requiredKeys)
+
+            // Only update shared component if there are unprocessed entities
+            if (!_unprocessedQuery.IsEmptyIgnoreFilter)
             {
-                var keyInt = (int)key;
-                if (map.TryGetValue(keyInt, out _))
-                    continue;
-
-                var placeholder = fallback;
-                placeholder.ArchetypeId = (ushort)key;
-                placeholder.MaterialIndex = ClampIndex(placeholder.MaterialIndex, materialCount);
-                placeholder.MeshIndex = ClampIndex(placeholder.MeshIndex, meshCount);
-                placeholder.SubMesh = (ushort)math.max((int)placeholder.SubMesh, 0);
-                map.TryAdd(keyInt, placeholder);
-                if (ShouldLogCatalogWarnings() && s_fallbackWarningKeys.Add(keyInt))
-                {
-                    Debug.LogWarning(
-                        $"[Space4X RenderCatalog] Missing catalog row for ArchetypeId={key}; using fallback mesh/material. " +
-                        "Update Space4XRenderCatalogDefinition to provide art.");
-                }
+                em.AddSharedComponentManaged(_renderKeyQuery, rma);
             }
-
-            var rmaQuery = state.GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
-            em.AddSharedComponentManaged(rmaQuery, rma);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var defaultFilterSettings = RenderFilterSettings.Default;
@@ -92,47 +103,54 @@ namespace Space4X.Rendering.Systems
             int assignedCount = 0;
             int missingCount = 0;
             int outOfRangeCount = 0;
-            int removedCount = 0;
+            int fallbackAssignments = 0;
 
-            foreach (var (key, entity) in SystemAPI.Query<RefRO<RenderKey>>().WithEntityAccess())
+            foreach (var (key, flags, entity) in SystemAPI.Query<RefRO<RenderKey>, RefRO<RenderFlags>>()
+                         .WithNone<RenderCatalogAppliedTag>()
+                         .WithEntityAccess())
             {
-                var keyValue = key.ValueRO.ArchetypeId;
+                if (flags.ValueRO.Visible == 0)
+                    continue;
 
-                if (!map.TryGetValue(keyValue, out var entry))
+                var keyValue = key.ValueRO.ArchetypeId;
+                var entry = fallback;
+                var usingFallback = true;
+
+                if (_catalogMap.TryGetValue(keyValue, out var candidate))
+                {
+                    if (IsEntryInRange(candidate, materialCount, meshCount))
+                    {
+                        entry = candidate;
+                        usingFallback = false;
+                    }
+                    else
+                    {
+                        outOfRangeCount++;
+                        if (ShouldLogCatalogWarnings() && s_outOfRangeKeyLogIds.Add(keyValue))
+                        {
+                            LogOutOfRangeKey(keyValue, candidate.MaterialIndex, candidate.MeshIndex);
+                        }
+                    }
+                }
+                else
                 {
                     missingCount++;
                     if (ShouldLogCatalogWarnings() && s_missingKeyLogIds.Add(keyValue))
                     {
                         LogMissingKey(keyValue, entity.Index);
                     }
-                    if (em.HasComponent<MaterialMeshInfo>(entity))
-                    {
-                        ecb.RemoveComponent<MaterialMeshInfo>(entity);
-                        removedCount++;
-                    }
-                    continue;
                 }
 
-                if (entry.MaterialIndex < 0 || entry.MaterialIndex >= materialCount ||
-                    entry.MeshIndex < 0 || entry.MeshIndex >= meshCount)
+                if (usingFallback)
                 {
-                    outOfRangeCount++;
-                    if (ShouldLogCatalogWarnings() && s_outOfRangeKeyLogIds.Add(keyValue))
-                    {
-                        LogOutOfRangeKey(keyValue, entry.MaterialIndex, entry.MeshIndex);
-                    }
-                    if (em.HasComponent<MaterialMeshInfo>(entity))
-                    {
-                        ecb.RemoveComponent<MaterialMeshInfo>(entity);
-                        removedCount++;
-                    }
-                    continue;
+                    fallbackAssignments++;
+                    entry = EnsurePlaceholderBounds(entry);
                 }
 
                 var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(
-                    (ushort)entry.MaterialIndex,
-                    (ushort)entry.MeshIndex,
-                    (ushort)entry.SubMesh);
+                    (ushort)ClampIndex(entry.MaterialIndex, materialCount),
+                    (ushort)ClampIndex(entry.MeshIndex, meshCount),
+                    (ushort)math.max(entry.SubMesh, 0));
 
                 if (em.HasComponent<MaterialMeshInfo>(entity))
                     ecb.SetComponent(entity, mmi);
@@ -141,15 +159,7 @@ namespace Space4X.Rendering.Systems
 
                 if (!em.HasComponent<RenderBounds>(entity))
                 {
-                    var bounds = new RenderBounds
-                    {
-                        Value = new Unity.Mathematics.AABB
-                        {
-                            Center = entry.BoundsCenter,
-                            Extents = entry.BoundsExtents
-                        }
-                    };
-                    ecb.AddComponent(entity, bounds);
+                    ecb.AddComponent(entity, BuildBounds(entry));
                 }
 
                 if (!em.HasComponent<RenderFilterSettings>(entity))
@@ -157,25 +167,89 @@ namespace Space4X.Rendering.Systems
                     ecb.AddSharedComponent(entity, defaultFilterSettings);
                 }
 
+                ecb.AddComponent<RenderCatalogAppliedTag>(entity);
                 assignedCount++;
             }
 
             ecb.Playback(em);
             ecb.Dispose();
-            map.Dispose();
 
             if (ShouldLogCatalogWarnings() &&
-                (!s_loggedFirstPass || missingCount > 0 || outOfRangeCount > 0 || removedCount > 0))
+                (!s_loggedFirstPass || missingCount > 0 || outOfRangeCount > 0 || fallbackAssignments > 0))
             {
-                Debug.Log(
-                    $"[ApplyRenderCatalogSystem] Assigned {assignedCount} MaterialMeshInfo components. " +
-                    $"Removed={removedCount} MissingKeys={missingCount} OutOfRange={outOfRangeCount} Entries={entries.Length}");
-                s_loggedFirstPass = true;
+                if (assignedCount > 0)
+                {
+                    Debug.Log(
+                        $"[ApplyRenderCatalogSystem] Assigned {assignedCount} MaterialMeshInfo components. " +
+                        $"Fallback={fallbackAssignments} MissingKeys={missingCount} OutOfRange={outOfRangeCount} Entries={entries.Length}");
+                    s_loggedFirstPass = true;
+                }
             }
         }
 
         public void OnDestroy(ref SystemState state)
         {
+            if (_catalogMap.IsCreated)
+            {
+                _catalogMap.Dispose();
+            }
+            _cachedCatalog = default;
+        }
+
+        private void EnsureCatalogMap(ref BlobAssetReference<Space4XRenderMeshCatalog> catalogBlob, int materialCount, int meshCount)
+        {
+            var catalogMatches = _catalogMap.IsCreated &&
+                                 _cachedCatalog.IsCreated &&
+                                 _cachedCatalog.Equals(catalogBlob);
+
+            if (catalogMatches)
+                return;
+
+            if (_catalogMap.IsCreated)
+            {
+                _catalogMap.Dispose();
+            }
+
+            ref var entries = ref catalogBlob.Value.Entries;
+            var capacity = math.max(entries.Length + s_requiredKeys.Length, 1);
+            _catalogMap = new NativeParallelHashMap<int, Space4XRenderMeshCatalogEntry>(capacity, Allocator.Persistent);
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                _catalogMap.TryAdd(entries[i].ArchetypeId, entries[i]);
+            }
+
+            var fallback = entries.Length > 0 ? entries[0] : default;
+            foreach (var key in s_requiredKeys)
+            {
+                var keyInt = (int)key;
+                if (_catalogMap.ContainsKey(keyInt))
+                    continue;
+
+                var placeholder = fallback;
+                placeholder.ArchetypeId = (ushort)key;
+                placeholder.MaterialIndex = ClampIndex(placeholder.MaterialIndex, materialCount);
+                placeholder.MeshIndex = ClampIndex(placeholder.MeshIndex, meshCount);
+                placeholder.SubMesh = (ushort)math.max((int)placeholder.SubMesh, 0);
+                placeholder = EnsurePlaceholderBounds(placeholder);
+
+                _catalogMap.TryAdd(keyInt, placeholder);
+                if (ShouldLogCatalogWarnings() && s_fallbackWarningKeys.Add(keyInt))
+                {
+                    Debug.LogWarning(
+                        $"[Space4X RenderCatalog] Missing catalog row for ArchetypeId={key}; using fallback mesh/material. " +
+                        "Update Space4XRenderCatalogDefinition to provide art.");
+                }
+            }
+
+            _cachedCatalog = catalogBlob;
+        }
+
+        private static Space4XRenderMeshCatalogEntry EnsurePlaceholderBounds(Space4XRenderMeshCatalogEntry entry)
+        {
+            entry.BoundsCenter = float3.zero;
+            entry.BoundsExtents = math.max(entry.BoundsExtents, s_placeholderBoundsExtents);
+            return entry;
         }
 
         static void LogMissingKey(int key, int entityIndex)
@@ -202,6 +276,24 @@ namespace Space4X.Rendering.Systems
             if (count <= 0)
                 return 0;
             return math.clamp(index, 0, count - 1);
+        }
+
+        static bool IsEntryInRange(in Space4XRenderMeshCatalogEntry entry, int materialCount, int meshCount)
+        {
+            return entry.MaterialIndex >= 0 && entry.MaterialIndex < materialCount &&
+                   entry.MeshIndex >= 0 && entry.MeshIndex < meshCount;
+        }
+
+        static RenderBounds BuildBounds(in Space4XRenderMeshCatalogEntry entry)
+        {
+            return new RenderBounds
+            {
+                Value = new Unity.Mathematics.AABB
+                {
+                    Center = entry.BoundsCenter,
+                    Extents = entry.BoundsExtents
+                }
+            };
         }
     }
 }

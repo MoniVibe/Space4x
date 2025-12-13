@@ -1,9 +1,16 @@
+using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 using Space4X.Rendering;
+using PureDOTS.Runtime.Core;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 namespace Space4X.Rendering.Systems
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// One-shot sanity check for RenderKey presence/visibility in the default world.
     /// </summary>
@@ -23,6 +30,11 @@ namespace Space4X.Rendering.Systems
         {
             if (!Application.isPlaying)
                 return;
+            if (RuntimeMode.IsHeadless)
+            {
+                state.Enabled = false;
+                return;
+            }
 
             var q = SystemAPI.QueryBuilder()
                 .WithAll<RenderKey>()
@@ -32,15 +44,35 @@ namespace Space4X.Rendering.Systems
 
             if (count == 0)
             {
-                Debug.LogError("[RenderSanitySystem] No RenderKey entities exist; nothing can render.");
+#if UNITY_EDITOR
+                LogMissing(state.WorldUnmanaged.Name);
+#endif
             }
             else
             {
-                Debug.Log($"[RenderSanitySystem] World '{state.WorldUnmanaged.Name}' has {count} RenderKey entities.");
+#if UNITY_EDITOR
+                LogCount(state.WorldUnmanaged.Name, count);
+#endif
             }
 
             // Log once.
             state.Enabled = false;
         }
+
+#if UNITY_EDITOR
+        [BurstDiscard]
+        static void LogMissing(FixedString128Bytes worldName)
+        {
+            Debug.LogError($"[RenderSanitySystem] No RenderKey entities exist; nothing can render (world '{worldName}').");
+        }
+
+        [BurstDiscard]
+        static void LogCount(FixedString128Bytes worldName, int count)
+        {
+            Debug.Log($"[RenderSanitySystem] World '{worldName}' has {count} RenderKey entities.");
+        }
+#endif
     }
 }
+
+#endif

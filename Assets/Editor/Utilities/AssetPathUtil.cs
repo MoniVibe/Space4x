@@ -34,7 +34,20 @@ namespace Space4X.EditorUtilities
                 return "Assets" + path.Substring(dataPath.Length);
             }
 
-            return path; // Fallback path (still safer than throwing)
+            // Generic fallback: if the absolute path contains an Assets segment, trim up to it.
+            // This handles sibling TRI projects (PureDOTS/Godgame) so tools can skip or report cleanly
+            // without tripping AssetDatabase's "invalid path" guard.
+            var assetsIndex = path.IndexOf("/Assets/", StringComparison.Ordinal);
+            if (assetsIndex >= 0 && assetsIndex + 1 < path.Length)
+            {
+                return path.Substring(assetsIndex + 1);
+            }
+            if (path.EndsWith("/Assets", StringComparison.Ordinal))
+            {
+                return "Assets";
+            }
+
+            return path; // Fallback path (still safer than crashing callers)
         }
 
         /// <summary>

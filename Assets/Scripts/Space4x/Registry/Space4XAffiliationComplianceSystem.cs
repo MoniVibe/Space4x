@@ -8,6 +8,9 @@ using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Evaluates entity affiliations against doctrine expectations to surface mutiny/desertion/independence signals.
     /// </summary>

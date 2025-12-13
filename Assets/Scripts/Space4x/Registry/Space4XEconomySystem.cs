@@ -5,6 +5,9 @@ using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Updates market prices based on supply and demand.
     /// </summary>

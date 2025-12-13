@@ -9,7 +9,8 @@
         "Unity.Collections",
         "Unity.Entities.Graphics",
         "Unity.RenderPipelines.Universal.Runtime",
-        "Unity.Mathematics.Extensions"
+        "Unity.Mathematics.Extensions",
+        "PureDOTS.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

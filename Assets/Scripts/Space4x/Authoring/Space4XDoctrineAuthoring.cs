@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Inspector-friendly wrapper for doctrine expectations that bakes into alignment components.
     /// </summary>

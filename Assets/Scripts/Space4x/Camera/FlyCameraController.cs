@@ -52,12 +52,19 @@ namespace Space4X.Camera
 
         private void HandleMovement(float dt)
         {
-            float speed = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            if (Keyboard.current == null) return;
+
+            float speed = (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed)
                 ? moveSpeedShift
                 : moveSpeed;
 
-            float h = Input.GetAxisRaw("Horizontal"); // A/D or ←/→
-            float v = Input.GetAxisRaw("Vertical");   // W/S or ↑/↓
+            float h = 0f;
+            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) h -= 1f;
+            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) h += 1f;
+
+            float v = 0f;
+            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) v -= 1f;
+            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) v += 1f;
 
             // Horizontal movement in camera's local space
             Vector3 move = Vector3.zero;
@@ -68,9 +75,9 @@ namespace Space4X.Camera
 
             // Vertical movement
             float upDown = 0f;
-            if (Input.GetKey(KeyCode.Q))
+            if (Keyboard.current.qKey.isPressed)
                 upDown -= 1f;
-            if (Input.GetKey(KeyCode.E))
+            if (Keyboard.current.eKey.isPressed)
                 upDown += 1f;
 
             Vector3 worldMove = move * speed * dt;
@@ -81,10 +88,12 @@ namespace Space4X.Camera
 
         private void HandleMouse(float dt)
         {
-            Vector3 mousePos = Input.mousePosition;
+            if (Mouse.current == null) return;
 
-            bool mmb = Input.GetMouseButton(2); // middle
-            bool lmb = Input.GetMouseButton(0); // left
+            Vector3 mousePos = Mouse.current.position.ReadValue();
+
+            bool mmb = Mouse.current.middleButton.isPressed;
+            bool lmb = Mouse.current.leftButton.isPressed;
 
             if (!mmb && !lmb)
             {

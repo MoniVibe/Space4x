@@ -7,6 +7,9 @@ using UnityEngine;
 
 namespace Space4X.Rendering.Bootstrap
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Minimal Entities Graphics bootstrap that spawns a grid of renderable entities using a single mesh/material.
     /// Drop this into a SubScene in Demo_Space4X_Render to validate URP + Entities Graphics wiring.

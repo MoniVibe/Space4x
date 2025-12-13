@@ -5,6 +5,9 @@ using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Tracks focus usage and awards experience/wisdom.
     /// Entities who use focus more reach greater heights.

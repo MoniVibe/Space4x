@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Prevents automation scripts from re-registering Unity's built-in tags (MainCamera, Player, etc).
     /// Runs once per domain reload, strips any duplicate defaults from TagManager, and keeps future edits idempotent.

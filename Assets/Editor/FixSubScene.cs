@@ -7,6 +7,8 @@ using Space4X.Registry;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
     /// <summary>
     /// Creates a SubScene for Space4X_MiningDemo GameObject so entities can be baked.
     /// </summary>

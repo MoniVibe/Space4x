@@ -6,6 +6,9 @@ using UnityCamera = UnityEngine.Camera;
 
 namespace Space4X.Camera
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Editor utility to create and configure the Space4X camera prefab.
     /// </summary>
@@ -46,7 +49,7 @@ namespace Space4X.Camera
             // Clean up the temporary GameObject
             Object.DestroyImmediate(cameraGo);
 
-            Debug.Log($"[Space4X Camera] Created camera prefab at {prefabPath}");
+            UnityEngine.Debug.Log($"[Space4X Camera] Created camera prefab at {prefabPath}");
         }
 
         private static InputActionAsset FindDefaultInputActions()

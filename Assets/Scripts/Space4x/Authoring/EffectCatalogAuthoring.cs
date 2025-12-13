@@ -8,6 +8,9 @@ using UnityEngine;
 
 namespace Space4X.Authoring
 {
+    using Debug = UnityEngine.Debug;
+
+    
     [DisallowMultipleComponent]
     [AddComponentMenu("Space4X/Effect Catalog")]
     public sealed class EffectCatalogAuthoring : MonoBehaviour

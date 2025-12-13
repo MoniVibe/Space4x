@@ -7,7 +7,9 @@ using UnityEngine;
 
 namespace Space4X.Demo
 {
-    /// <summary>
+    using Debug = UnityEngine.Debug;
+
+        /// <summary>
     /// Lightweight validation to ensure smoke/demo scenes spawn core singletons and renderable entities.
     /// Editor-only logging; runs once per world.
     /// </summary>

@@ -5,9 +5,15 @@ using PureDOTS.Systems.Physics;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
+#if UNITY_EDITOR
+using Space4X.Debug;
+#endif
 
 namespace Space4X.Systems.Physics
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Processes physics collision events for Space4X and applies damage based on impulse.
     /// </summary>
@@ -52,7 +58,9 @@ namespace Space4X.Systems.Physics
                 return;
             }
 
+#if UNITY_EDITOR
             bool logCollisions = config.LogCollisions != 0;
+#endif
 
             // Process collision events for all entities with PhysicsCollisionEventElement buffers
             foreach (var (events, entity) in SystemAPI.Query<DynamicBuffer<PhysicsCollisionEventElement>>()
@@ -67,10 +75,12 @@ namespace Space4X.Systems.Physics
 
                     // Apply damage (placeholder - can be extended with health components)
                     // For now, just log the collision
+#if UNITY_EDITOR
                     if (logCollisions)
                     {
                         LogCollision(entity, evt.OtherEntity, evt.Impulse, damage);
                     }
+#endif
 
                     // TODO: Apply damage to health components if they exist
                     // if (SystemAPI.HasComponent<Health>(entity))
@@ -82,13 +92,16 @@ namespace Space4X.Systems.Physics
             }
         }
 
+#if UNITY_EDITOR
         [BurstDiscard]
         private static void LogCollision(Entity entity, Entity otherEntity, float impulse, float damage)
         {
-            // Round values for display (already rounded, no format specifier needed)
             float roundedImpulse = math.round(impulse * 100f) * 0.01f;
             float roundedDamage = math.round(damage * 100f) * 0.01f;
-            UnityEngine.Debug.Log($"[Space4XCollision] Entity {entity.Index} hit Entity {otherEntity.Index} impulse={roundedImpulse} damage={roundedDamage}");
+            Space4XBurstDebug.Log($"[Space4XCollision] Entity {entity.Index} hit Entity {otherEntity.Index} impulse={roundedImpulse} damage={roundedDamage}");
         }
+#else
+        private static void LogCollision(Entity entity, Entity otherEntity, float impulse, float damage) { }
+#endif
     }
 }

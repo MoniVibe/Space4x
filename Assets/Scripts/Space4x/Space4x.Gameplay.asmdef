@@ -16,10 +16,10 @@
         "PureDOTS.Runtime.Demo",
         "PureDOTS.Systems",
         "PureDOTS.Authoring",
+        "PureDOTS.Core",
         "PureDOTS.Rendering",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.Entities.Graphics",
-        "Shared.Demo",
         "PureDOTS.Camera"
     ],
     "includePlatforms": [],

@@ -1,10 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityCamera = UnityEngine.Camera;
+using PureDOTS.Runtime.Core;
 
 namespace Space4X.Camera
 {
-    /// <summary>
+    using Debug = UnityEngine.Debug;
+
+        /// <summary>
     /// Bootstrap script that ensures a Space4X camera exists at runtime.
     /// Creates the camera prefab if no main camera exists.
     /// </summary>
@@ -22,8 +25,13 @@ namespace Space4X.Camera
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureBootstrapExistsOnLoad()
         {
+            if (RuntimeMode.IsHeadless)
+                return;
+            // Only run in editor to avoid interfering with build scenes that might have their own setup
 #if UNITY_EDITOR
-            if (Object.FindFirstObjectByType<Space4XCameraBootstrap>() != null)
+            // Check if we already have a bootstrap or a rig controller
+            if (Object.FindFirstObjectByType<Space4XCameraBootstrap>() != null || 
+                Object.FindFirstObjectByType<Space4XCameraRigController>() != null)
                 return;
 
             var bootstrapGo = new GameObject("Space4X Camera Bootstrap (Runtime)");
@@ -35,6 +43,8 @@ namespace Space4X.Camera
         private void Awake()
         {
 #if UNITY_EDITOR
+            if (RuntimeMode.IsHeadless)
+                return;
             EnsureCameraExists();
 #endif
         }

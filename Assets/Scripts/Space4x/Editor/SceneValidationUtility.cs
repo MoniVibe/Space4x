@@ -11,6 +11,9 @@ using UnityEngine.SceneManagement;
 
 namespace Space4X.Editor
 {
+    using Debug = UnityEngine.Debug;
+
+    
     /// <summary>
     /// Utility for validating Space4X scenes against bootstrap/tagging checklist.
     /// </summary>
