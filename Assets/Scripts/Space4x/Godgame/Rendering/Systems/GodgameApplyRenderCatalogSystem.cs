@@ -69,7 +69,7 @@ namespace Godgame.Rendering.Systems
 
                 var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(entry.MaterialIndex, entry.MeshIndex, entry.SubMesh);
                 if (em.HasComponent<MaterialMeshInfo>(entity))
-                    em.SetComponent(entity, mmi);
+                    em.SetComponentData(entity, mmi);
                 else
                     em.AddComponentData(entity, mmi);
 

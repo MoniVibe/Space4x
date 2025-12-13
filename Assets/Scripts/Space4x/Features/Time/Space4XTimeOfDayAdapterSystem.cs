@@ -37,13 +37,6 @@ namespace Space4X.Features.Time
                 return;
             }
 
-            // Read orbit/time-of-day data from planets
-            // For now, just log phase changes for debugging
-            // In the future, this could:
-            // - Update URP lighting based on SunlightFactor
-            // - Rotate planet mesh based on OrbitalPhase
-            // - Apply Space4x-specific effects (mining efficiency, visibility, etc.)
-
             foreach (var (timeOfDay, sunlight) in SystemAPI.Query<RefRO<TimeOfDayState>, RefRO<SunlightFactor>>())
             {
                 var phase = timeOfDay.ValueRO.Phase;
@@ -63,4 +56,3 @@ namespace Space4X.Features.Time
         }
     }
 }
-

@@ -1,24 +1,5 @@
 {
   "dependencies": {
-    "com.coplaydev.coplay": {
-      "version": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {
-        "com.unity.inputsystem": "1.1.1",
-        "com.unity.cloud.gltfast": "6.12.1"
-      },
-      "hash": "fb148b2065d2d393cb291aa5c76061663838bc6e"
-    },
-    "com.coplaydev.unity-mcp": {
-      "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.2"
-      },
-      "hash": "6e0ef2347a910fee81bae18ca8e93a0c4f37ef1a"
-    },
     "com.moni.puredots": {
       "version": "file:../../PureDOTS/Packages/com.moni.puredots",
       "depth": 0,
@@ -144,12 +125,12 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.entities": {
-      "version": "1.4.2",
+      "version": "1.4.3",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.23",
-        "com.unity.collections": "2.6.2",
+        "com.unity.burst": "1.8.25",
+        "com.unity.collections": "2.6.3",
         "com.unity.mathematics": "1.3.2",
         "com.unity.modules.audio": "1.0.0",
         "com.unity.serialization": "3.1.2",
@@ -166,11 +147,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.entities.graphics": {
-      "version": "1.4.15",
+      "version": "1.4.16",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.entities": "1.4.2",
+        "com.unity.entities": "1.4.3",
         "com.unity.render-pipelines.core": "14.0.10",
         "com.unity.modules.particlesystem": "1.0.0"
       },
@@ -358,7 +339,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.timeline": {
-      "version": "1.8.9",
+      "version": "1.8.10",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -376,15 +357,6 @@
       "dependencies": {
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
-      }
-    },
-    "com.unity.visualeffectgraph": {
-      "version": "17.3.0",
-      "depth": 0,
-      "source": "builtin",
-      "dependencies": {
-        "com.unity.shadergraph": "17.3.0",
-        "com.unity.render-pipelines.core": "17.3.0"
       }
     },
     "com.unity.visualscripting": {

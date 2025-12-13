@@ -9,7 +9,10 @@ public class EnableLeakDetection
     static EnableLeakDetection()
     {
         NativeLeakDetection.Mode = NativeLeakDetectionMode.EnabledWithStackTrace;
-        Debug.Log("Native Leak Detection enabled with stack trace.");
+        if (!Application.isBatchMode)
+        {
+            Debug.Log("Native Leak Detection enabled with stack trace.");
+        }
     }
 }
 #endif

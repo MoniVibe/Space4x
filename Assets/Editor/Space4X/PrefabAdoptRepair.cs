@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Space4X.Authoring;
+using Space4X.EditorUtilities;
 using Space4X.Registry;
 using UnityEditor;
 using UnityEngine;
@@ -52,8 +53,9 @@ namespace Space4X.Editor
                     var prefabs = Directory.GetFiles(fullDir, "*.prefab", SearchOption.TopDirectoryOnly);
                     foreach (var prefabPath in prefabs)
                     {
+                        var assetPath = AssetPathUtil.ToAssetRelativePath(prefabPath);
                         result.ScannedCount++;
-                        RepairPrefab(prefabPath, expectedIdType, prefabBasePath, result, dryRun);
+                        RepairPrefab(assetPath, expectedIdType, prefabBasePath, result, dryRun);
                     }
                 }
             }

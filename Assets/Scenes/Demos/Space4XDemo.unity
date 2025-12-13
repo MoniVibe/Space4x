@@ -144,14 +144,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 435723923}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1
@@ -363,6 +363,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1615763882
 MeshFilter:
@@ -535,7 +536,6 @@ GameObject:
   - component: {fileID: 1953389828}
   - component: {fileID: 1953389829}
   - component: {fileID: 1953389830}
-  - component: {fileID: 1953389831}
   m_Layer: 0
   m_Name: Space4XDemo
   m_TagString: Untagged
@@ -584,19 +584,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
   profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
---- !u!114 &1953389831
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1953389827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b2b2aa7f6d03b85459b6008e342c606f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Demo.Space4XDemoUI
-  toggleKey: 292
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 5500804797241761367}
   - component: {fileID: 7200000000000000003}
   - component: {fileID: 3191000739529957319}
-  - component: {fileID: 8024092787733125370}
   m_Layer: 0
   m_Name: Asteroid
   m_TagString: Untagged
@@ -34,23 +33,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3191000739529957319
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7424386120355634278}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7cd382e834a72e94383a57b1ac4c4f86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Authoring.AsteroidAuthoring
-  AsteroidId: Asteroid_01
-  ResourceType: 0
-  ResourceAmount: 1000
-  MaxResourceAmount: 1000
-  MiningRate: 10
 --- !u!114 &7200000000000000003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -68,7 +50,7 @@ MonoBehaviour:
   Visible: 1
   ShadowCaster: 1
   HighlightMask: 0
---- !u!114 &8024092787733125370
+--- !u!114 &3191000739529957319
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -77,11 +59,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 7424386120355634278}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4a4d090123a8d445b39a0177f0932c5, type: 3}
+  m_Script: {fileID: 11500000, guid: 7cd382e834a72e94383a57b1ac4c4f86, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.AsteroidPresentationAuthoring
-  ResourceTypeValue: 0
-  AsteroidMesh: {fileID: 0}
-  AsteroidMaterial: {fileID: 0}
-  InitialState: 0
-  InitialDepletionRatio: 0
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Authoring.AsteroidAuthoring
+  AsteroidId: Asteroid_01
+  ResourceType: 0
+  ResourceAmount: 1000
+  MaxResourceAmount: 1000
+  MiningRate: 10

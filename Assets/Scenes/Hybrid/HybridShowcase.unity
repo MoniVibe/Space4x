@@ -352,7 +352,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 463649476}
-  - component: {fileID: 463649475}
   - component: {fileID: 463649474}
   m_Layer: 0
   m_Name: HybridBootstrap
@@ -377,18 +376,6 @@ MonoBehaviour:
   _onModeChanged:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &463649475
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 463649473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8ba42c9bb43ed4e45aae5a68d11677a3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PureDOTS.Runtime.HybridShowcaseBootstrap
 --- !u!4 &463649476
 Transform:
   m_ObjectHideFlags: 0

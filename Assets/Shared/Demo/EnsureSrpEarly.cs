@@ -11,7 +11,10 @@ static class EnsureSrpEarly
     {
         if (GraphicsSettings.currentRenderPipeline != null)
         {
-            Debug.Log($"[EnsureSrpEarly] SRP already set: {GraphicsSettings.currentRenderPipeline.GetType().Name}");
+            if (ShouldLog())
+            {
+                Debug.Log($"[EnsureSrpEarly] SRP already set: {GraphicsSettings.currentRenderPipeline.GetType().Name}");
+            }
             return;
         }
 
@@ -20,13 +23,28 @@ static class EnsureSrpEarly
         if (!asset)
         {
             asset = ScriptableObject.CreateInstance<UniversalRenderPipelineAsset>();
-            Debug.LogWarning("[EnsureSrpEarly] DemoURP not found in Resources/Rendering; using a transient URP asset.");
+            if (ShouldLog())
+            {
+                Debug.LogWarning("[EnsureSrpEarly] DemoURP not found in Resources/Rendering; using a transient URP asset.");
+            }
         }
 
         QualitySettings.renderPipeline = asset;        // assign for this run only
         GraphicsSettings.defaultRenderPipeline = asset; // belt & suspenders
 
-        Debug.Log($"[EnsureSrpEarly] SRP set to {asset.GetType().Name} before world bootstrap.");
+        if (ShouldLog())
+        {
+            Debug.Log($"[EnsureSrpEarly] SRP set to {asset.GetType().Name} before world bootstrap.");
+        }
+    }
+
+    static bool ShouldLog()
+    {
+#if UNITY_EDITOR
+        return !Application.isBatchMode;
+#else
+        return Debug.isDebugBuild && !Application.isBatchMode;
+#endif
     }
 }
 #endif

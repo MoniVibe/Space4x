@@ -220,7 +220,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 952018458}
-  - component: {fileID: 952018459}
   m_Layer: 0
   m_Name: InputBridge
   m_TagString: Untagged
@@ -243,19 +242,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &952018459
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 952018457}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4fbe44df95d75234c8aad146915607d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.Space4XInputBridge
-  InputActions: {fileID: 0}
 --- !u!1 &1426412434
 GameObject:
   m_ObjectHideFlags: 0
@@ -265,7 +251,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1426412435}
-  - component: {fileID: 1426412436}
   m_Layer: 0
   m_Name: Bootstrap
   m_TagString: Untagged
@@ -288,34 +273,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1426412436
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1426412434}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 95d60d698fb045948a10c5f47e3e7a2e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.Demo01Authoring
-  CarrierCount: 4
-  CraftsPerCarrier: 4
-  AsteroidCount: 20
-  SpawnAreaSize: 100
-  MinAsteroidDistance: 10
-  FactionColors:
-  - {r: 0.2, g: 0.4, b: 1, a: 1}
-  - {r: 1, g: 0.2, b: 0.2, a: 1}
-  - {r: 0.2, g: 1, b: 0.2, a: 1}
-  - {r: 1, g: 1, b: 0.2, a: 1}
-  FullDetailMaxDistance: 100
-  ReducedDetailMaxDistance: 500
-  ImpostorMaxDistance: 2000
-  MaxFullDetailCrafts: 1000
-  AutoAdjustLOD: 1
-  AutoAdjustDensity: 1
 --- !u!1 &1664938871
 GameObject:
   m_ObjectHideFlags: 0
@@ -394,14 +351,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2103702722}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1

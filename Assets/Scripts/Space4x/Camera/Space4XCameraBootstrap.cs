@@ -22,19 +22,24 @@ namespace Space4X.Camera
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureBootstrapExistsOnLoad()
         {
+#if UNITY_EDITOR
             if (Object.FindFirstObjectByType<Space4XCameraBootstrap>() != null)
                 return;
 
             var bootstrapGo = new GameObject("Space4X Camera Bootstrap (Runtime)");
             bootstrapGo.AddComponent<Space4XCameraBootstrap>();
             UnityEngine.Object.DontDestroyOnLoad(bootstrapGo);
+#endif
         }
 
         private void Awake()
         {
+#if UNITY_EDITOR
             EnsureCameraExists();
+#endif
         }
 
+#if UNITY_EDITOR
         private void EnsureCameraExists()
         {
             // If we already have a main camera, find or create rig controller for it
@@ -97,5 +102,6 @@ namespace Space4X.Camera
                 Debug.Log("[Space4X Camera] Created fallback camera setup");
             }
         }
+#endif
     }
 }

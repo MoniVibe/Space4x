@@ -18,22 +18,20 @@ public static class Space4XWorldDiag
 
         var em = world.EntityManager;
 
-        if (!em.CreateEntityQuery(ComponentType.ReadOnly<RenderMeshArray>())
-              .TryGetSingletonEntity<RenderMeshArray>(out var rmaEntity))
-        {
-            Debug.LogWarning("[Space4XWorldDiag] No RenderMeshArray singleton.");
-            return;
-        }
-
-        var rma = em.GetSharedComponentManaged<RenderMeshArray>(rmaEntity);
-
-        if (!em.CreateEntityQuery(ComponentType.ReadOnly<Space4XRenderCatalogSingleton>())
-              .TryGetSingletonEntity<Space4XRenderCatalogSingleton>(out var catEntity))
+        var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<Space4XRenderCatalogSingleton>());
+        if (!catalogQuery.TryGetSingletonEntity<Space4XRenderCatalogSingleton>(out var catEntity))
         {
             Debug.LogWarning("[Space4XWorldDiag] No Space4XRenderCatalogSingleton.");
             return;
         }
 
+        if (!em.HasComponent<RenderMeshArray>(catEntity))
+        {
+            Debug.LogWarning("[Space4XWorldDiag] Catalog entity has no RenderMeshArray shared component.");
+            return;
+        }
+
+        var rma = em.GetSharedComponentManaged<RenderMeshArray>(catEntity);
         var catSingleton = em.GetComponentData<Space4XRenderCatalogSingleton>(catEntity);
         if (!catSingleton.Catalog.IsCreated)
         {

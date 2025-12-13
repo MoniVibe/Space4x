@@ -214,8 +214,6 @@ GameObject:
   - component: {fileID: 631054481}
   - component: {fileID: 631054480}
   - component: {fileID: 631054479}
-  - component: {fileID: 631054478}
-  - component: {fileID: 631054477}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -223,37 +221,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &631054477
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 631054476}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ed4e6dcb9b37ce49b9f66559b1aad74, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XCameraAuthoring
-  profile: {fileID: 0}
---- !u!114 &631054478
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 631054476}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0eafed0f04439294d816690bca932c75, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XCameraInputAuthoring
-  inputActions: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  enablePan: 1
-  enableZoom: 1
-  enableVerticalMove: 1
-  enableRotation: 1
-  requireRightMouseForRotation: 1
 --- !u!81 &631054479
 AudioListener:
   m_ObjectHideFlags: 0
@@ -603,14 +570,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1619909217}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1
@@ -741,6 +708,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1706917671
 MeshCollider:

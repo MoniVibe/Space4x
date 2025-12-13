@@ -10,6 +10,7 @@ namespace Space4X.Camera
     {
         public static UnityEngine.Camera EnsureMainCamera()
         {
+#if UNITY_EDITOR
             var cam = UnityEngine.Camera.main;
 
             if (cam == null)
@@ -29,6 +30,9 @@ namespace Space4X.Camera
             }
 
             return cam;
+#else
+            return UnityEngine.Camera.main;
+#endif
         }
     }
 }

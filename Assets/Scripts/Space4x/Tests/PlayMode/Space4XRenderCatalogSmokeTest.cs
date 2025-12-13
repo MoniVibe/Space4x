@@ -80,8 +80,8 @@ namespace Space4X.Tests.PlayMode
             {
                 ref var root = ref builder.ConstructRoot<Space4XRenderMeshCatalog>();
                 var entries = builder.Allocate(ref root.Entries, 2);
-                entries[0] = new Space4XRenderMeshCatalogEntry { ArchetypeId = 200, MeshIndex = 0, MaterialIndex = 0, SubMesh = 0, BoundsCenter = float3.zero, BoundsExtents = new float3(1f) };
-                entries[1] = new Space4XRenderMeshCatalogEntry { ArchetypeId = 210, MeshIndex = 1, MaterialIndex = 1, SubMesh = 0, BoundsCenter = float3.zero, BoundsExtents = new float3(1f) };
+                entries[0] = new Space4XRenderMeshCatalogEntry { ArchetypeId = (ushort)200, MeshIndex = 0, MaterialIndex = 0, SubMesh = 0, BoundsCenter = float3.zero, BoundsExtents = new float3(1f) };
+                entries[1] = new Space4XRenderMeshCatalogEntry { ArchetypeId = (ushort)210, MeshIndex = 1, MaterialIndex = 1, SubMesh = 0, BoundsCenter = float3.zero, BoundsExtents = new float3(1f) };
 
                 _catalogBlob = builder.CreateBlobAssetReference<Space4XRenderMeshCatalog>(Allocator.Persistent);
             }

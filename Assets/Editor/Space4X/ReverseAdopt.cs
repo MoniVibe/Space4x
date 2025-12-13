@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Space4X.Authoring;
+using Space4X.EditorUtilities;
 using Space4X.Registry;
 using UnityEditor;
 using UnityEngine;
@@ -36,10 +37,11 @@ namespace Space4X.Editor
             var prefabs = Directory.GetFiles(prefabDir, "*.prefab", SearchOption.AllDirectories);
             foreach (var prefabPath in prefabs)
             {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                var assetPath = AssetPathUtil.ToAssetRelativePath(prefabPath);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
                 if (prefab == null) continue;
 
-                var proposal = AnalyzePrefab(prefab, prefabPath);
+                var proposal = AnalyzePrefab(prefab, assetPath);
                 if (proposal != null)
                 {
                     proposals.Add(proposal);

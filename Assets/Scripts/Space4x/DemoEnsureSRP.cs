@@ -12,7 +12,10 @@ public sealed class DemoEnsureSRP : MonoBehaviour
     {
         if (GraphicsSettings.currentRenderPipeline != null) 
         {
-             Debug.Log($"[RenderDiagEarly] Current SRP (Pre-existing): {GraphicsSettings.currentRenderPipeline.GetType().Name}");
+             if (ShouldLog())
+             {
+                 Debug.Log($"[RenderDiagEarly] Current SRP (Pre-existing): {GraphicsSettings.currentRenderPipeline.GetType().Name}");
+             }
              return;
         }
 
@@ -21,8 +24,20 @@ public sealed class DemoEnsureSRP : MonoBehaviour
         if (asset == null) asset = ScriptableObject.CreateInstance<UniversalRenderPipelineAsset>();
 
         QualitySettings.renderPipeline = asset;   // assign for this session only
-        Debug.Log($"[DemoEnsureSRP] Assigned URP: {asset.name}");
-        Debug.Log($"[RenderDiagEarly] Current SRP (Assigned): {QualitySettings.renderPipeline?.GetType().Name ?? "None"}");
+        if (ShouldLog())
+        {
+            Debug.Log($"[DemoEnsureSRP] Assigned URP: {asset.name}");
+            Debug.Log($"[RenderDiagEarly] Current SRP (Assigned): {QualitySettings.renderPipeline?.GetType().Name ?? "None"}");
+        }
+    }
+
+    static bool ShouldLog()
+    {
+#if UNITY_EDITOR
+        return !Application.isBatchMode;
+#else
+        return Debug.isDebugBuild && !Application.isBatchMode;
+#endif
     }
 }
 #endif

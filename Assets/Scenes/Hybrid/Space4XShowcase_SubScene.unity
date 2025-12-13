@@ -223,25 +223,69 @@ MonoBehaviour:
       x: 0
       y: 0
       z: 0
+    IsHostile: 0
+    FleetPosture: 0
+    FleetId: 
+    CanIntercept: 0
+    InterceptSpeed: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
   miningVessels:
   - VesselId: MINER-1
     Speed: 10
     MiningEfficiency: 0.8
+    ResourceId: space4x.resource.minerals
+    MiningTickInterval: 0.5
     CargoCapacity: 100
+    OutputSpawnThreshold: 20
     Position:
       x: 5
       y: 0
       z: 0
     CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
   - VesselId: MINER-2
     Speed: 10
     MiningEfficiency: 0.8
+    ResourceId: space4x.resource.minerals
+    MiningTickInterval: 0.5
     CargoCapacity: 100
+    OutputSpawnThreshold: 20
     Position:
       x: -5
       y: 0
       z: 0
     CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
+  affiliations:
+  - AffiliationId: AFFILIATION-1
+    DisplayName: Starter Fleet
+    Loyalty: 1
   asteroids:
   - AsteroidId: ASTEROID-1
     ResourceType: 0
@@ -265,12 +309,15 @@ MonoBehaviour:
     CarrierPrimitive: 2
     CarrierScale: 3
     CarrierColor: {r: 0.35, g: 0.4, b: 0.62, a: 1}
+    CarrierDescriptorKey: space4x.vessel.carrier
     MiningVesselPrimitive: 3
     MiningVesselScale: 1.2
     MiningVesselColor: {r: 0.25, g: 0.52, b: 0.84, a: 1}
+    MiningVesselDescriptorKey: space4x.vessel.miner
     AsteroidPrimitive: 1
     AsteroidScale: 2.25
     AsteroidColor: {r: 0.52, g: 0.43, b: 0.34, a: 1}
+    AsteroidDescriptorKey: space4x.prop.asteroid
 --- !u!114 &1428064537
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -322,8 +369,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2022128593}
   - component: {fileID: 2022128592}
-  - component: {fileID: 2022128591}
-  - component: {fileID: 2022128590}
   m_Layer: 0
   m_Name: Space4X Camera Rig
   m_TagString: Untagged
@@ -331,37 +376,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2022128590
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2022128589}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0eafed0f04439294d816690bca932c75, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XCameraInputAuthoring
-  inputActions: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  enablePan: 1
-  enableZoom: 1
-  enableVerticalMove: 1
-  enableRotation: 1
-  requireRightMouseForRotation: 1
---- !u!114 &2022128591
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2022128589}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ed4e6dcb9b37ce49b9f66559b1aad74, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XCameraAuthoring
-  profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
 --- !u!20 &2022128592
 Camera:
   m_ObjectHideFlags: 0
@@ -428,13 +442,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1660057539 &9223372036854775807
-SceneRoots:
-  m_ObjectHideFlags: 0
-  m_Roots:
-  - {fileID: 825986621}
-  - {fileID: 1428064539}
-  - {fileID: 2022128593}
 --- !u!1 &2100003300
 GameObject:
   m_ObjectHideFlags: 0
@@ -510,13 +517,13 @@ MonoBehaviour:
     Type: 3
     CastingMode: 1
     BaseRadius: 18
-    BaseIntensity: 0.699999988
+    BaseIntensity: 0.7
     BaseCost: 20
     SustainedCostPerSecond: 5
     Lifecycle: 1
     ChargePercent: 0.5
     CurrentRadius: 18
-    CurrentIntensity: 0.699999988
+    CurrentIntensity: 0.7
     CooldownSecondsRemaining: 5
     LastCastTick: 0
     AlignmentDelta: 0
@@ -532,3 +539,11 @@ MonoBehaviour:
       z: -20
     TargetEntity: {fileID: 0}
     Caster: {fileID: 0}
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 825986621}
+  - {fileID: 1428064539}
+  - {fileID: 2022128593}
+  - {fileID: 2100003301}

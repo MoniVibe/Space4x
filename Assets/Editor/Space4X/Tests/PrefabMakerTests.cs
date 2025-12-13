@@ -6,6 +6,7 @@ using System.Text;
 using NUnit.Framework;
 using Space4X.Authoring;
 using Space4X.Editor;
+using Space4X.EditorUtilities;
 using Space4X.Registry;
 using Unity.Collections;
 using UnityEditor;
@@ -51,7 +52,8 @@ namespace Space4X.Editor.Tests
                     var files = Directory.GetFiles(dir, "*.prefab", SearchOption.TopDirectoryOnly);
                     foreach (var file in files)
                     {
-                        AssetDatabase.DeleteAsset(file);
+                        var assetPath = AssetPathUtil.ToAssetPath(file);
+                        AssetDatabase.DeleteAsset(assetPath);
                     }
                 }
             }
@@ -316,8 +318,9 @@ namespace Space4X.Editor.Tests
                     var files = Directory.GetFiles(fullPath, "*.prefab", SearchOption.TopDirectoryOnly);
                     foreach (var file in files)
                     {
-                        var guid = AssetDatabase.AssetPathToGUID(file);
-                        hashes[file] = guid; // Use GUID as a proxy for content hash
+                        var assetPath = AssetPathUtil.ToAssetPath(file);
+                        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+                        hashes[assetPath] = guid; // Use GUID as a proxy for content hash
                     }
                 }
             }

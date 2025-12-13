@@ -357,9 +357,15 @@ var name = MyName;  // Just reference the constant
 // For math.*, half, float2, float3:
 using Unity.Mathematics;
 
-// For Unsafe.IsNullRef, Unsafe.NullRef:
+// For UnsafeUtility pointer helpers:
 using Unity.Collections.LowLevel.Unsafe;
+
+// For UnsafeRef / RefPtr (Burst-safe null-ref helpers):
+using PureDOTS.Runtime.LowLevel;
 ```
+
+**Never** reference `System.Runtime.CompilerServices.Unsafe.IsNullRef` / `Unsafe.NullRef` in Burst paths.
+Use `UnsafeRef.IsNull` / `UnsafeRef.Null` (PureDOTS.Runtime.LowLevel) instead so Burst compiles cleanly.
 
 ### P10: Stale Type/Namespace References
 

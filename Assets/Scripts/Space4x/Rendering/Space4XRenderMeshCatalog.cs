@@ -9,7 +9,7 @@ namespace Space4X.Rendering
     // One mapping row: RenderKey.ArchetypeId -> indices into RenderMeshArray
     public struct Space4XRenderMeshCatalogEntry
     {
-        public int ArchetypeId;
+        public ushort ArchetypeId;
         public int MaterialIndex;
         public int MeshIndex;
         public ushort SubMesh;
@@ -29,4 +29,3 @@ namespace Space4X.Rendering
         public BlobAssetReference<Space4XRenderMeshCatalog> Catalog;
     }
 }
-

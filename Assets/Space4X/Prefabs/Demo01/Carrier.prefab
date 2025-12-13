@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3639750756011855409}
   - component: {fileID: 7200000000000000001}
   - component: {fileID: 1925952137728100714}
-  - component: {fileID: 8820201315318666598}
   m_Layer: 0
   m_Name: Carrier
   m_TagString: Untagged
@@ -34,6 +33,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7200000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4882822725409218272}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b838b5952e598b4caa6144590085e7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ArchetypeId: 200
+  LOD: 0
+  Visible: 1
+  ShadowCaster: 1
+  HighlightMask: 0
 --- !u!114 &1925952137728100714
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -60,37 +76,3 @@ MonoBehaviour:
     capacity: 10000
   - type: 3
     capacity: 10000
---- !u!114 &7200000000000000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4882822725409218272}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4b838b5952e598b4caa6144590085e7e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ArchetypeId: 200
-  LOD: 0
-  Visible: 1
-  ShadowCaster: 1
-  HighlightMask: 0
---- !u!114 &8820201315318666598
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4882822725409218272}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d017dd0b6ae3be49b8e1217296638e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.CarrierPresentationAuthoring
-  HullId: carrier_basic
-  FactionColorValue: {r: 0, g: 0, b: 1, a: 1}
-  CarrierMesh: {fileID: 0}
-  CarrierMaterial: {fileID: 0}
-  InitialState: 0

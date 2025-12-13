@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -17,14 +18,17 @@ namespace Space4X.Rendering.Systems
     public partial class ApplyRenderCatalogSystem : SystemBase
     {
         private static bool s_loggedFirstPass;
+        private static readonly HashSet<int> s_fallbackWarningKeys = new();
+        private static readonly HashSet<int> s_missingKeyLogIds = new();
+        private static readonly HashSet<int> s_outOfRangeKeyLogIds = new();
 
-        private static readonly int[] s_requiredKeys =
+        private static readonly ushort[] s_requiredKeys =
         {
-            Space4XRenderKeys.Carrier,
-            Space4XRenderKeys.Miner,
-            Space4XRenderKeys.Asteroid,
-            Space4XRenderKeys.Projectile,
-            Space4XRenderKeys.FleetImpostor
+            (ushort)Space4XRenderKeys.Carrier,
+            (ushort)Space4XRenderKeys.Miner,
+            (ushort)Space4XRenderKeys.Asteroid,
+            (ushort)Space4XRenderKeys.Projectile,
+            (ushort)Space4XRenderKeys.FleetImpostor
         };
 
         protected override void OnCreate()
@@ -61,17 +65,22 @@ namespace Space4X.Rendering.Systems
             var fallback = entries[0];
             foreach (var key in s_requiredKeys)
             {
-                if (map.TryGetValue(key, out _))
+                var keyInt = (int)key;
+                if (map.TryGetValue(keyInt, out _))
                     continue;
 
                 var placeholder = fallback;
-                placeholder.ArchetypeId = key;
-                map.TryAdd(key, placeholder);
-#if UNITY_EDITOR
-                Debug.LogWarning(
-                    $"[Space4X RenderCatalog] Missing catalog row for ArchetypeId={key}; using fallback mesh/material. " +
-                    "Update Space4XRenderCatalogDefinition to provide art.");
-#endif
+                placeholder.ArchetypeId = (ushort)key;
+                placeholder.MaterialIndex = ClampIndex(placeholder.MaterialIndex, materialCount);
+                placeholder.MeshIndex = ClampIndex(placeholder.MeshIndex, meshCount);
+                placeholder.SubMesh = (ushort)math.max((int)placeholder.SubMesh, 0);
+                map.TryAdd(keyInt, placeholder);
+                if (ShouldLogCatalogWarnings() && s_fallbackWarningKeys.Add(keyInt))
+                {
+                    Debug.LogWarning(
+                        $"[Space4X RenderCatalog] Missing catalog row for ArchetypeId={key}; using fallback mesh/material. " +
+                        "Update Space4XRenderCatalogDefinition to provide art.");
+                }
             }
 
             var rmaQuery = GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
@@ -80,12 +89,10 @@ namespace Space4X.Rendering.Systems
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var defaultFilterSettings = RenderFilterSettings.Default;
 
-#if UNITY_EDITOR
             int assignedCount = 0;
             int missingCount = 0;
             int outOfRangeCount = 0;
             int removedCount = 0;
-#endif
 
             foreach (var (key, entity) in SystemAPI.Query<RefRO<RenderKey>>().WithEntityAccess())
             {
@@ -93,16 +100,15 @@ namespace Space4X.Rendering.Systems
 
                 if (!map.TryGetValue(keyValue, out var entry))
                 {
-#if UNITY_EDITOR
                     missingCount++;
-                    LogMissingKey(keyValue, entity.Index);
-#endif
+                    if (ShouldLogCatalogWarnings() && s_missingKeyLogIds.Add(keyValue))
+                    {
+                        LogMissingKey(keyValue, entity.Index);
+                    }
                     if (em.HasComponent<MaterialMeshInfo>(entity))
                     {
                         ecb.RemoveComponent<MaterialMeshInfo>(entity);
-#if UNITY_EDITOR
                         removedCount++;
-#endif
                     }
                     continue;
                 }
@@ -110,23 +116,22 @@ namespace Space4X.Rendering.Systems
                 if (entry.MaterialIndex < 0 || entry.MaterialIndex >= materialCount ||
                     entry.MeshIndex < 0 || entry.MeshIndex >= meshCount)
                 {
-#if UNITY_EDITOR
                     outOfRangeCount++;
-                    LogOutOfRangeKey(keyValue, entry.MaterialIndex, entry.MeshIndex);
-#endif
+                    if (ShouldLogCatalogWarnings() && s_outOfRangeKeyLogIds.Add(keyValue))
+                    {
+                        LogOutOfRangeKey(keyValue, entry.MaterialIndex, entry.MeshIndex);
+                    }
                     if (em.HasComponent<MaterialMeshInfo>(entity))
                     {
                         ecb.RemoveComponent<MaterialMeshInfo>(entity);
-#if UNITY_EDITOR
                         removedCount++;
-#endif
                     }
                     continue;
                 }
 
                 var mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(
-                    entry.MaterialIndex,
-                    entry.MeshIndex,
+                    (ushort)entry.MaterialIndex,
+                    (ushort)entry.MeshIndex,
                     (ushort)entry.SubMesh);
 
                 if (em.HasComponent<MaterialMeshInfo>(entity))
@@ -152,40 +157,47 @@ namespace Space4X.Rendering.Systems
                     ecb.AddSharedComponent(entity, defaultFilterSettings);
                 }
 
-#if UNITY_EDITOR
                 assignedCount++;
-#endif
             }
 
             ecb.Playback(em);
             ecb.Dispose();
             map.Dispose();
 
-#if UNITY_EDITOR
-            if (!s_loggedFirstPass || missingCount > 0 || outOfRangeCount > 0 || removedCount > 0)
+            if (ShouldLogCatalogWarnings() &&
+                (!s_loggedFirstPass || missingCount > 0 || outOfRangeCount > 0 || removedCount > 0))
             {
                 Debug.Log(
                     $"[ApplyRenderCatalogSystem] Assigned {assignedCount} MaterialMeshInfo components. " +
                     $"Removed={removedCount} MissingKeys={missingCount} OutOfRange={outOfRangeCount} Entries={entries.Length}");
                 s_loggedFirstPass = true;
             }
-#endif
         }
 
-#if UNITY_EDITOR
         static void LogMissingKey(int key, int entityIndex)
         {
-            Debug.LogError($"[ApplyRenderCatalogSystem] Missing key {key} for entity {entityIndex}");
+            Debug.LogWarning($"[ApplyRenderCatalogSystem] Missing key {key} for entity {entityIndex}");
         }
 
         static void LogOutOfRangeKey(int key, int matIndex, int meshIndex)
         {
             Debug.LogError($"[ApplyRenderCatalogSystem] Key {key} has bad indices mat:{matIndex} mesh:{meshIndex}");
         }
+
+        static bool ShouldLogCatalogWarnings()
+        {
+#if UNITY_EDITOR
+            return true;
+#else
+            return Debug.isDebugBuild && !Application.isBatchMode;
 #endif
+        }
+
+        static int ClampIndex(int index, int count)
+        {
+            if (count <= 0)
+                return 0;
+            return math.clamp(index, 0, count - 1);
+        }
     }
 }
-
-
-
-

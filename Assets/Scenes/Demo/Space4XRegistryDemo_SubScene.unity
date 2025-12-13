@@ -185,6 +185,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!136 &75155180
 CapsuleCollider:
@@ -298,6 +299,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!136 &178064126
 CapsuleCollider:
@@ -400,7 +402,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 194810419}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 1140339684}
+  m_Script: {fileID: 11500000, guid: 4ed35ad2102e7fa4aa28b420bd216c93, type: 3}
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
   profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
@@ -470,6 +472,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!135 &253541335
 SphereCollider:
@@ -581,6 +584,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &382839089
 BoxCollider:
@@ -692,6 +696,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!135 &745047697
 SphereCollider:
@@ -803,6 +808,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &840851569
 BoxCollider:
@@ -960,6 +966,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &901240973
 BoxCollider:
@@ -1071,6 +1078,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &1017176370
 BoxCollider:
@@ -1116,21 +1124,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!115 &1140339684
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: SpatialPartitionAuthoring
-  m_Namespace: PureDOTS.Authoring
-  m_AssemblyName: PureDOTS.Authoring
 --- !u!1 &1182578907
 GameObject:
   m_ObjectHideFlags: 0
@@ -1250,6 +1243,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &1352565664
 BoxCollider:
@@ -1453,13 +1447,13 @@ MonoBehaviour:
     Type: 3
     CastingMode: 1
     BaseRadius: 18
-    BaseIntensity: 0.699999988
+    BaseIntensity: 0.7
     BaseCost: 20
     SustainedCostPerSecond: 5
     Lifecycle: 1
     ChargePercent: 0.5
     CurrentRadius: 18
-    CurrentIntensity: 0.699999988
+    CurrentIntensity: 0.7
     CooldownSecondsRemaining: 5
     LastCastTick: 0
     AlignmentDelta: 0
@@ -1541,6 +1535,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &1533442696
 BoxCollider:
@@ -1652,6 +1647,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1568895308
 MeshCollider:
@@ -1709,8 +1705,6 @@ GameObject:
   - component: {fileID: 1579865641}
   - component: {fileID: 1579865640}
   - component: {fileID: 1579865639}
-  - component: {fileID: 1579865643}
-  - component: {fileID: 1579865642}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1792,37 +1786,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1579865642
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1579865638}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0eafed0f04439294d816690bca932c75, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XCameraInputAuthoring
-  inputActions: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  enablePan: 1
-  enableZoom: 1
-  enableVerticalMove: 1
-  enableRotation: 0
-  requireRightMouseForRotation: 1
---- !u!114 &1579865643
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1579865638}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ed4e6dcb9b37ce49b9f66559b1aad74, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XCameraAuthoring
-  profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
 --- !u!1 &1609497232
 GameObject:
   m_ObjectHideFlags: 0
@@ -1889,6 +1852,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &1609497234
 BoxCollider:
@@ -2000,6 +1964,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1813243085
 MeshCollider:
@@ -2112,6 +2077,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!135 &1840547447
 SphereCollider:
@@ -2212,14 +2178,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1893401795}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1
@@ -2350,6 +2316,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &2088335208
 BoxCollider:

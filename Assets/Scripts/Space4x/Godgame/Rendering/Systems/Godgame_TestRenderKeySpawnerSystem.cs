@@ -16,6 +16,7 @@ namespace Godgame.Rendering.Systems
     {
         public void OnCreate(ref SystemState state)
         {
+#if UNITY_EDITOR
             if (!Application.isPlaying)
             {
                 state.Enabled = false;
@@ -23,10 +24,14 @@ namespace Godgame.Rendering.Systems
             }
 
             state.RequireForUpdate<GodgameRenderCatalogSingleton>();
+#else
+            state.Enabled = false;
+#endif
         }
 
         public void OnUpdate(ref SystemState state)
         {
+#if UNITY_EDITOR
             var em = state.EntityManager;
             const int count = 5;
 
@@ -52,6 +57,9 @@ namespace Godgame.Rendering.Systems
 
             Debug.Log("[Godgame_TestRenderKeySpawnerSystem] Spawned demo RenderKey entities.");
             state.Enabled = false;
+#else
+            state.Enabled = false;
+#endif
         }
 
         public void OnDestroy(ref SystemState state) { }
