@@ -9,10 +9,17 @@ public class EnableLeakDetection
     static EnableLeakDetection()
     {
         NativeLeakDetection.Mode = NativeLeakDetectionMode.EnabledWithStackTrace;
+#if UNITY_EDITOR && PURE_DOTS_DIAG
         if (!Application.isBatchMode)
         {
-            Debug.Log("Native Leak Detection enabled with stack trace.");
+            const string sessionKey = "Space4X.EnableLeakDetection.Logged";
+            if (!SessionState.GetBool(sessionKey, false))
+            {
+                SessionState.SetBool(sessionKey, true);
+                Debug.Log("Native Leak Detection enabled with stack trace.");
+            }
         }
+#endif
     }
 }
 #endif

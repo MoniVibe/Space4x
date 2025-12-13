@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Space4X.Authoring;
+using Space4X.EditorUtilities;
 using UnityEditor;
 using UnityEngine;
 
@@ -122,10 +123,11 @@ namespace Space4X.Editor
                 var prefabs = System.IO.Directory.GetFiles(fullDir, "*.prefab", System.IO.SearchOption.AllDirectories);
                 foreach (var prefabPath in prefabs)
                 {
-                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                    var assetPath = AssetPathUtil.ToAssetRelativePath(prefabPath);
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
                     if (prefab == null) continue;
 
-                    var prefabViolations = AnalyzePrefab(prefab, prefabPath);
+                    var prefabViolations = AnalyzePrefab(prefab, assetPath);
                     violations.AddRange(prefabViolations);
                 }
             }

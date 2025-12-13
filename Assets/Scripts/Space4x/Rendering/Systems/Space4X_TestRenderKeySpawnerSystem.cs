@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -16,9 +17,12 @@ namespace Space4X.Rendering.Systems
         public void OnCreate(ref SystemState state)
         {
             if (!Application.isPlaying)
+            {
+                state.Enabled = false;
                 return;
+            }
 
-            var em = state.EntityManager;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
             int count = 0;
 
             // Spawn a formation of carriers
@@ -28,20 +32,21 @@ namespace Space4X.Rendering.Systems
             {
                 for (int z = 5; z <= 15; z += 5)
                 {
-                    var e = em.CreateEntity();
+                    var e = ecb.CreateEntity();
+                    var position = new float3(x * 5f, 5f, z);
 
-                    em.AddComponentData(e, LocalTransform.FromPositionRotationScale(
-                        new float3(x * 5f, 5f, z),
+                    ecb.AddComponent(e, LocalTransform.FromPositionRotationScale(
+                        position,
                         quaternion.identity,
                         10f));
 
-                    em.AddComponentData(e, new RenderKey
+                    ecb.AddComponent(e, new RenderKey
                     {
                         ArchetypeId = Space4XRenderKeys.Carrier,
                         LOD = 0
                     });
 
-                    em.AddComponentData(e, new RenderFlags
+                    ecb.AddComponent(e, new RenderFlags
                     {
                         Visible = 1,
                         ShadowCaster = 1,
@@ -51,6 +56,9 @@ namespace Space4X.Rendering.Systems
                     count++;
                 }
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
 
             Debug.Log($"[Space4X_TestRenderKeySpawnerSystem] Spawned {count} debug RenderKey entities in formation.");
 

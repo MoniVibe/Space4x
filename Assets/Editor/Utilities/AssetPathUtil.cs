@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using UnityEngine;
 
@@ -19,14 +20,21 @@ namespace Space4X.EditorUtilities
             }
 
             path = path.Replace('\\', '/');
-            var dataPath = Application.dataPath.Replace('\\', '/');
 
-            if (path.StartsWith(dataPath, StringComparison.OrdinalIgnoreCase))
+            // Already asset-relative
+            if (path.StartsWith("Assets/", StringComparison.Ordinal) || path.Equals("Assets", StringComparison.Ordinal))
+            {
+                return path;
+            }
+
+            // Convert from absolute Application.dataPath to Assets-relative
+            var dataPath = Application.dataPath.Replace('\\', '/');
+            if (path.StartsWith(dataPath, StringComparison.Ordinal))
             {
                 return "Assets" + path.Substring(dataPath.Length);
             }
 
-            return path;
+            return path; // Fallback path (still safer than throwing)
         }
 
         /// <summary>
@@ -35,3 +43,4 @@ namespace Space4X.EditorUtilities
         public static string ToAssetRelativePath(string path) => ToAssetPath(path);
     }
 }
+#endif

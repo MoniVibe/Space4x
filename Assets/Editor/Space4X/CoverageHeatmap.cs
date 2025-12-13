@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using Space4X.Authoring;
+using Space4X.EditorUtilities;
 using Space4X.Registry;
 using Space4X.Presentation.Config;
 using UnityEditor;
@@ -97,7 +98,8 @@ namespace Space4X.Editor
                     var prefabs = Directory.GetFiles(fullDir, "*.prefab", SearchOption.AllDirectories);
                     foreach (var prefabPath in prefabs)
                     {
-                        var prefabObj = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                        var assetPath = AssetPathUtil.ToAssetRelativePath(prefabPath);
+                        var prefabObj = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
                         if (prefabObj != null)
                         {
                             var id = GetPrefabId(prefabObj, categoryName);
@@ -247,4 +249,3 @@ namespace Space4X.Editor
         }
     }
 }
-

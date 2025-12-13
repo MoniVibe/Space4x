@@ -23,10 +23,15 @@ namespace Space4X.Editor
             "GameController"
         };
 
+        private static bool s_registered;
         private static bool s_checked;
 
         static Space4XDefaultTagGuard()
         {
+            if (s_registered)
+                return;
+
+            s_registered = true;
             EditorApplication.delayCall += RemoveDuplicateDefaultTags;
         }
 

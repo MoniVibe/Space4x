@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Space4X.Authoring;
+using Space4X.EditorUtilities;
 using Space4X.Registry;
 using UnityEditor;
 using UnityEngine;
@@ -38,7 +39,8 @@ namespace Space4X.Editor
                 var prefabs = System.IO.Directory.GetFiles(fullDir, "*.prefab", System.IO.SearchOption.AllDirectories);
                 foreach (var prefabPath in prefabs)
                 {
-                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                    var assetPath = AssetPathUtil.ToAssetRelativePath(prefabPath);
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
                     if (prefab == null) continue;
 
                     var id = GetPrefabId(prefab);
@@ -50,7 +52,7 @@ namespace Space4X.Editor
                         var suggestedId = NormalizeToKCase(id);
                         violations.Add(new PolicyViolation
                         {
-                            PrefabPath = prefabPath,
+                            PrefabPath = assetPath,
                             CurrentId = id,
                             SuggestedId = suggestedId,
                             ViolationType = "InvalidCase"
@@ -62,15 +64,15 @@ namespace Space4X.Editor
                     {
                         idMap[id] = new List<string>();
                     }
-                    idMap[id].Add(prefabPath);
+                    idMap[id].Add(assetPath);
 
                     // Check path consistency
                     var expectedPath = GetExpectedPath(prefab, prefabBasePath, id);
-                    if (expectedPath != prefabPath && !string.IsNullOrEmpty(expectedPath))
+                    if (expectedPath != assetPath && !string.IsNullOrEmpty(expectedPath))
                     {
                         violations.Add(new PolicyViolation
                         {
-                            PrefabPath = prefabPath,
+                            PrefabPath = assetPath,
                             CurrentId = id,
                             SuggestedId = expectedPath,
                             ViolationType = "InvalidPath"

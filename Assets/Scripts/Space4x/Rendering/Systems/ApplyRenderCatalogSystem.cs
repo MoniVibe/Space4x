@@ -15,7 +15,7 @@ namespace Space4X.Rendering.Systems
     [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     [UpdateBefore(typeof(StripInvalidMaterialMeshInfoSystem))]
     [UpdateBefore(typeof(DebugVerifyVisualsSystem))]
-    public partial class ApplyRenderCatalogSystem : SystemBase
+    public partial struct ApplyRenderCatalogSystem : ISystem
     {
         private static bool s_loggedFirstPass;
         private static readonly HashSet<int> s_fallbackWarningKeys = new();
@@ -31,15 +31,15 @@ namespace Space4X.Rendering.Systems
             (ushort)Space4XRenderKeys.FleetImpostor
         };
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            RequireForUpdate<Space4XRenderCatalogSingleton>();
-            RequireForUpdate<RenderKey>();
+            state.RequireForUpdate<Space4XRenderCatalogSingleton>();
+            state.RequireForUpdate<RenderKey>();
         }
 
-        protected override void OnUpdate()
+        public void OnUpdate(ref SystemState state)
         {
-            var em = EntityManager;
+            var em = state.EntityManager;
             var catalogEntity = SystemAPI.GetSingletonEntity<Space4XRenderCatalogSingleton>();
             var catalog = SystemAPI.GetComponent<Space4XRenderCatalogSingleton>(catalogEntity);
             var catalogBlob = catalog.Catalog;
@@ -83,7 +83,7 @@ namespace Space4X.Rendering.Systems
                 }
             }
 
-            var rmaQuery = GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
+            var rmaQuery = state.GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
             em.AddSharedComponentManaged(rmaQuery, rma);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -172,6 +172,10 @@ namespace Space4X.Rendering.Systems
                     $"Removed={removedCount} MissingKeys={missingCount} OutOfRange={outOfRangeCount} Entries={entries.Length}");
                 s_loggedFirstPass = true;
             }
+        }
+
+        public void OnDestroy(ref SystemState state)
+        {
         }
 
         static void LogMissingKey(int key, int entityIndex)
