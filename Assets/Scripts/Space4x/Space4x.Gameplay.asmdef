@@ -18,6 +18,7 @@
         "PureDOTS.Authoring",
         "PureDOTS.Core",
         "PureDOTS.Rendering",
+        "PureDOTS.Input",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.Entities.Graphics",
         "PureDOTS.Camera"
