@@ -221,6 +221,12 @@ namespace Space4X.Headless.Editor
                     continue;
                 }
 
+                if (IsClientOnlyBinding(resourcePath))
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Skipping client-only Resources asset for headless build: {resourcePath}");
+                    continue;
+                }
+
                 if (Path.GetExtension(resourcePath).Equals(".prefab", StringComparison.OrdinalIgnoreCase))
                 {
                     EnsurePrefabHasNoMissingScripts(resourcePath);
@@ -290,6 +296,11 @@ namespace Space4X.Headless.Editor
         {
             return assetPath.IndexOf("/_Archive/", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    assetPath.IndexOf("/Legacy/", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsClientOnlyBinding(string assetPath)
+        {
+            return assetPath.IndexOf("Space4X/Bindings/Space4XPresentationBinding", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static string TryGetPureDotsSamplesDirectory()
