@@ -1,8 +1,9 @@
-using UnityEngine;
-using UnityEditor;
-using Space4X.Rendering.Catalog;
-using Unity.Scenes;
+using PureDOTS.Rendering;
 using Space4X.Rendering;
+using Space4X.Rendering.Catalog;
+using UnityEditor;
+using Unity.Scenes;
+using UnityEngine;
 
 public class CreateRenderCatalog
 {
@@ -22,17 +23,39 @@ public class CreateRenderCatalog
             var cube = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
             var mat = Space4X.EditorUtilities.MaterialAssetUtility.GetOrCreateDefaultLitMaterial();
             
-            catalog.Entries = new Space4XRenderCatalogDefinition.Entry[]
+            catalog.Variants = new[]
             {
-                new Space4XRenderCatalogDefinition.Entry
+                new Space4XRenderCatalogDefinition.Variant
                 {
-                    ArchetypeId = Space4XRenderKeys.Carrier, // 200
+                    Name = "Carrier",
                     Mesh = cube,
                     Material = mat,
                     BoundsCenter = Vector3.zero,
-                    BoundsExtents = Vector3.one // 2x2x2 cube
+                    BoundsExtents = Vector3.one,
+                    PresenterMask = RenderPresenterMask.Mesh,
+                    RenderLayer = 0
                 }
             };
+            catalog.Themes = new[]
+            {
+                new Space4XRenderCatalogDefinition.Theme
+                {
+                    Name = "Default",
+                    ThemeId = 0,
+                    SemanticVariants = new[]
+                    {
+                        new Space4XRenderCatalogDefinition.SemanticVariant
+                        {
+                            SemanticKey = Space4XRenderKeys.Carrier,
+                            Lod0Variant = 0,
+                            Lod1Variant = 0,
+                            Lod2Variant = 0
+                        }
+                    }
+                }
+            };
+            catalog.FallbackMesh = cube;
+            catalog.FallbackMaterial = mat;
             
             AssetDatabase.CreateAsset(catalog, assetPath);
             AssetDatabase.SaveAssets();

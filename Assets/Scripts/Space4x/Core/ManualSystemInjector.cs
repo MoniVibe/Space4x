@@ -1,6 +1,6 @@
+using PureDOTS.Rendering;
 using Unity.Entities;
 using UnityEngine;
-using Space4X.Rendering.Systems;
 
 public class ManualSystemInjector : MonoBehaviour
 {
@@ -14,7 +14,7 @@ public class ManualSystemInjector : MonoBehaviour
         // Use reflection to bypass generic constraints and extension method issues
         // This is a last resort to force injection for debugging
         
-        AddSystemViaReflection(world, typeof(ApplyRenderCatalogSystem));
+        AddSystemViaReflection(world, typeof(ApplyRenderVariantSystem));
         AddSystemViaReflection(world, typeof(Space4X_TestRenderKeySpawnerSystem));
         AddSystemViaReflection(world, typeof(DebugVerifyVisualsSystem));
     }

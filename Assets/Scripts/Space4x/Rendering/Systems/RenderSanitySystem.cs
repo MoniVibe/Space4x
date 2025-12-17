@@ -2,7 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
-using Space4X.Rendering;
+using PureDOTS.Rendering;
 using PureDOTS.Runtime.Core;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -17,9 +17,13 @@ namespace Space4X.Rendering.Systems
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     public partial struct RenderSanitySystem : ISystem
     {
+        private EntityQuery _renderKeyQuery;
+
         public void OnCreate(ref SystemState state)
         {
             state.Enabled = true;
+            _renderKeyQuery = state.GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
+            state.RequireForUpdate(_renderKeyQuery);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -36,11 +40,7 @@ namespace Space4X.Rendering.Systems
                 return;
             }
 
-            var q = SystemAPI.QueryBuilder()
-                .WithAll<RenderKey>()
-                .Build();
-
-            int count = q.CalculateEntityCount();
+            int count = _renderKeyQuery.CalculateEntityCount();
 
             if (count == 0)
             {

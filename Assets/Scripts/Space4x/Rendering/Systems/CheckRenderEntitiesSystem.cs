@@ -1,8 +1,8 @@
+using PureDOTS.Rendering;
+using PureDOTS.Runtime.Core;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEngine;
-using Space4X.Rendering;
-using PureDOTS.Runtime.Core;
 
 namespace Space4X.Rendering.Systems
 {
@@ -10,7 +10,7 @@ namespace Space4X.Rendering.Systems
 
     
     [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
-    [UpdateAfter(typeof(ApplyRenderCatalogSystem))]
+    [UpdateAfter(typeof(ApplyRenderVariantSystem))]
     public partial class CheckRenderEntitiesSystem : SystemBase
     {
         private EntityQuery _renderKeyQuery;
@@ -25,9 +25,9 @@ namespace Space4X.Rendering.Systems
             }
 
             Debug.Log("[CheckRenderEntitiesSystem] Created.");
-            _renderKeyQuery = SystemAPI.QueryBuilder()
-                .WithAll<RenderKey, MaterialMeshInfo>()
-                .Build();
+            _renderKeyQuery = GetEntityQuery(
+                ComponentType.ReadOnly<RenderKey>(),
+                ComponentType.ReadOnly<MaterialMeshInfo>());
         }
 
         protected override void OnUpdate()

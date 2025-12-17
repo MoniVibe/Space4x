@@ -1,78 +1,37 @@
 # Space4X RenderKey Truth Source
 
-**Canonical RenderKey Type for Space4X**: `Space4X.Rendering.RenderKey`
+**Canonical RenderKey Type for Space4X**: `PureDOTS.Rendering.RenderKey`
 
-**Source of Truth**: `Assets/Scripts/Space4x/Rendering/Systems/CheckRenderEntitiesSystem.cs`
+**Source of Truth**: `Assets/Scripts/Space4x/Presentation/Space4XPresentationLifecycleSystem.cs` (gameplay spawners) and `Assets/Scripts/Space4x/Rendering/Authoring/RenderKeyAuthoring.cs` (prefabs).
 
-**Evidence**: This system successfully queries 50 RenderKey entities at runtime, confirming this is the correct type.
+**Evidence**: `Space4XRenderCatalogSmokeTest` + `CheckRenderEntitiesSystem` both query `PureDOTS.Rendering.RenderKey` and verify the expected entity counts. The shared PureDOTS resolver/apply stack consumes that exact type, so Space4X must never introduce a local duplication.
 
-**Fields Used**: ArchetypeId, KeyId (standard render key fields)
+**Fields Used**: `RenderKey.ArchetypeId`, `RenderKey.LOD` (PureDOTS layout).
 
-**All Space4X render systems MUST use this type**. No other RenderKey variations (PureDOTS.Rendering.RenderKey, Space4XRenderKey, etc.) should be used in Space4X codebase.
+**Contract**: All gameplay and presentation systems must reference the PureDOTS namespace (`PureDOTS.Rendering`). Local structs named `RenderKey`, `RenderVariantKey`, `RenderFlags`, or `RenderPresenterMask` are forbidden because duplicate component definitions trigger Entities source-gen errors (SGJE/SGQC).
 
 ## Current Status
-- ✅ CheckRenderEntitiesSystem: Uses correct type
-- ✅ DiagnoseEntityComponents: Fixed to use Space4X.Rendering.RenderKey
-- ✅ ApplyRenderCatalogSystem: Fixed to use Space4X.Rendering.RenderKey
-- ✅ Space4X_TestRenderKeySpawnerSystem: Fixed to use Space4X.Rendering.RenderKey
+- ✅ **CheckRenderEntitiesSystem** – Queries `PureDOTS.Rendering.RenderKey` to assert renderables exist in every world.
+- ✅ **RenderSanitySystem / DebugVerifyVisualsSystem** – Validate `RenderKey + MaterialMeshInfo` bindings to catch missing catalog assignments.
+- ✅ **Space4XPresentationLifecycleSystem** – Default authoring path that adds `RenderKey`, `RenderSemanticKey`, `RenderVariantKey`, and enables `MeshPresenter`.
+- ✅ **Space4X_TestRenderKeySpawnerSystem** – Debug spawner that seeds the PureDOTS stack with canonical components.
+- ✅ **RenderKeyAuthoring** – Prefab baker that writes the shared component set so Apply/Resolve systems run without structural churn.
 
-## Migration Notes
-When updating other systems to use the canonical type:
-1. Update namespace imports to include `Space4X.Rendering`
-2. Change component queries from other RenderKey types to `Space4X.Rendering.RenderKey`
-3. Verify entity counts match CheckRenderEntitiesSystem (currently 50 entities)
-
-## Fixed Systems (CoPlay Report 2)
-✅ DiagnoseEntityComponents: Now queries `Space4X.Rendering.RenderKey` directly (removed reflection)
-✅ ApplyRenderCatalogSystem: Fixed to use Space4X.Rendering.RenderKey + cloned bootstrap attributes from working spawner
-✅ Space4X_TestRenderKeySpawnerSystem: Changed from `PureDOTS.Rendering.RenderKey` alias to `Space4X.Rendering.RenderKey`
-✅ DebugVerifyVisualsSystem: New diagnostic system to verify MaterialMeshInfo assignment
+## Usage & Migration Notes
+1. **Import `PureDOTS.Rendering`** (no `Space4X.Rendering.RenderKey` aliases remain).
+2. **Author semantic first**: gameplay adds `RenderSemanticKey`, `MeshPresenter`, and optionally `RenderKey` for LOD guidance. The resolver writes `RenderVariantKey`.
+3. **Presentation overrides** (`RenderTint`, `RenderUvTransform`, `RenderTexSlice`) are per-entity components—no material duplication required.
+4. **Theme safety**: Theme 0 in the catalog asset maps every semantic key to a visible primitive + fallback variant so no entity renders invisible during development.
 
 ## Diagnostic Pipeline
-1. **CheckRenderEntitiesSystem**: Verifies RenderKey entities exist (50 expected)
-2. **DiagnoseEntityComponents**: Detailed inspection of RenderKey entities
-3. **DebugVerifyVisualsSystem**: Confirms MaterialMeshInfo assignment (critical render success)
+1. **ResolveRenderVariantSystem** (PureDOTS) change-filters on `RenderSemanticKey`, active theme, overrides, catalog version, and `RenderKey.LOD`. It writes `RenderVariantKey`.
+2. **ApplyRenderVariantSystem / SpritePresenterSystem / DebugPresenterSystem** apply meshes/bounds when `RenderVariantKey` or the catalog version changes.
+3. **Space4XPresenterToggleSystem / Space4XRenderThemeDebugSystem** flip presenters or themes to confirm runtime swaps without rebakes.
 
-All systems should now find the same 50 RenderKey entities that CheckRenderEntitiesSystem reports.
+If any entity fails to render:
+- Confirm it has `PureDOTS.Rendering.RenderKey`, `RenderSemanticKey`, and an enabled presenter.
+- Ensure the catalog blob contains a mapping for that semantic key in Theme 0 (or a fallback entry).
+- Verify `RenderCatalogVersion` increments when authoring changes; Apply systems rebind automatically on bump.
 
-## Bootstrap Integration Fix
-### ApplyRenderCatalogSystem Creation Issue
-**Problem**: System was not being created in Default World despite having correct logic.
-
-**Root Cause**: Bootstrap heuristics were filtering out the system despite correct attributes.
-
-**Solution Applied**:
-1. **Converted to SystemBase**: Changed from `ISystem` struct to `SystemBase` class to match working systems
-2. **Copied exact attributes** from `CheckRenderEntitiesSystem` (which does get created):
-   - `[UpdateInGroup(typeof(SimulationSystemGroup))]` (same as working system)
-   - Changed from `struct` to `class` inheritance
-3. **Forced creation failsafe**: Added code in `Space4XCoreSingletonGuardSystem.OnCreate()` to manually instantiate via `GetOrCreateSystemManaged<T>()`
-
-**Expected Logs**: When you enter Play mode, you should now see:
-```
-[Space4XCoreSingletonGuardSystem] Forced creation of ApplyRenderCatalogSystem.
-[ApplyRenderCatalogSystem] OnCreate in world: Default World
-[ApplyRenderCatalogSystem] OnUpdate tick (TEMP).
-```
-
-**Status**: ✅ Restored real catalog logic using SystemBase patterns. System now assigns MaterialMeshInfo and bounds to RenderKey entities.
-
-**Current Group**: `SimulationSystemGroup` (confirmed working). Can move to `PresentationSystemGroup` once render timing is verified.
-
-**New Debug System**: `DebugVerifyVisualsSystem` added to verify MaterialMeshInfo assignment success.
-
-## Expected Warnings (Ignore for Now)
-### UpdateAfter Attribute Warnings
-**Pattern**: `"Ignoring invalid [UpdateAfterAttribute]"` or similar
-
-**Cause**: Systems in other groups (PureDOTS core, demo, AI, etc.) have ordering attributes inconsistent with their group membership.
-
-**Status**: Expected and harmless - these do not prevent the world from running.
-
-**Action**: **Do not touch these systems** until ECS visuals + camera sanity are fully implemented.
-
-**Console Filtering**: Consider adding a log filter in Unity Console to hide:
-- `Ignoring invalid [Unity.Entities.Update`
-- `Ignoring invalid [UpdateAfterAttribute]`
-
-This will reduce noise while debugging Space4X rendering and camera systems.
+## Expected Warnings
+Unity may still log `"Ignoring invalid [UpdateAfterAttribute]"` for third-party packages. These messages do **not** indicate a RenderKey mismatch and can be filtered out while testing rendering. Focus on the diagnostics above if visuals disappear.

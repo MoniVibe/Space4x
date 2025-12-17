@@ -1,12 +1,15 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using Unity.Burst;
 using Unity.Collections;
+using PureDOTS.Rendering;
+using PureDOTS.Runtime.Rendering;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using PureDOTS.Runtime.Core;
 using Space4X.Rendering;
+using Unity.Rendering;
 
 namespace Space4X.Rendering.Systems
 {
@@ -91,6 +94,62 @@ namespace Space4X.Rendering.Systems
                         ShadowCaster = 1,
                         HighlightMask = 0
                     });
+
+                    ecb.AddComponent(e, new RenderSemanticKey
+                    {
+                        Value = Space4XRenderKeys.Carrier
+                    });
+
+                    ecb.AddComponent(e, new RenderVariantKey
+                    {
+                        Value = 0
+                    });
+
+                    ecb.AddComponent<RenderThemeOverride>(e);
+                    ecb.SetComponentEnabled<RenderThemeOverride>(e, false);
+
+                    ecb.AddComponent<MeshPresenter>(e);
+                    ecb.AddComponent<SpritePresenter>(e);
+                    ecb.SetComponentEnabled<SpritePresenter>(e, false);
+                    ecb.AddComponent<DebugPresenter>(e);
+                    ecb.SetComponentEnabled<DebugPresenter>(e, false);
+
+                    ecb.AddComponent(e, new RenderLODData
+                    {
+                        CameraDistance = 0f,
+                        ImportanceScore = 1f,
+                        RecommendedLOD = 0,
+                        LastUpdateTick = 0
+                    });
+
+                    ecb.AddComponent(e, new RenderCullable
+                    {
+                        CullDistance = 2500f,
+                        Priority = 200
+                    });
+
+                    ecb.AddComponent(e, new RenderSampleIndex
+                    {
+                        SampleIndex = 0,
+                        SampleModulus = 1,
+                        ShouldRender = 1
+                    });
+
+                    ecb.AddComponent(e, new ShouldRenderTag());
+
+                    ecb.AddComponent(e, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0, 0));
+                    var defaultBounds = new Unity.Mathematics.AABB
+                    {
+                        Center = float3.zero,
+                        Extents = new float3(1f)
+                    };
+                    ecb.AddComponent(e, new RenderBounds { Value = defaultBounds });
+                    ecb.AddComponent(e, new WorldRenderBounds { Value = defaultBounds });
+                    ecb.AddSharedComponent(e, RenderFilterSettings.Default);
+
+                    ecb.AddComponent(e, new RenderTint { Value = new float4(1f, 1f, 1f, 1f) });
+                    ecb.AddComponent(e, new RenderTexSlice { Value = 0 });
+                    ecb.AddComponent(e, new RenderUvTransform { Value = new float4(1f, 1f, 0f, 0f) });
 
                     count++;
                 }

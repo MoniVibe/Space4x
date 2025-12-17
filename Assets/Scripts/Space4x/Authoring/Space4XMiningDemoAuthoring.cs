@@ -16,8 +16,8 @@ using Hash128 = Unity.Entities.Hash128;
 using PresentationBinding = Space4X.Presentation.Space4XPresentationBinding;
 using PresentationFlagUtility = Space4X.Presentation.Space4XPresentationFlagUtility;
 using RenderKeys = Space4X.Rendering.Space4XRenderKeys;
-using RenderKey = Space4X.Rendering.RenderKey;
-using RenderFlags = Space4X.Rendering.RenderFlags;
+using RenderKey = PureDOTS.Rendering.RenderKey;
+using RenderFlags = PureDOTS.Rendering.RenderFlags;
 using Space4X.Rendering.Catalog;
 
 namespace Space4X.Registry

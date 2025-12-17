@@ -187,16 +187,20 @@ namespace Space4X.Registry
                 LastUpdateTick = 0
             });
 
-            ecb.AddComponent(entity, new Band
+            ecb.AddComponent(entity, new BandIdentity
             {
                 BandName = SampleBandName,
                 Purpose = BandPurpose.Military_Defense,
                 LeaderEntity = Entity.Null,
-                FormationTick = 0,
+                FormationTick = 0
+            });
+
+            ecb.AddComponent(entity, new BandAggregateStats
+            {
                 MemberCount = 12,
-                AverageMorale = 0.7f,
-                AverageEnergy = 0.62f,
-                AverageStrength = 0.58f
+                AverageMorale = 70f,
+                AverageEnergy = 62f,
+                AverageStrength = 58f
             });
 
             ecb.AddBuffer<AggregateBandMember>(entity);

@@ -12,34 +12,70 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4eec817c6049bbb4ab0302dd655f1177, type: 3}
   m_Name: Space4XRenderCatalog
   m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Rendering.Catalog.Space4XRenderCatalogDefinition
-  Entries:
-  - ArchetypeId: 200
+  Variants:
+  - Name: Carrier
     Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.5, y: 1, z: 0.5}
-  - ArchetypeId: 210
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: Miner
     Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
     BoundsExtents: {x: 0.50000006, y: 1, z: 0.5000001}
-  - ArchetypeId: 220
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: Asteroid
     Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
-  - ArchetypeId: 230
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: Projectile
     Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.1, y: 0.1, z: 0.6}
-  - ArchetypeId: 240
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: FleetImpostor
     Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 4, y: 0.5, z: 4}
+    PresenterMask: 1
+    RenderLayer: 0
+  Themes:
+  - Name: Default
+    ThemeId: 0
+    SemanticVariants:
+    - SemanticKey: 200
+      Lod0Variant: 0
+      Lod1Variant: 0
+      Lod2Variant: 0
+    - SemanticKey: 210
+      Lod0Variant: 1
+      Lod1Variant: 1
+      Lod2Variant: 1
+    - SemanticKey: 220
+      Lod0Variant: 2
+      Lod1Variant: 2
+      Lod2Variant: 2
+    - SemanticKey: 230
+      Lod0Variant: 3
+      Lod1Variant: 3
+      Lod2Variant: 3
+    - SemanticKey: 240
+      Lod0Variant: 4
+      Lod1Variant: 4
+      Lod2Variant: 4
+  FallbackMesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  FallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}

@@ -1,6 +1,6 @@
+using PureDOTS.Rendering;
 using Unity.Entities;
 using UnityEngine;
-using Space4X.Rendering;
 
 public class CheckSingleton
 {
@@ -13,14 +13,14 @@ public class CheckSingleton
             return;
         }
 
-        var query = world.EntityManager.CreateEntityQuery(typeof(Space4XRenderCatalogSingleton));
+        var query = world.EntityManager.CreateEntityQuery(typeof(RenderCatalogSingleton));
         if (query.IsEmpty)
         {
-            Debug.Log("Space4XRenderCatalogSingleton NOT found.");
+            Debug.Log("RenderCatalogSingleton NOT found.");
         }
         else
         {
-            Debug.Log($"Space4XRenderCatalogSingleton FOUND. Count: {query.CalculateEntityCount()}");
+            Debug.Log($"RenderCatalogSingleton FOUND. Count: {query.CalculateEntityCount()}");
         }
         
         var renderKeyQuery = world.EntityManager.CreateEntityQuery(typeof(RenderKey));

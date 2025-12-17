@@ -1,8 +1,8 @@
+using PureDOTS.Rendering;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEditor;
 using UnityEngine;
-using Space4X.Rendering;
 
 public static class Space4XWorldDiag
 {
@@ -18,30 +18,31 @@ public static class Space4XWorldDiag
 
         var em = world.EntityManager;
 
-        var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<Space4XRenderCatalogSingleton>());
-        if (!catalogQuery.TryGetSingletonEntity<Space4XRenderCatalogSingleton>(out var catEntity))
+        var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<RenderCatalogSingleton>());
+        if (!catalogQuery.TryGetSingletonEntity<RenderCatalogSingleton>(out var catEntity))
         {
-            Debug.LogWarning("[Space4XWorldDiag] No Space4XRenderCatalogSingleton.");
+            Debug.LogWarning("[Space4XWorldDiag] No RenderCatalogSingleton.");
             return;
         }
 
-        if (!em.HasComponent<RenderMeshArray>(catEntity))
+        var catalogSingleton = em.GetComponentData<RenderCatalogSingleton>(catEntity);
+        var rmaEntity = catalogSingleton.RenderMeshArrayEntity == Entity.Null ? catEntity : catalogSingleton.RenderMeshArrayEntity;
+        if (!em.HasComponent<RenderMeshArray>(rmaEntity))
         {
             Debug.LogWarning("[Space4XWorldDiag] Catalog entity has no RenderMeshArray shared component.");
             return;
         }
 
-        var rma = em.GetSharedComponentManaged<RenderMeshArray>(catEntity);
-        var catSingleton = em.GetComponentData<Space4XRenderCatalogSingleton>(catEntity);
-        if (!catSingleton.Catalog.IsCreated)
+        var rma = em.GetSharedComponentManaged<RenderMeshArray>(rmaEntity);
+        if (!catalogSingleton.Catalog.IsCreated)
         {
             Debug.LogWarning("[Space4XWorldDiag] Catalog blob not created.");
             return;
         }
 
-        ref var catalog = ref catSingleton.Catalog.Value;
+        ref var catalog = ref catalogSingleton.Catalog.Value;
         var materialCount = rma.MaterialReferences?.Length ?? 0;
         var meshCount = rma.MeshReferences?.Length ?? 0;
-        Debug.Log($"[Space4XWorldDiag] RMA: {materialCount} mats, {meshCount} meshes. Catalog entries: {catalog.Entries.Length}");
+        Debug.Log($"[Space4XWorldDiag] RMA: {materialCount} mats, {meshCount} meshes. Variants: {catalog.Variants.Length} Themes: {catalog.Themes.Length}");
     }
 }

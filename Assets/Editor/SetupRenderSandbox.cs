@@ -1,13 +1,14 @@
 #if SPACE4X_SANDBOX_EDITOR
-using UnityEngine;
+using PureDOTS.Rendering;
+using Space4X.Rendering;
+using Space4X.Rendering.Catalog;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using Unity.Scenes;
-using Space4X.Rendering.Catalog;
-using Space4X.Rendering;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Scenes;
 using Unity.Transforms;
+using UnityEngine;
 
 public class SetupRenderSandbox
 {
@@ -37,18 +38,40 @@ public class SetupRenderSandbox
             catalog = ScriptableObject.CreateInstance<Space4XRenderCatalogDefinition>();
             var cube = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
             var mat = Space4X.EditorUtilities.MaterialAssetUtility.GetOrCreateDefaultLitMaterial();
-            
-            catalog.Entries = new Space4XRenderCatalogDefinition.Entry[]
+
+            catalog.Variants = new[]
             {
-                new Space4XRenderCatalogDefinition.Entry
+                new Space4XRenderCatalogDefinition.Variant
                 {
-                    ArchetypeId = Space4XRenderKeys.Carrier,
+                    Name = "Carrier",
                     Mesh = cube,
                     Material = mat,
                     BoundsCenter = Vector3.zero,
-                    BoundsExtents = Vector3.one
+                    BoundsExtents = Vector3.one,
+                    PresenterMask = RenderPresenterMask.Mesh,
+                    RenderLayer = 0
                 }
             };
+            catalog.Themes = new[]
+            {
+                new Space4XRenderCatalogDefinition.Theme
+                {
+                    Name = "Default",
+                    ThemeId = 0,
+                    SemanticVariants = new[]
+                    {
+                        new Space4XRenderCatalogDefinition.SemanticVariant
+                        {
+                            SemanticKey = Space4XRenderKeys.Carrier,
+                            Lod0Variant = 0,
+                            Lod1Variant = 0,
+                            Lod2Variant = 0
+                        }
+                    }
+                }
+            };
+            catalog.FallbackMesh = cube;
+            catalog.FallbackMaterial = mat;
             AssetDatabase.CreateAsset(catalog, assetPath);
         }
         authoring.CatalogDefinition = catalog;

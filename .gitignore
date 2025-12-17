@@ -1,55 +1,63 @@
-# Unity generated folders
-Library/
-Temp/
-Logs/
-Obj/
-/Obj/
-/obj/
-/Build/
-/Builds/
-/UserSettings/
+## Unity generated content
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Cc]rashReports/
+[Bb]urstCache/
+[Bb]ee/
+Assets/StreamingAssets/aa/
+Assets/StreamingAssets/aa.meta
 
-# IDE files
+## IDE / tooling artifacts
 .vs/
+.vscode/
+.idea/
 *.csproj
 *.sln
 *.suo
 *.user
+*.userprefs
 *.unityproj
-*.pidb
 *.booproj
+*.pidb
 *.svd
+*.opendb
+*.VC.db
 
-# Other generated content
+## Build / binary outputs
 Assembly-CSharp*.dll
 Assembly-CSharp*.pdb
-MemoryCaptures/
-CrashReports/
+*.pdb
+*.mdb
+*.tlog
 
-# OS junk
-.DS_Store
-Thumbs.db
-
-# Agent/editor logs
-projects/
+## Logs and crash dumps
+*.log
+*.log.meta
+*.stacktrace
 *.tmp
 
+## OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Unity agent/editor logs
+projects/
 Packages/Coplay/Editor/Checkpoints/
 Packages/Coplay/Editor/CoplayLogs/
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## Misc caches
+Collab/
+ScriptMapper/
+SourceAssetDB/
+.fleet/
+*.swp
+*.mmdb
+*.mmdb.meta
 

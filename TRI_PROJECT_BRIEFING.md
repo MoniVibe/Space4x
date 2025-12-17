@@ -103,7 +103,7 @@ If you are looking for them, you are looking for namespaces, bootstraps, and sys
 
 ## Burst Rulebook (PureDOTS + Space4X + Godgame)
 
-**Always Burst (pure, no logs/strings/allocs):** movement/steering/pathing/orbits; per-tick AI math (targeting, mining internals, combat resolution); needs/resource deltas/regen/decay/facility processing; aggregation jobs (morale/power/workforce/fleet stats); PureDOTS spines (time/tick/rewind, spatial/proximity, logistics math, identity/focus/morale numeric updates); render mapping systems (catalog → MaterialMeshInfo/RenderBounds) incl. ApplyRenderCatalogSystem/Space4XAssignRenderKeySystem.
+**Always Burst (pure, no logs/strings/allocs):** movement/steering/pathing/orbits; per-tick AI math (targeting, mining internals, combat resolution); needs/resource deltas/regen/decay/facility processing; aggregation jobs (morale/power/workforce/fleet stats); PureDOTS spines (time/tick/rewind, spatial/proximity, logistics math, identity/focus/morale numeric updates); render mapping systems (catalog → MaterialMeshInfo/RenderBounds) via shared PureDOTS.Resolve/Apply presenters.
 
 **Never Burst:** UI/camera/input/presentation; ECS↔Mono bridges touching GameObject/Transform/Canvas; high-level orchestration/meta (WorldSnapshot orchestration, narrative bridges, diplomacy controllers, mission board, captain escalation); IntergroupRelations cluster (OrgIntegration/OrgOwnership/OrgRelationInit/OrgRelationEventImpact/OrgPolicyCompute, etc.) until a dedicated Burst pass; editor/tools/menus/gizmos/scene wizards.
 

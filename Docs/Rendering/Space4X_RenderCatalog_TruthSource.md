@@ -52,29 +52,24 @@ public struct Entry
 ```
 Space4XRenderCatalogDefinition (ScriptableObject)
     ↓ [Baker: RenderCatalogBaker]
-Space4XRenderCatalogSingleton (IComponentData with BlobAssetReference)
+RenderCatalogSingleton (IComponentData with BlobAssetReference)
     +
-Space4XRenderMeshArraySingleton (ISharedComponentData with RenderMeshArray)
-    ↓ [Runtime: ApplyRenderCatalogSystem]
-Entities with RenderKey → MaterialMeshInfo + RenderBounds
+RenderMeshArray shared component
+    ↓ [Runtime: PureDOTS.ResolveRenderVariantSystem + ApplyRenderVariantSystem]
+Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 ```
 
 ### Baker Process (RenderCatalogBaker)
 - **Input**: `Space4XRenderCatalogDefinition` assigned to `RenderCatalogAuthoring`
 - **Output**:
-  - `Space4XRenderCatalogSingleton` with blob reference
-  - `Space4XRenderMeshArraySingleton` with `RenderMeshArray(meshes[], materials[])`
+  - `RenderCatalogSingleton` with themed+variant blob reference
+  - `RenderMeshArray` shared component with meshes/materials
 - **File**: `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogAuthoring.cs`
 
-### Runtime Application (ApplyRenderCatalogSystem)
-- **Query**: `SystemAPI.Query<RefRO<RenderKey>>().WithNone<MaterialMeshInfo>()`
-- **Lookup**: `RenderKey.ArchetypeId` → `RenderCatalogEntry` → mesh/material indices
-- **Assignment**:
-  - `MaterialMeshInfo.FromRenderMeshArrayIndices(meshIndex, materialIndex)`
-  - `RenderBounds { Value = AABB { Center = entry.BoundsCenter, Extents = entry.BoundsExtents } }`
-  - `WorldRenderBounds` (same bounds)
-  - `AddSharedComponentManaged(entity, renderMeshArray)` for mesh/material access
-- **File**: `Assets/Scripts/Space4x/Rendering/Systems/ApplyRenderCatalogSystem.cs`
+### Runtime Application (PureDOTS Resolve/Apply)
+- **Resolve**: `PureDOTS.Rendering.ResolveRenderVariantSystem` change-filters on `RenderSemanticKey`, `RenderKey.LOD`, themes, and overrides to write `RenderVariantKey`.
+- **Apply**: `PureDOTS.Rendering.ApplyRenderVariantSystem` (MeshPresenter) + `SpritePresenterSystem`/`DebugPresenterSystem` bind `MaterialMeshInfo`, `RenderBounds`, and `WorldRenderBounds` whenever `RenderVariantKey` changes or the catalog version increments.
+- **Shared Data**: Entities store `RenderSemanticKey`, optional `RenderKey` (for LOD), `RenderVariantKey`, and enableable presenter components (`MeshPresenter`, `SpritePresenter`, `DebugPresenter`).
 
 ## Archetype ID Mapping
 
@@ -103,31 +98,25 @@ Entities with RenderKey → MaterialMeshInfo + RenderBounds
 ## Runtime Verification
 
 ### System Checks
-- `Space4XRenderMeshArraySingleton.Value.MeshReferences.Length > 0`
-- `Space4XRenderMeshArraySingleton.Value.MaterialReferences.Length > 0`
-- `Space4XRenderCatalogSingleton.Blob.IsCreated == true`
+- `RenderCatalogSingleton.Blob.IsCreated == true`
+- `RenderCatalogSingleton.RenderMeshArrayEntity` has `RenderMeshArray` shared component with mesh/material references
 
 ### Entity Checks
-- Entities with `RenderKey` component have `ArchetypeId` matching catalog entries
-- After `ApplyRenderCatalogSystem`: entities have `MaterialMeshInfo` + `RenderBounds`
+- Entities with `RenderSemanticKey` map to valid theme entries (see `Space4XRenderKeys`)
+- After the PureDOTS apply systems run: entities with enabled presenters have `MaterialMeshInfo` + `RenderBounds`
 - `MaterialMeshInfo` indices are valid for the shared `RenderMeshArray`
 
 ## Files (Do Not Modify)
 
-- `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogTypes.cs`
 - `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogAuthoring.cs`
 - `Assets/Scripts/Space4x/Rendering/Catalog/Space4XRenderCatalogDefinition.cs`
-- `Assets/Scripts/Space4x/Rendering/Systems/ApplyRenderCatalogSystem.cs`
 - `Assets/Editor/ConfigureRenderCatalog.cs`
 - `Assets/Editor/DiagnoseRenderCatalog.cs` (legacy, guarded)
 
 ## Notes
 
-- **PresentationSystemGroup**: System runs in presentation phase for proper rendering order
-- **No Burst**: Managed system allows RenderMeshArray access without BC1016 errors
-- **Shared Component**: `Space4XRenderMeshArraySingleton` is ISharedComponentData with managed RenderMeshArray
-- **Fallback Assignment**: `Space4XAssignRenderKeySystem` assigns default ArchetypeIds to entities without RenderKey
-
+- **PresentationSystemGroup**: PureDOTS presenter systems run in the presentation phase before Entities Graphics.
+- **Shared Component**: `RenderMeshArray` lives on the entity referenced by `RenderCatalogSingleton.RenderMeshArrayEntity`.
 
 
 

@@ -1,7 +1,8 @@
-using UnityEngine;
-using UnityEditor;
-using Space4X.Rendering.Catalog;
+using PureDOTS.Rendering;
 using Space4X.Rendering;
+using Space4X.Rendering.Catalog;
+using UnityEditor;
+using UnityEngine;
 
 public class ConfigureRenderCatalog
 {
@@ -53,21 +54,23 @@ public class ConfigureRenderCatalog
             authoring.CatalogDefinition = catalog;
         }
 
-        // Build Entries array for the catalog
-        var entries = new Space4XRenderCatalogDefinition.Entry[3];
+        // Build Variants array for the catalog
+        var variants = new Space4XRenderCatalogDefinition.Variant[3];
 
         // Carrier (Capsule)
         {
             Mesh mesh = GetPrimitiveMesh(PrimitiveType.Capsule);
             var bounds = mesh.bounds;
 
-            entries[0] = new Space4XRenderCatalogDefinition.Entry
+            variants[0] = new Space4XRenderCatalogDefinition.Variant
             {
-                ArchetypeId   = Space4XRenderKeys.Carrier,
+                Name          = "Carrier",
                 Mesh          = mesh,
                 Material      = material,
                 BoundsCenter  = bounds.center,
-                BoundsExtents = bounds.extents
+                BoundsExtents = bounds.extents,
+                PresenterMask = PureDOTS.Rendering.RenderPresenterMask.Mesh,
+                RenderLayer   = 0
             };
         }
 
@@ -76,13 +79,15 @@ public class ConfigureRenderCatalog
             Mesh mesh = GetPrimitiveMesh(PrimitiveType.Cylinder);
             var bounds = mesh.bounds;
 
-            entries[1] = new Space4XRenderCatalogDefinition.Entry
+            variants[1] = new Space4XRenderCatalogDefinition.Variant
             {
-                ArchetypeId   = Space4XRenderKeys.Miner,
+                Name          = "Miner",
                 Mesh          = mesh,
                 Material      = material,
                 BoundsCenter  = bounds.center,
-                BoundsExtents = bounds.extents
+                BoundsExtents = bounds.extents,
+                PresenterMask = PureDOTS.Rendering.RenderPresenterMask.Mesh,
+                RenderLayer   = 0
             };
         }
 
@@ -91,17 +96,54 @@ public class ConfigureRenderCatalog
             Mesh mesh = GetPrimitiveMesh(PrimitiveType.Sphere);
             var bounds = mesh.bounds;
 
-            entries[2] = new Space4XRenderCatalogDefinition.Entry
+            variants[2] = new Space4XRenderCatalogDefinition.Variant
             {
-                ArchetypeId   = Space4XRenderKeys.Asteroid,
+                Name          = "Asteroid",
                 Mesh          = mesh,
                 Material      = material,
                 BoundsCenter  = bounds.center,
-                BoundsExtents = bounds.extents
+                BoundsExtents = bounds.extents,
+                PresenterMask = PureDOTS.Rendering.RenderPresenterMask.Mesh,
+                RenderLayer   = 0
             };
         }
 
-        catalog.Entries = entries;
+        catalog.Variants = variants;
+        catalog.Themes = new[]
+        {
+            new Space4XRenderCatalogDefinition.Theme
+            {
+                Name = "Default",
+                ThemeId = 0,
+                SemanticVariants = new[]
+                {
+                    new Space4XRenderCatalogDefinition.SemanticVariant
+                    {
+                        SemanticKey = Space4XRenderKeys.Carrier,
+                        Lod0Variant = 0,
+                        Lod1Variant = 0,
+                        Lod2Variant = 0
+                    },
+                    new Space4XRenderCatalogDefinition.SemanticVariant
+                    {
+                        SemanticKey = Space4XRenderKeys.Miner,
+                        Lod0Variant = 1,
+                        Lod1Variant = 1,
+                        Lod2Variant = 1
+                    },
+                    new Space4XRenderCatalogDefinition.SemanticVariant
+                    {
+                        SemanticKey = Space4XRenderKeys.Asteroid,
+                        Lod0Variant = 2,
+                        Lod1Variant = 2,
+                        Lod2Variant = 2
+                    }
+                }
+            }
+        };
+
+        catalog.FallbackMaterial = material;
+        catalog.FallbackMesh = GetPrimitiveMesh(PrimitiveType.Cube);
 
         EditorUtility.SetDirty(catalog);
         EditorUtility.SetDirty(authoring);

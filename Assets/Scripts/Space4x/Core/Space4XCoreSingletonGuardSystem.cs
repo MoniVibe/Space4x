@@ -1,6 +1,6 @@
+using PureDOTS.Rendering;
 using Unity.Entities;
 using UnityEngine;
-using Space4X.Rendering.Systems;
 
 namespace Space4X.Core
 {
@@ -18,8 +18,8 @@ namespace Space4X.Core
                 state.Enabled = false;
                 return;
             }
-            // Force creation of ApplyRenderCatalogSystem if it doesn't exist
-            if (!state.WorldUnmanaged.GetExistingSystemState<ApplyRenderCatalogSystem>().Enabled)
+            // Force creation of ApplyRenderVariantSystem if it doesn't exist
+            if (!state.WorldUnmanaged.GetExistingSystemState<ApplyRenderVariantSystem>().Enabled)
             {
                 // Note: This doesn't actually create it if it's not in the world, 
                 // but we can log if it's missing.
@@ -27,7 +27,7 @@ namespace Space4X.Core
                 // For unmanaged systems, we rely on bootstrap.
                 
                 // Let's just log for now.
-                Debug.Log("[Space4XCoreSingletonGuardSystem] Checking for ApplyRenderCatalogSystem...");
+                Debug.Log("[Space4XCoreSingletonGuardSystem] Checking for ApplyRenderVariantSystem...");
             }
         }
 

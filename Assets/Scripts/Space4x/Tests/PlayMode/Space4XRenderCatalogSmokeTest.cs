@@ -2,9 +2,8 @@ using NUnit.Framework;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEngine;
-using Space4X.Rendering;
 using Unity.Collections;
-using Unity.Mathematics;
+using PureDOTS.Rendering;
 
 namespace Space4X.Tests.PlayMode
 {
@@ -16,7 +15,7 @@ namespace Space4X.Tests.PlayMode
     {
         private World _world;
         private EntityManager _entityManager;
-        private BlobAssetReference<Space4XRenderMeshCatalog> _catalogBlob;
+        private BlobAssetReference<RenderPresentationCatalogBlob> _catalogBlob;
 
         [SetUp]
         public void SetUp()
@@ -74,42 +73,78 @@ namespace Space4X.Tests.PlayMode
         [Test]
         public void RenderCatalog_BlobIsValid()
         {
-            var catalogEntity = _entityManager.CreateEntity(typeof(Space4XRenderCatalogSingleton));
+            var variantMesh = GameObject.CreatePrimitive(PrimitiveType.Cube).GetComponent<MeshFilter>().sharedMesh;
+            var variantMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
 
-            using (var builder = new BlobBuilder(Allocator.Temp))
+            var catalogEntity = _entityManager.CreateEntity(typeof(RenderCatalogSingleton), typeof(RenderCatalogVersion));
+
+            var buildInput = new RenderCatalogBuildInput
             {
-                ref var root = ref builder.ConstructRoot<Space4XRenderMeshCatalog>();
-                var entries = builder.Allocate(ref root.Entries, 2);
-                entries[0] = new Space4XRenderMeshCatalogEntry { ArchetypeId = (ushort)200, MeshIndex = 0, MaterialIndex = 0, SubMesh = 0, BoundsCenter = float3.zero, BoundsExtents = new float3(1f) };
-                entries[1] = new Space4XRenderMeshCatalogEntry { ArchetypeId = (ushort)210, MeshIndex = 1, MaterialIndex = 1, SubMesh = 0, BoundsCenter = float3.zero, BoundsExtents = new float3(1f) };
+                Variants = new[]
+                {
+                    new RenderVariantSource
+                    {
+                        Name = "TestVariant",
+                        Mesh = variantMesh,
+                        Material = variantMaterial,
+                        BoundsCenter = Vector3.zero,
+                        BoundsExtents = Vector3.one,
+                        PresenterMask = RenderPresenterMask.Mesh,
+                        SubMesh = 0,
+                        RenderLayer = 0
+                    }
+                },
+                Themes = new[]
+                {
+                    new RenderThemeSource
+                    {
+                        Name = "Default",
+                        ThemeId = 0,
+                        SemanticVariants = new[]
+                        {
+                            new SemanticVariantSource
+                            {
+                                SemanticKey = 0,
+                                Lod0Variant = 0,
+                                Lod1Variant = -1,
+                                Lod2Variant = -1
+                            }
+                        }
+                    }
+                },
+                FallbackMesh = variantMesh,
+                FallbackMaterial = variantMaterial,
+                LodCount = 1
+            };
 
-                _catalogBlob = builder.CreateBlobAssetReference<Space4XRenderMeshCatalog>(Allocator.Persistent);
-            }
+            Assert.IsTrue(RenderPresentationCatalogBuilder.TryBuild(buildInput, Allocator.Temp, out _catalogBlob, out var renderMeshArray));
 
-            _entityManager.SetComponentData(catalogEntity, new Space4XRenderCatalogSingleton { Catalog = _catalogBlob });
+            _entityManager.SetComponentData(catalogEntity, new RenderCatalogSingleton
+            {
+                Blob = _catalogBlob,
+                RenderMeshArrayEntity = catalogEntity
+            });
+            _entityManager.SetComponentData(catalogEntity, new RenderCatalogVersion { Value = 1 });
+            _entityManager.AddSharedComponentManaged(catalogEntity, renderMeshArray);
 
-            var query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XRenderCatalogSingleton>());
+            var query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<RenderCatalogSingleton>());
             Assert.AreEqual(1, query.CalculateEntityCount(), "Expected a single catalog singleton");
 
             var singletonEntity = query.GetSingletonEntity();
-            var catalogSingleton = _entityManager.GetComponentData<Space4XRenderCatalogSingleton>(singletonEntity);
-            ref var catalog = ref catalogSingleton.Catalog.Value;
+            var catalogSingleton = _entityManager.GetComponentData<RenderCatalogSingleton>(singletonEntity);
+            ref var catalog = ref catalogSingleton.Blob.Value;
 
-            Assert.Greater(catalog.Entries.Length, 0, "Catalog should have entries");
+            Assert.Greater(catalog.Variants.Length, 0, "Catalog should have variants");
+            Assert.Greater(catalog.Themes.Length, 0, "Catalog should have themes");
         }
 
         [Test]
-        public void Entities_WithRenderKey_GetMaterialMeshInfo()
+        public void Entities_WithRenderSemanticKey_Query()
         {
-            // This test would normally require the ApplyRenderCatalogSystem to run
-            // For a smoketest, we just verify the query logic works
             var query = _entityManager.CreateEntityQuery(
-                ComponentType.ReadOnly<RenderKey>(),
-                ComponentType.Exclude<MaterialMeshInfo>()
-            );
+                ComponentType.ReadOnly<RenderSemanticKey>(),
+                ComponentType.Exclude<RenderVariantKey>());
 
-            // In a real scenario, entities would be created by authoring
-            // For smoketest, we just verify no exceptions occur when creating the query
             Assert.DoesNotThrow(() => query.CalculateEntityCount());
         }
     }

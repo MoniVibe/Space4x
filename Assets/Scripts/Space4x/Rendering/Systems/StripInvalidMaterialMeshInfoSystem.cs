@@ -1,9 +1,9 @@
+using PureDOTS.Rendering;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEngine;
-using Space4X.Rendering;
 
 namespace Space4X.Rendering.Systems
 {
@@ -18,10 +18,10 @@ namespace Space4X.Rendering.Systems
     ///
     /// NOTE:
     /// - This is a guard, not the primary render pipeline.
-    ///   ApplyRenderCatalogSystem is still responsible for assigning valid MaterialMeshInfo.
+    ///   ApplyRenderVariantSystem is still responsible for assigning valid MaterialMeshInfo.
     /// </summary>
     [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
-    [UpdateAfter(typeof(ApplyRenderCatalogSystem))]
+    [UpdateAfter(typeof(ApplyRenderVariantSystem))]
     public partial struct StripInvalidMaterialMeshInfoSystem : ISystem
     {
         private EntityQuery _invalidQuery;
@@ -41,26 +41,21 @@ namespace Space4X.Rendering.Systems
                 return;
 
             var em = state.EntityManager;
+            using var entities = _invalidQuery.ToEntityArray(Allocator.Temp);
+            using var materials = _invalidQuery.ToComponentDataArray<MaterialMeshInfo>(Allocator.Temp);
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             int invalidCount = 0;
 
-            foreach (var (mmi, entity) in SystemAPI
-                         .Query<RefRO<MaterialMeshInfo>>()
-                         .WithAll<RenderKey>()
-                         .WithEntityAccess())
+            for (int i = 0; i < entities.Length; i++)
             {
-                var materialIndex = mmi.ValueRO.Material;
-                var meshIndex     = mmi.ValueRO.Mesh;
-
-                // Default struct value is all zeros. Valid entries use negative static indices
-                // (RenderMeshArray) or positive Batch IDs. Only strip the uninitialized case.
-                if (materialIndex != 0 || meshIndex != 0)
+                var mmi = materials[i];
+                if (mmi.Material != 0 || mmi.Mesh != 0)
                     continue;
 
                 invalidCount++;
-                ecb.RemoveComponent<MaterialMeshInfo>(entity);
+                ecb.RemoveComponent<MaterialMeshInfo>(entities[i]);
             }
-
 
 #if UNITY_EDITOR
             if (invalidCount > 0)

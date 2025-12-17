@@ -1,5 +1,5 @@
 #if UNITY_EDITOR
-using Space4X.Rendering;
+using PureDOTS.Rendering;
 using Space4X.Debug;
 using Unity.Entities;
 using Unity.Rendering;
@@ -17,14 +17,10 @@ namespace Space4X.DebugSystems
 
         public void OnCreate(ref SystemState state)
         {
-            _renderKeyQuery = SystemAPI.QueryBuilder()
-                .WithAll<RenderKey>()
-                .Build();
-
-            _materialMeshQuery = SystemAPI.QueryBuilder()
-                .WithAll<RenderKey, MaterialMeshInfo>()
-                .Build();
-
+            _renderKeyQuery = state.GetEntityQuery(ComponentType.ReadOnly<RenderKey>());
+            _materialMeshQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<RenderKey>(),
+                ComponentType.ReadOnly<MaterialMeshInfo>());
         }
 
         public void OnDestroy(ref SystemState state) { }
@@ -42,7 +38,6 @@ namespace Space4X.DebugSystems
     }
 }
 #endif
-
 
 
 

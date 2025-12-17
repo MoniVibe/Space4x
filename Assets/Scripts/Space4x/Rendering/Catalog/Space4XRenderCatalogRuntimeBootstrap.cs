@@ -1,7 +1,7 @@
+using PureDOTS.Rendering;
 using UnityEngine;
 using Unity.Entities;
 using Unity.Rendering;
-using Space4X.Rendering;
 
 namespace Space4X.Rendering.Catalog
 {
@@ -24,27 +24,28 @@ namespace Space4X.Rendering.Catalog
 
             var em = world.EntityManager;
 
-            var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<Space4XRenderCatalogSingleton>());
-            var rmaQuery = em.CreateEntityQuery(ComponentType.ReadOnly<RenderMeshArray>());
+            var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<RenderCatalogSingleton>());
 
-            if (!catalogQuery.TryGetSingleton(out Space4XRenderCatalogSingleton catalogSingleton))
+            if (!catalogQuery.TryGetSingleton(out RenderCatalogSingleton catalogSingleton))
             {
                 Debug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Catalog singleton missing; ensure baker/authoring is present.");
                 return;
             }
 
             ref var catalog = ref catalogSingleton.Catalog.Value;
-            var entryCount = catalog.Entries.Length;
+            var variantCount = catalog.Variants.Length;
+            var themeCount = catalog.Themes.Length;
 
-            if (entryCount == 0)
+            if (variantCount == 0)
             {
                 Debug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Catalog has zero entries.");
                 return;
             }
 
-            var hasRma = !rmaQuery.IsEmpty;
-            Debug.Log($"[Space4XRenderCatalogRuntimeBootstrap] Catalog present with {entryCount} entries. RenderMeshArray: {(hasRma ? "Present" : "Missing")}.");
+            var hasRma = catalogSingleton.RenderMeshArrayEntity != Entity.Null &&
+                         em.HasComponent<RenderMeshArray>(catalogSingleton.RenderMeshArrayEntity);
+
+            Debug.Log($"[Space4XRenderCatalogRuntimeBootstrap] Catalog present. Variants={variantCount} Themes={themeCount} Semantics={catalog.SemanticCount}. RenderMeshArray: {(hasRma ? "Present" : "Missing")}.");
         }
     }
 }
-

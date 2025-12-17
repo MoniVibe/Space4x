@@ -1,5 +1,6 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+using PureDOTS.Rendering;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -8,7 +9,7 @@ using Unity.Rendering;
 using UnityEngine;
 using PureDOTS.Runtime.Core;
 using Space4X.Rendering;
-using Space4XRenderKey = Space4X.Rendering.RenderKey;
+using Space4XRenderKey = PureDOTS.Rendering.RenderKey;
 
 namespace Space4X.Rendering.Systems
 {
@@ -16,7 +17,7 @@ namespace Space4X.Rendering.Systems
 
     [UpdateInGroup(typeof(Space4XRenderSystemGroup))]
     [UpdateAfter(typeof(StripInvalidMaterialMeshInfoSystem))]
-    [UpdateAfter(typeof(ApplyRenderCatalogSystem))]
+    [UpdateAfter(typeof(ApplyRenderVariantSystem))]
     public partial struct DebugVerifyVisualsSystem : ISystem
     {
         private bool _loggedOnce;
