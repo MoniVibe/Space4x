@@ -8,6 +8,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Systems.AI
 {
@@ -59,7 +60,7 @@ namespace Space4X.Systems.AI
             if (currentTick == 1)
             {
                 var vesselCount = SystemAPI.QueryBuilder().WithAll<VesselMovement>().Build().CalculateEntityCount();
-                Debug.Log($"[VesselMovementSystem] Found {vesselCount} vessels, DeltaTime={deltaTime}, Tick={currentTick}");
+                UnityDebug.Log($"[VesselMovementSystem] Found {vesselCount} vessels, DeltaTime={deltaTime}, Tick={currentTick}");
             }
 #endif
 

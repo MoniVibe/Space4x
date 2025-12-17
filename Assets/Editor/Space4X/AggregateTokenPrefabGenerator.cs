@@ -5,6 +5,7 @@ using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -27,7 +28,7 @@ namespace Space4X.Editor
             {
                 if (!combos.ContainsKey(aggregateId))
                 {
-                    Debug.LogWarning($"Aggregate ID {aggregateId} not found in combo table");
+                    UnityDebug.LogWarning($"Aggregate ID {aggregateId} not found in combo table");
                     continue;
                 }
 
@@ -36,7 +37,7 @@ namespace Space4X.Editor
 
                 if (dryRun)
                 {
-                    Debug.Log($"DRY RUN: Would create token prefab at {prefabPath}");
+                    UnityDebug.Log($"DRY RUN: Would create token prefab at {prefabPath}");
                     continue;
                 }
 

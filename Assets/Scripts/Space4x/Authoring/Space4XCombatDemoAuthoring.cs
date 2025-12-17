@@ -9,6 +9,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -124,7 +125,7 @@ namespace Space4X.Authoring
                     BakeEnvironment(authoring.environment);
                 }
 
-                Debug.Log($"[CombatDemoAuthoring] Baked combat demo with {_entityCounter} entities");
+                UnityDebug.Log($"[CombatDemoAuthoring] Baked combat demo with {_entityCounter} entities");
             }
 
             private void BakeFleet(FleetConfiguration fleet, bool isPlayer)

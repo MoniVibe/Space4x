@@ -4,6 +4,7 @@ using Unity.Entities;
 using UnityEngine;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Core;
+using UnityDebug = UnityEngine.Debug;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 namespace Space4X.Rendering.Systems
@@ -63,13 +64,13 @@ namespace Space4X.Rendering.Systems
         [BurstDiscard]
         static void LogMissing(FixedString128Bytes worldName)
         {
-            Debug.LogError($"[RenderSanitySystem] No RenderKey entities exist; nothing can render (world '{worldName}').");
+            UnityDebug.LogError($"[RenderSanitySystem] No RenderKey entities exist; nothing can render (world '{worldName}').");
         }
 
         [BurstDiscard]
         static void LogCount(FixedString128Bytes worldName, int count)
         {
-            Debug.Log($"[RenderSanitySystem] World '{worldName}' has {count} RenderKey entities.");
+            UnityDebug.Log($"[RenderSanitySystem] World '{worldName}' has {count} RenderKey entities.");
         }
 #endif
     }

@@ -6,6 +6,7 @@ using Space4X.EditorUtilities;
 using Space4X.Registry;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -110,7 +111,7 @@ namespace Space4X.Editor
             {
                 if (dryRun)
                 {
-                    Debug.Log($"[DRY-RUN] Would fix: {violation.PrefabPath} - {violation.ViolationType}");
+                    UnityDebug.Log($"[DRY-RUN] Would fix: {violation.PrefabPath} - {violation.ViolationType}");
                     continue;
                 }
 
@@ -130,7 +131,7 @@ namespace Space4X.Editor
                             break;
                         case "DuplicateId":
                             // Duplicate fixes require manual intervention or unique suffix
-                            Debug.LogWarning($"Duplicate ID '{violation.CurrentId}' requires manual fix: {violation.PrefabPath}");
+                            UnityDebug.LogWarning($"Duplicate ID '{violation.CurrentId}' requires manual fix: {violation.PrefabPath}");
                             break;
                     }
 

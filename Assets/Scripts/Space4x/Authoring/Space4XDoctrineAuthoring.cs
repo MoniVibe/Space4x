@@ -2,6 +2,7 @@ using System;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Registry
 {
@@ -98,7 +99,7 @@ namespace Space4X.Registry
 
                 if (fanaticCount > 2)
                 {
-                    Debug.LogWarning($"[Space4XDoctrineAuthoring] {fanaticCount} fanatic ethic expectations defined; additional entries were clamped to ±1.5.", authoring);
+                    UnityDebug.LogWarning($"[Space4XDoctrineAuthoring] {fanaticCount} fanatic ethic expectations defined; additional entries were clamped to ±1.5.", authoring);
                 }
 
                 var outlookBuffer = AddBuffer<DoctrineOutlookExpectation>(entity);

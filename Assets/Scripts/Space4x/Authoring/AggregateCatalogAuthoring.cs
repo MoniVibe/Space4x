@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -69,7 +70,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.aggregates == null || authoring.aggregates.Count == 0)
                 {
-                    Debug.LogWarning("AggregateCatalogAuthoring has no aggregates defined.");
+                    UnityDebug.LogWarning("AggregateCatalogAuthoring has no aggregates defined.");
                     return;
                 }
 

@@ -30,7 +30,7 @@ namespace Space4X.Presentation
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<RenderCatalogSingleton>();
+            state.RequireForUpdate<RenderPresentationCatalog>();
 
             _carrierInitQuery = SystemAPI.QueryBuilder()
                 .WithAll<Carrier, LocalTransform>()
@@ -191,7 +191,7 @@ namespace Space4X.Presentation
 
             ecb.AddComponent(entity, new RenderSemanticKey
             {
-                Value = semanticKey
+                Value = (ushort)semanticKey
             });
 
             ecb.AddComponent(entity, new RenderVariantKey
@@ -230,25 +230,6 @@ namespace Space4X.Presentation
                 ShouldRender = 1
             });
 
-            ecb.AddComponent(entity, new ShouldRenderTag());
-
-            ecb.AddComponent(entity, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0, 0));
-
-            var defaultBounds = new Unity.Mathematics.AABB
-            {
-                Center = float3.zero,
-                Extents = new float3(1f)
-            };
-
-            ecb.AddComponent(entity, new RenderBounds
-            {
-                Value = defaultBounds
-            });
-            ecb.AddComponent(entity, new WorldRenderBounds
-            {
-                Value = defaultBounds
-            });
-            ecb.AddSharedComponent(entity, RenderFilterSettings.Default);
         }
 
         private static void AddMaterialColor(ref EntityCommandBuffer ecb, Entity entity, float4 baseColor)

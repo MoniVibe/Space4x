@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor.Demo
 {
@@ -30,7 +31,7 @@ namespace Space4X.Editor.Demo
 
                 public static void Run(string game, string scenario, string bindings)
                 {
-                    Debug.Log($"[Demo Build] Starting build for {game}...");
+                    UnityDebug.Log($"[Demo Build] Starting build for {game}...");
 
                     // Parse command line args if provided
                     string[] args = System.Environment.GetCommandLineArgs();
@@ -54,22 +55,22 @@ namespace Space4X.Editor.Demo
                     SetScriptingSymbols(game);
 
                     // Step 2: Run preflight validation
-                    Debug.Log("[Demo Build] Running preflight validation...");
+                    UnityDebug.Log("[Demo Build] Running preflight validation...");
                     Space4XDemoPreflight.Demos.Preflight.Run(game);
 
                     // Step 3: Build executable
-                    Debug.Log("[Demo Build] Building executable...");
+                    UnityDebug.Log("[Demo Build] Building executable...");
                     string buildPath = BuildExecutable(game);
 
                     // Step 4: Copy scenarios and bindings
-                    Debug.Log("[Demo Build] Copying scenarios and bindings...");
+                    UnityDebug.Log("[Demo Build] Copying scenarios and bindings...");
                     CopyScenariosAndBindings(buildPath, game);
 
                     // Step 5: Create package zip
-                    Debug.Log("[Demo Build] Creating package...");
+                    UnityDebug.Log("[Demo Build] Creating package...");
                     CreatePackage(buildPath, game);
 
-                    Debug.Log($"[Demo Build] Build complete! Output: {buildPath}");
+                    UnityDebug.Log($"[Demo Build] Build complete! Output: {buildPath}");
                 }
 
                 private static void SetScriptingSymbols(string game)
@@ -84,7 +85,7 @@ namespace Space4X.Editor.Demo
                     {
                         defines = string.IsNullOrEmpty(defines) ? define : defines + ";" + define;
                         PlayerSettings.SetScriptingDefineSymbols(namedBuildTarget, defines);
-                        Debug.Log($"[Demo Build] Set scripting symbol: {define}");
+                        UnityDebug.Log($"[Demo Build] Set scripting symbol: {define}");
                     }
                 }
 
@@ -107,12 +108,12 @@ namespace Space4X.Editor.Demo
 
                     if (summary.result == BuildResult.Succeeded)
                     {
-                        Debug.Log($"[Demo Build] Build succeeded: {summary.totalSize} bytes");
+                        UnityDebug.Log($"[Demo Build] Build succeeded: {summary.totalSize} bytes");
                         return buildPath;
                     }
                     else
                     {
-                        Debug.LogError($"[Demo Build] Build failed: {summary.result}");
+                        UnityDebug.LogError($"[Demo Build] Build failed: {summary.result}");
                         throw new Exception($"Build failed: {summary.result}");
                     }
                 }
@@ -138,7 +139,7 @@ namespace Space4X.Editor.Demo
                             string dest = Path.Combine(scenariosDir, Path.GetFileName(file));
                             File.Copy(file, dest, true);
                         }
-                        Debug.Log($"[Demo Build] Copied {jsonFiles.Length} scenario files");
+                        UnityDebug.Log($"[Demo Build] Copied {jsonFiles.Length} scenario files");
                     }
 
                     // Copy bindings
@@ -151,7 +152,7 @@ namespace Space4X.Editor.Demo
                             string dest = Path.Combine(bindingsDir, Path.GetFileName(file));
                             File.Copy(file, dest, true);
                         }
-                        Debug.Log($"[Demo Build] Copied {assetFiles.Length} binding files");
+                        UnityDebug.Log($"[Demo Build] Copied {assetFiles.Length} binding files");
                     }
                 }
 
@@ -164,13 +165,13 @@ namespace Space4X.Editor.Demo
 
                     // TODO: Use System.IO.Compression.ZipFile or external tool
                     // For now, just log the intended package structure
-                    Debug.Log($"[Demo Build] Package would be created at: {zipPath}");
-                    Debug.Log("[Demo Build] Package structure:");
-                    Debug.Log($"  - {Path.GetFileName(buildPath)}");
-                    Debug.Log($"  - {game}_Demo_{date}_Data/");
-                    Debug.Log($"    - Scenarios/");
-                    Debug.Log($"    - Bindings/");
-                    Debug.Log($"    - Reports/");
+                    UnityDebug.Log($"[Demo Build] Package would be created at: {zipPath}");
+                    UnityDebug.Log("[Demo Build] Package structure:");
+                    UnityDebug.Log($"  - {Path.GetFileName(buildPath)}");
+                    UnityDebug.Log($"  - {game}_Demo_{date}_Data/");
+                    UnityDebug.Log($"    - Scenarios/");
+                    UnityDebug.Log($"    - Bindings/");
+                    UnityDebug.Log($"    - Reports/");
                 }
             }
         }

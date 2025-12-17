@@ -5,6 +5,7 @@ using Unity.Transforms;
 using Unity.Collections;
 using Space4X.Mining;
 using Space4X.Registry;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -18,13 +19,13 @@ namespace Space4X.Editor
         [MenuItem("Tools/Space4X/Check Entity Visibility")]
         public static void CheckVisibility()
         {
-            Debug.Log("=== Entity Visibility Check ===\n");
+            UnityDebug.Log("=== Entity Visibility Check ===\n");
 
             // Check if we're in Play mode
             if (!Application.isPlaying)
             {
-                Debug.LogWarning("⚠ Not in Play Mode! Entities only exist at runtime.");
-                Debug.LogWarning("   Enter Play Mode to see entities created by Baker.");
+                UnityDebug.LogWarning("⚠ Not in Play Mode! Entities only exist at runtime.");
+                UnityDebug.LogWarning("   Enter Play Mode to see entities created by Baker.");
                 return;
             }
 
@@ -32,10 +33,10 @@ namespace Space4X.Editor
             var world = World.DefaultGameObjectInjectionWorld;
             if (world == null)
             {
-                Debug.LogError("✗ No DOTS World found! Entities won't exist.");
+                UnityDebug.LogError("✗ No DOTS World found! Entities won't exist.");
                 return;
             }
-            Debug.Log($"✓ DOTS World found: {world.Name}");
+            UnityDebug.Log($"✓ DOTS World found: {world.Name}");
 
             var entityManager = world.EntityManager;
             
@@ -50,72 +51,72 @@ namespace Space4X.Editor
             var configAssets = Resources.FindObjectsOfTypeAll<Space4XMiningVisualConfig>();
             var hasConfig = configAssets != null && configAssets.Length > 0;
 
-            Debug.Log($"\n--- Entity Counts ---");
-            Debug.Log($"Carriers: {carrierCount}");
-            Debug.Log($"Mining Vessels: {vesselCount}");
-            Debug.Log($"Asteroids: {asteroidCount}");
-            Debug.Log($"Visual Config: {(hasConfig ? "Found" : "MISSING!")}");
+            UnityDebug.Log($"\n--- Entity Counts ---");
+            UnityDebug.Log($"Carriers: {carrierCount}");
+            UnityDebug.Log($"Mining Vessels: {vesselCount}");
+            UnityDebug.Log($"Asteroids: {asteroidCount}");
+            UnityDebug.Log($"Visual Config: {(hasConfig ? "Found" : "MISSING!")}");
 
             if (carrierCount == 0 && vesselCount == 0 && asteroidCount == 0)
             {
-                Debug.LogError("\n✗ NO ENTITIES FOUND!");
-                Debug.LogError("Possible causes:");
-                Debug.LogError("1. Scene doesn't have a SubScene with Space4XMiningDemoAuthoring");
-                Debug.LogError("2. SubScene is not loaded (check SubScene window/Inspector)");
-                Debug.LogError("3. Baker didn't run (check for errors during scene conversion)");
-                Debug.LogError("4. Entities were created in a different World");
+                UnityDebug.LogError("\n✗ NO ENTITIES FOUND!");
+                UnityDebug.LogError("Possible causes:");
+                UnityDebug.LogError("1. Scene doesn't have a SubScene with Space4XMiningDemoAuthoring");
+                UnityDebug.LogError("2. SubScene is not loaded (check SubScene window/Inspector)");
+                UnityDebug.LogError("3. Baker didn't run (check for errors during scene conversion)");
+                UnityDebug.LogError("4. Entities were created in a different World");
                 
                 // Check for SubScenes
                 var subscenes = Object.FindObjectsByType<Unity.Scenes.SubScene>(FindObjectsSortMode.None);
-                Debug.Log($"\n--- SubScenes Found ---");
-                Debug.Log($"SubScene count: {subscenes.Length}");
+                UnityDebug.Log($"\n--- SubScenes Found ---");
+                UnityDebug.Log($"SubScene count: {subscenes.Length}");
                 foreach (var subscene in subscenes)
                 {
-                    Debug.Log($"  - {subscene.name}: {(subscene.IsLoaded ? "LOADED" : "NOT LOADED")}");
+                    UnityDebug.Log($"  - {subscene.name}: {(subscene.IsLoaded ? "LOADED" : "NOT LOADED")}");
                 }
                 
                 if (subscenes.Length == 0)
                 {
-                    Debug.LogError("\n✗ NO SubScenes found! Entities created by Baker won't exist without a SubScene.");
-                    Debug.LogError("   SOLUTION: The scene needs a SubScene GameObject with SubScene component.");
-                    Debug.LogError("   The Space4XMiningDemoAuthoring GameObject should be inside the SubScene.");
+                    UnityDebug.LogError("\n✗ NO SubScenes found! Entities created by Baker won't exist without a SubScene.");
+                    UnityDebug.LogError("   SOLUTION: The scene needs a SubScene GameObject with SubScene component.");
+                    UnityDebug.LogError("   The Space4XMiningDemoAuthoring GameObject should be inside the SubScene.");
                 }
             }
             else
             {
-                Debug.Log("\n✓ Entities found! Checking positions...");
+                UnityDebug.Log("\n✓ Entities found! Checking positions...");
                 
                 // Log positions of first few entities
                 if (carrierCount > 0)
                 {
                     using var carriers = carrierQuery.ToEntityArray(Allocator.Temp);
-                    Debug.Log($"\n--- Carrier Positions ---");
+                    UnityDebug.Log($"\n--- Carrier Positions ---");
                     for (int i = 0; i < System.Math.Min(3, carriers.Length); i++)
                     {
                         var transform = entityManager.GetComponentData<Unity.Transforms.LocalTransform>(carriers[i]);
-                        Debug.Log($"Carrier {i}: Position={transform.Position}, Scale={transform.Scale}");
+                        UnityDebug.Log($"Carrier {i}: Position={transform.Position}, Scale={transform.Scale}");
                     }
                 }
 
                 if (!hasConfig)
                 {
-                    Debug.LogError("\n✗ Space4XMiningVisualConfig MISSING!");
-                    Debug.LogError("   Entities exist but won't render without the visual config.");
-                    Debug.LogError("   Check Space4XMiningDemoAuthoring Baker added the config.");
+                    UnityDebug.LogError("\n✗ Space4XMiningVisualConfig MISSING!");
+                    UnityDebug.LogError("   Entities exist but won't render without the visual config.");
+                    UnityDebug.LogError("   Check Space4XMiningDemoAuthoring Baker added the config.");
                 }
             }
 
             // Check render system
-            Debug.Log("\n--- Render System Check ---");
+            UnityDebug.Log("\n--- Render System Check ---");
             // Space4XMiningDebugRenderSystem is an ISystem (struct), not ComponentSystemBase
             // Check if it exists by checking for the visual config singleton it requires
             if (hasConfig)
             {
-                Debug.Log($"✓ Space4XMiningDebugRenderSystem should be running (has config singleton)");
+                UnityDebug.Log($"✓ Space4XMiningDebugRenderSystem should be running (has config singleton)");
             }
             else
             {
-                Debug.LogWarning("⚠ Space4XMiningDebugRenderSystem cannot run without Space4XMiningVisualConfig singleton");
+                UnityDebug.LogWarning("⚠ Space4XMiningDebugRenderSystem cannot run without Space4XMiningVisualConfig singleton");
             }
 
             // Cleanup
@@ -123,7 +124,7 @@ namespace Space4X.Editor
             vesselQuery.Dispose();
             asteroidQuery.Dispose();
 
-            Debug.Log("\n=== Check Complete ===");
+            UnityDebug.Log("\n=== Check Complete ===");
         }
     }
 }

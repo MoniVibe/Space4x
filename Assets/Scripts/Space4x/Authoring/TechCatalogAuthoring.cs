@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -32,7 +33,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.techs == null || authoring.techs.Count == 0)
                 {
-                    Debug.LogWarning("TechCatalogAuthoring has no techs defined.");
+                    UnityDebug.LogWarning("TechCatalogAuthoring has no techs defined.");
                     return;
                 }
 

@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.EditorUtilities
 {
@@ -18,7 +19,7 @@ namespace Space4X.EditorUtilities
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
-                Debug.LogWarning("[MissingScriptCleanup] No active scene to clean.");
+                UnityDebug.LogWarning("[MissingScriptCleanup] No active scene to clean.");
                 return;
             }
 
@@ -27,7 +28,7 @@ namespace Space4X.EditorUtilities
                 CleanupRecursive(root);
             }
 
-            Debug.Log($"[MissingScriptCleanup] Cleared missing scripts in scene '{scene.path}'.");
+            UnityDebug.Log($"[MissingScriptCleanup] Cleared missing scripts in scene '{scene.path}'.");
         }
 
         private static void CleanupRecursive(GameObject go)

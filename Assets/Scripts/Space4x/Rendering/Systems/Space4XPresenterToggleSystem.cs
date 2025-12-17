@@ -1,7 +1,8 @@
+using PureDOTS.Input;
 using PureDOTS.Rendering;
 using Unity.Collections;
 using Unity.Entities;
-using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Rendering.Systems
 {
@@ -29,7 +30,7 @@ namespace Space4X.Rendering.Systems
         public void OnUpdate(ref SystemState state)
         {
 #if UNITY_EDITOR
-            if (!Input.GetKeyDown(KeyCode.F7))
+            if (!Hotkeys.F7Down())
                 return;
 
             using var entities = _query.ToEntityArray(Allocator.Temp);
@@ -44,13 +45,13 @@ namespace Space4X.Rendering.Systems
             {
                 state.EntityManager.SetComponentEnabled<MeshPresenter>(target, false);
                 state.EntityManager.SetComponentEnabled<DebugPresenter>(target, true);
-                Debug.Log($"[Space4XPresenterToggleSystem] DebugPresenter enabled for entity {target.Index}.");
+                UnityDebug.Log($"[Space4XPresenterToggleSystem] DebugPresenter enabled for entity {target.Index}.");
             }
             else
             {
                 state.EntityManager.SetComponentEnabled<MeshPresenter>(target, true);
                 state.EntityManager.SetComponentEnabled<DebugPresenter>(target, false);
-                Debug.Log($"[Space4XPresenterToggleSystem] MeshPresenter restored for entity {target.Index}.");
+                UnityDebug.Log($"[Space4XPresenterToggleSystem] MeshPresenter restored for entity {target.Index}.");
             }
 #endif
         }

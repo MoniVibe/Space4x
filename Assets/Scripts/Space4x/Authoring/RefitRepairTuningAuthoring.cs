@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -52,7 +53,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null)
                 {
-                    Debug.LogWarning("RefitRepairTuningAuthoring is null.");
+                    UnityDebug.LogWarning("RefitRepairTuningAuthoring is null.");
                     return;
                 }
 

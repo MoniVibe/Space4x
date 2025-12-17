@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -55,7 +56,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.hulls == null || authoring.hulls.Count == 0)
                 {
-                    Debug.LogWarning("HullCatalogAuthoring has no hulls defined.");
+                    UnityDebug.LogWarning("HullCatalogAuthoring has no hulls defined.");
                     return;
                 }
 

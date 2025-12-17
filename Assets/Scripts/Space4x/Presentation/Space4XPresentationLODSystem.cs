@@ -3,7 +3,6 @@ using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Rendering;
 using Space4X.Presentation.Camera;
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -20,9 +19,12 @@ namespace Space4X.Presentation
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
     public partial struct Space4XPresentationLODSystem : ISystem
     {
+        private uint _tick;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            _tick = 0;
             state.RequireForUpdate<Space4XCameraState>();
         }
 
@@ -55,7 +57,7 @@ namespace Space4X.Presentation
             {
                 CameraPosition = cameraState.Position,
                 Thresholds = thresholds,
-                CurrentTick = (uint)state.WorldUnmanaged.Time.UpdateCount
+                CurrentTick = ++_tick
             }.ScheduleParallel();
         }
 
@@ -66,19 +68,18 @@ namespace Space4X.Presentation
             public LODThresholds Thresholds;
             public uint CurrentTick;
 
-            public void Execute(ref RenderLODData lodData, ref RenderKey renderKey, in LocalTransform transform)
+            public void Execute(ref RenderLODData lodData, in LocalTransform transform)
             {
                 float distance = math.distance(transform.Position, CameraPosition);
                 lodData.CameraDistance = distance;
                 lodData.RecommendedLOD = RenderLODHelpers.CalculateLOD(distance, in Thresholds);
                 lodData.LastUpdateTick = CurrentTick;
-                renderKey.LOD = (byte)math.clamp(lodData.RecommendedLOD, 0, 3);
             }
         }
     }
 
     /// <summary>
-    /// Manages render density by toggling ShouldRenderTag based on the configured density values.
+    /// Manages render density by toggling RenderSampleIndex.ShouldRender based on the configured density values.
     /// Targets craft entities to keep scene density manageable when scaling entity counts.
     /// </summary>
     [BurstCompile]
@@ -116,12 +117,9 @@ namespace Space4X.Presentation
                 return;
             }
 
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
-
-            foreach (var (sampleIndex, entity) in SystemAPI
+            foreach (var sampleIndex in SystemAPI
                          .Query<RefRW<RenderSampleIndex>>()
-                         .WithAll<CraftPresentationTag>()
-                         .WithEntityAccess())
+                         .WithAll<CraftPresentationTag>())
             {
                 float normalized = sampleIndex.ValueRO.SampleModulus > 0
                     ? (sampleIndex.ValueRO.SampleIndex % sampleIndex.ValueRO.SampleModulus) / (float)sampleIndex.ValueRO.SampleModulus
@@ -129,20 +127,7 @@ namespace Space4X.Presentation
 
                 bool shouldRender = normalized <= density;
                 sampleIndex.ValueRW.ShouldRender = shouldRender ? (byte)1 : (byte)0;
-
-                bool hasTag = SystemAPI.HasComponent<ShouldRenderTag>(entity);
-                if (shouldRender && !hasTag)
-                {
-                    ecb.AddComponent<ShouldRenderTag>(entity);
-                }
-                else if (!shouldRender && hasTag)
-                {
-                    ecb.RemoveComponent<ShouldRenderTag>(entity);
-                }
             }
-
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
         }
     }
 
@@ -155,9 +140,16 @@ namespace Space4X.Presentation
     [UpdateAfter(typeof(Space4XPresentationLODSystem))]
     public partial struct Space4XPresentationModeSystem : ISystem
     {
+        private EntityQuery _presenterQuery;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            _presenterQuery = SystemAPI.QueryBuilder()
+                .WithAll<RenderLODData, MeshPresenter, SpritePresenter>()
+                .Build();
+
+            state.RequireForUpdate(_presenterQuery);
         }
 
         [BurstCompile]
@@ -168,29 +160,25 @@ namespace Space4X.Presentation
                 return;
             }
 
-            foreach (var (lodData, entity) in SystemAPI
-                         .Query<RefRO<RenderLODData>>()
-                         .WithAll<MeshPresenter, SpritePresenter>()
-                         .WithEntityAccess())
-            {
-                bool wantSprite = lodData.ValueRO.RecommendedLOD >= 2;
-                bool wantMesh = !wantSprite;
-
-                if (SystemAPI.IsComponentEnabled<MeshPresenter>(entity) != wantMesh)
-                {
-                    SystemAPI.SetComponentEnabled<MeshPresenter>(entity, wantMesh);
-                }
-
-                if (SystemAPI.IsComponentEnabled<SpritePresenter>(entity) != wantSprite)
-                {
-                    SystemAPI.SetComponentEnabled<SpritePresenter>(entity, wantSprite);
-                }
-            }
+            state.Dependency = new UpdatePresentationModeJob().ScheduleParallel(state.Dependency);
         }
 
         [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
+        }
+
+        [BurstCompile]
+        public partial struct UpdatePresentationModeJob : IJobEntity
+        {
+            public void Execute(in RenderLODData lodData,
+                                EnabledRefRW<MeshPresenter> meshEnabled,
+                                EnabledRefRW<SpritePresenter> spriteEnabled)
+            {
+                bool wantSprite = lodData.RecommendedLOD >= 2;
+                meshEnabled.ValueRW = !wantSprite;
+                spriteEnabled.ValueRW = wantSprite;
+            }
         }
     }
 

@@ -1,15 +1,15 @@
+using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Rendering;
 using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Demo
 {
-    using Debug = UnityEngine.Debug;
-
-        /// <summary>
+    /// <summary>
     /// Lightweight validation to ensure smoke/demo scenes spawn core singletons and renderable entities.
     /// Editor-only logging; runs once per world.
     /// </summary>
@@ -74,24 +74,24 @@ namespace Space4X.Demo
 
             if (!hasTime || !hasTick || !hasRewind)
             {
-                Debug.LogError("[Space4X DemoValidation] Missing time/rewind singletons (TimeState/TickTimeState/RewindState)");
+                UnityDebug.LogError("[Space4X DemoValidation] Missing time/rewind singletons (TimeState/TickTimeState/RewindState)");
                 success = false;
             }
 
             if (!hasSpatial)
             {
-                Debug.LogError("[Space4X DemoValidation] Missing SpatialGridState singleton");
+                UnityDebug.LogError("[Space4X DemoValidation] Missing SpatialGridState singleton");
                 success = false;
             }
 
             if (renderKeyCount == 0)
             {
-                Debug.LogError("[Space4X DemoValidation] No RenderKey entities found; check SubScene authoring & conversion");
+                UnityDebug.LogError("[Space4X DemoValidation] No RenderKey entities found; check SubScene authoring & conversion");
                 success = false;
             }
             else
             {
-                Debug.Log($"[Space4X DemoValidation] RenderKey entities: {renderKeyCount}; Time:{hasTime}, Tick:{hasTick}, Rewind:{hasRewind}, Spatial:{hasSpatial}");
+                UnityDebug.Log($"[Space4X DemoValidation] RenderKey entities: {renderKeyCount}; Time:{hasTime}, Tick:{hasTick}, Rewind:{hasRewind}, Spatial:{hasSpatial}");
             }
 
             if (success)
@@ -102,9 +102,6 @@ namespace Space4X.Demo
 #endif
     }
 }
-
-
-
 
 
 

@@ -70,16 +70,6 @@ public class Space4XDebugSpawnerAuthoring : MonoBehaviour
                 ShouldRender = 1
             });
 
-            AddComponent(entity, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0, 0));
-            var defaultBounds = new Unity.Mathematics.AABB
-            {
-                Center = float3.zero,
-                Extents = new float3(1f)
-            };
-            AddComponent(entity, new RenderBounds { Value = defaultBounds });
-            AddComponent(entity, new WorldRenderBounds { Value = defaultBounds });
-            AddSharedComponent(entity, RenderFilterSettings.Default);
-
             AddComponent(entity, new RenderTint { Value = new float4(1f, 1f, 1f, 1f) });
             AddComponent(entity, new RenderTexSlice { Value = 0 });
             AddComponent(entity, new RenderUvTransform { Value = new float4(1f, 1f, 0f, 0f) });

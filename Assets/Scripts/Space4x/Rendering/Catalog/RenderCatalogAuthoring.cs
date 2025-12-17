@@ -8,6 +8,7 @@ using Unity.Rendering;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityDebug = UnityEngine.Debug;
 #endif
 
 namespace Space4X.Rendering.Catalog
@@ -104,7 +105,7 @@ namespace Space4X.Rendering.Catalog
                 return;
             }
 
-            using var existingCatalogQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<RenderCatalogSingleton>());
+            using var existingCatalogQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<RenderPresentationCatalog>());
             if (!existingCatalogQuery.IsEmptyIgnoreFilter)
             {
                 return;
@@ -120,9 +121,9 @@ namespace Space4X.Rendering.Catalog
             _runtimeCatalogEntity = entityManager.CreateEntity();
             _ownsCatalogEntity = true;
 
-            entityManager.AddComponentData(_runtimeCatalogEntity, new RenderCatalogSingleton
+            entityManager.AddComponentData(_runtimeCatalogEntity, new RenderPresentationCatalog
             {
-                Catalog = _runtimeCatalogRef,
+                Blob = _runtimeCatalogRef,
                 RenderMeshArrayEntity = _runtimeCatalogEntity
             });
 
@@ -162,13 +163,13 @@ namespace Space4X.Rendering.Catalog
             bool valid = true;
             if (EffectiveFallbackMaterial == null)
             {
-                Debug.LogError("[RenderCatalogAuthoring] Fallback material is null. Assign M_EntitiesFallback_URP.");
+                UnityDebug.LogError("[RenderCatalogAuthoring] Fallback material is null. Assign M_EntitiesFallback_URP.");
                 valid = false;
             }
 
             if (EffectiveFallbackMesh == null)
             {
-                Debug.LogError("[RenderCatalogAuthoring] Fallback mesh is null.");
+                UnityDebug.LogError("[RenderCatalogAuthoring] Fallback mesh is null.");
                 valid = false;
             }
 
@@ -178,11 +179,11 @@ namespace Space4X.Rendering.Catalog
         private static void LogInfo(string message)
         {
 #if UNITY_EDITOR
-            Debug.Log(message);
+            UnityDebug.Log(message);
 #else
-            if (Debug.isDebugBuild && !Application.isBatchMode)
+            if (UnityDebug.isDebugBuild && !Application.isBatchMode)
             {
-                Debug.Log(message);
+                UnityDebug.Log(message);
             }
 #endif
         }
@@ -199,13 +200,13 @@ namespace Space4X.Rendering.Catalog
 
             if (catalogDefinition == null)
             {
-                Debug.LogError("[RenderCatalogAuthoring] CatalogDefinition is null.");
+                UnityDebug.LogError("[RenderCatalogAuthoring] CatalogDefinition is null.");
                 return false;
             }
 
             if (fallbackMaterial == null || fallbackMesh == null)
             {
-                Debug.LogError("[RenderCatalogAuthoring] Cannot build catalog without fallback assets.");
+                UnityDebug.LogError("[RenderCatalogAuthoring] Cannot build catalog without fallback assets.");
                 return false;
             }
 
@@ -213,7 +214,7 @@ namespace Space4X.Rendering.Catalog
             var themeDefinitions = catalogDefinition.Themes ?? Array.Empty<Space4XRenderCatalogDefinition.Theme>();
             if (themeDefinitions.Length == 0)
             {
-                Debug.LogError("[RenderCatalogAuthoring] Catalog must define at least one theme.");
+                UnityDebug.LogError("[RenderCatalogAuthoring] Catalog must define at least one theme.");
                 return false;
             }
 
@@ -293,9 +294,9 @@ namespace Space4X.Rendering.Catalog
             }
 
             var entity = GetEntity(TransformUsageFlags.None);
-            AddComponent(entity, new RenderCatalogSingleton
+            AddComponent(entity, new RenderPresentationCatalog
             {
-                Catalog = catalogBlob,
+                Blob = catalogBlob,
                 RenderMeshArrayEntity = entity
             });
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor.Demo
 {
@@ -28,7 +29,7 @@ namespace Space4X.Editor.Demo
 
                 public static void Run(string game)
                 {
-                    Debug.Log($"[Demo Preflight] Starting validation for {game}...");
+                    UnityDebug.Log($"[Demo Preflight] Starting validation for {game}...");
 
                     var report = new PreflightReport
                     {
@@ -59,21 +60,21 @@ namespace Space4X.Editor.Demo
                         if (!step.Passed)
                         {
                             allPassed = false;
-                            Debug.LogError($"[Demo Preflight] FAILED: {step.Name} - {step.Message}");
+                            UnityDebug.LogError($"[Demo Preflight] FAILED: {step.Name} - {step.Message}");
                         }
                         else
                         {
-                            Debug.Log($"[Demo Preflight] PASSED: {step.Name}");
+                            UnityDebug.Log($"[Demo Preflight] PASSED: {step.Name}");
                         }
                     }
 
                     if (allPassed)
                     {
-                        Debug.Log("[Demo Preflight] All validation steps passed!");
+                        UnityDebug.Log("[Demo Preflight] All validation steps passed!");
                     }
                     else
                     {
-                        Debug.LogError("[Demo Preflight] Validation failed. Check report for details.");
+                        UnityDebug.LogError("[Demo Preflight] Validation failed. Check report for details.");
                     }
                 }
 
@@ -206,7 +207,7 @@ namespace Space4X.Editor.Demo
                     sb.AppendLine("}");
 
                     File.WriteAllText(jsonPath, sb.ToString());
-                    Debug.Log($"[Demo Preflight] Report written to: {jsonPath}");
+                    UnityDebug.Log($"[Demo Preflight] Report written to: {jsonPath}");
                 }
 
                 private static bool AllStepsPassed(PreflightReport report)

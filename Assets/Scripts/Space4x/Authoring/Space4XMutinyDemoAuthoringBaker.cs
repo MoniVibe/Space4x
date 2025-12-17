@@ -4,6 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -19,7 +20,7 @@ namespace Space4X.Authoring
         {
             if (authoring.Factions == null || authoring.Factions.Length == 0)
             {
-                Debug.LogWarning("[Space4XMutinyDemoAuthoring] No factions defined!");
+                UnityDebug.LogWarning("[Space4XMutinyDemoAuthoring] No factions defined!");
                 return;
             }
 

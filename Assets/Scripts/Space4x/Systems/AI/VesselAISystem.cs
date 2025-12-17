@@ -11,6 +11,7 @@ using Unity.Jobs;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
 using ResourceRegistry = PureDOTS.Runtime.Components.ResourceRegistry;
 using ResourceRegistryEntry = PureDOTS.Runtime.Components.ResourceRegistryEntry;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Systems.AI
 {
@@ -404,7 +405,7 @@ namespace Space4X.Systems.AI
                         // No carrier found, return to origin (0,0,0)
                         aiState.TargetEntity = Entity.Null;
                         aiState.TargetPosition = float3.zero;
-                        // Debug logging removed - Burst doesn't support Debug.Log in jobs
+                        // Debug logging removed - Burst doesn't support UnityDebug.Log in jobs
                     }
                     
                     aiState.StateTimer = 0f;

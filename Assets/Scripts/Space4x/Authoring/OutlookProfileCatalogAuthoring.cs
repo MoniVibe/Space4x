@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -39,7 +40,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.profiles == null || authoring.profiles.Count == 0)
                 {
-                    Debug.LogWarning("OutlookProfileCatalogAuthoring has no profiles defined.");
+                    UnityDebug.LogWarning("OutlookProfileCatalogAuthoring has no profiles defined.");
                     return;
                 }
 

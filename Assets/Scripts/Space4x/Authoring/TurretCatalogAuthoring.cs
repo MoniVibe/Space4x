@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -44,7 +45,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.turrets == null || authoring.turrets.Count == 0)
                 {
-                    Debug.LogWarning("TurretCatalogAuthoring has no turrets defined.");
+                    UnityDebug.LogWarning("TurretCatalogAuthoring has no turrets defined.");
                     return;
                 }
 

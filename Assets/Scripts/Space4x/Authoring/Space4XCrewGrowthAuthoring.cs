@@ -2,6 +2,7 @@ using Space4X.Registry;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -53,7 +54,7 @@ namespace Space4X.Authoring
                 var validated = CrewGrowthSettingsUtility.Sanitize(settings);
                 if (validated.HadError)
                 {
-                    Debug.LogError("[Space4XCrewGrowthAuthoring] Invalid rates detected; breeding/cloning toggles disabled until fixed.");
+                    UnityDebug.LogError("[Space4XCrewGrowthAuthoring] Invalid rates detected; breeding/cloning toggles disabled until fixed.");
                 }
 
                 AddComponent(entity, validated.Settings);

@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -37,7 +38,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.resources == null || authoring.resources.Count == 0)
                 {
-                    Debug.LogWarning("ResourceCatalogAuthoring has no resources defined.");
+                    UnityDebug.LogWarning("ResourceCatalogAuthoring has no resources defined.");
                     return;
                 }
 

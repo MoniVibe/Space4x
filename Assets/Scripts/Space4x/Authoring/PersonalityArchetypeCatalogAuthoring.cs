@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -36,7 +37,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.archetypes == null || authoring.archetypes.Count == 0)
                 {
-                    Debug.LogWarning("PersonalityArchetypeCatalogAuthoring has no archetypes defined.");
+                    UnityDebug.LogWarning("PersonalityArchetypeCatalogAuthoring has no archetypes defined.");
                     return;
                 }
 

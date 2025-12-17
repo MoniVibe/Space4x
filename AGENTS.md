@@ -52,7 +52,7 @@ If a detail is critical (API choice, breaking change), ask the user once rather 
 - Do not introduce runtime Monos to “force” ECS systems into the world or to “force” singletons, unless explicitly requested in design.
 - Do not touch com.moni.puredots.demo or import any of its systems into game asmdefs.
 - Do use the canonical render pipeline per game:
-  - `<Game>RenderCatalogDefinition → <Game>RenderCatalogAuthoring → Baker → <Game>RenderCatalogSingleton + <Game>RenderMeshArraySingleton → <Game>ApplyRenderCatalogSystem.`
+  - `<Game>RenderCatalogDefinition → <Game>RenderCatalogAuthoring → Baker → <Game>RenderPresentationCatalog + RenderMeshArray entity → PureDOTS.ResolveRenderVariantSystem / ApplyRenderVariantSystem + presenter systems.`
 - Do respect the unified RenderKey type per game and use it in:
   - Spawners.
   - Rendering.

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using PureDOTS.Authoring;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -20,7 +21,7 @@ namespace Space4X.Editor
                 visualManifest = new GameObject("MiningVisualManifest");
                 visualManifest.AddComponent<MiningVisualManifestAuthoring>();
                 Undo.RegisterCreatedObjectUndo(visualManifest, "Create MiningVisualManifest");
-                Debug.Log("✓ Created MiningVisualManifest GameObject with MiningVisualManifestAuthoring component");
+                UnityDebug.Log("✓ Created MiningVisualManifest GameObject with MiningVisualManifestAuthoring component");
             }
             else
             {
@@ -29,11 +30,11 @@ namespace Space4X.Editor
                 {
                     Undo.RecordObject(visualManifest, "Add MiningVisualManifestAuthoring");
                     visualManifest.AddComponent<MiningVisualManifestAuthoring>();
-                    Debug.Log("✓ Added MiningVisualManifestAuthoring component to existing MiningVisualManifest GameObject");
+                    UnityDebug.Log("✓ Added MiningVisualManifestAuthoring component to existing MiningVisualManifest GameObject");
                 }
                 else
                 {
-                    Debug.Log("✓ MiningVisualManifest already exists with MiningVisualManifestAuthoring component");
+                    UnityDebug.Log("✓ MiningVisualManifest already exists with MiningVisualManifestAuthoring component");
                 }
             }
             

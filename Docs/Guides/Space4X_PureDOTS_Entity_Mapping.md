@@ -151,11 +151,22 @@ AddComponent(planetEntity, new Space4XPlanetStations
    - Handle ship assignments
    - Render UI panels
 
-### Presentation Placeholder Swaps
+### Presentation Pipeline (Semantic → Variant → Presenter)
 
-- Add `Space4XPresentationBindingAuthoring` to any prefab/SubScene root and pick a descriptor key from your `PresentationRegistry` (e.g. `space4x.vessel.miner`).
-- The baker writes a `Space4XPresentationBinding` component so the new `Space4XPresentationAssignmentSystem` queues presentation spawns and recycles per entity.
-- Swapping the descriptor key (or adding `Space4XPresentationDirtyTag`) lets you flip individual entities between placeholder meshes and production assets/animations without touching gameplay data.
+Space4X now uses the shared PureDOTS presentation contract:
+
+1. **Semantic authoring:** gameplay assigns `RenderSemanticKey` (and optional `RenderKey` for LOD hints), enables `MeshPresenter`, and adds `RenderFlags`. Spawners do _not_ pick meshes or materials directly.
+2. **Variant resolution:** `ResolveRenderVariantSystem` consumes semantic ids plus `ActiveRenderTheme`, optional `RenderThemeOverride`, and the entity's `RenderKey.LOD` to write `RenderVariantKey`.
+3. **Presenter application:** `RenderVariantResolveSystem` toggles the per-entity presenter (Mesh/Sprite/Debug) without structural churn, and `ApplyRenderVariantSystem` writes `MaterialMeshInfo`, `RenderBounds`, and world bounds for mesh presenters.
+
+**Runtime controls:**
+
+- Global reskins: set the `ActiveRenderTheme` singleton `{ ThemeId = … }` and every entity re-resolves automatically.
+- Per-entity overrides: add/enable `RenderThemeOverride` to force a specific theme id, or write a `RenderVariantKey` directly for temporary states (construction, ghost previews, etc.).
+- Presenter toggles: enable/disable `MeshPresenter`, `SpritePresenter`, or `DebugPresenter` to switch render modes (LOD impostors, debugging, hiding entities) without touching archetypes.
+- Instanced overrides: add `RenderTint`, `RenderTexSlice`, or `RenderUvTransform` for per-entity cosmetic variety that keeps instancing intact.
+
+**Spawn defaults:** authoring only needs to set the semantic key, enable `MeshPresenter`, and optionally add overrides (tint/theme). Theme 0 in the catalog maps canon ids (carriers, miners, asteroids, etc.) to loud placeholder meshes so renders are deterministic even before art arrives.
 
 ---
 
@@ -256,4 +267,3 @@ Player sees pop data via ship + UI
 
 **Last Updated:** 2025-01-XX  
 **Status:** Implementation Guide - In Progress
-

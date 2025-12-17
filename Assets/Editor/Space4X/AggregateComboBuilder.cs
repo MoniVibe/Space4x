@@ -8,6 +8,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -133,7 +134,7 @@ namespace Space4X.Editor
             catch (Exception ex)
             {
                 result.Errors.Add($"Exception during combo table build: {ex.Message}");
-                Debug.LogError($"AggregateComboBuilder exception: {ex}\n{ex.StackTrace}");
+                UnityDebug.LogError($"AggregateComboBuilder exception: {ex}\n{ex.StackTrace}");
             }
 
             return result;

@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.EditorUtilities
 {
@@ -98,11 +99,11 @@ namespace Space4X.EditorUtilities
                     AssetDatabase.SaveAssets();
                 }
 
-                Debug.Log($"[MissingScriptSweep] Removed {prefabRemoved} missing scripts from prefabs and {sceneRemoved} from scenes ({reason}).");
+                UnityDebug.Log($"[MissingScriptSweep] Removed {prefabRemoved} missing scripts from prefabs and {sceneRemoved} from scenes ({reason}).");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[MissingScriptSweep] Sweep failed: {ex}");
+                UnityDebug.LogError($"[MissingScriptSweep] Sweep failed: {ex}");
             }
             finally
             {

@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Core;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Rendering.Systems
 {
@@ -24,7 +25,7 @@ namespace Space4X.Rendering.Systems
                 return;
             }
 
-            Debug.Log("[CheckRenderEntitiesSystem] Created.");
+            UnityDebug.Log("[CheckRenderEntitiesSystem] Created.");
             _renderKeyQuery = GetEntityQuery(
                 ComponentType.ReadOnly<RenderKey>(),
                 ComponentType.ReadOnly<MaterialMeshInfo>());
@@ -38,9 +39,9 @@ namespace Space4X.Rendering.Systems
             int count = _renderKeyQuery.CalculateEntityCount();
             if (count > 0)
             {
-                Debug.Log($"[CheckRenderEntitiesSystem] RenderKey+MaterialMeshInfo entities: {count}");
+                UnityDebug.Log($"[CheckRenderEntitiesSystem] RenderKey+MaterialMeshInfo entities: {count}");
                 using var entities = _renderKeyQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
-                Debug.Log($"[CheckRenderEntitiesSystem] First entity: {entities[0]}");
+                UnityDebug.Log($"[CheckRenderEntitiesSystem] First entity: {entities[0]}");
                 _logged = true;
             }
         }

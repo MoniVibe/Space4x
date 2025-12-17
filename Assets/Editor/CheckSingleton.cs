@@ -13,14 +13,14 @@ public class CheckSingleton
             return;
         }
 
-        var query = world.EntityManager.CreateEntityQuery(typeof(RenderCatalogSingleton));
+        var query = world.EntityManager.CreateEntityQuery(typeof(RenderPresentationCatalog));
         if (query.IsEmpty)
         {
-            Debug.Log("RenderCatalogSingleton NOT found.");
+            Debug.Log("RenderPresentationCatalog NOT found.");
         }
         else
         {
-            Debug.Log($"RenderCatalogSingleton FOUND. Count: {query.CalculateEntityCount()}");
+            Debug.Log($"RenderPresentationCatalog FOUND. Count: {query.CalculateEntityCount()}");
         }
         
         var renderKeyQuery = world.EntityManager.CreateEntityQuery(typeof(RenderKey));

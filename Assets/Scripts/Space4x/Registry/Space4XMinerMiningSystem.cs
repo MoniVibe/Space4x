@@ -6,6 +6,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Registry
 {
@@ -111,7 +112,7 @@ namespace Space4X.Registry
                 var elapsedTime = SystemAPI.Time.ElapsedTime;
                 if ((elapsedTime % 5f) < SystemAPI.Time.DeltaTime)
                 {
-                    Debug.Log($"[Space4XMinerMiningSystem] Miner @ {transform.ValueRO.Position}, OrderStatus={order.ValueRO.Status}, Phase={miningState.ValueRO.Phase}");
+                    UnityDebug.Log($"[Space4XMinerMiningSystem] Miner @ {transform.ValueRO.Position}, OrderStatus={order.ValueRO.Status}, Phase={miningState.ValueRO.Phase}");
                 }
 #endif
 
@@ -191,7 +192,7 @@ namespace Space4X.Registry
                 var elapsedTime = SystemAPI.Time.ElapsedTime;
                 if ((elapsedTime % 5f) < SystemAPI.Time.DeltaTime)
                 {
-                    Debug.Log($"[Space4XMinerMiningSystem] Updating {minerCount} miners.");
+                    UnityDebug.Log($"[Space4XMinerMiningSystem] Updating {minerCount} miners.");
                 }
             }
 #endif

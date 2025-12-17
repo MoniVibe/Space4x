@@ -6,6 +6,7 @@ using System.Text;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -45,7 +46,7 @@ namespace Space4X.Editor
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"Failed to load hash report: {ex.Message}");
+                    UnityDebug.LogWarning($"Failed to load hash report: {ex.Message}");
                 }
             }
             return new PrefabMakerHashReport();
@@ -80,7 +81,7 @@ namespace Space4X.Editor
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"Failed to compute hash for {filePath}: {ex.Message}");
+                UnityDebug.LogWarning($"Failed to compute hash for {filePath}: {ex.Message}");
                 return null;
             }
         }
@@ -103,7 +104,7 @@ namespace Space4X.Editor
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"Failed to compute content hash: {ex.Message}");
+                UnityDebug.LogWarning($"Failed to compute content hash: {ex.Message}");
                 return null;
             }
         }

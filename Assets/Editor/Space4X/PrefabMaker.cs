@@ -12,6 +12,7 @@ using Unity.Entities;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -156,7 +157,7 @@ namespace Space4X.Editor
             catch (Exception ex)
             {
                 result.Errors.Add($"Exception during generation: {ex.Message}");
-                Debug.LogError($"PrefabMaker exception: {ex}\n{ex.StackTrace}");
+                UnityDebug.LogError($"PrefabMaker exception: {ex}\n{ex.StackTrace}");
             }
 
             return result;
@@ -267,7 +268,7 @@ namespace Space4X.Editor
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null)
             {
-                Debug.LogWarning($"Module catalog not found at {prefabPath}");
+                UnityDebug.LogWarning($"Module catalog not found at {prefabPath}");
                 return null;
             }
 
@@ -280,7 +281,7 @@ namespace Space4X.Editor
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null)
             {
-                Debug.LogWarning($"Hull catalog not found at {prefabPath}");
+                UnityDebug.LogWarning($"Hull catalog not found at {prefabPath}");
                 return null;
             }
 
@@ -1336,11 +1337,11 @@ namespace Space4X.Editor
             if (result.Errors.Count > 0)
             {
                 logMsg += $"\nErrors: {string.Join("; ", result.Errors)}";
-                Debug.LogError(logMsg);
+                UnityDebug.LogError(logMsg);
             }
             else
             {
-                Debug.Log(logMsg);
+                UnityDebug.Log(logMsg);
             }
         }
 

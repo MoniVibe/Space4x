@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -40,7 +41,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.stations == null || authoring.stations.Count == 0)
                 {
-                    Debug.LogWarning("StationCatalogAuthoring has no stations defined.");
+                    UnityDebug.LogWarning("StationCatalogAuthoring has no stations defined.");
                     return;
                 }
 

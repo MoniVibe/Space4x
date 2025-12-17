@@ -2,6 +2,7 @@ using PureDOTS.Rendering;
 using UnityEngine;
 using Unity.Entities;
 using Unity.Rendering;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Rendering.Catalog
 {
@@ -18,34 +19,34 @@ namespace Space4X.Rendering.Catalog
             var world = World.DefaultGameObjectInjectionWorld;
             if (world == null)
             {
-                Debug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Default world is null, aborting.");
+                UnityDebug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Default world is null, aborting.");
                 return;
             }
 
             var em = world.EntityManager;
 
-            var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<RenderCatalogSingleton>());
+            var catalogQuery = em.CreateEntityQuery(ComponentType.ReadOnly<RenderPresentationCatalog>());
 
-            if (!catalogQuery.TryGetSingleton(out RenderCatalogSingleton catalogSingleton))
+            if (!catalogQuery.TryGetSingleton(out RenderPresentationCatalog catalogSingleton))
             {
-                Debug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Catalog singleton missing; ensure baker/authoring is present.");
+                UnityDebug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] RenderPresentationCatalog missing; ensure baker/authoring is present.");
                 return;
             }
 
-            ref var catalog = ref catalogSingleton.Catalog.Value;
+            ref var catalog = ref catalogSingleton.Blob.Value;
             var variantCount = catalog.Variants.Length;
             var themeCount = catalog.Themes.Length;
 
             if (variantCount == 0)
             {
-                Debug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Catalog has zero entries.");
+                UnityDebug.LogWarning("[Space4XRenderCatalogRuntimeBootstrap] Catalog has zero entries.");
                 return;
             }
 
             var hasRma = catalogSingleton.RenderMeshArrayEntity != Entity.Null &&
                          em.HasComponent<RenderMeshArray>(catalogSingleton.RenderMeshArrayEntity);
 
-            Debug.Log($"[Space4XRenderCatalogRuntimeBootstrap] Catalog present. Variants={variantCount} Themes={themeCount} Semantics={catalog.SemanticCount}. RenderMeshArray: {(hasRma ? "Present" : "Missing")}.");
+            UnityDebug.Log($"[Space4XRenderCatalogRuntimeBootstrap] Catalog present. Variants={variantCount} Themes={themeCount} Semantics={catalog.SemanticKeyCount}. RenderMeshArray: {(hasRma ? "Present" : "Missing")}.");
         }
     }
 }

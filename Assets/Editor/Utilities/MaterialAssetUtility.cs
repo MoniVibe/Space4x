@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.EditorUtilities
 {
@@ -28,7 +29,7 @@ namespace Space4X.EditorUtilities
             var shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null)
             {
-                Debug.LogWarning("[MaterialAssetUtility] Could not find URP/Lit shader. Falling back to Standard which may still log SRP warnings.");
+                UnityDebug.LogWarning("[MaterialAssetUtility] Could not find URP/Lit shader. Falling back to Standard which may still log SRP warnings.");
                 shader = Shader.Find("Standard");
             }
 

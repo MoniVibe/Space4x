@@ -5,6 +5,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor.DevMenu
 {
@@ -388,7 +389,7 @@ namespace Space4X.Editor.DevMenu
                 }
                 else
                 {
-                    Debug.LogWarning("[DevMenu] Hold Shift and click to clear all entities");
+                    UnityDebug.LogWarning("[DevMenu] Hold Shift and click to clear all entities");
                 }
             }
         }
@@ -431,7 +432,7 @@ namespace Space4X.Editor.DevMenu
             var world = World.DefaultGameObjectInjectionWorld;
             if (world == null)
             {
-                Debug.LogError("[DevMenu] No ECS World active");
+                UnityDebug.LogError("[DevMenu] No ECS World active");
                 return;
             }
 
@@ -458,10 +459,10 @@ namespace Space4X.Editor.DevMenu
                     Position = pos
                 });
 
-                Debug.Log($"[DevMenu] Spawned {templateId} at {pos} (Entity {entity.Index})");
+                UnityDebug.Log($"[DevMenu] Spawned {templateId} at {pos} (Entity {entity.Index})");
             }
 
-            Debug.Log($"[DevMenu] Spawned {spawnCount}x {templateId} in category {category}");
+            UnityDebug.Log($"[DevMenu] Spawned {spawnCount}x {templateId} in category {category}");
         }
 
         private void SpawnTestFleet()
@@ -478,7 +479,7 @@ namespace Space4X.Editor.DevMenu
             spawnSpread = 15f;
             SpawnEntity("Strike Craft", "fighter");
 
-            Debug.Log("[DevMenu] Spawned test fleet: 1 Carrier + 12 Fighters");
+            UnityDebug.Log("[DevMenu] Spawned test fleet: 1 Carrier + 12 Fighters");
         }
 
         private void SpawnCombatScenario()
@@ -506,7 +507,7 @@ namespace Space4X.Editor.DevMenu
             spawnSpread = 15f;
             SpawnEntity("Strike Craft", "fighter");
 
-            Debug.Log("[DevMenu] Spawned combat scenario: Player vs Pirates");
+            UnityDebug.Log("[DevMenu] Spawned combat scenario: Player vs Pirates");
         }
 
         private void SpawnMiningOperation()
@@ -530,7 +531,7 @@ namespace Space4X.Editor.DevMenu
             spawnSpread = 30f;
             SpawnEntity("Celestial", "asteroid_medium");
 
-            Debug.Log("[DevMenu] Spawned mining operation");
+            UnityDebug.Log("[DevMenu] Spawned mining operation");
         }
 
         private void ClearAllEntities()
@@ -540,7 +541,7 @@ namespace Space4X.Editor.DevMenu
 
             var em = world.EntityManager;
             em.DestroyEntity(em.UniversalQuery);
-            Debug.Log("[DevMenu] Cleared all entities");
+            UnityDebug.Log("[DevMenu] Cleared all entities");
         }
 
         private void RefreshEntityList()

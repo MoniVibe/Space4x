@@ -10,6 +10,7 @@ using UnityEngine;
 using PureDOTS.Runtime.Core;
 using Space4X.Rendering;
 using Space4XRenderKey = PureDOTS.Rendering.RenderKey;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Rendering.Systems
 {
@@ -121,12 +122,12 @@ namespace Space4X.Rendering.Systems
 
             if (invalidCount > 0)
             {
-                Debug.LogError(
+                UnityDebug.LogError(
                     $"[DebugVerifyVisualsSystem] Found {invalidCount} entities with INVALID MaterialMeshInfo! " +
                     $"Total entities: {count}. This should be 0.");
             }
 
-            Debug.Log(
+            UnityDebug.Log(
                 $"[DebugVerifyVisualsSystem] Found {count} entities with RenderKey + MaterialMeshInfo. " +
                 $"InvalidMMI={invalidCount} " +
                 $"First={firstEntity} ArchetypeId={firstKey.ArchetypeId} " +

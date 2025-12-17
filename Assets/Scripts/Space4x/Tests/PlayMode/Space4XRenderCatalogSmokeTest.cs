@@ -76,7 +76,7 @@ namespace Space4X.Tests.PlayMode
             var variantMesh = GameObject.CreatePrimitive(PrimitiveType.Cube).GetComponent<MeshFilter>().sharedMesh;
             var variantMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
 
-            var catalogEntity = _entityManager.CreateEntity(typeof(RenderCatalogSingleton), typeof(RenderCatalogVersion));
+            var catalogEntity = _entityManager.CreateEntity(typeof(RenderPresentationCatalog), typeof(RenderCatalogVersion));
 
             var buildInput = new RenderCatalogBuildInput
             {
@@ -119,7 +119,7 @@ namespace Space4X.Tests.PlayMode
 
             Assert.IsTrue(RenderPresentationCatalogBuilder.TryBuild(buildInput, Allocator.Temp, out _catalogBlob, out var renderMeshArray));
 
-            _entityManager.SetComponentData(catalogEntity, new RenderCatalogSingleton
+            _entityManager.SetComponentData(catalogEntity, new RenderPresentationCatalog
             {
                 Blob = _catalogBlob,
                 RenderMeshArrayEntity = catalogEntity
@@ -127,11 +127,11 @@ namespace Space4X.Tests.PlayMode
             _entityManager.SetComponentData(catalogEntity, new RenderCatalogVersion { Value = 1 });
             _entityManager.AddSharedComponentManaged(catalogEntity, renderMeshArray);
 
-            var query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<RenderCatalogSingleton>());
+            var query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<RenderPresentationCatalog>());
             Assert.AreEqual(1, query.CalculateEntityCount(), "Expected a single catalog singleton");
 
             var singletonEntity = query.GetSingletonEntity();
-            var catalogSingleton = _entityManager.GetComponentData<RenderCatalogSingleton>(singletonEntity);
+            var catalogSingleton = _entityManager.GetComponentData<RenderPresentationCatalog>(singletonEntity);
             ref var catalog = ref catalogSingleton.Blob.Value;
 
             Assert.Greater(catalog.Variants.Length, 0, "Catalog should have variants");

@@ -44,8 +44,6 @@ namespace Space4X.Authoring
                     NormalizedStrength = 0f,
                     IndicatorLevel = 0
                 });
-                
-                AddComponent<ShouldRenderTag>(entity);
             }
         }
     }

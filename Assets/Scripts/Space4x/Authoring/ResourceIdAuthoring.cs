@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -28,7 +29,7 @@ namespace Space4X.Authoring
             {
                 if (string.IsNullOrWhiteSpace(authoring.resourceId))
                 {
-                    Debug.LogWarning($"ResourceIdAuthoring on '{authoring.name}' has no resourceId set.");
+                    UnityDebug.LogWarning($"ResourceIdAuthoring on '{authoring.name}' has no resourceId set.");
                     return;
                 }
 

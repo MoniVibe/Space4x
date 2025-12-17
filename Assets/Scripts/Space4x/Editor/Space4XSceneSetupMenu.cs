@@ -4,6 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Unity.Entities;
 using PureDOTS.Authoring;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -36,7 +37,7 @@ namespace Space4X.Editor
             if (!string.IsNullOrEmpty(path))
             {
                 EditorSceneManager.SaveScene(scene, path);
-                Debug.Log($"[Space4X] Created combat demo scene at {path}");
+                UnityDebug.Log($"[Space4X] Created combat demo scene at {path}");
             }
         }
 
@@ -55,7 +56,7 @@ namespace Space4X.Editor
             if (!string.IsNullOrEmpty(path))
             {
                 EditorSceneManager.SaveScene(scene, path);
-                Debug.Log($"[Space4X] Created mining demo scene at {path}");
+                UnityDebug.Log($"[Space4X] Created mining demo scene at {path}");
             }
         }
 
@@ -66,7 +67,7 @@ namespace Space4X.Editor
             if (existing != null)
             {
                 EditorGUIUtility.PingObject(existing);
-                Debug.LogWarning("[Space4X] Dev Menu already exists in scene");
+                UnityDebug.LogWarning("[Space4X] Dev Menu already exists in scene");
                 return;
             }
 
@@ -88,12 +89,12 @@ namespace Space4X.Editor
             }
             else
             {
-                Debug.LogWarning("[Space4X] No SpawnRegistry found. Create one via Assets > Create > Space4X > Dev > Spawn Registry");
+                UnityDebug.LogWarning("[Space4X] No SpawnRegistry found. Create one via Assets > Create > Space4X > Dev > Spawn Registry");
             }
 
             Selection.activeGameObject = go;
             EditorGUIUtility.PingObject(go);
-            Debug.Log("[Space4X] Added Dev Menu to scene. Press F12 to toggle.");
+            UnityDebug.Log("[Space4X] Added Dev Menu to scene. Press F12 to toggle.");
         }
 
         [MenuItem(MenuRoot + "Create Default Spawn Registry", false, 201)]
@@ -112,7 +113,7 @@ namespace Space4X.Editor
                 AssetDatabase.CreateAsset(registry, path);
                 AssetDatabase.SaveAssets();
                 EditorGUIUtility.PingObject(registry);
-                Debug.Log($"[Space4X] Created spawn registry at {path}");
+                UnityDebug.Log($"[Space4X] Created spawn registry at {path}");
             }
         }
 
@@ -175,7 +176,7 @@ namespace Space4X.Editor
                 color = new Color(0.1f, 0.1f, 0.15f)
             };
 
-            Debug.Log("[Space4X] Combat demo scene setup complete");
+            UnityDebug.Log("[Space4X] Combat demo scene setup complete");
         }
 
         private static void SetupMiningDemoScene()
@@ -224,7 +225,7 @@ namespace Space4X.Editor
             var devMenuGo = new GameObject("Space4X Dev Menu");
             devMenuGo.AddComponent<DevMenu.Space4XDevMenuUI>();
 
-            Debug.Log("[Space4X] Mining demo scene setup complete");
+            UnityDebug.Log("[Space4X] Mining demo scene setup complete");
         }
 
         private static void CreateECSBootstrap(string name, bool setupCombatDemo = false, bool setupMiningDemo = false)
@@ -256,7 +257,7 @@ namespace Space4X.Editor
             // Check for main camera
             if (UnityEngine.Camera.main == null)
             {
-                Debug.LogWarning("[Space4X] No main camera found in scene");
+                UnityDebug.LogWarning("[Space4X] No main camera found in scene");
                 issues++;
             }
 
@@ -264,7 +265,7 @@ namespace Space4X.Editor
             var pureDotsConfig = Object.FindFirstObjectByType<PureDOTS.Authoring.PureDotsConfigAuthoring>();
             if (pureDotsConfig == null)
             {
-                Debug.LogWarning("[Space4X] No PureDotsConfigAuthoring found. Add one to enable ECS.");
+                UnityDebug.LogWarning("[Space4X] No PureDotsConfigAuthoring found. Add one to enable ECS.");
                 issues++;
             }
 
@@ -272,7 +273,7 @@ namespace Space4X.Editor
             var spatialPartition = Object.FindFirstObjectByType<SpatialPartitionAuthoring>();
             if (spatialPartition == null)
             {
-                Debug.LogWarning("[Space4X] No SpatialPartitionAuthoring found. Spatial queries won't work.");
+                UnityDebug.LogWarning("[Space4X] No SpatialPartitionAuthoring found. Spatial queries won't work.");
                 issues++;
             }
 
@@ -280,7 +281,7 @@ namespace Space4X.Editor
             var cameraBootstrap = Object.FindFirstObjectByType<Space4X.Camera.Space4XCameraBootstrap>();
             if (cameraBootstrap == null)
             {
-                Debug.LogWarning("[Space4X] No Camera Bootstrap in scene. Camera may not initialize properly.");
+                UnityDebug.LogWarning("[Space4X] No Camera Bootstrap in scene. Camera may not initialize properly.");
                 issues++;
             }
 
@@ -288,16 +289,16 @@ namespace Space4X.Editor
             var devMenu = Object.FindFirstObjectByType<DevMenu.Space4XDevMenuUI>();
             if (devMenu == null)
             {
-                Debug.Log("[Space4X] No Dev Menu in scene. Add via Space4X > Add Dev Menu to Scene");
+                UnityDebug.Log("[Space4X] No Dev Menu in scene. Add via Space4X > Add Dev Menu to Scene");
             }
 
             if (issues == 0)
             {
-                Debug.Log("[Space4X] Scene validation passed!");
+                UnityDebug.Log("[Space4X] Scene validation passed!");
             }
             else
             {
-                Debug.LogWarning($"[Space4X] Scene validation found {issues} issue(s)");
+                UnityDebug.LogWarning($"[Space4X] Scene validation found {issues} issue(s)");
             }
         }
     }

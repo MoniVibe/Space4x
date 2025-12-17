@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityCamera = UnityEngine.Camera;
 using PureDOTS.Runtime.Core;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Camera
 {
@@ -63,11 +64,11 @@ namespace Space4X.Camera
                     // Create a rig controller GameObject and attach it
                     var rigGo = new GameObject("Space4X Camera Rig Controller");
                     rigController = rigGo.AddComponent<Space4XCameraRigController>();
-                    Debug.Log("[Space4X Camera] Created rig controller for existing main camera");
+                    UnityDebug.Log("[Space4X Camera] Created rig controller for existing main camera");
                 }
 
                 rigController.TargetCamera = mainCamera;
-                Debug.Log("[Space4X Camera] Assigned existing main camera to rig controller");
+                UnityDebug.Log("[Space4X Camera] Assigned existing main camera to rig controller");
                 return;
             }
 
@@ -84,17 +85,17 @@ namespace Space4X.Camera
                 if (cameraComponent != null && rigController != null)
                 {
                     rigController.TargetCamera = cameraComponent;
-                    Debug.Log("[Space4X Camera] Created camera from prefab and assigned to rig controller");
+                    UnityDebug.Log("[Space4X Camera] Created camera from prefab and assigned to rig controller");
                 }
                 else
                 {
-                    Debug.LogWarning("[Space4X Camera] Camera prefab instantiated but missing Camera or Space4XCameraRigController components");
+                    UnityDebug.LogWarning("[Space4X Camera] Camera prefab instantiated but missing Camera or Space4XCameraRigController components");
                 }
             }
             else
             {
                 // Fallback: create a basic camera setup
-                Debug.LogWarning("[Space4X Camera] No camera prefab assigned, creating fallback camera");
+                UnityDebug.LogWarning("[Space4X Camera] No camera prefab assigned, creating fallback camera");
 
                 var cameraGo = new GameObject("Space4X Main Camera");
                 var camera = cameraGo.AddComponent<UnityCamera>();
@@ -109,7 +110,7 @@ namespace Space4X.Camera
                 cameraGo.transform.position = new Vector3(0, 60, -30);
                 cameraGo.transform.rotation = Quaternion.Euler(45, 0, 0);
 
-                Debug.Log("[Space4X Camera] Created fallback camera setup");
+                UnityDebug.Log("[Space4X Camera] Created fallback camera setup");
             }
         }
 #endif

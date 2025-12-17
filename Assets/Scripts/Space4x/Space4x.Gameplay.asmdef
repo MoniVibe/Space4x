@@ -21,6 +21,8 @@
         "PureDOTS.Input",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.Entities.Graphics",
+        "Unity.Rendering",
+        "Unity.Rendering.Entities",
         "PureDOTS.Camera"
     ],
     "includePlatforms": [],

@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Rendering.Systems
 {
@@ -72,7 +73,7 @@ namespace Space4X.Rendering.Systems
         [BurstDiscard]
         private static void LogRemoved(int invalidCount)
         {
-            Debug.LogWarning(
+            UnityDebug.LogWarning(
                 $"[StripInvalidMaterialMeshInfoSystem] Removed MaterialMeshInfo from {invalidCount} entity(ies) " +
                 "because MaterialMeshInfo was left at its default (0,0). Check catalog assignment.");
         }

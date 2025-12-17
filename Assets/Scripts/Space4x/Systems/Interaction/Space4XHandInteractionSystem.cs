@@ -18,6 +18,7 @@ using UnityEngine.InputSystem;
 using DemoScenario = PureDOTS.Runtime.DemoScenario;
 using DemoScenarioState = PureDOTS.Runtime.DemoScenarioState;
 using Space4XHandState = Space4X.Runtime.Interaction.HandState;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Systems.Interaction
 {
@@ -230,7 +231,7 @@ namespace Space4X.Systems.Interaction
                 state.EntityManager.SetComponentData(hitEntity, grabbedTag);
 
                 var entityType = isThrowable ? "throwable" : "entity";
-                Debug.Log($"[Space4XHandInteractionSystem] Grabbed {entityType} {hitEntity.Index}");
+                UnityDebug.Log($"[Space4XHandInteractionSystem] Grabbed {entityType} {hitEntity.Index}");
             }
         }
 
@@ -306,7 +307,7 @@ namespace Space4X.Systems.Interaction
             {
                 var throwRequestBuffer = state.EntityManager.GetBuffer<ThrowRequest>(handStateEntity);
                 throwRequestBuffer.Add(throwRequest);
-                Debug.Log($"[Space4XHandInteractionSystem] Queued throw request for entity {grabbedEntity.Index} (strength: {throwRequest.Strength}, charge: {handState.ChargeTime:F2}s)");
+                UnityDebug.Log($"[Space4XHandInteractionSystem] Queued throw request for entity {grabbedEntity.Index} (strength: {throwRequest.Strength}, charge: {handState.ChargeTime:F2}s)");
             }
 
             // Remove GrabbedTag

@@ -4,6 +4,7 @@ using Unity.Scenes;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using Space4X.Registry;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -20,7 +21,7 @@ namespace Space4X.Editor
             var activeScene = EditorSceneManager.GetActiveScene();
             if (!activeScene.IsValid())
             {
-                Debug.LogError("No active scene! Please open the DualMiningDemo scene first.");
+                UnityDebug.LogError("No active scene! Please open the DualMiningDemo scene first.");
                 return;
             }
 
@@ -41,12 +42,12 @@ namespace Space4X.Editor
                 EditorSceneManager.SaveScene(newScene, subScenePath);
                 subSceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(subScenePath);
                 EditorSceneManager.CloseScene(newScene, false);
-                Debug.Log($"Created new SubScene asset at {subScenePath}");
+                UnityDebug.Log($"Created new SubScene asset at {subScenePath}");
             }
 
             if (subSceneAsset == null)
             {
-                Debug.LogError($"Failed to locate SubScene asset at {subScenePath}");
+                UnityDebug.LogError($"Failed to locate SubScene asset at {subScenePath}");
                 return;
             }
 
@@ -84,17 +85,17 @@ namespace Space4X.Editor
                     {
                         EditorSceneManager.MoveGameObjectToScene(mainSceneMiningDemo, loadedSubScene);
                         miningDemoGO = mainSceneMiningDemo;
-                        Debug.Log("✓ Moved Space4X_MiningDemo GameObject into the SubScene.");
+                        UnityDebug.Log("✓ Moved Space4X_MiningDemo GameObject into the SubScene.");
                     }
                 }
 
                 if (miningDemoGO == null)
                 {
-                    Debug.LogWarning("⚠ Space4X_MiningDemo GameObject not found inside the SubScene. Run 'Setup Dual Mining Demo Scene' if needed.");
+                    UnityDebug.LogWarning("⚠ Space4X_MiningDemo GameObject not found inside the SubScene. Run 'Setup Dual Mining Demo Scene' if needed.");
                 }
                 else
                 {
-                    Debug.Log("✓ Space4X_MiningDemo exists inside the SubScene.");
+                    UnityDebug.Log("✓ Space4X_MiningDemo exists inside the SubScene.");
                 }
 
                 EditorSceneManager.SaveScene(loadedSubScene);
@@ -110,8 +111,8 @@ namespace Space4X.Editor
             // Save the main scene
             EditorSceneManager.SaveScene(activeScene);
 
-            Debug.Log($"✓ Linked Space4X_MiningDemo_SubScene GameObject to asset {subScenePath}");
-            Debug.Log("✓ AutoLoadScene enabled. Enter Play Mode to bake entities.");
+            UnityDebug.Log($"✓ Linked Space4X_MiningDemo_SubScene GameObject to asset {subScenePath}");
+            UnityDebug.Log("✓ AutoLoadScene enabled. Enter Play Mode to bake entities.");
         }
 
         private static GameObject FindRootObject(Scene scene, string name)

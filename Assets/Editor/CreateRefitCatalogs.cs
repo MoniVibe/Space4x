@@ -3,6 +3,7 @@ using Space4X.Registry;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -30,7 +31,7 @@ namespace Space4X.Editor
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("Space4X Refit catalog assets created successfully!");
+            UnityDebug.Log("Space4X Refit catalog assets created successfully!");
         }
 
         private static void CreateModuleCatalog(string path)
@@ -39,7 +40,7 @@ namespace Space4X.Editor
             var existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
             if (existingPrefab != null)
             {
-                Debug.Log($"ModuleCatalog already exists at {assetPath}");
+                UnityDebug.Log($"ModuleCatalog already exists at {assetPath}");
                 return;
             }
 
@@ -73,7 +74,7 @@ namespace Space4X.Editor
             var existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
             if (existingPrefab != null)
             {
-                Debug.Log($"HullCatalog already exists at {assetPath}");
+                UnityDebug.Log($"HullCatalog already exists at {assetPath}");
                 return;
             }
 
@@ -128,7 +129,7 @@ namespace Space4X.Editor
             var existingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
             if (existingPrefab != null)
             {
-                Debug.Log($"RefitRepairTuning already exists at {assetPath}");
+                UnityDebug.Log($"RefitRepairTuning already exists at {assetPath}");
                 return;
             }
 

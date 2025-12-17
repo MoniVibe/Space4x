@@ -3,6 +3,7 @@ using System.Linq;
 using Space4X.Authoring;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -56,17 +57,17 @@ namespace Space4X.Editor
         {
             if (currentCompanions > budgets.MaxCompanionsPerFrame)
             {
-                Debug.LogError($"Budget exceeded: Companions per frame ({currentCompanions} > {budgets.MaxCompanionsPerFrame})");
+                UnityDebug.LogError($"Budget exceeded: Companions per frame ({currentCompanions} > {budgets.MaxCompanionsPerFrame})");
             }
 
             if (currentPoolSize > budgets.MaxPoolSize)
             {
-                Debug.LogError($"Budget exceeded: Pool size ({currentPoolSize} > {budgets.MaxPoolSize})");
+                UnityDebug.LogError($"Budget exceeded: Pool size ({currentPoolSize} > {budgets.MaxPoolSize})");
             }
 
             if (currentActivePrefabs > budgets.MaxActivePrefabs)
             {
-                Debug.LogError($"Budget exceeded: Active prefabs ({currentActivePrefabs} > {budgets.MaxActivePrefabs})");
+                UnityDebug.LogError($"Budget exceeded: Active prefabs ({currentActivePrefabs} > {budgets.MaxActivePrefabs})");
             }
         }
     }

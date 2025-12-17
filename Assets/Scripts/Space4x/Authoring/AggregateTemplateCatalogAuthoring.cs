@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -55,7 +56,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.templates == null || authoring.templates.Count == 0)
                 {
-                    Debug.LogWarning("AggregateTemplateCatalogAuthoring has no templates defined.");
+                    UnityDebug.LogWarning("AggregateTemplateCatalogAuthoring has no templates defined.");
                     return;
                 }
 

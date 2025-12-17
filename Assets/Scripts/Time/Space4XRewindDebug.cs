@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Space4X.Temporal;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.TimeDebug
 {
@@ -37,7 +38,7 @@ namespace Space4X.TimeDebug
 
         private void Start()
         {
-            Debug.Log("[Space4XRewindDebug] Active");
+            UnityDebug.Log("[Space4XRewindDebug] Active");
         }
 
         private void Update()
@@ -48,12 +49,12 @@ namespace Space4X.TimeDebug
             if (!_isScrubbing && Keyboard.current[keyRewind].wasPressedThisFrame)
             {
                 _isScrubbing = true;
-                Debug.Log($"[Space4XRewindDebug] R key pressed - calling BeginRewindPreview({scrubSpeed:F2}x)");
+                UnityDebug.Log($"[Space4XRewindDebug] R key pressed - calling BeginRewindPreview({scrubSpeed:F2}x)");
                 Space4XTimeAPI.BeginRewindPreview(scrubSpeed);
                 
                 if (logRewindEvents)
                 {
-                    Debug.Log($"[Space4XRewindDebug] Begin rewind preview (speed={scrubSpeed:F2}x)");
+                    UnityDebug.Log($"[Space4XRewindDebug] Begin rewind preview (speed={scrubSpeed:F2}x)");
                 }
             }
 
@@ -69,24 +70,24 @@ namespace Space4X.TimeDebug
             if (_isScrubbing && Keyboard.current[keyRewind].wasReleasedThisFrame)
             {
                 _isScrubbing = false;
-                Debug.Log("[Space4XRewindDebug] R key released - calling EndRewindScrub()");
+                UnityDebug.Log("[Space4XRewindDebug] R key released - calling EndRewindScrub()");
                 Space4XTimeAPI.EndRewindScrub();
                 
                 if (logRewindEvents)
                 {
-                    Debug.Log("[Space4XRewindDebug] End scrub, preview frozen");
+                    UnityDebug.Log("[Space4XRewindDebug] End scrub, preview frozen");
                 }
             }
 
             // Commit from preview
             if (Keyboard.current[keyCommit].wasPressedThisFrame)
             {
-                Debug.Log("[Space4XRewindDebug] Space key pressed - calling CommitRewindFromPreview()");
+                UnityDebug.Log("[Space4XRewindDebug] Space key pressed - calling CommitRewindFromPreview()");
                 Space4XTimeAPI.CommitRewindFromPreview();
                 
                 if (logRewindEvents)
                 {
-                    Debug.Log("[Space4XRewindDebug] Commit rewind from preview");
+                    UnityDebug.Log("[Space4XRewindDebug] Commit rewind from preview");
                 }
                 
                 _isScrubbing = false; // Reset state
@@ -95,12 +96,12 @@ namespace Space4X.TimeDebug
             // Cancel preview
             if (Keyboard.current[keyCancel].wasPressedThisFrame || Keyboard.current.escapeKey.wasPressedThisFrame)
             {
-                Debug.Log("[Space4XRewindDebug] Cancel key pressed - calling CancelRewindPreview()");
+                UnityDebug.Log("[Space4XRewindDebug] Cancel key pressed - calling CancelRewindPreview()");
                 Space4XTimeAPI.CancelRewindPreview();
                 
                 if (logRewindEvents)
                 {
-                    Debug.Log("[Space4XRewindDebug] Cancel rewind preview");
+                    UnityDebug.Log("[Space4XRewindDebug] Cancel rewind preview");
                 }
                 
                 _isScrubbing = false; // Reset state

@@ -29,7 +29,7 @@ public struct RenderCatalogEntry
 ```
 - **File**: `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogTypes.cs`
 - **Purpose**: Maps visual archetype IDs to mesh/material/bounds data
-- **Lookup**: Linear search by ArchetypeId in `ApplyRenderCatalogSystem`
+- **Lookup**: Consumed by `PureDOTS.Rendering.ResolveRenderVariantSystem`, which scans the blob entries when resolving `RenderVariantKey`
 
 ### Space4XRenderCatalogDefinition.Entry (Authoring)
 ```csharp
@@ -52,7 +52,7 @@ public struct Entry
 ```
 Space4XRenderCatalogDefinition (ScriptableObject)
     ↓ [Baker: RenderCatalogBaker]
-RenderCatalogSingleton (IComponentData with BlobAssetReference)
+RenderPresentationCatalog (IComponentData with BlobAssetReference)
     +
 RenderMeshArray shared component
     ↓ [Runtime: PureDOTS.ResolveRenderVariantSystem + ApplyRenderVariantSystem]
@@ -62,7 +62,7 @@ Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 ### Baker Process (RenderCatalogBaker)
 - **Input**: `Space4XRenderCatalogDefinition` assigned to `RenderCatalogAuthoring`
 - **Output**:
-  - `RenderCatalogSingleton` with themed+variant blob reference
+  - `RenderPresentationCatalog` with themed+variant blob reference
   - `RenderMeshArray` shared component with meshes/materials
 - **File**: `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogAuthoring.cs`
 
@@ -98,8 +98,8 @@ Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 ## Runtime Verification
 
 ### System Checks
-- `RenderCatalogSingleton.Blob.IsCreated == true`
-- `RenderCatalogSingleton.RenderMeshArrayEntity` has `RenderMeshArray` shared component with mesh/material references
+- `RenderPresentationCatalog.Blob.IsCreated == true`
+- `RenderPresentationCatalog.RenderMeshArrayEntity` has `RenderMeshArray` shared component with mesh/material references
 
 ### Entity Checks
 - Entities with `RenderSemanticKey` map to valid theme entries (see `Space4XRenderKeys`)
@@ -116,9 +116,7 @@ Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 ## Notes
 
 - **PresentationSystemGroup**: PureDOTS presenter systems run in the presentation phase before Entities Graphics.
-- **Shared Component**: `RenderMeshArray` lives on the entity referenced by `RenderCatalogSingleton.RenderMeshArrayEntity`.
-
-
+- **Shared Component**: `RenderMeshArray` lives on the entity referenced by `RenderPresentationCatalog.RenderMeshArrayEntity`.
 
 
 

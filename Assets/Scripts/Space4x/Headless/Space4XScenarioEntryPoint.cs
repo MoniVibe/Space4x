@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using PureDOTS.Runtime.Scenarios;
 using UnityEngine;
-using UnityDebug = UnityEngine.Debug;
 using SystemEnv = System.Environment;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Headless
 {

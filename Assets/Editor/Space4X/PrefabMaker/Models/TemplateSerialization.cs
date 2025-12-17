@@ -3,6 +3,7 @@ using System.IO;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor.PrefabMakerTool.Models
 {
@@ -22,7 +23,7 @@ namespace Space4X.Editor.PrefabMakerTool.Models
             var json = JsonConvert.SerializeObject(templates, Formatting.Indented);
             File.WriteAllText(filePath, json);
             AssetDatabase.Refresh();
-            Debug.Log($"Exported {templates.Count} templates to {filePath}");
+            UnityDebug.Log($"Exported {templates.Count} templates to {filePath}");
         }
         
         /// <summary>
@@ -32,7 +33,7 @@ namespace Space4X.Editor.PrefabMakerTool.Models
         {
             if (!File.Exists(filePath))
             {
-                Debug.LogError($"Template file not found: {filePath}");
+                UnityDebug.LogError($"Template file not found: {filePath}");
                 return new List<T>();
             }
             
@@ -49,7 +50,7 @@ namespace Space4X.Editor.PrefabMakerTool.Models
             var snapshotPath = $"{catalogPath}/TemplateSnapshot.json";
             var json = JsonConvert.SerializeObject(templatesByCategory, Formatting.Indented);
             File.WriteAllText(snapshotPath, json);
-            Debug.Log($"Saved template snapshot to {snapshotPath}");
+            UnityDebug.Log($"Saved template snapshot to {snapshotPath}");
         }
         
         /// <summary>

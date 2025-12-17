@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -69,7 +70,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.projectiles == null || authoring.projectiles.Count == 0)
                 {
-                    Debug.LogWarning("ProjectileCatalogAuthoring has no projectiles defined.");
+                    UnityDebug.LogWarning("ProjectileCatalogAuthoring has no projectiles defined.");
                     return;
                 }
 

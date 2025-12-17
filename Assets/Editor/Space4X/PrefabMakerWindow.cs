@@ -14,6 +14,7 @@ using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 using System.Text.RegularExpressions;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -589,19 +590,19 @@ namespace Space4X.Editor
                     false
                 );
                 
-                Debug.Log($"Generated prefab for {selectedTemplate.id}. Created: {result.CreatedCount}, Updated: {result.UpdatedCount}");
+                UnityDebug.Log($"Generated prefab for {selectedTemplate.id}. Created: {result.CreatedCount}, Updated: {result.UpdatedCount}");
                 if (result.Errors.Count > 0)
                 {
-                    Debug.LogError($"Generation errors: {string.Join("\n", result.Errors)}");
+                    UnityDebug.LogError($"Generation errors: {string.Join("\n", result.Errors)}");
                 }
                 if (result.Warnings.Count > 0)
                 {
-                    Debug.LogWarning($"Generation warnings: {string.Join("\n", result.Warnings)}");
+                    UnityDebug.LogWarning($"Generation warnings: {string.Join("\n", result.Warnings)}");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Prefab generation failed: {ex.Message}\n{ex.StackTrace}");
+                UnityDebug.LogError($"Prefab generation failed: {ex.Message}\n{ex.StackTrace}");
             }
         }
         
@@ -747,7 +748,7 @@ namespace Space4X.Editor
                 }
             }
 
-            Debug.Log($"Filter matched {selectedPrefabPaths.Count} prefabs");
+            UnityDebug.Log($"Filter matched {selectedPrefabPaths.Count} prefabs");
         }
 
         private void FixAllInvalidFasteners()
@@ -755,7 +756,7 @@ namespace Space4X.Editor
             var violations = IdPolicyEnforcer.CheckIdPolicy();
             var fastenerViolations = violations.Where(v => v.ViolationType == "InvalidCase" || v.ViolationType == "InvalidPath").ToList();
             IdPolicyEnforcer.FixViolations(fastenerViolations, false);
-            Debug.Log($"Fixed {fastenerViolations.Count} invalid fastener violations");
+            UnityDebug.Log($"Fixed {fastenerViolations.Count} invalid fastener violations");
         }
 
         private void NormalizeAllIds()
@@ -763,7 +764,7 @@ namespace Space4X.Editor
             var violations = IdPolicyEnforcer.CheckIdPolicy();
             var idViolations = violations.Where(v => v.ViolationType == "InvalidCase").ToList();
             IdPolicyEnforcer.FixViolations(idViolations, false);
-            Debug.Log($"Normalized {idViolations.Count} IDs");
+            UnityDebug.Log($"Normalized {idViolations.Count} IDs");
         }
 
         private void DrawValidateTab()
@@ -904,7 +905,7 @@ namespace Space4X.Editor
                     }
                     else
                     {
-                        Debug.LogWarning($"Prefab not found at path: {issue.PrefabPath}");
+                        UnityDebug.LogWarning($"Prefab not found at path: {issue.PrefabPath}");
                     }
                 }
             }
@@ -932,11 +933,11 @@ namespace Space4X.Editor
             {
                 Selection.objects = prefabs.ToArray();
                 EditorGUIUtility.PingObject(prefabs[0]);
-                Debug.Log($"Selected {prefabs.Count} prefabs with {severity} issues");
+                UnityDebug.Log($"Selected {prefabs.Count} prefabs with {severity} issues");
             }
             else
             {
-                Debug.Log($"No prefabs found with {severity} issues");
+                UnityDebug.Log($"No prefabs found with {severity} issues");
             }
         }
 
@@ -945,15 +946,15 @@ namespace Space4X.Editor
             try
             {
                 var result = PrefabMaker.GenerateAll(catalogPath, placeholdersOnly, overwriteMissingSockets, dryRun);
-                Debug.Log($"Prefab generation complete. Created: {result.CreatedCount}, Updated: {result.UpdatedCount}, Skipped: {result.SkippedCount}");
+                UnityDebug.Log($"Prefab generation complete. Created: {result.CreatedCount}, Updated: {result.UpdatedCount}, Skipped: {result.SkippedCount}");
                 if (dryRun)
                 {
-                    Debug.Log("DRY RUN: No files were written.");
+                    UnityDebug.Log("DRY RUN: No files were written.");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Prefab generation failed: {ex.Message}\n{ex.StackTrace}");
+                UnityDebug.LogError($"Prefab generation failed: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -1012,7 +1013,7 @@ namespace Space4X.Editor
             };
 
             var result = PrefabMaker.GenerateAll(options);
-            Debug.Log($"Preview generation complete: {result.CreatedCount} would be created, {result.UpdatedCount} would be updated");
+            UnityDebug.Log($"Preview generation complete: {result.CreatedCount} would be created, {result.UpdatedCount} would be updated");
         }
 
         private void ExportPreview()
@@ -1024,7 +1025,7 @@ namespace Space4X.Editor
             {
                 var json = Newtonsoft.Json.JsonConvert.SerializeObject(seed, Newtonsoft.Json.Formatting.Indented);
                 System.IO.File.WriteAllText(seedPath, json);
-                Debug.Log($"Preview seed saved to {seedPath}");
+                UnityDebug.Log($"Preview seed saved to {seedPath}");
             }
         }
 
@@ -1037,7 +1038,7 @@ namespace Space4X.Editor
             if (!string.IsNullOrEmpty(path))
             {
                 File.WriteAllText(path, json);
-                Debug.Log($"Validation report saved to {path}");
+                UnityDebug.Log($"Validation report saved to {path}");
             }
         }
 
@@ -1133,7 +1134,7 @@ namespace Space4X.Editor
         {
             if (lastComboResult?.Combos == null || selectedAggregateIds.Count == 0)
             {
-                Debug.LogWarning("No combos selected for token prefab generation");
+                UnityDebug.LogWarning("No combos selected for token prefab generation");
                 return;
             }
 
@@ -1144,13 +1145,13 @@ namespace Space4X.Editor
                     lastComboResult.Combos, 
                     profilesDryRun);
                 
-                Debug.Log($"Materialized {selectedAggregateIds.Count} token prefabs");
+                UnityDebug.Log($"Materialized {selectedAggregateIds.Count} token prefabs");
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Token prefab generation failed: {ex.Message}\n{ex.StackTrace}");
+                UnityDebug.LogError($"Token prefab generation failed: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -1159,15 +1160,15 @@ namespace Space4X.Editor
             try
             {
                 lastComboResult = AggregateComboBuilder.BuildComboTable(catalogPath, profilesDryRun);
-                Debug.Log($"Combo table build complete. Created: {lastComboResult.CreatedCount}, Invalid: {lastComboResult.InvalidCount}");
+                UnityDebug.Log($"Combo table build complete. Created: {lastComboResult.CreatedCount}, Invalid: {lastComboResult.InvalidCount}");
                 if (profilesDryRun)
                 {
-                    Debug.Log("DRY RUN: No files were written.");
+                    UnityDebug.Log("DRY RUN: No files were written.");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Combo table build failed: {ex.Message}\n{ex.StackTrace}");
+                UnityDebug.LogError($"Combo table build failed: {ex.Message}\n{ex.StackTrace}");
             }
         }
     }

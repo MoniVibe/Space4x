@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -75,7 +76,7 @@ namespace Space4X.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
 
-            Debug.Log("[Space4XOrbitDebugSceneSetup] Scene setup complete. Camera at (-15, 21, -15) looking at origin.");
+            UnityDebug.Log("[Space4XOrbitDebugSceneSetup] Scene setup complete. Camera at (-15, 21, -15) looking at origin.");
         }
     }
 }

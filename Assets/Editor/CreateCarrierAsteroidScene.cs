@@ -4,6 +4,7 @@ using Space4X.Authoring;
 using Space4X.Registry;
 using PureDOTS.Authoring;
 using PureDOTS.Runtime.Spatial;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -145,9 +146,9 @@ namespace Space4X.Editor
                 visualManifest.AddComponent<PureDOTS.Authoring.MiningVisualManifestAuthoring>();
             }
             
-            Debug.Log("✓ Created MiningDemoSetup with 2 carriers and 5 asteroids");
-            Debug.Log("  Carriers: CARRIER-1 (center), CARRIER-2 (offset)");
-            Debug.Log("  Asteroids: 2 Minerals, 1 RareMetals, 1 EnergyCrystals, 1 OrganicMatter");
+            UnityDebug.Log("✓ Created MiningDemoSetup with 2 carriers and 5 asteroids");
+            UnityDebug.Log("  Carriers: CARRIER-1 (center), CARRIER-2 (offset)");
+            UnityDebug.Log("  Asteroids: 2 Minerals, 1 RareMetals, 1 EnergyCrystals, 1 OrganicMatter");
             
             UnityEditor.Selection.activeGameObject = root;
         }

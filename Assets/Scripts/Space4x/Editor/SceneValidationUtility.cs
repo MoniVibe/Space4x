@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -170,20 +171,20 @@ namespace Space4X.Editor
 
             if (results.Count == 0)
             {
-                Debug.Log("[SceneValidation] All scenes passed validation!");
+                UnityDebug.Log("[SceneValidation] All scenes passed validation!");
                 return;
             }
 
-            Debug.LogWarning($"[SceneValidation] Found issues in {results.Count} scene(s):");
+            UnityDebug.LogWarning($"[SceneValidation] Found issues in {results.Count} scene(s):");
 
             foreach (var kvp in results)
             {
-                Debug.LogWarning($"\nScene: {kvp.Key}");
+                UnityDebug.LogWarning($"\nScene: {kvp.Key}");
                 foreach (var issue in kvp.Value)
                 {
                     var logMethod = issue.Severity == ValidationSeverity.Error ? 
-                        (System.Action<string>)Debug.LogError : 
-                        Debug.LogWarning;
+                        (System.Action<string>)UnityDebug.LogError : 
+                        UnityDebug.LogWarning;
                     logMethod($"  [{issue.Severity}] {issue.Message} ({issue.GameObjectPath})");
                 }
             }

@@ -288,7 +288,7 @@ Unity -batchmode -projectPath . -executeMethod PureDOTS.Runtime.Devtools.Scenari
 
 ### Integration Gaps
 1. **Scenario Runner**: Needs broader scenario support beyond refit demo
-2. **Presentation Binding**: `Space4XPresentationBinding` system exists but needs prefab generation
+2. **Presentation Pipeline**: Semantic → Variant → Presenter contract is in place, but Space4X still needs a filled `RenderPresentationCatalog` and theme data
 3. **HUD/Debug**: Should reuse PureDOTS `DebugDisplayReader` + `RewindTimelineDebug`
 
 ---
@@ -414,4 +414,3 @@ Space4X is a well-structured DOTS-based 4X game with:
 **Ready for**: Fleshing out core loops, implementing missing mechanics, expanding scenario support, and building out the game vision.
 
 **Next focus areas**: Movement system integration, completing design pillars, extending scenario support, and implementing prefab maker.
-

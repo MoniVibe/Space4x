@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -46,7 +47,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.weapons == null || authoring.weapons.Count == 0)
                 {
-                    Debug.LogWarning("WeaponCatalogAuthoring has no weapons defined.");
+                    UnityDebug.LogWarning("WeaponCatalogAuthoring has no weapons defined.");
                     return;
                 }
 

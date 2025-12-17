@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Motivation;
 using PureDOTS.Systems.Motivation;
 using Unity.Entities;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Motivation
 {
@@ -110,7 +111,7 @@ namespace Space4X.Motivation
                 entityManager,
                 catalogBlob);
 
-            Debug.Log("[Space4XMotivationBootstrap] Motivation system initialized with Space4X-specific catalog.");
+            UnityDebug.Log("[Space4XMotivationBootstrap] Motivation system initialized with Space4X-specific catalog.");
         }
     }
 }

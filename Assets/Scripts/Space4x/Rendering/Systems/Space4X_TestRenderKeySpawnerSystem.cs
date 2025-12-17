@@ -10,6 +10,7 @@ using UnityEngine;
 using PureDOTS.Runtime.Core;
 using Space4X.Rendering;
 using Unity.Rendering;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Rendering.Systems
 {
@@ -97,7 +98,7 @@ namespace Space4X.Rendering.Systems
 
                     ecb.AddComponent(e, new RenderSemanticKey
                     {
-                        Value = Space4XRenderKeys.Carrier
+                        Value = (ushort)Space4XRenderKeys.Carrier
                     });
 
                     ecb.AddComponent(e, new RenderVariantKey
@@ -135,18 +136,6 @@ namespace Space4X.Rendering.Systems
                         ShouldRender = 1
                     });
 
-                    ecb.AddComponent(e, new ShouldRenderTag());
-
-                    ecb.AddComponent(e, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0, 0));
-                    var defaultBounds = new Unity.Mathematics.AABB
-                    {
-                        Center = float3.zero,
-                        Extents = new float3(1f)
-                    };
-                    ecb.AddComponent(e, new RenderBounds { Value = defaultBounds });
-                    ecb.AddComponent(e, new WorldRenderBounds { Value = defaultBounds });
-                    ecb.AddSharedComponent(e, RenderFilterSettings.Default);
-
                     ecb.AddComponent(e, new RenderTint { Value = new float4(1f, 1f, 1f, 1f) });
                     ecb.AddComponent(e, new RenderTexSlice { Value = 0 });
                     ecb.AddComponent(e, new RenderUvTransform { Value = new float4(1f, 1f, 0f, 0f) });
@@ -170,7 +159,7 @@ namespace Space4X.Rendering.Systems
         [BurstDiscard]
         private static void LogSpawnMessage(int count)
         {
-            Debug.Log($"[Space4X_TestRenderKeySpawnerSystem] Spawned {count} debug RenderKey entities in formation.");
+            UnityDebug.Log($"[Space4X_TestRenderKeySpawnerSystem] Spawned {count} debug RenderKey entities in formation.");
         }
 #endif
     }

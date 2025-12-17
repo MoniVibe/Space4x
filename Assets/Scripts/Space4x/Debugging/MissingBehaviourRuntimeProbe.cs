@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Debugging
 {
@@ -18,7 +19,7 @@ namespace Space4X.Debugging
                 {
                     if (components[i] == null)
                     {
-                        Debug.LogError($"[MissingBehaviourRuntimeProbe] Missing script on GO: {GetPath(go)} (component index {i})");
+                        UnityDebug.LogError($"[MissingBehaviourRuntimeProbe] Missing script on GO: {GetPath(go)} (component index {i})");
                         return;
                     }
                 }

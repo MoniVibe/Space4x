@@ -2,6 +2,7 @@
 using System;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -70,7 +71,7 @@ namespace Space4X.Editor
 
             serializedTagManager.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssets();
-            Debug.Log("[Space4XDefaultTagGuard] Removed duplicate Unity default tags from TagManager asset.");
+            UnityDebug.Log("[Space4XDefaultTagGuard] Removed duplicate Unity default tags from TagManager asset.");
         }
 
         private static bool IsUnityDefaultTag(string tagValue)

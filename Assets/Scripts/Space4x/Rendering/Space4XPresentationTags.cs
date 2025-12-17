@@ -36,11 +36,6 @@ namespace Space4X.Presentation
     public struct FleetImpostorTag : IComponentData { }
 
     /// <summary>
-    /// Marker component for entities that should be rendered (used with render density).
-    /// </summary>
-    public struct ShouldRenderTag : IComponentData { }
-
-    /// <summary>
     /// Marker component for selected entities.
     /// </summary>
     public struct SelectedTag : IComponentData { }
@@ -309,4 +304,3 @@ namespace Space4X.Presentation
     /// </summary>
     public struct FleetTag : IComponentData { }
 }
-

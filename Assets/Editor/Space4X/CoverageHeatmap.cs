@@ -9,6 +9,7 @@ using Space4X.Registry;
 using Space4X.Presentation.Config;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -231,20 +232,20 @@ namespace Space4X.Editor
 
         public static void PrintReport(CoverageReport report)
         {
-            Debug.Log("=== Prefab Maker Coverage Heatmap ===");
-            Debug.Log($"Overall Coverage: {report.OverallCoverage:F1}%");
-            Debug.Log("");
+            UnityDebug.Log("=== Prefab Maker Coverage Heatmap ===");
+            UnityDebug.Log($"Overall Coverage: {report.OverallCoverage:F1}%");
+            UnityDebug.Log("");
 
             foreach (var kvp in report.Categories.OrderBy(c => c.Key))
             {
                 var cat = kvp.Value;
-                Debug.Log($"{kvp.Key}:");
-                Debug.Log($"  Catalog Entries: {cat.CatalogCount}");
-                Debug.Log($"  Prefab Coverage: {cat.PrefabCoverage:F1}% ({cat.PrefabCount}/{cat.CatalogCount})");
-                Debug.Log($"  Binding Coverage: {cat.BindingCoverage:F1}% ({cat.BindingCount}/{cat.CatalogCount})");
+                UnityDebug.Log($"{kvp.Key}:");
+                UnityDebug.Log($"  Catalog Entries: {cat.CatalogCount}");
+                UnityDebug.Log($"  Prefab Coverage: {cat.PrefabCoverage:F1}% ({cat.PrefabCount}/{cat.CatalogCount})");
+                UnityDebug.Log($"  Binding Coverage: {cat.BindingCoverage:F1}% ({cat.BindingCount}/{cat.CatalogCount})");
                 if (cat.MissingPrefabs.Count > 0)
                 {
-                    Debug.LogWarning($"  Missing Prefabs: {string.Join(", ", cat.MissingPrefabs.Take(10))}" + 
+                    UnityDebug.LogWarning($"  Missing Prefabs: {string.Join(", ", cat.MissingPrefabs.Take(10))}" + 
                                    (cat.MissingPrefabs.Count > 10 ? $" ... ({cat.MissingPrefabs.Count - 10} more)" : ""));
                 }
             }

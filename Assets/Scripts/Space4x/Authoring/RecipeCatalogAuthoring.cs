@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -37,7 +38,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.recipes == null || authoring.recipes.Count == 0)
                 {
-                    Debug.LogWarning("RecipeCatalogAuthoring has no recipes defined.");
+                    UnityDebug.LogWarning("RecipeCatalogAuthoring has no recipes defined.");
                     return;
                 }
 

@@ -5,6 +5,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
 {
@@ -61,7 +62,7 @@ namespace Space4X.Authoring
             {
                 if (authoring == null || authoring.modules == null || authoring.modules.Count == 0)
                 {
-                    Debug.LogWarning("ModuleCatalogAuthoring has no modules defined.");
+                    UnityDebug.LogWarning("ModuleCatalogAuthoring has no modules defined.");
                     return;
                 }
 

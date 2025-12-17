@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Space4X.Authoring;
 using UnityEditor;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Editor
 {
@@ -60,7 +61,7 @@ namespace Space4X.Editor
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"Failed to load spawn pack {file}: {ex.Message}");
+                    UnityDebug.LogWarning($"Failed to load spawn pack {file}: {ex.Message}");
                 }
             }
 

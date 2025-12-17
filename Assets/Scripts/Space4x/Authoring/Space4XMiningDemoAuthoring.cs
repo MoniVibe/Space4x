@@ -5,20 +5,17 @@ using PureDOTS.Runtime.Spatial;
 using Space4X.Presentation;
 using Space4X.Runtime;
 using Space4X.Demo;
-using Space4X.Rendering;
 using MiningPrimitive = Space4X.Presentation.Space4XMiningPrimitive;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
-using Hash128 = Unity.Entities.Hash128;
-using PresentationBinding = Space4X.Presentation.Space4XPresentationBinding;
-using PresentationFlagUtility = Space4X.Presentation.Space4XPresentationFlagUtility;
 using RenderKeys = Space4X.Rendering.Space4XRenderKeys;
 using RenderKey = PureDOTS.Rendering.RenderKey;
 using RenderFlags = PureDOTS.Rendering.RenderFlags;
 using Space4X.Rendering.Catalog;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Registry
 {
@@ -348,11 +345,11 @@ namespace Space4X.Registry
 
             public override void Bake(Space4XMiningDemoAuthoring authoring)
             {
-                Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Baking... Adding RenderKey type: {typeof(RenderKey).FullName}");
+                UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Baking... Adding RenderKey type: {typeof(RenderKey).FullName}");
 #if UNITY_EDITOR
                 if (!s_loggedStart)
                 {
-                    Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Starting bake. Carriers: {authoring.Carriers?.Length ?? 0}, Vessels: {authoring.MiningVessels?.Length ?? 0}, Asteroids: {authoring.Asteroids?.Length ?? 0}");
+                    UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Starting bake. Carriers: {authoring.Carriers?.Length ?? 0}, Vessels: {authoring.MiningVessels?.Length ?? 0}, Asteroids: {authoring.Asteroids?.Length ?? 0}");
                     s_loggedStart = true;
                 }
 #endif
@@ -388,7 +385,7 @@ namespace Space4X.Registry
 #if UNITY_EDITOR
                 if (!s_loggedComplete)
                 {
-                    Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Bake complete.");
+                    UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Bake complete.");
                     s_loggedComplete = true;
                 }
 #endif
@@ -398,9 +395,9 @@ namespace Space4X.Registry
             {
                 var configEntity = GetEntity(TransformUsageFlags.None);
                 
-                // Ensure RenderCatalogSingleton exists on this entity or create a new one if needed
+                // Ensure RenderPresentationCatalog exists on this entity or create a new one if needed
                 // But typically RenderCatalog is baked separately. 
-                // Just in case, let's add a dummy RenderCatalogSingleton if it doesn't exist to satisfy the system?
+                // Just in case, let's add a dummy RenderPresentationCatalog if it doesn't exist to satisfy the system?
                 // No, that would be wrong. The system needs a valid blob.
                 
                 var visuals = authoring.visuals;
@@ -422,7 +419,7 @@ namespace Space4X.Registry
 #if UNITY_EDITOR
                 if (!s_loggedVisual)
                 {
-                    Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Added Space4XMiningVisualConfig singleton to entity {configEntity.Index}");
+                    UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Added Space4XMiningVisualConfig singleton to entity {configEntity.Index}");
                     s_loggedVisual = true;
                 }
 #endif
@@ -435,13 +432,11 @@ namespace Space4X.Registry
                     return;
                 }
 
-                var visuals = authoring.visuals;
-
                 foreach (var carrier in authoring.Carriers)
                 {
                     if (string.IsNullOrWhiteSpace(carrier.CarrierId))
                     {
-                        Debug.LogWarning($"Carrier definition has empty CarrierId, skipping.");
+                        UnityDebug.LogWarning($"Carrier definition has empty CarrierId, skipping.");
                         continue;
                     }
 
@@ -518,23 +513,12 @@ namespace Space4X.Registry
                     AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Carrier });
                     AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
 
-                    var carrierBinding = CreatePresentationBinding(
-                        visuals.CarrierDescriptorKey,
-                        visuals.CarrierScale,
-                        visuals.CarrierColor,
-                        (uint)math.hash(new float4(carrier.Position, carrier.Speed)),
-                        $"carrier '{carrier.CarrierId}'");
-                    if (carrierBinding.HasValue)
-                    {
-                        AddComponent(entity, carrierBinding.Value);
-                    }
-
                     // Store entity in map for vessel references
                     _carrierEntityMap.TryAdd(carrierIdBytes, entity);
 #if UNITY_EDITOR
                     if (!s_loggedCarriers)
                     {
-                        Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Created carrier entity: {carrier.CarrierId} at position {carrier.Position}, Entity={entity.Index}");
+                        UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Created carrier entity: {carrier.CarrierId} at position {carrier.Position}, Entity={entity.Index}");
                         s_loggedCarriers = true;
                     }
 #endif
@@ -548,13 +532,11 @@ namespace Space4X.Registry
                     return;
                 }
 
-                var visuals = authoring.visuals;
-
                 foreach (var vessel in authoring.MiningVessels)
                 {
                     if (string.IsNullOrWhiteSpace(vessel.VesselId))
                     {
-                        Debug.LogWarning($"Mining vessel definition has empty VesselId, skipping.");
+                        UnityDebug.LogWarning($"Mining vessel definition has empty VesselId, skipping.");
                         continue;
                     }
 
@@ -590,7 +572,7 @@ namespace Space4X.Registry
                         }
                         else
                         {
-                            Debug.LogWarning($"Mining vessel '{vessel.VesselId}' references carrier '{vessel.CarrierId}' which doesn't exist. Vessel will not function.");
+                            UnityDebug.LogWarning($"Mining vessel '{vessel.VesselId}' references carrier '{vessel.CarrierId}' which doesn't exist. Vessel will not function.");
                         }
                     }
                     
@@ -669,22 +651,11 @@ namespace Space4X.Registry
                     AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Miner });
                     AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
 
-                    var vesselBinding = CreatePresentationBinding(
-                        visuals.MiningVesselDescriptorKey,
-                        visuals.MiningVesselScale,
-                        visuals.MiningVesselColor,
-                        (uint)math.hash(new float4(vessel.Position, vessel.Speed)),
-                        $"mining vessel '{vessel.VesselId}'");
-                    if (vesselBinding.HasValue)
-                    {
-                        AddComponent(entity, vesselBinding.Value);
-                    }
-
                     AddBuffer<SpawnResourceRequest>(entity);
 #if UNITY_EDITOR
                     if (!s_loggedVessels)
                     {
-                        Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Created mining vessel entity: {vessel.VesselId} at position {vessel.Position}, Entity={entity.Index}, Carrier={carrierEntity.Index}");
+                        UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Created mining vessel entity: {vessel.VesselId} at position {vessel.Position}, Entity={entity.Index}, Carrier={carrierEntity.Index}");
                         s_loggedVessels = true;
                     }
 #endif
@@ -698,13 +669,11 @@ namespace Space4X.Registry
                     return;
                 }
 
-                var visuals = authoring.visuals;
-
                 foreach (var asteroid in authoring.Asteroids)
                 {
                     if (string.IsNullOrWhiteSpace(asteroid.AsteroidId))
                     {
-                        Debug.LogWarning($"Asteroid definition has empty AsteroidId, skipping.");
+                        UnityDebug.LogWarning($"Asteroid definition has empty AsteroidId, skipping.");
                         continue;
                     }
 
@@ -752,21 +721,10 @@ namespace Space4X.Registry
 
                     AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Asteroid });
                     AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
-
-                    var asteroidBinding = CreatePresentationBinding(
-                        visuals.AsteroidDescriptorKey,
-                        visuals.AsteroidScale,
-                        visuals.AsteroidColor,
-                        (uint)math.hash(asteroid.Position),
-                        $"asteroid '{asteroid.AsteroidId}'");
-                    if (asteroidBinding.HasValue)
-                    {
-                        AddComponent(entity, asteroidBinding.Value);
-                    }
 #if UNITY_EDITOR
                     if (!s_loggedAsteroids)
                     {
-                        Debug.Log($"[Space4XMiningDemoAuthoring.Baker] Created asteroid entity: {asteroid.AsteroidId} at position {asteroid.Position}, Entity={entity.Index}");
+                        UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Created asteroid entity: {asteroid.AsteroidId} at position {asteroid.Position}, Entity={entity.Index}");
                         s_loggedAsteroids = true;
                     }
 #endif
@@ -898,45 +856,6 @@ namespace Space4X.Registry
                         });
                     }
                 }
-            }
-
-            private PresentationBinding? CreatePresentationBinding(string descriptorKey, float scale, Color color, uint variantSeed, string typeName)
-            {
-                var descriptor = ResolveDescriptor(descriptorKey, typeName);
-                if (!descriptor.IsValid)
-                {
-#if UNITY_EDITOR
-                    Debug.LogWarning($"[Space4XMiningDemoAuthoring.Baker] Unable to resolve descriptor for {typeName}. Presentation binding skipped.");
-#endif
-                    return null;
-                }
-
-                var binding = PresentationBinding.Create(descriptor);
-                binding.ScaleMultiplier = math.max(0.05f, scale);
-                binding.Tint = ToFloat4(color);
-                binding.VariantSeed = variantSeed;
-                binding.Flags = PresentationFlagUtility.WithOverrides(true, true, false);
-                return binding;
-            }
-
-            private Hash128 ResolveDescriptor(string descriptorKey, string typeName)
-            {
-                var key = string.IsNullOrWhiteSpace(descriptorKey) ? string.Empty : descriptorKey.Trim();
-                if (!string.IsNullOrEmpty(key) && PresentationKeyUtility.TryParseKey(key, out var descriptor, out _))
-                {
-                    return descriptor;
-                }
-
-                const string fallbackKey = "space4x.placeholder";
-                if (PresentationKeyUtility.TryParseKey(fallbackKey, out var fallbackDescriptor, out _))
-                {
-#if UNITY_EDITOR
-                    Debug.LogWarning($"[Space4XMiningDemoAuthoring.Baker] Descriptor '{descriptorKey}' for {typeName} is invalid. Falling back to '{fallbackKey}'.");
-#endif
-                    return fallbackDescriptor;
-                }
-
-                return default;
             }
 
             private static FixedString64Bytes ResolveResourceId(MiningVesselDefinition vessel)

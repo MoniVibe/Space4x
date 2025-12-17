@@ -8,6 +8,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using Random = Unity.Mathematics.Random;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Systems.Dev
 {
@@ -64,7 +65,7 @@ namespace Space4X.Systems.Dev
                         SetupCelestial(ref ecb, entity, templateId, position, ref random);
                         break;
                     default:
-                        Debug.LogWarning($"[DevSpawnSystem] Unknown category: {category}");
+                        UnityDebug.LogWarning($"[DevSpawnSystem] Unknown category: {category}");
                         break;
                 }
             }
@@ -174,7 +175,7 @@ namespace Space4X.Systems.Dev
             // Resource storage
             ecb.AddBuffer<ResourceStorage>(entity);
 
-            Debug.Log($"[DevSpawnSystem] Created carrier {carrierId} at {position}");
+            UnityDebug.Log($"[DevSpawnSystem] Created carrier {carrierId} at {position}");
         }
 
         private static void SetupCapitalShip(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
@@ -278,7 +279,7 @@ namespace Space4X.Systems.Dev
             ecb.AddBuffer<AffiliationTag>(entity);
             AddFactionTag(ref ecb, entity, factionId);
 
-            Debug.Log($"[DevSpawnSystem] Created capital ship {shipId} ({templateId}) at {position}");
+            UnityDebug.Log($"[DevSpawnSystem] Created capital ship {shipId} ({templateId}) at {position}");
         }
 
         private static void SetupStrikeCraft(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
@@ -384,7 +385,7 @@ namespace Space4X.Systems.Dev
             ecb.AddBuffer<AffiliationTag>(entity);
             AddFactionTag(ref ecb, entity, factionId);
 
-            Debug.Log($"[DevSpawnSystem] Created strike craft {craftId} ({templateId}) at {position}");
+            UnityDebug.Log($"[DevSpawnSystem] Created strike craft {craftId} ({templateId}) at {position}");
         }
 
         private static void SetupSupportVessel(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
@@ -455,7 +456,7 @@ namespace Space4X.Systems.Dev
             ecb.AddBuffer<AffiliationTag>(entity);
             AddFactionTag(ref ecb, entity, factionId);
 
-            Debug.Log($"[DevSpawnSystem] Created support vessel {vesselId} ({templateId}) at {position}");
+            UnityDebug.Log($"[DevSpawnSystem] Created support vessel {vesselId} ({templateId}) at {position}");
         }
 
         private static void SetupStation(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
@@ -502,7 +503,7 @@ namespace Space4X.Systems.Dev
             // Resources
             ecb.AddBuffer<ResourceStorage>(entity);
 
-            Debug.Log($"[DevSpawnSystem] Created station {stationId} ({templateId}) at {position}");
+            UnityDebug.Log($"[DevSpawnSystem] Created station {stationId} ({templateId}) at {position}");
         }
 
         private static void SetupCelestial(ref EntityCommandBuffer ecb, Entity entity, string templateId, float3 position, ref Random random)
@@ -546,7 +547,7 @@ namespace Space4X.Systems.Dev
                 MaxSimultaneousWorkers = 4
             });
 
-            Debug.Log($"[DevSpawnSystem] Created celestial {celestialId} ({templateId}) at {position}");
+            UnityDebug.Log($"[DevSpawnSystem] Created celestial {celestialId} ({templateId}) at {position}");
         }
 
         private static void AddFactionTag(ref EntityCommandBuffer ecb, Entity entity, string factionId)
