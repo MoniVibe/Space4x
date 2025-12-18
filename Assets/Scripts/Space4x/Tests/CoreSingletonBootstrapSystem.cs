@@ -157,13 +157,28 @@ namespace Space4X.Tests
         public static void EnsureTelemetryStream(EntityManager entityManager)
         {
             using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<TelemetryStream>());
-            if (!query.IsEmptyIgnoreFilter)
+            Entity telemetryEntity;
+
+            if (query.IsEmptyIgnoreFilter)
             {
-                return;
+                telemetryEntity = entityManager.CreateEntity(typeof(TelemetryStream));
+                entityManager.SetComponentData(telemetryEntity, new TelemetryStream
+                {
+                    Version = 0,
+                    LastTick = 0
+                });
+            }
+            else
+            {
+                telemetryEntity = query.GetSingletonEntity();
             }
 
-            var entity = entityManager.CreateEntity(typeof(TelemetryStream));
-            entityManager.AddBuffer<TelemetryMetric>(entity);
+            if (!entityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
+            {
+                entityManager.AddBuffer<TelemetryMetric>(telemetryEntity);
+            }
+
+            TelemetryStreamUtility.EnsureEventStream(entityManager);
         }
 
         private static void EnsureSingleton<T>(EntityManager entityManager, T data)

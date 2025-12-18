@@ -50,8 +50,8 @@ namespace Space4X.Mining
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            // Gate by DemoScenarioState.EnableSpace4x
-            if (!SystemAPI.TryGetSingleton<DemoScenarioState>(out var scenario) || !scenario.EnableSpace4x)
+            // Gate by ScenarioState.EnableSpace4x
+            if (!SystemAPI.TryGetSingleton<ScenarioState>(out var scenario) || !scenario.EnableSpace4x)
             {
                 return;
             }

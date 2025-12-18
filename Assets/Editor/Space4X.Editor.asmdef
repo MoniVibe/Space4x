@@ -4,6 +4,7 @@
     "references": [
         "PureDOTS.Authoring",
         "PureDOTS.Runtime",
+        "PureDOTS.Rendering",
         "PureDOTS.Systems",
         "PureDOTS.Runtime.Demo",
         "PureDOTS.Camera",

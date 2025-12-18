@@ -6,7 +6,8 @@
         "Unity.Transforms",
         "Unity.Collections",
         "Space4X.Gameplay",
-        "PureDOTS.Runtime"
+        "PureDOTS.Runtime",
+        "PureDOTS.Rendering"
     ],
     "includePlatforms": [
         "Editor"
@@ -23,4 +24,3 @@
         "TestAssemblies"
     ]
 }
-

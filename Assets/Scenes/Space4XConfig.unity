@@ -666,12 +666,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1414351674}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a783286e3dc03f439b2cce80e984f68, type: 3}
+  m_Script: {fileID: 11500000, guid: ee2690a412164916b5cfbc5b90a8b935, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Rendering.Catalog.RenderCatalogAuthoring
-  CatalogDefinition: {fileID: 11400000, guid: 19bcb25c76a805443b2306ad910b34d6, type: 2}
-  fallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
-  fallbackMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogAuthoring
+  CatalogDefinition: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

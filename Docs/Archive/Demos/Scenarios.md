@@ -205,7 +205,7 @@ Scenarios are JSON files that define deterministic demo setups. They are loaded 
 ### Loading Scenarios
 
 ```csharp
-// DemoBootstrap loads scenario
+// Scenario bootstrap (DemoBootstrap) loads scenario
 var scenarioPath = demoOptions.ScenarioPath;
 var scenarioRunner = World.GetOrCreateSystemManaged<ScenarioRunner>();
 scenarioRunner.LoadScenario(scenarioPath);
@@ -274,4 +274,3 @@ After completion:
 - Existing scenario docs: `Docs/Scenarios/MiningCombatDemo.md`, `Docs/Scenarios/RefitDemo.md` (now consolidated here)
 - Scenario JSONs: `Assets/Scenarios/*.json`
 - ScenarioRunner: `PureDOTS.Runtime.Devtools.ScenarioRunner`
-

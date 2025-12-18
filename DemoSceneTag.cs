@@ -1,6 +1,6 @@
 using Unity.Entities;
 
-namespace Godgame.Demo
+namespace Godgame.Scenario
 {
     public struct DemoSceneTag : IComponentData
     {

@@ -6,8 +6,8 @@ using UnityEngine.SceneManagement;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
+using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
-using Space4X.Rendering;
 
 public class Space4XSmokeTests
 {
@@ -28,9 +28,10 @@ public class Space4XSmokeTests
         Assert.IsTrue(hasTime && hasTick && hasRewind, "Missing time/rewind singletons");
 
         var renderQuery = em.CreateEntityQuery(
-            ComponentType.ReadOnly<RenderKey>(),
+            ComponentType.ReadOnly<RenderVariantKey>(),
+            ComponentType.ReadOnly<MeshPresenter>(),
             ComponentType.ReadOnly<LocalTransform>());
-        Assert.Greater(renderQuery.CalculateEntityCount(), 0, "No renderable entities with RenderKey + Transform");
+        Assert.Greater(renderQuery.CalculateEntityCount(), 0, "No renderable entities with RenderVariantKey + MeshPresenter + Transform");
     }
 
     [UnityTest]
@@ -56,4 +57,3 @@ public class Space4XSmokeTests
         Assert.Greater(endTick, startTick, "TickTimeState did not advance across frames");
     }
 }
-

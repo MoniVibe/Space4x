@@ -83,7 +83,7 @@ The following systems will run automatically when the scene loads (no setup need
 **Bootstrap Systems:**
 - `Space4XCoreSingletonGuardSystem` - Creates core singletons
 - `Space4XTelemetryBootstrapSystem` - Creates TelemetryStream
-- `Space4XDemoBootstrapSystem` - Creates DemoOptions and DemoBootstrapState singletons
+- `Space4XDemoBootstrapSystem` (scenario bootstrap) - Creates DemoOptions and DemoBootstrapState singletons
 - `Space4XDemoReporterSystem` - Initializes reporter state
 
 **Runtime Systems:**
@@ -109,7 +109,7 @@ Space4XDemo (GameObject)
 
 1. **ECS World Initialization**:
    - Core singletons created (TimeState, RewindState, TelemetryStream)
-   - Demo singletons created (DemoOptions, DemoBootstrapState, DemoReporterState)
+   - Scenario singletons created (DemoOptions, DemoBootstrapState, DemoReporterState)
    - All systems enabled and running
 
 2. **Demo UI Available**:
@@ -239,8 +239,8 @@ After scene setup:
 
 - Demo system: `Assets/Scripts/Space4x/Demo/`
 - Demo UI: `Assets/Scripts/Space4x/Demo/Space4XDemoUI.cs`
-- Demo documentation: `Docs/Demos/DemoBootstrap.md`
-- Scenario docs: `Docs/Demos/Scenarios.md`
+- Scenario bootstrap documentation: `Docs/Archive/Demos/ScenarioBootstrap.md`
+- Scenario docs: `Docs/Archive/Demos/Scenarios.md`
 - Example authoring: `Assets/Scripts/Space4x/Authoring/Space4XMiningDemoAuthoring.cs`
 
 ---
@@ -251,4 +251,3 @@ After scene setup:
 3. Add required components (PureDotsConfigAuthoring, SpatialPartitionAuthoring, Space4XDemoUI)
 4. Add Camera and Light
 5. Enter Play Mode and press F11 to test!
-

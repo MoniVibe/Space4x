@@ -44,7 +44,16 @@ namespace Space4X.Headless
             {
                 var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
-                Quit(0);
+                if (result.PerformanceBudgetFailed)
+                {
+                    UnityDebug.LogError($"[ScenarioEntryPoint] Performance budget failure ({result.PerformanceBudgetMetric}) at tick {result.PerformanceBudgetTick}: value={result.PerformanceBudgetValue:F2}, budget={result.PerformanceBudgetLimit:F2}");
+                    Quit(2);
+                }
+                else
+                {
+                    Quit(0);
+                }
+                return;
             }
             catch (Exception ex)
             {

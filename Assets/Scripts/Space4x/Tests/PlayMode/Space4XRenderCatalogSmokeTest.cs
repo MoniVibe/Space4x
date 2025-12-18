@@ -91,7 +91,12 @@ namespace Space4X.Tests.PlayMode
                         BoundsExtents = Vector3.one,
                         PresenterMask = RenderPresenterMask.Mesh,
                         SubMesh = 0,
-                        RenderLayer = 0
+                        RenderLayer = 0,
+                        VisualKind = RenderVisualKind.Mesh,
+                        TracerWidth = 0.3f,
+                        TracerLength = 6f,
+                        TracerColor = Color.white,
+                        TracerStyle = 0
                     }
                 },
                 Themes = new[]

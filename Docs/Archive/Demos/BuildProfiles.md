@@ -8,7 +8,7 @@ Demo builds use Unity Editor build profiles (or CLI methods) to gate code compil
 
 ### Godgame Demo
 
-**Scripting Symbols**: `GODGAME_DEMO`
+**Scripting Symbols**: `GODGAME_SCENARIO`
 
 **Assembly Exclusions**:
 - Exclude Space4X assemblies (they already have `SPACE4X` defineConstraints)
@@ -16,13 +16,13 @@ Demo builds use Unity Editor build profiles (or CLI methods) to gate code compil
 
 **Build Profile Setup**:
 1. Create new build profile: `Godgame Demo`
-2. Set scripting symbols: `GODGAME_DEMO`
+2. Set scripting symbols: `GODGAME_SCENARIO`
 3. Configure assembly exclusions in Player Settings
 4. Set output path: `Build/Godgame_Demo_<date>.exe`
 
 ### Space4X Demo
 
-**Scripting Symbols**: `SPACE4X_DEMO`
+**Scripting Symbols**: `SPACE4X_SCENARIO`
 
 **Assembly Exclusions**:
 - Exclude Godgame-only editor scripts
@@ -30,7 +30,7 @@ Demo builds use Unity Editor build profiles (or CLI methods) to gate code compil
 
 **Build Profile Setup**:
 1. Create new build profile: `Space4X Demo`
-2. Set scripting symbols: `SPACE4X_DEMO`
+2. Set scripting symbols: `SPACE4X_SCENARIO`
 3. Configure assembly exclusions in Player Settings
 4. Set output path: `Build/Space4X_Demo_<date>.exe`
 
@@ -94,8 +94,8 @@ Change output path per platform as needed.
 2. Select platform (e.g., Windows)
 3. Expand **Other Settings**
 4. Set **Scripting Define Symbols**:
-   - For Space4X: `SPACE4X_DEMO`
-   - For Godgame: `GODGAME_DEMO`
+   - For Space4X: `SPACE4X_SCENARIO`
+   - For Godgame: `GODGAME_SCENARIO`
    - Optional tests: `SPACE4X_TESTS` or `GODGAME_TESTS`
 
 ### Assembly Definition Constraints
@@ -147,7 +147,7 @@ Build/
 ## CI Integration
 
 For continuous integration:
-1. Set scripting symbols via CLI: `-define:SPACE4X_DEMO`
+1. Set scripting symbols via CLI: `-define:SPACE4X_SCENARIO`
 2. Run preflight validation
 3. Build executable
 4. Package artifacts (see [Packaging.md](Packaging.md))

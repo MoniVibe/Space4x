@@ -1,6 +1,6 @@
+using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Narrative;
-using Space4X.Demo;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -29,9 +29,9 @@ namespace Space4x.Narrative
                 return;
             }
 
-            if (!SystemAPI.TryGetSingleton<DemoScenarioState>(out var demo) ||
-                !demo.EnableSpace4x ||
-                !demo.IsInitialized)
+            if (!SystemAPI.TryGetSingleton<ScenarioState>(out var scenario) ||
+                !scenario.EnableSpace4x ||
+                !scenario.IsInitialized)
             {
                 return;
             }
@@ -116,4 +116,3 @@ namespace Space4x.Narrative
         public int PayloadB;
     }
 }
-

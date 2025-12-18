@@ -231,8 +231,27 @@ namespace Space4X.Registry.Tests
 
         private void EnsureTelemetryStream()
         {
-            _telemetryEntity = _entityManager.CreateEntity(typeof(TelemetryStream));
-            _entityManager.AddBuffer<TelemetryMetric>(_telemetryEntity);
+            using var query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<TelemetryStream>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                _telemetryEntity = _entityManager.CreateEntity(typeof(TelemetryStream));
+                _entityManager.SetComponentData(_telemetryEntity, new TelemetryStream
+                {
+                    Version = 0,
+                    LastTick = 0
+                });
+            }
+            else
+            {
+                _telemetryEntity = query.GetSingletonEntity();
+            }
+
+            if (!_entityManager.HasBuffer<TelemetryMetric>(_telemetryEntity))
+            {
+                _entityManager.AddBuffer<TelemetryMetric>(_telemetryEntity);
+            }
+
+            TelemetryStreamUtility.EnsureEventStream(_entityManager);
         }
 
         private void EnsureSpatialGrid()

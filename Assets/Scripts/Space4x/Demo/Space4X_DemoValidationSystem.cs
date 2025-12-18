@@ -1,7 +1,6 @@
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
-using Space4X.Rendering;
 using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
@@ -102,7 +101,6 @@ namespace Space4X.Demo
 #endif
     }
 }
-
 
 
 

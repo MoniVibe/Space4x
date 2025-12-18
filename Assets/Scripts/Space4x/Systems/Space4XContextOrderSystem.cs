@@ -1,7 +1,6 @@
 using PureDOTS.Input;
 using PureDOTS.Runtime.Core;
 using Space4X.Registry;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -15,19 +14,16 @@ namespace Space4X.Systems
     /// Space4X-specific contextual orders: harvest asteroids, attack enemies, move otherwise.
     /// Consumes RtsInput RightClickEvent and applies OrderQueueElement to selected entities.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Input.SelectionSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.Input.ContextOrderSystem))]
     public partial struct Space4XContextOrderSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RtsInputSingletonTag>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (RuntimeMode.IsHeadless)

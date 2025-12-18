@@ -15,8 +15,8 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-using DemoScenario = PureDOTS.Runtime.DemoScenario;
-using DemoScenarioState = PureDOTS.Runtime.DemoScenarioState;
+using ScenarioKind = PureDOTS.Runtime.ScenarioKind;
+using ScenarioState = PureDOTS.Runtime.ScenarioState;
 using Space4XHandState = Space4X.Runtime.Interaction.HandState;
 using UnityDebug = UnityEngine.Debug;
 
@@ -59,10 +59,10 @@ namespace Space4X.Systems.Interaction
         public void OnUpdate(ref SystemState state)
         {
             // Check scenario - only run in AllSystemsShowcase, Space4XPhysicsOnly, or HandThrowSandbox
-            var scenario = SystemAPI.GetSingleton<DemoScenarioState>().Current;
-            if (scenario != DemoScenario.AllSystemsShowcase && 
-                scenario != DemoScenario.Space4XPhysicsOnly && 
-                scenario != DemoScenario.HandThrowSandbox)
+            var scenario = SystemAPI.GetSingleton<ScenarioState>().Current;
+            if (scenario != ScenarioKind.AllSystemsShowcase && 
+                scenario != ScenarioKind.Space4XPhysicsOnly && 
+                scenario != ScenarioKind.HandThrowSandbox)
             {
                 return;
             }

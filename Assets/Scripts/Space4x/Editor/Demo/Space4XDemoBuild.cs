@@ -75,7 +75,7 @@ namespace Space4X.Editor.Demo
 
                 private static void SetScriptingSymbols(string game)
                 {
-                    string define = game == "Space4X" ? "SPACE4X_DEMO" : "GODGAME_DEMO";
+                    string define = game == "Space4X" ? "SPACE4X_SCENARIO" : "GODGAME_SCENARIO";
                     var buildTarget = EditorUserBuildSettings.activeBuildTarget;
                     var buildTargetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
                     var namedBuildTarget = NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup);

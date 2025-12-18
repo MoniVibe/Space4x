@@ -1,6 +1,6 @@
 using Unity.Entities;
 
-namespace Godgame.Demo
+namespace Godgame.Scenario
 {
     /// <summary>
     /// Tag component baked into demo scenes so editor-only systems can gate themselves.

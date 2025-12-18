@@ -1,3 +1,4 @@
+using PureDOTS.Runtime;
 using PureDOTS.Runtime.Focus;
 using PureDOTS.Runtime.Groups;
 using PureDOTS.Runtime.Individual;
@@ -5,7 +6,6 @@ using PureDOTS.Runtime.Vehicles;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Time;
 using PureDOTS.Systems;
-using Space4X.Demo;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -39,13 +39,13 @@ namespace Space4X.StrikeCraft
             _personalityLookup = state.GetComponentLookup<PersonalityAxes>(true);
 
             state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<DemoScenarioState>();
+            state.RequireForUpdate<ScenarioState>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            if (!SystemAPI.TryGetSingleton<DemoScenarioState>(out var scenario) ||
+            if (!SystemAPI.TryGetSingleton<ScenarioState>(out var scenario) ||
                 !scenario.EnableSpace4x ||
                 !scenario.IsInitialized)
             {
@@ -190,4 +190,3 @@ namespace Space4X.StrikeCraft
         }
     }
 }
-

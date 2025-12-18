@@ -1,14 +1,14 @@
-# Demo Instrumentation & Reports
+# Scenario Instrumentation & Reports
 
 ## Overview
 
-The demo instrumentation system captures key metrics per slice, writes JSON/CSV reports, and stores artifacts for validation and analysis.
+The scenario instrumentation system captures key metrics per slice, writes JSON/CSV reports, and stores artifacts for validation and analysis.
 
 ## Reporter System
 
 ### DemoReporter Component
 
-Attached by `DemoBootstrap` to track metrics:
+Attached by the scenario bootstrap (`DemoBootstrap`) to track metrics:
 
 ```csharp
 public struct DemoReporter : IComponentData
@@ -283,4 +283,3 @@ Developers can:
 - Reports written at scenario end
 - Screenshots captured via Unity API
 - Artifacts stored relative to project root
-

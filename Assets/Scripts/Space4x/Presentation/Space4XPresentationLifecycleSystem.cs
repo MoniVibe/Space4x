@@ -2,7 +2,6 @@ using PureDOTS.Rendering;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Rendering;
 using Space4X.Registry;
-using Space4X.Rendering;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -85,7 +84,7 @@ namespace Space4X.Presentation
                          .WithNone<CarrierPresentationTag>()
                          .WithEntityAccess())
             {
-                var factionColor = FactionColor.Blue;
+                var factionColor = Space4XFactionColors.Blue;
 
                 ecb.AddComponent(entity, new CarrierPresentationTag());
                 ecb.AddComponent(entity, new CarrierVisualState
@@ -93,8 +92,7 @@ namespace Space4X.Presentation
                     State = CarrierVisualStateType.Idle,
                     StateTimer = 0f
                 });
-                ecb.AddComponent(entity, factionColor);
-                AddMaterialColor(ref ecb, entity, factionColor.Value);
+                AddMaterialColor(ref ecb, entity, factionColor);
 
                 AddCommonRenderComponents(ref ecb, entity,
                     Space4XRenderKeys.Carrier,
@@ -112,11 +110,11 @@ namespace Space4X.Presentation
                          .WithEntityAccess())
             {
                 var parentCarrier = vessel.ValueRO.CarrierEntity;
-                float4 vesselColor = FactionColor.Blue.Value;
+                float4 vesselColor = Space4XFactionColors.Blue;
 
-                if (parentCarrier != Entity.Null && SystemAPI.HasComponent<FactionColor>(parentCarrier))
+                if (parentCarrier != Entity.Null && SystemAPI.HasComponent<RenderTint>(parentCarrier))
                 {
-                    vesselColor = SystemAPI.GetComponentRO<FactionColor>(parentCarrier).ValueRO.Value;
+                    vesselColor = SystemAPI.GetComponentRO<RenderTint>(parentCarrier).ValueRO.Value;
                 }
 
                 ecb.AddComponent(entity, new CraftPresentationTag());
@@ -126,7 +124,6 @@ namespace Space4X.Presentation
                     StateTimer = 0f
                 });
                 ecb.AddComponent(entity, new ParentCarrier { Value = parentCarrier });
-                ecb.AddComponent(entity, new FactionColor { Value = vesselColor });
                 AddMaterialColor(ref ecb, entity, vesselColor);
 
                 AddCommonRenderComponents(ref ecb, entity,

@@ -1,5 +1,6 @@
 using System;
 using PureDOTS.Authoring;
+using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Presentation;
@@ -11,10 +12,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
-using RenderKeys = Space4X.Rendering.Space4XRenderKeys;
-using RenderKey = PureDOTS.Rendering.RenderKey;
-using RenderFlags = PureDOTS.Rendering.RenderFlags;
-using Space4X.Rendering.Catalog;
+using RenderKeys = Space4X.Presentation.Space4XRenderKeys;
 using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Registry
@@ -345,7 +343,7 @@ namespace Space4X.Registry
 
             public override void Bake(Space4XMiningDemoAuthoring authoring)
             {
-                UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Baking... Adding RenderKey type: {typeof(RenderKey).FullName}");
+                UnityDebug.Log($"[Space4XMiningDemoAuthoring.Baker] Baking... Adding RenderSemanticKey type: {typeof(RenderSemanticKey).FullName}");
 #if UNITY_EDITOR
                 if (!s_loggedStart)
                 {
@@ -432,6 +430,8 @@ namespace Space4X.Registry
                     return;
                 }
 
+                var carrierTint = ToFloat4(authoring.visuals.CarrierColor);
+
                 foreach (var carrier in authoring.Carriers)
                 {
                     if (string.IsNullOrWhiteSpace(carrier.CarrierId))
@@ -510,8 +510,7 @@ namespace Space4X.Registry
                         }
                     }
 
-                    AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Carrier });
-                    AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
+                    AssignRenderPresentation(entity, RenderKeys.Carrier, carrierTint);
 
                     // Store entity in map for vessel references
                     _carrierEntityMap.TryAdd(carrierIdBytes, entity);
@@ -531,6 +530,8 @@ namespace Space4X.Registry
                 {
                     return;
                 }
+
+                var miningVesselTint = ToFloat4(authoring.visuals.MiningVesselColor);
 
                 foreach (var vessel in authoring.MiningVessels)
                 {
@@ -648,8 +649,7 @@ namespace Space4X.Registry
                         LastMoveTick = 0
                     });
 
-                    AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Miner });
-                    AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
+                    AssignRenderPresentation(entity, RenderKeys.Miner, miningVesselTint);
 
                     AddBuffer<SpawnResourceRequest>(entity);
 #if UNITY_EDITOR
@@ -668,6 +668,8 @@ namespace Space4X.Registry
                 {
                     return;
                 }
+
+                var asteroidTint = ToFloat4(authoring.visuals.AsteroidColor);
 
                 foreach (var asteroid in authoring.Asteroids)
                 {
@@ -719,8 +721,7 @@ namespace Space4X.Registry
                     });
                     AddBuffer<ResourceHistorySample>(entity);
 
-                    AddComponent(entity, new RenderKey { ArchetypeId = RenderKeys.Asteroid });
-                    AddComponent(entity, new RenderFlags { Visible = 1, ShadowCaster = 1, HighlightMask = 0 });
+                    AssignRenderPresentation(entity, RenderKeys.Asteroid, asteroidTint);
 #if UNITY_EDITOR
                     if (!s_loggedAsteroids)
                     {
@@ -729,6 +730,58 @@ namespace Space4X.Registry
                     }
 #endif
                 }
+            }
+
+            private void AssignRenderPresentation(
+                Entity entity,
+                ushort semanticKey,
+                in float4 tint,
+                byte highlightMask = 0,
+                bool enableThemeOverride = false,
+                ushort themeOverride = 0)
+            {
+                AddComponent(entity, new RenderSemanticKey
+                {
+                    Value = semanticKey
+                });
+
+                AddComponent(entity, new RenderVariantKey
+                {
+                    Value = 0
+                });
+
+                AddComponent(entity, new RenderFlags
+                {
+                    Visible = 1,
+                    ShadowCaster = 1,
+                    HighlightMask = highlightMask
+                });
+
+                AddComponent<MeshPresenter>(entity);
+                SetComponentEnabled<MeshPresenter>(entity, true);
+                AddComponent<SpritePresenter>(entity);
+                SetComponentEnabled<SpritePresenter>(entity, false);
+                AddComponent<DebugPresenter>(entity);
+                SetComponentEnabled<DebugPresenter>(entity, false);
+
+                AddComponent(entity, new RenderThemeOverride
+                {
+                    Value = themeOverride
+                });
+                SetComponentEnabled<RenderThemeOverride>(entity, enableThemeOverride);
+
+                AddComponent(entity, new RenderTint
+                {
+                    Value = tint
+                });
+                AddComponent(entity, new RenderTexSlice
+                {
+                    Value = 0
+                });
+                AddComponent(entity, new RenderUvTransform
+                {
+                    Value = new float4(1f, 1f, 0f, 0f)
+                });
             }
 
             private static float4 ToFloat4(Color color)

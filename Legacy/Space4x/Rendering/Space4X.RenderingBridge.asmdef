@@ -1,0 +1,16 @@
+{
+    "name": "Space4X.RenderingBridge",
+    "references": [
+        "PureDOTS.Runtime",
+        "PureDOTS.Rendering",
+        "Space4X.Gameplay"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

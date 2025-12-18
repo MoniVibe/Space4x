@@ -49,7 +49,7 @@ Godgame_Demo_<date>.zip
 
 ### Executable
 
-- Built with appropriate scripting symbols (`SPACE4X_DEMO` or `GODGAME_DEMO`)
+- Built with appropriate scripting symbols (`SPACE4X_SCENARIO` or `GODGAME_SCENARIO`)
 - Includes all required assemblies
 - Excludes other game's assemblies
 - Platform-specific (Windows, Mac, Linux)

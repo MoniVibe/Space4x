@@ -1,9 +1,10 @@
-#if SPACE4X_DIAGNOSTICS_DEMO
+#if SPACE4X_DIAGNOSTICS
 using Unity.Entities;
 using Unity.Collections;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEditor;
+using PureDOTS.Runtime;
 // using PureDOTS.Demo.Village;
 // using PureDOTS.Demo.Rendering;
 // using Space4X.Demo;
@@ -42,7 +43,7 @@ public class Space4XDiagnostics
         // 2. Check Singletons
         CheckComponentDataSingleton<VillageWorldTag>(em, "VillageWorldTag");
         CheckSharedComponentDataSingleton<RenderMeshArraySingleton>(em, "RenderMeshArraySingleton");
-        CheckComponentDataSingleton<DemoScenarioState>(em, "DemoScenarioState");
+        CheckComponentDataSingleton<ScenarioState>(em, "ScenarioState");
         
         // 3. Check RenderMeshArray Content
         CheckRenderMeshArray(em);

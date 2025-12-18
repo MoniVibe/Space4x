@@ -47,4 +47,4 @@ MonoBehaviour:
     enableColdThrottling: 1
     historySnapshotCadence: 3
     coldPathTimeBudget: 0.002
-    burstCompileSynchronously: 1
+    burstCompileSynchronously: 0

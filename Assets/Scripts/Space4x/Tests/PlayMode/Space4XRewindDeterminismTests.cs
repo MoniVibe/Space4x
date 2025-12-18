@@ -490,11 +490,31 @@ namespace Space4X.Tests.PlayMode
         {
             if (_telemetryStream != Entity.Null && _entityManager.Exists(_telemetryStream))
             {
+                TelemetryStreamUtility.EnsureEventStream(_entityManager);
                 return;
             }
 
-            _telemetryStream = _entityManager.CreateEntity(typeof(TelemetryStream));
-            _entityManager.AddBuffer<TelemetryMetric>(_telemetryStream);
+            using var query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<TelemetryStream>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                _telemetryStream = _entityManager.CreateEntity(typeof(TelemetryStream));
+                _entityManager.SetComponentData(_telemetryStream, new TelemetryStream
+                {
+                    Version = 0,
+                    LastTick = 0
+                });
+            }
+            else
+            {
+                _telemetryStream = query.GetSingletonEntity();
+            }
+
+            if (!_entityManager.HasBuffer<TelemetryMetric>(_telemetryStream))
+            {
+                _entityManager.AddBuffer<TelemetryMetric>(_telemetryStream);
+            }
+
+            TelemetryStreamUtility.EnsureEventStream(_entityManager);
         }
 
         private void UpdateSystem(SystemHandle handle)
@@ -503,4 +523,3 @@ namespace Space4X.Tests.PlayMode
         }
     }
 }
-

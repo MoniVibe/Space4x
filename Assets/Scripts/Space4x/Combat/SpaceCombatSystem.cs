@@ -1,9 +1,9 @@
+using PureDOTS.Runtime;
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Time;
 using Space4X.Runtime;
-using Space4X.Demo;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -27,7 +27,7 @@ namespace Space4X.Combat
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
-            state.RequireForUpdate<DemoScenarioState>();
+            state.RequireForUpdate<ScenarioState>();
 
             _enemyQuery = SystemAPI.QueryBuilder()
                 .WithAll<Health, LocalTransform, PlatformTag>()
@@ -39,9 +39,9 @@ namespace Space4X.Combat
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var rewindState = SystemAPI.GetSingleton<RewindState>();
-            var demoState = SystemAPI.GetSingleton<DemoScenarioState>();
+            var scenario = SystemAPI.GetSingleton<ScenarioState>();
 
-            if (timeState.IsPaused || rewindState.Mode != RewindMode.Record || !demoState.EnableSpace4x)
+            if (timeState.IsPaused || rewindState.Mode != RewindMode.Record || !scenario.EnableSpace4x)
             {
                 return;
             }
@@ -119,4 +119,3 @@ namespace Space4X.Combat
         }
     }
 }
-
