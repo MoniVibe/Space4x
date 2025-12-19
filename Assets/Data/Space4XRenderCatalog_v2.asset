@@ -10,50 +10,74 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d16b64d6be34486d882e70418d837bfd, type: 3}
-  m_Name: Space4XRenderCatalog
+  m_Name: Space4XRenderCatalog_v2
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogDefinition
-  LodCount: 1
   Variants:
   - Name: Carrier
     Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
-    SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.5, y: 1, z: 0.5}
     PresenterMask: 1
-    RenderLayer: 0
-  - Name: Miner
-    Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
-    Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: Miner
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     BoundsCenter: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
     BoundsExtents: {x: 0.50000006, y: 1, z: 0.5000001}
     PresenterMask: 1
+    SubMesh: 0
     RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
   - Name: Asteroid
     Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
-    SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
     PresenterMask: 1
-    RenderLayer: 0
-  - Name: Projectile
-    Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
-    Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: Projectile
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.1, y: 0.1, z: 0.6}
     PresenterMask: 1
+    SubMesh: 0
     RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
   - Name: FleetImpostor
     Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: 6d9345776d1d85842b5d4eb03afbd178, type: 2}
-    SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 4, y: 0.5, z: 4}
     PresenterMask: 1
+    SubMesh: 0
     RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
   Themes:
   - Name: Default
     ThemeId: 0
@@ -80,3 +104,4 @@ MonoBehaviour:
       Lod2Variant: 5
   FallbackMesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
   FallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+  LodCount: 1

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
@@ -5,46 +6,97 @@ using UnityEngine.TestTools;
 using UnityEngine.SceneManagement;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Transforms;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
+using Space4X.Registry;
+using Unity.Rendering;
 
 public class Space4XSmokeTests
 {
+    private const string SmokeSceneName = "TRI_Space4X_Smoke";
+    private const string SmokeScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
+    private const float SceneLoadTimeoutSeconds = 30f;
+    private const float SubSceneConversionTimeoutSeconds = 45f;
+    private const float RenderAssignmentTimeoutSeconds = 45f;
+    private const int FramesBeforeRenderCheck = 3;
+    private const string SubSceneMissingMessage = "SubScene not loaded/baked; no ECS entities exist.";
+
     [UnityTest]
     public IEnumerator SmokeScene_HasCoreSingletonsAndRenderables()
     {
-        yield return SceneManager.LoadSceneAsync("TRI_Space4X_Smoke", LoadSceneMode.Single);
-        yield return null;
+        yield return LoadSmokeSceneAndWaitForWorld();
 
-        var world = World.DefaultGameObjectInjectionWorld;
-        Assert.IsNotNull(world, "Default world missing");
-        var em = world.EntityManager;
+        var em = RequireDefaultEntityManager();
 
-        bool hasTime = em.CreateEntityQuery(ComponentType.ReadOnly<TimeState>()).CalculateEntityCount() > 0;
-        bool hasTick = em.CreateEntityQuery(ComponentType.ReadOnly<TickTimeState>()).CalculateEntityCount() > 0;
-        bool hasRewind = em.CreateEntityQuery(ComponentType.ReadOnly<RewindState>()).CalculateEntityCount() > 0;
+        for (int i = 0; i < FramesBeforeRenderCheck; i++)
+        {
+            yield return null;
+        }
 
-        Assert.IsTrue(hasTime && hasTick && hasRewind, "Missing time/rewind singletons");
+        int semanticCount = 0;
+        yield return WaitForCondition(
+            () =>
+            {
+                semanticCount = CountEntities<RenderSemanticKey>(em);
+                return semanticCount > 0;
+            },
+            SubSceneConversionTimeoutSeconds,
+            SubSceneMissingMessage);
 
-        var renderQuery = em.CreateEntityQuery(
-            ComponentType.ReadOnly<RenderVariantKey>(),
-            ComponentType.ReadOnly<MeshPresenter>(),
-            ComponentType.ReadOnly<LocalTransform>());
-        Assert.Greater(renderQuery.CalculateEntityCount(), 0, "No renderable entities with RenderVariantKey + MeshPresenter + Transform");
+        for (int i = 0; i < FramesBeforeRenderCheck; i++)
+        {
+            yield return null;
+        }
+
+        int materialMeshCount = 0;
+        yield return WaitForCondition(
+            () =>
+            {
+                materialMeshCount = CountEntities<MaterialMeshInfo>(em);
+                return materialMeshCount > 0;
+            },
+            RenderAssignmentTimeoutSeconds,
+            SubSceneMissingMessage);
+
+        int carrierCount = 0;
+        int miningVesselCount = 0;
+        yield return WaitForCondition(
+            () =>
+            {
+                carrierCount = CountEntities<Carrier>(em);
+                miningVesselCount = CountEntities<MiningVessel>(em);
+                return carrierCount > 0 || miningVesselCount > 0;
+            },
+            SubSceneConversionTimeoutSeconds,
+            () => $"SubScene '{SmokeSceneName}' content missing: Carrier={carrierCount}, MiningVessel={miningVesselCount}. Scene likely failed to bake or load.");
+
+        int asteroidCount = 0;
+        yield return WaitForCondition(
+            () =>
+            {
+                carrierCount = CountEntities<Carrier>(em);
+                asteroidCount = CountEntities<Asteroid>(em);
+                return carrierCount > 0 || asteroidCount > 0;
+            },
+            SubSceneConversionTimeoutSeconds,
+            "Carrier or Asteroid entities never appeared; SubScene likely not loaded.");
+
+        AssertCoreTimeSingletons(em);
     }
 
     [UnityTest]
     public IEnumerator MiningLoop_AdvancesTick()
     {
-        yield return SceneManager.LoadSceneAsync("TRI_Space4X_Smoke", LoadSceneMode.Single);
-        yield return null;
+        yield return LoadSmokeSceneAndWaitForWorld();
 
-        var world = World.DefaultGameObjectInjectionWorld;
-        Assert.IsNotNull(world, "Default world missing");
-        var em = world.EntityManager;
+        var em = RequireDefaultEntityManager();
 
-        var tickQuery = em.CreateEntityQuery(ComponentType.ReadOnly<TickTimeState>());
+        yield return WaitForCondition(
+            () => CountEntities<TickTimeState>(em) > 0,
+            SubSceneConversionTimeoutSeconds,
+            "TickTimeState entity never appeared; core time system missing.");
+
+        using var tickQuery = em.CreateEntityQuery(ComponentType.ReadOnly<TickTimeState>());
         using var beforeTicks = tickQuery.ToComponentDataArray<TickTimeState>(Allocator.Temp);
         var startTick = beforeTicks.Length > 0 ? beforeTicks[0].Tick : 0u;
 
@@ -55,5 +107,82 @@ public class Space4XSmokeTests
         var endTick = afterTicks.Length > 0 ? afterTicks[0].Tick : startTick;
 
         Assert.Greater(endTick, startTick, "TickTimeState did not advance across frames");
+    }
+
+    private static IEnumerator LoadSmokeSceneAndWaitForWorld()
+    {
+        int buildIndex = SceneUtility.GetBuildIndexByScenePath(SmokeScenePath);
+        Assert.IsTrue(buildIndex >= 0, $"Smoke scene path '{SmokeScenePath}' is not included in Build Settings.");
+
+        var loadOperation = SceneManager.LoadSceneAsync(SmokeSceneName, LoadSceneMode.Single);
+        Assert.IsNotNull(loadOperation, $"Failed to start loading scene '{SmokeSceneName}'.");
+
+        float deadline = Time.realtimeSinceStartup + SceneLoadTimeoutSeconds;
+        while (!loadOperation.isDone)
+        {
+            if (Time.realtimeSinceStartup > deadline)
+            {
+                Assert.Fail($"Timed out while loading scene '{SmokeSceneName}'.");
+            }
+
+            yield return null;
+        }
+
+        yield return WaitForCondition(
+            () =>
+            {
+                var world = World.DefaultGameObjectInjectionWorld;
+                return world != null && world.IsCreated;
+            },
+            SceneLoadTimeoutSeconds,
+            "Default GameObject Injection World failed to initialize after loading the smoke scene.");
+
+        var loadedScene = SceneManager.GetSceneByName(SmokeSceneName);
+        Assert.IsTrue(loadedScene.IsValid() && loadedScene.isLoaded, $"Scene '{SmokeSceneName}' did not load.");
+        SceneManager.SetActiveScene(loadedScene);
+    }
+
+    private static EntityManager RequireDefaultEntityManager()
+    {
+        var world = World.DefaultGameObjectInjectionWorld;
+        Assert.IsNotNull(world, "Default world missing");
+        Assert.IsTrue(world.IsCreated, "Default world was not created");
+        var entityManager = world.EntityManager;
+        return entityManager;
+    }
+
+    private static void AssertCoreTimeSingletons(EntityManager em)
+    {
+        Assert.Greater(CountEntities<TimeState>(em), 0, "Missing TimeState singleton");
+        Assert.Greater(CountEntities<TickTimeState>(em), 0, "Missing TickTimeState singleton");
+        Assert.Greater(CountEntities<RewindState>(em), 0, "Missing RewindState singleton");
+    }
+
+    private static int CountEntities<T>(EntityManager em) where T : IComponentData
+    {
+        using var query = em.CreateEntityQuery(ComponentType.ReadOnly<T>());
+        return query.CalculateEntityCount();
+    }
+
+    private static IEnumerator WaitForCondition(Func<bool> predicate, float timeoutSeconds, string failureMessage)
+    {
+        yield return WaitForCondition(predicate, timeoutSeconds, () => failureMessage);
+    }
+
+    private static IEnumerator WaitForCondition(Func<bool> predicate, float timeoutSeconds, Func<string> failureMessageFactory)
+    {
+        float deadline = Time.realtimeSinceStartup + timeoutSeconds;
+        while (Time.realtimeSinceStartup <= deadline)
+        {
+            if (predicate())
+            {
+                yield break;
+            }
+
+            yield return null;
+        }
+
+        var message = failureMessageFactory != null ? failureMessageFactory() : "WaitForCondition failed.";
+        Assert.Fail(message);
     }
 }

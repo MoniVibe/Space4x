@@ -108,12 +108,12 @@ namespace Space4X.StrikeCraft
                 return false;
             }
 
-            if (telemetryRef.Entity == Entity.Null || !state.EntityManager.HasBuffer<TelemetryEvent>(telemetryRef.Entity))
+            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryEvent>(telemetryRef.Stream))
             {
                 return false;
             }
 
-            buffer = state.EntityManager.GetBuffer<TelemetryEvent>(telemetryRef.Entity);
+            buffer = state.EntityManager.GetBuffer<TelemetryEvent>(telemetryRef.Stream);
             return true;
         }
 

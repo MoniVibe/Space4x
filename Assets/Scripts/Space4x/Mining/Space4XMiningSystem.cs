@@ -277,14 +277,11 @@ namespace Space4X.Mining
                     {
                         // Invalid source - clear session and reset
                         Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
-                        if (hasState)
+                        SetMiningState(entityInQueryIndex, entity, new MiningStateComponent
                         {
-                            MiningStateLookup[entity] = new MiningStateComponent
-                            {
-                                State = MiningStateEnum.Idle,
-                                LastStateChangeTick = CurrentTick
-                            };
-                        }
+                            State = MiningStateEnum.Idle,
+                            LastStateChangeTick = CurrentTick
+                        }, hasState);
                         miningState.State = MiningStateEnum.Idle;
                         session = default(MiningSession);
                         hasSession = false;
@@ -305,14 +302,11 @@ namespace Space4X.Mining
                         {
                             // Source depleted - clear session
                             Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
-                            if (hasState)
+                            SetMiningState(entityInQueryIndex, entity, new MiningStateComponent
                             {
-                                MiningStateLookup[entity] = new MiningStateComponent
-                                {
-                                    State = MiningStateEnum.Idle,
-                                    LastStateChangeTick = CurrentTick
-                                };
-                            }
+                                State = MiningStateEnum.Idle,
+                                LastStateChangeTick = CurrentTick
+                            }, hasState);
                             miningState.State = MiningStateEnum.Idle;
                             session = default(MiningSession);
                             hasSession = false;
@@ -336,14 +330,11 @@ namespace Space4X.Mining
                             {
                                 // No carrier available - clear session
                                 Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
-                                if (hasState)
+                                SetMiningState(entityInQueryIndex, entity, new MiningStateComponent
                                 {
-                                    MiningStateLookup[entity] = new MiningStateComponent
-                                    {
-                                        State = MiningStateEnum.Idle,
-                                        LastStateChangeTick = CurrentTick
-                                    };
-                                }
+                                    State = MiningStateEnum.Idle,
+                                    LastStateChangeTick = CurrentTick
+                                }, hasState);
                                 miningState.State = MiningStateEnum.Idle;
                                 session = default(MiningSession);
                                 hasSession = false;
@@ -421,10 +412,7 @@ namespace Space4X.Mining
 
                         miningState.State = MiningStateEnum.GoingToSource;
                         miningState.LastStateChangeTick = CurrentTick;
-                        if (hasState)
-                        {
-                            MiningStateLookup[entity] = miningState;
-                        }
+                        SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                     }
                 }
                 else
@@ -452,10 +440,7 @@ namespace Space4X.Mining
                             // Arrived at source - start mining
                             miningState.State = MiningStateEnum.Mining;
                             miningState.LastStateChangeTick = CurrentTick;
-                            if (hasState)
-                            {
-                                MiningStateLookup[entity] = miningState;
-                            }
+                            SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                         }
                         else
                         {
@@ -478,10 +463,7 @@ namespace Space4X.Mining
                             // Too far - go back to going to source
                             miningState.State = MiningStateEnum.GoingToSource;
                             miningState.LastStateChangeTick = CurrentTick;
-                            if (hasState)
-                            {
-                                MiningStateLookup[entity] = miningState;
-                            }
+                            SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                         }
                         else
                         {
@@ -535,10 +517,7 @@ namespace Space4X.Mining
                                 {
                                     miningState.State = MiningStateEnum.ReturningToCarrier;
                                     miningState.LastStateChangeTick = CurrentTick;
-                                    if (hasState)
-                                    {
-                                        MiningStateLookup[entity] = miningState;
-                                    }
+                                    SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                                 }
                                 else
                                 {
@@ -550,10 +529,7 @@ namespace Space4X.Mining
                                         MiningSessionLookup[entity] = session;
                                         miningState.State = MiningStateEnum.ReturningToCarrier;
                                         miningState.LastStateChangeTick = CurrentTick;
-                                        if (hasState)
-                                        {
-                                            MiningStateLookup[entity] = miningState;
-                                        }
+                                        SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                                     }
                                 }
                             }
@@ -576,10 +552,7 @@ namespace Space4X.Mining
                                 Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
                                 miningState.State = MiningStateEnum.Idle;
                                 miningState.LastStateChangeTick = CurrentTick;
-                                if (hasState)
-                                {
-                                    MiningStateLookup[entity] = miningState;
-                                }
+                                SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                                 return;
                             }
                         }
@@ -591,10 +564,7 @@ namespace Space4X.Mining
                             Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
                             miningState.State = MiningStateEnum.Idle;
                             miningState.LastStateChangeTick = CurrentTick;
-                            if (hasState)
-                            {
-                                MiningStateLookup[entity] = miningState;
-                            }
+                            SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                             return;
                         }
                         var distanceToCarrier = math.distance(position, carrierPos);
@@ -604,10 +574,7 @@ namespace Space4X.Mining
                             // Arrived at carrier - start delivering
                             miningState.State = MiningStateEnum.Delivering;
                             miningState.LastStateChangeTick = CurrentTick;
-                            if (hasState)
-                            {
-                                MiningStateLookup[entity] = miningState;
-                            }
+                            SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                         }
                         else
                         {
@@ -708,10 +675,7 @@ namespace Space4X.Mining
                                 Ecb.RemoveComponent<MiningSession>(entityInQueryIndex, entity);
                                 miningState.State = MiningStateEnum.Idle;
                                 miningState.LastStateChangeTick = CurrentTick;
-                                if (hasState)
-                                {
-                                    MiningStateLookup[entity] = miningState;
-                                }
+                                SetMiningState(entityInQueryIndex, entity, miningState, hasState);
                                 vessel.CurrentCargo = 0f;
                             }
                         }
@@ -731,6 +695,18 @@ namespace Space4X.Mining
                         movement.DesiredRotation = quaternion.LookRotationSafe(direction, math.up());
                         transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, DeltaTime * 2f);
                     }
+                }
+            }
+
+            private void SetMiningState(int sortKey, Entity entity, MiningStateComponent state, bool hasState)
+            {
+                if (hasState)
+                {
+                    MiningStateLookup[entity] = state;
+                }
+                else
+                {
+                    Ecb.AddComponent(sortKey, entity, state);
                 }
             }
 

@@ -145,14 +145,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 27765343}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 0
     m_Resolution: -1
@@ -327,6 +327,51 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
   m_ActionId: f1827c41-d7cb-429f-b450-e1123dff4b81
+--- !u!1 &805860693
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 805860694}
+  - component: {fileID: 805860695}
+  m_Layer: 0
+  m_Name: RenderCatalogBootstrap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &805860694
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 805860693}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &805860695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 805860693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a49b4b670ae4c9bb696e3a46f04d975, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogRuntimeBootstrap
+  CatalogDefinition: {fileID: 11400000, guid: 19bcb25c76a805443b2306ad910b34d6, type: 2}
 --- !u!1 &865863174
 GameObject:
   m_ObjectHideFlags: 0
@@ -413,7 +458,7 @@ GameObject:
   - component: {fileID: 1661089260}
   - component: {fileID: 1661089261}
   m_Layer: 0
-  m_Name: RenderCatalogMain
+  m_Name: RenderCatalog
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -443,12 +488,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1661089259}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a783286e3dc03f439b2cce80e984f68, type: 3}
+  m_Script: {fileID: 11500000, guid: ee2690a412164916b5cfbc5b90a8b935, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Rendering.Catalog.RenderCatalogAuthoring
-  CatalogDefinition: {fileID: 11400000, guid: 0755b13fe5c6fdc4e9c3ef98a5f72759, type: 2}
-  fallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
-  fallbackMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogAuthoring
+  CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
 --- !u!114 &1874550487
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -600,6 +643,158 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!1 &2100000000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2100000001}
+  - component: {fileID: 2100000002}
+  m_Layer: 0
+  m_Name: Space4X Mining Demo
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2100000001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2100000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f33d52f3a18f8c4ba5177ec02826937, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XMiningDemoAuthoring
+  carriers:
+  - CarrierId: CARRIER-1
+    Speed: 5
+    PatrolCenter:
+      x: 0
+      y: 0
+      z: 0
+    PatrolRadius: 50
+    WaitTime: 2
+    Position:
+      x: 0
+      y: 0
+      z: 0
+    IsHostile: 0
+    FleetPosture: 0
+    FleetId: 
+    CanIntercept: 0
+    InterceptSpeed: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
+  miningVessels:
+  - VesselId: MINER-1
+    Speed: 10
+    MiningEfficiency: 0.8
+    ResourceId: space4x.resource.minerals
+    MiningTickInterval: 0.5
+    CargoCapacity: 100
+    OutputSpawnThreshold: 20
+    Position:
+      x: 5
+      y: 0
+      z: 0
+    CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
+  - VesselId: MINER-2
+    Speed: 10
+    MiningEfficiency: 0.8
+    ResourceId: space4x.resource.minerals
+    MiningTickInterval: 0.5
+    CargoCapacity: 100
+    OutputSpawnThreshold: 20
+    Position:
+      x: -5
+      y: 0
+      z: 0
+    CarrierId: CARRIER-1
+    StartDocked: 0
+    Alignment:
+      Law: 0
+      Good: 0
+      Integrity: 0
+      Axes: []
+      Outlooks: []
+    RaceId: 0
+    CultureId: 0
+    AffiliationId: AFFILIATION-1
+  affiliations:
+  - AffiliationId: AFFILIATION-1
+    DisplayName: Starter Fleet
+    Loyalty: 1
+  asteroids:
+  - AsteroidId: ASTEROID-1
+    ResourceType: 0
+    ResourceAmount: 500
+    MaxResourceAmount: 500
+    MiningRate: 10
+    Position:
+      x: 20
+      y: 0
+      z: 0
+  - AsteroidId: ASTEROID-2
+    ResourceType: 0
+    ResourceAmount: 500
+    MaxResourceAmount: 500
+    MiningRate: 10
+    Position:
+      x: -20
+      y: 0
+      z: 0
+  visuals:
+    CarrierPrimitive: 1
+    CarrierScale: 3
+    CarrierColor: {r: 0.35, g: 0.4, b: 0.62, a: 1}
+    CarrierDescriptorKey: space4x.vessel.carrier
+    MiningVesselPrimitive: 2
+    MiningVesselScale: 1.2
+    MiningVesselColor: {r: 0.25, g: 0.52, b: 0.84, a: 1}
+    MiningVesselDescriptorKey: space4x.vessel.miner
+    AsteroidPrimitive: 3
+    AsteroidScale: 2.25
+    AsteroidColor: {r: 0.52, g: 0.43, b: 0.34, a: 1}
+    AsteroidDescriptorKey: space4x.prop.asteroid
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -608,3 +803,5 @@ SceneRoots:
   - {fileID: 27765345}
   - {fileID: 1661089260}
   - {fileID: 865863177}
+  - {fileID: 805860694}
+  - {fileID: 2100000001}

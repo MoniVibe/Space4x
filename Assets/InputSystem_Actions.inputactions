@@ -1163,17 +1163,6 @@
                 },
                 {
                     "name": "",
-                    "id": "f74124d5-d645-4970-a304-1abd2a7ea147",
-                    "path": "<Mouse>/middleButton",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Keyboard&Mouse",
-                    "action": "Pan",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "8e93ee53-5558-4846-a989-1e04106681db",
                     "path": "<Mouse>/scroll/y",
                     "interactions": "",

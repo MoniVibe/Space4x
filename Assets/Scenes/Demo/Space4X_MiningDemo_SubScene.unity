@@ -119,66 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!115 &371890135
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: SpatialPartitionAuthoring
-  m_Namespace: PureDOTS.Authoring
-  m_AssemblyName: PureDOTS.Authoring
---- !u!1 &388320582
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 388320583}
-  - component: {fileID: 388320584}
-  m_Layer: 0
-  m_Name: PureDotsConfigRoot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &388320583
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 388320582}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &388320584
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 388320582}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2ab98e1166f44a43ae987ad2d0c419b7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PureDotsConfigAuthoring
-  config: {fileID: 11400000, guid: 562b7474caf1e50448a1cc7f4fce0836, type: 2}
 --- !u!1 &429250229
 GameObject:
   m_ObjectHideFlags: 0
@@ -270,10 +210,10 @@ MonoBehaviour:
   - VesselId: MINER-1
     Speed: 10
     MiningEfficiency: 0.8
-    ResourceId: 
-    MiningTickInterval: 0
+    ResourceId: space4x.resource.minerals
+    MiningTickInterval: 0.5
     CargoCapacity: 100
-    OutputSpawnThreshold: 0
+    OutputSpawnThreshold: 20
     Position:
       x: 5
       y: 0
@@ -288,14 +228,14 @@ MonoBehaviour:
       Outlooks: []
     RaceId: 0
     CultureId: 0
-    AffiliationId: 
+    AffiliationId: AFFILIATION-1
   - VesselId: MINER-2
     Speed: 10
     MiningEfficiency: 0.8
-    ResourceId: 
-    MiningTickInterval: 0
+    ResourceId: space4x.resource.minerals
+    MiningTickInterval: 0.5
     CargoCapacity: 100
-    OutputSpawnThreshold: 0
+    OutputSpawnThreshold: 20
     Position:
       x: -5
       y: 0
@@ -310,29 +250,7 @@ MonoBehaviour:
       Outlooks: []
     RaceId: 0
     CultureId: 0
-    AffiliationId: 
-  - VesselId: MINER-2
-    Speed: 10
-    MiningEfficiency: 0.8
-    ResourceId: 
-    MiningTickInterval: 0
-    CargoCapacity: 100
-    OutputSpawnThreshold: 0
-    Position:
-      x: -5
-      y: 0
-      z: 0
-    CarrierId: CARRIER-1
-    StartDocked: 0
-    Alignment:
-      Law: 0
-      Good: 0
-      Integrity: 0
-      Axes: []
-      Outlooks: []
-    RaceId: 0
-    CultureId: 0
-    AffiliationId: 
+    AffiliationId: AFFILIATION-1
   affiliations:
   - AffiliationId: AFFILIATION-1
     DisplayName: Starter Fleet
@@ -356,34 +274,16 @@ MonoBehaviour:
       x: -20
       y: 0
       z: 0
-  - AsteroidId: ASTEROID-2
-    ResourceType: 0
-    ResourceAmount: 500
-    MaxResourceAmount: 500
-    MiningRate: 10
-    Position:
-      x: -20
-      y: 0
-      z: 0
-  - AsteroidId: ASTEROID-2
-    ResourceType: 0
-    ResourceAmount: 500
-    MaxResourceAmount: 500
-    MiningRate: 10
-    Position:
-      x: -20
-      y: 0
-      z: 0
   visuals:
-    CarrierPrimitive: 2
+    CarrierPrimitive: 1
     CarrierScale: 3
     CarrierColor: {r: 0.35, g: 0.4, b: 0.62, a: 1}
     CarrierDescriptorKey: space4x.vessel.carrier
-    MiningVesselPrimitive: 3
+    MiningVesselPrimitive: 2
     MiningVesselScale: 1.2
     MiningVesselColor: {r: 0.25, g: 0.52, b: 0.84, a: 1}
     MiningVesselDescriptorKey: space4x.vessel.miner
-    AsteroidPrimitive: 1
+    AsteroidPrimitive: 3
     AsteroidScale: 2.25
     AsteroidColor: {r: 0.52, g: 0.43, b: 0.34, a: 1}
     AsteroidDescriptorKey: space4x.prop.asteroid
@@ -396,161 +296,12 @@ Transform:
   m_GameObject: {fileID: 579989112}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -50, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &854846836
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 854846837}
-  - component: {fileID: 854846838}
-  m_Layer: 0
-  m_Name: PhysicsStep
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &854846837
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 854846836}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &854846838
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 854846836}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d30974bf68d61043b1572197db94cdc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Physics.Hybrid::Unity.Physics.Authoring.PhysicsStepAuthoring
-  m_SimulationType: 1
-  m_Gravity:
-    x: -0
-    y: -9.81
-    z: -0
-  m_SubstepCount: 1
-  m_SolverIterationCount: 4
-  m_EnableSolverStabilizationHeuristic: 0
-  m_MultiThreaded: 1
-  m_CollisionTolerance: 0.01
-  m_SynchronizeCollisionWorld: 0
-  m_IncrementalDynamicBroadphase: 0
-  m_IncrementalStaticBroadphase: 0
---- !u!1 &1175364904
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1175364906}
-  - component: {fileID: 1175364905}
-  m_Layer: 0
-  m_Name: RenderCatalog
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1175364905
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1175364904}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a783286e3dc03f439b2cce80e984f68, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Rendering.Catalog.RenderCatalogAuthoring
-  CatalogDefinition: {fileID: 11400000, guid: 19bcb25c76a805443b2306ad910b34d6, type: 2}
-  fallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
-  fallbackMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!4 &1175364906
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1175364904}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1447636901
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1447636902}
-  - component: {fileID: 1447636903}
-  m_Layer: 0
-  m_Name: SpatialPartitionRoot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1447636902
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1447636901}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1447636903
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1447636901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 371890135}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.SpatialPartitionAuthoring
-  profile: {fileID: 11400000, guid: ccacf3002deefb348ab12f433053aafa, type: 2}
 --- !u!1 &2100003000
 GameObject:
   m_ObjectHideFlags: 0
@@ -654,8 +405,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 579989116}
   - {fileID: 2100003001}
-  - {fileID: 388320583}
-  - {fileID: 1447636902}
-  - {fileID: 854846837}
-  - {fileID: 1175364906}
   - {fileID: 429250230}

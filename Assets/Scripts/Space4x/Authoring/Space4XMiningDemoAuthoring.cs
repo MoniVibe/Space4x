@@ -34,10 +34,10 @@ namespace Space4X.Registry
             {
                 CarrierId = "CARRIER-1",
                 Speed = 5f,
-                PatrolCenter = new float3(0f, 0f, 0f),
+                PatrolCenter = new float3(0f, 0f, -8f),
                 PatrolRadius = 50f,
                 WaitTime = 2f,
-                Position = new float3(0f, 0f, 0f),
+                Position = new float3(0f, 0f, -8f),
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
                 CultureId = 0,
@@ -57,7 +57,7 @@ namespace Space4X.Registry
                 MiningTickInterval = 0.5f,
                 OutputSpawnThreshold = 20f,
                 ResourceId = "space4x.resource.minerals",
-                Position = new float3(5f, 0f, 0f),
+                Position = new float3(5f, 0f, -2f),
                 CarrierId = "CARRIER-1",
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -73,7 +73,7 @@ namespace Space4X.Registry
                 MiningTickInterval = 0.5f,
                 OutputSpawnThreshold = 20f,
                 ResourceId = "space4x.resource.minerals",
-                Position = new float3(-5f, 0f, 0f),
+                Position = new float3(-5f, 0f, -14f),
                 CarrierId = "CARRIER-1",
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -103,7 +103,7 @@ namespace Space4X.Registry
                 ResourceAmount = 500f,
                 MaxResourceAmount = 500f,
                 MiningRate = 10f,
-                Position = new float3(20f, 0f, 0f)
+                Position = new float3(20f, 0f, 10f)
             },
             new AsteroidDefinition
             {
@@ -112,7 +112,7 @@ namespace Space4X.Registry
                 ResourceAmount = 500f,
                 MaxResourceAmount = 500f,
                 MiningRate = 10f,
-                Position = new float3(-20f, 0f, 0f)
+                Position = new float3(-20f, 0f, -20f)
             }
         };
 
@@ -441,8 +441,9 @@ namespace Space4X.Registry
                     }
 
                     var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
-                    AddComponent(entity, LocalTransform.FromPositionRotationScale(carrier.Position, quaternion.identity, 1f));
+                    SetLocalTransform(entity, carrier.Position, quaternion.identity, 1f);
                     AddComponent<SpatialIndexedTag>(entity);
+                    AddComponent(entity, CreateDemoMotion(carrier.Position, 3.5f, 0.2f));
                     
                     var carrierIdBytes = new FixedString64Bytes(carrier.CarrierId);
                     
@@ -577,8 +578,9 @@ namespace Space4X.Registry
                         }
                     }
                     
-                    AddComponent(entity, LocalTransform.FromPositionRotationScale(vesselPosition, quaternion.identity, 1f));
+                    SetLocalTransform(entity, vesselPosition, quaternion.identity, 1f);
                     AddComponent<SpatialIndexedTag>(entity);
+                    AddComponent(entity, CreateDemoMotion(vesselPosition, 5f, 0.35f));
 
                     AddComponent(entity, new MiningVessel
                     {
@@ -680,8 +682,9 @@ namespace Space4X.Registry
                     }
 
                     var entity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
-                    AddComponent(entity, LocalTransform.FromPositionRotationScale(asteroid.Position, quaternion.identity, 1f));
+                    SetLocalTransform(entity, asteroid.Position, quaternion.identity, 1f);
                     AddComponent<SpatialIndexedTag>(entity);
+                    AddComponent(entity, CreateDemoMotion(asteroid.Position, 1.25f, 0.08f));
 
                     AddComponent(entity, new Asteroid
                     {
@@ -787,6 +790,25 @@ namespace Space4X.Registry
             private static float4 ToFloat4(Color color)
             {
                 return new float4(color.r, color.g, color.b, color.a);
+            }
+
+            private void SetLocalTransform(Entity entity, float3 position, quaternion rotation, float scale)
+            {
+                var transform = LocalTransform.FromPositionRotationScale(position, rotation, scale);
+                AddComponent(entity, transform);
+            }
+
+            private static Space4XDemoMotion CreateDemoMotion(float3 position, float amplitude, float speed)
+            {
+                var hash = math.hash(position);
+                var phase = (hash % 360u) * math.PI / 180f;
+                return new Space4XDemoMotion
+                {
+                    BasePosition = position,
+                    Amplitude = math.max(0f, amplitude),
+                    Speed = math.max(0.01f, speed),
+                    PhaseOffset = phase
+                };
             }
 
             private struct AffiliationCache
