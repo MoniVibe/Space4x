@@ -95,7 +95,7 @@ namespace Space4X.Combat
                 // Attack if enemy found (simple raycast/hitscan)
                 if (nearestEnemy != Entity.Null && state.EntityManager.Exists(nearestEnemy))
                 {
-                    // Simple hitscan - for demo, just apply damage directly
+                    // Simple hitscan - for simulation, just apply damage directly
                     // In full implementation, would use Unity Physics raycast
                     var enemyHealth = state.EntityManager.GetComponentData<Health>(nearestEnemy);
                     float damage = attackStatsRef.Damage;

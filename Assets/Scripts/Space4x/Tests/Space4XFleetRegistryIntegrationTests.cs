@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Spatial;
@@ -140,4 +141,4 @@ namespace Space4X.Tests
         }
     }
 }
-
+#endif

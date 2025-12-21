@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Modularity;
+using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
@@ -16,6 +18,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using SystemEnv = System.Environment;
 
 namespace Space4x.Scenario
 {
@@ -25,6 +28,8 @@ namespace Space4x.Scenario
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial class Space4XMiningScenarioSystem : SystemBase
     {
+        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const float DefaultSpawnVerticalRange = 60f;
         private bool _hasLoaded;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
@@ -42,12 +47,25 @@ namespace Space4x.Scenario
                 return;
             }
 
-            if (!SystemAPI.TryGetSingleton<ScenarioInfo>(out var scenarioInfo))
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPath))
             {
+                if (!SystemAPI.TryGetSingleton<ScenarioInfo>(out var scenarioInfo))
+                {
+                    Enabled = false;
+                    return;
+                }
+
+                scenarioPath = FindScenarioPath(scenarioInfo.ScenarioId.ToString());
+            }
+
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                Enabled = false;
                 return;
             }
 
-            var scenarioPath = FindScenarioPath(scenarioInfo.ScenarioId.ToString());
+            scenarioPath = Path.GetFullPath(scenarioPath);
             if (string.IsNullOrEmpty(scenarioPath) || !File.Exists(scenarioPath))
             {
                 Debug.LogWarning($"[Space4XMiningScenario] Scenario file not found: {scenarioPath}");
@@ -64,11 +82,40 @@ namespace Space4x.Scenario
                 return;
             }
 
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+
             _spawnedEntities = new Dictionary<string, Entity>();
-            SpawnEntities();
+            SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
+            var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
+            var durationSeconds = math.max(0f, _scenarioData.duration_s);
+            var durationTicks = (uint)math.ceil(durationSeconds / fixedDt);
+            var startTick = timeState.Tick;
+            var safeDurationTicks = durationTicks == 0 ? 1u : durationTicks;
+            var endTick = startTick + safeDurationTicks;
+            var runtimeEntity = EnsureScenarioRuntime(startTick, endTick, durationSeconds);
+            ScheduleScenarioActions(runtimeEntity, startTick, fixedDt);
+
+            Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Spawned carriers/miners/asteroids. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
 
             _hasLoaded = true;
             Enabled = false;
+        }
+
+        private Entity EnsureScenarioRuntime(uint startTick, uint endTick, float durationSeconds)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XScenarioRuntime>(out var runtimeEntity))
+            {
+                runtimeEntity = EntityManager.CreateEntity(typeof(Space4XScenarioRuntime));
+            }
+
+            EntityManager.SetComponentData(runtimeEntity, new Space4XScenarioRuntime
+            {
+                StartTick = startTick,
+                EndTick = endTick,
+                DurationSeconds = durationSeconds
+            });
+
+            return runtimeEntity;
         }
 
         private string FindScenarioPath(string scenarioId)
@@ -91,17 +138,17 @@ namespace Space4x.Scenario
             return null;
         }
 
-        private void SpawnEntities()
+        private void SpawnEntities(uint currentTick, float fixedDt)
         {
             foreach (var spawn in _scenarioData.spawn)
             {
                 switch (spawn.kind)
                 {
                     case "Carrier":
-                        SpawnCarrier(spawn);
+                        SpawnCarrier(spawn, currentTick, fixedDt);
                         break;
                     case "MiningVessel":
-                        SpawnMiningVessel(spawn);
+                        SpawnMiningVessel(spawn, currentTick);
                         break;
                     case "ResourceDeposit":
                         SpawnResourceDeposit(spawn);
@@ -110,21 +157,49 @@ namespace Space4x.Scenario
             }
         }
 
-        private void SpawnCarrier(MiningSpawnDefinition spawn)
+        private void SpawnCarrier(MiningSpawnDefinition spawn, uint currentTick, float fixedDt)
         {
             var position = GetPosition(spawn.position);
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            EntityManager.AddComponent<CommunicationModuleTag>(entity);
+            EntityManager.AddComponentData(entity, MediumContext.Vacuum);
 
+            var carrierId = new FixedString64Bytes(spawn.entityId ?? $"carrier-{_spawnedEntities.Count}");
             EntityManager.AddComponentData(entity, new Carrier
             {
-                CarrierId = new FixedString64Bytes(spawn.entityId ?? $"carrier-{_spawnedEntities.Count}"),
+                CarrierId = carrierId,
                 AffiliationEntity = Entity.Null,
                 Speed = 3f,
                 PatrolCenter = position,
                 PatrolRadius = 50f
             });
+
+            var isHostile = spawn.components?.Combat?.isHostile ?? false;
+            var scenarioSide = (byte)(isHostile ? 1 : 0);
+            EntityManager.AddComponentData(entity, new ScenarioSide
+            {
+                Side = scenarioSide
+            });
+            var law = isHostile ? -0.7f : 0.7f;
+            EntityManager.AddComponentData(entity, AlignmentTriplet.FromFloats(law, 0f, 0f));
+
+            EntityManager.AddComponentData(entity, new PatrolBehavior
+            {
+                CurrentWaypoint = float3.zero,
+                WaitTime = 3f,
+                WaitTimer = 0f
+            });
+
+            EntityManager.AddComponentData(entity, new MovementCommand
+            {
+                TargetPosition = float3.zero,
+                ArrivalThreshold = 2f
+            });
+
+            EntityManager.AddComponentData(entity, DockingCapacity.MiningCarrier);
+            EntityManager.AddBuffer<DockedEntity>(entity);
 
             // Add ResourceStorage buffer
             var storageBuffer = EntityManager.AddBuffer<ResourceStorage>(entity);
@@ -143,18 +218,63 @@ namespace Space4x.Scenario
                 storageBuffer.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
             }
 
+            var fleetData = spawn.components?.Fleet;
+            var combatData = spawn.components?.Combat;
+            if (fleetData != null || combatData != null)
+            {
+                var fleetId = string.IsNullOrWhiteSpace(fleetData?.fleetId)
+                    ? carrierId
+                    : new FixedString64Bytes(fleetData.fleetId);
+
+                var shipCount = fleetData?.shipCount > 0 ? fleetData.shipCount : 1;
+                var posture = ParseFleetPosture(fleetData?.posture);
+
+                EntityManager.AddComponentData(entity, new Space4XFleet
+                {
+                    FleetId = fleetId,
+                    ShipCount = shipCount,
+                    Posture = posture,
+                    TaskForce = 0
+                });
+
+                EntityManager.AddComponentData(entity, new FleetMovementBroadcast
+                {
+                    Position = position,
+                    Velocity = float3.zero,
+                    LastUpdateTick = currentTick,
+                    AllowsInterception = 1,
+                    TechTier = 1
+                });
+
+                if (combatData != null && combatData.canIntercept)
+                {
+                    var interceptSpeed = combatData.interceptSpeed > 0f ? combatData.interceptSpeed : 10f;
+                    EntityManager.AddComponentData(entity, new InterceptCapability
+                    {
+                        MaxSpeed = interceptSpeed,
+                        TechTier = 1,
+                        AllowIntercept = 1
+                    });
+                }
+            }
+
+            SpawnStrikeCraft(entity, position, combatData, scenarioSide);
+            SpawnEscorts(entity, position, combatData, scenarioSide, currentTick, fixedDt);
+
             if (!string.IsNullOrEmpty(spawn.entityId))
             {
                 _spawnedEntities[spawn.entityId] = entity;
             }
         }
 
-        private void SpawnMiningVessel(MiningSpawnDefinition spawn)
+        private void SpawnMiningVessel(MiningSpawnDefinition spawn, uint currentTick)
         {
             var position = GetPosition(spawn.position);
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            EntityManager.AddComponent<CommunicationModuleTag>(entity);
+            EntityManager.AddComponentData(entity, MediumContext.Vacuum);
 
             // Find carrier entity
             Entity carrierEntity = Entity.Null;
@@ -208,7 +328,7 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(entity, new VesselAIState
             {
                 CurrentState = VesselAIState.State.Idle,
-                CurrentGoal = VesselAIState.Goal.None,
+                CurrentGoal = VesselAIState.Goal.Mining,
                 TargetEntity = Entity.Null,
                 TargetPosition = float3.zero,
                 StateTimer = 0f,
@@ -226,6 +346,17 @@ namespace Space4x.Scenario
             });
 
             EntityManager.AddBuffer<SpawnResourceRequest>(entity);
+
+            if (spawn.startDocked && carrierEntity != Entity.Null)
+            {
+                EntityManager.AddComponentData(entity, new DockingRequest
+                {
+                    TargetCarrier = carrierEntity,
+                    RequiredSlot = DockingSlotType.Utility,
+                    RequestTick = currentTick,
+                    Priority = 0
+                });
+            }
 
             if (!string.IsNullOrEmpty(spawn.entityId))
             {
@@ -292,13 +423,182 @@ namespace Space4x.Scenario
             }
         }
 
+        private void ScheduleScenarioActions(Entity runtimeEntity, uint startTick, float fixedDt)
+        {
+            if (_scenarioData.actions == null || _scenarioData.actions.Count == 0)
+            {
+                return;
+            }
+
+            if (EntityManager.HasBuffer<Space4XScenarioAction>(runtimeEntity))
+            {
+                return;
+            }
+
+            var actionsBuffer = EntityManager.AddBuffer<Space4XScenarioAction>(runtimeEntity);
+            var safeDt = math.max(1e-6f, fixedDt);
+
+            foreach (var action in _scenarioData.actions)
+            {
+                if (action == null || string.IsNullOrWhiteSpace(action.kind))
+                {
+                    continue;
+                }
+
+                var kind = ParseScenarioActionKind(action.kind);
+                var executeTick = startTick + (uint)math.ceil(math.max(0f, action.time_s) / safeDt);
+                var targetPosition = GetPosition(action.targetPosition);
+
+                actionsBuffer.Add(new Space4XScenarioAction
+                {
+                    ExecuteTick = executeTick,
+                    Kind = kind,
+                    FleetId = new FixedString64Bytes(action.fleetId ?? action.requesterFleetId ?? string.Empty),
+                    TargetFleetId = new FixedString64Bytes(action.targetFleetId ?? string.Empty),
+                    TargetPosition = targetPosition,
+                    Executed = 0
+                });
+            }
+        }
+
+        private void SpawnStrikeCraft(Entity carrierEntity, float3 carrierPosition, CombatComponentData combatData, byte scenarioSide)
+        {
+            if (combatData == null || combatData.strikeCraftCount <= 0)
+            {
+                return;
+            }
+
+            var role = ParseStrikeCraftRole(combatData.strikeCraftRole);
+            for (int i = 0; i < combatData.strikeCraftCount; i++)
+            {
+                var entity = EntityManager.CreateEntity();
+                var offset = new float3(2f * (i + 1), 0f, 2f * (i + 1));
+                EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
+                EntityManager.AddComponent<CommunicationModuleTag>(entity);
+                EntityManager.AddComponentData(entity, MediumContext.Vacuum);
+                EntityManager.AddComponentData(entity, StrikeCraftProfile.Create(role, carrierEntity));
+                EntityManager.AddComponentData(entity, AttackRunConfig.ForRole(role));
+                EntityManager.AddComponentData(entity, StrikeCraftExperience.Rookie);
+                EntityManager.AddComponentData(entity, new ScenarioSide
+                {
+                    Side = scenarioSide
+                });
+                var law = scenarioSide == 1 ? -0.7f : 0.7f;
+                EntityManager.AddComponentData(entity, AlignmentTriplet.FromFloats(law, 0f, 0f));
+            }
+        }
+
+        private void SpawnEscorts(Entity carrierEntity, float3 carrierPosition, CombatComponentData combatData, byte scenarioSide, uint currentTick, float fixedDt)
+        {
+            if (combatData == null || combatData.escortCount <= 0)
+            {
+                return;
+            }
+
+            var releaseSeconds = combatData.escortRelease_s > 0f ? combatData.escortRelease_s : 30f;
+            var releaseTicks = (uint)math.ceil(releaseSeconds / math.max(1e-6f, fixedDt));
+            var releaseTick = currentTick + math.max(1u, releaseTicks);
+
+            for (int i = 0; i < combatData.escortCount; i++)
+            {
+                var entity = EntityManager.CreateEntity();
+                var offset = new float3(3f * (i + 1), 0f, -3f * (i + 1));
+                EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
+                EntityManager.AddComponent<SpatialIndexedTag>(entity);
+                EntityManager.AddComponent<CommunicationModuleTag>(entity);
+                EntityManager.AddComponentData(entity, MediumContext.Vacuum);
+
+                EntityManager.AddComponentData(entity, new VesselMovement
+                {
+                    Velocity = float3.zero,
+                    BaseSpeed = 6f,
+                    CurrentSpeed = 0f,
+                    DesiredRotation = quaternion.identity,
+                    IsMoving = 0,
+                    LastMoveTick = currentTick
+                });
+
+                EntityManager.AddComponentData(entity, new VesselAIState
+                {
+                    CurrentState = VesselAIState.State.MovingToTarget,
+                    CurrentGoal = VesselAIState.Goal.Escort,
+                    TargetEntity = carrierEntity,
+                    TargetPosition = float3.zero,
+                    StateTimer = 0f,
+                    StateStartTick = currentTick
+                });
+
+                EntityManager.AddComponentData(entity, new ChildVesselTether
+                {
+                    ParentCarrier = carrierEntity,
+                    MaxTetherRange = 45f,
+                    CanPatrol = 0
+                });
+
+                EntityManager.AddComponentData(entity, new EscortAssignment
+                {
+                    Target = carrierEntity,
+                    AssignedTick = currentTick,
+                    ReleaseTick = releaseTick,
+                    Released = 0
+                });
+
+                EntityManager.AddComponentData(entity, new ScenarioSide
+                {
+                    Side = scenarioSide
+                });
+            }
+        }
+
         private float3 GetPosition(float[] position)
         {
             if (position != null && position.Length >= 2)
             {
-                return new float3(position[0], position.Length > 2 ? position[2] : 0f, position[1]);
+                float x = position[0];
+                float z = position[1];
+                float y = position.Length > 2 ? position[2] : ResolveSpawnHeight(x, z);
+                return new float3(x, y, z);
             }
             return float3.zero;
+        }
+
+        private static float ResolveSpawnHeight(float x, float z)
+        {
+            uint hash = (uint)math.hash(new float2(x, z));
+            float normalized = hash / (float)uint.MaxValue;
+            return (normalized * 2f - 1f) * DefaultSpawnVerticalRange;
+        }
+
+        private static Space4XFleetPosture ParseFleetPosture(string posture)
+        {
+            return posture switch
+            {
+                "Engaging" => Space4XFleetPosture.Engaging,
+                "Retreating" => Space4XFleetPosture.Retreating,
+                _ => Space4XFleetPosture.Patrol
+            };
+        }
+
+        private static StrikeCraftRole ParseStrikeCraftRole(string role)
+        {
+            return role switch
+            {
+                "Interceptor" => StrikeCraftRole.Interceptor,
+                "Bomber" => StrikeCraftRole.Bomber,
+                "Recon" => StrikeCraftRole.Recon,
+                "Suppression" => StrikeCraftRole.Suppression,
+                "EWar" => StrikeCraftRole.EWar,
+                _ => StrikeCraftRole.Fighter
+            };
+        }
+
+        private static Space4XScenarioActionKind ParseScenarioActionKind(string kind)
+        {
+            return kind switch
+            {
+                "TriggerIntercept" => Space4XScenarioActionKind.TriggerIntercept,
+                _ => Space4XScenarioActionKind.MoveFleet
+            };
         }
 
         private ResourceType ParseResourceType(string type)
@@ -320,8 +620,20 @@ namespace Space4x.Scenario
         public int seed;
         public float duration_s;
         public List<MiningSpawnDefinition> spawn;
-        public List<object> actions;
+        public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
+    }
+
+    [System.Serializable]
+    public class MiningScenarioAction
+    {
+        public float time_s;
+        public string kind;
+        public string fleetId;
+        public float[] targetPosition;
+        public string requesterFleetId;
+        public string targetFleetId;
+        public string description;
     }
 
     [System.Serializable]
@@ -338,6 +650,7 @@ namespace Space4x.Scenario
         public float unitsRemaining;
         public float gatherRatePerWorker;
         public int maxSimultaneousWorkers;
+        public bool startDocked;
         public MiningComponentData components;
     }
 
@@ -345,6 +658,28 @@ namespace Space4x.Scenario
     public class MiningComponentData
     {
         public List<ResourceStorageData> ResourceStorage;
+        public FleetComponentData Fleet;
+        public CombatComponentData Combat;
+    }
+
+    [System.Serializable]
+    public class FleetComponentData
+    {
+        public string fleetId;
+        public string posture;
+        public int shipCount;
+    }
+
+    [System.Serializable]
+    public class CombatComponentData
+    {
+        public bool canIntercept;
+        public float interceptSpeed;
+        public bool isHostile;
+        public int strikeCraftCount;
+        public string strikeCraftRole;
+        public int escortCount;
+        public float escortRelease_s;
     }
 
     [System.Serializable]
@@ -359,6 +694,9 @@ namespace Space4x.Scenario
     {
         public bool expectMiningYield;
         public bool expectCarrierPickup;
+        public bool expectInterceptAttempts;
+        public bool expectFleetRegistry;
+        public bool expectResourceRegistry;
         public MiningTelemetryExport export;
     }
 
@@ -369,4 +707,3 @@ namespace Space4x.Scenario
         public string json;
     }
 }
-

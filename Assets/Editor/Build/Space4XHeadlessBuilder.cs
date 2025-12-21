@@ -46,6 +46,7 @@ namespace Space4X.Headless.Editor
             Directory.CreateDirectory(absoluteOutput);
 
             using var targetScope = new BuildTargetScope(BuildTarget.StandaloneLinux64, BuildTargetGroup.Standalone);
+            using var buildSettingsSceneScope = new BuildSettingsSceneScope(HeadlessScenes);
 
             var buildPlayerOptions = new BuildPlayerOptions
             {
@@ -85,6 +86,56 @@ namespace Space4X.Headless.Editor
             if (!string.IsNullOrEmpty(editorLogSnapshotPath))
             {
                 UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Editor log snapshot: {editorLogSnapshotPath}");
+            }
+        }
+
+        private sealed class BuildSettingsSceneScope : IDisposable
+        {
+            private readonly EditorBuildSettingsScene[] _previousScenes;
+            private bool _restored;
+
+            public BuildSettingsSceneScope(string[] scenePaths)
+            {
+                _previousScenes = EditorBuildSettings.scenes;
+                EditorBuildSettings.scenes = BuildSceneList(scenePaths);
+            }
+
+            public void Dispose()
+            {
+                if (_restored)
+                {
+                    return;
+                }
+
+                EditorBuildSettings.scenes = _previousScenes;
+                _restored = true;
+            }
+
+            private static EditorBuildSettingsScene[] BuildSceneList(string[] scenePaths)
+            {
+                if (scenePaths == null || scenePaths.Length == 0)
+                {
+                    return Array.Empty<EditorBuildSettingsScene>();
+                }
+
+                var scenes = new List<EditorBuildSettingsScene>(scenePaths.Length);
+                foreach (var scenePath in scenePaths)
+                {
+                    if (string.IsNullOrWhiteSpace(scenePath))
+                    {
+                        continue;
+                    }
+
+                    var absoluteScene = Path.GetFullPath(Path.Combine(ProjectRoot, scenePath));
+                    if (!File.Exists(absoluteScene))
+                    {
+                        throw new BuildFailedException($"Headless build scene not found: {scenePath}");
+                    }
+
+                    scenes.Add(new EditorBuildSettingsScene(scenePath, true));
+                }
+
+                return scenes.ToArray();
             }
         }
 

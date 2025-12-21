@@ -9,7 +9,7 @@ namespace Space4X.Authoring
 {
     /// <summary>
     /// Standalone authoring component for Space4X mining vessels.
-    /// Creates MiningVessel and MiningJob components that work with Space4XDemoSystems.
+    /// Creates MiningVessel and MiningJob components that work with Space4X mining systems.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class Space4XMiningVesselAuthoring : MonoBehaviour
@@ -47,7 +47,7 @@ namespace Space4X.Authoring
                 AddComponent(entity, new MiningVessel
                 {
                     VesselId = new Unity.Collections.FixedString64Bytes(authoring.vesselId),
-                    CarrierEntity = Entity.Null, // Will be linked by Space4XMiningDemoAuthoring or manual setup
+                    CarrierEntity = Entity.Null, // Will be linked by Space4XMiningScenarioAuthoring or manual setup
                     MiningEfficiency = math.clamp(authoring.miningEfficiency, 0f, 1f),
                     Speed = math.max(0.1f, authoring.speed),
                     CargoCapacity = math.max(1f, authoring.cargoCapacity),
@@ -91,4 +91,3 @@ namespace Space4X.Authoring
         }
     }
 }
-

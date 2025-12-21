@@ -614,15 +614,15 @@ MonoBehaviour:
       z: 0
   visuals:
     CarrierPrimitive: 1
-    CarrierScale: 3
+    CarrierScale: 0.5
     CarrierColor: {r: 0.35, g: 0.4, b: 0.62, a: 1}
     CarrierDescriptorKey: space4x.vessel.carrier
     MiningVesselPrimitive: 2
-    MiningVesselScale: 1.2
+    MiningVesselScale: 0.02
     MiningVesselColor: {r: 0.25, g: 0.52, b: 0.84, a: 1}
     MiningVesselDescriptorKey: space4x.vessel.miner
     AsteroidPrimitive: 3
-    AsteroidScale: 2.25
+    AsteroidScale: 20
     AsteroidColor: {r: 0.52, g: 0.43, b: 0.34, a: 1}
     AsteroidDescriptorKey: space4x.prop.asteroid
 --- !u!1 &1414351674

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using Space4X.Registry;
 using Space4X.Tests.TestHarness;
@@ -58,3 +59,4 @@ namespace Space4X.Tests
         }
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using System;
 using System.Collections;
 using NUnit.Framework;
@@ -186,3 +187,4 @@ public class Space4XSmokeTests
         Assert.Fail(message);
     }
 }
+#endif

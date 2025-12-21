@@ -69,6 +69,7 @@ namespace Space4X.Systems.AI
             var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<VesselAIState>, RefRO<LocalTransform>>()
+                         .WithNone<MiningState>() // MiningOrder + MiningState pipeline handled by Space4XMinerMiningSystem
                          .WithEntityAccess())
             {
                 // Only gather if we're in mining state and have a target
@@ -262,4 +263,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

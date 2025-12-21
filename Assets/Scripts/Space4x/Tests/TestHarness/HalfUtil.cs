@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using Unity.Mathematics;
 
@@ -14,3 +15,4 @@ namespace Space4X.Tests.TestHarness
         }
     }
 }
+#endif

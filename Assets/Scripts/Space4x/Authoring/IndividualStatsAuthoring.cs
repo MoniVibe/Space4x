@@ -1,4 +1,5 @@
 using Space4X.Registry;
+using PureDOTS.Runtime.Individual;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -42,6 +43,7 @@ namespace Space4X.Authoring
             public override void Bake(IndividualStatsAuthoring authoring)
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
+                AddComponent<SimIndividualTag>(entity);
                 AddComponent(entity, new Registry.IndividualStats
                 {
                     Command = (half)math.clamp(authoring.command, 0f, 100f),
@@ -55,4 +57,3 @@ namespace Space4X.Authoring
         }
     }
 }
-

@@ -29,7 +29,8 @@ namespace Space4X.Camera
         [SerializeField] private float pitchMax       =  89f;
 
         [Header("Panning")]
-        [SerializeField] private float panSpeed       = 0.2f;
+        // Per-frame pointer delta is in pixels; use world-units per pixel (do NOT multiply by dt).
+        [SerializeField] private float panSpeed       = 0.003f;
 
         private Vector3 _lastMousePos;
         private float _yaw;
@@ -120,10 +121,9 @@ namespace Space4X.Camera
                 Vector3 right = transform.right;
                 Vector3 up    = Vector3.up; // world up
 
-                Vector3 pan = (-right * delta.x + -up * delta.y) * panSpeed * dt;
+                Vector3 pan = (-right * delta.x + -up * delta.y) * panSpeed;
                 transform.position += pan;
             }
         }
     }
 }
-

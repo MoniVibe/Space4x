@@ -215,16 +215,20 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XTradeRouteSystem : ISystem
     {
+        private BufferLookup<MarketPriceEntry> _priceLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XTradeRoute>();
+            _priceLookup = state.GetBufferLookup<MarketPriceEntry>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            _priceLookup.Update(ref state);
 
             foreach (var (route, status, entity) in
                 SystemAPI.Query<RefRW<Space4XTradeRoute>, RefRW<TradeRouteStatus>>()
@@ -257,22 +261,15 @@ namespace Space4X.Registry
                         break;
 
                     case TradeRoutePhase.Loading:
-                        // Would load cargo from source market
+                        // Load cargo from source market inventory.
                         status.ValueRW.CargoType = route.ValueRO.PrimaryResource;
-                        status.ValueRW.CargoQuantity = route.ValueRO.VolumePerTrip;
+                        status.ValueRW.CargoQuantity = 0f;
+                        status.ValueRW.PurchasePrice = 0f;
 
-                        // Get purchase price from source market
-                        if (SystemAPI.HasBuffer<MarketPriceEntry>(route.ValueRO.SourceMarket))
+                        if (TryLoadMarketCargo(ref _priceLookup, route.ValueRO.SourceMarket, route.ValueRO.PrimaryResource, route.ValueRO.VolumePerTrip, out var purchasePrice, out var loadedAmount))
                         {
-                            var prices = SystemAPI.GetBuffer<MarketPriceEntry>(route.ValueRO.SourceMarket);
-                            for (int i = 0; i < prices.Length; i++)
-                            {
-                                if (prices[i].ResourceType == route.ValueRO.PrimaryResource)
-                                {
-                                    status.ValueRW.PurchasePrice = prices[i].BuyPrice;
-                                    break;
-                                }
-                            }
+                            status.ValueRW.PurchasePrice = purchasePrice;
+                            status.ValueRW.CargoQuantity = loadedAmount;
                         }
 
                         status.ValueRW.Phase = TradeRoutePhase.TravelingToDestination;
@@ -290,26 +287,17 @@ namespace Space4X.Registry
 
                     case TradeRoutePhase.Unloading:
                         // Calculate and record profit
-                        if (SystemAPI.HasBuffer<MarketPriceEntry>(route.ValueRO.DestinationMarket))
+                        if (TryUnloadMarketCargo(ref _priceLookup, route.ValueRO.DestinationMarket, route.ValueRO.PrimaryResource, status.ValueRO.CargoQuantity, out var sellPrice))
                         {
-                            var prices = SystemAPI.GetBuffer<MarketPriceEntry>(route.ValueRO.DestinationMarket);
-                            for (int i = 0; i < prices.Length; i++)
-                            {
-                                if (prices[i].ResourceType == route.ValueRO.PrimaryResource)
-                                {
-                                    float sellPrice = prices[i].SellPrice;
-                                    float profit = (sellPrice - status.ValueRO.PurchasePrice) * status.ValueRO.CargoQuantity;
+                            float profit = (sellPrice - status.ValueRO.PurchasePrice) * status.ValueRO.CargoQuantity;
 
-                                    route.ValueRW.TotalProfit += profit;
-                                    route.ValueRW.ProfitMargin = MarketMath.CalculateProfitMargin(
-                                        status.ValueRO.PurchasePrice,
-                                        sellPrice,
-                                        0.05f, // Tax
-                                        (float)route.ValueRO.RiskLevel
-                                    );
-                                    break;
-                                }
-                            }
+                            route.ValueRW.TotalProfit += profit;
+                            route.ValueRW.ProfitMargin = MarketMath.CalculateProfitMargin(
+                                status.ValueRO.PurchasePrice,
+                                sellPrice,
+                                0.05f, // Tax
+                                (float)route.ValueRO.RiskLevel
+                            );
                         }
 
                         status.ValueRW.CargoQuantity = 0;
@@ -328,6 +316,82 @@ namespace Space4X.Registry
                         break;
                 }
             }
+        }
+
+        private static bool TryLoadMarketCargo(
+            ref BufferLookup<MarketPriceEntry> priceLookup,
+            Entity market,
+            MarketResourceType resource,
+            float requestedAmount,
+            out float purchasePrice,
+            out float loadedAmount)
+        {
+            purchasePrice = 0f;
+            loadedAmount = 0f;
+
+            if (!priceLookup.HasBuffer(market))
+            {
+                return false;
+            }
+
+            var prices = priceLookup[market];
+            for (int i = 0; i < prices.Length; i++)
+            {
+                var price = prices[i];
+                if (price.ResourceType != resource)
+                {
+                    continue;
+                }
+
+                purchasePrice = price.BuyPrice;
+                loadedAmount = math.min(price.Supply, requestedAmount);
+                if (loadedAmount > 0f)
+                {
+                    price.Supply = math.max(0f, price.Supply - loadedAmount);
+                    prices[i] = price;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryUnloadMarketCargo(
+            ref BufferLookup<MarketPriceEntry> priceLookup,
+            Entity market,
+            MarketResourceType resource,
+            float amount,
+            out float sellPrice)
+        {
+            sellPrice = 0f;
+
+            if (!priceLookup.HasBuffer(market))
+            {
+                return false;
+            }
+
+            var prices = priceLookup[market];
+            for (int i = 0; i < prices.Length; i++)
+            {
+                var price = prices[i];
+                if (price.ResourceType != resource)
+                {
+                    continue;
+                }
+
+                sellPrice = price.SellPrice;
+                if (amount > 0f)
+                {
+                    price.Supply += amount;
+                    price.Demand = math.max(0f, price.Demand - amount);
+                    prices[i] = price;
+                }
+
+                return true;
+            }
+
+            return false;
         }
     }
 

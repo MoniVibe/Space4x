@@ -12,7 +12,7 @@ using Unity.Transforms;
 namespace Space4X.Mining
 {
     /// <summary>
-    /// Simple mining job system for demo. Handles mining vessel state machine:
+    /// Simple mining job system for simulation. Handles mining vessel state machine:
     /// Idle → FlyToAsteroid → Mine → ReturnToCarrier → Unload → Idle
     /// </summary>
     [BurstCompile]
@@ -267,4 +267,3 @@ namespace Space4X.Mining
         }
     }
 }
-

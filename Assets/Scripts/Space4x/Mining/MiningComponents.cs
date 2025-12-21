@@ -9,7 +9,7 @@ namespace Space4X.Mining
     public struct MiningVesselTag : IComponentData { }
 
     /// <summary>
-    /// Frame definition for a mining vessel (stub for demo).
+    /// Frame definition for a mining vessel (stub for simulation).
     /// </summary>
     public struct MiningVesselFrameDef : IComponentData
     {
@@ -50,4 +50,3 @@ namespace Space4X.Mining
         Unloading = 4
     }
 }
-

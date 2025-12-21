@@ -9,7 +9,7 @@ namespace Space4X.Authoring
 {
     /// <summary>
     /// Standalone authoring component for Space4X carrier ships.
-    /// Creates Carrier, PatrolBehavior, and MovementCommand components that work with Space4XDemoSystems.
+    /// Creates Carrier, PatrolBehavior, and MovementCommand components that work with Space4X simulation systems.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class Space4XCarrierAuthoring : MonoBehaviour
@@ -95,4 +95,3 @@ namespace Space4X.Authoring
         }
     }
 }
-

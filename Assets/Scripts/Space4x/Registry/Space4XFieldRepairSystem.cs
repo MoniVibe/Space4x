@@ -18,6 +18,7 @@ namespace Space4X.Registry
         private ComponentLookup<SkillExperienceGain> _xpLookup;
         private ComponentLookup<ModuleStatAggregate> _aggregateLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
+        private EntityQuery _tuningQuery;
 
         public void OnCreate(ref SystemState state)
         {
@@ -30,6 +31,7 @@ namespace Space4X.Registry
             _xpLookup = state.GetComponentLookup<SkillExperienceGain>(false);
             _aggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _tuningQuery = state.GetEntityQuery(ComponentType.ReadOnly<RefitRepairTuningSingleton>());
         }
 
         public void OnUpdate(ref SystemState state)
@@ -61,7 +63,7 @@ namespace Space4X.Registry
             var telemetryDirty = false;
             var tick = time.Tick;
 
-            bool hasTuning = ModuleCatalogUtility.TryGetTuning(ref state, out var tuning);
+            bool hasTuning = ModuleCatalogUtility.TryGetTuning(_tuningQuery, out var tuning);
             
             foreach (var (slots, capability, entity) in SystemAPI.Query<DynamicBuffer<CarrierModuleSlot>, RefRO<FieldRepairCapability>>().WithEntityAccess())
             {

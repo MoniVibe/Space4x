@@ -61,8 +61,10 @@ namespace Space4X.Systems.AI
 
             var depositDistance = 2f; // Vessels deposit when within 2 units of carrier
             var depositDistanceSq = depositDistance * depositDistance;
+            var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<VesselAIState>, RefRO<LocalTransform>>()
+                         .WithNone<MiningState>() // MiningOrder + MiningState pipeline uses CarrierDropoffSystem
                          .WithEntityAccess())
             {
                 // Only deposit if returning and has cargo
@@ -125,6 +127,20 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                if (hasCommandLog)
+                {
+                    commandLog.Add(new MiningCommandLogEntry
+                    {
+                        Tick = timeState.Tick,
+                        CommandType = MiningCommandType.Pickup,
+                        SourceEntity = entity,
+                        TargetEntity = aiState.ValueRO.TargetEntity,
+                        ResourceType = cargoType,
+                        Amount = deposited,
+                        Position = carrierTransform.Position
+                    });
+                }
+
                 // Update global player resources when cargo is deposited
                 if (SystemAPI.TryGetSingletonRW<PlayerResources>(out var playerResources))
                 {
@@ -173,4 +189,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

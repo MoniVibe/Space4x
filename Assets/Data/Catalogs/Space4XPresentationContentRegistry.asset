@@ -1,0 +1,96 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 421d1c5488704139a24a650880e599d8, type: 3}
+  m_Name: Space4XPresentationContentRegistry
+  m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PresentationContentRegistryAsset
+  entries:
+  - registryId: space4x.carrier
+    renderSemanticKey: 200
+    renderArchetypeId: 200
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 1.4
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.miner
+    renderSemanticKey: 210
+    renderArchetypeId: 210
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 0.4
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.asteroid
+    renderSemanticKey: 220
+    renderArchetypeId: 220
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 3.5
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.projectile
+    renderSemanticKey: 230
+    renderArchetypeId: 230
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 0.2
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.fleet_impostor
+    renderSemanticKey: 240
+    renderArchetypeId: 240
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 1
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.individual
+    renderSemanticKey: 250
+    renderArchetypeId: 250
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 0.12
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.strike_craft
+    renderSemanticKey: 260
+    renderArchetypeId: 260
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 0.25
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.resource_pickup
+    renderSemanticKey: 270
+    renderArchetypeId: 270
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 1
+    baseScale: 0.2
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}
+  - registryId: space4x.ghost_tether
+    renderSemanticKey: 280
+    renderArchetypeId: 280
+    descriptorKey: 
+    sceneGuid: 
+    setBaseScale: 0
+    baseScale: 1
+    setBaseTint: 0
+    baseTint: {r: 1, g: 1, b: 1, a: 1}

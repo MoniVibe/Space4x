@@ -45,6 +45,12 @@ namespace Space4X.Registry
                          .Query<RefRW<MiningYield>, RefRW<MiningVessel>, RefRO<LocalTransform>, DynamicBuffer<SpawnResourceRequest>>()
                          .WithEntityAccess())
             {
+                if (vessel.ValueRO.CarrierEntity != Entity.Null)
+                {
+                    // Vessels assigned to a carrier use direct drop-off; do not convert yield into pickups.
+                    continue;
+                }
+
                 var threshold = DetermineThreshold(yield.ValueRO.SpawnThreshold, vessel.ValueRO.CargoCapacity);
                 if (threshold <= 0f || yield.ValueRO.PendingAmount < threshold)
                 {

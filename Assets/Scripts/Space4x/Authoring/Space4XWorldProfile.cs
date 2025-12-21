@@ -161,8 +161,8 @@ namespace Space4X.Authoring
         {
             var excludedSystems = new List<Type>();
 
-            // Always exclude demo systems (none included in game profile)
-            // Demo systems removed from game profile to avoid references
+            // Always exclude legacy scenario systems (none included in game profile)
+            // Legacy scenario systems removed from game profile to avoid references
             excludedSystems.Add(typeof(PureDOTS.Systems.Hybrid.HybridControlToggleSystem));
 
             // Exclude village/miracle systems not relevant to Space4X

@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: df335c9a4a8d5284aae988c3d5d0210f, type: 3}
+  m_Script: {fileID: 11500000, guid: b2b5959661b275347848db4196a2dce4, type: 3}
   m_Name: Space4XPresentationBinding_Fancy
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XPresentationBinding
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.Config.Space4XPresentationBinding
   bindings: []

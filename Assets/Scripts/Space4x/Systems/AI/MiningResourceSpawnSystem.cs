@@ -57,6 +57,13 @@ namespace Space4X.Systems.AI
                          .WithEntityAccess())
             {
                 var vesselValue = vessel.ValueRO;
+                if (vesselValue.CarrierEntity != Entity.Null)
+                {
+                    // Vessels assigned to a carrier use direct drop-off; do not convert cargo into pickups.
+                    requests.Clear();
+                    continue;
+                }
+
                 var hasYield = _yieldLookup.HasComponent(entity);
                 var spawnType = vesselValue.CargoResourceType;
                 var pendingCargo = vesselValue.CurrentCargo;

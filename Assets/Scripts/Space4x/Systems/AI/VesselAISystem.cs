@@ -27,6 +27,11 @@ namespace Space4X.Systems.AI
         private EntityQuery _vesselQuery;
         private EntityQuery _resourceRegistryQuery;
         private EntityQuery _carrierQuery;
+        private ComponentLookup<MiningOrder> _miningOrderLookup;
+        private ComponentLookup<Space4X.Registry.ResourceTypeId> _resourceTypeLookup;
+        private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<MinerTargetStrategy> _targetStrategyLookup;
+        private ComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState> _resourceStateLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -45,6 +50,12 @@ namespace Space4X.Systems.AI
 
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+
+            _miningOrderLookup = state.GetComponentLookup<MiningOrder>(false);
+            _resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
+            _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+            _targetStrategyLookup = state.GetComponentLookup<MinerTargetStrategy>(true);
+            _resourceStateLookup = state.GetComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState>(true);
         }
 
         [BurstCompile]
@@ -104,16 +115,11 @@ namespace Space4X.Systems.AI
 
                     if (hasResources)
                     {
-                        var miningOrderLookup = state.GetComponentLookup<MiningOrder>(false);
-                        var resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
-                        var asteroidLookup = state.GetComponentLookup<Asteroid>(true);
-                        var targetStrategyLookup = state.GetComponentLookup<MinerTargetStrategy>(true);
-                        var resourceStateLookup = state.GetComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState>(true);
-                        miningOrderLookup.Update(ref state);
-                        resourceTypeLookup.Update(ref state);
-                        asteroidLookup.Update(ref state);
-                        targetStrategyLookup.Update(ref state);
-                        resourceStateLookup.Update(ref state);
+                        _miningOrderLookup.Update(ref state);
+                        _resourceTypeLookup.Update(ref state);
+                        _asteroidLookup.Update(ref state);
+                        _targetStrategyLookup.Update(ref state);
+                        _resourceStateLookup.Update(ref state);
 
                         var job = new UpdateVesselAIJob
                         {
@@ -121,16 +127,18 @@ namespace Space4X.Systems.AI
                             HasResources = hasResources,
                             Carriers = carriers.AsArray(),
                             CarrierTransforms = carrierTransforms.AsArray(),
-                            MiningOrderLookup = miningOrderLookup,
-                            ResourceTypeLookup = resourceTypeLookup,
-                            AsteroidLookup = asteroidLookup,
-                            TargetStrategyLookup = targetStrategyLookup,
-                            ResourceStateLookup = resourceStateLookup,
+                            MiningOrderLookup = _miningOrderLookup,
+                            ResourceTypeLookup = _resourceTypeLookup,
+                            AsteroidLookup = _asteroidLookup,
+                            TargetStrategyLookup = _targetStrategyLookup,
+                            ResourceStateLookup = _resourceStateLookup,
                             DeltaTime = timeState.FixedDeltaTime,
                             CurrentTick = timeState.Tick
                         };
 
-                        var jobHandle = job.ScheduleParallel(state.Dependency);
+                        // NOTE: This job writes MiningOrder via ComponentLookup on the current entity.
+                        // Scheduling non-parallel avoids safety violations about parallel writes to lookups.
+                        var jobHandle = job.Schedule(state.Dependency);
                         var carriersDisposeHandle = carriers.Dispose(jobHandle);
                         var carrierTransformsDisposeHandle = carrierTransforms.Dispose(jobHandle);
                         state.Dependency = JobHandle.CombineDependencies(carriersDisposeHandle, carrierTransformsDisposeHandle);
@@ -371,45 +379,48 @@ namespace Space4X.Systems.AI
                         aiState.StateStartTick = CurrentTick;
                     }
                 }
-                // If vessel is full, return to carrier (or origin if no carrier)
-                else if (vessel.CurrentCargo >= vessel.CargoCapacity * 0.95f && aiState.CurrentState != VesselAIState.State.Returning)
+                // If vessel is full, return to carrier (or origin if no carrier).
+                // Note: VesselGatheringSystem can set CurrentState=Returning first, so we must also handle
+                // "already Returning but still targeting the resource" by (re)assigning a carrier target here.
+                else if (vessel.CurrentCargo >= vessel.CargoCapacity * 0.95f)
                 {
-                    aiState.CurrentGoal = VesselAIState.Goal.Returning;
-                    aiState.CurrentState = VesselAIState.State.Returning;
-                    
-                    // Find nearest carrier
-                    Entity nearestCarrier = Entity.Null;
-                    float nearestDistance = float.MaxValue;
-                    
-                    if (Carriers.Length > 0 && CarrierTransforms.Length == Carriers.Length)
+                    var desiredCarrier = vessel.CarrierEntity;
+                    if (desiredCarrier == Entity.Null)
                     {
-                        for (int i = 0; i < Carriers.Length; i++)
+                        // Fall back to nearest carrier when the vessel isn't explicitly assigned.
+                        Entity nearestCarrier = Entity.Null;
+                        float nearestDistance = float.MaxValue;
+
+                        if (Carriers.Length > 0 && CarrierTransforms.Length == Carriers.Length)
                         {
-                            var distance = math.distance(transform.Position, CarrierTransforms[i].Position);
-                            if (distance < nearestDistance)
+                            for (int i = 0; i < Carriers.Length; i++)
                             {
-                                nearestCarrier = Carriers[i];
-                                nearestDistance = distance;
+                                var distance = math.distance(transform.Position, CarrierTransforms[i].Position);
+                                if (distance < nearestDistance)
+                                {
+                                    nearestCarrier = Carriers[i];
+                                    nearestDistance = distance;
+                                }
                             }
                         }
+
+                        desiredCarrier = nearestCarrier;
                     }
-                    
-                    if (nearestCarrier != Entity.Null)
+
+                    var needsReturnTarget = aiState.CurrentState != VesselAIState.State.Returning
+                                            || aiState.CurrentGoal != VesselAIState.Goal.Returning
+                                            || aiState.TargetEntity != desiredCarrier;
+
+                    if (needsReturnTarget)
                     {
-                        aiState.TargetEntity = nearestCarrier;
-                        // TargetPosition will be resolved by VesselTargetingSystem
-                        // Debug logging removed - Burst doesn't support string formatting in jobs
-                    }
-                    else
-                    {
-                        // No carrier found, return to origin (0,0,0)
-                        aiState.TargetEntity = Entity.Null;
+                        aiState.CurrentGoal = VesselAIState.Goal.Returning;
+                        aiState.CurrentState = VesselAIState.State.Returning;
+                        aiState.TargetEntity = desiredCarrier;
+                        // Always clear TargetPosition so the targeting system can resolve it (including origin targets).
                         aiState.TargetPosition = float3.zero;
-                        // Debug logging removed - Burst doesn't support UnityDebug.Log in jobs
+                        aiState.StateTimer = 0f;
+                        aiState.StateStartTick = CurrentTick;
                     }
-                    
-                    aiState.StateTimer = 0f;
-                    aiState.StateStartTick = CurrentTick;
                 }
                 // If vessel is at target and not full, transition to mining state
                 else if (aiState.CurrentState == VesselAIState.State.MovingToTarget && 

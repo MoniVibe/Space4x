@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using Unity.Entities;
 using Unity.Rendering;
@@ -154,3 +155,4 @@ namespace Space4X.Tests.PlayMode
         }
     }
 }
+#endif

@@ -35,7 +35,7 @@ public class FixRenderCatalog
         // Try to find and assign the catalog asset
         if (authoring.CatalogDefinition == null)
         {
-            string assetPath = "Assets/Data/Space4XRenderCatalog.asset";
+            string assetPath = "Assets/Data/Space4XRenderCatalog_v2.asset";
             var catalogAsset = AssetDatabase.LoadAssetAtPath<RenderPresentationCatalogDefinition>(assetPath);
             if (catalogAsset != null)
             {

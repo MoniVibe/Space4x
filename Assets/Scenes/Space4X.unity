@@ -701,6 +701,10 @@ GameObject:
   m_Component:
   - component: {fileID: 865624804}
   - component: {fileID: 865624803}
+  - component: {fileID: 865624805}
+  - component: {fileID: 865624806}
+  - component: {fileID: 865624807}
+  - component: {fileID: 865624808}
   m_Layer: 0
   m_Name: Presentation Registry
   m_TagString: Untagged
@@ -721,6 +725,67 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Authoring::PureDOTS.Authoring.PresentationRegistryAuthoring
   registry: {fileID: 11400000, guid: 92b5c6df041427c4ab4cc1eff2abc06d, type: 2}
+--- !u!114 &865624805
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 865624802}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 421d1c5488704139a24a650880e599d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  registry: {fileID: 11400000, guid: 723c1e387c4746fa861bedeff88c2659, type: 2}
+--- !u!114 &865624806
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 865624802}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e77269bdcb924952887632db11ed6059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ColonyMultiplier: 0.15
+  IslandMultiplier: 0.3
+  ContinentMultiplier: 0.6
+  PlanetMultiplier: 1
+  OrbitalMultiplier: 2
+  SystemMultiplier: 6
+  GalacticMultiplier: 20
+--- !u!114 &865624807
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 865624802}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e77269bdcb924952887632db11ed6059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Presentation::Space4X.Presentation.PresentationLODConfigAuthoring
+  FullDetailMaxDistance: 2000
+  ReducedDetailMaxDistance: 10000
+  ImpostorMaxDistance: 40000
+--- !u!114 &865624808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 865624802}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e77269bdcb924952887632db11ed6059, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Presentation::Space4X.Presentation.RenderDensityConfigAuthoring
+  Density: 1
+  AutoAdjust: 0
 --- !u!4 &865624804
 Transform:
   m_ObjectHideFlags: 0

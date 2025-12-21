@@ -108,13 +108,9 @@ namespace Space4X.Systems.AI
                     return;
                 }
                 
-                // If TargetPosition is still zero, wait for targeting system to resolve it
-                if (aiState.TargetPosition.Equals(float3.zero))
-                {
-                    return;
-                }
-
-                var toTarget = aiState.TargetPosition - transform.Position;
+                // TargetPosition should be resolved by VesselTargetingSystem (runs earlier in Space4XTransportAISystemGroup).
+                var targetPosition = aiState.TargetPosition;
+                var toTarget = targetPosition - transform.Position;
                 var distance = math.length(toTarget);
 
                 if (distance <= ArrivalDistance)

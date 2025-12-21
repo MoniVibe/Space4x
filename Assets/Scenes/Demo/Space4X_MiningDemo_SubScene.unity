@@ -185,13 +185,13 @@ MonoBehaviour:
     PatrolCenter:
       x: 0
       y: 0
-      z: 0
+      z: -8
     PatrolRadius: 50
     WaitTime: 2
     Position:
       x: 0
       y: 0
-      z: 0
+      z: -8
     IsHostile: 0
     FleetPosture: 0
     FleetId: 
@@ -217,7 +217,7 @@ MonoBehaviour:
     Position:
       x: 5
       y: 0
-      z: 0
+      z: -2
     CarrierId: CARRIER-1
     StartDocked: 0
     Alignment:
@@ -239,7 +239,7 @@ MonoBehaviour:
     Position:
       x: -5
       y: 0
-      z: 0
+      z: -14
     CarrierId: CARRIER-1
     StartDocked: 0
     Alignment:
@@ -264,7 +264,7 @@ MonoBehaviour:
     Position:
       x: 20
       y: 0
-      z: 0
+      z: 10
   - AsteroidId: ASTEROID-2
     ResourceType: 0
     ResourceAmount: 500
@@ -273,7 +273,7 @@ MonoBehaviour:
     Position:
       x: -20
       y: 0
-      z: 0
+      z: -20
   visuals:
     CarrierPrimitive: 1
     CarrierScale: 3

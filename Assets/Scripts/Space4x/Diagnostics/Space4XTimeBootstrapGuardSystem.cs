@@ -4,13 +4,13 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Unity.Burst;
 using Unity.Entities;
-using UnityEngine;
-using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Diagnostics
 {
+    using UnityDebug = UnityEngine.Debug;
+
     /// <summary>
-    /// Dev-only guard to ensure TimeState exists in Game World before demo/movement systems run.
+    /// Dev-only guard to ensure TimeState exists in Game World before simulation/movement systems run.
     /// </summary>
     [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
@@ -47,7 +47,7 @@ namespace Space4X.Diagnostics
 
             if (after == 0)
             {
-                // Last-resort dev-only safety net: create the minimal time singletons so demo/movement systems can run.
+                // Last-resort dev-only safety net: create the minimal time singletons so simulation/movement systems can run.
                 var timeEntity = state.EntityManager.CreateEntity(typeof(TimeState), typeof(TickTimeState));
                 state.EntityManager.SetComponentData(timeEntity, new TimeState
                 {

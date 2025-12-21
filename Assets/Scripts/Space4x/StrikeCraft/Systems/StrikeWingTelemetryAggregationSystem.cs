@@ -17,6 +17,7 @@ namespace Space4X.StrikeCraft
     public partial struct StrikeWingTelemetryAggregationSystem : ISystem
     {
         private ComponentLookup<LocalTransform> _transformLookup;
+        private EntityQuery _craftQuery;
         private static readonly FixedString64Bytes SourceId = new FixedString64Bytes("Space4X.StrikeCraft");
         private static readonly FixedString64Bytes EventFormation = new FixedString64Bytes("FormationCohesion");
         private static readonly FixedString64Bytes EventEscort = new FixedString64Bytes("EscortCoverage");
@@ -28,6 +29,9 @@ namespace Space4X.StrikeCraft
             state.RequireForUpdate<TelemetryStreamSingleton>();
             state.RequireForUpdate<ScenarioTick>();
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _craftQuery = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftProfile>()
+                .Build();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -40,9 +44,12 @@ namespace Space4X.StrikeCraft
             _transformLookup.Update(ref state);
             var tick = SystemAPI.GetSingleton<ScenarioTick>().Value;
 
-            var craftQuery = SystemAPI.QueryBuilder().WithAll<StrikeCraftProfile>().Build();
-            var craftCount = craftQuery.CalculateEntityCount();
-            craftQuery.Dispose();
+            if (_craftQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var craftCount = _craftQuery.CalculateEntityCount();
 
             if (craftCount == 0)
             {

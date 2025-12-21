@@ -2,7 +2,6 @@
 using System;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Spatial;
-using Space4X.Demo;
 using Space4X.Presentation;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -74,14 +73,14 @@ namespace Space4X.Diagnostics
             var sectionAvailable = TryCountComponent(em, "Unity.Scenes.ResolvedSectionEntity, Unity.Scenes", out var sectionCount);
             if (sectionAvailable && sectionCount > 0)
             {
-                UnityDebug.LogWarning("[Space4XSmokeFallbackSpawner] Game World has no mining entities even though a SubScene section resolved. Injecting fallback demo.");
+                UnityDebug.LogWarning("[Space4XSmokeFallbackSpawner] Game World has no mining entities even though a SubScene section resolved. Injecting fallback simulation.");
             }
             else
             {
-                UnityDebug.LogWarning("[Space4XSmokeFallbackSpawner] SubScene never resolved; injecting fallback mining demo so smoke tests have coverage.");
+                UnityDebug.LogWarning("[Space4XSmokeFallbackSpawner] SubScene never resolved; injecting fallback mining simulation so smoke tests have coverage.");
             }
 
-            SpawnFallbackDemo(em);
+            SpawnFallbackSimulation(em);
 
             _spawned = true;
             state.Enabled = false;
@@ -118,7 +117,7 @@ namespace Space4X.Diagnostics
             return true;
         }
 
-        private static void SpawnFallbackDemo(EntityManager em)
+        private static void SpawnFallbackSimulation(EntityManager em)
         {
             var carrier = SpawnCarrier(em);
             var asteroid = SpawnAsteroid(em);
@@ -131,7 +130,6 @@ namespace Space4X.Diagnostics
             var carrierTransform = LocalTransform.FromPositionRotationScale(new float3(0f, 0f, -8f), quaternion.identity, 1f);
             em.AddComponentData(carrier, carrierTransform);
             em.AddComponentData(carrier, new LocalToWorld { Value = float4x4.TRS(carrierTransform.Position, carrierTransform.Rotation, carrierTransform.Scale) });
-            em.AddComponentData(carrier, CreateDemoMotion(carrierTransform.Position, 3.5f, 0.2f));
             em.AddComponent<SpatialIndexedTag>(carrier);
             em.AddComponentData(carrier, new Carrier
             {
@@ -167,7 +165,6 @@ namespace Space4X.Diagnostics
             var minerTransform = LocalTransform.FromPositionRotationScale(new float3(5f, 0f, -2f), quaternion.identity, 1f);
             em.AddComponentData(miner, minerTransform);
             em.AddComponentData(miner, new LocalToWorld { Value = float4x4.TRS(minerTransform.Position, minerTransform.Rotation, minerTransform.Scale) });
-            em.AddComponentData(miner, CreateDemoMotion(minerTransform.Position, 5f, 0.35f));
             em.AddComponent<SpatialIndexedTag>(miner);
 
             var resourceId = new FixedString64Bytes("space4x.resource.minerals");
@@ -247,7 +244,6 @@ namespace Space4X.Diagnostics
             var asteroidTransform = LocalTransform.FromPositionRotationScale(new float3(20f, 0f, 10f), quaternion.identity, 2f);
             em.AddComponentData(asteroid, asteroidTransform);
             em.AddComponentData(asteroid, new LocalToWorld { Value = float4x4.TRS(asteroidTransform.Position, asteroidTransform.Rotation, asteroidTransform.Scale) });
-            em.AddComponentData(asteroid, CreateDemoMotion(asteroidTransform.Position, 1.25f, 0.08f));
             em.AddComponent<SpatialIndexedTag>(asteroid);
 
             em.AddComponentData(asteroid, new Asteroid
@@ -305,18 +301,6 @@ namespace Space4X.Diagnostics
             em.AddComponentData(entity, new RenderUvTransform { Value = new float4(1f, 1f, 0f, 0f) });
         }
 
-        private static Space4XDemoMotion CreateDemoMotion(float3 position, float amplitude, float speed)
-        {
-            var hash = math.hash(position);
-            var phase = (hash % 360u) * math.PI / 180f;
-            return new Space4XDemoMotion
-            {
-                BasePosition = position,
-                Amplitude = math.max(0f, amplitude),
-                Speed = math.max(0.01f, speed),
-                PhaseOffset = phase
-            };
-        }
     }
 }
 #endif

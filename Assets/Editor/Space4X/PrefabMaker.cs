@@ -7,6 +7,7 @@ using Space4X.Authoring;
 using Space4X.Editor.Generators;
 using Space4X.Presentation.Config;
 using Space4X.Registry;
+using PresentationBinding = Space4X.Presentation.Config.Space4XPresentationBinding;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEditor;
@@ -649,10 +650,10 @@ namespace Space4X.Editor
                 // Create binding asset with set suffix
                 var bindingSuffix = bindingSet == BindingSet.Minimal ? "_Minimal" : "_Fancy";
                 var bindingAssetPath = BindingPath.Replace(".asset", $"{bindingSuffix}.asset");
-                var bindingAsset = AssetDatabase.LoadAssetAtPath<Space4XPresentationBinding>(bindingAssetPath);
+                var bindingAsset = AssetDatabase.LoadAssetAtPath<PresentationBinding>(bindingAssetPath);
                 if (bindingAsset == null)
                 {
-                    bindingAsset = ScriptableObject.CreateInstance<Space4XPresentationBinding>();
+                    bindingAsset = ScriptableObject.CreateInstance<PresentationBinding>();
                     AssetDatabase.CreateAsset(bindingAsset, bindingAssetPath);
                 }
                 bindingAsset.Clear();
@@ -742,35 +743,35 @@ namespace Space4X.Editor
                 // Populate ScriptableObject binding
                 foreach (var kvp in hullPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Hull);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Hull);
                 }
                 foreach (var kvp in modulePrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Module);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Module);
                 }
                 foreach (var kvp in stationPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Station);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Station);
                 }
                 foreach (var kvp in resourcePrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Resource);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Resource);
                 }
                 foreach (var kvp in productPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Product);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Product);
                 }
                 foreach (var kvp in aggregatePrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Aggregate);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Aggregate);
                 }
                 foreach (var kvp in fxPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Effect);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Effect);
                 }
                 foreach (var kvp in individualPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Individual);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Individual);
                 }
                 
                 // Scan weapon/projectile/turret presentation tokens
@@ -798,15 +799,15 @@ namespace Space4X.Editor
                 
                 foreach (var kvp in weaponPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Weapon);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Weapon);
                 }
                 foreach (var kvp in projectilePrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Projectile);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Projectile);
                 }
                 foreach (var kvp in turretPrefabs)
                 {
-                    bindingAsset.SetBinding(kvp.Key, kvp.Value, Space4XPresentationBinding.EntityCategory.Turret);
+                    bindingAsset.SetBinding(kvp.Key, kvp.Value, PresentationBinding.EntityCategory.Turret);
                 }
 
                 // Mark asset as dirty and save
@@ -1352,4 +1353,3 @@ namespace Space4X.Editor
         }
     }
 }
-

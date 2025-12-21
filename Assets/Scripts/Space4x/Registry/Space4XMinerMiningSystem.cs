@@ -107,14 +107,6 @@ namespace Space4X.Registry
                          .WithEntityAccess())
             {
                 minerCount++;
-#if UNITY_EDITOR
-                // Log miner state details (only occasionally to avoid spam - every ~5 seconds)
-                var elapsedTime = SystemAPI.Time.ElapsedTime;
-                if ((elapsedTime % 5f) < SystemAPI.Time.DeltaTime)
-                {
-                    UnityDebug.Log($"[Space4XMinerMiningSystem] Miner @ {transform.ValueRO.Position}, OrderStatus={order.ValueRO.Status}, Phase={miningState.ValueRO.Phase}");
-                }
-#endif
 
                 if (!EnsureOrderResource(ref order.ValueRW, yield.ValueRO.ResourceId))
                 {
@@ -186,16 +178,6 @@ namespace Space4X.Registry
                 }
             }
 
-#if UNITY_EDITOR
-            if (minerCount > 0)
-            {
-                var elapsedTime = SystemAPI.Time.ElapsedTime;
-                if ((elapsedTime % 5f) < SystemAPI.Time.DeltaTime)
-                {
-                    UnityDebug.Log($"[Space4XMinerMiningSystem] Updating {minerCount} miners.");
-                }
-            }
-#endif
         }
 
         private static bool EnsureOrderResource(ref MiningOrder order, FixedString64Bytes fallbackResourceId)

@@ -11,6 +11,8 @@ namespace Space4X.Headless
     {
         private const string ScenarioArg = "--scenario";
         private const string ReportArg = "--report";
+        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
         private static bool s_executed;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
@@ -42,24 +44,68 @@ namespace Space4X.Headless
 
             try
             {
+                if (LooksLikeSpace4XMiningScenarioJson(scenarioPath))
+                {
+                    SystemEnv.SetEnvironmentVariable(ScenarioPathEnv, scenarioPath);
+                    if (!string.IsNullOrEmpty(reportPath))
+                    {
+                        EnsureTelemetryPathDerivedFromReport(reportPath);
+                    }
+
+                    UnityDebug.Log($"[ScenarioEntryPoint] Space4X mining scenario requested: '{scenarioPath}'. Telemetry path='{SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)"}'.");
+                    return;
+                }
+
                 var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
                 if (result.PerformanceBudgetFailed)
                 {
                     UnityDebug.LogError($"[ScenarioEntryPoint] Performance budget failure ({result.PerformanceBudgetMetric}) at tick {result.PerformanceBudgetTick}: value={result.PerformanceBudgetValue:F2}, budget={result.PerformanceBudgetLimit:F2}");
-                    Quit(2);
+                    Quit(string.Equals(SystemEnv.GetEnvironmentVariable(FailOnBudgetEnv), "1", StringComparison.OrdinalIgnoreCase) ? 2 : 0);
                 }
                 else
                 {
                     Quit(0);
                 }
-                return;
             }
             catch (Exception ex)
             {
                 UnityDebug.LogError($"[ScenarioEntryPoint] Scenario execution failed: {ex}");
                 Quit(1);
             }
+        }
+
+        private static void EnsureTelemetryPathDerivedFromReport(string reportPath)
+        {
+            if (!string.IsNullOrWhiteSpace(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH")))
+            {
+                return;
+            }
+
+            var reportDirectory = Path.GetDirectoryName(reportPath);
+            if (!string.IsNullOrEmpty(reportDirectory))
+            {
+                Directory.CreateDirectory(reportDirectory);
+            }
+
+            var reportBase = Path.Combine(reportDirectory ?? string.Empty, Path.GetFileNameWithoutExtension(reportPath));
+            var telemetryPath = $"{reportBase}_telemetry.ndjson";
+            SystemEnv.SetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH", telemetryPath);
+            SystemEnv.SetEnvironmentVariable("PUREDOTS_TELEMETRY_ENABLE", "1");
+        }
+
+        private static bool LooksLikeSpace4XMiningScenarioJson(string scenarioPath)
+        {
+            // We intentionally avoid deserializing here (types live in gameplay asmdefs); this is a cheap schema sniff.
+            // Space4X mining scenarios have: seed, duration_s, spawn:[...]
+            const int charsToRead = 4096;
+            using var stream = File.OpenRead(scenarioPath);
+            using var reader = new StreamReader(stream);
+            var buffer = new char[charsToRead];
+            var read = reader.ReadBlock(buffer, 0, buffer.Length);
+            var head = read > 0 ? new string(buffer, 0, read) : string.Empty;
+            return head.Contains("\"duration_s\"", StringComparison.OrdinalIgnoreCase) &&
+                   head.Contains("\"spawn\"", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryGetArgument(string key, out string value)

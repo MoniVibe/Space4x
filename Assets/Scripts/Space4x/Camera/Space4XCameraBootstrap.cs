@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityCamera = UnityEngine.Camera;
+using PureDOTS.Runtime.Camera;
 using PureDOTS.Runtime.Core;
 using UnityDebug = UnityEngine.Debug;
 
@@ -68,6 +69,12 @@ namespace Space4X.Camera
                 }
 
                 rigController.TargetCamera = mainCamera;
+
+                if (mainCamera.GetComponent<CameraRigApplier>() == null)
+                {
+                    mainCamera.gameObject.AddComponent<CameraRigApplier>();
+                }
+
                 UnityDebug.Log("[Space4X Camera] Assigned existing main camera to rig controller");
                 return;
             }
@@ -85,6 +92,10 @@ namespace Space4X.Camera
                 if (cameraComponent != null && rigController != null)
                 {
                     rigController.TargetCamera = cameraComponent;
+                    if (cameraComponent.GetComponent<CameraRigApplier>() == null)
+                    {
+                        cameraComponent.gameObject.AddComponent<CameraRigApplier>();
+                    }
                     UnityDebug.Log("[Space4X Camera] Created camera from prefab and assigned to rig controller");
                 }
                 else
@@ -101,6 +112,7 @@ namespace Space4X.Camera
                 var camera = cameraGo.AddComponent<UnityCamera>();
                 cameraGo.tag = "MainCamera";
                 cameraGo.AddComponent<AudioListener>();
+                cameraGo.AddComponent<CameraRigApplier>();
 
                 // Add the camera controller
                 var controller = cameraGo.AddComponent<Space4XCameraRigController>();

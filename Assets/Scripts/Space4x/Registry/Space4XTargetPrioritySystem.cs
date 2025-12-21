@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Components;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -19,11 +20,14 @@ namespace Space4X.Registry
     public partial struct Space4XTargetPrioritySystem : ISystem
     {
         private EntityQuery _potentialTargetsQuery;
+        private uint _lastTick;
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TargetPriority>();
             state.RequireForUpdate<TargetSelectionProfile>();
+            state.RequireForUpdate<TimeState>();
+            _lastTick = 0;
 
             // Query for potential hostile targets
             _potentialTargetsQuery = state.GetEntityQuery(
@@ -35,7 +39,16 @@ namespace Space4X.Registry
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (timeState.IsPaused)
+            {
+                return;
+            }
+
+            var currentTick = timeState.Tick;
+            var tickDelta = _lastTick == 0u ? 1u : (currentTick > _lastTick ? currentTick - _lastTick : 1u);
+            _lastTick = currentTick;
+            var deltaTime = timeState.FixedDeltaTime * tickDelta;
 
             // Get all potential targets (simplified - in reality would filter by faction/hostility)
             var potentialTargets = _potentialTargetsQuery.ToEntityArray(Allocator.Temp);
@@ -46,17 +59,17 @@ namespace Space4X.Registry
                 SystemAPI.Query<RefRW<TargetPriority>, RefRO<TargetSelectionProfile>, RefRO<LocalTransform>, DynamicBuffer<TargetCandidate>>()
                     .WithEntityAccess())
             {
+                if (priority.ValueRO.CurrentTarget != Entity.Null)
+                {
+                    priority.ValueRW.EngagementDuration += deltaTime;
+                }
+
                 // Check if reevaluation is needed (every 10 ticks or forced)
                 bool shouldEvaluate = priority.ValueRO.ForceReevaluate == 1 ||
                                       currentTick - priority.ValueRO.LastEvaluationTick >= 10;
 
                 if (!shouldEvaluate)
                 {
-                    // Update engagement duration
-                    if (priority.ValueRO.CurrentTarget != Entity.Null)
-                    {
-                        priority.ValueRW.EngagementDuration += SystemAPI.Time.DeltaTime;
-                    }
                     continue;
                 }
 
@@ -179,13 +192,20 @@ namespace Space4X.Registry
         {
             state.RequireForUpdate<TargetSelectionProfile>();
             state.RequireForUpdate<AlignmentTriplet>();
+            state.RequireForUpdate<TimeState>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             // Only update profiles occasionally to save performance
-            var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (timeState.IsPaused)
+            {
+                return;
+            }
+
+            var currentTick = timeState.Tick;
             if (currentTick % 60 != 0)
             {
                 return;
@@ -231,12 +251,19 @@ namespace Space4X.Registry
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<DamageHistory>();
+            state.RequireForUpdate<TimeState>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (timeState.IsPaused)
+            {
+                return;
+            }
+
+            var currentTick = timeState.Tick;
 
             foreach (var damageHistory in SystemAPI.Query<DynamicBuffer<DamageHistory>>())
             {
@@ -364,4 +391,3 @@ namespace Space4X.Registry
         }
     }
 }
-

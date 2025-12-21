@@ -6,6 +6,24 @@ namespace Space4X.Registry
 {
     public static class ModuleCatalogUtility
     {
+        public static bool TryGetTuning(EntityQuery query, out RefitRepairTuning tuning)
+        {
+            tuning = default;
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            var tuningSingleton = query.GetSingleton<RefitRepairTuningSingleton>();
+            if (!tuningSingleton.Tuning.IsCreated)
+            {
+                return false;
+            }
+
+            tuning = tuningSingleton.Tuning.Value;
+            return true;
+        }
+
         [BurstDiscard]
         public static bool TryGetModuleSpec(ref SystemState state, in FixedString64Bytes moduleId, out ModuleSpec spec)
         {

@@ -1,4 +1,6 @@
 using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Modularity;
+using PureDOTS.Runtime.Perception;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -84,6 +86,9 @@ namespace Space4X.Platform.Authoring
                     Flags = authoring.flags
                 });
 
+                AddComponent<CommunicationModuleTag>(entity);
+                AddComponent(entity, MediumContext.Vacuum);
+
                 AddComponent(entity, new PlatformHullRef
                 {
                     HullId = authoring.hullId
@@ -154,4 +159,3 @@ namespace Space4X.Platform.Authoring
         }
     }
 }
-

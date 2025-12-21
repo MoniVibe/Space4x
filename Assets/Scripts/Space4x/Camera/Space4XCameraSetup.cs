@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using PureDOTS.Runtime.Camera;
 using UnityCamera = UnityEngine.Camera;
 
 namespace Space4X.Camera
@@ -22,6 +23,7 @@ namespace Space4X.Camera
             var camera = cameraGo.AddComponent<UnityCamera>();
             cameraGo.tag = "MainCamera";
             cameraGo.AddComponent<AudioListener>();
+            cameraGo.AddComponent<CameraRigApplier>();
 
             // Add the camera rig controller
             var rigController = cameraGo.AddComponent<Space4XCameraRigController>();

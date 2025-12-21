@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using System;
 using Unity.Core;
 using Unity.Entities;
@@ -54,3 +55,4 @@ namespace Space4X.Tests.TestHarness
         }
     }
 }
+#endif

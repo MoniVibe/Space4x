@@ -21,14 +21,29 @@ namespace Space4X.Presentation
     public struct CraftPresentationTag : IComponentData { }
 
     /// <summary>
+    /// Marker component for strike craft entities in the presentation layer.
+    /// </summary>
+    public struct StrikeCraftPresentationTag : IComponentData { }
+
+    /// <summary>
     /// Marker component for asteroid entities in the presentation layer.
     /// </summary>
     public struct AsteroidPresentationTag : IComponentData { }
 
     /// <summary>
+    /// Marker component for individual entities in the presentation layer.
+    /// </summary>
+    public struct IndividualPresentationTag : IComponentData { }
+
+    /// <summary>
     /// Marker component for resource pickup entities in the presentation layer.
     /// </summary>
     public struct ResourcePickupPresentationTag : IComponentData { }
+
+    /// <summary>
+    /// Marker component for projectile entities in the presentation layer.
+    /// </summary>
+    public struct ProjectilePresentationTag : IComponentData { }
 
     /// <summary>
     /// Marker component for fleet impostor entities (aggregate visualization).
@@ -39,6 +54,28 @@ namespace Space4X.Presentation
     /// Marker component for selected entities.
     /// </summary>
     public struct SelectedTag : IComponentData { }
+
+    /// <summary>
+    /// Coarse presentation layers for distance-based culling and icon switching.
+    /// </summary>
+    public enum PresentationLayerId : byte
+    {
+        Colony = 0,
+        Island = 1,
+        Continent = 2,
+        Planet = 3,
+        Orbital = 4,
+        System = 5,
+        Galactic = 6
+    }
+
+    /// <summary>
+    /// Per-entity presentation layer classification.
+    /// </summary>
+    public struct PresentationLayer : IComponentData
+    {
+        public PresentationLayerId Value;
+    }
 
     // ============================================================================
     // Faction & Color Components
@@ -120,6 +157,28 @@ namespace Space4X.Presentation
     public struct CraftVisualState : IComponentData
     {
         public CraftVisualStateType State;
+        public float StateTimer;
+    }
+
+    /// <summary>
+    /// Visual state for strike craft entities.
+    /// </summary>
+    public enum StrikeCraftVisualStateType : byte
+    {
+        Docked = 0,
+        FormingUp = 1,
+        Approaching = 2,
+        Engaging = 3,
+        Disengaging = 4,
+        Returning = 5
+    }
+
+    /// <summary>
+    /// Per-strike-craft visual state component.
+    /// </summary>
+    public struct StrikeCraftVisualState : IComponentData
+    {
+        public StrikeCraftVisualStateType State;
         public float StateTimer;
     }
 

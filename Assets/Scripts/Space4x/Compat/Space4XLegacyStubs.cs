@@ -2,7 +2,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
-using Space4X.Demo;
+using Space4X.Scenario;
 using Hash128 = Unity.Entities.Hash128;
 
 namespace Space4X.Presentation
@@ -23,9 +23,9 @@ namespace Space4X.Presentation
     }
 }
 
-namespace Space4X.Demo
+namespace Space4X.Scenario
 {
-    // Demo enum placeholder for mining primitives.
+    // Legacy scenario placeholder for mining primitives.
     public enum Space4XMiningPrimitive : byte
     {
         None = 0,

@@ -1,0 +1,224 @@
+using System;
+using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Telemetry;
+using PureDOTS.Runtime.Time;
+using Space4x.Scenario;
+using Space4X.Registry;
+using Space4X.Runtime;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
+using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
+using SystemEnv = System.Environment;
+
+namespace Space4X.Headless
+{
+    /// <summary>
+    /// Headless proof that "gather -> dropoff" works in simulation (no presentation dependency).
+    /// Logs exactly one PASS/FAIL line when criteria are met or a timeout is reached.
+    /// </summary>
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderLast = true)]
+    public partial struct Space4XHeadlessMiningProofSystem : ISystem
+    {
+        private const string EnabledEnv = "SPACE4X_HEADLESS_MINING_PROOF";
+        private const string ExitOnResultEnv = "SPACE4X_HEADLESS_MINING_PROOF_EXIT";
+
+        private const uint DefaultTimeoutTicks = 1800; // ~30 seconds at 60hz
+
+        private byte _enabled;
+        private byte _done;
+        private uint _startTick;
+        private uint _timeoutTick;
+        private uint _lastCommandCount;
+        private float _startOreInHold;
+        private byte _rewindSubjectRegistered;
+        private byte _rewindPending;
+        private byte _rewindPass;
+        private float _rewindObserved;
+
+        private EntityQuery _vesselQuery;
+        private EntityQuery _carrierQuery;
+        private EntityQuery _spawnQuery;
+        private EntityQuery _spineQuery;
+        private static readonly FixedString32Bytes ExpectedDelta = new FixedString32Bytes(">0");
+        private static readonly FixedString32Bytes StepGatherDropoff = new FixedString32Bytes("gather_dropoff");
+        private static readonly FixedString64Bytes RewindProofId = new FixedString64Bytes("space4x.mining");
+        private const byte RewindRequiredMask = (byte)HeadlessRewindProofStage.RecordReturn;
+
+        public void OnCreate(ref SystemState state)
+        {
+            if (!Application.isBatchMode && !string.Equals(SystemEnv.GetEnvironmentVariable(EnabledEnv), "1", StringComparison.OrdinalIgnoreCase))
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            _enabled = 1;
+            state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<Space4XScenarioRuntime>();
+
+            _vesselQuery = SystemAPI.QueryBuilder().WithAll<MiningVessel, VesselAIState>().Build();
+            _carrierQuery = SystemAPI.QueryBuilder().WithAll<Carrier, ResourceStorage>().Build();
+            _spawnQuery = SystemAPI.QueryBuilder().WithAll<SpawnResource>().Build();
+            _spineQuery = SystemAPI.QueryBuilder().WithAll<Space4XMiningTimeSpine, MiningCommandLogEntry>().Build();
+
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            if (_enabled == 0)
+            {
+                return;
+            }
+
+            EnsureRewindSubject(ref state);
+            TryFlushRewindProof(ref state);
+
+            if (_done != 0)
+            {
+                return;
+            }
+
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (_timeoutTick == 0)
+            {
+                _startTick = timeState.Tick;
+                _timeoutTick = _startTick + DefaultTimeoutTicks;
+                _startOreInHold = GetOreInHold(ref state);
+            }
+
+            var (cargoSum, returningCount, miningCount, vesselCount) = GetVesselStats(ref state);
+            var oreInHold = GetOreInHold(ref state);
+            var spawnCount = _spawnQuery.CalculateEntityCount();
+            var (gatherCommands, pickupCommands, totalCommands) = GetCommandCounts(ref state);
+
+            var oreDelta = oreInHold - _startOreInHold;
+            var pass = gatherCommands > 0 && oreDelta > 0.01f;
+            if (pass)
+            {
+                _done = 1;
+                _rewindPending = 1;
+                _rewindPass = 1;
+                _rewindObserved = oreDelta;
+                UnityDebug.Log($"[Space4XHeadlessMiningProof] PASS tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount}");
+                TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, true, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
+                TryFlushRewindProof(ref state);
+                ExitIfRequested(0);
+                return;
+            }
+
+            if (timeState.Tick >= _timeoutTick)
+            {
+                _done = 1;
+                _rewindPending = 1;
+                _rewindPass = 0;
+                _rewindObserved = oreDelta;
+                UnityDebug.LogError($"[Space4XHeadlessMiningProof] FAIL tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount} commands={totalCommands} (deltaCommands={math.max(0, (int)totalCommands - (int)_lastCommandCount)})");
+                TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, false, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
+                TryFlushRewindProof(ref state);
+                ExitIfRequested(3);
+                return;
+            }
+
+            _lastCommandCount = totalCommands;
+        }
+
+        private void EnsureRewindSubject(ref SystemState state)
+        {
+            if (_rewindSubjectRegistered != 0)
+            {
+                return;
+            }
+
+            if (HeadlessRewindProofUtility.TryEnsureSubject(state.EntityManager, RewindProofId, RewindRequiredMask))
+            {
+                _rewindSubjectRegistered = 1;
+            }
+        }
+
+        private void TryFlushRewindProof(ref SystemState state)
+        {
+            if (_rewindPending == 0)
+            {
+                return;
+            }
+
+            if (!HeadlessRewindProofUtility.TryGetState(state.EntityManager, out var rewindProof) || rewindProof.SawRecord == 0)
+            {
+                return;
+            }
+
+            HeadlessRewindProofUtility.TryMarkResult(state.EntityManager, RewindProofId, _rewindPass != 0, _rewindObserved, ExpectedDelta, RewindRequiredMask);
+            _rewindPending = 0;
+        }
+
+        private static void ExitIfRequested(int exitCode)
+        {
+            if (!string.Equals(SystemEnv.GetEnvironmentVariable(ExitOnResultEnv), "1", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Application.Quit(exitCode);
+        }
+
+        private (float cargoSum, int returning, int mining, int total) GetVesselStats(ref SystemState state)
+        {
+            var cargoSum = 0f;
+            var returning = 0;
+            var mining = 0;
+            var total = 0;
+
+            foreach (var (vessel, ai) in SystemAPI.Query<RefRO<MiningVessel>, RefRO<VesselAIState>>())
+            {
+                total++;
+                cargoSum += math.max(0f, vessel.ValueRO.CurrentCargo);
+                if (ai.ValueRO.CurrentState == VesselAIState.State.Returning) returning++;
+                if (ai.ValueRO.CurrentState == VesselAIState.State.Mining) mining++;
+            }
+
+            return (cargoSum, returning, mining, total);
+        }
+
+        private float GetOreInHold(ref SystemState state)
+        {
+            if (SystemAPI.TryGetSingleton<Space4XMiningTelemetry>(out var telemetry))
+            {
+                return telemetry.OreInHold;
+            }
+
+            var total = 0f;
+            foreach (var storage in SystemAPI.Query<DynamicBuffer<ResourceStorage>>())
+            {
+                for (var i = 0; i < storage.Length; i++)
+                {
+                    total += storage[i].Amount;
+                }
+            }
+
+            return total;
+        }
+
+        private (uint gather, uint pickup, uint total) GetCommandCounts(ref SystemState state)
+        {
+            if (_spineQuery.IsEmptyIgnoreFilter)
+            {
+                return (0, 0, 0);
+            }
+
+            var spineEntity = _spineQuery.GetSingletonEntity();
+            var buffer = state.EntityManager.GetBuffer<MiningCommandLogEntry>(spineEntity);
+            uint gather = 0;
+            uint pickup = 0;
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var type = buffer[i].CommandType;
+                if (type == MiningCommandType.Gather) gather++;
+                else if (type == MiningCommandType.Pickup) pickup++;
+            }
+
+            return (gather, pickup, (uint)buffer.Length);
+        }
+    }
+}

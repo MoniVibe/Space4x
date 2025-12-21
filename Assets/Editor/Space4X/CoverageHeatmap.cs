@@ -7,6 +7,7 @@ using Space4X.Authoring;
 using Space4X.EditorUtilities;
 using Space4X.Registry;
 using Space4X.Presentation.Config;
+using PresentationBinding = Space4X.Presentation.Config.Space4XPresentationBinding;
 using UnityEditor;
 using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
@@ -121,7 +122,7 @@ namespace Space4X.Editor
 
             // Check binding coverage (load binding asset)
             var bindingPath = "Assets/Space4X/Bindings/Space4XPresentationBinding.asset";
-            var binding = AssetDatabase.LoadAssetAtPath<Space4XPresentationBinding>(bindingPath);
+            var binding = AssetDatabase.LoadAssetAtPath<PresentationBinding>(bindingPath);
             if (binding != null)
             {
                 var bindingCategory = GetBindingCategory(categoryName);
@@ -201,19 +202,19 @@ namespace Space4X.Editor
             }
         }
 
-        private static Space4XPresentationBinding.EntityCategory GetBindingCategory(string categoryName)
+        private static PresentationBinding.EntityCategory GetBindingCategory(string categoryName)
         {
             switch (categoryName)
             {
-                case "Hull": return Space4XPresentationBinding.EntityCategory.Hull;
-                case "Module": return Space4XPresentationBinding.EntityCategory.Module;
-                case "Station": return Space4XPresentationBinding.EntityCategory.Station;
-                case "Resource": return Space4XPresentationBinding.EntityCategory.Resource;
-                case "Product": return Space4XPresentationBinding.EntityCategory.Product;
-                case "Aggregate": return Space4XPresentationBinding.EntityCategory.Aggregate;
-                case "Effect": return Space4XPresentationBinding.EntityCategory.Effect;
-                case "Individual": return Space4XPresentationBinding.EntityCategory.Individual;
-                default: return Space4XPresentationBinding.EntityCategory.Hull;
+                case "Hull": return PresentationBinding.EntityCategory.Hull;
+                case "Module": return PresentationBinding.EntityCategory.Module;
+                case "Station": return PresentationBinding.EntityCategory.Station;
+                case "Resource": return PresentationBinding.EntityCategory.Resource;
+                case "Product": return PresentationBinding.EntityCategory.Product;
+                case "Aggregate": return PresentationBinding.EntityCategory.Aggregate;
+                case "Effect": return PresentationBinding.EntityCategory.Effect;
+                case "Individual": return PresentationBinding.EntityCategory.Individual;
+                default: return PresentationBinding.EntityCategory.Hull;
             }
         }
 

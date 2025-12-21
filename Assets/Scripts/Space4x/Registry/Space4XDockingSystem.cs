@@ -203,10 +203,12 @@ namespace Space4X.Registry
             foreach (var (docked, aiState, entity) in SystemAPI.Query<RefRO<DockedTag>, RefRO<VesselAIState>>()
                 .WithEntityAccess())
             {
-                // If vessel has a target and is in MovingToTarget state, it's undocking
-                if (aiState.ValueRO.CurrentState == VesselAIState.State.MovingToTarget &&
-                    aiState.ValueRO.TargetEntity != Entity.Null &&
-                    aiState.ValueRO.TargetEntity != docked.ValueRO.CarrierEntity)
+                var target = aiState.ValueRO.TargetEntity;
+                var hasNonCarrierTarget = target != Entity.Null && target != docked.ValueRO.CarrierEntity;
+
+                // Undock when the vessel is acting on a non-carrier target (including cases where it goes
+                // straight into Mining while still physically at the carrier position).
+                if (hasNonCarrierTarget && aiState.ValueRO.CurrentState != VesselAIState.State.Returning)
                 {
                     // Queue undocking
                     ProcessUndocking(
@@ -407,4 +409,3 @@ namespace Space4X.Registry
         }
     }
 }
-

@@ -371,7 +371,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a49b4b670ae4c9bb696e3a46f04d975, type: 3}
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogRuntimeBootstrap
-  CatalogDefinition: {fileID: 11400000, guid: 19bcb25c76a805443b2306ad910b34d6, type: 2}
+  CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
 --- !u!1 &865863174
 GameObject:
   m_ObjectHideFlags: 0
@@ -784,15 +784,15 @@ MonoBehaviour:
       z: 0
   visuals:
     CarrierPrimitive: 1
-    CarrierScale: 3
+    CarrierScale: 0.5
     CarrierColor: {r: 0.35, g: 0.4, b: 0.62, a: 1}
     CarrierDescriptorKey: space4x.vessel.carrier
     MiningVesselPrimitive: 2
-    MiningVesselScale: 1.2
+    MiningVesselScale: 0.02
     MiningVesselColor: {r: 0.25, g: 0.52, b: 0.84, a: 1}
     MiningVesselDescriptorKey: space4x.vessel.miner
     AsteroidPrimitive: 3
-    AsteroidScale: 2.25
+    AsteroidScale: 20
     AsteroidColor: {r: 0.52, g: 0.43, b: 0.34, a: 1}
     AsteroidDescriptorKey: space4x.prop.asteroid
 --- !u!1660057539 &9223372036854775807

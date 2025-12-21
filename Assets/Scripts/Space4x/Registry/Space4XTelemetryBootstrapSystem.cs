@@ -6,7 +6,7 @@ namespace Space4X.Registry
 {
     /// <summary>
     /// Ensures the TelemetryStream singleton exists with its TelemetryMetric buffer.
-    /// This allows telemetry systems to publish metrics without requiring manual setup in demo scenes.
+    /// This allows telemetry systems to publish metrics without requiring manual setup in simulation scenes.
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XTelemetryBootstrapSystem : ISystem

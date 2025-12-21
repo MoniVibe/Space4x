@@ -75,8 +75,8 @@ Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 
 | Entity Type | ArchetypeId | Mesh Shape | Notes |
 |-------------|-------------|------------|-------|
-| Carrier | 200 | Capsule | Space4XRenderKeys.Carrier |
-| Miner | 210 | Cylinder | Space4XRenderKeys.Miner |
+| Carrier | 200 | Sphere | Space4XRenderKeys.Carrier |
+| Miner | 210 | Cube | Space4XRenderKeys.Miner |
 | Asteroid | 220 | Sphere | Space4XRenderKeys.Asteroid |
 | Projectile | 230 | - | Space4XRenderKeys.Projectile |
 | FleetImpostor | 240 | - | Space4XRenderKeys.FleetImpostor |
@@ -86,7 +86,7 @@ Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 ### ConfigureRenderCatalog.cs
 - **Menu**: `Space4X → Configure Render Catalog`
 - **Creates**: `Assets/Space4XRenderCatalog.asset` (Space4XRenderCatalogDefinition)
-- **Populates**: 3 entries with primitive meshes (Capsule/Cylinder/Sphere)
+- **Populates**: 3 entries with primitive meshes (Sphere/Cube/Sphere)
 - **Assigns**: CatalogDefinition to RenderCatalogAuthoring GameObject
 - **File**: `Assets/Editor/ConfigureRenderCatalog.cs`
 
@@ -117,7 +117,6 @@ Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
 
 - **PresentationSystemGroup**: PureDOTS presenter systems run in the presentation phase before Entities Graphics.
 - **Shared Component**: `RenderMeshArray` lives on the entity referenced by `RenderPresentationCatalog.RenderMeshArrayEntity`.
-
 
 
 

@@ -15,24 +15,31 @@ namespace Space4X.StrikeCraft
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XStrikeCraftSystem))]
-    public partial struct StrikeCraftTelemetrySystem : ISystem
-    {
-        private ComponentLookup<LocalTransform> _transformLookup;
+	    public partial struct StrikeCraftTelemetrySystem : ISystem
+	    {
+	        private ComponentLookup<LocalTransform> _transformLookup;
+	        private EntityQuery _missingTelemetryQuery;
 
         private static readonly FixedString64Bytes SourceId = new FixedString64Bytes("Space4X.StrikeCraft");
         private static readonly FixedString64Bytes EventProfileAssigned = new FixedString64Bytes("BehaviorProfileAssigned");
         private static readonly FixedString64Bytes EventPhaseChanged = new FixedString64Bytes("RoleStateChanged");
         private static readonly FixedString64Bytes EventAttackRunStart = new FixedString64Bytes("AttackRunStart");
         private static readonly FixedString64Bytes EventAttackRunEnd = new FixedString64Bytes("AttackRunEnd");
+        private static readonly FixedString64Bytes EventPatrolStart = new FixedString64Bytes("CombatAirPatrolStart");
+        private static readonly FixedString64Bytes EventPatrolEnd = new FixedString64Bytes("CombatAirPatrolEnd");
 
-        public void OnCreate(ref SystemState state)
-        {
-            state.RequireForUpdate<StrikeCraftProfile>();
-            state.RequireForUpdate<TelemetryStream>();
-            state.RequireForUpdate<TelemetryStreamSingleton>();
-            state.RequireForUpdate<ScenarioTick>();
-            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        }
+	        public void OnCreate(ref SystemState state)
+	        {
+	            state.RequireForUpdate<StrikeCraftProfile>();
+	            state.RequireForUpdate<TelemetryStream>();
+	            state.RequireForUpdate<TelemetryStreamSingleton>();
+	            state.RequireForUpdate<ScenarioTick>();
+	            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+	            _missingTelemetryQuery = SystemAPI.QueryBuilder()
+	                .WithAll<StrikeCraftProfile>()
+	                .WithNone<StrikeCraftTelemetryState>()
+	                .Build();
+	        }
 
         public void OnUpdate(ref SystemState state)
         {
@@ -43,21 +50,53 @@ namespace Space4X.StrikeCraft
 
             _transformLookup.Update(ref state);
             var tick = SystemAPI.GetSingleton<ScenarioTick>().Value;
+            var metricsReady = TryGetTelemetryMetricBuffer(ref state, out var metricBuffer);
+            var capActive = 0;
+            var capNonCombat = 0;
+            var totalCraft = 0;
+            var attackRunActive = 0;
+            var wingMembers = 0;
+            var wingDistanceSum = 0f;
+            var wingCohesionSum = 0f;
 
-            var missingStateQuery = SystemAPI.QueryBuilder()
-                .WithAll<StrikeCraftProfile>()
-                .WithNone<StrikeCraftTelemetryState>()
-                .Build();
-            if (!missingStateQuery.IsEmptyIgnoreFilter)
+            if (!_missingTelemetryQuery.IsEmptyIgnoreFilter)
             {
-                state.EntityManager.AddComponent<StrikeCraftTelemetryState>(missingStateQuery);
+                state.CompleteDependency();
+                state.EntityManager.AddComponent<StrikeCraftTelemetryState>(_missingTelemetryQuery);
             }
-            missingStateQuery.Dispose();
 
             foreach (var (profile, config, telemetry, entity) in SystemAPI
                          .Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<StrikeCraftTelemetryState>>()
                          .WithEntityAccess())
             {
+                totalCraft++;
+                if (profile.ValueRO.Phase == AttackRunPhase.CombatAirPatrol)
+                {
+                    capActive++;
+                    if (profile.ValueRO.Role == StrikeCraftRole.Recon || profile.ValueRO.Role == StrikeCraftRole.EWar)
+                    {
+                        capNonCombat++;
+                    }
+                }
+                else if (profile.ValueRO.Phase == AttackRunPhase.Execute)
+                {
+                    attackRunActive++;
+                }
+
+                if (profile.ValueRO.WingLeader != Entity.Null &&
+                    _transformLookup.HasComponent(profile.ValueRO.WingLeader) &&
+                    _transformLookup.HasComponent(entity))
+                {
+                    var leaderPos = _transformLookup[profile.ValueRO.WingLeader].Position;
+                    var craftPos = _transformLookup[entity].Position;
+                    var distance = math.distance(leaderPos, craftPos);
+                    var spacing = math.max(1f, config.ValueRO.FormationSpacing);
+                    var cohesion = math.saturate(1f - (distance / (spacing * 2f)));
+                    wingMembers++;
+                    wingDistanceSum += distance;
+                    wingCohesionSum += cohesion;
+                }
+
                 var profileHash = ComputeProfileHash(profile.ValueRO, config.ValueRO);
                 if (telemetry.ValueRO.BehaviorLogged == 0 ||
                     telemetry.ValueRO.ProfileHash != profileHash ||
@@ -80,6 +119,19 @@ namespace Space4X.StrikeCraft
                         telemetry.ValueRO.LastPhase, phaseDuration);
                     eventBuffer.AddEvent(EventPhaseChanged, tick, SourceId, payload);
 
+                    if (profile.ValueRO.Phase == AttackRunPhase.CombatAirPatrol)
+                    {
+                        var patrolPayload = BuildPatrolPayload(entity, profile.ValueRO, "Start",
+                            ResolvePatrolReason(telemetry.ValueRO.LastPhase, profile.ValueRO.Phase, profile.ValueRO.Target));
+                        eventBuffer.AddEvent(EventPatrolStart, tick, SourceId, patrolPayload);
+                    }
+                    else if (telemetry.ValueRO.LastPhase == AttackRunPhase.CombatAirPatrol)
+                    {
+                        var patrolPayload = BuildPatrolPayload(entity, profile.ValueRO, "End",
+                            ResolvePatrolReason(telemetry.ValueRO.LastPhase, profile.ValueRO.Phase, profile.ValueRO.Target));
+                        eventBuffer.AddEvent(EventPatrolEnd, tick, SourceId, patrolPayload);
+                    }
+
                     if (profile.ValueRO.Phase == AttackRunPhase.Execute)
                     {
                         var startPayload = BuildAttackRunPayload(entity, profile.ValueRO, config.ValueRO, "Start", string.Empty);
@@ -98,6 +150,24 @@ namespace Space4X.StrikeCraft
                     telemetry.ValueRW.LastPhaseTick = tick;
                 }
             }
+
+            if (metricsReady)
+            {
+                var total = math.max(1, totalCraft);
+                var attackRatio = attackRunActive / (float)total;
+                var capRatio = capActive / (float)total;
+                var wingAvgDistance = wingMembers > 0 ? wingDistanceSum / wingMembers : 0f;
+                var wingCohesion = wingMembers > 0 ? wingCohesionSum / wingMembers : 0f;
+                metricBuffer.AddMetric("space4x.strikecraft.total", totalCraft, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.cap.active", capActive, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.cap.noncombat", capNonCombat, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.attack.active", attackRunActive, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.attack.ratio", attackRatio, TelemetryMetricUnit.Ratio);
+                metricBuffer.AddMetric("space4x.strikecraft.cap.ratio", capRatio, TelemetryMetricUnit.Ratio);
+                metricBuffer.AddMetric("space4x.strikecraft.wing.members", wingMembers, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.wing.avgDistance", wingAvgDistance, TelemetryMetricUnit.Custom);
+                metricBuffer.AddMetric("space4x.strikecraft.wing.cohesion", wingCohesion, TelemetryMetricUnit.Ratio);
+            }
         }
 
         private bool TryGetTelemetryEventBuffer(ref SystemState state, out DynamicBuffer<TelemetryEvent> buffer)
@@ -114,6 +184,23 @@ namespace Space4X.StrikeCraft
             }
 
             buffer = state.EntityManager.GetBuffer<TelemetryEvent>(telemetryRef.Stream);
+            return true;
+        }
+
+        private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
+        {
+            buffer = default;
+            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            {
+                return false;
+            }
+
+            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            {
+                return false;
+            }
+
+            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryRef.Stream);
             return true;
         }
 
@@ -187,6 +274,18 @@ namespace Space4X.StrikeCraft
             return writer.Build();
         }
 
+        private static FixedString128Bytes BuildPatrolPayload(Entity entity, in StrikeCraftProfile profile, string state, string reason)
+        {
+            var writer = new TelemetryJsonWriter();
+            writer.AddEntity("entity", entity);
+            writer.AddString("role", profile.Role.ToString());
+            writer.AddString("state", state);
+            writer.AddString("reason", reason);
+            writer.AddEntity("carrier", profile.Carrier);
+            writer.AddEntity("target", profile.Target);
+            return writer.Build();
+        }
+
         private static string ResolvePhaseReason(AttackRunPhase previous, AttackRunPhase current)
         {
             if (previous == AttackRunPhase.Docked && current == AttackRunPhase.Launching)
@@ -207,9 +306,38 @@ namespace Space4X.StrikeCraft
                 return "CarrierReached";
             if (previous == AttackRunPhase.Landing && current == AttackRunPhase.Docked)
                 return "Landed";
+            if (current == AttackRunPhase.CombatAirPatrol)
+                return "PatrolAssigned";
+            if (previous == AttackRunPhase.CombatAirPatrol && current == AttackRunPhase.Launching)
+                return "TargetAcquired";
+            if (previous == AttackRunPhase.CombatAirPatrol && current == AttackRunPhase.Docked)
+                return "Recall";
             if (current == AttackRunPhase.Disengage)
                 return "LostTarget";
             return "Unknown";
+        }
+
+        private static string ResolvePatrolReason(AttackRunPhase previous, AttackRunPhase current, Entity target)
+        {
+            if (current == AttackRunPhase.CombatAirPatrol)
+            {
+                return previous == AttackRunPhase.Docked ? "NoTarget" : "PatrolAssigned";
+            }
+
+            if (previous == AttackRunPhase.CombatAirPatrol)
+            {
+                if (current == AttackRunPhase.Launching || current == AttackRunPhase.Approach || current == AttackRunPhase.Execute)
+                {
+                    return target != Entity.Null ? "TargetAcquired" : "Launch";
+                }
+
+                if (current == AttackRunPhase.Docked || current == AttackRunPhase.Landing || current == AttackRunPhase.Return)
+                {
+                    return "Recall";
+                }
+            }
+
+            return "Transition";
         }
 
         private static string ResolveAttackRunOutcome(AttackRunPhase nextPhase)

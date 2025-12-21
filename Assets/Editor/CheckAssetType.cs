@@ -6,7 +6,7 @@ public class CheckAssetType
     [MenuItem("Tools/Space4X/Check Asset Type")]
     public static void Execute()
     {
-        string path = "Assets/Data/Space4XRenderCatalog.asset";
+        string path = "Assets/Data/Space4XRenderCatalog_v2.asset";
         var obj = AssetDatabase.LoadAssetAtPath<Object>(path);
         if (obj != null)
         {

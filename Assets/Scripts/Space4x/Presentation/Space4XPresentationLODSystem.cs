@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Rendering;
 using Space4X.Presentation.Camera;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -20,12 +21,14 @@ namespace Space4X.Presentation
     public partial struct Space4XPresentationLODSystem : ISystem
     {
         private uint _tick;
+        private ComponentLookup<PresentationLayer> _layerLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             _tick = 0;
             state.RequireForUpdate<Space4XCameraState>();
+            _layerLookup = state.GetComponentLookup<PresentationLayer>(true);
         }
 
         [BurstCompile]
@@ -45,18 +48,18 @@ namespace Space4X.Presentation
                 ? config
                 : PresentationLODConfig.Default;
 
-            var thresholds = new LODThresholds
-            {
-                LOD1Distance = lodConfig.FullDetailMaxDistance,
-                LOD2Distance = lodConfig.ReducedDetailMaxDistance,
-                LOD3Distance = lodConfig.ImpostorMaxDistance,
-                Hysteresis = 0f
-            };
+            var layerConfig = SystemAPI.TryGetSingleton<PresentationLayerConfig>(out var layerOverride)
+                ? layerOverride
+                : PresentationLayerConfig.Default;
+
+            _layerLookup.Update(ref state);
 
             new UpdateLODJob
             {
                 CameraPosition = cameraState.Position,
-                Thresholds = thresholds,
+                BaseConfig = lodConfig,
+                LayerConfig = layerConfig,
+                LayerLookup = _layerLookup,
                 CurrentTick = ++_tick
             }.ScheduleParallel();
         }
@@ -65,15 +68,55 @@ namespace Space4X.Presentation
         private partial struct UpdateLODJob : IJobEntity
         {
             public float3 CameraPosition;
-            public LODThresholds Thresholds;
+            public PresentationLODConfig BaseConfig;
+            public PresentationLayerConfig LayerConfig;
+            [ReadOnly] public ComponentLookup<PresentationLayer> LayerLookup;
             public uint CurrentTick;
 
-            public void Execute(ref RenderLODData lodData, in LocalTransform transform)
+            public void Execute(Entity entity,
+                                ref RenderLODData lodData,
+                                ref RenderKey renderKey,
+                                ref RenderCullable cullable,
+                                in LocalTransform transform)
             {
+                var layer = LayerLookup.HasComponent(entity)
+                    ? LayerLookup[entity].Value
+                    : PresentationLayerId.System;
+
+                float multiplier = ResolveLayerMultiplier(layer);
+                var lod1 = math.max(1f, BaseConfig.FullDetailMaxDistance * multiplier);
+                var lod2 = math.max(BaseConfig.FullDetailMaxDistance, BaseConfig.ReducedDetailMaxDistance) * multiplier;
+                var lod3 = math.max(lod2, BaseConfig.ImpostorMaxDistance * multiplier);
+                var thresholds = new LODThresholds
+                {
+                    LOD1Distance = lod1,
+                    LOD2Distance = lod2,
+                    LOD3Distance = lod3,
+                    Hysteresis = 0f
+                };
+
                 float distance = math.distance(transform.Position, CameraPosition);
                 lodData.CameraDistance = distance;
-                lodData.RecommendedLOD = RenderLODHelpers.CalculateLOD(distance, in Thresholds);
+                lodData.RecommendedLOD = RenderLODHelpers.CalculateLOD(distance, in thresholds);
                 lodData.LastUpdateTick = CurrentTick;
+
+                var lod = lodData.RecommendedLOD;
+                renderKey.LOD = (byte)math.min((int)lod, 2);
+                cullable.CullDistance = thresholds.LOD3Distance;
+            }
+
+            private float ResolveLayerMultiplier(PresentationLayerId layer)
+            {
+                return layer switch
+                {
+                    PresentationLayerId.Colony => LayerConfig.ColonyMultiplier,
+                    PresentationLayerId.Island => LayerConfig.IslandMultiplier,
+                    PresentationLayerId.Continent => LayerConfig.ContinentMultiplier,
+                    PresentationLayerId.Planet => LayerConfig.PlanetMultiplier,
+                    PresentationLayerId.Orbital => LayerConfig.OrbitalMultiplier,
+                    PresentationLayerId.Galactic => LayerConfig.GalacticMultiplier,
+                    _ => LayerConfig.SystemMultiplier
+                };
             }
         }
     }
@@ -138,6 +181,7 @@ namespace Space4X.Presentation
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLODSystem))]
+    [UpdateAfter(typeof(RenderVariantResolveSystem))]
     public partial struct Space4XPresentationModeSystem : ISystem
     {
         private EntityQuery _presenterQuery;
@@ -146,7 +190,7 @@ namespace Space4X.Presentation
         public void OnCreate(ref SystemState state)
         {
             _presenterQuery = SystemAPI.QueryBuilder()
-                .WithAll<RenderLODData, MeshPresenter, SpritePresenter>()
+                .WithAll<RenderLODData, RenderVariantResolved, MeshPresenter, SpritePresenter>()
                 .Build();
 
             state.RequireForUpdate(_presenterQuery);
@@ -172,12 +216,16 @@ namespace Space4X.Presentation
         public partial struct UpdatePresentationModeJob : IJobEntity
         {
             public void Execute(in RenderLODData lodData,
+                                in RenderVariantResolved resolved,
                                 EnabledRefRW<MeshPresenter> meshEnabled,
                                 EnabledRefRW<SpritePresenter> spriteEnabled)
             {
-                bool wantSprite = lodData.RecommendedLOD >= 2;
-                meshEnabled.ValueRW = !wantSprite;
-                spriteEnabled.ValueRW = wantSprite;
+                bool spriteAvailable = (resolved.LastMask & RenderPresenterMask.Sprite) != 0;
+                bool meshAvailable = (resolved.LastMask & RenderPresenterMask.Mesh) != 0;
+                bool useSprite = spriteAvailable && lodData.RecommendedLOD > 0;
+
+                meshEnabled.ValueRW = meshAvailable && !useSprite;
+                spriteEnabled.ValueRW = spriteAvailable && useSprite;
             }
         }
     }
@@ -193,9 +241,59 @@ namespace Space4X.Presentation
 
         public static PresentationLODConfig Default => new PresentationLODConfig
         {
-            FullDetailMaxDistance = 100f,
-            ReducedDetailMaxDistance = 500f,
-            ImpostorMaxDistance = 2000f
+            FullDetailMaxDistance = 2000f,
+            ReducedDetailMaxDistance = 10000f,
+            ImpostorMaxDistance = 40000f
+        };
+    }
+
+    /// <summary>
+    /// Multiplier configuration for distance layers (colony → galactic).
+    /// </summary>
+    public struct PresentationLayerConfig : IComponentData
+    {
+        public float ColonyMultiplier;
+        public float IslandMultiplier;
+        public float ContinentMultiplier;
+        public float PlanetMultiplier;
+        public float OrbitalMultiplier;
+        public float SystemMultiplier;
+        public float GalacticMultiplier;
+
+        public static PresentationLayerConfig Default => new PresentationLayerConfig
+        {
+            ColonyMultiplier = 0.15f,
+            IslandMultiplier = 0.3f,
+            ContinentMultiplier = 0.6f,
+            PlanetMultiplier = 1f,
+            OrbitalMultiplier = 2f,
+            SystemMultiplier = 6f,
+            GalacticMultiplier = 20f
+        };
+    }
+
+    /// <summary>
+    /// Presentation scale multipliers per layer (colony → galactic).
+    /// </summary>
+    public struct PresentationScaleConfig : IComponentData
+    {
+        public float ColonyMultiplier;
+        public float IslandMultiplier;
+        public float ContinentMultiplier;
+        public float PlanetMultiplier;
+        public float OrbitalMultiplier;
+        public float SystemMultiplier;
+        public float GalacticMultiplier;
+
+        public static PresentationScaleConfig Default => new PresentationScaleConfig
+        {
+            ColonyMultiplier = 1f,
+            IslandMultiplier = 1.1f,
+            ContinentMultiplier = 1.2f,
+            PlanetMultiplier = 1.35f,
+            OrbitalMultiplier = 1.6f,
+            SystemMultiplier = 2f,
+            GalacticMultiplier = 3f
         };
     }
 
@@ -259,6 +357,68 @@ namespace Space4X.Presentation
             {
                 Density = math.clamp(authoring.Density, 0f, 1f),
                 AutoAdjust = authoring.AutoAdjust
+            });
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PresentationLayerConfigAuthoring : MonoBehaviour
+    {
+        [Header("Layer Distance Multipliers")]
+        public float ColonyMultiplier = PresentationLayerConfig.Default.ColonyMultiplier;
+        public float IslandMultiplier = PresentationLayerConfig.Default.IslandMultiplier;
+        public float ContinentMultiplier = PresentationLayerConfig.Default.ContinentMultiplier;
+        public float PlanetMultiplier = PresentationLayerConfig.Default.PlanetMultiplier;
+        public float OrbitalMultiplier = PresentationLayerConfig.Default.OrbitalMultiplier;
+        public float SystemMultiplier = PresentationLayerConfig.Default.SystemMultiplier;
+        public float GalacticMultiplier = PresentationLayerConfig.Default.GalacticMultiplier;
+    }
+
+    public sealed class PresentationLayerConfigBaker : Baker<PresentationLayerConfigAuthoring>
+    {
+        public override void Bake(PresentationLayerConfigAuthoring authoring)
+        {
+            var entity = GetEntity(TransformUsageFlags.None);
+            AddComponent(entity, new PresentationLayerConfig
+            {
+                ColonyMultiplier = authoring.ColonyMultiplier,
+                IslandMultiplier = authoring.IslandMultiplier,
+                ContinentMultiplier = authoring.ContinentMultiplier,
+                PlanetMultiplier = authoring.PlanetMultiplier,
+                OrbitalMultiplier = authoring.OrbitalMultiplier,
+                SystemMultiplier = authoring.SystemMultiplier,
+                GalacticMultiplier = authoring.GalacticMultiplier
+            });
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PresentationScaleConfigAuthoring : MonoBehaviour
+    {
+        [Header("Layer Scale Multipliers")]
+        public float ColonyMultiplier = PresentationScaleConfig.Default.ColonyMultiplier;
+        public float IslandMultiplier = PresentationScaleConfig.Default.IslandMultiplier;
+        public float ContinentMultiplier = PresentationScaleConfig.Default.ContinentMultiplier;
+        public float PlanetMultiplier = PresentationScaleConfig.Default.PlanetMultiplier;
+        public float OrbitalMultiplier = PresentationScaleConfig.Default.OrbitalMultiplier;
+        public float SystemMultiplier = PresentationScaleConfig.Default.SystemMultiplier;
+        public float GalacticMultiplier = PresentationScaleConfig.Default.GalacticMultiplier;
+    }
+
+    public sealed class PresentationScaleConfigBaker : Baker<PresentationScaleConfigAuthoring>
+    {
+        public override void Bake(PresentationScaleConfigAuthoring authoring)
+        {
+            var entity = GetEntity(TransformUsageFlags.None);
+            AddComponent(entity, new PresentationScaleConfig
+            {
+                ColonyMultiplier = authoring.ColonyMultiplier,
+                IslandMultiplier = authoring.IslandMultiplier,
+                ContinentMultiplier = authoring.ContinentMultiplier,
+                PlanetMultiplier = authoring.PlanetMultiplier,
+                OrbitalMultiplier = authoring.OrbitalMultiplier,
+                SystemMultiplier = authoring.SystemMultiplier,
+                GalacticMultiplier = authoring.GalacticMultiplier
             });
         }
     }

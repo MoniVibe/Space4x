@@ -8,7 +8,7 @@ namespace Space4X.Authoring
 {
     /// <summary>
     /// Authoring component that adds fleet registry and combat components to carriers.
-    /// Use this alongside Space4XMiningDemoAuthoring to make carriers visible to registry bridge and intercept systems.
+    /// Use this alongside Space4XMiningScenarioAuthoring to make carriers visible to registry bridge and intercept systems.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class Space4XCarrierCombatAuthoring : MonoBehaviour

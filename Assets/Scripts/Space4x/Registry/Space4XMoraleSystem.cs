@@ -282,6 +282,7 @@ namespace Space4X.Registry
 
             buffer.AddMetric("space4x.morale.entities", totalEntities);
             buffer.AddMetric("space4x.morale.average", avgMorale, TelemetryMetricUnit.Ratio);
+            buffer.AddMetric("loop.combat.morale.avg", avgMorale, TelemetryMetricUnit.Ratio);
             buffer.AddMetric("space4x.morale.low", lowMoraleCount);
             buffer.AddMetric("space4x.morale.critical", criticalCount);
             buffer.AddMetric("space4x.morale.inspired", inspiredCount);
@@ -303,4 +304,3 @@ namespace Space4X.Registry
         }
     }
 }
-

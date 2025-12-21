@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Systems;
@@ -193,3 +194,4 @@ namespace Space4X.Tests
         }
     }
 }
+#endif
