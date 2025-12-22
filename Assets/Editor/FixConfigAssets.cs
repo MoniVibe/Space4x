@@ -1,7 +1,9 @@
-using UnityEngine;
-using UnityEditor;
-using PureDOTS.Authoring;
+using System;
 using System.IO;
+using System.Reflection;
+using UnityEditor;
+using UnityEngine;
+using PureDOTS.Authoring;
 
 public static class FixConfigAssets
 {
@@ -39,10 +41,37 @@ public static class FixConfigAssets
         AssetDatabase.Refresh();
         AssetDatabase.SaveAssets();
 
-        // Now run the bootstrapper
-        Space4XConfigBootstrapper.EnsureAssets();
+        // Now run the bootstrapper if available in this project.
+        var bootstrapperType = Type.GetType("Space4XConfigBootstrapper");
+        if (bootstrapperType == null)
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                bootstrapperType = assembly.GetType("Space4XConfigBootstrapper");
+                if (bootstrapperType != null)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (bootstrapperType != null)
+        {
+            var method = bootstrapperType.GetMethod("EnsureAssets", BindingFlags.Public | BindingFlags.Static);
+            if (method != null)
+            {
+                method.Invoke(null, null);
+            }
+            else
+            {
+                Debug.LogWarning("[FixConfigAssets] Space4XConfigBootstrapper.EnsureAssets not found.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[FixConfigAssets] Space4XConfigBootstrapper type not found; assets recreated but not post-configured.");
+        }
 
         Debug.Log("Config assets fixed and recreated!");
     }
 }
-

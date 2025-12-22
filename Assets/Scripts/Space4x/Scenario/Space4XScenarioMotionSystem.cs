@@ -21,6 +21,7 @@ namespace Space4X.Scenario
     }
 
     [BurstCompile]
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateBefore(typeof(TransformSystemGroup))]
     public partial struct Space4XScenarioMotionSystem : ISystem
@@ -28,6 +29,13 @@ namespace Space4X.Scenario
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            // Hard-disabled: legacy motion is a demo-only visualization.
+            state.Enabled = false;
+            if (!state.Enabled)
+            {
+                return;
+            }
+
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<Space4XScenarioMotion>();
             state.RequireForUpdate<Space4XScenarioMarker>();

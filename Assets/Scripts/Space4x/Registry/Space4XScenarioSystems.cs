@@ -20,12 +20,14 @@ namespace Space4X.Registry
     public partial struct CarrierPatrolSystem : ISystem
     {
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<CarrierMiningTarget> _miningTargetLookup;
         private Random _random;
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             _transformLookup = state.GetComponentLookup<LocalTransform>(false);
+            _miningTargetLookup = state.GetComponentLookup<CarrierMiningTarget>(true);
             _random = new Random(12345u);
         }
 
@@ -37,6 +39,7 @@ namespace Space4X.Registry
         public void OnUpdate(ref SystemState state)
         {
             _transformLookup.Update(ref state);
+            _miningTargetLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
             var deltaTime = SystemAPI.TryGetSingleton<TimeState>(out var timeState) 
@@ -60,6 +63,37 @@ namespace Space4X.Registry
                 var position = transform.ValueRO.Position;
                 var movementCmd = movement.ValueRO;
                 var patrolBehavior = patrol.ValueRO;
+
+                if (_miningTargetLookup.HasComponent(entity))
+                {
+                    var miningTarget = _miningTargetLookup[entity];
+                    if (miningTarget.TargetEntity != Entity.Null)
+                    {
+                        var targetPos = miningTarget.TargetPosition;
+                        var arrivalThreshold = movementCmd.ArrivalThreshold > 0f ? movementCmd.ArrivalThreshold : 1f;
+                        var toTarget = targetPos - position;
+                        var distanceSq = math.lengthsq(toTarget);
+
+                        if (distanceSq > arrivalThreshold * arrivalThreshold)
+                        {
+                            var direction = math.normalize(toTarget);
+                            var movementSpeed = carrierData.Speed * deltaTime;
+                            var newPosition = position + direction * movementSpeed;
+                            transform.ValueRW = LocalTransform.FromPositionRotationScale(newPosition, transform.ValueRO.Rotation, transform.ValueRO.Scale);
+                        }
+
+                        movement.ValueRW = new MovementCommand
+                        {
+                            TargetPosition = targetPos,
+                            ArrivalThreshold = arrivalThreshold
+                        };
+
+                        patrolBehavior.CurrentWaypoint = targetPos;
+                        patrolBehavior.WaitTimer = 0f;
+                        patrol.ValueRW = patrolBehavior;
+                        continue;
+                    }
+                }
 
                 // Initialize waypoint if it's uninitialized (zero vector or very close to current position)
                 var waypointInitialized = math.lengthsq(patrolBehavior.CurrentWaypoint) > 0.01f;
@@ -430,4 +464,3 @@ namespace Space4X.Registry
         }
     }
 }
-

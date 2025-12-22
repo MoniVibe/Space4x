@@ -22,8 +22,12 @@ namespace Space4X.Presentation
         private uint _lastTick;
         private byte _tickInitialized;
         private EntityQuery _craftQuery;
+        private EntityQuery _carrierQuery;
         private EntityQuery _asteroidQuery;
         private EntityQuery _strikeCraftQuery;
+        private ComponentLookup<Space4XEngagement> _engagementLookup;
+        private ComponentLookup<InCombatTag> _inCombatLookup;
+        private ComponentLookup<PatrolBehavior> _patrolLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -38,6 +42,10 @@ namespace Space4X.Presentation
                 .WithAll<CraftPresentationTag, MiningVessel, MiningJob, CraftVisualState, RenderTint, MaterialPropertyOverride>()
                 .Build();
 
+            _carrierQuery = SystemAPI.QueryBuilder()
+                .WithAll<CarrierPresentationTag, Space4XFleet, CarrierVisualState, RenderTint, MaterialPropertyOverride>()
+                .Build();
+
             _asteroidQuery = SystemAPI.QueryBuilder()
                 .WithAll<AsteroidPresentationTag, Asteroid, AsteroidVisualState, RenderTint, MaterialPropertyOverride>()
                 .Build();
@@ -45,6 +53,10 @@ namespace Space4X.Presentation
             _strikeCraftQuery = SystemAPI.QueryBuilder()
                 .WithAll<StrikeCraftPresentationTag, StrikeCraftProfile, StrikeCraftVisualState, RenderTint, MaterialPropertyOverride>()
                 .Build();
+
+            _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
+            _inCombatLookup = state.GetComponentLookup<InCombatTag>(true);
+            _patrolLookup = state.GetComponentLookup<PatrolBehavior>(true);
         }
 
         [BurstCompile]
@@ -55,7 +67,10 @@ namespace Space4X.Presentation
                 return;
             }
 
-            if (_craftQuery.IsEmptyIgnoreFilter && _asteroidQuery.IsEmptyIgnoreFilter && _strikeCraftQuery.IsEmptyIgnoreFilter)
+            if (_craftQuery.IsEmptyIgnoreFilter &&
+                _carrierQuery.IsEmptyIgnoreFilter &&
+                _asteroidQuery.IsEmptyIgnoreFilter &&
+                _strikeCraftQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }
@@ -79,12 +94,15 @@ namespace Space4X.Presentation
             }
 
             var timeSeconds = timeState.WorldSeconds;
+            _engagementLookup.Update(ref state);
+            _inCombatLookup.Update(ref state);
+            _patrolLookup.Update(ref state);
+
+            var activeCarriers = new NativeHashMap<Entity, byte>(math.max(1, _craftQuery.CalculateEntityCount()), Allocator.Temp);
 
             // Craft: map mining job → visual state and tint pulse.
             if (!_craftQuery.IsEmptyIgnoreFilter)
             {
-                var activeCarriers = new NativeHashMap<Entity, byte>(math.max(1, _craftQuery.CalculateEntityCount()), Allocator.Temp);
-
                 foreach (var (vessel, job) in SystemAPI.Query<RefRO<MiningVessel>, RefRO<MiningJob>>())
                 {
                     if (vessel.ValueRO.CarrierEntity == Entity.Null)
@@ -120,14 +138,38 @@ namespace Space4X.Presentation
                     var pulse = ResolvePulse(mapped, timeSeconds, entity.Index);
                     tint.ValueRW.Value = new float4(baseColor.xyz * pulse, baseColor.w);
                 }
+            }
 
-                foreach (var (visual, tint, material, entity) in SystemAPI
-                             .Query<RefRW<CarrierVisualState>, RefRW<RenderTint>, RefRO<MaterialPropertyOverride>>()
+            if (!_carrierQuery.IsEmptyIgnoreFilter)
+            {
+                foreach (var (fleet, visual, tint, material, entity) in SystemAPI
+                             .Query<RefRO<Space4XFleet>, RefRW<CarrierVisualState>, RefRW<RenderTint>, RefRO<MaterialPropertyOverride>>()
                              .WithAll<CarrierPresentationTag>()
                              .WithEntityAccess())
                 {
+                    var posture = fleet.ValueRO.Posture;
+                    var engagementPhase = _engagementLookup.HasComponent(entity)
+                        ? _engagementLookup[entity].Phase
+                        : EngagementPhase.None;
+
                     bool isActive = activeCarriers.ContainsKey(entity);
-                    var desired = isActive ? CarrierVisualStateType.Mining : CarrierVisualStateType.Idle;
+                    bool isCombat = _inCombatLookup.HasComponent(entity) ||
+                                    engagementPhase == EngagementPhase.Engaged ||
+                                    engagementPhase == EngagementPhase.Approaching ||
+                                    posture == Space4XFleetPosture.Engaging;
+                    bool isRetreating = engagementPhase == EngagementPhase.Retreating ||
+                                        posture == Space4XFleetPosture.Retreating;
+                    bool isPatrolling = posture == Space4XFleetPosture.Patrol || _patrolLookup.HasComponent(entity);
+
+                    var desired = isCombat
+                        ? CarrierVisualStateType.Combat
+                        : isRetreating
+                            ? CarrierVisualStateType.Retreating
+                            : isActive
+                                ? CarrierVisualStateType.Mining
+                                : isPatrolling
+                                    ? CarrierVisualStateType.Patrolling
+                                    : CarrierVisualStateType.Idle;
                     if (visual.ValueRO.State != desired)
                     {
                         visual.ValueRW.State = desired;
@@ -139,14 +181,12 @@ namespace Space4X.Presentation
                     }
 
                     var baseColor = material.ValueRO.BaseColor;
-                    var pulse = isActive
-                        ? 0.90f + 0.18f * math.sin(timeSeconds * 2.2f + entity.Index * 0.05f)
-                        : 1f;
+                    var pulse = ResolveCarrierPulse(desired, timeSeconds, entity.Index);
                     tint.ValueRW.Value = new float4(baseColor.xyz * pulse, baseColor.w);
                 }
-
-                activeCarriers.Dispose();
             }
+
+            activeCarriers.Dispose();
 
             // Asteroids: depletion ratio → dimming, with a subtle pulse if still rich.
             if (!_asteroidQuery.IsEmptyIgnoreFilter)
@@ -251,6 +291,18 @@ namespace Space4X.Presentation
                 StrikeCraftVisualStateType.FormingUp => 0.92f + 0.12f * math.sin(timeSeconds * 2.4f + entityIndex * 0.05f),
                 StrikeCraftVisualStateType.Returning => 0.90f + 0.14f * math.sin(timeSeconds * 2.2f + entityIndex * 0.05f),
                 StrikeCraftVisualStateType.Disengaging => 0.86f + 0.18f * math.sin(timeSeconds * 3.2f + entityIndex * 0.06f),
+                _ => 1f
+            };
+        }
+
+        private static float ResolveCarrierPulse(CarrierVisualStateType state, float timeSeconds, int entityIndex)
+        {
+            return state switch
+            {
+                CarrierVisualStateType.Combat => 0.80f + 0.26f * math.sin(timeSeconds * 4.8f + entityIndex * 0.06f),
+                CarrierVisualStateType.Retreating => 0.78f + 0.18f * math.sin(timeSeconds * 2.6f + entityIndex * 0.04f),
+                CarrierVisualStateType.Mining => 0.90f + 0.18f * math.sin(timeSeconds * 2.2f + entityIndex * 0.05f),
+                CarrierVisualStateType.Patrolling => 0.92f + 0.12f * math.sin(timeSeconds * 2.0f + entityIndex * 0.04f),
                 _ => 1f
             };
         }

@@ -22,6 +22,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ResourceTypeId> _resourceTypeLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<MiningYield> _yieldLookup;
+        private ComponentLookup<CarrierMiningTarget> _carrierTargetLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -34,6 +35,7 @@ namespace Space4X.Systems.AI
             _resourceTypeLookup = state.GetComponentLookup<ResourceTypeId>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _yieldLookup = state.GetComponentLookup<MiningYield>(false);
+            _carrierTargetLookup = state.GetComponentLookup<CarrierMiningTarget>(true);
         }
 
         [BurstCompile]
@@ -55,6 +57,7 @@ namespace Space4X.Systems.AI
             _resourceTypeLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _yieldLookup.Update(ref state);
+            _carrierTargetLookup.Update(ref state);
 
             var resources = new NativeList<ResourceCandidate>(Allocator.Temp);
             foreach (var (resourceState, resourceTypeId, transform, entity) in SystemAPI
@@ -92,10 +95,33 @@ namespace Space4X.Systems.AI
                 }
 
                 var resourceId = order.ValueRO.ResourceId;
+                var preferredTarget = Entity.Null;
+                var hasPreferredTarget = false;
+
+                var carrierEntity = vessel.ValueRO.CarrierEntity;
+                if (carrierEntity != Entity.Null && _carrierTargetLookup.HasComponent(carrierEntity))
+                {
+                    var carrierTarget = _carrierTargetLookup[carrierEntity];
+                    var candidateEntity = carrierTarget.TargetEntity;
+                    if (candidateEntity != Entity.Null &&
+                        _resourceStateLookup.HasComponent(candidateEntity) &&
+                        _resourceStateLookup[candidateEntity].UnitsRemaining > 0f &&
+                        _resourceTypeLookup.HasComponent(candidateEntity))
+                    {
+                        var targetResourceId = _resourceTypeLookup[candidateEntity].Value;
+                        if (resourceId.IsEmpty || resourceId.Equals(targetResourceId))
+                        {
+                            resourceId = resourceId.IsEmpty ? targetResourceId : resourceId;
+                            preferredTarget = candidateEntity;
+                            hasPreferredTarget = true;
+                        }
+                    }
+                }
+
                 ResourceCandidate selection = default;
                 var hasSelection = false;
 
-                if (resourceId.IsEmpty)
+                if (!hasPreferredTarget && resourceId.IsEmpty)
                 {
                     hasSelection = TrySelectResource(vessel.ValueRO.CargoResourceType, transform.ValueRO.Position, resources, out selection);
                     if (!hasSelection)
@@ -109,7 +135,9 @@ namespace Space4X.Systems.AI
                 order.ValueRW.ResourceId = resourceId;
                 order.ValueRW.Status = MiningOrderStatus.Pending;
                 order.ValueRW.TargetEntity = Entity.Null;
-                order.ValueRW.PreferredTarget = hasSelection ? selection.Entity : Entity.Null;
+                order.ValueRW.PreferredTarget = hasPreferredTarget
+                    ? preferredTarget
+                    : (hasSelection ? selection.Entity : Entity.Null);
                 order.ValueRW.IssuedTick = currentTick;
 
                 if (_yieldLookup.HasComponent(entity))

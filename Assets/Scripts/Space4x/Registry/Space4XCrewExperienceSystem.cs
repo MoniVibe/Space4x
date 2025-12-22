@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
+using Unity.Collections;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -47,6 +48,68 @@ namespace Space4X.Registry
             _skillsLookup.Update(ref state);
 
             var tick = time.Tick;
+            var capacity = math.max(1, commandLog.Length);
+            var missingXp = new NativeHashSet<Entity>(capacity, Allocator.Temp);
+            var missingSkills = new NativeHashSet<Entity>(capacity, Allocator.Temp);
+
+            for (var i = 0; i < commandLog.Length; i++)
+            {
+                var command = commandLog[i];
+                if (command.Tick != tick || command.Amount <= 0f)
+                {
+                    continue;
+                }
+
+                var entity = command.TargetEntity;
+                if (entity == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (!_xpLookup.HasComponent(entity))
+                {
+                    missingXp.Add(entity);
+                }
+
+                if (!_skillsLookup.HasComponent(entity))
+                {
+                    missingSkills.Add(entity);
+                }
+            }
+
+            if (missingXp.Count > 0 || missingSkills.Count > 0)
+            {
+                var em = state.EntityManager;
+
+                foreach (var entity in missingXp)
+                {
+                    em.AddComponentData(entity, new SkillExperienceGain
+                    {
+                        MiningXp = 0f,
+                        HaulingXp = 0f,
+                        CombatXp = 0f,
+                        RepairXp = 0f,
+                        ExplorationXp = 0f,
+                        LastProcessedTick = tick
+                    });
+                }
+
+                foreach (var entity in missingSkills)
+                {
+                    em.AddComponentData(entity, new CrewSkills());
+                }
+
+                _xpLookup.Update(ref state);
+                _skillsLookup.Update(ref state);
+
+                if (!SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out commandLog))
+                {
+                    missingXp.Dispose();
+                    missingSkills.Dispose();
+                    return;
+                }
+            }
+
             var hasSkillLog = SystemAPI.TryGetSingletonBuffer<SkillChangeLogEntry>(out var skillLog);
 
             for (var i = 0; i < commandLog.Length; i++)
@@ -60,23 +123,29 @@ namespace Space4X.Registry
                 switch (command.CommandType)
                 {
                     case MiningCommandType.Gather:
-                        ApplyXp(ref state, command.TargetEntity, SkillDomain.Mining, command.Amount, tick, hasSkillLog ? skillLog : default);
+                        ApplyXp(command.TargetEntity, SkillDomain.Mining, command.Amount, tick, hasSkillLog ? skillLog : default);
                         break;
                     case MiningCommandType.Pickup:
-                        ApplyXp(ref state, command.TargetEntity, SkillDomain.Hauling, command.Amount, tick, hasSkillLog ? skillLog : default);
+                        ApplyXp(command.TargetEntity, SkillDomain.Hauling, command.Amount, tick, hasSkillLog ? skillLog : default);
                         break;
                 }
             }
+
+            missingXp.Dispose();
+            missingSkills.Dispose();
         }
 
-        private void ApplyXp(ref SystemState state, Entity entity, SkillDomain domain, float amount, uint tick, DynamicBuffer<SkillChangeLogEntry> skillLog)
+        private void ApplyXp(Entity entity, SkillDomain domain, float amount, uint tick, DynamicBuffer<SkillChangeLogEntry> skillLog)
         {
             if (entity == Entity.Null || amount <= 0f)
             {
                 return;
             }
 
-            EnsureSkillComponents(ref state, entity, tick);
+            if (!_xpLookup.HasComponent(entity) || !_skillsLookup.HasComponent(entity))
+            {
+                return;
+            }
 
             var xpData = _xpLookup[entity];
             var deltaXp = Space4XSkillUtility.ComputeDeltaXp(domain, amount);
@@ -117,37 +186,6 @@ namespace Space4X.Registry
                     DeltaXp = deltaXp,
                     NewSkill = GetSkillValue(skills, domain)
                 });
-            }
-        }
-
-        private void EnsureSkillComponents(ref SystemState state, Entity entity, uint tick)
-        {
-            var updated = false;
-
-            if (!_xpLookup.HasComponent(entity))
-            {
-                state.EntityManager.AddComponentData(entity, new SkillExperienceGain
-                {
-                    MiningXp = 0f,
-                    HaulingXp = 0f,
-                    CombatXp = 0f,
-                    RepairXp = 0f,
-                    ExplorationXp = 0f,
-                    LastProcessedTick = tick
-                });
-                updated = true;
-            }
-
-            if (!_skillsLookup.HasComponent(entity))
-            {
-                state.EntityManager.AddComponentData(entity, new CrewSkills());
-                updated = true;
-            }
-
-            if (updated)
-            {
-                _xpLookup.Update(ref state);
-                _skillsLookup.Update(ref state);
             }
         }
 

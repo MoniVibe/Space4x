@@ -208,7 +208,7 @@ GameObject:
   - component: {fileID: 251823338}
   - component: {fileID: 251823337}
   m_Layer: 0
-  m_Name: Space4X_MiningDemo_SubScene
+  m_Name: Space4X_MiningScenario_SubScene
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -940,7 +940,7 @@ GameObject:
   - component: {fileID: 1908905074}
   - component: {fileID: 1908905073}
   m_Layer: 0
-  m_Name: Space4X_MiningDemo
+  m_Name: Space4X_MiningScenario
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -957,7 +957,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f33d52f3a18f8c4ba5177ec02826937, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XMiningDemoAuthoring
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Registry.Space4XMiningScenarioAuthoring
   carriers:
   - CarrierId: CARRIER-1
     Speed: 5

@@ -21,11 +21,11 @@ namespace Space4X.Runtime
         {
             get
             {
-                return IsEnabled(ScenarioEnvVar);
+                return IsEnabledEnv(ScenarioEnvVar);
             }
         }
 
-        private static bool IsEnabled(string envVar)
+        private static bool IsEnabledEnv(string envVar)
         {
             var value = SystemEnv.GetEnvironmentVariable(envVar);
             if (string.IsNullOrEmpty(value))

@@ -5,6 +5,7 @@ namespace Space4X.Runtime
     /// <summary>
     /// Creates the legacy scenario tag when explicitly enabled via environment flag.
     /// </summary>
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(InitializationSystemGroup), OrderFirst = true)]
     public partial struct Space4XLegacyScenarioBootstrapSystem : ISystem
     {

@@ -20,6 +20,9 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XMutinySystem))]
     public partial struct Space4XMutinyCustodySystem : ISystem
     {
+        private FixedString64Bytes _roleXo;
+        private FixedString64Bytes _roleShipmaster;
+
         private ComponentLookup<CustodyState> _custodyLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
@@ -33,6 +36,9 @@ namespace Space4X.Registry
             _custodyLookup = state.GetComponentLookup<CustodyState>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
+
+            _roleXo = BuildRoleXo();
+            _roleShipmaster = BuildRoleShipmaster();
         }
 
         [BurstCompile]
@@ -93,8 +99,7 @@ namespace Space4X.Registry
                         }
 
                         var role = _seatLookup[seatEntity].RoleId;
-                        var isInnerCircle = role.Equals(new FixedString64Bytes("ship.xo")) ||
-                                            role.Equals(new FixedString64Bytes("ship.shipmaster"));
+                        var isInnerCircle = role.Equals(_roleXo) || role.Equals(_roleShipmaster);
                         if (captureInnerCircle && !captureAll && !isInnerCircle)
                         {
                             continue;
@@ -158,6 +163,40 @@ namespace Space4X.Registry
                 }
             });
             return true;
+        }
+
+        private static FixedString64Bytes BuildRoleXo()
+        {
+            var id = new FixedString64Bytes();
+            id.Append('s');
+            id.Append('h');
+            id.Append('i');
+            id.Append('p');
+            id.Append('.');
+            id.Append('x');
+            id.Append('o');
+            return id;
+        }
+
+        private static FixedString64Bytes BuildRoleShipmaster()
+        {
+            var id = new FixedString64Bytes();
+            id.Append('s');
+            id.Append('h');
+            id.Append('i');
+            id.Append('p');
+            id.Append('.');
+            id.Append('s');
+            id.Append('h');
+            id.Append('i');
+            id.Append('p');
+            id.Append('m');
+            id.Append('a');
+            id.Append('s');
+            id.Append('t');
+            id.Append('e');
+            id.Append('r');
+            return id;
         }
 
         private void VacateSeat(ref EntityCommandBuffer ecb, Entity seatEntity, uint tick)

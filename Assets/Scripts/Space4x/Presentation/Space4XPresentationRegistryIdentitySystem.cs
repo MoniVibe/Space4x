@@ -37,21 +37,21 @@ namespace Space4X.Presentation
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            AddIdentity(ref ecb, _carrierId, state, ComponentType.ReadOnly<CarrierPresentationTag>());
-            AddIdentity(ref ecb, _minerId, state, ComponentType.ReadOnly<CraftPresentationTag>());
-            AddIdentity(ref ecb, _asteroidId, state, ComponentType.ReadOnly<AsteroidPresentationTag>());
-            AddIdentity(ref ecb, _projectileId, state, ComponentType.ReadOnly<ProjectilePresentationTag>());
-            AddIdentity(ref ecb, _fleetImpostorId, state, ComponentType.ReadOnly<FleetImpostorTag>());
-            AddIdentity(ref ecb, _individualId, state, ComponentType.ReadOnly<IndividualPresentationTag>());
-            AddIdentity(ref ecb, _strikeCraftId, state, ComponentType.ReadOnly<StrikeCraftPresentationTag>());
-            AddIdentity(ref ecb, _resourcePickupId, state, ComponentType.ReadOnly<ResourcePickupPresentationTag>());
-            AddIdentity(ref ecb, _ghostTetherId, state, ComponentType.ReadOnly<GhostTetherTag>());
+            AddIdentity(ref ecb, _carrierId, ref state, ComponentType.ReadOnly<CarrierPresentationTag>());
+            AddIdentity(ref ecb, _minerId, ref state, ComponentType.ReadOnly<CraftPresentationTag>());
+            AddIdentity(ref ecb, _asteroidId, ref state, ComponentType.ReadOnly<AsteroidPresentationTag>());
+            AddIdentity(ref ecb, _projectileId, ref state, ComponentType.ReadOnly<ProjectilePresentationTag>());
+            AddIdentity(ref ecb, _fleetImpostorId, ref state, ComponentType.ReadOnly<FleetImpostorTag>());
+            AddIdentity(ref ecb, _individualId, ref state, ComponentType.ReadOnly<IndividualPresentationTag>());
+            AddIdentity(ref ecb, _strikeCraftId, ref state, ComponentType.ReadOnly<StrikeCraftPresentationTag>());
+            AddIdentity(ref ecb, _resourcePickupId, ref state, ComponentType.ReadOnly<ResourcePickupPresentationTag>());
+            AddIdentity(ref ecb, _ghostTetherId, ref state, ComponentType.ReadOnly<GhostTetherTag>());
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
         }
 
-        private static void AddIdentity(ref EntityCommandBuffer ecb, RegistryId id, in SystemState state, ComponentType marker)
+        private static void AddIdentity(ref EntityCommandBuffer ecb, RegistryId id, ref SystemState state, ComponentType marker)
         {
             if (!id.IsValid)
             {

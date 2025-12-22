@@ -273,7 +273,7 @@ GameObject:
   - component: {fileID: 1373636499}
   - component: {fileID: 1373636498}
   m_Layer: 0
-  m_Name: Space4X_MiningDemo_SubScene
+  m_Name: Space4X_MiningScenario_SubScene
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

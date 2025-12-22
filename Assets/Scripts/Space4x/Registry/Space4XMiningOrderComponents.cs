@@ -1,5 +1,6 @@
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
@@ -60,5 +61,16 @@ namespace Space4X.Registry
         public float PendingAmount;
         public float SpawnThreshold;
         public byte SpawnReady;
+    }
+
+    /// <summary>
+    /// Tracks the current mining target a carrier is scanning or moving toward.
+    /// </summary>
+    public struct CarrierMiningTarget : IComponentData
+    {
+        public Entity TargetEntity;
+        public float3 TargetPosition;
+        public uint AssignedTick;
+        public uint NextScanTick;
     }
 }

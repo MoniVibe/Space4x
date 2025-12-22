@@ -212,8 +212,18 @@ namespace Space4X.Systems.AI
 
                         if (HasResources)
                         {
+                            if (miningOrder.PreferredTarget != Entity.Null &&
+                                ResourceStateLookup.HasComponent(miningOrder.PreferredTarget) &&
+                                ResourceStateLookup[miningOrder.PreferredTarget].UnitsRemaining > 0f &&
+                                ResourceTypeLookup.HasComponent(miningOrder.PreferredTarget) &&
+                                ResourceTypeLookup[miningOrder.PreferredTarget].Value == miningOrder.ResourceId)
+                            {
+                                bestTarget = miningOrder.PreferredTarget;
+                                bestScore = strategy == MinerTargetStrategy.Strategy.Nearest ? 0f : float.MaxValue;
+                            }
+
                             // Find best asteroid matching MiningOrder.ResourceId based on strategy
-                            for (int i = 0; i < ResourceEntries.Length; i++)
+                            for (int i = 0; i < ResourceEntries.Length && bestTarget == Entity.Null; i++)
                             {
                                 var entry = ResourceEntries[i];
 
