@@ -41,7 +41,23 @@ namespace Space4X.Tests
             var rewindEntity = _entityManager.CreateEntity();
             _entityManager.AddComponentData(rewindEntity, new RewindState
             {
-                Mode = RewindMode.Record
+                Mode = RewindMode.Record,
+                TargetTick = 0,
+                TickDuration = 0.016f,
+                MaxHistoryTicks = 600,
+                PendingStepTicks = 0
+            });
+            _entityManager.AddComponentData(rewindEntity, new RewindLegacyState
+            {
+                PlaybackSpeed = 1f,
+                CurrentTick = 0,
+                StartTick = 0,
+                PlaybackTick = 0,
+                PlaybackTicksPerSecond = 60f,
+                ScrubDirection = 0,
+                ScrubSpeedMultiplier = 1f,
+                RewindWindowTicks = 0,
+                ActiveTrack = default
             });
         }
 

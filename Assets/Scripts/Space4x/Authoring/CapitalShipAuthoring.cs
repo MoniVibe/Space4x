@@ -1,4 +1,5 @@
 using Space4X.Registry;
+using PureDOTS.Runtime.Communication;
 using Unity.Entities;
 using UnityEngine;
 
@@ -17,8 +18,17 @@ namespace Space4X.Authoring
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent<Registry.CapitalShipTag>(entity);
+
+                if (!HasComponent<CommDecisionConfig>(entity))
+                {
+                    AddComponent(entity, CommDecisionConfig.Default);
+                }
+
+                if (!HasComponent<CommDecodeFactors>(entity))
+                {
+                    AddComponent(entity, CommDecodeFactors.Default);
+                }
             }
         }
     }
 }
-

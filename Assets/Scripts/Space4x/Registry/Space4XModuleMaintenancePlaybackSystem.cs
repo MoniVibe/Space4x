@@ -24,7 +24,7 @@ namespace Space4X.Registry
         {
             var time = SystemAPI.GetSingleton<TimeState>();
             var rewind = SystemAPI.GetSingleton<RewindState>();
-            var targetTick = rewind.Mode == RewindMode.Playback ? rewind.PlaybackTick : time.Tick;
+            var targetTick = time.Tick;
 
             var logEntity = SystemAPI.GetSingletonEntity<ModuleMaintenanceLog>();
             var logBuffer = state.EntityManager.GetBuffer<ModuleMaintenanceCommandLogEntry>(logEntity);

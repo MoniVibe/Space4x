@@ -434,7 +434,7 @@ namespace Space4X.Registry
             }
 
             var time = SystemAPI.GetSingleton<TimeState>();
-            var targetTick = rewind.Mode == RewindMode.Playback ? rewind.PlaybackTick : time.Tick;
+            var targetTick = time.Tick;
             var spineEntity = SystemAPI.GetSingletonEntity<Space4XMiningTimeSpine>();
             var snapshots = state.EntityManager.GetBuffer<MiningSnapshot>(spineEntity);
             var telemetrySnapshots = state.EntityManager.GetBuffer<MiningTelemetrySnapshot>(spineEntity);

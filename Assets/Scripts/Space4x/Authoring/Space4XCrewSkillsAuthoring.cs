@@ -1,4 +1,5 @@
 using System;
+using PureDOTS.Runtime.Communication;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -60,6 +61,16 @@ namespace Space4X.Registry
 
                 AddComponent(entity, xp);
                 AddComponent(entity, skills);
+
+                if (!HasComponent<CommDecisionConfig>(entity))
+                {
+                    AddComponent(entity, CommDecisionConfig.Default);
+                }
+
+                if (!HasComponent<CommDecodeFactors>(entity))
+                {
+                    AddComponent(entity, CommDecodeFactors.Default);
+                }
 
                 if (authoring.hazardResistances != null && authoring.hazardResistances.Length > 0)
                 {

@@ -38,6 +38,11 @@ namespace Space4X.Authoring.Perception
         [Range(0f, 1f)]
         public float ExoticAcuity = 0.6f;
 
+        [Header("Emissions")]
+        [Tooltip("EM emission strength (0-1)")]
+        [Range(0f, 1f)]
+        public float EMEmission = 0.6f;
+
         [Header("Settings")]
         [Tooltip("Sensor update interval (seconds)")]
         public float UpdateInterval = 0.25f;
@@ -55,18 +60,59 @@ namespace Space4X.Authoring.Perception
         {
             var entity = GetEntity(TransformUsageFlags.Dynamic);
 
+            var baseRange = math.max(authoring.EMRange, math.max(authoring.GraviticRange, authoring.ExoticRange));
+            var rangeDenom = math.max(baseRange, 0.01f);
+
             // Add SenseCapability with Space4x channel mappings
             AddComponent(entity, new SenseCapability
             {
                 EnabledChannels = PerceptionChannel.EM | 
                                  PerceptionChannel.Gravitic | 
                                  PerceptionChannel.Exotic,
-                Range = math.max(authoring.EMRange, math.max(authoring.GraviticRange, authoring.ExoticRange)),
+                Range = baseRange,
                 FieldOfView = authoring.EMFOV,
-                Acuity = 1f, // Use average or max - Phase 1: simple
+                Acuity = 1f,
                 UpdateInterval = authoring.UpdateInterval,
                 MaxTrackedTargets = authoring.MaxTrackedTargets,
                 Flags = 0
+            });
+
+            var organs = AddBuffer<SenseOrganState>(entity);
+            organs.Add(new SenseOrganState
+            {
+                OrganType = SenseOrganType.EMSuite,
+                Channels = PerceptionChannel.EM,
+                Gain = 1f,
+                Condition = authoring.EMAcuity,
+                NoiseFloor = 1f - authoring.EMAcuity,
+                RangeMultiplier = authoring.EMRange / rangeDenom
+            });
+            organs.Add(new SenseOrganState
+            {
+                OrganType = SenseOrganType.GraviticArray,
+                Channels = PerceptionChannel.Gravitic,
+                Gain = 1f,
+                Condition = authoring.GraviticAcuity,
+                NoiseFloor = 1f - authoring.GraviticAcuity,
+                RangeMultiplier = authoring.GraviticRange / rangeDenom
+            });
+            organs.Add(new SenseOrganState
+            {
+                OrganType = SenseOrganType.ExoticSensor,
+                Channels = PerceptionChannel.Exotic,
+                Gain = 1f,
+                Condition = authoring.ExoticAcuity,
+                NoiseFloor = 1f - authoring.ExoticAcuity,
+                RangeMultiplier = authoring.ExoticRange / rangeDenom
+            });
+
+            AddComponent(entity, new SensorySignalEmitter
+            {
+                Channels = PerceptionChannel.EM,
+                SmellStrength = 0f,
+                SoundStrength = 0f,
+                EMStrength = authoring.EMEmission,
+                IsActive = (byte)(authoring.EMEmission > 0f ? 1 : 0)
             });
 
             // Add PerceptionState buffer
@@ -74,7 +120,8 @@ namespace Space4X.Authoring.Perception
 
             // Add PerceptionState component
             AddComponent<PerceptionState>(entity);
+
+            AddComponent<SignalPerceptionState>(entity);
         }
     }
 }
-

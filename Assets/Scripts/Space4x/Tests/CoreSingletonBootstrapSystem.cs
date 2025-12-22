@@ -23,7 +23,23 @@ namespace Space4X.Tests
 
             EnsureSingleton(entityManager, new RewindState
             {
-                Mode = RewindMode.Record
+                Mode = RewindMode.Record,
+                TargetTick = 0,
+                TickDuration = 0.1f,
+                MaxHistoryTicks = 600,
+                PendingStepTicks = 0
+            });
+            EnsureSingleton(entityManager, new RewindLegacyState
+            {
+                PlaybackSpeed = 1f,
+                CurrentTick = 0,
+                StartTick = 0,
+                PlaybackTick = 0,
+                PlaybackTicksPerSecond = 10f,
+                ScrubDirection = 0,
+                ScrubSpeedMultiplier = 1f,
+                RewindWindowTicks = 0,
+                ActiveTrack = default
             });
 
             EnsureSingleton(entityManager, new GameplayFixedStep

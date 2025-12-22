@@ -1,4 +1,5 @@
 using Space4X.Registry;
+using PureDOTS.Runtime.Communication;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -88,6 +89,16 @@ namespace Space4X.Authoring
                 foreach (var config in authoring.resourceStorages)
                 {
                     storageBuffer.Add(ResourceStorage.Create(config.type, config.capacity));
+                }
+
+                if (!HasComponent<CommDecisionConfig>(entity))
+                {
+                    AddComponent(entity, CommDecisionConfig.Default);
+                }
+
+                if (!HasComponent<CommDecodeFactors>(entity))
+                {
+                    AddComponent(entity, CommDecodeFactors.Default);
                 }
 
                 // Add LocalTransform will be synced automatically

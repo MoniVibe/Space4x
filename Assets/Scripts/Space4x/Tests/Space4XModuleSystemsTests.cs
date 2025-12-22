@@ -364,11 +364,13 @@ namespace Space4X.Tests
 
             var rewindState = _entityManager.GetComponentData<RewindState>(rewindEntity);
             rewindState.Mode = RewindMode.Playback;
-            rewindState.PlaybackTick = 6;
             _entityManager.SetComponentData(rewindEntity, rewindState);
+            var legacy = _entityManager.GetComponentData<RewindLegacyState>(rewindEntity);
+            legacy.PlaybackTick = 6;
+            _entityManager.SetComponentData(rewindEntity, legacy);
 
             var timeState = _entityManager.GetComponentData<TimeState>(timeEntity);
-            timeState.Tick = 10;
+            timeState.Tick = 6;
             _entityManager.SetComponentData(timeEntity, timeState);
 
             playbackSystem.Update(_world.Unmanaged);

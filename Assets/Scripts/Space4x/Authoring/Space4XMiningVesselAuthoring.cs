@@ -1,5 +1,6 @@
 using Space4X.Registry;
 using Space4X.Runtime;
+using PureDOTS.Runtime.Communication;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -85,6 +86,16 @@ namespace Space4X.Authoring
                 });
 
                 AddBuffer<SpawnResourceRequest>(entity);
+
+                if (!HasComponent<CommDecisionConfig>(entity))
+                {
+                    AddComponent(entity, CommDecisionConfig.Default);
+                }
+
+                if (!HasComponent<CommDecodeFactors>(entity))
+                {
+                    AddComponent(entity, CommDecodeFactors.Default);
+                }
 
                 // Add LocalTransform will be synced automatically
             }

@@ -28,11 +28,22 @@ namespace Space4X
             state.EntityManager.AddComponentData(e, new RewindState
             {
                 Mode = RewindMode.Play,
-                CurrentTick = 0,
                 TargetTick = 0,
                 TickDuration = 1f / 60f,
                 MaxHistoryTicks = 30000,
                 PendingStepTicks = 0
+            });
+            state.EntityManager.AddComponentData(e, new RewindLegacyState
+            {
+                PlaybackSpeed = 1f,
+                CurrentTick = 0,
+                StartTick = 0,
+                PlaybackTick = 0,
+                PlaybackTicksPerSecond = 60f,
+                ScrubDirection = 0,
+                ScrubSpeedMultiplier = 1f,
+                RewindWindowTicks = 0,
+                ActiveTrack = default
             });
         }
 
@@ -50,5 +61,4 @@ namespace Space4X
         public void OnDestroy(ref SystemState state) { }
     }
 }
-
 

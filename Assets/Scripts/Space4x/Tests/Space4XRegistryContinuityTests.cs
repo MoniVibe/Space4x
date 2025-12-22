@@ -181,10 +181,12 @@ namespace Space4X.Tests
             // Rewind
             var rewind = _entityManager.GetComponentData<RewindState>(_rewindEntity);
             rewind.Mode = RewindMode.Playback;
-            rewind.StartTick = 1;
-            rewind.PlaybackTick = 0;
             rewind.TargetTick = 0;
             _entityManager.SetComponentData(_rewindEntity, rewind);
+            var legacy = _entityManager.GetComponentData<RewindLegacyState>(_rewindEntity);
+            legacy.StartTick = 1;
+            legacy.PlaybackTick = 0;
+            _entityManager.SetComponentData(_rewindEntity, legacy);
 
             // Verify entities still exist after rewind
             Assert.IsTrue(_entityManager.Exists(asteroid), "Asteroid should survive rewind");
@@ -215,10 +217,12 @@ namespace Space4X.Tests
                 // Rewind
                 var rewind = _entityManager.GetComponentData<RewindState>(_rewindEntity);
                 rewind.Mode = RewindMode.Playback;
-                rewind.StartTick = 1;
-                rewind.PlaybackTick = 0;
                 rewind.TargetTick = 0;
                 _entityManager.SetComponentData(_rewindEntity, rewind);
+                var legacy = _entityManager.GetComponentData<RewindLegacyState>(_rewindEntity);
+                legacy.StartTick = 1;
+                legacy.PlaybackTick = 0;
+                _entityManager.SetComponentData(_rewindEntity, legacy);
 
                 // Verify registry still has entries
                 registryBuffer = _entityManager.GetBuffer<ResourceRegistryEntry>(_resourceRegistryEntity);

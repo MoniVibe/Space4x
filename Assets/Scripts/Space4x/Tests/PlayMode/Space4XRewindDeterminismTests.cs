@@ -70,8 +70,10 @@ namespace Space4X.Tests.PlayMode
 
             var rewind = _entityManager.GetComponentData<RewindState>(_rewindEntity);
             rewind.Mode = RewindMode.Record;
-            rewind.PlaybackTicksPerSecond = HistorySettingsDefaults.DefaultTicksPerSecond;
             _entityManager.SetComponentData(_rewindEntity, rewind);
+            var legacy = _entityManager.GetComponentData<RewindLegacyState>(_rewindEntity);
+            legacy.PlaybackTicksPerSecond = HistorySettingsDefaults.DefaultTicksPerSecond;
+            _entityManager.SetComponentData(_rewindEntity, legacy);
 
             EnsureTelemetryStream();
         }
@@ -411,16 +413,18 @@ namespace Space4X.Tests.PlayMode
         {
             var rewind = _entityManager.GetComponentData<RewindState>(_rewindEntity);
             rewind.Mode = RewindMode.Rewind;
-            rewind.StartTick = _entityManager.GetComponentData<TimeState>(_timeEntity).Tick;
-            rewind.PlaybackTick = targetTick;
             rewind.TargetTick = (int)targetTick;
             _entityManager.SetComponentData(_rewindEntity, rewind);
-
-            UpdateSystem(_playbackHandle);
+            var legacy = _entityManager.GetComponentData<RewindLegacyState>(_rewindEntity);
+            legacy.StartTick = _entityManager.GetComponentData<TimeState>(_timeEntity).Tick;
+            legacy.PlaybackTick = targetTick;
+            _entityManager.SetComponentData(_rewindEntity, legacy);
 
             var time = _entityManager.GetComponentData<TimeState>(_timeEntity);
             time.Tick = targetTick;
             _entityManager.SetComponentData(_timeEntity, time);
+
+            UpdateSystem(_playbackHandle);
 
             rewind.Mode = RewindMode.Step;
             rewind.TargetTick = (int)targetTick;
