@@ -1,0 +1,243 @@
+{
+  "seed": 77,
+  "duration_s": 150,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 12000},
+          {"type": "RareMetals", "capacity": 6000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 11.0,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 40
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-bravo",
+      "position": [140, -40],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-BRAVO",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 45
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "hostile-carrier-delta",
+      "position": [360, 80],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 9000}
+        ],
+        "Fleet": {
+          "fleetId": "HOSTILE-DELTA",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 50
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-alpha-1",
+      "position": [0, 0],
+      "carrierId": "friendly-carrier-alpha",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.85,
+      "speed": 10.0,
+      "cargoCapacity": 120.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-alpha-2",
+      "position": [0, 0],
+      "carrierId": "friendly-carrier-alpha",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 10.0,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-alpha-3",
+      "position": [0, 0],
+      "carrierId": "friendly-carrier-alpha",
+      "resourceId": "RareMetals",
+      "miningEfficiency": 0.75,
+      "speed": 10.0,
+      "cargoCapacity": 80.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-bravo-1",
+      "position": [140, -40],
+      "carrierId": "friendly-carrier-bravo",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.78,
+      "speed": 9.5,
+      "cargoCapacity": 90.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-bravo-2",
+      "position": [140, -40],
+      "carrierId": "friendly-carrier-bravo",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 9.5,
+      "cargoCapacity": 90.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-delta-1",
+      "position": [360, 80],
+      "carrierId": "hostile-carrier-delta",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 10.5,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-delta-2",
+      "position": [360, 80],
+      "carrierId": "hostile-carrier-delta",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.78,
+      "speed": 10.5,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-alpha",
+      "position": [35, 10],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1200.0,
+      "gatherRatePerWorker": 12.0,
+      "maxSimultaneousWorkers": 5
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-bravo",
+      "position": [200, -30],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 11.0,
+      "maxSimultaneousWorkers": 4
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-charlie",
+      "position": [-160, -120],
+      "resourceId": "Minerals",
+      "unitsRemaining": 700.0,
+      "gatherRatePerWorker": 9.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-delta",
+      "position": [280, 110],
+      "resourceId": "Minerals",
+      "unitsRemaining": 800.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-raremetals",
+      "position": [60, 80],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 500.0,
+      "gatherRatePerWorker": 8.0,
+      "maxSimultaneousWorkers": 2
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 20,
+      "kind": "MoveFleet",
+      "fleetId": "FRIENDLY-ALPHA",
+      "targetPosition": [80, 20],
+      "description": "Alpha patrol shifts toward contested nodes"
+    },
+    {
+      "time_s": 60,
+      "kind": "MoveFleet",
+      "fleetId": "HOSTILE-DELTA",
+      "targetPosition": [220, 40],
+      "description": "Hostile carrier pushes into belt"
+    },
+    {
+      "time_s": 90,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "FRIENDLY-BRAVO",
+      "targetFleetId": "HOSTILE-DELTA",
+      "description": "Bravo escorts intercept hostile incursion"
+    },
+    {
+      "time_s": 110,
+      "kind": "MoveFleet",
+      "fleetId": "FRIENDLY-ALPHA",
+      "targetPosition": [140, 0],
+      "description": "Alpha group supports intercept and secures contested deposit"
+    }
+  ],
+  "telemetryExpectations": {
+    "expectMiningYield": true,
+    "expectCarrierPickup": true,
+    "expectInterceptAttempts": true,
+    "expectFleetRegistry": true,
+    "expectResourceRegistry": true,
+    "export": {
+      "csv": "Reports/space4x_smoke_metrics.csv",
+      "json": "Reports/space4x_smoke_metrics.json"
+    }
+  }
+}
+

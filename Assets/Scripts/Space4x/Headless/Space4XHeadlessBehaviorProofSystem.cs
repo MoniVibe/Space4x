@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
@@ -6,6 +7,7 @@ using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
+using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Headless
@@ -72,6 +74,12 @@ namespace Space4X.Headless
 
         public void OnCreate(ref SystemState state)
         {
+            if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                state.Enabled = false;
+                return;
+            }
+
             state.RequireForUpdate<Space4XScenarioRuntime>();
             state.RequireForUpdate<TimeState>();
 

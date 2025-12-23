@@ -9,6 +9,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Jobs;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
+using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceRegistry = PureDOTS.Runtime.Components.ResourceRegistry;
 using ResourceRegistryEntry = PureDOTS.Runtime.Components.ResourceRegistryEntry;
 using UnityDebug = UnityEngine.Debug;
@@ -31,7 +32,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Space4X.Registry.ResourceTypeId> _resourceTypeLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<MinerTargetStrategy> _targetStrategyLookup;
-        private ComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState> _resourceStateLookup;
+        private ComponentLookup<ResourceSourceState> _resourceStateLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -55,7 +56,7 @@ namespace Space4X.Systems.AI
             _resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
             _targetStrategyLookup = state.GetComponentLookup<MinerTargetStrategy>(true);
-            _resourceStateLookup = state.GetComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState>(true);
+            _resourceStateLookup = state.GetComponentLookup<ResourceSourceState>(true);
         }
 
         [BurstCompile]
@@ -181,7 +182,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<Space4X.Registry.ResourceTypeId> ResourceTypeLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
             [ReadOnly] public ComponentLookup<MinerTargetStrategy> TargetStrategyLookup;
-            [ReadOnly] public ComponentLookup<PureDOTS.Runtime.Components.ResourceSourceState> ResourceStateLookup;
+            [ReadOnly] public ComponentLookup<ResourceSourceState> ResourceStateLookup;
             public float DeltaTime;
             public uint CurrentTick;
 

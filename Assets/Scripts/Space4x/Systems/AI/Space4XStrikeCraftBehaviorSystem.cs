@@ -23,7 +23,6 @@ namespace Space4X.Systems.AI
     public partial struct Space4XStrikeCraftBehaviorSystem : ISystem
     {
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
-        private ComponentLookup<StrikeCraftState> _strikeCraftLookup;
         private ComponentLookup<ChildVesselTether> _tetherLookup;
         private ComponentLookup<VesselStanceComponent> _stanceLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
@@ -40,7 +39,6 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _strikeCraftLookup = state.GetComponentLookup<StrikeCraftState>(true);
             _tetherLookup = state.GetComponentLookup<ChildVesselTether>(true);
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
@@ -62,7 +60,6 @@ namespace Space4X.Systems.AI
             }
 
             _alignmentLookup.Update(ref state);
-            _strikeCraftLookup.Update(ref state);
             _tetherLookup.Update(ref state);
             _stanceLookup.Update(ref state);
             _transformLookup.Update(ref state);
@@ -78,7 +75,6 @@ namespace Space4X.Systems.AI
                 CurrentTick = timeState.Tick,
                 DeltaTime = timeState.FixedDeltaTime,
                 AlignmentLookup = _alignmentLookup,
-                StrikeCraftLookup = _strikeCraftLookup,
                 TetherLookup = _tetherLookup,
                 StanceLookup = _stanceLookup,
                 TransformLookup = _transformLookup,
@@ -99,7 +95,6 @@ namespace Space4X.Systems.AI
             public uint CurrentTick;
             public float DeltaTime;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            [ReadOnly] public ComponentLookup<StrikeCraftState> StrikeCraftLookup;
             [ReadOnly] public ComponentLookup<ChildVesselTether> TetherLookup;
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
             [ReadOnly, NativeDisableContainerSafetyRestriction] public ComponentLookup<LocalTransform> TransformLookup;
@@ -110,18 +105,8 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<PhysiqueFinesseWill> PhysiqueLookup;
             [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
 
-            public void Execute(ref LocalTransform transform, Entity entity)
+            public void Execute(ref LocalTransform transform, ref StrikeCraftState state, Entity entity)
             {
-                // Access StrikeCraftState via optional RefRW
-                if (!StrikeCraftLookup.HasComponent(entity))
-                {
-                    return;
-                }
-
-                // Read current state for decision-making
-                var stateRead = StrikeCraftLookup[entity];
-                var state = stateRead; // Copy for modification
-                
                 // Update based on current state
                 switch (state.CurrentState)
                 {
@@ -199,10 +184,6 @@ namespace Space4X.Systems.AI
                         }
                         break;
                 }
-
-                // Cannot write via ReadOnly ComponentLookup - state updates should be handled
-                // via RefRW<StrikeCraftState> in Execute signature or via ECB
-                // StrikeCraftLookup.GetRefRW(entity).ValueRW = state;
             }
 
             private void FindTarget(Entity entity, ref StrikeCraftState state, float3 position)

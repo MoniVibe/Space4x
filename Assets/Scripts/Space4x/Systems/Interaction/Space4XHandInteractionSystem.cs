@@ -32,7 +32,6 @@ namespace Space4X.Systems.Interaction
     /// This is a debug tool, not canonical gameplay. Uses non-deterministic input.
     /// </remarks>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XCameraSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.GameplaySystemGroup))]
     public partial struct Space4XHandInteractionSystem : ISystem
     {

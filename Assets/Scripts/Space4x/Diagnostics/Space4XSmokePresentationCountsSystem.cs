@@ -130,6 +130,12 @@ namespace Space4X.Diagnostics
             var sectionEntityAvailable = TryCountComponent(state.EntityManager, "Unity.Scenes.ResolvedSectionEntity, Unity.Scenes", out var sectionEntityCount);
             var fallbackCarrierCount = CountFallbackCarriers(_carrierQuery);
             var fallbackMinerCount = CountFallbackMiners(_miningVesselQuery);
+            
+            // Check for sim vs presentation mismatches
+            if (fallbackCarrierCount > 0 || fallbackMinerCount > 0)
+            {
+                Debug.LogError($"[Space4XSmokePresentationCounts] PARITY VIOLATION: Fallback entities in presentation (Carriers={fallbackCarrierCount} Miners={fallbackMinerCount}). These should not exist - presentation must reflect headless progress only.");
+            }
 
             var hasGameplayEntities = carrierCount > 0 || miningCount > 0 || asteroidCount > 0;
             if (hasGameplayEntities && !_loggedInitial)

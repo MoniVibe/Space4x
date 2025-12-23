@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Core;
 using Space4x.Scenario;
 using Unity.Entities;
 using UnityEngine;
@@ -13,7 +14,7 @@ namespace Space4X.Headless
 
         public void OnCreate(ref SystemState state)
         {
-            if (!Application.isBatchMode)
+            if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
             {
                 state.Enabled = false;
                 return;
@@ -34,6 +35,13 @@ namespace Space4X.Headless
             var scenarioRuntime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
             if (timeState.Tick < scenarioRuntime.EndTick)
             {
+                return;
+            }
+
+            if (Application.isEditor)
+            {
+                UnityDebug.Log($"[Space4XHeadlessScenarioQuitSystem] Scenario duration reached (tick {timeState.Tick} >= {scenarioRuntime.EndTick}) but running in editor; ignoring quit request.");
+                _quitRequested = 1;
                 return;
             }
 

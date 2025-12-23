@@ -2,6 +2,7 @@
 using System;
 using PureDOTS.Rendering;
 using Space4X.Registry;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Rendering;
 using UnityEngine;
@@ -44,13 +45,31 @@ namespace Space4X.Diagnostics
             var asteroidCount = Count<Asteroid>(em);
             var resourceConfigCount = Count<ResourceSourceConfig>(em);
             var resourceStateCount = Count<ResourceSourceState>(em);
+            var strikeCraftCount = TryCountComponent(em, "Space4X.Registry.StrikeCraftProfile, Space4X.Gameplay", out var strikeCraft) ? strikeCraft : 0;
             var sectionEntityAvailable = TryCountComponent(em, "Unity.Scenes.ResolvedSectionEntity, Unity.Scenes", out var sectionEntityCount);
+            
+            // Check for fallback entities (should not exist per "no illusions" rule)
+            var fallbackCarrierCount = CountFallbackEntities<Carrier>(em, "FALLBACK-CARRIER", c => c.CarrierId);
+            var fallbackMinerCount = CountFallbackEntities<MiningVessel>(em, "FALLBACK-MINER", m => m.VesselId);
 
             if (!_loggedOnce)
             {
                 _startTime = UnityTime.realtimeSinceStartup;
                 Debug.Log(
-                    $"[Space4XSmokeWorldCounts] Phase=Initial World='{worldName}' Catalog={hasCatalog} RenderSemanticKey={semanticCount} MaterialMeshInfo={meshInfoCount} Carrier={carrierCount} MiningVessel={miningCount} Asteroid={asteroidCount} ResourceSourceConfig={resourceConfigCount} ResourceSourceState={resourceStateCount} ResolvedSectionEntity={(sectionEntityAvailable ? sectionEntityCount.ToString() : "unavailable")}");
+                    $"[Space4XSmokeWorldCounts] Phase=Initial World='{worldName}' Catalog={hasCatalog} RenderSemanticKey={semanticCount} MaterialMeshInfo={meshInfoCount} Carrier={carrierCount} MiningVessel={miningCount} Asteroid={asteroidCount} StrikeCraft={strikeCraftCount} ResourceSourceConfig={resourceConfigCount} ResourceSourceState={resourceStateCount} ResolvedSectionEntity={(sectionEntityAvailable ? sectionEntityCount.ToString() : "unavailable")}");
+                
+                if (fallbackCarrierCount > 0 || fallbackMinerCount > 0)
+                {
+                    Debug.LogWarning($"[Space4XSmokeWorldCounts] PARITY VIOLATION: Fallback entities detected (Carriers={fallbackCarrierCount} Miners={fallbackMinerCount}). These should not exist - presentation must reflect headless progress only.");
+                }
+                
+                // Vision check: carriers deploying miners, strike craft when enemies nearby
+                var hasVisionEntities = carrierCount > 0 && miningCount > 0;
+                if (!hasVisionEntities)
+                {
+                    Debug.LogWarning($"[Space4XSmokeWorldCounts] WARNING: Expected carriers ({carrierCount}) and mining vessels ({miningCount}) from space4x_smoke.json scenario. Strike craft ({strikeCraftCount}) should deploy when enemies are nearby.");
+                }
+                
                 _loggedOnce = true;
             }
 
@@ -60,14 +79,14 @@ namespace Space4X.Diagnostics
             if (subSceneResolved && !_loggedResolved)
             {
                 Debug.Log(
-                    $"[Space4XSmokeWorldCounts] Phase=Resolved World='{worldName}' Catalog={hasCatalog} RenderSemanticKey={semanticCount} MaterialMeshInfo={meshInfoCount} Carrier={carrierCount} MiningVessel={miningCount} Asteroid={asteroidCount} ResourceSourceConfig={resourceConfigCount} ResourceSourceState={resourceStateCount} ResolvedSectionEntity={(sectionEntityAvailable ? sectionEntityCount.ToString() : "unavailable")} ElapsedSeconds={elapsed:0.0}");
+                    $"[Space4XSmokeWorldCounts] Phase=Resolved World='{worldName}' Catalog={hasCatalog} RenderSemanticKey={semanticCount} MaterialMeshInfo={meshInfoCount} Carrier={carrierCount} MiningVessel={miningCount} Asteroid={asteroidCount} StrikeCraft={strikeCraftCount} ResourceSourceConfig={resourceConfigCount} ResourceSourceState={resourceStateCount} ResolvedSectionEntity={(sectionEntityAvailable ? sectionEntityCount.ToString() : "unavailable")} ElapsedSeconds={elapsed:0.0}");
                 _loggedResolved = true;
             }
 
             if (hasGameplayEntities || elapsed >= 10.0)
             {
                 Debug.Log(
-                    $"[Space4XSmokeWorldCounts] Phase=Final World='{worldName}' Catalog={hasCatalog} RenderSemanticKey={semanticCount} MaterialMeshInfo={meshInfoCount} Carrier={carrierCount} MiningVessel={miningCount} Asteroid={asteroidCount} ResourceSourceConfig={resourceConfigCount} ResourceSourceState={resourceStateCount} ResolvedSectionEntity={(sectionEntityAvailable ? sectionEntityCount.ToString() : "unavailable")} ElapsedSeconds={elapsed:0.0}");
+                    $"[Space4XSmokeWorldCounts] Phase=Final World='{worldName}' Catalog={hasCatalog} RenderSemanticKey={semanticCount} MaterialMeshInfo={meshInfoCount} Carrier={carrierCount} MiningVessel={miningCount} Asteroid={asteroidCount} StrikeCraft={strikeCraftCount} ResourceSourceConfig={resourceConfigCount} ResourceSourceState={resourceStateCount} ResolvedSectionEntity={(sectionEntityAvailable ? sectionEntityCount.ToString() : "unavailable")} ElapsedSeconds={elapsed:0.0}");
                 state.Enabled = false;
             }
 
@@ -91,6 +110,27 @@ namespace Space4X.Diagnostics
             using var query = em.CreateEntityQuery(ComponentType.ReadOnly(componentType));
             count = query.CalculateEntityCount();
             return true;
+        }
+        
+        private static int CountFallbackEntities<T>(EntityManager em, string fallbackId, System.Func<T, FixedString64Bytes> getId) where T : unmanaged, IComponentData
+        {
+            using var query = em.CreateEntityQuery(ComponentType.ReadOnly<T>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return 0;
+            }
+            
+            using var components = query.ToComponentDataArray<T>(Allocator.Temp);
+            var fallbackIdFixed = new FixedString64Bytes(fallbackId);
+            var count = 0;
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (getId(components[i]).Equals(fallbackIdFixed))
+                {
+                    count++;
+                }
+            }
+            return count;
         }
     }
 }

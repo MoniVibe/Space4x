@@ -91,15 +91,8 @@ namespace Space4X.Authoring
                     storageBuffer.Add(ResourceStorage.Create(config.type, config.capacity));
                 }
 
-                if (!HasComponent<CommDecisionConfig>(entity))
-                {
-                    AddComponent(entity, CommDecisionConfig.Default);
-                }
-
-                if (!HasComponent<CommDecodeFactors>(entity))
-                {
-                    AddComponent(entity, CommDecodeFactors.Default);
-                }
+                AddComponent(entity, CommDecisionConfig.Default);
+                AddComponent(entity, CommDecodeFactors.Default);
 
                 // Add LocalTransform will be synced automatically
             }

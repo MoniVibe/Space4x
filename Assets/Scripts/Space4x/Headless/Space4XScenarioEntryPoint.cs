@@ -47,6 +47,7 @@ namespace Space4X.Headless
                 if (LooksLikeSpace4XMiningScenarioJson(scenarioPath))
                 {
                     SystemEnv.SetEnvironmentVariable(ScenarioPathEnv, scenarioPath);
+                    DisableHeadlessProofsForScenario();
                     if (!string.IsNullOrEmpty(reportPath))
                     {
                         EnsureTelemetryPathDerivedFromReport(reportPath);
@@ -106,6 +107,20 @@ namespace Space4X.Headless
             var head = read > 0 ? new string(buffer, 0, read) : string.Empty;
             return head.Contains("\"duration_s\"", StringComparison.OrdinalIgnoreCase) &&
                    head.Contains("\"spawn\"", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void DisableHeadlessProofsForScenario()
+        {
+            SetEnvIfUnset("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+            SetEnvIfUnset("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+        }
+
+        private static void SetEnvIfUnset(string key, string value)
+        {
+            if (string.IsNullOrWhiteSpace(SystemEnv.GetEnvironmentVariable(key)))
+            {
+                SystemEnv.SetEnvironmentVariable(key, value);
+            }
         }
 
         private static bool TryGetArgument(string key, out string value)

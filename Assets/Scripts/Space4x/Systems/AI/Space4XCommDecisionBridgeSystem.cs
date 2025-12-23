@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Communication;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Systems;
 using Space4X.Registry;

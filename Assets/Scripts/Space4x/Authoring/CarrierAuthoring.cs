@@ -19,15 +19,8 @@ namespace Space4X.Authoring
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent<Registry.CarrierTag>(entity);
 
-                if (!HasComponent<CommDecisionConfig>(entity))
-                {
-                    AddComponent(entity, CommDecisionConfig.Default);
-                }
-
-                if (!HasComponent<CommDecodeFactors>(entity))
-                {
-                    AddComponent(entity, CommDecodeFactors.Default);
-                }
+                AddComponent(entity, CommDecisionConfig.Default);
+                AddComponent(entity, CommDecodeFactors.Default);
             }
         }
     }

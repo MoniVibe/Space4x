@@ -1,10 +1,11 @@
-using PureDOTS.Runtime.Components;
-using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using TimeState = PureDOTS.Runtime.Components.TimeState;
+using RewindState = PureDOTS.Runtime.Components.RewindState;
+using RewindMode = PureDOTS.Runtime.Components.RewindMode;
 
 namespace Space4X.Systems.AI
 {
@@ -18,10 +19,10 @@ namespace Space4X.Systems.AI
     {
         private const float ScanIntervalSeconds = 6f;
 
-        private ComponentLookup<ResourceSourceState> _resourceStateLookup;
-        private ComponentLookup<ResourceSourceConfig> _resourceConfigLookup;
+        private ComponentLookup<global::Space4X.Registry.ResourceSourceState> _resourceStateLookup;
+        private ComponentLookup<global::Space4X.Registry.ResourceSourceConfig> _resourceConfigLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
-        private ComponentLookup<CarrierMiningTarget> _miningTargetLookup;
+        private ComponentLookup<global::Space4X.Registry.CarrierMiningTarget> _miningTargetLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -29,10 +30,10 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
 
-            _resourceStateLookup = state.GetComponentLookup<ResourceSourceState>(true);
-            _resourceConfigLookup = state.GetComponentLookup<ResourceSourceConfig>(true);
+            _resourceStateLookup = state.GetComponentLookup<global::Space4X.Registry.ResourceSourceState>(true);
+            _resourceConfigLookup = state.GetComponentLookup<global::Space4X.Registry.ResourceSourceConfig>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
-            _miningTargetLookup = state.GetComponentLookup<CarrierMiningTarget>(false);
+            _miningTargetLookup = state.GetComponentLookup<global::Space4X.Registry.CarrierMiningTarget>(false);
         }
 
         [BurstCompile]
@@ -55,10 +56,10 @@ namespace Space4X.Systems.AI
             _transformLookup.Update(ref state);
             _miningTargetLookup.Update(ref state);
 
-            var vesselCount = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build().CalculateEntityCount();
+            var vesselCount = SystemAPI.QueryBuilder().WithAll<global::Space4X.Registry.MiningVessel>().Build().CalculateEntityCount();
             var miningCarriers = new NativeHashSet<Entity>(math.max(1, vesselCount), Allocator.Temp);
             var hasMiningCarriers = false;
-            foreach (var vessel in SystemAPI.Query<RefRO<MiningVessel>>())
+            foreach (var vessel in SystemAPI.Query<RefRO<global::Space4X.Registry.MiningVessel>>())
             {
                 var carrierEntity = vessel.ValueRO.CarrierEntity;
                 if (carrierEntity == Entity.Null)
@@ -80,7 +81,7 @@ namespace Space4X.Systems.AI
 
             var resources = new NativeList<ResourceCandidate>(Allocator.Temp);
             foreach (var (resourceState, transform, entity) in SystemAPI
-                         .Query<RefRO<ResourceSourceState>, RefRO<LocalTransform>>()
+                         .Query<RefRO<global::Space4X.Registry.ResourceSourceState>, RefRO<LocalTransform>>()
                          .WithEntityAccess())
             {
                 if (resourceState.ValueRO.UnitsRemaining <= 0f)
@@ -112,7 +113,7 @@ namespace Space4X.Systems.AI
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>()
-                         .WithAll<Carrier>()
+                         .WithAll<global::Space4X.Registry.Carrier>()
                          .WithEntityAccess())
             {
                 if (!miningCarriers.Contains(entity))
@@ -125,7 +126,7 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                ecb.AddComponent(entity, new CarrierMiningTarget
+                ecb.AddComponent(entity, new global::Space4X.Registry.CarrierMiningTarget
                 {
                     TargetEntity = Entity.Null,
                     TargetPosition = transform.ValueRO.Position,
@@ -143,8 +144,8 @@ namespace Space4X.Systems.AI
             var scanIntervalTicks = (uint)math.max(1f, math.ceil(ScanIntervalSeconds / fixedDt));
 
             foreach (var (transform, target, entity) in SystemAPI
-                         .Query<RefRO<LocalTransform>, RefRW<CarrierMiningTarget>>()
-                         .WithAll<Carrier>()
+                         .Query<RefRO<LocalTransform>, RefRW<global::Space4X.Registry.CarrierMiningTarget>>()
+                         .WithAll<global::Space4X.Registry.Carrier>()
                          .WithEntityAccess())
             {
                 if (!miningCarriers.Contains(entity))
@@ -193,7 +194,7 @@ namespace Space4X.Systems.AI
             miningCarriers.Dispose();
         }
 
-        private static bool ShouldRescan(in CarrierMiningTarget target, uint currentTick, ref ComponentLookup<ResourceSourceState> resourceStateLookup)
+        private static bool ShouldRescan(in global::Space4X.Registry.CarrierMiningTarget target, uint currentTick, ref ComponentLookup<global::Space4X.Registry.ResourceSourceState> resourceStateLookup)
         {
             if (target.TargetEntity != Entity.Null &&
                 resourceStateLookup.HasComponent(target.TargetEntity) &&

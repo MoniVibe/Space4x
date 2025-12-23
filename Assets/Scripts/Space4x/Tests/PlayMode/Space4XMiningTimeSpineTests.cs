@@ -173,9 +173,9 @@ namespace Space4X.Tests.PlayMode
             var storage = _entityManager.GetBuffer<ResourceStorage>(carrier);
             Assert.AreEqual(oreAfterTick1, SumStorage(storage), 1e-3f);
 
-            var time = _entityManager.GetComponentData<TimeState>(_timeEntity);
-            time.Tick = 2;
-            _entityManager.SetComponentData(_timeEntity, time);
+            var timeState = _entityManager.GetComponentData<TimeState>(_timeEntity);
+            timeState.Tick = 2;
+            _entityManager.SetComponentData(_timeEntity, timeState);
 
             rewind.Mode = RewindMode.CatchUp;
             rewind.TargetTick = 2;

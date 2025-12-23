@@ -1,5 +1,6 @@
 using System;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4x.Scenario;
@@ -8,8 +9,10 @@ using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
+using HeadlessStage = PureDOTS.Runtime.Components.HeadlessRewindProofStage;
 using SystemEnv = System.Environment;
 
 namespace Space4X.Headless
@@ -32,6 +35,7 @@ namespace Space4X.Headless
         private uint _timeoutTick;
         private uint _lastCommandCount;
         private float _startOreInHold;
+        private byte _loggedDiagnostics;
         private byte _rewindSubjectRegistered;
         private byte _rewindPending;
         private byte _rewindPass;
@@ -44,11 +48,18 @@ namespace Space4X.Headless
         private static readonly FixedString32Bytes ExpectedDelta = new FixedString32Bytes(">0");
         private static readonly FixedString32Bytes StepGatherDropoff = new FixedString32Bytes("gather_dropoff");
         private static readonly FixedString64Bytes RewindProofId = new FixedString64Bytes("space4x.mining");
-        private const byte RewindRequiredMask = (byte)HeadlessRewindProofStage.RecordReturn;
+        private const byte RewindRequiredMask = (byte)HeadlessStage.RecordReturn;
 
         public void OnCreate(ref SystemState state)
         {
-            if (!Application.isBatchMode && !string.Equals(SystemEnv.GetEnvironmentVariable(EnabledEnv), "1", StringComparison.OrdinalIgnoreCase))
+            if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            var enabledEnv = SystemEnv.GetEnvironmentVariable(EnabledEnv);
+            if (string.Equals(enabledEnv, "0", StringComparison.OrdinalIgnoreCase))
             {
                 state.Enabled = false;
                 return;
@@ -86,6 +97,12 @@ namespace Space4X.Headless
                 _startTick = timeState.Tick;
                 _timeoutTick = _startTick + DefaultTimeoutTicks;
                 _startOreInHold = GetOreInHold(ref state);
+            }
+
+            if (_loggedDiagnostics == 0 && timeState.Tick >= _startTick + 30)
+            {
+                LogDiagnostics(ref state, timeState.Tick);
+                _loggedDiagnostics = 1;
             }
 
             var (cargoSum, returningCount, miningCount, vesselCount) = GetVesselStats(ref state);
@@ -219,6 +236,113 @@ namespace Space4X.Headless
             }
 
             return (gather, pickup, (uint)buffer.Length);
+        }
+
+        private void LogDiagnostics(ref SystemState state, uint tick)
+        {
+            var em = state.EntityManager;
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            var resourceCount = SystemAPI.QueryBuilder()
+                .WithAll<Space4X.Registry.ResourceSourceState, Space4X.Registry.ResourceTypeId>()
+                .Build()
+                .CalculateEntityCount();
+
+            var registryEntries = 0;
+            if (SystemAPI.TryGetSingletonEntity<ResourceRegistry>(out var registryEntity) &&
+                em.HasBuffer<ResourceRegistryEntry>(registryEntity))
+            {
+                registryEntries = em.GetBuffer<ResourceRegistryEntry>(registryEntity).Length;
+            }
+
+            var miningOrders = SystemAPI.QueryBuilder().WithAll<MiningOrder>().Build().CalculateEntityCount();
+            var miningStates = SystemAPI.QueryBuilder().WithAll<MiningState>().Build().CalculateEntityCount();
+            var carriers = SystemAPI.QueryBuilder().WithAll<Carrier>().Build().CalculateEntityCount();
+            var vessels = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build().CalculateEntityCount();
+            var tickTime = SystemAPI.GetSingleton<TickTimeState>();
+
+            var ordersPending = 0;
+            var ordersActive = 0;
+            var ordersCompleted = 0;
+            var ordersNone = 0;
+            var phaseIdle = 0;
+            var phaseSeeking = 0;
+            var phaseMoving = 0;
+            var phaseMining = 0;
+            var phaseAwaiting = 0;
+            var targetsAssigned = 0;
+            var targetsInRange = 0;
+            var cargoed = 0;
+
+            foreach (var (order, miningState, vessel, transform) in SystemAPI
+                         .Query<RefRO<MiningOrder>, RefRO<MiningState>, RefRO<MiningVessel>, RefRO<LocalTransform>>())
+            {
+                switch (order.ValueRO.Status)
+                {
+                    case MiningOrderStatus.Pending:
+                        ordersPending++;
+                        break;
+                    case MiningOrderStatus.Active:
+                        ordersActive++;
+                        break;
+                    case MiningOrderStatus.Completed:
+                        ordersCompleted++;
+                        break;
+                    default:
+                        ordersNone++;
+                        break;
+                }
+
+                switch (miningState.ValueRO.Phase)
+                {
+                    case MiningPhase.Idle:
+                        phaseIdle++;
+                        break;
+                    case MiningPhase.Seeking:
+                        phaseSeeking++;
+                        break;
+                    case MiningPhase.MovingToTarget:
+                        phaseMoving++;
+                        break;
+                    case MiningPhase.Mining:
+                        phaseMining++;
+                        break;
+                    case MiningPhase.AwaitingOutput:
+                        phaseAwaiting++;
+                        break;
+                }
+
+                if (vessel.ValueRO.CurrentCargo > 0.01f)
+                {
+                    cargoed++;
+                }
+
+                var target = miningState.ValueRO.ActiveTarget;
+                if (target != Entity.Null)
+                {
+                    targetsAssigned++;
+                    if (em.HasComponent<LocalTransform>(target))
+                    {
+                        var targetPos = em.GetComponentData<LocalTransform>(target).Position;
+                        var distSq = math.distancesq(transform.ValueRO.Position, targetPos);
+                        if (distSq <= 9f)
+                        {
+                            targetsInRange++;
+                        }
+                    }
+                }
+            }
+
+            var scalars = SystemAPI.GetSingleton<PureDOTS.Runtime.Core.SimulationScalars>();
+            var overrides = SystemAPI.GetSingleton<PureDOTS.Runtime.Core.SimulationOverrides>();
+            var effectiveScale = overrides.OverrideTimeScale ? overrides.TimeScaleOverride : scalars.TimeScale;
+
+            UnityDebug.Log(
+                $"[Space4XHeadlessMiningProof] DIAG tick={tick} fixedDt={timeState.FixedDeltaTime:F4} speed={timeState.CurrentSpeedMultiplier:F2} timeScale={effectiveScale:F2} paused={timeState.IsPaused} " +
+                $"isPlaying={tickTime.IsPlaying} targetTick={tickTime.TargetTick} worldDt={SystemAPI.Time.DeltaTime:F4} worldElapsed={SystemAPI.Time.ElapsedTime:F2} timeSeconds={timeState.WorldSeconds:F2} " +
+                $"unityScale={UnityEngine.Time.timeScale:F2} unityDt={UnityEngine.Time.deltaTime:F4} unityUnscaledDt={UnityEngine.Time.unscaledDeltaTime:F4} " +
+                $"resources={resourceCount} registryEntries={registryEntries} miningOrders={miningOrders} miningStates={miningStates} carriers={carriers} vessels={vessels} " +
+                $"orders(p/a/c/n)={ordersPending}/{ordersActive}/{ordersCompleted}/{ordersNone} phases(i/s/mn/mg/a)={phaseIdle}/{phaseSeeking}/{phaseMoving}/{phaseMining}/{phaseAwaiting} " +
+                $"targets(assigned/inRange)={targetsAssigned}/{targetsInRange} cargoed={cargoed}");
         }
     }
 }

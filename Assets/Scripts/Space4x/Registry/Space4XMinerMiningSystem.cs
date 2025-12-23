@@ -14,11 +14,11 @@ namespace Space4X.Registry
 
     
     /// <summary>
-    /// Fixed-step miner state machine that claims registry-driven resources, applies mining ticks,
+    /// Miner state machine that claims registry-driven resources, applies mining ticks,
     /// and publishes presentation effect requests without hybrid lookups.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
     // Removed invalid UpdateAfter: GameplayFixedStepSyncSystem runs in TimeSystemGroup.
     public partial struct Space4XMinerMiningSystem : ISystem
     {
@@ -58,7 +58,6 @@ namespace Space4X.Registry
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<GameplayFixedStep>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<MiningOrder>();
 
@@ -87,7 +86,7 @@ namespace Space4X.Registry
                 return;
             }
 
-            var deltaTime = SystemAPI.GetSingleton<GameplayFixedStep>().FixedDeltaTime;
+            var deltaTime = timeState.FixedDeltaTime;
 
             _resourceStateLookup.Update(ref state);
             _resourceConfigLookup.Update(ref state);

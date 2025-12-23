@@ -70,11 +70,11 @@ namespace Space4X.Registry
                     if (miningTarget.TargetEntity != Entity.Null)
                     {
                         var targetPos = miningTarget.TargetPosition;
-                        var arrivalThreshold = movementCmd.ArrivalThreshold > 0f ? movementCmd.ArrivalThreshold : 1f;
+                        var miningArrivalThreshold = movementCmd.ArrivalThreshold > 0f ? movementCmd.ArrivalThreshold : 1f;
                         var toTarget = targetPos - position;
                         var distanceSq = math.lengthsq(toTarget);
 
-                        if (distanceSq > arrivalThreshold * arrivalThreshold)
+                        if (distanceSq > miningArrivalThreshold * miningArrivalThreshold)
                         {
                             var direction = math.normalize(toTarget);
                             var movementSpeed = carrierData.Speed * deltaTime;
@@ -85,7 +85,7 @@ namespace Space4X.Registry
                         movement.ValueRW = new MovementCommand
                         {
                             TargetPosition = targetPos,
-                            ArrivalThreshold = arrivalThreshold
+                            ArrivalThreshold = miningArrivalThreshold
                         };
 
                         patrolBehavior.CurrentWaypoint = targetPos;

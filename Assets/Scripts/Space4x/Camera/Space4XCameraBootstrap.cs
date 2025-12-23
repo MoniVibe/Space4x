@@ -1,8 +1,7 @@
+using PureDOTS.Runtime.Core;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityCamera = UnityEngine.Camera;
 using PureDOTS.Runtime.Camera;
-using PureDOTS.Runtime.Core;
 using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Camera
@@ -20,17 +19,12 @@ namespace Space4X.Camera
         [SerializeField]
         private GameObject cameraPrefab;
 
-        [Header("Default Input Actions")]
-        [SerializeField]
-        private InputActionAsset defaultInputActions;
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureBootstrapExistsOnLoad()
         {
             if (RuntimeMode.IsHeadless)
                 return;
-            // Only run in editor to avoid interfering with build scenes that might have their own setup
-#if UNITY_EDITOR
+
             // Check if we already have a bootstrap or a rig controller
             if (Object.FindFirstObjectByType<Space4XCameraBootstrap>() != null || 
                 Object.FindFirstObjectByType<Space4XCameraRigController>() != null)
@@ -39,43 +33,22 @@ namespace Space4X.Camera
             var bootstrapGo = new GameObject("Space4X Camera Bootstrap (Runtime)");
             bootstrapGo.AddComponent<Space4XCameraBootstrap>();
             UnityEngine.Object.DontDestroyOnLoad(bootstrapGo);
-#endif
         }
 
         private void Awake()
         {
-#if UNITY_EDITOR
             if (RuntimeMode.IsHeadless)
                 return;
             EnsureCameraExists();
-#endif
         }
 
-#if UNITY_EDITOR
         private void EnsureCameraExists()
         {
             // If we already have a main camera, find or create rig controller for it
             if (UnityCamera.main != null)
             {
                 var mainCamera = UnityCamera.main;
-                var rigController = Object.FindFirstObjectByType<Space4XCameraRigController>();
-
-                if (rigController == null)
-                {
-                    // Create a rig controller GameObject and attach it
-                    var rigGo = new GameObject("Space4X Camera Rig Controller");
-                    rigController = rigGo.AddComponent<Space4XCameraRigController>();
-                    UnityDebug.Log("[Space4X Camera] Created rig controller for existing main camera");
-                }
-
-                rigController.TargetCamera = mainCamera;
-
-                if (mainCamera.GetComponent<CameraRigApplier>() == null)
-                {
-                    mainCamera.gameObject.AddComponent<CameraRigApplier>();
-                }
-
-                UnityDebug.Log("[Space4X Camera] Assigned existing main camera to rig controller");
+                AttachPlaceholder(mainCamera.gameObject);
                 return;
             }
 
@@ -111,20 +84,38 @@ namespace Space4X.Camera
                 var cameraGo = new GameObject("Space4X Main Camera");
                 var camera = cameraGo.AddComponent<UnityCamera>();
                 cameraGo.tag = "MainCamera";
-                cameraGo.AddComponent<AudioListener>();
-                cameraGo.AddComponent<CameraRigApplier>();
-
-                // Add the camera controller
-                var controller = cameraGo.AddComponent<Space4XCameraRigController>();
-                controller.TargetCamera = camera;
-
-                // Position for a good default view
-                cameraGo.transform.position = new Vector3(0, 60, -30);
-                cameraGo.transform.rotation = Quaternion.Euler(45, 0, 0);
-
+                AttachPlaceholder(cameraGo);
                 UnityDebug.Log("[Space4X Camera] Created fallback camera setup");
             }
         }
-#endif
+
+        private void AttachPlaceholder(GameObject cameraGameObject)
+        {
+            if (cameraGameObject == null)
+            {
+                return;
+            }
+
+            if (cameraGameObject.GetComponent<AudioListener>() == null)
+            {
+                cameraGameObject.AddComponent<AudioListener>();
+            }
+
+            if (cameraGameObject.GetComponent<CameraRigApplier>() == null)
+            {
+                cameraGameObject.AddComponent<CameraRigApplier>();
+            }
+
+            if (cameraGameObject.GetComponent<Space4XCameraPlaceholder>() == null)
+            {
+                cameraGameObject.AddComponent<Space4XCameraPlaceholder>();
+            }
+
+            if (cameraGameObject.transform.position == Vector3.zero)
+            {
+                cameraGameObject.transform.position = new Vector3(0f, 60f, -30f);
+                cameraGameObject.transform.rotation = Quaternion.Euler(35f, 315f, 0f);
+            }
+        }
     }
 }

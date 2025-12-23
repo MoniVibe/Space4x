@@ -16,19 +16,18 @@ namespace Space4X.Systems.AI
     /// Runs reactively to handle both initial asteroids and dynamically spawned ones (e.g., from Scenario Runner).
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(InitializationSystemGroup))]
-    [UpdateAfter(typeof(Space4XResourceRegistryBootstrapSystem))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup), OrderLast = true)]
+    [UpdateAfter(typeof(PureDOTS.Systems.ResourceRegistrySystem))]
     public partial struct Space4XResourceRegistryPopulationSystem : ISystem
     {
-        private EntityQuery _unregisteredAsteroidQuery;
+        private EntityQuery _asteroidQuery;
         private EntityQuery _registryQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _unregisteredAsteroidQuery = SystemAPI.QueryBuilder()
+            _asteroidQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4X.Registry.Asteroid, LocalTransform, Space4X.Registry.ResourceSourceState, Space4X.Registry.ResourceTypeId>()
-                .WithNone<ResourceRegistryRegisteredTag>()
                 .Build();
 
             _registryQuery = SystemAPI.QueryBuilder()
@@ -48,32 +47,23 @@ namespace Space4X.Systems.AI
 
             var registryEntity = _registryQuery.GetSingletonEntity();
             var registryBuffer = state.EntityManager.GetBuffer<ResourceRegistryEntry>(registryEntity);
-            var beginInitEcbSingleton = SystemAPI.GetSingleton<BeginInitializationEntityCommandBufferSystem.Singleton>();
-            var ecb = beginInitEcbSingleton.CreateCommandBuffer(state.WorldUnmanaged);
+            registryBuffer.Clear();
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            // Process unregistered asteroids
-            if (_unregisteredAsteroidQuery.IsEmptyIgnoreFilter)
+            if (_asteroidQuery.IsEmptyIgnoreFilter)
             {
+                ecb.Dispose();
                 return;
             }
 
-            // Collect unregistered asteroids and their data
-            var asteroids = new NativeList<(Entity entity, float3 position, Space4X.Registry.ResourceTypeId resourceType, Space4X.Registry.ResourceSourceState state)>(Allocator.Temp);
-
-            foreach (var (asteroid, transform, resourceType, resourceState, entity) in SystemAPI.Query<RefRO<Space4X.Registry.Asteroid>, RefRO<LocalTransform>, RefRO<Space4X.Registry.ResourceTypeId>, RefRO<Space4X.Registry.ResourceSourceState>>()
-                .WithNone<ResourceRegistryRegisteredTag>()
-                .WithEntityAccess())
+            foreach (var (transform, resourceType, resourceState, entity) in SystemAPI
+                         .Query<RefRO<LocalTransform>, RefRO<Space4X.Registry.ResourceTypeId>, RefRO<Space4X.Registry.ResourceSourceState>>()
+                         .WithAll<Space4X.Registry.Asteroid>()
+                         .WithEntityAccess())
             {
-                asteroids.Add((entity, transform.ValueRO.Position, resourceType.ValueRO, resourceState.ValueRO));
-            }
-
-            // Register each asteroid
-            for (int i = 0; i < asteroids.Length; i++)
-            {
-                var (entity, position, resourceType, resourceState) = asteroids[i];
                 
                 // Only register if resource still exists
-                if (resourceState.UnitsRemaining <= 0f)
+                if (resourceState.ValueRO.UnitsRemaining <= 0f)
                 {
                     continue;
                 }
@@ -81,23 +71,26 @@ namespace Space4X.Systems.AI
                 // Convert ResourceTypeId (FixedString64Bytes) to ResourceType enum using utility
                 // Note: Space4XMiningResourceUtility.MapToResourceType is not Burst-compatible
                 // because it uses Append() calls. We'll use a Burst-compatible mapping instead.
-                Space4X.Registry.ResourceType resourceTypeEnum = MapResourceTypeIdToEnum(in resourceType.Value);
+                Space4X.Registry.ResourceType resourceTypeEnum = MapResourceTypeIdToEnum(in resourceType.ValueRO.Value);
                 ushort resourceTypeIndex = (ushort)resourceTypeEnum;
                 
                 var entry = new ResourceRegistryEntry
                 {
                     SourceEntity = entity,
-                    Position = position,
+                    Position = transform.ValueRO.Position,
                     ResourceTypeIndex = resourceTypeIndex,
                     Tier = ResourceTier.Raw
                 };
                 registryBuffer.Add(entry);
 
-                // Mark as registered
-                ecb.AddComponent<ResourceRegistryRegisteredTag>(entity);
+                if (!state.EntityManager.HasComponent<ResourceRegistryRegisteredTag>(entity))
+                {
+                    ecb.AddComponent<ResourceRegistryRegisteredTag>(entity);
+                }
             }
 
-            asteroids.Dispose();
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         [BurstCompile]
@@ -142,4 +135,3 @@ namespace Space4X.Systems.AI
     /// </summary>
     public struct ResourceRegistryRegisteredTag : IComponentData { }
 }
-

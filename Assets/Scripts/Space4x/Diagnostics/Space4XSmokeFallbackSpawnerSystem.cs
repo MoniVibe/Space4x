@@ -16,8 +16,8 @@ using UnityTime = UnityEngine.Time;
 namespace Space4X.Diagnostics
 {
     /// <summary>
-    /// Dev-only safety net that injects a minimal mining setup when the smoke SubScene never loads.
-    /// Prevents smoke tests from silently succeeding while the world is empty.
+    /// Dev-only diagnostic that detects when the smoke SubScene fails to load or produces no entities.
+    /// Logs errors instead of spawning fallback entities (per "no illusions" rule: presentation must reflect headless progress only).
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(Space4XSmokeWorldCountsSystem))]
@@ -73,15 +73,15 @@ namespace Space4X.Diagnostics
             var sectionAvailable = TryCountComponent(em, "Unity.Scenes.ResolvedSectionEntity, Unity.Scenes", out var sectionCount);
             if (sectionAvailable && sectionCount > 0)
             {
-                UnityDebug.LogWarning("[Space4XSmokeFallbackSpawner] Game World has no mining entities even though a SubScene section resolved. Injecting fallback simulation.");
+                UnityDebug.LogError("[Space4XSmokeFallbackSpawner] PARITY VIOLATION: Game World has no mining entities even though a SubScene section resolved. This indicates the scenario JSON or spawn systems are not producing entities. Presentation cannot show what headless does not simulate. Check headless telemetry/logs.");
             }
             else
             {
-                UnityDebug.LogWarning("[Space4XSmokeFallbackSpawner] SubScene never resolved; injecting fallback mining simulation so smoke tests have coverage.");
+                UnityDebug.LogError("[Space4XSmokeFallbackSpawner] PARITY VIOLATION: SubScene never resolved. The smoke scene requires the same SubScene as headless. No fallback entities will be spawned - presentation must reflect headless progress only.");
             }
 
-            SpawnFallbackSimulation(em);
-
+            // Do NOT spawn fallback entities - this violates the "no illusions" rule.
+            // If entities are missing, fix the scenario/spawn systems, don't fake them in presentation.
             _spawned = true;
             state.Enabled = false;
         }

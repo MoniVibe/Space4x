@@ -23,6 +23,7 @@ namespace Space4X
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RewindState>();
+            state.RequireForUpdate<TimeState>();
 
             // Ensure tick state singleton exists.
             var query = state.GetEntityQuery(ComponentType.ReadWrite<Space4XTickState>());
@@ -44,12 +45,13 @@ namespace Space4X
                 return;
 
             var rewind = SystemAPI.GetSingleton<RewindState>();
+            var timeState = SystemAPI.GetSingleton<TimeState>();
             var tickEntity = SystemAPI.GetSingletonEntity<Space4XTickState>();
 
             var tickState = SystemAPI.GetComponentRW<Space4XTickState>(tickEntity);
             tickState.ValueRW = new Space4XTickState
             {
-                CurrentTick = rewind.CurrentTick,
+                CurrentTick = (int)timeState.Tick,
                 Mode = rewind.Mode
             };
         }
@@ -58,5 +60,4 @@ namespace Space4X
         public void OnDestroy(ref SystemState state) { }
     }
 }
-
 
