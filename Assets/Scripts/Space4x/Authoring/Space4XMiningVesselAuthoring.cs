@@ -1,6 +1,7 @@
 using Space4X.Registry;
 using Space4X.Runtime;
 using PureDOTS.Runtime.Communication;
+using PureDOTS.Runtime.Interrupts;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -74,6 +75,21 @@ namespace Space4X.Authoring
                     StateTimer = 0f,
                     StateStartTick = 0
                 });
+
+                // Add EntityIntent component (defaults to Idle)
+                AddComponent(entity, new EntityIntent
+                {
+                    Mode = IntentMode.Idle,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = float3.zero,
+                    TriggeringInterrupt = InterruptType.None,
+                    IntentSetTick = 0,
+                    Priority = InterruptPriority.Low,
+                    IsValid = 0
+                });
+
+                // Add Interrupt buffer for interrupt-driven intent system
+                AddBuffer<Interrupt>(entity);
 
                 AddComponent(entity, new VesselMovement
                 {

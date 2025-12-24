@@ -1,4 +1,3 @@
-using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Time;
@@ -13,6 +12,7 @@ using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Pickable = PureDOTS.Runtime.Interaction.Pickable;
 
 namespace Space4X.Systems.Interaction
 {

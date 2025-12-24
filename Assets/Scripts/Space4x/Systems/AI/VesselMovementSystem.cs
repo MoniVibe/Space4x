@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Combat;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
@@ -25,6 +26,8 @@ namespace Space4X.Systems.AI
     {
         private ComponentLookup<ThreatProfile> _threatLookup;
         private ComponentLookup<VesselStanceComponent> _stanceLookup;
+        private ComponentLookup<CapabilityState> _capabilityStateLookup;
+        private ComponentLookup<CapabilityEffectiveness> _effectivenessLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -35,6 +38,8 @@ namespace Space4X.Systems.AI
 
             _threatLookup = state.GetComponentLookup<ThreatProfile>(true);
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
+            _capabilityStateLookup = state.GetComponentLookup<CapabilityState>(true);
+            _effectivenessLookup = state.GetComponentLookup<CapabilityEffectiveness>(true);
         }
 
         [BurstCompile]
@@ -66,6 +71,8 @@ namespace Space4X.Systems.AI
 
             _threatLookup.Update(ref state);
             _stanceLookup.Update(ref state);
+            _capabilityStateLookup.Update(ref state);
+            _effectivenessLookup.Update(ref state);
 
             var job = new UpdateVesselMovementJob
             {
@@ -74,7 +81,9 @@ namespace Space4X.Systems.AI
                 ArrivalDistance = 2f, // Vessels stop 2 units away from target
                 BaseRotationSpeed = 2f, // Base rotate speed in radians per second
                 ThreatLookup = _threatLookup,
-                StanceLookup = _stanceLookup
+                StanceLookup = _stanceLookup,
+                CapabilityStateLookup = _capabilityStateLookup,
+                EffectivenessLookup = _effectivenessLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -89,9 +98,23 @@ namespace Space4X.Systems.AI
             public float BaseRotationSpeed;
             [ReadOnly] public ComponentLookup<ThreatProfile> ThreatLookup;
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
+            [ReadOnly] public ComponentLookup<CapabilityState> CapabilityStateLookup;
+            [ReadOnly] public ComponentLookup<CapabilityEffectiveness> EffectivenessLookup;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
+                // Check Movement capability - if disabled, stop movement
+                if (CapabilityStateLookup.HasComponent(entity))
+                {
+                    var capabilityState = CapabilityStateLookup[entity];
+                    if ((capabilityState.EnabledCapabilities & CapabilityFlags.Movement) == 0)
+                    {
+                        movement.Velocity = float3.zero;
+                        movement.IsMoving = 0;
+                        return;
+                    }
+                }
+
                 // Don't move if mining - stay in place to gather resources
                 if (aiState.CurrentState == VesselAIState.State.Mining)
                 {
@@ -138,7 +161,15 @@ namespace Space4X.Systems.AI
                 // Apply stance-based threat avoidance
                 direction = AvoidThreats(direction, transform.Position, avoidanceRadius, avoidanceStrength);
 
-                movement.CurrentSpeed = movement.BaseSpeed * speedMultiplier;
+                // Apply capability effectiveness to speed (damaged engines reduce speed)
+                float effectivenessMultiplier = 1f;
+                if (EffectivenessLookup.HasComponent(entity))
+                {
+                    var effectiveness = EffectivenessLookup[entity];
+                    effectivenessMultiplier = math.max(0f, effectiveness.MovementEffectiveness);
+                }
+
+                movement.CurrentSpeed = movement.BaseSpeed * speedMultiplier * effectivenessMultiplier;
                 movement.Velocity = direction * movement.CurrentSpeed;
                 transform.Position += movement.Velocity * DeltaTime;
 

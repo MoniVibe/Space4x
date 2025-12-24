@@ -996,9 +996,18 @@
             "id": "a0f2d4ca-c1e8-4c9b-bb40-af8352520c59",
             "actions": [
                 {
-                    "name": "Pan",
+                    "name": "Move",
                     "type": "Value",
                     "id": "7c8ab94b-6914-46b0-9723-ae83a785c9cf",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "Pan",
+                    "type": "Value",
+                    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
                     "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
@@ -1008,16 +1017,34 @@
                     "name": "Zoom",
                     "type": "Value",
                     "id": "4afda3dc-a195-4a25-9912-d380c6f1f6ee",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Orbit",
+                    "type": "Value",
+                    "id": "f1827c41-d7cb-429f-b450-e1123dff4b81",
                     "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Rotate",
-                    "type": "Value",
-                    "id": "f1827c41-d7cb-429f-b450-e1123dff4b81",
-                    "expectedControlType": "Vector2",
+                    "name": "MiddleClick",
+                    "type": "Button",
+                    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Focus",
+                    "type": "Button",
+                    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -1032,7 +1059,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "VerticalMove",
+                    "name": "Vertical",
                     "type": "Value",
                     "id": "a8b9c0d1-e2f3-4a5b-8c9d-0e1f2a3b4c5d",
                     "expectedControlType": "Axis",
@@ -1041,7 +1068,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "ToggleVerticalMode",
+                    "name": "YAxisLockToggle",
                     "type": "Button",
                     "id": "7cc4cfe7-4845-40a3-8624-7b68e515abec",
                     "expectedControlType": "Button",
@@ -1058,7 +1085,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": true,
                     "isPartOfComposite": false
                 },
@@ -1069,7 +1096,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1080,7 +1107,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1091,7 +1118,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1102,7 +1129,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1113,7 +1140,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1124,7 +1151,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1135,7 +1162,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1146,7 +1173,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Pan",
+                    "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1157,6 +1184,17 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+                    "path": "<Mouse>/delta",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
                     "action": "Pan",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -1201,7 +1239,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Rotate",
+                    "action": "Orbit",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1212,7 +1250,29 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "Rotate",
+                    "action": "Orbit",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+                    "path": "<Mouse>/middleButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "MiddleClick",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+                    "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Focus",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1245,7 +1305,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "VerticalMove",
+                    "action": "Vertical",
                     "isComposite": true,
                     "isPartOfComposite": false
                 },
@@ -1256,7 +1316,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "VerticalMove",
+                    "action": "Vertical",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1267,7 +1327,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "VerticalMove",
+                    "action": "Vertical",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -1278,7 +1338,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "VerticalMove",
+                    "action": "Vertical",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1289,18 +1349,18 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "VerticalMove",
+                    "action": "Vertical",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
                 {
                     "name": "",
                     "id": "3a9a986c-d23c-4179-9b70-78bb4421c078",
-                    "path": "<Keyboard>/v",
+                    "path": "<Keyboard>/y",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "ToggleVerticalMode",
+                    "action": "YAxisLockToggle",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -1311,7 +1371,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "ToggleVerticalMode",
+                    "action": "YAxisLockToggle",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

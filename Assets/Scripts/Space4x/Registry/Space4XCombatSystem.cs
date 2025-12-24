@@ -1,3 +1,5 @@
+using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Ships;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -16,10 +18,15 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XWeaponSystem : ISystem
     {
+        private ComponentLookup<CapabilityState> _capabilityStateLookup;
+        private ComponentLookup<CapabilityEffectiveness> _effectivenessLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<WeaponMount>();
+            _capabilityStateLookup = state.GetComponentLookup<CapabilityState>(true);
+            _effectivenessLookup = state.GetComponentLookup<CapabilityEffectiveness>(true);
         }
 
         [BurstCompile]
@@ -27,14 +34,36 @@ namespace Space4X.Registry
         {
             var currentTick = (uint)SystemAPI.Time.ElapsedTime;
 
+            _capabilityStateLookup.Update(ref state);
+            _effectivenessLookup.Update(ref state);
+
             foreach (var (weapons, engagement, transform, supply, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRO<Space4XEngagement>, RefRO<LocalTransform>, RefRW<SupplyStatus>>()
                     .WithEntityAccess())
             {
-                // Skip if not engaged
-                if (engagement.ValueRO.Phase != EngagementPhase.Engaged)
+                // Check Firing capability - if disabled, skip firing
+                bool canFire = true;
+                if (_capabilityStateLookup.HasComponent(entity))
+                {
+                    var capabilityState = _capabilityStateLookup[entity];
+                    if ((capabilityState.EnabledCapabilities & CapabilityFlags.Firing) == 0)
+                    {
+                        canFire = false;
+                    }
+                }
+
+                // Skip if not engaged or cannot fire
+                if (engagement.ValueRO.Phase != EngagementPhase.Engaged || !canFire)
                 {
                     continue;
+                }
+
+                // Get firing effectiveness multiplier (damaged weapons reduce effectiveness)
+                float effectivenessMultiplier = 1f;
+                if (_effectivenessLookup.HasComponent(entity))
+                {
+                    var effectiveness = _effectivenessLookup[entity];
+                    effectivenessMultiplier = math.max(0f, effectiveness.FiringEffectiveness);
                 }
 
                 Entity target = engagement.ValueRO.PrimaryTarget;
@@ -83,8 +112,11 @@ namespace Space4X.Registry
                         continue;
                     }
 
+                    // Apply effectiveness to cooldown (damaged weapons fire slower)
+                    int adjustedCooldown = (int)(mount.Weapon.CooldownTicks / math.max(0.1f, effectivenessMultiplier));
+
                     // Fire weapon
-                    mount.Weapon.CurrentCooldown = mount.Weapon.CooldownTicks;
+                    mount.Weapon.CurrentCooldown = adjustedCooldown;
                     mount.CurrentTarget = target;
                     weaponBuffer[i] = mount;
 
@@ -104,18 +136,44 @@ namespace Space4X.Registry
     [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XWeaponSystem))]
+    [UpdateAfter(typeof(PureDOTS.Systems.Combat.FormationCombatSystem))]
+    [UpdateAfter(typeof(PureDOTS.Systems.Combat.CohesionEffectSystem))]
     public partial struct Space4XDamageResolutionSystem : ISystem
     {
+        private ComponentLookup<FormationBonus> _formationBonusLookup;
+        private ComponentLookup<FormationIntegrity> _formationIntegrityLookup;
+        private ComponentLookup<FormationCombatConfig> _formationConfigLookup;
+        private ComponentLookup<CohesionCombatMultipliers> _cohesionMultipliersLookup;
+        private ComponentLookup<FormationAssignment> _formationAssignmentLookup;
+        private EntityStorageInfoLookup _entityLookup;
+        private ComponentLookup<Advantage3D> _advantageLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<WeaponMount>();
+
+            _formationBonusLookup = state.GetComponentLookup<FormationBonus>(true);
+            _formationIntegrityLookup = state.GetComponentLookup<FormationIntegrity>(true);
+            _formationConfigLookup = state.GetComponentLookup<FormationCombatConfig>(true);
+            _cohesionMultipliersLookup = state.GetComponentLookup<CohesionCombatMultipliers>(true);
+            _formationAssignmentLookup = state.GetComponentLookup<FormationAssignment>(true);
+            _entityLookup = state.GetEntityStorageInfoLookup();
+            _advantageLookup = state.GetComponentLookup<Advantage3D>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+
+            _formationBonusLookup.Update(ref state);
+            _formationIntegrityLookup.Update(ref state);
+            _formationConfigLookup.Update(ref state);
+            _cohesionMultipliersLookup.Update(ref state);
+            _formationAssignmentLookup.Update(ref state);
+            _entityLookup.Update(ref state);
+            _advantageLookup.Update(ref state);
 
             foreach (var (weapons, engagement, transform, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>>()
@@ -170,6 +228,14 @@ namespace Space4X.Registry
                     uint hitSeed = (uint)(entity.Index * 12345) + currentTick + (uint)i;
                     var random = new Unity.Mathematics.Random(hitSeed);
 
+                    // Apply cohesion accuracy multiplier to hit chance
+                    if (_cohesionMultipliersLookup.HasComponent(entity))
+                    {
+                        var cohesion = _cohesionMultipliersLookup[entity];
+                        hitChance *= cohesion.AccuracyMultiplier;
+                        hitChance = math.clamp(hitChance, 0f, 1f);
+                    }
+
                     if (random.NextFloat() > hitChance)
                     {
                         continue; // Miss
@@ -185,8 +251,30 @@ namespace Space4X.Registry
                         rawDamage *= 1.5f;
                     }
 
-                    // Formation bonus
+                    // Formation bonus (from engagement, already calculated)
                     rawDamage *= (1f + (float)engagement.ValueRO.FormationBonus);
+
+                    // Apply cohesion multipliers
+                    if (_cohesionMultipliersLookup.HasComponent(entity))
+                    {
+                        var cohesion = _cohesionMultipliersLookup[entity];
+                        rawDamage *= cohesion.DamageMultiplier;
+                    }
+
+                    // Apply 3D advantage multiplier (high ground, flanking bonuses)
+                    if (_advantageLookup.HasComponent(entity) && SystemAPI.HasComponent<LocalTransform>(entity) && SystemAPI.HasComponent<LocalTransform>(target))
+                    {
+                        var attackerPos = SystemAPI.GetComponent<LocalTransform>(entity).Position;
+                        var targetPos = SystemAPI.GetComponent<LocalTransform>(target).Position;
+                        var advantageMultiplier = Formation3DService.Get3DAdvantageMultiplier(
+                            _entityLookup,
+                            _advantageLookup,
+                            entity,
+                            attackerPos,
+                            target,
+                            targetPos);
+                        rawDamage *= advantageMultiplier;
+                    }
 
                     // Apply damage to target
                     ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, ref state);
@@ -408,18 +496,49 @@ namespace Space4X.Registry
     [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateBefore(typeof(Space4XWeaponSystem))]
+    [UpdateAfter(typeof(PureDOTS.Systems.Combat.FormationCombatSystem))]
     public partial struct Space4XCombatInitiationSystem : ISystem
     {
+        private ComponentLookup<FormationBonus> _formationBonusLookup;
+        private ComponentLookup<FormationIntegrity> _formationIntegrityLookup;
+        private ComponentLookup<FormationCombatConfig> _formationConfigLookup;
+        private ComponentLookup<FormationAssignment> _formationAssignmentLookup;
+        private EntityStorageInfoLookup _entityLookup;
+        private BufferLookup<CarrierModuleSlot> _slotLookup;
+        private ComponentLookup<ShipModule> _moduleLookup;
+        private ComponentLookup<ModuleTargetPriority> _priorityLookup;
+        private ComponentLookup<ModuleHealth> _healthLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TargetPriority>();
             state.RequireForUpdate<Space4XEngagement>();
+
+            _formationBonusLookup = state.GetComponentLookup<FormationBonus>(true);
+            _formationIntegrityLookup = state.GetComponentLookup<FormationIntegrity>(true);
+            _formationConfigLookup = state.GetComponentLookup<FormationCombatConfig>(true);
+            _formationAssignmentLookup = state.GetComponentLookup<FormationAssignment>(true);
+            _entityLookup = state.GetEntityStorageInfoLookup();
+            _slotLookup = state.GetBufferLookup<CarrierModuleSlot>(true);
+            _moduleLookup = state.GetComponentLookup<ShipModule>(true);
+            _priorityLookup = state.GetComponentLookup<ModuleTargetPriority>(true);
+            _healthLookup = state.GetComponentLookup<ModuleHealth>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _formationBonusLookup.Update(ref state);
+            _formationIntegrityLookup.Update(ref state);
+            _formationConfigLookup.Update(ref state);
+            _formationAssignmentLookup.Update(ref state);
+            _entityLookup.Update(ref state);
+            _slotLookup.Update(ref state);
+            _moduleLookup.Update(ref state);
+            _priorityLookup.Update(ref state);
+            _healthLookup.Update(ref state);
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (priority, engagement, transform, entity) in
@@ -465,28 +584,83 @@ namespace Space4X.Registry
                 // Initiate engagement if in range
                 if (distance <= maxRange * 1.2f) // Slightly beyond max range to start approach
                 {
-                    engagement.ValueRW.PrimaryTarget = priority.ValueRO.CurrentTarget;
+                    var targetShip = priority.ValueRO.CurrentTarget;
+                    engagement.ValueRW.PrimaryTarget = targetShip;
                     engagement.ValueRW.Phase = distance <= maxRange ? EngagementPhase.Engaged : EngagementPhase.Approaching;
                     engagement.ValueRW.TargetDistance = distance;
                     engagement.ValueRW.EngagementDuration = 0;
                     engagement.ValueRW.DamageDealt = 0;
                     engagement.ValueRW.DamageReceived = 0;
 
-                    // Calculate formation bonus
-                    float cohesion = 1f;
-                    if (SystemAPI.HasComponent<FormationAssignment>(entity))
+                    // Select module target if target ship has modules
+                    if (_slotLookup.HasBuffer(targetShip))
                     {
-                        // Would calculate actual cohesion from formation
-                        cohesion = 0.8f;
+                        var moduleTarget = ModuleTargetingService.SelectModuleTarget(
+                            _entityLookup,
+                            _slotLookup,
+                            _moduleLookup,
+                            _priorityLookup,
+                            _healthLookup,
+                            entity,
+                            targetShip);
+
+                        if (moduleTarget != Entity.Null)
+                        {
+                            // Add ModuleTarget component to attacker
+                            if (!SystemAPI.HasComponent<ModuleTarget>(entity))
+                            {
+                                ecb.AddComponent(entity, new ModuleTarget
+                                {
+                                    TargetModule = moduleTarget,
+                                    TargetShip = targetShip,
+                                    TargetSelectedTick = (uint)SystemAPI.Time.ElapsedTime
+                                });
+                            }
+                            else
+                            {
+                                ecb.SetComponent(entity, new ModuleTarget
+                                {
+                                    TargetModule = moduleTarget,
+                                    TargetShip = targetShip,
+                                    TargetSelectedTick = (uint)SystemAPI.Time.ElapsedTime
+                                });
+                            }
+                        }
                     }
+
+                    // Read PureDOTS formation bonus instead of calculating manually
+                    float formationBonus = 0f;
+                    Entity formationEntity = Entity.Null;
+
+                    // Find formation entity (either this entity or its formation leader)
+                    if (_formationAssignmentLookup.HasComponent(entity))
+                    {
+                        formationEntity = _formationAssignmentLookup[entity].FormationLeader;
+                    }
+                    else if (_formationBonusLookup.HasComponent(entity))
+                    {
+                        formationEntity = entity;
+                    }
+
+                    if (formationEntity != Entity.Null &&
+                        _formationBonusLookup.HasComponent(formationEntity) &&
+                        _formationIntegrityLookup.HasComponent(formationEntity) &&
+                        _formationConfigLookup.HasComponent(formationEntity))
+                    {
+                        var bonus = _formationBonusLookup[formationEntity];
+                        var integrity = _formationIntegrityLookup[formationEntity];
+                        var config = _formationConfigLookup[formationEntity];
+                        float attackMultiplier = FormationCombatService.GetFormationAttackBonus(bonus, integrity, config);
+                        formationBonus = attackMultiplier - 1f; // Convert multiplier to bonus (e.g., 1.2 -> 0.2)
+                    }
+
+                    engagement.ValueRW.FormationBonus = (half)formationBonus;
 
                     VesselStanceMode stance = VesselStanceMode.Balanced;
                     if (SystemAPI.HasComponent<PatrolStance>(entity))
                     {
                         stance = SystemAPI.GetComponent<PatrolStance>(entity).Stance;
                     }
-
-                    engagement.ValueRW.FormationBonus = (half)CombatMath.CalculateFormationBonus(cohesion, stance);
                     engagement.ValueRW.EvasionModifier = (half)(stance == VesselStanceMode.Evasive ? 0.3f : 0.1f);
 
                     // Add combat tag

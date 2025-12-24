@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -47,6 +48,15 @@ namespace Space4X.Runtime
         public float3 TargetPosition;
         public float StateTimer;
         public uint StateStartTick;
+    }
+
+    /// <summary>
+    /// Binding that maps shared AI action indices to vessel goals.
+    /// Similar to VillagerAIUtilityBinding but for vessels.
+    /// </summary>
+    public struct VesselAIUtilityBinding : IComponentData
+    {
+        public FixedList32Bytes<VesselAIState.Goal> Goals;
     }
 }
 

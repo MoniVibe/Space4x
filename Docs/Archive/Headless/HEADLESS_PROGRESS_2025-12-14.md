@@ -49,3 +49,5 @@ When adding a new feature to headless, ensure it appears in presentation:
 - ❌ Hardcoding mining/combat behaviors that don't reflect underlying sim state.
 - ✅ Only visualization: camera rigs, UI overlays, debug HUDs that read from sim components.
 
+
+
