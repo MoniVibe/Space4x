@@ -2,6 +2,7 @@ using PureDOTS.Runtime.AI;
 using PureDOTS.Runtime.Components;
 using Space4X.Runtime;
 using Space4X.Registry;
+using Space4X.Systems.AI;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,7 +14,7 @@ namespace Space4X.Systems
     /// Consumes commands from AISystemGroup pipeline and translates them into vessel goals.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
+    [UpdateInGroup(typeof(Space4XTransportAISystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.AI.AITaskResolutionSystem))]
     [UpdateBefore(typeof(VesselTargetingSystem))]
     public partial struct Space4XVesselAICommandBridgeSystem : ISystem

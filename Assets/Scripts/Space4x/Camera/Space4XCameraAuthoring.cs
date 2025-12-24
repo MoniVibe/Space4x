@@ -1,4 +1,5 @@
 using UnityEngine;
+using UCamera = UnityEngine.Camera;
 
 namespace Space4X.Camera
 {
@@ -9,7 +10,7 @@ namespace Space4X.Camera
     public class Space4XCameraAuthoring : MonoBehaviour
     {
         [Header("Camera")]
-        public UnityEngine.Camera targetCamera;
+        public UCamera targetCamera;
 
         [Header("Orbit Defaults")]
         public Vector3 focusPoint = Vector3.zero;

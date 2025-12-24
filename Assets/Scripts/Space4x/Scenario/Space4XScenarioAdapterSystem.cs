@@ -1,36 +1,39 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.History;
+using PureDOTS.Runtime.Resource;
 using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
 using Space4X.Mining;
 using Space4X.Registry;
 using Space4X.Runtime;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using ResourceSourceState = Space4X.Registry.ResourceSourceState;
+using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
+using ResourceTypeId = Space4X.Registry.ResourceTypeId;
 
 namespace Space4X.Scenario
 {
     /// <summary>
     /// Adapter system that spawns entities from ScenarioRunner's ScenarioEntityCountElement buffer.
     /// Reads registry IDs and spawns corresponding Space4X entities with appropriate components.
+    /// Note: Not Burst-compiled because it uses string operations (init-time spawn code).
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
     public partial struct Space4XScenarioAdapterSystem : ISystem
     {
         private bool _hasSpawned;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<ScenarioInfo>();
             state.RequireForUpdate<ScenarioEntityCountElement>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (_hasSpawned)
@@ -57,29 +60,43 @@ namespace Space4X.Scenario
             var spawnCenter = float3.zero;
             const float spawnRadius = 50f;
 
+            // Burst-safe FixedString matching (no ToString/Contains in Burst)
+            var carrierSubstring = new FixedString64Bytes("carrier");
+            var carrierExact = new FixedString64Bytes("space4x.carrier");
+            var minerSubstring = new FixedString64Bytes("miner");
+            var miningVesselSubstring = new FixedString64Bytes("mining_vessel");
+            var minerExact = new FixedString64Bytes("space4x.miner");
+            var miningVesselExact = new FixedString64Bytes("space4x.mining_vessel");
+            var asteroidSubstring = new FixedString64Bytes("asteroid");
+            var asteroidExact = new FixedString64Bytes("space4x.asteroid");
+            var storehouseSubstring = new FixedString64Bytes("storehouse");
+            var stationSubstring = new FixedString64Bytes("station");
+            var storehouseExact = new FixedString64Bytes("space4x.storehouse");
+            var stationExact = new FixedString64Bytes("space4x.station");
+
             for (int i = 0; i < counts.Length; i++)
             {
                 var entry = counts[i];
-                var registryId = entry.RegistryId.ToString().ToLowerInvariant();
+                var registryId = entry.RegistryId;
                 var count = entry.Count;
 
-                // Map registry IDs to entity archetypes
+                // Map registry IDs to entity archetypes using FixedString matching
                 // Phase 0: Hardcoded mappings (will be replaced with registry system in Phase 0.5)
-                if (registryId.Contains("carrier") || registryId == "space4x.carrier")
+                if (registryId.Equals(carrierExact) || registryId.IndexOf(carrierSubstring) >= 0)
                 {
                     SpawnCarriers(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
-                else if (registryId.Contains("miner") || registryId.Contains("mining_vessel") || 
-                         registryId == "space4x.miner" || registryId == "space4x.mining_vessel")
+                else if (registryId.Equals(minerExact) || registryId.Equals(miningVesselExact) ||
+                         registryId.IndexOf(minerSubstring) >= 0 || registryId.IndexOf(miningVesselSubstring) >= 0)
                 {
                     SpawnMiners(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
-                else if (registryId.Contains("asteroid") || registryId == "space4x.asteroid")
+                else if (registryId.Equals(asteroidExact) || registryId.IndexOf(asteroidSubstring) >= 0)
                 {
                     SpawnAsteroids(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
-                else if (registryId.Contains("storehouse") || registryId.Contains("station") || 
-                         registryId == "space4x.storehouse" || registryId == "space4x.station")
+                else if (registryId.Equals(storehouseExact) || registryId.Equals(stationExact) ||
+                         registryId.IndexOf(storehouseSubstring) >= 0 || registryId.IndexOf(stationSubstring) >= 0)
                 {
                     SpawnStations(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
@@ -92,7 +109,6 @@ namespace Space4X.Scenario
             state.Enabled = false;
         }
 
-        [BurstCompile]
         private static void SpawnCarriers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
         {
             for (int i = 0; i < count; i++)
@@ -108,9 +124,23 @@ namespace Space4X.Scenario
                 var carrier = ecb.CreateEntity();
                 ecb.AddComponent(carrier, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 10f));
 
+                var carrierId = new FixedString64Bytes();
+                carrierId.Append("carrier_");
+                // Manual number conversion (avoid ToString for consistency)
+                var num = i + 1;
+                if (num >= 100)
+                {
+                    carrierId.Append((char)('0' + (num / 100 % 10)));
+                }
+                if (num >= 10)
+                {
+                    carrierId.Append((char)('0' + (num / 10 % 10)));
+                }
+                carrierId.Append((char)('0' + (num % 10)));
+                
                 ecb.AddComponent(carrier, new Carrier
                 {
-                    CarrierId = new FixedString64Bytes($"carrier_{i + 1}"),
+                    CarrierId = carrierId,
                     AffiliationEntity = Entity.Null,
                     Speed = 5f,
                     PatrolCenter = position,
@@ -142,7 +172,6 @@ namespace Space4X.Scenario
             }
         }
 
-        [BurstCompile]
         private static void SpawnMiners(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
         {
             for (int i = 0; i < count; i++)
@@ -158,9 +187,23 @@ namespace Space4X.Scenario
                 var miner = ecb.CreateEntity();
                 ecb.AddComponent(miner, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
 
+                var minerId = new FixedString64Bytes();
+                minerId.Append("miner_");
+                // Manual number conversion (avoid ToString for consistency)
+                var num = i + 1;
+                if (num >= 100)
+                {
+                    minerId.Append((char)('0' + (num / 100 % 10)));
+                }
+                if (num >= 10)
+                {
+                    minerId.Append((char)('0' + (num / 10 % 10)));
+                }
+                minerId.Append((char)('0' + (num % 10)));
+                
                 ecb.AddComponent(miner, new MiningVessel
                 {
-                    VesselId = new FixedString64Bytes($"miner_{i + 1}"),
+                    VesselId = minerId,
                     CarrierEntity = Entity.Null,
                     MiningEfficiency = 0.8f,
                     Speed = 10f,
@@ -180,7 +223,7 @@ namespace Space4X.Scenario
                 ecb.AddComponent(miner, new VesselAIState
                 {
                     CurrentState = VesselAIState.State.Idle,
-                    CurrentGoal = VesselAIState.Goal.Mine,
+                    CurrentGoal = VesselAIState.Goal.Mining,
                     TargetEntity = Entity.Null,
                     TargetPosition = position
                 });
@@ -194,7 +237,6 @@ namespace Space4X.Scenario
             }
         }
 
-        [BurstCompile]
         private static void SpawnAsteroids(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
         {
             for (int i = 0; i < count; i++)
@@ -216,14 +258,31 @@ namespace Space4X.Scenario
                 ));
 
                 var resourceAmount = 500f;
+                var asteroidId = new FixedString64Bytes();
+                asteroidId.Append("asteroid_");
+                // Manual number conversion (avoid ToString for consistency)
+                var num = i + 1;
+                if (num >= 100)
+                {
+                    asteroidId.Append((char)('0' + (num / 100 % 10)));
+                }
+                if (num >= 10)
+                {
+                    asteroidId.Append((char)('0' + (num / 10 % 10)));
+                }
+                asteroidId.Append((char)('0' + (num % 10)));
+                
                 ecb.AddComponent(asteroid, new Asteroid
                 {
-                    AsteroidId = new FixedString64Bytes($"asteroid_{i + 1}"),
+                    AsteroidId = asteroidId,
                     ResourceType = ResourceType.Minerals,
                     ResourceAmount = resourceAmount,
                     MaxResourceAmount = resourceAmount,
                     MiningRate = 10f
                 });
+
+                // Add ResourceTypeId for registry population system
+                ecb.AddComponent(asteroid, new ResourceTypeId { Value = new FixedString64Bytes("space4x.resource.minerals") });
 
                 ecb.AddComponent(asteroid, new ResourceSourceState
                 {
@@ -238,9 +297,11 @@ namespace Space4X.Scenario
             }
         }
 
-        [BurstCompile]
         private static void SpawnStations(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
         {
+            var resourceIdMinerals = new FixedString64Bytes("minerals");
+            var storehouseLabel = new FixedString64Bytes("Station");
+            
             for (int i = 0; i < count; i++)
             {
                 var angle = (float)i / count * math.PI * 2f;
@@ -253,11 +314,44 @@ namespace Space4X.Scenario
 
                 var station = ecb.CreateEntity();
                 ecb.AddComponent(station, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 5f));
+                ecb.AddComponent<SpatialIndexedTag>(station);
+                ecb.AddComponent<RewindableTag>(station);
 
-                // Minimal station components
-                ecb.AddComponent<StorehouseTag>(station);
+                // Add storehouse capacity buffer
+                var capacityBuffer = ecb.AddBuffer<StorehouseCapacityElement>(station);
+                capacityBuffer.Add(new StorehouseCapacityElement
+                {
+                    ResourceTypeId = resourceIdMinerals,
+                    MaxCapacity = 1000f
+                });
+
+                // Add storehouse config and inventory
+                ecb.AddComponent(station, new StorehouseConfig
+                {
+                    ShredRate = 1f,
+                    MaxShredQueueSize = 8,
+                    InputRate = 20f,
+                    OutputRate = 18f,
+                    Label = storehouseLabel
+                });
+                ecb.AddComponent(station, new StorehouseInventory
+                {
+                    TotalStored = 0f,
+                    TotalCapacity = 1000f,
+                    ItemTypeCount = capacityBuffer.Length,
+                    IsShredding = 0,
+                    LastUpdateTick = 0
+                });
+
                 ecb.AddBuffer<StorehouseInventoryItem>(station);
-                ecb.AddBuffer<StorehouseCapacityElement>(station);
+                
+                // Optional: Add history components like sample bootstrap
+                ecb.AddComponent(station, new HistoryTier
+                {
+                    Tier = HistoryTier.TierType.Default,
+                    OverrideStrideSeconds = 0f
+                });
+                ecb.AddBuffer<StorehouseHistorySample>(station);
             }
         }
     }

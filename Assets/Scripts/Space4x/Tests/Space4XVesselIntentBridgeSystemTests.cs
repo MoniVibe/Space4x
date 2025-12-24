@@ -1,6 +1,7 @@
 #if UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Intent;
 using PureDOTS.Runtime.Interrupts;
 using Space4X.Registry;
@@ -84,7 +85,7 @@ namespace Space4X.Tests
             _world.Update(); // Allow entity destruction to process
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify intent is cleared
@@ -151,7 +152,7 @@ namespace Space4X.Tests
             _entityManager.SetComponentData(vessel, aiState);
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify EntityIntent is cleared
@@ -179,7 +180,7 @@ namespace Space4X.Tests
                 asteroidEntity);
 
             // Run InterruptHandlerSystem
-            var interruptSystem = _world.GetOrCreateSystemManaged<PureDOTS.Systems.Interrupts.InterruptHandlerSystem>();
+            var interruptSystem = _world.GetOrCreateSystem<PureDOTS.Systems.Interrupts.InterruptHandlerSystem>();
             interruptSystem.Update(_world.Unmanaged);
 
             // Verify EntityIntent created
@@ -189,7 +190,7 @@ namespace Space4X.Tests
             Assert.AreEqual(asteroidEntity, intent.TargetEntity, "Target entity should match interrupt target");
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify goal updated to Mining
@@ -225,7 +226,7 @@ namespace Space4X.Tests
                 2);
 
             // Run EnhancedInterruptHandlerSystem
-            var enhancedInterruptSystem = _world.GetOrCreateSystemManaged<PureDOTS.Systems.Intent.EnhancedInterruptHandlerSystem>();
+            var enhancedInterruptSystem = _world.GetOrCreateSystem<PureDOTS.Systems.Intent.EnhancedInterruptHandlerSystem>();
             enhancedInterruptSystem.Update(_world.Unmanaged);
 
             // Verify intent overridden to Flee
@@ -234,7 +235,7 @@ namespace Space4X.Tests
             Assert.AreEqual(InterruptPriority.High, updatedIntent.Priority, "Priority should be High");
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify goal updated to Returning
@@ -265,7 +266,7 @@ namespace Space4X.Tests
             _world.Update();
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify intent remains valid (position-based intents don't depend on entities)
@@ -295,7 +296,7 @@ namespace Space4X.Tests
             _world.Update();
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify only intents with destroyed targets are cleared
@@ -370,7 +371,7 @@ namespace Space4X.Tests
             _entityManager.SetComponentData(vessel, intent);
 
             // Run bridge system
-            var bridgeSystem = _world.GetOrCreateSystemManaged<Space4XVesselIntentBridgeSystem>();
+            var bridgeSystem = _world.GetOrCreateSystem<Space4XVesselIntentBridgeSystem>();
             bridgeSystem.Update(_world.Unmanaged);
 
             // Verify mapping

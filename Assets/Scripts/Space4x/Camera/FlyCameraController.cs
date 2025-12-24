@@ -1,6 +1,5 @@
 using UnityEngine;
 using UCamera = UnityEngine.Camera;
-using UObject = UnityEngine.Object;
 using UTime = UnityEngine.Time;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;

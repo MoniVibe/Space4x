@@ -3,13 +3,12 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using PureDOTS.Runtime.Camera;
-using UnityCamera = UnityEngine.Camera;
+using UCamera = UnityEngine.Camera;
+using UObject = UnityEngine.Object;
+using UDebug = UnityEngine.Debug;
 
 namespace Space4X.Camera
 {
-    using Debug = UnityEngine.Debug;
-
-    
     /// <summary>
     /// Editor utility to create and configure the Space4X camera prefab.
     /// </summary>
@@ -20,7 +19,7 @@ namespace Space4X.Camera
         {
             // Create the camera GameObject
             var cameraGo = new GameObject("Space4XCamera");
-            var camera = cameraGo.AddComponent<UnityCamera>();
+            var camera = cameraGo.AddComponent<UCamera>();
             cameraGo.tag = "MainCamera";
             cameraGo.AddComponent<AudioListener>();
             cameraGo.AddComponent<CameraRigApplier>();
@@ -49,9 +48,9 @@ namespace Space4X.Camera
             PrefabUtility.SaveAsPrefabAsset(cameraGo, prefabPath);
 
             // Clean up the temporary GameObject
-            Object.DestroyImmediate(cameraGo);
+            UObject.DestroyImmediate(cameraGo);
 
-            UnityEngine.Debug.Log($"[Space4X Camera] Created camera prefab at {prefabPath}");
+            UDebug.Log($"[Space4X Camera] Created camera prefab at {prefabPath}");
         }
 
         private static InputActionAsset FindDefaultInputActions()

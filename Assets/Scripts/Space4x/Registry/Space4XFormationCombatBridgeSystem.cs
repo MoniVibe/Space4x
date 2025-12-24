@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Formation;
-using PureDOTS.Runtime.Time;
+using TimeState = PureDOTS.Runtime.Components.TimeState;
+using PDFormationSlot = PureDOTS.Runtime.Formation.FormationSlot;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -20,6 +21,12 @@ namespace Space4X.Registry
     [UpdateBefore(typeof(PureDOTS.Systems.Combat.FormationCombatSystem))]
     public partial struct Space4XFormationCombatBridgeSystem : ISystem
     {
+        private struct AssignmentMapEntry
+        {
+            public FormationAssignment Assignment;
+            public Entity VesselEntity;
+        }
+
         private ComponentLookup<FormationAssignment> _assignmentLookup;
         private BufferLookup<FormationSlotDefinition> _slotDefinitionLookup;
 
@@ -36,14 +43,13 @@ namespace Space4X.Registry
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
-            var currentTick = timeState.CurrentTick;
+            var currentTick = timeState.Tick;
 
             _assignmentLookup.Update(ref state);
             _slotDefinitionLookup.Update(ref state);
 
-            var ecb = SystemAPI
-                .GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>()
-                .CreateCommandBuffer(state.WorldUnmanaged);
+            // We need immediate playback (Phase B reads the buffers same frame), so use a local ECB.
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             // Phase A: Add components and buffers via ECB
             // 1. PROJECT: Query formation leaders with FormationTemplate but no FormationState
@@ -79,17 +85,21 @@ namespace Space4X.Registry
             var assignmentCount = assignmentQuery.CalculateEntityCount();
             
             // Conditionally create assignment map (only if assignments exist)
-            NativeMultiHashMap<Entity, (FormationAssignment Assignment, Entity VesselEntity)> assignmentMap = default;
+            NativeParallelMultiHashMap<Entity, AssignmentMapEntry> assignmentMap = default;
             bool hasAssignments = assignmentCount > 0;
             if (hasAssignments)
             {
                 var mapCapacity = math.max(1, assignmentCount) + 10; // Safety margin
-                assignmentMap = new NativeMultiHashMap<Entity, (FormationAssignment Assignment, Entity VesselEntity)>(mapCapacity, Allocator.Temp);
+                assignmentMap = new NativeParallelMultiHashMap<Entity, AssignmentMapEntry>(mapCapacity, Allocator.Temp);
                 foreach (var (assignment, vesselEntity) in SystemAPI.Query<RefRO<FormationAssignment>>().WithEntityAccess())
                 {
                     if (assignment.ValueRO.FormationLeader != Entity.Null)
                     {
-                        assignmentMap.Add(assignment.ValueRO.FormationLeader, (assignment.ValueRO, vesselEntity));
+                        assignmentMap.Add(assignment.ValueRO.FormationLeader, new AssignmentMapEntry
+                        {
+                            Assignment = assignment.ValueRO,
+                            VesselEntity = vesselEntity
+                        });
                     }
                 }
             }
@@ -103,9 +113,9 @@ namespace Space4X.Registry
             for (int i = 0; i < leaders.Length; i++)
             {
                 var leaderEntity = leaders[i];
-                if (!state.EntityManager.HasBuffer<FormationSlot>(leaderEntity))
+                if (!state.EntityManager.HasBuffer<PDFormationSlot>(leaderEntity))
                 {
-                    ecb.AddBuffer<FormationSlot>(leaderEntity);
+                    ecb.AddBuffer<PDFormationSlot>(leaderEntity);
                 }
             }
             leaders.Dispose();
@@ -120,9 +130,9 @@ namespace Space4X.Registry
             for (int i = 0; i < leaders.Length; i++)
             {
                 var leaderEntity = leaders[i];
-                if (state.EntityManager.HasBuffer<FormationSlot>(leaderEntity))
+                if (state.EntityManager.HasBuffer<PDFormationSlot>(leaderEntity))
                 {
-                    var slots = state.EntityManager.GetBuffer<FormationSlot>(leaderEntity);
+                    var slots = state.EntityManager.GetBuffer<PDFormationSlot>(leaderEntity);
                     
                     // Check if leader has slot definitions
                     if (state.EntityManager.HasBuffer<FormationSlotDefinition>(leaderEntity))
@@ -223,9 +233,9 @@ namespace Space4X.Registry
         }
 
         private static void UpdateFormationSlotsForLeader(
-            DynamicBuffer<FormationSlot> slots,
+            DynamicBuffer<PDFormationSlot> slots,
             Entity leaderEntity,
-            NativeMultiHashMap<Entity, (FormationAssignment Assignment, Entity VesselEntity)> assignmentMap,
+            NativeParallelMultiHashMap<Entity, AssignmentMapEntry> assignmentMap,
             bool hasAssignments,
             ref SystemState state)
         {
@@ -267,7 +277,7 @@ namespace Space4X.Registry
                     }
 
                     FormationSlotRole role = MapFormationRole(entry.Assignment.SlotIndex);
-                    slots.Add(new FormationSlot
+                    slots.Add(new PDFormationSlot
                     {
                         SlotIndex = slotIndex,
                         LocalOffset = entry.Assignment.CurrentOffset,
@@ -291,7 +301,7 @@ namespace Space4X.Registry
         }
 
         private static void UpdateFormationSlotsFromDefinitions(
-            DynamicBuffer<FormationSlot> slots,
+            DynamicBuffer<PDFormationSlot> slots,
             DynamicBuffer<FormationSlotDefinition> slotDefinitions,
             Entity entity,
             ref SystemState state)
@@ -310,7 +320,7 @@ namespace Space4X.Registry
             {
                 var slotDef = slotDefinitions[i];
                 FormationSlotRole role = MapFormationRole(slotDef.Slot.SlotIndex);
-                slots.Add(new FormationSlot
+                slots.Add(new PDFormationSlot
                 {
                     SlotIndex = (byte)i,
                     LocalOffset = slotDef.Slot.Offset,

@@ -1,6 +1,6 @@
 using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Physics;
-using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Systems.Physics;
 using Space4X.Runtime.Interaction;
 using Unity.Burst;

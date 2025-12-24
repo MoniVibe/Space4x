@@ -1,4 +1,6 @@
 using UnityEngine;
+using UCamera = UnityEngine.Camera;
+using UObject = UnityEngine.Object;
 
 namespace Space4X.Camera
 {
@@ -8,20 +10,20 @@ namespace Space4X.Camera
     /// </summary>
     public static class main
     {
-        public static UnityEngine.Camera EnsureMainCamera()
+        public static UCamera EnsureMainCamera()
         {
 #if UNITY_EDITOR
-            var cam = UnityEngine.Camera.main;
+            var cam = UCamera.main;
 
             if (cam == null)
             {
-                cam = Object.FindAnyObjectByType<UnityEngine.Camera>();
+                cam = UObject.FindAnyObjectByType<UCamera>();
             }
 
             if (cam == null)
             {
                 var go = new GameObject("Main Camera");
-                cam = go.AddComponent<UnityEngine.Camera>();
+                cam = go.AddComponent<UCamera>();
             }
 
             if (cam != null && cam.tag != "MainCamera")
@@ -31,7 +33,7 @@ namespace Space4X.Camera
 
             return cam;
 #else
-            return UnityEngine.Camera.main;
+            return UCamera.main;
 #endif
         }
     }

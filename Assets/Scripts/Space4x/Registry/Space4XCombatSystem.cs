@@ -9,6 +9,9 @@ using Unity.Transforms;
 namespace Space4X.Registry
 {
     using Debug = UnityEngine.Debug;
+    using PDCarrierModuleSlot = PureDOTS.Runtime.Ships.CarrierModuleSlot;
+    using PDShipModule = PureDOTS.Runtime.Ships.ShipModule;
+    using PDModuleHealth = PureDOTS.Runtime.Ships.ModuleHealth;
 
     
     /// <summary>
@@ -114,9 +117,10 @@ namespace Space4X.Registry
 
                     // Apply effectiveness to cooldown (damaged weapons fire slower)
                     int adjustedCooldown = (int)(mount.Weapon.CooldownTicks / math.max(0.1f, effectivenessMultiplier));
+                    adjustedCooldown = math.clamp(adjustedCooldown, 0, ushort.MaxValue);
 
                     // Fire weapon
-                    mount.Weapon.CurrentCooldown = adjustedCooldown;
+                    mount.Weapon.CurrentCooldown = (ushort)adjustedCooldown;
                     mount.CurrentTarget = target;
                     weaponBuffer[i] = mount;
 
@@ -504,10 +508,10 @@ namespace Space4X.Registry
         private ComponentLookup<FormationCombatConfig> _formationConfigLookup;
         private ComponentLookup<FormationAssignment> _formationAssignmentLookup;
         private EntityStorageInfoLookup _entityLookup;
-        private BufferLookup<CarrierModuleSlot> _slotLookup;
-        private ComponentLookup<ShipModule> _moduleLookup;
+        private BufferLookup<PDCarrierModuleSlot> _slotLookup;
+        private ComponentLookup<PDShipModule> _moduleLookup;
         private ComponentLookup<ModuleTargetPriority> _priorityLookup;
-        private ComponentLookup<ModuleHealth> _healthLookup;
+        private ComponentLookup<PDModuleHealth> _healthLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -520,10 +524,10 @@ namespace Space4X.Registry
             _formationConfigLookup = state.GetComponentLookup<FormationCombatConfig>(true);
             _formationAssignmentLookup = state.GetComponentLookup<FormationAssignment>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
-            _slotLookup = state.GetBufferLookup<CarrierModuleSlot>(true);
-            _moduleLookup = state.GetComponentLookup<ShipModule>(true);
+            _slotLookup = state.GetBufferLookup<PDCarrierModuleSlot>(true);
+            _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
             _priorityLookup = state.GetComponentLookup<ModuleTargetPriority>(true);
-            _healthLookup = state.GetComponentLookup<ModuleHealth>(true);
+            _healthLookup = state.GetComponentLookup<PDModuleHealth>(true);
         }
 
         [BurstCompile]

@@ -67,8 +67,8 @@ namespace Space4X.Systems
                     // If intent is invalid and AI state is idle, clear intent
                     if (intent.ValueRO.IsValid == 0)
                     {
-                        var aiState = _aiStateLookup[entity];
-                        if (aiState.CurrentGoal == VesselAIState.Goal.None && aiState.CurrentState == VesselAIState.State.Idle)
+                        var existingAiState = _aiStateLookup[entity];
+                        if (existingAiState.CurrentGoal == VesselAIState.Goal.None && existingAiState.CurrentState == VesselAIState.State.Idle)
                         {
                             IntentService.ClearIntent(ref intent.ValueRW);
                         }

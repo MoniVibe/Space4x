@@ -5,7 +5,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using UCamera = UnityEngine.Camera;
 using UObject = UnityEngine.Object;
-using Debug = UnityEngine.Debug;
+using UDebug = UnityEngine.Debug;
+using UTime = UnityEngine.Time;
 using PureDOTS.Input;
 using RmbContext = PureDOTS.Input.RmbContext;
 using CameraRigState = PureDOTS.Runtime.Camera.CameraRigState;
@@ -152,7 +153,7 @@ namespace Space4X.Camera
             EnsureCameraReference();
             EnsureInputRouter();
 
-            float dt = Time.deltaTime;
+            float dt = UTime.deltaTime;
             var moveInput = ReadMoveInput();
             float verticalInput = ReadVerticalInput();
             Vector2 orbitDelta = ReadOrbitDelta();
@@ -437,14 +438,14 @@ namespace Space4X.Camera
             var asset = inputProfile.InputActions;
             if (asset == null)
             {
-                Debug.LogWarning("[Space4XCameraRigController] HandCameraInputProfile assigned but InputActionAsset is missing.", this);
+                UDebug.LogWarning("[Space4XCameraRigController] HandCameraInputProfile assigned but InputActionAsset is missing.", this);
                 return;
             }
 
             var map = asset.FindActionMap(inputProfile.ActionMapName, throwIfNotFound: false);
             if (map == null)
             {
-                Debug.LogWarning($"[Space4XCameraRigController] Action map '{inputProfile.ActionMapName}' not found in HandCameraInputProfile.", this);
+                UDebug.LogWarning($"[Space4XCameraRigController] Action map '{inputProfile.ActionMapName}' not found in HandCameraInputProfile.", this);
                 return;
             }
 
@@ -468,11 +469,11 @@ namespace Space4X.Camera
             {
                 if (!string.IsNullOrEmpty(defaultBinding))
                 {
-                    Debug.LogWarning($"[Space4XCameraRigController] Action '{actionName}' for {label} missing from HandCameraInputProfile. Expected binding like '{defaultBinding}'.", this);
+                    UDebug.LogWarning($"[Space4XCameraRigController] Action '{actionName}' for {label} missing from HandCameraInputProfile. Expected binding like '{defaultBinding}'.", this);
                 }
                 else
                 {
-                    Debug.LogWarning($"[Space4XCameraRigController] Action '{actionName}' for {label} missing from HandCameraInputProfile.", this);
+                    UDebug.LogWarning($"[Space4XCameraRigController] Action '{actionName}' for {label} missing from HandCameraInputProfile.", this);
                 }
             }
 
@@ -586,7 +587,7 @@ namespace Space4X.Camera
             {
                 if (!_loggedMissingCamera)
                 {
-                    Debug.LogWarning("[Space4XCameraRigController] No Unity Camera found; controller will run headless until one is available.", this);
+                    UDebug.LogWarning("[Space4XCameraRigController] No Unity Camera found; controller will run headless until one is available.", this);
                     _loggedMissingCamera = true;
                 }
                 return;

@@ -2,6 +2,8 @@ using PureDOTS.Runtime.Camera;
 using PureDOTS.Runtime.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UCamera = UnityEngine.Camera;
+using UTime = UnityEngine.Time;
 
 namespace Space4X.Camera
 {
@@ -31,7 +33,7 @@ namespace Space4X.Camera
         [SerializeField] private float defaultYaw = 315f;
         [SerializeField] private float defaultPitch = 35f;
 
-        private UnityEngine.Camera _camera;
+        private UCamera _camera;
         private Vector3 _focus;
         private float _distance;
         private float _yaw;
@@ -46,10 +48,10 @@ namespace Space4X.Camera
                 return;
             }
 
-            _camera = UnityEngine.Camera.main ?? GetComponent<UnityEngine.Camera>();
+            _camera = UCamera.main ?? GetComponent<UCamera>();
             if (_camera == null)
             {
-                _camera = gameObject.AddComponent<UnityEngine.Camera>();
+                _camera = gameObject.AddComponent<UCamera>();
             }
             if (GetComponent<AudioListener>() == null)
             {
@@ -79,7 +81,7 @@ namespace Space4X.Camera
                 return;
             }
 
-            float dt = UnityEngine.Time.unscaledDeltaTime;
+            float dt = UTime.unscaledDeltaTime;
             var keyboard = Keyboard.current;
             var mouse = Mouse.current;
 
