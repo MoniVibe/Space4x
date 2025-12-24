@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using UCamera = UnityEngine.Camera;
 using UObject = UnityEngine.Object;
+using Debug = UnityEngine.Debug;
 using PureDOTS.Input;
 using RmbContext = PureDOTS.Input.RmbContext;
 using CameraRigState = PureDOTS.Runtime.Camera.CameraRigState;
