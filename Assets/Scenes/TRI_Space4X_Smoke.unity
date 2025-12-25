@@ -246,34 +246,6 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
---- !u!114 &108029207
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
-  m_Name: Camera/Zoom
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
-  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  m_ActionId: 4afda3dc-a195-4a25-9912-d380c6f1f6ee
---- !u!114 &351424027
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
-  m_Name: Camera/Rotate
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
-  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  m_ActionId: f1827c41-d7cb-429f-b450-e1123dff4b81
 --- !u!1 &805860693
 GameObject:
   m_ObjectHideFlags: 0
@@ -330,6 +302,7 @@ GameObject:
   - component: {fileID: 865863177}
   - component: {fileID: 865863176}
   - component: {fileID: 865863175}
+  - component: {fileID: 865863178}
   m_Layer: 0
   m_Name: Space4XCameraRig
   m_TagString: Untagged
@@ -366,14 +339,14 @@ MonoBehaviour:
   defaultFocusDistance: 60
   resetToDefaultOnStart: 1
   yAxisLocked: 1
-  moveAction: {fileID: 0}
-  verticalAction: {fileID: 0}
-  yAxisLockToggleAction: {fileID: 0}
-  orbitAction: {fileID: 351424027}
-  panAction: {fileID: 1874550487}
-  zoomAction: {fileID: 108029207}
+  moveAction: {fileID: -3749827072784733169, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  verticalAction: {fileID: -7579120919099447826, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  yAxisLockToggleAction: {fileID: 6577646431762107526, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  orbitAction: {fileID: -2336466260908654706, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  panAction: {fileID: 6276339513826019528, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  zoomAction: {fileID: 5602161819311252491, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
   inputProfile: {fileID: 0}
-  inputRouter: {fileID: 0}
+  inputRouter: {fileID: 865863178}
   playerId: 0
 --- !u!114 &865863176
 MonoBehaviour:
@@ -404,6 +377,41 @@ Transform:
   - {fileID: 1896478329}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &865863178
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 865863174}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 435e30ccd32b1e14bbb4ed81f7ee0af0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PureDOTS.Input::PureDOTS.Input.HandCameraInputRouter
+  profile: {fileID: 0}
+  inputActions: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  actionMapName: Camera
+  raycastCamera: {fileID: 0}
+  interactionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  storehouseMask:
+    serializedVersion: 2
+    m_Bits: 0
+  pileMask:
+    serializedVersion: 2
+    m_Bits: 0
+  draggableMask:
+    serializedVersion: 2
+    m_Bits: 0
+  maxRayDistance: 800
+  handlerCooldownSeconds: 0.1
+  hysteresisFrames: 2
+  logTransitions: 0
 --- !u!1 &1661089259
 GameObject:
   m_ObjectHideFlags: 0
@@ -449,20 +457,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogAuthoring
   CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
---- !u!114 &1874550487
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
-  m_Name: Camera/Pan
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
-  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  m_ActionId: 7c8ab94b-6914-46b0-9723-ae83a785c9cf
 --- !u!1 &1896478326
 GameObject:
   m_ObjectHideFlags: 0

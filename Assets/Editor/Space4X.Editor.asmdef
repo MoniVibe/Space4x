@@ -27,7 +27,8 @@
         "Unity.Burst",
         "Unity.Burst.Editor",
         "Unity.Physics",
-        "Unity.Physics.Hybrid"
+        "Unity.Physics.Hybrid",
+        "PureDOTS.Input"
     ],
     "includePlatforms": [
         "Editor"
