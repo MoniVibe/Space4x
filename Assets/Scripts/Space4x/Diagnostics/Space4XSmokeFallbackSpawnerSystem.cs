@@ -20,7 +20,6 @@ namespace Space4X.Diagnostics
     /// Logs errors instead of spawning fallback entities (per "no illusions" rule: presentation must reflect headless progress only).
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
-    [UpdateAfter(typeof(Space4XSmokeWorldCountsSystem))]
     public partial struct Space4XSmokeFallbackSpawnerSystem : ISystem
     {
         private bool _spawned;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using PureDOTS.Runtime.Components;
@@ -43,7 +44,14 @@ namespace Space4x.Scenario
                 return;
             }
 
-            var scenarioPath = FindScenarioPath(scenarioInfo.ScenarioId.ToString());
+            var scenarioIdString = scenarioInfo.ScenarioId.ToString();
+            if (!scenarioIdString.Contains("refit", StringComparison.OrdinalIgnoreCase))
+            {
+                Enabled = false;
+                return;
+            }
+
+            var scenarioPath = FindScenarioPath(scenarioIdString);
             if (string.IsNullOrEmpty(scenarioPath) || !File.Exists(scenarioPath))
             {
                 Debug.LogWarning($"[Space4XRefitScenario] Scenario file not found: {scenarioPath}");
@@ -323,7 +331,7 @@ namespace Space4x.Scenario
                     FloatValue = action.to,
                     Mode = new FixedString64Bytes(action.mode ?? string.Empty),
                     SlotIndex = action.swap != null ? action.swap.slotIndex : -1,
-                    NewModuleId = new FixedString64Bytes(action.swap != null ? action.swap.newModuleId : string.Empty)
+                    NewModuleId = new FixedString64Bytes(action.swap != null ? (action.swap.newModuleId ?? string.Empty) : string.Empty)
                 });
             }
 

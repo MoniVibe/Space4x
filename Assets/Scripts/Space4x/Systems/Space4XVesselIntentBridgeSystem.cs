@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Intent;
 using PureDOTS.Runtime.Interrupts;
 using Space4X.Registry;
 using Space4X.Runtime;
+using System.Runtime.CompilerServices;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -121,7 +122,7 @@ namespace Space4X.Systems
                 }
 
                 // Check if intent should be cleared (goal completed or invalid)
-                if (ShouldClearIntent(intent.ValueRO, aiState, _entityStorageInfoLookup))
+                if (ShouldClearIntent(intent.ValueRO, aiState, ref _entityStorageInfoLookup))
                 {
                     IntentService.ClearIntent(ref intent.ValueRW);
                 }
@@ -185,7 +186,8 @@ namespace Space4X.Systems
         /// Determines if intent should be cleared (goal completed or invalid).
         /// </summary>
         [BurstCompile]
-        private static bool ShouldClearIntent(in EntityIntent intent, in VesselAIState aiState, EntityStorageInfoLookup entityStorageInfoLookup)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool ShouldClearIntent(in EntityIntent intent, in VesselAIState aiState, ref EntityStorageInfoLookup entityStorageInfoLookup)
         {
             // Clear if goal is None and state is Idle (goal completed)
             if (aiState.CurrentGoal == VesselAIState.Goal.None && aiState.CurrentState == VesselAIState.State.Idle)

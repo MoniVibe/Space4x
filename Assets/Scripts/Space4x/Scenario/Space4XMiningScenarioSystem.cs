@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using PureDOTS.Runtime.Components;
@@ -29,6 +30,7 @@ namespace Space4x.Scenario
     public partial class Space4XMiningScenarioSystem : SystemBase
     {
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string JsonExtension = ".json";
         private const float DefaultSpawnVerticalRange = 60f;
         private bool _hasLoaded;
         private MiningScenarioJson _scenarioData;
@@ -48,20 +50,27 @@ namespace Space4x.Scenario
             }
 
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            var hasScenarioInfo = false;
+            ScenarioInfo scenarioInfo = default;
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
-                if (!SystemAPI.TryGetSingleton<ScenarioInfo>(out var scenarioInfo))
+                if (!SystemAPI.TryGetSingleton<ScenarioInfo>(out var info))
                 {
-                    Enabled = false;
+                    // Wait for ScenarioInfo injection (smoke selector/bootstrap).
                     return;
                 }
 
-                scenarioPath = FindScenarioPath(scenarioInfo.ScenarioId.ToString());
+                hasScenarioInfo = true;
+                scenarioInfo = info;
+                scenarioPath = FindScenarioPath(info.ScenarioId.ToString());
             }
 
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
-                Enabled = false;
+                var scenarioIdForWarning = hasScenarioInfo
+                    ? scenarioInfo.ScenarioId.ToString()
+                    : "unknown";
+                Debug.LogWarning($"[Space4XMiningScenario] No scenario path resolved for ScenarioId='{scenarioIdForWarning}'.");
                 return;
             }
 
@@ -120,11 +129,29 @@ namespace Space4x.Scenario
 
         private string FindScenarioPath(string scenarioId)
         {
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                Debug.LogWarning("[Space4XMiningScenario] ScenarioId was empty; cannot resolve scenario file.");
+                return null;
+            }
+
+            var normalizedScenarioId = NormalizeScenarioId(scenarioId);
+            if (string.IsNullOrEmpty(normalizedScenarioId))
+            {
+                Debug.LogWarning("[Space4XMiningScenario] ScenarioId became empty after normalization.");
+                return null;
+            }
+
+            if (File.Exists(scenarioId))
+            {
+                return scenarioId;
+            }
+
             var possiblePaths = new[]
             {
-                Path.Combine(Application.dataPath, "Scenarios", $"{scenarioId}.json"),
-                Path.Combine(Application.dataPath, "..", "Assets", "Scenarios", $"{scenarioId}.json"),
-                Path.Combine(Application.streamingAssetsPath, "Scenarios", $"{scenarioId}.json")
+                Path.Combine(Application.dataPath, "Scenarios", $"{normalizedScenarioId}{JsonExtension}"),
+                Path.Combine(Application.dataPath, "..", "Assets", "Scenarios", $"{normalizedScenarioId}{JsonExtension}"),
+                Path.Combine(Application.streamingAssetsPath, "Scenarios", $"{normalizedScenarioId}{JsonExtension}")
             };
 
             foreach (var path in possiblePaths)
@@ -135,7 +162,24 @@ namespace Space4x.Scenario
                 }
             }
 
+            Debug.LogWarning($"[Space4XMiningScenario] Unable to locate scenario '{scenarioId}' (normalized '{normalizedScenarioId}'). Checked: {string.Join(", ", possiblePaths)}");
             return null;
+        }
+
+        private static string NormalizeScenarioId(string scenarioId)
+        {
+            var trimmedId = scenarioId?.Trim();
+            if (string.IsNullOrEmpty(trimmedId))
+            {
+                return null;
+            }
+
+            if (trimmedId.EndsWith(JsonExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmedId.Substring(0, trimmedId.Length - JsonExtension.Length);
+            }
+
+            return trimmedId;
         }
 
         private void SpawnEntities(uint currentTick, float fixedDt)

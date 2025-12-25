@@ -66,6 +66,7 @@ namespace Space4X.Camera
                 else
                 {
                     ConfigureCamera(cameraComponent.gameObject);
+                    UObject.DontDestroyOnLoad(cameraInstance);
                 }
                 return;
             }
@@ -77,6 +78,7 @@ namespace Space4X.Camera
             cameraGo.tag = "MainCamera";
             cameraGo.AddComponent<UCamera>();
             ConfigureCamera(cameraGo);
+            UObject.DontDestroyOnLoad(cameraGo);
             UDebug.Log("[Space4X Camera] Created fallback camera setup");
         }
 
@@ -108,27 +110,21 @@ namespace Space4X.Camera
             }
 
             var rigController = cameraGameObject.GetComponent<Space4XCameraRigController>();
-            if (rigController != null)
+            if (rigController == null)
             {
-                if (rigController.TargetCamera == null)
-                {
-                    rigController.TargetCamera = unityCamera;
-                }
-
-                var placeholder = cameraGameObject.GetComponent<Space4XCameraPlaceholder>();
-                if (placeholder != null)
-                {
-                    Destroy(placeholder);
-                }
-
-                return;
+                rigController = cameraGameObject.AddComponent<Space4XCameraRigController>();
+                rigController.TargetCamera = unityCamera;
+                UDebug.Log("[Space4X Camera] Added Space4XCameraRigController fallback.");
+            }
+            else if (rigController.TargetCamera == null)
+            {
+                rigController.TargetCamera = unityCamera;
             }
 
-            // No authored rig? Add the fallback placeholder controller.
-            if (cameraGameObject.GetComponent<Space4XCameraPlaceholder>() == null)
+            var placeholder = cameraGameObject.GetComponent<Space4XCameraPlaceholder>();
+            if (placeholder != null)
             {
-                cameraGameObject.AddComponent<Space4XCameraPlaceholder>();
-                UDebug.Log("[Space4X Camera] Added Space4XCameraPlaceholder fallback.");
+                Destroy(placeholder);
             }
 
             if (cameraGameObject.transform.position == Vector3.zero)

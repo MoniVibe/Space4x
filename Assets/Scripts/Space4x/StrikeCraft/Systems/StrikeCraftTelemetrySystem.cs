@@ -43,6 +43,12 @@ namespace Space4X.StrikeCraft
 
         public void OnUpdate(ref SystemState state)
         {
+            if (!_missingTelemetryQuery.IsEmptyIgnoreFilter)
+            {
+                state.CompleteDependency();
+                state.EntityManager.AddComponent<StrikeCraftTelemetryState>(_missingTelemetryQuery);
+            }
+
             if (!TryGetTelemetryEventBuffer(ref state, out var eventBuffer))
             {
                 return;
@@ -58,12 +64,6 @@ namespace Space4X.StrikeCraft
             var wingMembers = 0;
             var wingDistanceSum = 0f;
             var wingCohesionSum = 0f;
-
-            if (!_missingTelemetryQuery.IsEmptyIgnoreFilter)
-            {
-                state.CompleteDependency();
-                state.EntityManager.AddComponent<StrikeCraftTelemetryState>(_missingTelemetryQuery);
-            }
 
             foreach (var (profile, config, telemetry, entity) in SystemAPI
                          .Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<StrikeCraftTelemetryState>>()

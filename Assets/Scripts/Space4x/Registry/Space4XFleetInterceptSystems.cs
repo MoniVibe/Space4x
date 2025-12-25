@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -263,18 +264,21 @@ namespace Space4X.Registry
                 return;
             }
 
-            var commandLog = state.EntityManager.GetBuffer<FleetInterceptCommandLogEntry>(queueEntity);
+            SortRequests(ref requests);
+            var requestArray = requests.ToNativeArray(Allocator.Temp);
+            requests.Clear();
+
+            var logEntries = new NativeList<FleetInterceptCommandLogEntry>(Allocator.Temp);
+            var courseEcb = new EntityCommandBuffer(state.WorldUpdateAllocator);
             var telemetry = state.EntityManager.GetComponentData<Space4XFleetInterceptTelemetry>(queueEntity);
 
             _capabilityLookup.Update(ref state);
             _broadcastLookup.Update(ref state);
             _transformLookup.Update(ref state);
 
-            SortRequests(ref requests);
-
-            for (var i = 0; i < requests.Length; i++)
+            for (var i = 0; i < requestArray.Length; i++)
             {
-                var request = requests[i];
+                var request = requestArray[i];
                 if (!_capabilityLookup.HasComponent(request.Requester) || !_transformLookup.HasComponent(request.Requester))
                 {
                     continue;
@@ -304,7 +308,22 @@ namespace Space4X.Registry
                     estimatedTick = time.Tick + offsetTicks;
                 }
 
-                ApplyCourse(ref state, request.Requester, request.Target, interceptPoint, estimatedTick, mode);
+                var course = new InterceptCourse
+                {
+                    TargetFleet = request.Target,
+                    InterceptPoint = interceptPoint,
+                    EstimatedInterceptTick = estimatedTick,
+                    UsesInterception = mode == InterceptMode.Intercept ? (byte)1 : (byte)0
+                };
+
+                if (state.EntityManager.HasComponent<InterceptCourse>(request.Requester))
+                {
+                    courseEcb.SetComponent(request.Requester, course);
+                }
+                else
+                {
+                    courseEcb.AddComponent(request.Requester, course);
+                }
 
                 telemetry.LastAttemptTick = time.Tick;
                 if (mode == InterceptMode.Intercept)
@@ -316,7 +335,7 @@ namespace Space4X.Registry
                     telemetry.RendezvousAttempts += 1;
                 }
 
-                commandLog.Add(new FleetInterceptCommandLogEntry
+                logEntries.Add(new FleetInterceptCommandLogEntry
                 {
                     Tick = time.Tick,
                     Requester = request.Requester,
@@ -327,7 +346,17 @@ namespace Space4X.Registry
                 });
             }
 
-            requests.Clear();
+            courseEcb.Playback(state.EntityManager);
+            courseEcb.Dispose();
+
+            var commandLog = state.EntityManager.GetBuffer<FleetInterceptCommandLogEntry>(queueEntity);
+            foreach (var entry in logEntries)
+            {
+                commandLog.Add(entry);
+            }
+
+            logEntries.Dispose();
+            requestArray.Dispose();
             state.EntityManager.SetComponentData(queueEntity, telemetry);
         }
 
@@ -425,25 +454,6 @@ namespace Space4X.Registry
             return true;
         }
 
-        private static void ApplyCourse(ref SystemState state, Entity requester, Entity target, in float3 interceptPoint, uint estimatedTick, InterceptMode mode)
-        {
-            var course = new InterceptCourse
-            {
-                TargetFleet = target,
-                InterceptPoint = interceptPoint,
-                EstimatedInterceptTick = estimatedTick,
-                UsesInterception = mode == InterceptMode.Intercept ? (byte)1 : (byte)0
-            };
-
-            if (state.EntityManager.HasComponent<InterceptCourse>(requester))
-            {
-                state.EntityManager.SetComponentData(requester, course);
-            }
-            else
-            {
-                state.EntityManager.AddComponentData(requester, course);
-            }
-        }
     }
 
     /// <summary>

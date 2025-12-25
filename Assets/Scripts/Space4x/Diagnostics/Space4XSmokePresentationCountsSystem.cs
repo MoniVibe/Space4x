@@ -22,7 +22,6 @@ namespace Space4X.Diagnostics
     /// Keeps running until MaterialMeshInfo appears or a timeout is hit.
     /// </summary>
     [UpdateInGroup(typeof(PresentationSystemGroup))]
-    [UpdateAfter(typeof(EntitiesGraphicsSystem))]
     public partial struct Space4XSmokePresentationCountsSystem : ISystem
     {
         private bool _loggedInitial;

@@ -119,6 +119,20 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!114 &12495425
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Camera/Move
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  m_ActionId: 7c8ab94b-6914-46b0-9723-ae83a785c9cf
 --- !u!1 &27765343
 GameObject:
   m_ObjectHideFlags: 0
@@ -246,7 +260,7 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
---- !u!114 &108029207
+--- !u!114 &335851172
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -260,7 +274,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
   m_ActionId: 4afda3dc-a195-4a25-9912-d380c6f1f6ee
---- !u!114 &351424027
+--- !u!114 &767848368
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -270,7 +284,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
-  m_Name: Camera/Rotate
+  m_Name: Camera/Orbit
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
   m_ActionId: f1827c41-d7cb-429f-b450-e1123dff4b81
@@ -319,91 +333,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogRuntimeBootstrap
   CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
---- !u!1 &865863174
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 865863177}
-  - component: {fileID: 865863176}
-  - component: {fileID: 865863175}
-  m_Layer: 0
-  m_Name: Space4XCameraRig
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &865863175
+--- !u!114 &1158814456
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 20f17508fa21bc349887aa2b97ee5ec5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Camera.Space4XCameraRigController
-  targetCamera: {fileID: 1896478328}
-  moveSpeed: 30
-  verticalSpeed: 20
-  panSpeedPerPixel: 0.1
-  rotationSpeed: 0.2
-  minPitch: 5
-  maxPitch: 85
-  zoomSpeed: 40
-  minZoomDistance: 5
-  maxZoomDistance: 300
-  scrollUnitsPerNotch: 120
-  defaultPosition: {x: 0, y: 0, z: 0}
-  defaultYawDegrees: 0
-  defaultPitchDegrees: 45
-  defaultFocusDistance: 60
-  resetToDefaultOnStart: 1
-  yAxisLocked: 1
-  moveAction: {fileID: 0}
-  verticalAction: {fileID: 0}
-  yAxisLockToggleAction: {fileID: 0}
-  orbitAction: {fileID: 351424027}
-  panAction: {fileID: 1874550487}
-  zoomAction: {fileID: 108029207}
-  inputProfile: {fileID: 0}
-  inputRouter: {fileID: 0}
-  playerId: 0
---- !u!114 &865863176
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 09acaa2abe39dcc41809a732395961f8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Camera.Space4XCameraBootstrap
-  cameraPrefab: {fileID: 0}
---- !u!4 &865863177
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1896478329}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Camera/YAxisLockToggle
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  m_ActionId: 7cc4cfe7-4845-40a3-8624-7b68e515abec
 --- !u!1 &1661089259
 GameObject:
   m_ObjectHideFlags: 0
@@ -449,7 +392,74 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogAuthoring
   CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
---- !u!114 &1874550487
+--- !u!1 &1711626732
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1711626733}
+  - component: {fileID: 1711626734}
+  m_Layer: 0
+  m_Name: InputRouter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1711626733
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1711626732}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1711626734
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1711626732}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 435e30ccd32b1e14bbb4ed81f7ee0af0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PureDOTS.Input::PureDOTS.Input.HandCameraInputRouter
+  profile: {fileID: 0}
+  inputActions: {fileID: 0}
+  actionMapName: HandCamera
+  raycastCamera: {fileID: 0}
+  interactionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  storehouseMask:
+    serializedVersion: 2
+    m_Bits: 0
+  pileMask:
+    serializedVersion: 2
+    m_Bits: 0
+  draggableMask:
+    serializedVersion: 2
+    m_Bits: 0
+  maxRayDistance: 800
+  handlerCooldownSeconds: 0.1
+  hysteresisFrames: 2
+  logTransitions: 0
+--- !u!114 &1754497386
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -462,7 +472,7 @@ MonoBehaviour:
   m_Name: Camera/Pan
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  m_ActionId: 7c8ab94b-6914-46b0-9723-ae83a785c9cf
+  m_ActionId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 --- !u!1 &1896478326
 GameObject:
   m_ObjectHideFlags: 0
@@ -475,6 +485,7 @@ GameObject:
   - component: {fileID: 1896478328}
   - component: {fileID: 1896478327}
   - component: {fileID: 1896478330}
+  - component: {fileID: 1896478331}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -554,7 +565,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 865863177}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1896478330
 MonoBehaviour:
@@ -600,6 +611,103 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &1896478331
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1896478326}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f17508fa21bc349887aa2b97ee5ec5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Camera.Space4XCameraRigController
+  targetCamera: {fileID: 0}
+  moveSpeed: 30
+  verticalSpeed: 20
+  panSpeedPerPixel: 0.1
+  rotationSpeed: 0.2
+  minPitch: -80
+  maxPitch: 80
+  zoomSpeed: 40
+  minZoomDistance: 5
+  maxZoomDistance: 300
+  scrollUnitsPerNotch: 120
+  defaultPosition: {x: 0, y: 50, z: -50}
+  defaultYawDegrees: 0
+  defaultPitchDegrees: 45
+  defaultFocusDistance: 60
+  resetToDefaultOnStart: 1
+  yAxisLocked: 1
+  moveAction: {fileID: 12495425}
+  verticalAction: {fileID: 1951595888}
+  yAxisLockToggleAction: {fileID: 1158814456}
+  orbitAction: {fileID: 767848368}
+  panAction: {fileID: 1754497386}
+  zoomAction: {fileID: 335851172}
+  inputProfile: {fileID: 0}
+  inputRouter: {fileID: 0}
+  playerId: 0
+--- !u!114 &1951595888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Camera/Vertical
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  m_ActionId: a8b9c0d1-e2f3-4a5b-8c9d-0e1f2a3b4c5d
+--- !u!1 &1985248140
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1985248142}
+  - component: {fileID: 1985248141}
+  m_Layer: 0
+  m_Name: Space4XCameraBootstrap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1985248141
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985248140}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09acaa2abe39dcc41809a732395961f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Camera.Space4XCameraBootstrap
+  cameraPrefab: {fileID: 0}
+--- !u!4 &1985248142
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985248140}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2100000003
 GameObject:
   m_ObjectHideFlags: 0
@@ -659,6 +767,8 @@ SceneRoots:
   m_Roots:
   - {fileID: 27765345}
   - {fileID: 1661089260}
-  - {fileID: 865863177}
   - {fileID: 805860694}
   - {fileID: 2100000004}
+  - {fileID: 1896478329}
+  - {fileID: 1985248142}
+  - {fileID: 1711626733}

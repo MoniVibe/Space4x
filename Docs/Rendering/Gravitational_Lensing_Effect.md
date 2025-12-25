@@ -356,3 +356,4 @@ public partial struct GravitationalLensingUpdateSystem : ISystem
 **For Technical Artists:** Tune distortion strength, radius, and mask falloff to match desired visual style  
 **For Designers:** Use lensing as visual cue for black hole proximity and gravitational influence
 
+

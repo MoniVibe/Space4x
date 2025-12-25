@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using PureDOTS.Rendering;
 using System.Collections.Generic;
+using Space4X.Presentation;
 
 public class CreateRenderCatalogAsset
 {
@@ -97,6 +98,58 @@ public class CreateRenderCatalogAsset
             RenderLayer = 0
         });
 
+        // 5: Individual
+        variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
+        {
+            Name = "Individual",
+            Mesh = cube,
+            Material = mat1,
+            SubMesh = 0,
+            BoundsCenter = Vector3.zero,
+            BoundsExtents = new Vector3(0.25f, 0.5f, 0.25f),
+            PresenterMask = RenderPresenterMask.Mesh,
+            RenderLayer = 0
+        });
+
+        // 6: StrikeCraft
+        variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
+        {
+            Name = "StrikeCraft",
+            Mesh = capsule,
+            Material = mat1,
+            SubMesh = 0,
+            BoundsCenter = Vector3.zero,
+            BoundsExtents = new Vector3(0.35f, 0.2f, 0.6f),
+            PresenterMask = RenderPresenterMask.Mesh,
+            RenderLayer = 0
+        });
+
+        // 7: ResourcePickup
+        variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
+        {
+            Name = "ResourcePickup",
+            Mesh = sphere,
+            Material = mat1,
+            SubMesh = 0,
+            BoundsCenter = Vector3.zero,
+            BoundsExtents = new Vector3(0.25f, 0.25f, 0.25f),
+            PresenterMask = RenderPresenterMask.Mesh,
+            RenderLayer = 0
+        });
+
+        // 8: GhostTether
+        variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
+        {
+            Name = "GhostTether",
+            Mesh = cube,
+            Material = mat1,
+            SubMesh = 0,
+            BoundsCenter = Vector3.zero,
+            BoundsExtents = new Vector3(0.5f, 0.5f, 0.5f),
+            PresenterMask = RenderPresenterMask.Mesh,
+            RenderLayer = 0
+        });
+
         catalog.Variants = variants.ToArray();
 
         var themes = new List<RenderPresentationCatalogDefinition.ThemeDefinition>();
@@ -106,11 +159,69 @@ public class CreateRenderCatalogAsset
             ThemeId = 0,
             SemanticVariants = new RenderPresentationCatalogDefinition.SemanticVariant[]
             {
-                new RenderPresentationCatalogDefinition.SemanticVariant { SemanticKey = 200, Lod0Variant = 0, Lod1Variant = 0, Lod2Variant = 0 },
-                new RenderPresentationCatalogDefinition.SemanticVariant { SemanticKey = 210, Lod0Variant = 1, Lod1Variant = 1, Lod2Variant = 1 },
-                new RenderPresentationCatalogDefinition.SemanticVariant { SemanticKey = 220, Lod0Variant = 2, Lod1Variant = 2, Lod2Variant = 2 },
-                new RenderPresentationCatalogDefinition.SemanticVariant { SemanticKey = 230, Lod0Variant = 3, Lod1Variant = 3, Lod2Variant = 3 },
-                new RenderPresentationCatalogDefinition.SemanticVariant { SemanticKey = 240, Lod0Variant = 4, Lod1Variant = 4, Lod2Variant = 4 }
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.Carrier,
+                    Lod0Variant = 0,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.Miner,
+                    Lod0Variant = 1,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.Asteroid,
+                    Lod0Variant = 2,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.Projectile,
+                    Lod0Variant = 3,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.FleetImpostor,
+                    Lod0Variant = 4,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.Individual,
+                    Lod0Variant = 5,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.StrikeCraft,
+                    Lod0Variant = 6,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.ResourcePickup,
+                    Lod0Variant = 7,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                },
+                new RenderPresentationCatalogDefinition.SemanticVariant
+                {
+                    SemanticKey = Space4XRenderKeys.GhostTether,
+                    Lod0Variant = 8,
+                    Lod1Variant = -1,
+                    Lod2Variant = -1
+                }
             }
         };
         themes.Add(defaultTheme);

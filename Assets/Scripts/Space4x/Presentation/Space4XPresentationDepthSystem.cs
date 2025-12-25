@@ -133,6 +133,7 @@ namespace Space4X.Presentation
             }
 
             ecb.Playback(state.EntityManager);
+            _scaleMultiplierLookup.Update(ref state);
             ecb.Dispose();
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
