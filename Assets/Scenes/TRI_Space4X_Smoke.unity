@@ -274,6 +274,48 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
   m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
   m_ActionId: f1827c41-d7cb-429f-b450-e1123dff4b81
+--- !u!114 &510000000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Camera/Move
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  m_ActionId: 7c8ab94b-6914-46b0-9723-ae83a785c9cf
+--- !u!114 &510000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Camera/Vertical
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  m_ActionId: a8b9c0d1-e2f3-4a5b-8c9d-0e1f2a3b4c5d
+--- !u!114 &510000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Camera/YAxisLockToggle
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
+  m_ActionId: 7cc4cfe7-4845-40a3-8624-7b68e515abec
 --- !u!1 &805860693
 GameObject:
   m_ObjectHideFlags: 0
@@ -366,9 +408,9 @@ MonoBehaviour:
   defaultFocusDistance: 60
   resetToDefaultOnStart: 1
   yAxisLocked: 1
-  moveAction: {fileID: 0}
-  verticalAction: {fileID: 0}
-  yAxisLockToggleAction: {fileID: 0}
+  moveAction: {fileID: 510000000}
+  verticalAction: {fileID: 510000001}
+  yAxisLockToggleAction: {fileID: 510000002}
   orbitAction: {fileID: 351424027}
   panAction: {fileID: 1874550487}
   zoomAction: {fileID: 108029207}
