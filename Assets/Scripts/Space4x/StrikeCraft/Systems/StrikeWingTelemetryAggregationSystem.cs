@@ -1,3 +1,5 @@
+using System;
+using SystemEnv = System.Environment;
 using Space4X.Registry;
 using Space4X.Telemetry;
 using PureDOTS.Runtime.Telemetry;
@@ -6,6 +8,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Space4X.StrikeCraft
 {
@@ -22,8 +25,28 @@ namespace Space4X.StrikeCraft
         private static readonly FixedString64Bytes EventFormation = new FixedString64Bytes("FormationCohesion");
         private static readonly FixedString64Bytes EventEscort = new FixedString64Bytes("EscortCoverage");
 
+        private static bool TelemetryEnabled()
+        {
+            if (Application.isBatchMode)
+                return true;
+
+            var v = SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_ENABLE");
+            if (string.IsNullOrWhiteSpace(v))
+                return false;
+
+            v = v.Trim();
+            return v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase)
+                           || v.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                           || v.Equals("on", StringComparison.OrdinalIgnoreCase);
+        }
+
         public void OnCreate(ref SystemState state)
         {
+            if (!TelemetryEnabled())
+            {
+                state.Enabled = false;
+                return;
+            }
             state.RequireForUpdate<StrikeCraftProfile>();
             state.RequireForUpdate<TelemetryStream>();
             state.RequireForUpdate<TelemetryStreamSingleton>();

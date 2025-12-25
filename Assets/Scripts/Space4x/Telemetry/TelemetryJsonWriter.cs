@@ -3,12 +3,16 @@ using System.Text;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
+using UDebug = UnityEngine.Debug;
 
 namespace Space4X.Telemetry
 {
     internal sealed class TelemetryJsonWriter
     {
         private static readonly CultureInfo Culture = CultureInfo.InvariantCulture;
+#if UNITY_EDITOR
+        private static bool s_warned;
+#endif
         private readonly StringBuilder _builder;
         private bool _needsComma;
 
@@ -82,7 +86,11 @@ namespace Space4X.Telemetry
                 var truncated = str.Substring(0, result.Capacity - 1);
                 result.Append(truncated);
 #if UNITY_EDITOR
-                UnityEngine.Debug.LogWarning($"[TelemetryJsonWriter] Payload truncated to {result.Capacity - 1} characters.");
+                if (!s_warned)
+                {
+                    s_warned = true;
+                    UDebug.LogWarning($"[TelemetryJsonWriter] Payload truncated to {result.Capacity - 1} characters.");
+                }
 #endif
             }
             else
