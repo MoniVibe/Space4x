@@ -1,5 +1,5 @@
 using System;
-using SystemEnv = System.Environment;
+using SystemEnv = global::System.Environment;
 using System.Text;
 using Space4X.Registry;
 using Space4X.Telemetry;

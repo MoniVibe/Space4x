@@ -37,7 +37,9 @@ namespace Space4X.Headless.Editor
         /// Creates a StandaloneLinux64 server build with bundled scenarios.
         /// Can be invoked via -executeMethod Space4X.Headless.Editor.Space4XHeadlessBuilder.BuildLinuxHeadless
         /// </summary>
-        public static void BuildLinuxHeadless(string outputDirectory = DefaultOutputFolder)
+        public static void BuildLinuxHeadless() => BuildLinuxHeadless(DefaultOutputFolder);
+
+        public static void BuildLinuxHeadless(string outputDirectory)
         {
             RunHeadlessPreflight();
             EnsureLinuxServerSupport();

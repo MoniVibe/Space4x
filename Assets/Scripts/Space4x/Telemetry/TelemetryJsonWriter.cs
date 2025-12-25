@@ -3,7 +3,7 @@ using System.Text;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
-using UDebug = UnityEngine.Debug;
+using UDebug = global::UnityEngine.Debug;
 
 namespace Space4X.Telemetry
 {
