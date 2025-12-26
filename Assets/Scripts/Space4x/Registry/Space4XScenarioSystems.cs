@@ -3,6 +3,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Burst;
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Components;
@@ -30,6 +31,7 @@ namespace Space4X.Registry
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -47,6 +49,7 @@ namespace Space4X.Registry
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
             _roleShipmaster = new FixedString64Bytes("ship.shipmaster");
             _roleCaptain = new FixedString64Bytes("ship.captain");
@@ -69,6 +72,7 @@ namespace Space4X.Registry
             _seatRefLookup.Update(ref state);
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
             var deltaTime = SystemAPI.TryGetSingleton<TimeState>(out var timeState) 
@@ -333,6 +337,11 @@ namespace Space4X.Registry
 
         private Entity ResolveProfileEntity(Entity carrierEntity)
         {
+            if (TryResolveController(carrierEntity, AgencyDomain.Movement, out var controller))
+            {
+                return controller != Entity.Null ? controller : carrierEntity;
+            }
+
             if (_pilotLookup.HasComponent(carrierEntity))
             {
                 var pilot = _pilotLookup[carrierEntity].Pilot;
@@ -361,6 +370,27 @@ namespace Space4X.Registry
             }
 
             return carrierEntity;
+        }
+
+        private bool TryResolveController(Entity carrierEntity, AgencyDomain domain, out Entity controller)
+        {
+            controller = Entity.Null;
+            if (!_resolvedControlLookup.HasBuffer(carrierEntity))
+            {
+                return false;
+            }
+
+            var resolved = _resolvedControlLookup[carrierEntity];
+            for (int i = 0; i < resolved.Length; i++)
+            {
+                if (resolved[i].Domain == domain)
+                {
+                    controller = resolved[i].Controller;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private Entity ResolveSeatOccupant(Entity carrierEntity, FixedString64Bytes roleId)

@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Combat;
@@ -42,6 +43,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ModuleStatAggregate> _moduleAggregateLookup;
         private ComponentLookup<VesselQuality> _qualityLookup;
         private ComponentLookup<VesselMobilityProfile> _mobilityProfileLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -70,6 +72,7 @@ namespace Space4X.Systems.AI
             _moduleAggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
             _qualityLookup = state.GetComponentLookup<VesselQuality>(true);
             _mobilityProfileLookup = state.GetComponentLookup<VesselMobilityProfile>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
             _roleShipmaster = new FixedString64Bytes("ship.shipmaster");
             _roleCaptain = new FixedString64Bytes("ship.captain");
@@ -119,6 +122,7 @@ namespace Space4X.Systems.AI
             _moduleAggregateLookup.Update(ref state);
             _qualityLookup.Update(ref state);
             _mobilityProfileLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
 
             var motionConfig = VesselMotionProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
@@ -152,7 +156,8 @@ namespace Space4X.Systems.AI
                 MiningStateLookup = _miningStateLookup,
                 ModuleAggregateLookup = _moduleAggregateLookup,
                 QualityLookup = _qualityLookup,
-                MobilityProfileLookup = _mobilityProfileLookup
+                MobilityProfileLookup = _mobilityProfileLookup,
+                ResolvedControlLookup = _resolvedControlLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -186,6 +191,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<ModuleStatAggregate> ModuleAggregateLookup;
             [ReadOnly] public ComponentLookup<VesselQuality> QualityLookup;
             [ReadOnly] public ComponentLookup<VesselMobilityProfile> MobilityProfileLookup;
+            [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
@@ -431,6 +437,11 @@ namespace Space4X.Systems.AI
 
             private Entity ResolveProfileEntity(Entity vesselEntity)
             {
+                if (TryResolveController(vesselEntity, AgencyDomain.Movement, out var controller))
+                {
+                    return controller != Entity.Null ? controller : vesselEntity;
+                }
+
                 if (PilotLookup.HasComponent(vesselEntity))
                 {
                     var pilot = PilotLookup[vesselEntity].Pilot;
@@ -459,6 +470,27 @@ namespace Space4X.Systems.AI
                 }
 
                 return vesselEntity;
+            }
+
+            private bool TryResolveController(Entity vesselEntity, AgencyDomain domain, out Entity controller)
+            {
+                controller = Entity.Null;
+                if (!ResolvedControlLookup.HasBuffer(vesselEntity))
+                {
+                    return false;
+                }
+
+                var resolved = ResolvedControlLookup[vesselEntity];
+                for (int i = 0; i < resolved.Length; i++)
+                {
+                    if (resolved[i].Domain == domain)
+                    {
+                        controller = resolved[i].Controller;
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             private Entity ResolveSeatOccupant(Entity vesselEntity, FixedString64Bytes roleId)

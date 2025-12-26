@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Profile;
@@ -29,6 +30,7 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private ComponentLookup<EscortAssignment> _escortLookup;
         private BufferLookup<WeaponMount> _weaponLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -49,6 +51,7 @@ namespace Space4X.Registry
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _escortLookup = state.GetComponentLookup<EscortAssignment>(true);
             _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
 
         [BurstCompile]
@@ -84,6 +87,7 @@ namespace Space4X.Registry
             _engagementLookup.Update(ref state);
             _escortLookup.Update(ref state);
             _weaponLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
 
             var actionBuffer = SystemAPI.GetBuffer<ProfileActionEvent>(streamEntity);
             var actionStream = SystemAPI.GetComponentRW<ProfileActionEventStream>(streamEntity);
@@ -211,6 +215,11 @@ namespace Space4X.Registry
 
         private Entity ResolveProfileEntity(Entity source)
         {
+            if (TryResolveController(source, AgencyDomain.Combat, out var controller))
+            {
+                return controller != Entity.Null ? controller : source;
+            }
+
             if (_strikePilotLookup.HasComponent(source))
             {
                 var pilot = _strikePilotLookup[source].Pilot;
@@ -230,6 +239,27 @@ namespace Space4X.Registry
             }
 
             return source;
+        }
+
+        private bool TryResolveController(Entity source, AgencyDomain domain, out Entity controller)
+        {
+            controller = Entity.Null;
+            if (!_resolvedControlLookup.HasBuffer(source))
+            {
+                return false;
+            }
+
+            var resolved = _resolvedControlLookup[source];
+            for (int i = 0; i < resolved.Length; i++)
+            {
+                if (resolved[i].Domain == domain)
+                {
+                    controller = resolved[i].Controller;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private IssuedByAuthority ResolveIssuedBy(Entity source)

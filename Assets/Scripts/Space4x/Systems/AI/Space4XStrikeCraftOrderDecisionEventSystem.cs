@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Profile;
@@ -16,6 +17,7 @@ namespace Space4X.Systems.AI
     {
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
         private ComponentLookup<IssuedByAuthority> _issuedByLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
         public void OnCreate(ref SystemState state)
         {
@@ -27,6 +29,7 @@ namespace Space4X.Systems.AI
 
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
             _issuedByLookup = state.GetComponentLookup<IssuedByAuthority>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -50,6 +53,7 @@ namespace Space4X.Systems.AI
 
             _profileLookup.Update(ref state);
             _issuedByLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
 
             var streamConfig = SystemAPI.GetSingleton<ProfileActionEventStreamConfig>();
             var stream = SystemAPI.GetComponentRW<ProfileActionEventStream>(streamEntity);
@@ -70,7 +74,7 @@ namespace Space4X.Systems.AI
                     ? ProfileActionToken.ObeyOrder
                     : ProfileActionToken.DisobeyOrder;
 
-                var actor = pilotLink.ValueRO.Pilot != Entity.Null ? pilotLink.ValueRO.Pilot : entity;
+                var actor = ResolveActor(entity, pilotLink.ValueRO.Pilot);
                 var issuedBy = ResolveIssuedByAuthority(entity);
 
                 var actionEvent = new ProfileActionEvent
@@ -106,6 +110,37 @@ namespace Space4X.Systems.AI
             }
 
             return default;
+        }
+
+        private Entity ResolveActor(Entity craftEntity, Entity fallbackPilot)
+        {
+            if (TryResolveController(craftEntity, AgencyDomain.FlightOps, out var controller))
+            {
+                return controller != Entity.Null ? controller : craftEntity;
+            }
+
+            return fallbackPilot != Entity.Null ? fallbackPilot : craftEntity;
+        }
+
+        private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)
+        {
+            controller = Entity.Null;
+            if (!_resolvedControlLookup.HasBuffer(craftEntity))
+            {
+                return false;
+            }
+
+            var resolved = _resolvedControlLookup[craftEntity];
+            for (int i = 0; i < resolved.Length; i++)
+            {
+                if (resolved[i].Domain == domain)
+                {
+                    controller = resolved[i].Controller;
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

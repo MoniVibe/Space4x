@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Authority;
@@ -50,6 +51,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<DireTacticsPolicy> _direTacticsPolicyLookup;
         private ComponentLookup<CultureId> _cultureIdLookup;
         private BufferLookup<CultureDireTacticsPolicy> _culturePolicyLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
@@ -87,6 +89,7 @@ namespace Space4X.Systems.AI
             _direTacticsPolicyLookup = state.GetComponentLookup<DireTacticsPolicy>(true);
             _cultureIdLookup = state.GetComponentLookup<CultureId>(true);
             _culturePolicyLookup = state.GetBufferLookup<CultureDireTacticsPolicy>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
@@ -129,6 +132,7 @@ namespace Space4X.Systems.AI
             _direTacticsPolicyLookup.Update(ref state);
             _cultureIdLookup.Update(ref state);
             _culturePolicyLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
             _seatRefLookup.Update(ref state);
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
@@ -180,6 +184,7 @@ namespace Space4X.Systems.AI
                 DireTacticsPolicyLookup = _direTacticsPolicyLookup,
                 CultureIdLookup = _cultureIdLookup,
                 CulturePolicyLookup = _culturePolicyLookup,
+                ResolvedControlLookup = _resolvedControlLookup,
                 SeatRefLookup = _seatRefLookup,
                 SeatLookup = _seatLookup,
                 SeatOccupantLookup = _seatOccupantLookup,
@@ -225,6 +230,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<DireTacticsPolicy> DireTacticsPolicyLookup;
             [ReadOnly] public ComponentLookup<CultureId> CultureIdLookup;
             [ReadOnly] public BufferLookup<CultureDireTacticsPolicy> CulturePolicyLookup;
+            [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
             [ReadOnly] public BufferLookup<AuthoritySeatRef> SeatRefLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeat> SeatLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeatOccupant> SeatOccupantLookup;
@@ -1035,6 +1041,11 @@ namespace Space4X.Systems.AI
 
             private Entity ResolveProfileEntity(Entity craftEntity)
             {
+                if (TryResolveController(craftEntity, AgencyDomain.Combat, out var controller))
+                {
+                    return controller != Entity.Null ? controller : craftEntity;
+                }
+
                 if (PilotLinkLookup.HasComponent(craftEntity))
                 {
                     var link = PilotLinkLookup[craftEntity];
@@ -1045,6 +1056,27 @@ namespace Space4X.Systems.AI
                 }
 
                 return craftEntity;
+            }
+
+            private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)
+            {
+                controller = Entity.Null;
+                if (!ResolvedControlLookup.HasBuffer(craftEntity))
+                {
+                    return false;
+                }
+
+                var resolved = ResolvedControlLookup[craftEntity];
+                for (int i = 0; i < resolved.Length; i++)
+                {
+                    if (resolved[i].Domain == domain)
+                    {
+                        controller = resolved[i].Controller;
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             private void ReturnToCarrier(ref LocalTransform transform, Entity entity, ref StrikeCraftState state)

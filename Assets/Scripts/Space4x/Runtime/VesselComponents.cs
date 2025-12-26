@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -70,6 +71,27 @@ namespace Space4X.Runtime
     public struct VesselPilotLink : IComponentData
     {
         public Entity Pilot;
+    }
+
+    /// <summary>
+    /// Default control claim values for a pilot/operator controlling this craft.
+    /// </summary>
+    public struct PilotControlClaimConfig : IComponentData
+    {
+        public AgencyDomain Domains;
+        public float Pressure;
+        public float Legitimacy;
+        public float Hostility;
+        public float Consent;
+
+        public static PilotControlClaimConfig Default => new PilotControlClaimConfig
+        {
+            Domains = AgencyDomain.Movement | AgencyDomain.Combat | AgencyDomain.Sensors | AgencyDomain.Communications,
+            Pressure = 1.2f,
+            Legitimacy = 0.8f,
+            Hostility = 0.05f,
+            Consent = 0.6f
+        };
     }
 
     /// <summary>

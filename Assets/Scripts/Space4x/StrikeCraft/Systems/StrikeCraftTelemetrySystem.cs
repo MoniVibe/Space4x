@@ -1,10 +1,11 @@
 using System;
 using SystemEnv = global::System.Environment;
 using System.Text;
+using PureDOTS.Runtime.Agency;
+using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.Telemetry;
 using Space4X.Registry;
 using Space4X.Telemetry;
-using PureDOTS.Runtime.Telemetry;
-using PureDOTS.Runtime.Scenarios;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -25,6 +26,7 @@ namespace Space4X.StrikeCraft
         private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<StrikeCraftMaintenanceQuality> _maintenanceQualityLookup;
         private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private EntityQuery _missingTelemetryQuery;
 
         private static readonly FixedString64Bytes SourceId = new FixedString64Bytes("Space4X.StrikeCraft");
@@ -67,6 +69,7 @@ namespace Space4X.StrikeCraft
             _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _maintenanceQualityLookup = state.GetComponentLookup<StrikeCraftMaintenanceQuality>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _missingTelemetryQuery = SystemAPI.QueryBuilder()
                 .WithAll<StrikeCraftProfile>()
                 .WithNone<StrikeCraftTelemetryState>()
@@ -91,6 +94,7 @@ namespace Space4X.StrikeCraft
             _pilotLinkLookup.Update(ref state);
             _maintenanceQualityLookup.Update(ref state);
             _outlookLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
             var tick = SystemAPI.GetSingleton<ScenarioTick>().Value;
             var metricsReady = TryGetTelemetryMetricBuffer(ref state, out var metricBuffer);
             var capActive = 0;
@@ -372,6 +376,11 @@ namespace Space4X.StrikeCraft
 
         private Entity ResolveProfileEntity(Entity craftEntity)
         {
+            if (TryResolveController(craftEntity, AgencyDomain.FlightOps, out var controller))
+            {
+                return controller != Entity.Null ? controller : craftEntity;
+            }
+
             if (_pilotLinkLookup.HasComponent(craftEntity))
             {
                 var link = _pilotLinkLookup[craftEntity];
@@ -382,6 +391,27 @@ namespace Space4X.StrikeCraft
             }
 
             return craftEntity;
+        }
+
+        private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)
+        {
+            controller = Entity.Null;
+            if (!_resolvedControlLookup.HasBuffer(craftEntity))
+            {
+                return false;
+            }
+
+            var resolved = _resolvedControlLookup[craftEntity];
+            for (int i = 0; i < resolved.Length; i++)
+            {
+                if (resolved[i].Domain == domain)
+                {
+                    controller = resolved[i].Controller;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private float ComputeDiscipline(Entity entity)

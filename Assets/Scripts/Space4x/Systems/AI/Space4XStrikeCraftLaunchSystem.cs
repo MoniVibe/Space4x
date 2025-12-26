@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -24,6 +25,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<ScenarioSide> _sideLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -39,6 +41,7 @@ namespace Space4X.Systems.AI
             _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _sideLookup = state.GetComponentLookup<ScenarioSide>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
 
         [BurstCompile]
@@ -63,6 +66,7 @@ namespace Space4X.Systems.AI
             _pilotLinkLookup.Update(ref state);
             _sideLookup.Update(ref state);
             _transformLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
 
             var carriers = new NativeList<CarrierTarget>(Allocator.Temp);
             foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>()
@@ -213,6 +217,11 @@ namespace Space4X.Systems.AI
 
         private Entity ResolveProfileEntity(Entity craftEntity)
         {
+            if (TryResolveController(craftEntity, AgencyDomain.Combat, out var controller))
+            {
+                return controller != Entity.Null ? controller : craftEntity;
+            }
+
             if (_pilotLinkLookup.HasComponent(craftEntity))
             {
                 var link = _pilotLinkLookup[craftEntity];
@@ -223,6 +232,27 @@ namespace Space4X.Systems.AI
             }
 
             return craftEntity;
+        }
+
+        private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)
+        {
+            controller = Entity.Null;
+            if (!_resolvedControlLookup.HasBuffer(craftEntity))
+            {
+                return false;
+            }
+
+            var resolved = _resolvedControlLookup[craftEntity];
+            for (int i = 0; i < resolved.Length; i++)
+            {
+                if (resolved[i].Domain == domain)
+                {
+                    controller = resolved[i].Controller;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private struct CarrierTarget

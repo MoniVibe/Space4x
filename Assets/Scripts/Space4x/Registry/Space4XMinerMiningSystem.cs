@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
@@ -31,6 +32,7 @@ namespace Space4X.Registry
         private BufferLookup<PlayEffectRequest> _effectRequestLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLinkLookup;
+        private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private Entity _effectStreamEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
         private const float UndockDuration = 1.5f;
@@ -75,6 +77,7 @@ namespace Space4X.Registry
             _effectRequestLookup = state.GetBufferLookup<PlayEffectRequest>();
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _pilotLinkLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
 
             EnsureEffectStream(ref state);
         }
@@ -103,6 +106,7 @@ namespace Space4X.Registry
             _effectRequestLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
             _pilotLinkLookup.Update(ref state);
+            _resolvedControlLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
             var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
@@ -596,6 +600,11 @@ namespace Space4X.Registry
 
         private Entity ResolveProfileEntity(Entity miner)
         {
+            if (TryResolveController(miner, AgencyDomain.Work, out var controller))
+            {
+                return controller != Entity.Null ? controller : miner;
+            }
+
             if (_pilotLinkLookup.HasComponent(miner))
             {
                 var link = _pilotLinkLookup[miner];
@@ -606,6 +615,27 @@ namespace Space4X.Registry
             }
 
             return miner;
+        }
+
+        private bool TryResolveController(Entity miner, AgencyDomain domain, out Entity controller)
+        {
+            controller = Entity.Null;
+            if (!_resolvedControlLookup.HasBuffer(miner))
+            {
+                return false;
+            }
+
+            var resolved = _resolvedControlLookup[miner];
+            for (int i = 0; i < resolved.Length; i++)
+            {
+                if (resolved[i].Domain == domain)
+                {
+                    controller = resolved[i].Controller;
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
