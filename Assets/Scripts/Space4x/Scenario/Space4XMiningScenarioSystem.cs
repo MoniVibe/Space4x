@@ -553,6 +553,10 @@ namespace Space4x.Scenario
             });
             EntityManager.AddBuffer<ResourceHistorySample>(entity);
 
+            var volumeConfig = Space4XAsteroidVolumeConfig.Default;
+            volumeConfig.Radius = math.max(0.1f, volumeConfig.Radius);
+            EntityManager.AddComponentData(entity, volumeConfig);
+
             if (!string.IsNullOrEmpty(spawn.entityId))
             {
                 _spawnedEntities[spawn.entityId] = entity;

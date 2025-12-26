@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Formation;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -58,6 +59,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private BufferLookup<TopOutlook> _outlookLookup;
+        private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private FixedString64Bytes _roleCaptain;
 
         [BurstCompile]
@@ -97,6 +99,7 @@ namespace Space4X.Systems.AI
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _roleCaptain = new FixedString64Bytes("ship.captain");
         }
 
@@ -141,6 +144,7 @@ namespace Space4X.Systems.AI
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
             _outlookLookup.Update(ref state);
+            _behaviorDispositionLookup.Update(ref state);
 
             var behaviorConfig = StrikeCraftBehaviorProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<StrikeCraftBehaviorProfileConfig>(out var behaviorConfigSingleton))
@@ -194,6 +198,7 @@ namespace Space4X.Systems.AI
                 SeatLookup = _seatLookup,
                 SeatOccupantLookup = _seatOccupantLookup,
                 OutlookLookup = _outlookLookup,
+                BehaviorDispositionLookup = _behaviorDispositionLookup,
                 BehaviorConfig = behaviorConfig,
                 RewindEnabled = rewindEnabled,
                 CulturePolicyEntity = culturePolicyEntity,
@@ -241,6 +246,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<AuthoritySeat> SeatLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeatOccupant> SeatOccupantLookup;
             [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
+            [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             public StrikeCraftBehaviorProfileConfig BehaviorConfig;
             public bool RewindEnabled;
             public Entity CulturePolicyEntity;
@@ -402,6 +408,7 @@ namespace Space4X.Systems.AI
                 }
 
                 var profileEntity = ResolveProfileEntity(entity);
+                var disposition = ResolveBehaviorDisposition(profileEntity, entity);
                 var alignment = AlignmentLookup.HasComponent(profileEntity)
                     ? AlignmentLookup[profileEntity]
                     : default(AlignmentTriplet);
@@ -411,6 +418,8 @@ namespace Space4X.Systems.AI
                 var maintenanceQuality = GetMaintenanceQuality(entity);
 
                 var spacingScale = math.lerp(1.25f, 0.85f, discipline);
+                spacingScale *= math.lerp(1.35f, 0.85f, disposition.FormationAdherence);
+                spacingScale *= math.lerp(1.15f, 0.9f, disposition.Patience);
                 spacingScale *= math.lerp(1.15f, 0.85f, maintenanceQuality);
 
                 var wingOffset = ComputeWingOffset(entity, lawfulness, profileEntity);
@@ -429,6 +438,10 @@ namespace Space4X.Systems.AI
                 }
 
                 var shouldUseFormation = !hasDirective || (shouldObey && directiveMode == 0);
+                if (shouldUseFormation && disposition.FormationAdherence < 0.35f)
+                {
+                    shouldUseFormation = false;
+                }
                 if (shouldUseFormation && FormationMemberLookup.HasComponent(entity))
                 {
                     var member = FormationMemberLookup[entity];
@@ -460,6 +473,7 @@ namespace Space4X.Systems.AI
             {
                 // Get alignment for approach style
                 var profileEntity = ResolveProfileEntity(entity);
+                var disposition = ResolveBehaviorDisposition(profileEntity, entity);
                 var alignment = AlignmentLookup.HasComponent(profileEntity) 
                     ? AlignmentLookup[profileEntity] 
                     : default(AlignmentTriplet);
@@ -541,6 +555,8 @@ namespace Space4X.Systems.AI
                 var speed = baseSpeed * (1f + experience * 0.2f + physiqueBonus * 0.15f);
                 speed *= math.lerp(0.85f, 1.1f, maintenanceQuality);
                 speed *= math.lerp(0.85f, 1.2f, mobilityQuality);
+                speed *= math.lerp(0.92f, 1.12f, disposition.Aggression);
+                speed *= math.lerp(1.05f, 0.9f, disposition.Caution);
                 // Finesse affects maneuver precision (applied in direction calculation)
 
                 // Aggressive: direct route, Defensive: flanking approach
@@ -574,7 +590,7 @@ namespace Space4X.Systems.AI
 
                 if (state.KamikazeActive == 0)
                 {
-                    TryApplyKiting(entity, ref state, ref direction, ref speed, distance, experience, finesseBonus, mobilityQuality, mobilityProfile);
+                    TryApplyKiting(entity, ref state, ref direction, ref speed, distance, experience, finesseBonus, mobilityQuality, mobilityProfile, disposition);
                 }
 
                 // Move toward target
@@ -701,7 +717,8 @@ namespace Space4X.Systems.AI
                 float experience,
                 float finesseBonus,
                 float mobilityQuality,
-                VesselMobilityProfile mobilityProfile)
+                VesselMobilityProfile mobilityProfile,
+                in BehaviorDisposition disposition)
             {
                 if (state.CurrentState != StrikeCraftState.State.Engaging)
                 {
@@ -731,6 +748,9 @@ namespace Space4X.Systems.AI
                     chance *= math.lerp(0.85f, 1.1f, finesseBonus);
                 }
 
+                chance *= math.lerp(0.85f, 1.15f, disposition.Caution);
+                chance *= math.lerp(1.15f, 0.85f, disposition.Aggression);
+                chance *= math.lerp(1.1f, 0.85f, disposition.RiskTolerance);
                 chance = math.saturate(chance);
                 if (roll > chance)
                 {
@@ -917,11 +937,16 @@ namespace Space4X.Systems.AI
                 var obedienceScore = 0.5f;
                 obedienceScore += (lawfulness - 0.5f) * BehaviorConfig.LawfulnessWeight;
                 obedienceScore += (discipline - 0.5f) * BehaviorConfig.DisciplineWeight;
-                obedienceScore = math.saturate(obedienceScore);
+                var profileEntity = ResolveProfileEntity(craftEntity);
+                var disposition = ResolveBehaviorDisposition(profileEntity, craftEntity);
+                obedienceScore = math.saturate(math.lerp(obedienceScore, disposition.Compliance, 0.5f));
 
                 var disobeyChance = BehaviorConfig.BaseDisobeyChance;
                 disobeyChance += BehaviorConfig.ChaosDisobeyBonus * chaos;
                 disobeyChance += BehaviorConfig.MutinyDisobeyBonus * (1f - discipline);
+                disobeyChance += (1f - disposition.Compliance) * 0.2f;
+                disobeyChance += (1f - disposition.Patience) * 0.1f;
+                disobeyChance += disposition.RiskTolerance * 0.1f;
                 disobeyChance = math.saturate(disobeyChance);
 
                 var roll = DeterministicRoll(craftEntity, leader, directive.LastDecisionTick, directive.Mode);
@@ -1088,6 +1113,21 @@ namespace Space4X.Systems.AI
                 }
 
                 return craftEntity;
+            }
+
+            private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity craftEntity)
+            {
+                if (BehaviorDispositionLookup.HasComponent(profileEntity))
+                {
+                    return BehaviorDispositionLookup[profileEntity];
+                }
+
+                if (BehaviorDispositionLookup.HasComponent(craftEntity))
+                {
+                    return BehaviorDispositionLookup[craftEntity];
+                }
+
+                return BehaviorDisposition.Default;
             }
 
             private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)

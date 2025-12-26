@@ -52,6 +52,19 @@ namespace Space4X.Runtime
     }
 
     /// <summary>
+    /// Optional singleton toggle for enabling authority craft claims per scenario.
+    /// </summary>
+    public struct AuthorityCraftClaimToggle : IComponentData
+    {
+        public byte Enabled;
+
+        public static AuthorityCraftClaimToggle Default => new AuthorityCraftClaimToggle
+        {
+            Enabled = 1
+        };
+    }
+
+    /// <summary>
     /// Role-to-domain claim mapping for authority projections.
     /// </summary>
     [InternalBufferCapacity(4)]

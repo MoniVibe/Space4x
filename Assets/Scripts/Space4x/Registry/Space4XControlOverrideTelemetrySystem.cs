@@ -14,9 +14,9 @@ namespace Space4X.Registry
     [UpdateBefore(typeof(PureDOTS.Systems.Telemetry.TelemetryExportSystem))]
     public partial struct Space4XControlOverrideTelemetrySystem : ISystem
     {
-        private static readonly FixedString64Bytes SourceId = new FixedString64Bytes("Space4X.Agency");
-        private static readonly FixedString64Bytes EventOverrideStarted = new FixedString64Bytes("ControlOverrideStarted");
-        private static readonly FixedString64Bytes EventOverrideEnded = new FixedString64Bytes("ControlOverrideEnded");
+        private FixedString64Bytes _sourceId;
+        private FixedString64Bytes _eventOverrideStarted;
+        private FixedString64Bytes _eventOverrideEnded;
 
         public void OnCreate(ref SystemState state)
         {
@@ -24,6 +24,10 @@ namespace Space4X.Registry
             state.RequireForUpdate<TelemetryExportConfig>();
             state.RequireForUpdate<TelemetryStreamSingleton>();
             state.RequireForUpdate<TimeState>();
+
+            _sourceId = new FixedString64Bytes("Space4X.Agency");
+            _eventOverrideStarted = new FixedString64Bytes("ControlOverrideStarted");
+            _eventOverrideEnded = new FixedString64Bytes("ControlOverrideEnded");
         }
 
         public void OnUpdate(ref SystemState state)
@@ -48,12 +52,12 @@ namespace Space4X.Registry
 
                 if (active && !reported)
                 {
-                    eventBuffer.AddEvent(EventOverrideStarted, tick, SourceId, BuildPayload(entity, overrideRef.ValueRO));
+                    eventBuffer.AddEvent(_eventOverrideStarted, tick, _sourceId, BuildPayload(entity, overrideRef.ValueRO));
                     overrideRef.ValueRW.LastReportedActive = 1;
                 }
                 else if (!active && reported)
                 {
-                    eventBuffer.AddEvent(EventOverrideEnded, tick, SourceId, BuildPayload(entity, overrideRef.ValueRO));
+                    eventBuffer.AddEvent(_eventOverrideEnded, tick, _sourceId, BuildPayload(entity, overrideRef.ValueRO));
                     overrideRef.ValueRW.LastReportedActive = 0;
                 }
             }

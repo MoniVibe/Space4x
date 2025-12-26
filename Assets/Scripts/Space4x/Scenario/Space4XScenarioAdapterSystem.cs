@@ -318,6 +318,11 @@ namespace Space4X.Scenario
                     GatherRatePerWorker = 10f,
                     MaxSimultaneousWorkers = 4
                 });
+
+                var volumeConfig = Space4XAsteroidVolumeConfig.Default;
+                volumeConfig.Radius = math.max(0.1f, volumeConfig.Radius);
+                ecb.AddComponent(asteroid, volumeConfig);
+
             }
         }
 

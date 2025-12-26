@@ -56,6 +56,11 @@ namespace Space4X.Systems.AI
                 return;
             }
 
+            if (SystemAPI.TryGetSingleton<AuthorityCraftClaimToggle>(out var toggle) && toggle.Enabled == 0)
+            {
+                return;
+            }
+
             _claimLookup.Update(ref state);
             _seatRefLookup.Update(ref state);
             _seatClaimLookup.Update(ref state);

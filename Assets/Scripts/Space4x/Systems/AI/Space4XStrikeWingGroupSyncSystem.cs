@@ -11,8 +11,7 @@ using Unity.Transforms;
 namespace Space4X.Systems.AI
 {
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XStrikeCraftWingDecisionSystem))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.GroupDecisionSystemGroup), OrderFirst = true)]
     public partial struct Space4XStrikeWingGroupSyncSystem : ISystem
     {
         [BurstCompile]
@@ -82,23 +81,7 @@ namespace Space4X.Systems.AI
                 }
 
                 EnsureGroupScaffold(leader, wingDecisionConfig.MaxWingSize, defaults, ref state);
-                var membersBuffer = state.EntityManager.GetBuffer<GroupMember>(leader);
-                membersBuffer.Clear();
-
-                AddMember(ref state, membersBuffer, leader, leader, GroupRole.Leader, timeState.Tick);
-
-                if (leaderMembers.TryGetFirstValue(leader, out var member, out var iterator))
-                {
-                    do
-                    {
-                        if (member == leader)
-                        {
-                            continue;
-                        }
-
-                        AddMember(ref state, membersBuffer, leader, member, GroupRole.Member, timeState.Tick);
-                    } while (leaderMembers.TryGetNextValue(out member, ref iterator));
-                }
+                SyncGroupMembers(ref state, leader, leaderMembers, timeState.Tick);
             }
 
             CleanupOrphanedGroups(leaderSet, ref state);
@@ -160,7 +143,19 @@ namespace Space4X.Systems.AI
                     LastDecisionTick = 0,
                     LastTacticKind = 0,
                     SplitCount = 1,
-                    LastAckRatio = 0f
+                    LastAckRatio = 0f,
+                    LastMemberCount = 0,
+                    LastAcked = 0,
+                    LastMemberHash = 0u
+                });
+            }
+
+            if (!state.EntityManager.HasComponent<WingGroupSyncState>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new WingGroupSyncState
+                {
+                    LastMemberCount = 0,
+                    LastMemberHash = 0u
                 });
             }
 
@@ -218,6 +213,11 @@ namespace Space4X.Systems.AI
                     state.EntityManager.RemoveComponent<WingFormationState>(groupEntity);
                 }
 
+                if (state.EntityManager.HasComponent<WingGroupSyncState>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<WingGroupSyncState>(groupEntity);
+                }
+
                 if (state.EntityManager.HasComponent<GroupFormation>(groupEntity))
                 {
                     state.EntityManager.RemoveComponent<GroupFormation>(groupEntity);
@@ -255,6 +255,74 @@ namespace Space4X.Systems.AI
             }
 
             groups.Dispose();
+        }
+
+        private void SyncGroupMembers(
+            ref SystemState state,
+            Entity leader,
+            NativeParallelMultiHashMap<Entity, Entity> leaderMembers,
+            uint tick)
+        {
+            var syncState = state.EntityManager.GetComponentData<WingGroupSyncState>(leader);
+            var memberCount = 1;
+            var memberHash = HashEntity(leader);
+
+            if (leaderMembers.TryGetFirstValue(leader, out var member, out var iterator))
+            {
+                do
+                {
+                    if (member == leader)
+                    {
+                        continue;
+                    }
+
+                    if (!state.EntityManager.Exists(member))
+                    {
+                        continue;
+                    }
+
+                    memberCount++;
+                    memberHash ^= HashEntity(member);
+                } while (leaderMembers.TryGetNextValue(out member, ref iterator));
+            }
+
+            var clampedCount = (ushort)math.min(memberCount, ushort.MaxValue);
+            var needsRebuild = syncState.LastMemberCount != clampedCount || syncState.LastMemberHash != memberHash;
+            if (!needsRebuild)
+            {
+                return;
+            }
+
+            var membersBuffer = state.EntityManager.GetBuffer<GroupMember>(leader);
+            membersBuffer.Clear();
+            AddMember(ref state, membersBuffer, leader, leader, GroupRole.Leader, tick);
+
+            if (leaderMembers.TryGetFirstValue(leader, out member, out iterator))
+            {
+                do
+                {
+                    if (member == leader)
+                    {
+                        continue;
+                    }
+
+                    if (!state.EntityManager.Exists(member))
+                    {
+                        continue;
+                    }
+
+                    AddMember(ref state, membersBuffer, leader, member, GroupRole.Member, tick);
+                } while (leaderMembers.TryGetNextValue(out member, ref iterator));
+            }
+
+            syncState.LastMemberCount = clampedCount;
+            syncState.LastMemberHash = memberHash;
+            state.EntityManager.SetComponentData(leader, syncState);
+        }
+
+        private static uint HashEntity(Entity entity)
+        {
+            return math.hash(new int2(entity.Index, entity.Version));
         }
 
         private void AddMember(

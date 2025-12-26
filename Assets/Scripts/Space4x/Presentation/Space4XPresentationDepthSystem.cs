@@ -35,11 +35,6 @@ namespace Space4X.Presentation
         private const float DefaultAsteroidScale = 20f;
         private const float DefaultProjectileScale = 0.008f;
         private const float DefaultFleetImpostorScale = 0.4f;
-        private const float AsteroidMinScaleMultiplier = 0.6f;
-        private const float AsteroidMaxScaleMultiplier = 2.5f;
-        private const float AsteroidReferenceAmount = 500f;
-        private const float AsteroidResourceScaleMin = 0.25f;
-        private const float AsteroidResourceScaleMax = 6f;
         private const float AsteroidJitterMin = 0.85f;
         private const float AsteroidJitterMax = 1.15f;
         private const float CarrierBaseOffset = 5f;
@@ -212,32 +207,22 @@ namespace Space4X.Presentation
                 localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
             }
 
-            foreach (var (asteroid, transform, localToWorld, entity) in SystemAPI
-                         .Query<RefRO<Asteroid>, RefRO<LocalTransform>, RefRW<LocalToWorld>>()
-                         .WithAll<AsteroidPresentationTag>()
+            foreach (var (transform, localToWorld, entity) in SystemAPI
+                         .Query<RefRO<LocalTransform>, RefRW<LocalToWorld>>()
+                         .WithAll<AsteroidPresentationTag, Asteroid>()
                          .WithEntityAccess())
             {
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 79) * AsteroidBaseOffset;
                 float offset = baseOffset + math.sin(time * AsteroidFrequency + phase) * AsteroidAmplitude;
-                float ratio = asteroid.ValueRO.MaxResourceAmount > 0f
-                    ? asteroid.ValueRO.ResourceAmount / asteroid.ValueRO.MaxResourceAmount
-                    : 1f;
                 float baseScale = asteroidBaseScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
                     baseScale = math.max(0.1f, SystemAPI.GetComponentRO<PresentationScale>(entity).ValueRO.Value);
                 }
-                else
-                {
-                    baseScale = ResolveAsteroidResourceScale(baseScale, asteroid.ValueRO.MaxResourceAmount);
-                }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float minScale = baseScale * AsteroidMinScaleMultiplier;
-                float maxScale = baseScale * AsteroidMaxScaleMultiplier;
-                float scaleFromRatio = math.lerp(minScale, maxScale, math.saturate(ratio));
                 float jitter = math.lerp(AsteroidJitterMin, AsteroidJitterMax, HashToUnit(entity, 97));
-                float scale = transform.ValueRO.Scale * scaleFromRatio * jitter * scaleMultiplier;
+                float scale = transform.ValueRO.Scale * baseScale * jitter * scaleMultiplier;
                 float3 position = transform.ValueRO.Position + new float3(0f, offset, 0f);
                 localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
             }
@@ -310,14 +295,6 @@ namespace Space4X.Presentation
                 craftScale = math.max(0.005f, visualConfig.MiningVesselScale);
                 asteroidBaseScale = math.max(0.5f, visualConfig.AsteroidScale);
             }
-        }
-
-        private static float ResolveAsteroidResourceScale(float baseScale, float maxResourceAmount)
-        {
-            var normalized = math.max(0.01f, maxResourceAmount / AsteroidReferenceAmount);
-            var factor = math.sqrt(normalized);
-            factor = math.clamp(factor, AsteroidResourceScaleMin, AsteroidResourceScaleMax);
-            return baseScale * factor;
         }
 
         private static float PhaseFromEntity(Entity entity)

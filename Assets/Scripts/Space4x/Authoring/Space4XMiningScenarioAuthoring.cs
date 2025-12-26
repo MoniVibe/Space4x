@@ -113,6 +113,16 @@ namespace Space4X.Registry
                 ResourceAmount = 500f,
                 MaxResourceAmount = 500f,
                 MiningRate = 10f,
+                VolumeRadius = 20f,
+                CoreRadiusRatio = 0.3f,
+                MantleRadiusRatio = 0.7f,
+                CrustMaterialId = 1,
+                MantleMaterialId = 2,
+                CoreMaterialId = 3,
+                CoreDepositId = 1,
+                CoreOreGrade = 200,
+                OreGradeExponent = 2f,
+                VolumeSeed = 1,
                 Position = new float3(20f, 0f, 10f)
             },
             new AsteroidDefinition
@@ -122,6 +132,16 @@ namespace Space4X.Registry
                 ResourceAmount = 500f,
                 MaxResourceAmount = 500f,
                 MiningRate = 10f,
+                VolumeRadius = 20f,
+                CoreRadiusRatio = 0.3f,
+                MantleRadiusRatio = 0.7f,
+                CrustMaterialId = 1,
+                MantleMaterialId = 2,
+                CoreMaterialId = 3,
+                CoreDepositId = 1,
+                CoreOreGrade = 200,
+                OreGradeExponent = 2f,
+                VolumeSeed = 2,
                 Position = new float3(-20f, 0f, -20f)
             }
         };
@@ -261,6 +281,18 @@ namespace Space4X.Registry
             [Tooltip("Rate at which resources can be mined per second")]
             [Min(0.1f)]
             public float MiningRate;
+
+            [Header("Volume")]
+            [Min(0.1f)] public float VolumeRadius;
+            [Range(0f, 1f)] public float CoreRadiusRatio;
+            [Range(0f, 1f)] public float MantleRadiusRatio;
+            [Range(0, 255)] public int CrustMaterialId;
+            [Range(0, 255)] public int MantleMaterialId;
+            [Range(0, 255)] public int CoreMaterialId;
+            [Range(0, 255)] public int CoreDepositId;
+            [Range(0, 255)] public int CoreOreGrade;
+            [Min(0.1f)] public float OreGradeExponent;
+            [Min(0)] public int VolumeSeed;
             
             [Tooltip("Position of the asteroid")]
             public float3 Position;
@@ -803,6 +835,20 @@ namespace Space4X.Registry
                         OverrideStrideSeconds = 0f
                     });
                     AddBuffer<ResourceHistorySample>(entity);
+
+                    AddComponent(entity, new Space4XAsteroidVolumeConfig
+                    {
+                        Radius = math.max(0.1f, asteroid.VolumeRadius),
+                        CoreRadiusRatio = math.clamp(asteroid.CoreRadiusRatio, 0f, 1f),
+                        MantleRadiusRatio = math.clamp(asteroid.MantleRadiusRatio, 0f, 1f),
+                        CrustMaterialId = (byte)math.clamp(asteroid.CrustMaterialId, 0, 255),
+                        MantleMaterialId = (byte)math.clamp(asteroid.MantleMaterialId, 0, 255),
+                        CoreMaterialId = (byte)math.clamp(asteroid.CoreMaterialId, 0, 255),
+                        CoreDepositId = (byte)math.clamp(asteroid.CoreDepositId, 0, 255),
+                        CoreOreGrade = (byte)math.clamp(asteroid.CoreOreGrade, 0, 255),
+                        OreGradeExponent = math.max(0.1f, asteroid.OreGradeExponent),
+                        Seed = (uint)math.max(0, asteroid.VolumeSeed)
+                    });
 
                     AssignRenderPresentation(entity, RenderKeys.Asteroid, asteroidTint);
 #if UNITY_EDITOR

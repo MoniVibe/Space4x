@@ -79,6 +79,15 @@ namespace Space4X.Registry
         public byte LastTacticKind;
         public byte SplitCount;
         public float LastAckRatio;
+        public ushort LastMemberCount;
+        public byte LastAcked;
+        public uint LastMemberHash;
+    }
+
+    public struct WingGroupSyncState : IComponentData
+    {
+        public ushort LastMemberCount;
+        public uint LastMemberHash;
     }
 
     [InternalBufferCapacity(4)]

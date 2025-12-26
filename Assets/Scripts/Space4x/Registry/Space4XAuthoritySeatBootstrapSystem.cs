@@ -38,7 +38,11 @@ namespace Space4X.Registry
             in CaptainOrder order,
             ref EntityCommandBuffer ecb)
         {
-            EnsureAuthorityCraftClaims(entityManager, shipEntity, ref ecb);
+            if (entityManager.HasComponent<AuthorityCraftClaimConfig>(shipEntity) ||
+                entityManager.HasBuffer<AuthorityCraftSeatClaim>(shipEntity))
+            {
+                EnsureAuthorityCraftClaims(entityManager, shipEntity, ref ecb);
+            }
 
             var seatCount = 0;
             if (entityManager.HasBuffer<AuthoritySeatRef>(shipEntity))

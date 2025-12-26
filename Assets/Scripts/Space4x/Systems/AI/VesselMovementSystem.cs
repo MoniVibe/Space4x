@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
@@ -44,6 +45,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<VesselQuality> _qualityLookup;
         private ComponentLookup<VesselMobilityProfile> _mobilityProfileLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
+        private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -73,6 +75,7 @@ namespace Space4X.Systems.AI
             _qualityLookup = state.GetComponentLookup<VesselQuality>(true);
             _mobilityProfileLookup = state.GetComponentLookup<VesselMobilityProfile>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
+            _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
             _roleShipmaster = new FixedString64Bytes("ship.shipmaster");
             _roleCaptain = new FixedString64Bytes("ship.captain");
@@ -123,6 +126,7 @@ namespace Space4X.Systems.AI
             _qualityLookup.Update(ref state);
             _mobilityProfileLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
+            _behaviorDispositionLookup.Update(ref state);
 
             var motionConfig = VesselMotionProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
@@ -157,7 +161,8 @@ namespace Space4X.Systems.AI
                 ModuleAggregateLookup = _moduleAggregateLookup,
                 QualityLookup = _qualityLookup,
                 MobilityProfileLookup = _mobilityProfileLookup,
-                ResolvedControlLookup = _resolvedControlLookup
+                ResolvedControlLookup = _resolvedControlLookup,
+                BehaviorDispositionLookup = _behaviorDispositionLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -192,6 +197,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<VesselQuality> QualityLookup;
             [ReadOnly] public ComponentLookup<VesselMobilityProfile> MobilityProfileLookup;
             [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
+            [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
@@ -230,6 +236,16 @@ namespace Space4X.Systems.AI
 
                 var arrivalDistance = movement.ArrivalDistance > 0f ? movement.ArrivalDistance : ArrivalDistance;
                 var profileEntity = ResolveProfileEntity(entity);
+                var disposition = ResolveBehaviorDisposition(profileEntity, entity);
+                var compliance = disposition.Compliance;
+                var caution = disposition.Caution;
+                var riskTolerance = disposition.RiskTolerance;
+                var aggression = disposition.Aggression;
+                var patience = disposition.Patience;
+
+                arrivalDistance *= math.lerp(0.95f, 1.15f, caution);
+                arrivalDistance *= math.lerp(0.95f, 1.1f, patience);
+
                 var alignment = AlignmentLookup.HasComponent(profileEntity)
                     ? AlignmentLookup[profileEntity]
                     : default;
@@ -252,6 +268,11 @@ namespace Space4X.Systems.AI
                 var economic = math.saturate(integrity * (0.4f + lawfulness * 0.6f));
                 var chaotic = math.saturate(chaos * (1f - discipline * 0.35f));
                 var risk = math.saturate(chaos * 0.6f + (1f - lawfulness) * 0.2f + (1f - discipline) * 0.2f);
+
+                deliberate = math.saturate(math.lerp(deliberate, compliance, 0.4f));
+                chaotic = math.saturate(math.lerp(chaotic, 1f - compliance, 0.35f));
+                risk = math.saturate(math.lerp(risk, riskTolerance, 0.5f));
+
                 if (distance <= arrivalDistance)
                 {
                     movement.Velocity = float3.zero;
@@ -291,6 +312,14 @@ namespace Space4X.Systems.AI
                 var slowdownMultiplier = math.lerp(1f, MotionConfig.DeliberateSlowdownMultiplier, deliberate);
                 slowdownMultiplier *= math.lerp(1f, MotionConfig.ChaoticSlowdownMultiplier, chaotic);
                 slowdownMultiplier *= math.lerp(1f, MotionConfig.IntelligentSlowdownMultiplier, intelligence);
+
+                speedMultiplier *= math.lerp(0.95f, 1.1f, aggression);
+                rotationMultiplier *= math.lerp(0.9f, 1.1f, aggression);
+                speedMultiplier *= math.lerp(1.05f, 0.85f, caution);
+                slowdownMultiplier *= math.lerp(0.85f, 1.25f, caution);
+                slowdownMultiplier *= math.lerp(0.95f, 1.2f, patience);
+                accelerationMultiplier *= math.lerp(1.1f, 0.85f, patience);
+                decelerationMultiplier *= math.lerp(0.95f, 1.15f, patience);
 
                 if (CarrierLookup.HasComponent(entity))
                 {
@@ -393,6 +422,21 @@ namespace Space4X.Systems.AI
 
                 movement.IsMoving = 1;
                 movement.LastMoveTick = CurrentTick;
+            }
+
+            private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity vesselEntity)
+            {
+                if (BehaviorDispositionLookup.HasComponent(profileEntity))
+                {
+                    return BehaviorDispositionLookup[profileEntity];
+                }
+
+                if (BehaviorDispositionLookup.HasComponent(vesselEntity))
+                {
+                    return BehaviorDispositionLookup[vesselEntity];
+                }
+
+                return BehaviorDisposition.Default;
             }
 
             private float3 AvoidThreats(float3 desiredDirection, float3 position, float avoidanceRadius, float avoidanceStrength)

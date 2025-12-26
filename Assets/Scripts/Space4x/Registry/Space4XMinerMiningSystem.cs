@@ -9,14 +9,8 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
-using UnityDebug = UnityEngine.Debug;
-
 namespace Space4X.Registry
 {
-    using Debug = UnityEngine.Debug;
-
-    
     /// <summary>
     /// Miner state machine that claims registry-driven resources, applies mining ticks,
     /// and publishes presentation effect requests without hybrid lookups.
@@ -142,13 +136,9 @@ namespace Space4X.Registry
             var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
             var currentTick = timeState.Tick;
 
-            // Debug instrumentation: count miners
-            int minerCount = 0;
             foreach (var (order, miningState, vessel, yield, transform, entity) in SystemAPI.Query<RefRW<MiningOrder>, RefRW<MiningState>, RefRW<MiningVessel>, RefRW<MiningYield>, RefRO<LocalTransform>>()
                          .WithEntityAccess())
             {
-                minerCount++;
-
                 if (!EnsureOrderResource(ref order.ValueRW, yield.ValueRO.ResourceId))
                 {
                     continue;
@@ -191,6 +181,10 @@ namespace Space4X.Registry
                             SetPhase(ref miningState.ValueRW, MiningPhase.Undocking, UndockDuration);
                             order.ValueRW.Status = MiningOrderStatus.Active;
                         }
+                        else
+                        {
+                            ResetDigState(ref miningState.ValueRW);
+                        }
                         break;
 
                     case MiningPhase.Undocking:
@@ -204,6 +198,7 @@ namespace Space4X.Registry
                         if (target == Entity.Null)
                         {
                             miningState.ValueRW.Phase = MiningPhase.Idle;
+                            ResetDigState(ref miningState.ValueRW);
                             break;
                         }
 
@@ -244,6 +239,7 @@ namespace Space4X.Registry
                         if (target == Entity.Null || !IsTargetInRange(target, transform.ValueRO.Position))
                         {
                             miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
+                            ResetDigState(ref miningState.ValueRW);
                             break;
                         }
 
@@ -252,20 +248,75 @@ namespace Space4X.Registry
                             order.ValueRW.Status = MiningOrderStatus.Completed;
                             SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, DetachDuration);
                             EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
+                            ResetDigState(ref miningState.ValueRW);
                             break;
                         }
 
                         var tickInterval = GetTickInterval(ref miningState.ValueRW, deltaTime);
                         miningState.ValueRW.MiningTimer += deltaTime;
+                        var volumeConfig = ResolveVolumeConfig(target);
+                        if (miningState.ValueRO.DigVolumeEntity != target)
+                        {
+                            ResetDigState(ref miningState.ValueRW);
+                        }
+
+                        if (miningState.ValueRO.HasDigHead == 0 && _transformLookup.HasComponent(target))
+                        {
+                            EnsureDigHead(ref miningState.ValueRW, target, transform.ValueRO, _transformLookup[target], volumeConfig);
+                        }
 
                         var safetyCounter = 0;
                         while (miningState.ValueRW.MiningTimer >= tickInterval && safetyCounter < 4)
                         {
                             miningState.ValueRW.MiningTimer -= tickInterval;
-                            var mined = ApplyMiningTick(entity, target, tickInterval, ref vessel.ValueRW, order.ValueRO.ResourceId);
+                            var digHead = miningState.ValueRW.DigHeadLocal;
+                            var digDirection = miningState.ValueRW.DigDirectionLocal;
+                            var yieldMultiplier = 1f;
+                            if (miningState.ValueRW.HasDigHead != 0)
+                            {
+                                var distance = math.length(digHead);
+                                var fallbackDirection = math.normalizesafe(digDirection, new float3(0f, 0f, 1f));
+                                digDirection = math.normalizesafe(-digHead, fallbackDirection);
+                                miningState.ValueRW.DigDirectionLocal = digDirection;
+                                yieldMultiplier = ResolveYieldMultiplier(distance, math.max(0.01f, volumeConfig.Radius), volumeConfig, digConfig);
+                            }
+
+                            var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW, order.ValueRO.ResourceId);
                             if (mined <= 0f)
                             {
                                 break;
+                            }
+
+                            if (miningState.ValueRW.HasDigHead != 0)
+                            {
+                                var distance = math.length(digHead);
+                                var stepLength = ResolveStepLength(mined, digConfig, distance);
+                                if (stepLength > 0f)
+                                {
+                                    var digStart = digHead;
+                                    var digEnd = digStart + digDirection * stepLength;
+
+                                    if (hasModificationQueue && modificationBuffer.IsCreated)
+                                    {
+                                        modificationBuffer.Add(new TerrainModificationRequest
+                                        {
+                                            Kind = TerrainModificationKind.Dig,
+                                            Shape = TerrainModificationShape.Tunnel,
+                                            Start = digStart,
+                                            End = digEnd,
+                                            Radius = math.max(0.1f, digConfig.DrillRadius),
+                                            Depth = 0f,
+                                            MaterialId = 0,
+                                            Flags = TerrainModificationFlags.AffectsVolume,
+                                            RequestedTick = currentTick,
+                                            Actor = entity,
+                                            VolumeEntity = target,
+                                            Space = TerrainModificationSpace.VolumeLocal
+                                        });
+                                    }
+
+                                    miningState.ValueRW.DigHeadLocal = digEnd;
+                                }
                             }
 
                             UpdateYield(ref yield.ValueRW, order.ValueRO.ResourceId, mined);
@@ -295,6 +346,7 @@ namespace Space4X.Registry
                         if (target == Entity.Null)
                         {
                             miningState.ValueRW.Phase = MiningPhase.Idle;
+                            ResetDigState(ref miningState.ValueRW);
                             break;
                         }
 
@@ -462,7 +514,7 @@ namespace Space4X.Registry
             return distanceSq <= requiredDistance * requiredDistance;
         }
 
-        private float ApplyMiningTick(Entity miner, Entity target, float tickInterval, ref MiningVessel vessel, in FixedString64Bytes orderResourceId)
+        private float ApplyMiningTick(Entity miner, Entity target, float tickInterval, float yieldMultiplier, ref MiningVessel vessel, in FixedString64Bytes orderResourceId)
         {
             if (!_resourceStateLookup.HasComponent(target))
             {
@@ -483,6 +535,7 @@ namespace Space4X.Registry
             vessel.CargoResourceType = ResolveResourceType(target, orderResourceId, vessel.CargoResourceType);
             var miningRate = math.max(0f, config.GatherRatePerWorker) * math.max(0f, vessel.MiningEfficiency);
             miningRate *= GetMiningSkillMultiplier(miner);
+            miningRate *= math.max(0f, yieldMultiplier);
             var mined = math.min(miningRate * tickInterval, available);
 
             var remainingCapacity = math.max(0f, vessel.CargoCapacity - vessel.CurrentCargo);
@@ -494,8 +547,117 @@ namespace Space4X.Registry
             }
 
             resourceRef.ValueRW.UnitsRemaining = available - mined;
+            if (_asteroidLookup.HasComponent(target))
+            {
+                var asteroid = _asteroidLookup[target];
+                asteroid.ResourceAmount = math.max(0f, asteroid.ResourceAmount - mined);
+                _asteroidLookup[target] = asteroid;
+            }
             vessel.CurrentCargo += mined;
             return mined;
+        }
+
+        private static void ResetDigState(ref MiningState miningState)
+        {
+            miningState.DigHeadLocal = float3.zero;
+            miningState.DigDirectionLocal = new float3(0f, 0f, 1f);
+            miningState.DigVolumeEntity = Entity.Null;
+            miningState.HasDigHead = 0;
+        }
+
+        private void EnsureDigHead(
+            ref MiningState miningState,
+            Entity target,
+            in LocalTransform minerTransform,
+            in LocalTransform targetTransform,
+            in Space4XAsteroidVolumeConfig volumeConfig)
+        {
+            var radius = math.max(0.01f, volumeConfig.Radius);
+            var localMiner = WorldToLocal(targetTransform, minerTransform.Position);
+            var outward = math.normalizesafe(localMiner, new float3(0f, 0f, 1f));
+
+            miningState.DigHeadLocal = outward * radius;
+            miningState.DigDirectionLocal = -outward;
+            miningState.DigVolumeEntity = target;
+            miningState.HasDigHead = 1;
+        }
+
+        private Space4XAsteroidVolumeConfig ResolveVolumeConfig(Entity target)
+        {
+            if (_asteroidVolumeLookup.HasComponent(target))
+            {
+                var config = _asteroidVolumeLookup[target];
+                if (config.Radius <= 0f)
+                {
+                    config.Radius = Space4XAsteroidVolumeConfig.Default.Radius;
+                }
+                return config;
+            }
+
+            return Space4XAsteroidVolumeConfig.Default;
+        }
+
+        private static float ResolveYieldMultiplier(
+            float distance,
+            float radius,
+            in Space4XAsteroidVolumeConfig volumeConfig,
+            in Space4XMiningDigConfig digConfig)
+        {
+            if (radius <= 0f)
+            {
+                return 1f;
+            }
+
+            var coreRadius = radius * math.saturate(volumeConfig.CoreRadiusRatio);
+            var mantleRadius = radius * math.saturate(volumeConfig.MantleRadiusRatio);
+            if (mantleRadius < coreRadius)
+            {
+                mantleRadius = coreRadius;
+            }
+
+            float layerMultiplier;
+            if (distance <= coreRadius)
+            {
+                layerMultiplier = digConfig.CoreYieldMultiplier;
+            }
+            else if (distance <= mantleRadius)
+            {
+                layerMultiplier = digConfig.MantleYieldMultiplier;
+            }
+            else
+            {
+                layerMultiplier = digConfig.CrustYieldMultiplier;
+            }
+
+            var depthRatio = math.saturate(1f - (distance / radius));
+            var exponent = math.max(0.01f, volumeConfig.OreGradeExponent);
+            var oreNorm = math.pow(depthRatio, exponent) * (volumeConfig.CoreOreGrade / 255f);
+            var oreMultiplier = 1f + oreNorm * math.max(0f, digConfig.OreGradeWeight);
+
+            return math.max(0.01f, layerMultiplier * oreMultiplier);
+        }
+
+        private static float ResolveStepLength(float mined, in Space4XMiningDigConfig digConfig, float maxStep)
+        {
+            if (mined <= 0f || maxStep <= 0f)
+            {
+                return 0f;
+            }
+
+            var unitsPerMeter = math.max(0.001f, digConfig.DigUnitsPerMeter);
+            var minStep = math.max(0f, digConfig.MinStepLength);
+            var maxStepLength = math.max(minStep, digConfig.MaxStepLength);
+            var step = mined / unitsPerMeter;
+            step = math.clamp(step, minStep, maxStepLength);
+            return math.min(step, maxStep);
+        }
+
+        private static float3 WorldToLocal(in LocalTransform transform, float3 worldPosition)
+        {
+            var local = worldPosition - transform.Position;
+            local = math.rotate(math.inverse(transform.Rotation), local);
+            var scale = math.max(0.0001f, transform.Scale);
+            return local / scale;
         }
 
         private static void UpdateYield(ref MiningYield yield, in FixedString64Bytes resourceId, float mined)
