@@ -20,6 +20,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
         private ComponentLookup<StrikeCraftProfile> _strikeCraftLookup;
+        private ComponentLookup<StrikeCraftWingDirective> _wingDirectiveLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<ScenarioSide> _sideLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
 
@@ -33,6 +35,8 @@ namespace Space4X.Systems.AI
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
             _strikeCraftLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
+            _wingDirectiveLookup = state.GetComponentLookup<StrikeCraftWingDirective>(true);
+            _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _sideLookup = state.GetComponentLookup<ScenarioSide>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
@@ -55,6 +59,8 @@ namespace Space4X.Systems.AI
             _alignmentLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
             _strikeCraftLookup.Update(ref state);
+            _wingDirectiveLookup.Update(ref state);
+            _pilotLinkLookup.Update(ref state);
             _sideLookup.Update(ref state);
             _transformLookup.Update(ref state);
 
@@ -78,14 +84,14 @@ namespace Space4X.Systems.AI
             }
 
             var assignedCarriers = new NativeHashSet<Entity>(math.max(1, carriers.Length), Allocator.Temp);
-            foreach (var profile in SystemAPI.Query<RefRO<StrikeCraftProfile>>())
+            foreach (var (profile, entity) in SystemAPI.Query<RefRO<StrikeCraftProfile>>().WithEntityAccess())
             {
                 if (profile.ValueRO.Carrier == Entity.Null)
                 {
                     continue;
                 }
 
-                if (profile.ValueRO.WingLeader != Entity.Null || profile.ValueRO.WingPosition != 0)
+                if (profile.ValueRO.WingLeader != Entity.Null || profile.ValueRO.WingPosition != 0 || _wingDirectiveLookup.HasComponent(entity))
                 {
                     assignedCarriers.Add(profile.ValueRO.Carrier);
                 }
@@ -140,11 +146,12 @@ namespace Space4X.Systems.AI
                 var ownSide = _sideLookup.HasComponent(profile.ValueRO.Carrier) ? _sideLookup[profile.ValueRO.Carrier].Side : (byte)0;
                 var hasSide = _sideLookup.HasComponent(profile.ValueRO.Carrier);
 
+                var profileEntity = ResolveProfileEntity(entity);
                 var lawfulness = 0.5f;
                 var chaos = 0.5f;
-                if (_alignmentLookup.HasComponent(entity))
+                if (_alignmentLookup.HasComponent(profileEntity))
                 {
-                    var alignment = _alignmentLookup[entity];
+                    var alignment = _alignmentLookup[profileEntity];
                     lawfulness = AlignmentMath.Lawfulness(alignment);
                     chaos = AlignmentMath.Chaos(alignment);
                 }
@@ -202,6 +209,20 @@ namespace Space4X.Systems.AI
             wingLeaders.Dispose();
             wingCounts.Dispose();
             carriers.Dispose();
+        }
+
+        private Entity ResolveProfileEntity(Entity craftEntity)
+        {
+            if (_pilotLinkLookup.HasComponent(craftEntity))
+            {
+                var link = _pilotLinkLookup[craftEntity];
+                if (link.Pilot != Entity.Null)
+                {
+                    return link.Pilot;
+                }
+            }
+
+            return craftEntity;
         }
 
         private struct CarrierTarget

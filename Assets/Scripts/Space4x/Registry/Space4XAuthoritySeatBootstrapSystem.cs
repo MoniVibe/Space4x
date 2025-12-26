@@ -99,27 +99,62 @@ namespace Space4X.Registry
 
             var xoSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.xo", AgencyDomain.Governance);
             var shipmasterSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.shipmaster", AgencyDomain.Governance);
+            var fleetAdmiralSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.fleet_admiral",
+                AgencyDomain.Governance | AgencyDomain.Combat | AgencyDomain.Logistics | AgencyDomain.Sensors |
+                AgencyDomain.FlightOps | AgencyDomain.Communications);
+            var navigationSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.navigation_officer",
+                AgencyDomain.Movement | AgencyDomain.Sensors);
             var weaponsSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.weapons_officer", AgencyDomain.Combat);
             var sensorsSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.sensors_officer", AgencyDomain.Sensors);
+            var commsSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.communications_officer",
+                AgencyDomain.Communications | AgencyDomain.Sensors);
             var logisticsSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.logistics_officer", AgencyDomain.Logistics);
+            var engineeringSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.chief_engineer",
+                AgencyDomain.Construction | AgencyDomain.Logistics | AgencyDomain.Work);
+            var securitySeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.security_officer",
+                AgencyDomain.Security | AgencyDomain.Combat);
+            var marineCommanderSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.marine_commander",
+                AgencyDomain.Security | AgencyDomain.Combat);
+            var marineSergeantSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.marine_sergeant",
+                AgencyDomain.Security | AgencyDomain.Combat);
             var flightOpsSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.flight_commander", AgencyDomain.FlightOps);
+            var flightDirectorSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.flight_director",
+                AgencyDomain.FlightOps | AgencyDomain.Communications);
             var hangarSeat = CreateDelegateSeat(ref ecb, shipEntity, "ship.hangar_deck_officer", AgencyDomain.FlightOps);
 
             delegations.Add(BuildDelegation(shipmasterSeat, AgencyDomain.Governance, AuthorityAttributionMode.AsPrincipalSeat));
             delegations.Add(BuildDelegation(xoSeat, AgencyDomain.Governance));
+            delegations.Add(BuildDelegation(fleetAdmiralSeat,
+                AgencyDomain.Governance | AgencyDomain.Combat | AgencyDomain.Logistics | AgencyDomain.Sensors |
+                AgencyDomain.FlightOps | AgencyDomain.Communications));
+            delegations.Add(BuildDelegation(navigationSeat, AgencyDomain.Movement | AgencyDomain.Sensors));
             delegations.Add(BuildDelegation(weaponsSeat, AgencyDomain.Combat));
             delegations.Add(BuildDelegation(sensorsSeat, AgencyDomain.Sensors));
+            delegations.Add(BuildDelegation(commsSeat, AgencyDomain.Communications | AgencyDomain.Sensors));
             delegations.Add(BuildDelegation(logisticsSeat, AgencyDomain.Logistics));
+            delegations.Add(BuildDelegation(engineeringSeat, AgencyDomain.Construction | AgencyDomain.Logistics | AgencyDomain.Work));
+            delegations.Add(BuildDelegation(securitySeat, AgencyDomain.Security | AgencyDomain.Combat));
+            delegations.Add(BuildDelegation(marineCommanderSeat, AgencyDomain.Security | AgencyDomain.Combat));
+            delegations.Add(BuildDelegation(marineSergeantSeat, AgencyDomain.Security | AgencyDomain.Combat));
             delegations.Add(BuildDelegation(flightOpsSeat, AgencyDomain.FlightOps));
+            delegations.Add(BuildDelegation(flightDirectorSeat, AgencyDomain.FlightOps | AgencyDomain.Communications));
             delegations.Add(BuildDelegation(hangarSeat, AgencyDomain.FlightOps));
 
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = captainSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = xoSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = shipmasterSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = fleetAdmiralSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = navigationSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = weaponsSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = sensorsSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = commsSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = logisticsSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = engineeringSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = securitySeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = marineCommanderSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = marineSergeantSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = flightOpsSeat });
+            ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = flightDirectorSeat });
             ecb.AppendToBuffer(shipEntity, new AuthoritySeatRef { SeatEntity = hangarSeat });
 
             var body = new AuthorityBody

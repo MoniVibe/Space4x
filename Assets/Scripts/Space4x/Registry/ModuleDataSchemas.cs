@@ -1005,6 +1005,8 @@ namespace Space4X.Registry
         public float3 TargetPosition;
         public float Experience; // 0-1, affects behavior quality
         public uint StateStartTick;
+        public byte KamikazeActive;
+        public uint KamikazeStartTick;
     }
 
     public struct ChildVesselTether : IComponentData
@@ -1186,4 +1188,3 @@ namespace Space4X.Registry
         public BlobAssetReference<AggregateComboTableBlob> Table;
     }
 }
-

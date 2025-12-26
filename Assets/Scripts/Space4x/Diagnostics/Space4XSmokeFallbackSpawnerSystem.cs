@@ -194,7 +194,8 @@ namespace Space4X.Diagnostics
                 Phase = MiningPhase.Idle,
                 ActiveTarget = asteroid,
                 MiningTimer = 0f,
-                TickInterval = 0.5f
+                TickInterval = 0.5f,
+                PhaseTimer = 0f
             });
 
             em.AddComponentData(miner, new MiningYield

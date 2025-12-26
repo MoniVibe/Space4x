@@ -14,5 +14,7 @@ namespace Space4X.StrikeCraft
         public uint ProfileHash;
         public byte BehaviorLogged;
         public byte AttackRunActive;
+        public byte LastWingDirectiveMode;
+        public uint LastWingDirectiveTick;
     }
 }

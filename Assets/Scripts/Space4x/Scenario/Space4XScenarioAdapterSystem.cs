@@ -123,6 +123,10 @@ namespace Space4X.Scenario
 
                 var carrier = ecb.CreateEntity();
                 ecb.AddComponent(carrier, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 10f));
+                ecb.AddComponent(carrier, new PostTransformMatrix
+                {
+                    Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
+                });
 
                 var carrierId = new FixedString64Bytes();
                 carrierId.Append("carrier_");
@@ -143,6 +147,11 @@ namespace Space4X.Scenario
                     CarrierId = carrierId,
                     AffiliationEntity = Entity.Null,
                     Speed = 5f,
+                    Acceleration = 0.6f,
+                    Deceleration = 0.8f,
+                    TurnSpeed = 0.35f,
+                    SlowdownDistance = 18f,
+                    ArrivalDistance = 3f,
                     PatrolCenter = position,
                     PatrolRadius = 50f
                 });
@@ -157,8 +166,15 @@ namespace Space4X.Scenario
 
                 ecb.AddComponent(carrier, new VesselMovement
                 {
+                    Velocity = float3.zero,
                     BaseSpeed = 5f,
                     CurrentSpeed = 0f,
+                    Acceleration = 0.6f,
+                    Deceleration = 0.8f,
+                    TurnSpeed = 0.35f,
+                    SlowdownDistance = 18f,
+                    ArrivalDistance = 3f,
+                    DesiredRotation = quaternion.identity,
                     IsMoving = 0
                 });
 
@@ -217,7 +233,8 @@ namespace Space4X.Scenario
                     Phase = Space4X.Registry.MiningPhase.Idle,
                     ActiveTarget = Entity.Null,
                     MiningTimer = 0f,
-                    TickInterval = 0.1f
+                    TickInterval = 0.1f,
+                    PhaseTimer = 0f
                 });
 
                 ecb.AddComponent(miner, new VesselAIState
@@ -230,8 +247,15 @@ namespace Space4X.Scenario
 
                 ecb.AddComponent(miner, new VesselMovement
                 {
+                    Velocity = float3.zero,
                     BaseSpeed = 10f,
                     CurrentSpeed = 0f,
+                    Acceleration = 6f,
+                    Deceleration = 8f,
+                    TurnSpeed = 2.5f,
+                    SlowdownDistance = 6f,
+                    ArrivalDistance = 1.5f,
+                    DesiredRotation = quaternion.identity,
                     IsMoving = 0
                 });
             }
@@ -356,4 +380,3 @@ namespace Space4X.Scenario
         }
     }
 }
-

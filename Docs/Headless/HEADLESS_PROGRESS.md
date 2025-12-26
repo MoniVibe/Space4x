@@ -18,6 +18,12 @@
     - `Space4XSmokeFallbackSpawnerSystem` reports parity violations if fallback entities appear.
   - Camera: if no authored rig exists, `Space4XCameraBootstrap` spawns a placeholder controller (WASD/QE move, RMB orbit, MMB pan, scroll zoom) and publishes a `CameraRigState` for DOTS systems.
 
+## Profile + Command Wiring
+- Mining scenario JSON now supports `disposition` and `pilotProfileId` per spawn; authoring exposes disposition + pilot alignment per vessel.
+- Mining vessels and strike craft link to pilot entities so profile actions accrue to individuals, not hulls.
+- Combat damage emits profile action events using disposition + side context (civilian vs combatant vs hostile).
+- Ship authority bootstrapping includes navigation, comms, engineering, security/marines, flight director, and fleet-admiral seats for richer command attribution.
+
 ## Mirroring Workflow
 1. **Headless first**
    - Implement new mechanics/behaviors in the shared scenario or systems.

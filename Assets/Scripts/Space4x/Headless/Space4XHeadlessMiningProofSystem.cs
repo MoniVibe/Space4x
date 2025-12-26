@@ -265,10 +265,13 @@ namespace Space4X.Headless
             var ordersCompleted = 0;
             var ordersNone = 0;
             var phaseIdle = 0;
-            var phaseSeeking = 0;
-            var phaseMoving = 0;
+            var phaseUndocking = 0;
+            var phaseApproach = 0;
+            var phaseLatching = 0;
             var phaseMining = 0;
-            var phaseAwaiting = 0;
+            var phaseDetaching = 0;
+            var phaseReturn = 0;
+            var phaseDocking = 0;
             var targetsAssigned = 0;
             var targetsInRange = 0;
             var cargoed = 0;
@@ -297,17 +300,26 @@ namespace Space4X.Headless
                     case MiningPhase.Idle:
                         phaseIdle++;
                         break;
-                    case MiningPhase.Seeking:
-                        phaseSeeking++;
+                    case MiningPhase.Undocking:
+                        phaseUndocking++;
                         break;
-                    case MiningPhase.MovingToTarget:
-                        phaseMoving++;
+                    case MiningPhase.ApproachTarget:
+                        phaseApproach++;
+                        break;
+                    case MiningPhase.Latching:
+                        phaseLatching++;
                         break;
                     case MiningPhase.Mining:
                         phaseMining++;
                         break;
-                    case MiningPhase.AwaitingOutput:
-                        phaseAwaiting++;
+                    case MiningPhase.Detaching:
+                        phaseDetaching++;
+                        break;
+                    case MiningPhase.ReturnApproach:
+                        phaseReturn++;
+                        break;
+                    case MiningPhase.Docking:
+                        phaseDocking++;
                         break;
                 }
 
@@ -341,7 +353,7 @@ namespace Space4X.Headless
                 $"isPlaying={tickTime.IsPlaying} targetTick={tickTime.TargetTick} worldDt={SystemAPI.Time.DeltaTime:F4} worldElapsed={SystemAPI.Time.ElapsedTime:F2} timeSeconds={timeState.WorldSeconds:F2} " +
                 $"unityScale={UnityEngine.Time.timeScale:F2} unityDt={UnityEngine.Time.deltaTime:F4} unityUnscaledDt={UnityEngine.Time.unscaledDeltaTime:F4} " +
                 $"resources={resourceCount} registryEntries={registryEntries} miningOrders={miningOrders} miningStates={miningStates} carriers={carriers} vessels={vessels} " +
-                $"orders(p/a/c/n)={ordersPending}/{ordersActive}/{ordersCompleted}/{ordersNone} phases(i/s/mn/mg/a)={phaseIdle}/{phaseSeeking}/{phaseMoving}/{phaseMining}/{phaseAwaiting} " +
+                $"orders(p/a/c/n)={ordersPending}/{ordersActive}/{ordersCompleted}/{ordersNone} phases(i/u/a/l/m/d/r/k)={phaseIdle}/{phaseUndocking}/{phaseApproach}/{phaseLatching}/{phaseMining}/{phaseDetaching}/{phaseReturn}/{phaseDocking} " +
                 $"targets(assigned/inRange)={targetsAssigned}/{targetsInRange} cargoed={cargoed}");
         }
     }

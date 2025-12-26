@@ -104,6 +104,10 @@ namespace Space4X.Systems.Dev
                 PatrolCenter = position,
                 PatrolRadius = patrolRadius
             });
+            ecb.AddComponent(entity, new PostTransformMatrix
+            {
+                Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
+            });
 
             ecb.AddComponent(entity, new PatrolBehavior
             {
@@ -317,6 +321,24 @@ namespace Space4X.Systems.Dev
             var profile = StrikeCraftProfile.Create(strikeCraftRole, Entity.Null);
             ecb.AddComponent(entity, profile);
             ecb.AddComponent(entity, AttackRunConfig.ForRole(strikeCraftRole));
+            var pilot = ecb.CreateEntity();
+            ecb.AddComponent(pilot, AlignmentTriplet.FromFloats(0f, 0f, 0f));
+            var outlookEntries = ecb.AddBuffer<OutlookEntry>(pilot);
+            outlookEntries.Add(new OutlookEntry
+            {
+                OutlookId = OutlookId.Neutral,
+                Weight = (half)1f
+            });
+            var outlooks = ecb.AddBuffer<TopOutlook>(pilot);
+            outlooks.Add(new TopOutlook
+            {
+                OutlookId = OutlookId.Neutral,
+                Weight = (half)1f
+            });
+            ecb.AddComponent(entity, new StrikeCraftPilotLink
+            {
+                Pilot = pilot
+            });
 
             // Combat
             ecb.AddComponent(entity, new HullIntegrity
@@ -425,7 +447,10 @@ namespace Space4X.Systems.Dev
                 ecb.AddComponent(entity, new MiningState
                 {
                     Phase = MiningPhase.Idle,
-                    ActiveTarget = Entity.Null
+                    ActiveTarget = Entity.Null,
+                    MiningTimer = 0f,
+                    TickInterval = 0.5f,
+                    PhaseTimer = 0f
                 });
 
                 ecb.AddComponent(entity, new MiningOrder
@@ -574,4 +599,3 @@ namespace Space4X.Systems.Dev
         }
     }
 }
-

@@ -116,6 +116,11 @@ namespace Space4X.Registry
         public FixedString64Bytes CarrierId;
         public Entity AffiliationEntity;
         public float Speed;
+        public float Acceleration;
+        public float Deceleration;
+        public float TurnSpeed;
+        public float SlowdownDistance;
+        public float ArrivalDistance;
         public float3 PatrolCenter;
         public float PatrolRadius;
     }
@@ -212,7 +217,6 @@ namespace Space4X.Registry
         public float ArrivalThreshold;
     }
 }
-
 
 
 

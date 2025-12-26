@@ -39,6 +39,7 @@ namespace Space4X.Registry
                 PatrolRadius = 50f,
                 WaitTime = 2f,
                 Position = new float3(0f, 0f, -8f),
+                Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
                 CultureId = 0,
@@ -60,10 +61,14 @@ namespace Space4X.Registry
                 ResourceId = "space4x.resource.minerals",
                 Position = new float3(5f, 0f, -2f),
                 CarrierId = "CARRIER-1",
+                Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
                 CultureId = 0,
-                AffiliationId = "AFFILIATION-1"
+                AffiliationId = "AFFILIATION-1",
+                PilotAlignment = AlignmentDefinition.CreateNeutral(),
+                PilotRaceId = 0,
+                PilotCultureId = 0
             },
             new MiningVesselDefinition
             {
@@ -76,10 +81,14 @@ namespace Space4X.Registry
                 ResourceId = "space4x.resource.minerals",
                 Position = new float3(-5f, 0f, -14f),
                 CarrierId = "CARRIER-1",
+                Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
                 CultureId = 0,
-                AffiliationId = "AFFILIATION-1"
+                AffiliationId = "AFFILIATION-1",
+                PilotAlignment = AlignmentDefinition.CreateNeutral(),
+                PilotRaceId = 0,
+                PilotCultureId = 0
             }
         };
 
@@ -167,6 +176,10 @@ namespace Space4X.Registry
             [Min(0.1f)]
             public float InterceptSpeed;
 
+            [Header("Disposition")]
+            [Tooltip("Optional explicit disposition flags; leave None to auto-classify.")]
+            public EntityDispositionFlags Disposition;
+
             [Header("Alignment / Affiliation")]
             public AlignmentDefinition Alignment;
             public ushort RaceId;
@@ -212,11 +225,20 @@ namespace Space4X.Registry
             [Tooltip("If true, vessel starts docked at carrier position")]
             public bool StartDocked;
 
+            [Header("Disposition")]
+            [Tooltip("Optional explicit disposition flags; leave None to auto-classify.")]
+            public EntityDispositionFlags Disposition;
+
             [Header("Alignment / Affiliation")]
             public AlignmentDefinition Alignment;
             public ushort RaceId;
             public ushort CultureId;
             public string AffiliationId;
+
+            [Header("Pilot Profile")]
+            public AlignmentDefinition PilotAlignment;
+            public ushort PilotRaceId;
+            public ushort PilotCultureId;
         }
 
         [Serializable]
@@ -332,6 +354,7 @@ namespace Space4X.Registry
         {
             private NativeHashMap<FixedString64Bytes, Entity> _carrierEntityMap;
             private NativeHashMap<FixedString64Bytes, float3> _carrierPositionMap;
+            private NativeHashMap<FixedString64Bytes, byte> _carrierSideMap;
             private NativeHashMap<FixedString64Bytes, AffiliationCache> _affiliationMap;
             private NativeHashMap<FixedString64Bytes, Entity> _affiliationEntityMap;
 #if UNITY_EDITOR
@@ -363,6 +386,9 @@ namespace Space4X.Registry
                 _carrierPositionMap = new NativeHashMap<FixedString64Bytes, float3>(
                     authoring.Carriers?.Length ?? 0,
                     Allocator.Temp);
+                _carrierSideMap = new NativeHashMap<FixedString64Bytes, byte>(
+                    authoring.Carriers?.Length ?? 0,
+                    Allocator.Temp);
                 _affiliationMap = new NativeHashMap<FixedString64Bytes, AffiliationCache>(
                     authoring.Affiliations?.Length ?? 0,
                     Allocator.Temp);
@@ -382,6 +408,8 @@ namespace Space4X.Registry
                 BakeAsteroids(authoring);
 
                 _carrierEntityMap.Dispose();
+                _carrierPositionMap.Dispose();
+                _carrierSideMap.Dispose();
                 _affiliationMap.Dispose();
                 _affiliationEntityMap.Dispose();
                 
@@ -461,6 +489,23 @@ namespace Space4X.Registry
                         PatrolRadius = math.max(1f, carrier.PatrolRadius)
                     });
 
+                    var scenarioSide = carrier.IsHostile ? (byte)1 : (byte)0;
+                    AddComponent(entity, new ScenarioSide
+                    {
+                        Side = scenarioSide
+                    });
+
+                    var carrierDisposition = carrier.Disposition != EntityDispositionFlags.None
+                        ? carrier.Disposition
+                        : BuildCarrierDisposition(carrier);
+                    if (carrierDisposition != EntityDispositionFlags.None)
+                    {
+                        AddComponent(entity, new EntityDisposition
+                        {
+                            Flags = carrierDisposition
+                        });
+                    }
+
                     AddAlignment(entity, carrier.Alignment, carrier.RaceId, carrier.CultureId);
                     AddAffiliationTag(entity, carrier.AffiliationId);
 
@@ -521,6 +566,7 @@ namespace Space4X.Registry
                     // Store entity in map for vessel references
                     _carrierEntityMap.TryAdd(carrierIdBytes, entity);
                     _carrierPositionMap.TryAdd(carrierIdBytes, carrierPosition);
+                    _carrierSideMap.TryAdd(carrierIdBytes, scenarioSide);
 #if UNITY_EDITOR
                     if (!s_loggedCarriers)
                     {
@@ -555,9 +601,11 @@ namespace Space4X.Registry
                     Entity carrierEntity = Entity.Null;
                     float3 vesselPosition = vessel.Position;
                     float3 carrierPosition = default;
-                    if (!string.IsNullOrWhiteSpace(vessel.CarrierId))
+                    var hasCarrierId = !string.IsNullOrWhiteSpace(vessel.CarrierId);
+                    FixedString64Bytes carrierIdBytes = default;
+                    if (hasCarrierId)
                     {
-                        var carrierIdBytes = new FixedString64Bytes(vessel.CarrierId);
+                        carrierIdBytes = new FixedString64Bytes(vessel.CarrierId);
                         if (_carrierEntityMap.TryGetValue(carrierIdBytes, out var foundCarrier))
                         {
                             carrierEntity = foundCarrier;
@@ -579,6 +627,12 @@ namespace Space4X.Registry
                         }
                     }
                     
+                    byte scenarioSide = 0;
+                    if (hasCarrierId && _carrierSideMap.TryGetValue(carrierIdBytes, out var carrierSide))
+                    {
+                        scenarioSide = carrierSide;
+                    }
+
                     vesselPosition = ResolveMiningVesselPosition(vesselPosition, i);
                     SetLocalTransform(entity, vesselPosition, quaternion.identity, 1f);
                     AddComponent<SpatialIndexedTag>(entity);
@@ -594,8 +648,31 @@ namespace Space4X.Registry
                         CargoResourceType = ResourceType.Minerals
                     });
 
+                    AddComponent(entity, new ScenarioSide
+                    {
+                        Side = scenarioSide
+                    });
+
+                    var vesselDisposition = vessel.Disposition != EntityDispositionFlags.None
+                        ? vessel.Disposition
+                        : BuildMiningDisposition(scenarioSide);
+                    if (vesselDisposition != EntityDispositionFlags.None)
+                    {
+                        AddComponent(entity, new EntityDisposition
+                        {
+                            Flags = vesselDisposition
+                        });
+                    }
+
                     AddAlignment(entity, vessel.Alignment, vessel.RaceId, vessel.CultureId);
                     AddAffiliationTag(entity, vessel.AffiliationId);
+
+                    var pilot = CreateAdditionalEntity(TransformUsageFlags.None);
+                    AddAlignment(pilot, vessel.PilotAlignment, vessel.PilotRaceId, vessel.PilotCultureId);
+                    AddComponent(entity, new VesselPilotLink
+                    {
+                        Pilot = pilot
+                    });
 
                     var resourceId = ResolveResourceId(vessel);
 
@@ -614,7 +691,8 @@ namespace Space4X.Registry
                         Phase = MiningPhase.Idle,
                         ActiveTarget = Entity.Null,
                         MiningTimer = 0f,
-                        TickInterval = vessel.MiningTickInterval > 0f ? vessel.MiningTickInterval : 0.5f
+                        TickInterval = vessel.MiningTickInterval > 0f ? vessel.MiningTickInterval : 0.5f,
+                        PhaseTimer = 0f
                     });
 
                     AddComponent(entity, new MiningYield
@@ -971,6 +1049,38 @@ namespace Space4X.Registry
                         });
                     }
                 }
+            }
+
+            private static EntityDispositionFlags BuildCarrierDisposition(in CarrierDefinition carrier)
+            {
+                var flags = EntityDispositionFlags.Support;
+                var hasCombat = carrier.IsHostile || carrier.CanIntercept;
+                if (hasCombat)
+                {
+                    flags |= EntityDispositionFlags.Combatant | EntityDispositionFlags.Military;
+                }
+                else
+                {
+                    flags |= EntityDispositionFlags.Civilian;
+                }
+
+                if (carrier.IsHostile)
+                {
+                    flags |= EntityDispositionFlags.Hostile;
+                }
+
+                return flags;
+            }
+
+            private static EntityDispositionFlags BuildMiningDisposition(byte scenarioSide)
+            {
+                var flags = EntityDispositionFlags.Mining | EntityDispositionFlags.Civilian;
+                if (scenarioSide == 1)
+                {
+                    flags |= EntityDispositionFlags.Hostile;
+                }
+
+                return flags;
             }
 
             private static FixedString64Bytes ResolveResourceId(MiningVesselDefinition vessel)

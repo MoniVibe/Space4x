@@ -333,6 +333,25 @@ namespace Space4X.Authoring
 
                 AddComponent(entity, StrikeCraftProfile.Create(role, carrierEntity));
 
+                var pilot = CreateAdditionalEntity(TransformUsageFlags.None);
+                AddComponent(pilot, AlignmentTriplet.FromFloats(0f, 0f, 0f));
+                var outlookEntries = AddBuffer<OutlookEntry>(pilot);
+                outlookEntries.Add(new OutlookEntry
+                {
+                    OutlookId = OutlookId.Neutral,
+                    Weight = (half)1f
+                });
+                var outlooks = AddBuffer<TopOutlook>(pilot);
+                outlooks.Add(new TopOutlook
+                {
+                    OutlookId = OutlookId.Neutral,
+                    Weight = (half)1f
+                });
+                AddComponent(entity, new StrikeCraftPilotLink
+                {
+                    Pilot = pilot
+                });
+
                 AddComponent(entity, AttackRunConfig.ForRole(role));
 
                 AddComponent(entity, new HullIntegrity

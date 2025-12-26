@@ -1,5 +1,7 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -28,8 +30,13 @@ namespace Space4X.Registry
         private ComponentLookup<LocalTransform> _transformLookup;
         private BufferLookup<PlayEffectRequest> _effectRequestLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
+        private ComponentLookup<VesselPilotLink> _pilotLinkLookup;
         private Entity _effectStreamEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
+        private const float UndockDuration = 1.5f;
+        private const float LatchDuration = 0.9f;
+        private const float DetachDuration = 0.8f;
+        private const float DockDuration = 1.2f;
 
         private static FixedString64Bytes CreateMiningEffectId()
         {
@@ -67,6 +74,7 @@ namespace Space4X.Registry
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _effectRequestLookup = state.GetBufferLookup<PlayEffectRequest>();
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
+            _pilotLinkLookup = state.GetComponentLookup<VesselPilotLink>(true);
 
             EnsureEffectStream(ref state);
         }
@@ -94,7 +102,18 @@ namespace Space4X.Registry
             _transformLookup.Update(ref state);
             _effectRequestLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
+            _pilotLinkLookup.Update(ref state);
             EnsureEffectStream(ref state);
+
+            var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
+                                 SystemAPI.TryGetSingleton<ProfileActionEventStreamConfig>(out var actionStreamConfig);
+            DynamicBuffer<ProfileActionEvent> actionBuffer = default;
+            RefRW<ProfileActionEventStream> actionStream = default;
+            if (canEmitActions)
+            {
+                actionBuffer = SystemAPI.GetBuffer<ProfileActionEvent>(actionStreamEntity);
+                actionStream = SystemAPI.GetComponentRW<ProfileActionEventStream>(actionStreamEntity);
+            }
 
             var effectBuffer = GetEffectBuffer(ref state);
             var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
@@ -118,62 +137,153 @@ namespace Space4X.Registry
                     vessel.ValueRW.CargoResourceType = cargoType;
                 }
 
-                if (!TryResolveTarget(ref state, ref order.ValueRW, ref miningState.ValueRW, transform.ValueRO.Position))
+                var phase = miningState.ValueRO.Phase;
+                var isReturnPhase = phase == MiningPhase.Detaching ||
+                                    phase == MiningPhase.ReturnApproach ||
+                                    phase == MiningPhase.Docking;
+
+                if (!isReturnPhase)
                 {
-                    continue;
+                    if (!TryResolveTarget(ref state, ref order.ValueRW, ref miningState.ValueRW, transform.ValueRO.Position))
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
                 }
 
                 var target = miningState.ValueRO.ActiveTarget;
-                
-                // Check if cargo is full or asteroid is empty - should return to carrier
                 var vesselData = vessel.ValueRO;
                 var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * 0.95f;
-                var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) && 
+                var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) &&
                                       _resourceStateLookup[target].UnitsRemaining <= 0f;
-                
-                if (isCargoFull || isAsteroidEmpty)
-                {
-                    // Signal that miner should return to carrier
-                    // VesselAISystem will handle the actual state transition to Returning
-                    miningState.ValueRW.Phase = MiningPhase.Seeking; // Reset to seeking so AI can assign return target
-                    order.ValueRW.Status = MiningOrderStatus.Completed;
-                    continue;
-                }
-                
-                if (!IsTargetInRange(target, transform.ValueRO.Position))
-                {
-                    miningState.ValueRW.Phase = MiningPhase.MovingToTarget;
-                    continue;
-                }
 
-                miningState.ValueRW.Phase = MiningPhase.Mining;
-                var tickInterval = GetTickInterval(ref miningState.ValueRW, deltaTime);
-                miningState.ValueRW.MiningTimer += deltaTime;
-
-                var safetyCounter = 0;
-                while (miningState.ValueRW.MiningTimer >= tickInterval && safetyCounter < 4)
+                switch (phase)
                 {
-                    miningState.ValueRW.MiningTimer -= tickInterval;
-                    var mined = ApplyMiningTick(entity, target, tickInterval, ref vessel.ValueRW, order.ValueRO.ResourceId);
-                    if (mined <= 0f)
-                    {
-                        // Asteroid depleted or cargo full - break and let state transition handle it
+                    case MiningPhase.Idle:
+                        if (miningState.ValueRO.ActiveTarget != Entity.Null)
+                        {
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Undocking, UndockDuration);
+                            order.ValueRW.Status = MiningOrderStatus.Active;
+                        }
                         break;
-                    }
 
-                    UpdateYield(ref yield.ValueRW, order.ValueRO.ResourceId, mined);
-                    LogMiningCommand(hasCommandLog, commandLog, currentTick, target, entity, vessel.ValueRO.CargoResourceType, mined, transform.ValueRO.Position);
-                    EmitEffect(effectBuffer, entity, tickInterval);
-                    order.ValueRW.Status = MiningOrderStatus.Active;
-                    safetyCounter++;
-                    
-                    // Check again after mining tick if we should return
-                    if (vessel.ValueRO.CurrentCargo >= vessel.ValueRO.CargoCapacity * 0.95f)
-                    {
-                        miningState.ValueRW.Phase = MiningPhase.Seeking;
-                        order.ValueRW.Status = MiningOrderStatus.Completed;
+                    case MiningPhase.Undocking:
+                        if (AdvancePhaseTimer(ref miningState.ValueRW, deltaTime))
+                        {
+                            miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
+                        }
                         break;
-                    }
+
+                    case MiningPhase.ApproachTarget:
+                        if (target == Entity.Null)
+                        {
+                            miningState.ValueRW.Phase = MiningPhase.Idle;
+                            break;
+                        }
+
+                        if (IsTargetInRange(target, transform.ValueRO.Position))
+                        {
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Latching, LatchDuration);
+                        }
+                        break;
+
+                    case MiningPhase.Latching:
+                        if (AdvancePhaseTimer(ref miningState.ValueRW, deltaTime))
+                        {
+                            miningState.ValueRW.Phase = MiningPhase.Mining;
+                            miningState.ValueRW.MiningTimer = 0f;
+                            if (canEmitActions)
+                            {
+                                var actionEvent = new ProfileActionEvent
+                                {
+                                    Token = ProfileActionToken.MineResource,
+                                    IntentFlags = ProfileActionIntentFlags.None,
+                                    JustificationFlags = ProfileActionJustificationFlags.None,
+                                    OutcomeFlags = ProfileActionOutcomeFlags.None,
+                                    Magnitude = 60,
+                                    Actor = ResolveProfileEntity(entity),
+                                    Target = target,
+                                    IssuingSeat = Entity.Null,
+                                    IssuingOccupant = Entity.Null,
+                                    ActingSeat = Entity.Null,
+                                    ActingOccupant = Entity.Null,
+                                    Tick = currentTick
+                                };
+                                ProfileActionEventUtility.TryAppend(ref actionStream.ValueRW, actionBuffer, actionEvent, actionStreamConfig.MaxEvents);
+                            }
+                        }
+                        break;
+
+                    case MiningPhase.Mining:
+                        if (target == Entity.Null || !IsTargetInRange(target, transform.ValueRO.Position))
+                        {
+                            miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
+                            break;
+                        }
+
+                        if (isCargoFull || isAsteroidEmpty)
+                        {
+                            order.ValueRW.Status = MiningOrderStatus.Completed;
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, DetachDuration);
+                            EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
+                            break;
+                        }
+
+                        var tickInterval = GetTickInterval(ref miningState.ValueRW, deltaTime);
+                        miningState.ValueRW.MiningTimer += deltaTime;
+
+                        var safetyCounter = 0;
+                        while (miningState.ValueRW.MiningTimer >= tickInterval && safetyCounter < 4)
+                        {
+                            miningState.ValueRW.MiningTimer -= tickInterval;
+                            var mined = ApplyMiningTick(entity, target, tickInterval, ref vessel.ValueRW, order.ValueRO.ResourceId);
+                            if (mined <= 0f)
+                            {
+                                break;
+                            }
+
+                            UpdateYield(ref yield.ValueRW, order.ValueRO.ResourceId, mined);
+                            LogMiningCommand(hasCommandLog, commandLog, currentTick, target, entity, vessel.ValueRO.CargoResourceType, mined, transform.ValueRO.Position);
+                            EmitEffect(effectBuffer, entity, tickInterval);
+                            order.ValueRW.Status = MiningOrderStatus.Active;
+                            safetyCounter++;
+
+                            if (vessel.ValueRO.CurrentCargo >= vessel.ValueRO.CargoCapacity * 0.95f)
+                            {
+                                order.ValueRW.Status = MiningOrderStatus.Completed;
+                                SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, DetachDuration);
+                                EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
+                                break;
+                            }
+                        }
+                        break;
+
+                    case MiningPhase.Detaching:
+                        if (AdvancePhaseTimer(ref miningState.ValueRW, deltaTime))
+                        {
+                            miningState.ValueRW.Phase = MiningPhase.ReturnApproach;
+                        }
+                        break;
+
+                    case MiningPhase.ReturnApproach:
+                        if (target == Entity.Null)
+                        {
+                            miningState.ValueRW.Phase = MiningPhase.Idle;
+                            break;
+                        }
+
+                        if (IsTargetInRange(target, transform.ValueRO.Position))
+                        {
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Docking, DockDuration);
+                        }
+                        break;
+
+                    case MiningPhase.Docking:
+                        AdvancePhaseTimer(ref miningState.ValueRW, deltaTime);
+                        break;
                 }
             }
 
@@ -249,14 +359,14 @@ namespace Space4X.Registry
 
             if (foundTarget == Entity.Null)
             {
-                miningState.Phase = MiningPhase.Seeking;
+                miningState.Phase = MiningPhase.Idle;
                 miningState.ActiveTarget = Entity.Null;
                 return false;
             }
 
             order.TargetEntity = foundTarget;
             miningState.ActiveTarget = foundTarget;
-            miningState.Phase = MiningPhase.MovingToTarget;
+            miningState.Phase = MiningPhase.ApproachTarget;
             return true;
         }
 
@@ -283,6 +393,37 @@ namespace Space4X.Registry
             }
 
             return miningState.TickInterval;
+        }
+
+        private static bool AdvancePhaseTimer(ref MiningState miningState, float deltaTime)
+        {
+            if (miningState.PhaseTimer <= 0f)
+            {
+                return true;
+            }
+
+            miningState.PhaseTimer = math.max(0f, miningState.PhaseTimer - deltaTime);
+            return miningState.PhaseTimer <= 0f;
+        }
+
+        private static void SetPhase(ref MiningState miningState, MiningPhase phase, float duration)
+        {
+            miningState.Phase = phase;
+            miningState.PhaseTimer = math.max(0f, duration);
+        }
+
+        private static void EnsureReturnTarget(ref MiningState miningState, Entity carrierEntity)
+        {
+            if (carrierEntity == Entity.Null)
+            {
+                miningState.ActiveTarget = Entity.Null;
+                return;
+            }
+
+            if (miningState.ActiveTarget != carrierEntity)
+            {
+                miningState.ActiveTarget = carrierEntity;
+            }
         }
 
         private bool IsTargetInRange(Entity target, float3 minerPosition)
@@ -451,6 +592,20 @@ namespace Space4X.Registry
             var skill = math.saturate(skills.MiningSkill);
             // Up to +50% output at max skill.
             return 1f + 0.5f * skill;
+        }
+
+        private Entity ResolveProfileEntity(Entity miner)
+        {
+            if (_pilotLinkLookup.HasComponent(miner))
+            {
+                var link = _pilotLinkLookup[miner];
+                if (link.Pilot != Entity.Null)
+                {
+                    return link.Pilot;
+                }
+            }
+
+            return miner;
         }
     }
 }

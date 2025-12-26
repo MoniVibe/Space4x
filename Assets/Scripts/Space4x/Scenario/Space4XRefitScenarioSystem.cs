@@ -119,6 +119,10 @@ namespace Space4x.Scenario
 
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
+            EntityManager.AddComponentData(entity, new PostTransformMatrix
+            {
+                Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
+            });
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
 
             var hullId = new FixedString64Bytes(spawn.hullId ?? "lcv-sparrow");
@@ -359,4 +363,3 @@ namespace Space4x.Scenario
         public float LastProcessedTime;
     }
 }
-

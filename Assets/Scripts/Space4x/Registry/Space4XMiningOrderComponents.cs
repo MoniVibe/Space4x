@@ -35,10 +35,13 @@ namespace Space4X.Registry
     public enum MiningPhase : byte
     {
         Idle = 0,
-        Seeking = 1,
-        MovingToTarget = 2,
-        Mining = 3,
-        AwaitingOutput = 4
+        Undocking = 1,
+        ApproachTarget = 2,
+        Latching = 3,
+        Mining = 4,
+        Detaching = 5,
+        ReturnApproach = 6,
+        Docking = 7
     }
 
     /// <summary>
@@ -50,6 +53,7 @@ namespace Space4X.Registry
         public Entity ActiveTarget;
         public float MiningTimer;
         public float TickInterval;
+        public float PhaseTimer;
     }
 
     /// <summary>

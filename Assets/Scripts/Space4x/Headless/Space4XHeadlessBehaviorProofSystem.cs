@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
@@ -21,6 +22,7 @@ namespace Space4X.Headless
     public partial struct Space4XHeadlessBehaviorProofSystem : ISystem
     {
         private EntityQuery _strikeCraftQuery;
+        private EntityQuery _wingDirectiveQuery;
         private EntityQuery _escortQuery;
         private EntityQuery _patrolQuery;
         private EntityQuery _miningQuery;
@@ -45,6 +47,12 @@ namespace Space4X.Headless
         private Entity _dockEntity;
         private int _dockingPeakDocked;
 
+        private bool _wingDirectiveExpected;
+        private bool _wingDirectivePassed;
+
+        private bool _profileActionExpected;
+        private bool _profileActionPassed;
+
         private bool _reportedEnd;
 
         private static readonly FixedString32Bytes ExpectedComplete = new FixedString32Bytes("complete");
@@ -53,6 +61,8 @@ namespace Space4X.Headless
         private static readonly FixedString32Bytes StepAttackRun = new FixedString32Bytes("attack_run");
         private static readonly FixedString32Bytes StepCapToAttack = new FixedString32Bytes("cap_to_attack");
         private static readonly FixedString32Bytes StepDocking = new FixedString32Bytes("docking");
+        private static readonly FixedString32Bytes StepWingDirective = new FixedString32Bytes("wing_directive");
+        private static readonly FixedString32Bytes StepProfileAction = new FixedString32Bytes("profile_action");
         private static readonly FixedString64Bytes RewindPatrolId = new FixedString64Bytes("space4x.patrol");
         private static readonly FixedString64Bytes RewindEscortId = new FixedString64Bytes("space4x.escort");
         private static readonly FixedString64Bytes RewindAttackId = new FixedString64Bytes("space4x.attack");
@@ -84,6 +94,7 @@ namespace Space4X.Headless
             state.RequireForUpdate<TimeState>();
 
             _strikeCraftQuery = SystemAPI.QueryBuilder().WithAll<StrikeCraftProfile>().Build();
+            _wingDirectiveQuery = SystemAPI.QueryBuilder().WithAll<StrikeCraftWingDirective>().Build();
             _escortQuery = SystemAPI.QueryBuilder().WithAll<EscortAssignment>().Build();
             _patrolQuery = SystemAPI.QueryBuilder().WithAll<PatrolBehavior>().Build();
             _miningQuery = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build();
@@ -110,9 +121,19 @@ namespace Space4X.Headless
                 _attackExpected = true;
             }
 
+            if (!_wingDirectiveExpected && !_wingDirectiveQuery.IsEmptyIgnoreFilter)
+            {
+                _wingDirectiveExpected = true;
+            }
+
             if (!_dockingExpected && !_miningQuery.IsEmptyIgnoreFilter)
             {
                 _dockingExpected = true;
+            }
+
+            if (!_profileActionExpected && (_attackExpected || _dockingExpected || _wingDirectiveExpected))
+            {
+                _profileActionExpected = true;
             }
 
             if (!_capAttackSeen)
@@ -168,6 +189,13 @@ namespace Space4X.Headless
                 TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, true, 1f, ExpectedComplete, timeoutTicks, step: StepCapToAttack);
             }
 
+            if (_wingDirectiveExpected && !_wingDirectivePassed && CheckWingDirectiveLoop(ref state, time.Tick))
+            {
+                _wingDirectivePassed = true;
+                UnityDebug.Log($"[Space4XHeadlessLoopProof] PASS WingDirective tick={time.Tick}");
+                TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, true, 1f, ExpectedComplete, timeoutTicks, step: StepWingDirective);
+            }
+
             if (_dockingExpected && !_dockingPassed && CheckDockingLoop(ref state))
             {
                 _dockingPassed = true;
@@ -176,6 +204,13 @@ namespace Space4X.Headless
                 UnityDebug.Log($"[Space4XHeadlessLoopProof] PASS Docking tick={time.Tick} vessel={_dockEntity.Index}");
                 TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Logistics, true, 1f, ExpectedComplete, timeoutTicks, step: StepDocking);
                 TryFlushRewindProofs(ref state);
+            }
+
+            if (_profileActionExpected && !_profileActionPassed && CheckProfileActionLoop(ref state))
+            {
+                _profileActionPassed = true;
+                UnityDebug.Log($"[Space4XHeadlessLoopProof] PASS ProfileAction tick={time.Tick}");
+                TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, true, 1f, ExpectedComplete, timeoutTicks, step: StepProfileAction);
             }
 
             if (!_reportedEnd && time.Tick >= scenario.EndTick)
@@ -192,6 +227,12 @@ namespace Space4X.Headless
                 {
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL CapToAttack tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepCapToAttack);
+                }
+
+                if (_wingDirectiveExpected && !_wingDirectivePassed)
+                {
+                    UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL WingDirective tick={time.Tick}");
+                    TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepWingDirective);
                 }
 
                 if (_patrolExpected && !_patrolPassed)
@@ -218,9 +259,39 @@ namespace Space4X.Headless
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Logistics, false, 0f, ExpectedComplete, timeoutTicks, step: StepDocking);
                 }
 
+                if (_profileActionExpected && !_profileActionPassed)
+                {
+                    UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL ProfileAction tick={time.Tick}");
+                    TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepProfileAction);
+                }
+
                 TryFlushRewindProofs(ref state);
                 _reportedEnd = true;
             }
+        }
+
+        private bool CheckWingDirectiveLoop(ref SystemState state, uint tick)
+        {
+            foreach (var directive in SystemAPI.Query<RefRO<StrikeCraftWingDirective>>())
+            {
+                if (directive.ValueRO.LastDecisionTick > 0 && directive.ValueRO.LastDecisionTick <= tick)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool CheckProfileActionLoop(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var streamEntity))
+            {
+                return false;
+            }
+
+            var buffer = SystemAPI.GetBuffer<ProfileActionEvent>(streamEntity);
+            return buffer.Length > 0;
         }
 
         private void EnsureRewindSubjects(ref SystemState state)

@@ -371,7 +371,8 @@ namespace Space4X.Tests
                 Phase = MiningPhase.Mining,
                 ActiveTarget = targetAsteroid,
                 MiningTimer = 0f,
-                TickInterval = 1f
+                TickInterval = 1f,
+                PhaseTimer = 0f
             });
 
             _entityManager.SetComponentData(entity, new MiningYield

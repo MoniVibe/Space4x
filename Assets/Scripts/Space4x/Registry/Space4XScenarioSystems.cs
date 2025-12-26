@@ -3,9 +3,11 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Burst;
+using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
+using Space4X.Runtime;
 using UnityEngine;
 using Random = Unity.Mathematics.Random;
 
@@ -21,6 +23,16 @@ namespace Space4X.Registry
     {
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<CarrierMiningTarget> _miningTargetLookup;
+        private ComponentLookup<AlignmentTriplet> _alignmentLookup;
+        private BufferLookup<OutlookEntry> _outlookLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
+        private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private BufferLookup<AuthoritySeatRef> _seatRefLookup;
+        private ComponentLookup<AuthoritySeat> _seatLookup;
+        private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
+        private FixedString64Bytes _roleNavigationOfficer;
+        private FixedString64Bytes _roleShipmaster;
+        private FixedString64Bytes _roleCaptain;
         private Random _random;
 
         public void OnCreate(ref SystemState state)
@@ -28,6 +40,16 @@ namespace Space4X.Registry
             state.RequireForUpdate<TimeState>();
             _transformLookup = state.GetComponentLookup<LocalTransform>(false);
             _miningTargetLookup = state.GetComponentLookup<CarrierMiningTarget>(true);
+            _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
+            _outlookLookup = state.GetBufferLookup<OutlookEntry>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
+            _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
+            _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
+            _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
+            _roleShipmaster = new FixedString64Bytes("ship.shipmaster");
+            _roleCaptain = new FixedString64Bytes("ship.captain");
             _random = new Random(12345u);
         }
 
@@ -40,11 +62,24 @@ namespace Space4X.Registry
         {
             _transformLookup.Update(ref state);
             _miningTargetLookup.Update(ref state);
+            _alignmentLookup.Update(ref state);
+            _outlookLookup.Update(ref state);
+            _statsLookup.Update(ref state);
+            _pilotLookup.Update(ref state);
+            _seatRefLookup.Update(ref state);
+            _seatLookup.Update(ref state);
+            _seatOccupantLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
             var deltaTime = SystemAPI.TryGetSingleton<TimeState>(out var timeState) 
                 ? timeState.FixedDeltaTime 
                 : SystemAPI.Time.DeltaTime;
+
+            var motionConfig = VesselMotionProfileConfig.Default;
+            if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
+            {
+                motionConfig = motionConfigSingleton;
+            }
 
             var carrierQuery = SystemAPI.QueryBuilder()
                 .WithAll<Carrier, PatrolBehavior, MovementCommand, LocalTransform>()
@@ -57,12 +92,16 @@ namespace Space4X.Registry
                 return;
             }
 
-            foreach (var (carrier, patrol, movement, transform, entity) in SystemAPI.Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<LocalTransform>>().WithEntityAccess())
+            foreach (var (carrier, patrol, movement, vesselMovement, transform, entity) in SystemAPI
+                         .Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<VesselMovement>, RefRW<LocalTransform>>()
+                         .WithEntityAccess())
             {
                 var carrierData = carrier.ValueRO;
                 var position = transform.ValueRO.Position;
                 var movementCmd = movement.ValueRO;
                 var patrolBehavior = patrol.ValueRO;
+                ComputeMotionProfile(entity, motionConfig, out var speedMultiplier, out var accelerationMultiplier,
+                    out var decelerationMultiplier, out var turnMultiplier, out var slowdownMultiplier, out var deviationStrength);
 
                 if (_miningTargetLookup.HasComponent(entity))
                 {
@@ -77,9 +116,13 @@ namespace Space4X.Registry
                         if (distanceSq > miningArrivalThreshold * miningArrivalThreshold)
                         {
                             var direction = math.normalize(toTarget);
-                            var movementSpeed = carrierData.Speed * deltaTime;
-                            var newPosition = position + direction * movementSpeed;
-                            transform.ValueRW = LocalTransform.FromPositionRotationScale(newPosition, transform.ValueRO.Rotation, transform.ValueRO.Scale);
+                            if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
+                            {
+                                direction = ApplyDeviation(direction, entity, targetPos, deviationStrength);
+                            }
+
+                            ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
+                                miningArrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
                         }
 
                         movement.ValueRW = new MovementCommand
@@ -120,6 +163,9 @@ namespace Space4X.Registry
                 {
                     // Update wait timer
                     patrolBehavior.WaitTimer += deltaTime;
+                    vesselMovement.ValueRW.CurrentSpeed = 0f;
+                    vesselMovement.ValueRW.Velocity = float3.zero;
+                    vesselMovement.ValueRW.IsMoving = 0;
 
                     if (patrolBehavior.WaitTimer >= patrolBehavior.WaitTime)
                     {
@@ -152,10 +198,13 @@ namespace Space4X.Registry
                     if (distanceSq > 0.0001f) // Safety check to avoid normalizing zero vector
                     {
                         var direction = math.normalize(toWaypoint);
-                        var movementSpeed = carrierData.Speed * deltaTime;
-                        var newPosition = position + direction * movementSpeed;
+                        if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
+                        {
+                            direction = ApplyDeviation(direction, entity, patrolBehavior.CurrentWaypoint, deviationStrength);
+                        }
 
-                        transform.ValueRW = LocalTransform.FromPositionRotationScale(newPosition, transform.ValueRO.Rotation, transform.ValueRO.Scale);
+                        ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
+                            arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
 
                         // Update movement command target if needed
                         if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
@@ -171,6 +220,224 @@ namespace Space4X.Registry
 
                 patrol.ValueRW = patrolBehavior;
             }
+        }
+
+        private static void ApplyCarrierMotion(
+            ref VesselMovement movement,
+            ref LocalTransform transform,
+            float3 direction,
+            float distance,
+            in Carrier carrierData,
+            float arrivalThreshold,
+            float deltaTime,
+            float speedMultiplier,
+            float accelerationMultiplier,
+            float decelerationMultiplier,
+            float turnMultiplier,
+            float slowdownMultiplier)
+        {
+            var slowdownDistance = carrierData.SlowdownDistance > 0f
+                ? carrierData.SlowdownDistance
+                : math.max(arrivalThreshold * 4f, 2f);
+            slowdownDistance = math.max(arrivalThreshold * 1.5f, slowdownDistance * slowdownMultiplier);
+            var acceleration = carrierData.Acceleration > 0f ? carrierData.Acceleration : math.max(0.1f, carrierData.Speed * 0.5f);
+            var deceleration = carrierData.Deceleration > 0f ? carrierData.Deceleration : math.max(0.1f, carrierData.Speed * 0.8f);
+            var turnSpeed = carrierData.TurnSpeed > 0f ? carrierData.TurnSpeed : 0.6f;
+            acceleration = math.max(0.01f, acceleration * accelerationMultiplier);
+            deceleration = math.max(0.01f, deceleration * decelerationMultiplier);
+            turnSpeed = math.max(0.01f, turnSpeed * turnMultiplier);
+
+            var desiredSpeed = carrierData.Speed * speedMultiplier;
+            if (distance < slowdownDistance)
+            {
+                desiredSpeed *= math.saturate(distance / slowdownDistance);
+            }
+
+            if (movement.CurrentSpeed < desiredSpeed)
+            {
+                movement.CurrentSpeed = math.min(desiredSpeed, movement.CurrentSpeed + acceleration * deltaTime);
+            }
+            else
+            {
+                movement.CurrentSpeed = math.max(desiredSpeed, movement.CurrentSpeed - deceleration * deltaTime);
+            }
+
+            movement.Velocity = direction * movement.CurrentSpeed;
+            movement.IsMoving = movement.CurrentSpeed > 0.01f ? (byte)1 : (byte)0;
+
+            transform.Position += movement.Velocity * deltaTime;
+
+            if (math.lengthsq(direction) > 0.0001f)
+            {
+                var desiredRotation = quaternion.LookRotationSafe(direction, math.up());
+                transform.Rotation = math.slerp(transform.Rotation, desiredRotation, deltaTime * turnSpeed);
+            }
+        }
+
+        private void ComputeMotionProfile(
+            Entity carrierEntity,
+            in VesselMotionProfileConfig config,
+            out float speedMultiplier,
+            out float accelerationMultiplier,
+            out float decelerationMultiplier,
+            out float turnMultiplier,
+            out float slowdownMultiplier,
+            out float deviationStrength)
+        {
+            var profileEntity = ResolveProfileEntity(carrierEntity);
+            var alignment = _alignmentLookup.HasComponent(profileEntity)
+                ? _alignmentLookup[profileEntity]
+                : default;
+            var lawfulness = AlignmentMath.Lawfulness(alignment);
+            var chaos = AlignmentMath.Chaos(alignment);
+            var integrity = AlignmentMath.IntegrityNormalized(alignment);
+            var discipline = GetOutlookDiscipline(profileEntity);
+
+            var command = 0.5f;
+            var tactics = 0.5f;
+            if (_statsLookup.HasComponent(profileEntity))
+            {
+                var stats = _statsLookup[profileEntity];
+                command = math.saturate((float)stats.Command / 100f);
+                tactics = math.saturate((float)stats.Tactics / 100f);
+            }
+
+            var intelligence = math.saturate((command + tactics) * 0.5f);
+            var deliberate = math.saturate(lawfulness * (0.35f + integrity * 0.65f));
+            var economic = math.saturate(integrity * (0.4f + lawfulness * 0.6f));
+            var chaotic = math.saturate(chaos * (1f - discipline * 0.35f));
+
+            speedMultiplier = math.lerp(1f, config.DeliberateSpeedMultiplier, deliberate);
+            speedMultiplier *= math.lerp(1f, config.ChaoticSpeedMultiplier, chaotic);
+            speedMultiplier *= config.CapitalShipSpeedMultiplier;
+
+            accelerationMultiplier = math.lerp(1f, config.EconomyAccelerationMultiplier, economic);
+            accelerationMultiplier *= math.lerp(1f, config.ChaoticAccelerationMultiplier, chaotic);
+            accelerationMultiplier *= config.CapitalShipAccelerationMultiplier;
+
+            decelerationMultiplier = math.lerp(1f, config.EconomyDecelerationMultiplier, economic);
+            decelerationMultiplier *= math.lerp(1f, config.ChaoticDecelerationMultiplier, chaotic);
+            decelerationMultiplier *= config.CapitalShipDecelerationMultiplier;
+
+            turnMultiplier = math.lerp(1f, config.DeliberateTurnMultiplier, deliberate);
+            turnMultiplier *= math.lerp(1f, config.ChaoticTurnMultiplier, chaotic);
+            turnMultiplier *= math.lerp(1f, config.IntelligentTurnMultiplier, intelligence);
+            turnMultiplier *= config.CapitalShipTurnMultiplier;
+
+            slowdownMultiplier = math.lerp(1f, config.DeliberateSlowdownMultiplier, deliberate);
+            slowdownMultiplier *= math.lerp(1f, config.ChaoticSlowdownMultiplier, chaotic);
+            slowdownMultiplier *= math.lerp(1f, config.IntelligentSlowdownMultiplier, intelligence);
+
+            deviationStrength = config.ChaoticDeviationStrength * chaotic;
+        }
+
+        private Entity ResolveProfileEntity(Entity carrierEntity)
+        {
+            if (_pilotLookup.HasComponent(carrierEntity))
+            {
+                var pilot = _pilotLookup[carrierEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            var navigationOfficer = ResolveSeatOccupant(carrierEntity, _roleNavigationOfficer);
+            if (navigationOfficer != Entity.Null)
+            {
+                return navigationOfficer;
+            }
+
+            var shipmaster = ResolveSeatOccupant(carrierEntity, _roleShipmaster);
+            if (shipmaster != Entity.Null)
+            {
+                return shipmaster;
+            }
+
+            var captain = ResolveSeatOccupant(carrierEntity, _roleCaptain);
+            if (captain != Entity.Null)
+            {
+                return captain;
+            }
+
+            return carrierEntity;
+        }
+
+        private Entity ResolveSeatOccupant(Entity carrierEntity, FixedString64Bytes roleId)
+        {
+            if (!_seatRefLookup.HasBuffer(carrierEntity))
+            {
+                return Entity.Null;
+            }
+
+            var seats = _seatRefLookup[carrierEntity];
+            for (int i = 0; i < seats.Length; i++)
+            {
+                var seatEntity = seats[i].SeatEntity;
+                if (seatEntity == Entity.Null || !_seatLookup.HasComponent(seatEntity))
+                {
+                    continue;
+                }
+
+                var seat = _seatLookup[seatEntity];
+                if (!seat.RoleId.Equals(roleId))
+                {
+                    continue;
+                }
+
+                if (_seatOccupantLookup.HasComponent(seatEntity))
+                {
+                    return _seatOccupantLookup[seatEntity].OccupantEntity;
+                }
+
+                return Entity.Null;
+            }
+
+            return Entity.Null;
+        }
+
+        private float GetOutlookDiscipline(Entity profileEntity)
+        {
+            if (!_outlookLookup.HasBuffer(profileEntity))
+            {
+                return 0.5f;
+            }
+
+            var buffer = _outlookLookup[profileEntity];
+            var discipline = 0.5f;
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                var weight = math.clamp((float)entry.Weight, 0f, 1f);
+                switch (entry.OutlookId)
+                {
+                    case OutlookId.Loyalist:
+                        discipline += 0.2f * weight;
+                        break;
+                    case OutlookId.Fanatic:
+                        discipline += 0.25f * weight;
+                        break;
+                    case OutlookId.Opportunist:
+                        discipline -= 0.15f * weight;
+                        break;
+                    case OutlookId.Mutinous:
+                        discipline -= 0.3f * weight;
+                        break;
+                }
+            }
+
+            return math.saturate(discipline);
+        }
+
+        private static float3 ApplyDeviation(float3 direction, Entity carrierEntity, float3 targetPosition, float strength)
+        {
+            var targetHash = math.hash(math.asuint(targetPosition));
+            var seed = math.hash(new uint2((uint)carrierEntity.Index, targetHash));
+            float offset = seed * (1f / uint.MaxValue);
+            offset = offset * 2f - 1f;
+
+            var lateral = math.normalize(math.cross(direction, math.up()));
+            return math.normalize(direction + lateral * offset * strength);
         }
     }
 

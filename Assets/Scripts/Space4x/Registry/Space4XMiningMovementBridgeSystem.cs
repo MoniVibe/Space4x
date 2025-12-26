@@ -70,27 +70,37 @@ namespace Space4X.Registry
                     case MiningPhase.Idle:
                         newState = VesselAIState.State.Idle;
                         break;
-                    case MiningPhase.Seeking:
-                    case MiningPhase.MovingToTarget:
+                    case MiningPhase.Undocking:
+                        newState = VesselAIState.State.Idle;
+                        break;
+                    case MiningPhase.ApproachTarget:
                         newState = VesselAIState.State.MovingToTarget;
                         break;
                     case MiningPhase.Mining:
                         newState = VesselAIState.State.Mining;
                         break;
-                    case MiningPhase.AwaitingOutput:
-                        // While awaiting output, still consider it mining state
+                    case MiningPhase.Latching:
+                    case MiningPhase.Detaching:
                         newState = VesselAIState.State.Mining;
+                        break;
+                    case MiningPhase.ReturnApproach:
+                    case MiningPhase.Docking:
+                        newState = VesselAIState.State.Returning;
                         break;
                     default:
                         newState = VesselAIState.State.Idle;
                         break;
                 }
 
+                var desiredGoal = (phase == MiningPhase.ReturnApproach || phase == MiningPhase.Docking)
+                    ? VesselAIState.Goal.Returning
+                    : VesselAIState.Goal.Mining;
+
                 // Update VesselAIState if changed
                 if (aiState.ValueRO.CurrentState != newState)
                 {
                     aiState.ValueRW.CurrentState = newState;
-                    aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Mining;
+                    aiState.ValueRW.CurrentGoal = desiredGoal;
 
                     // Sync target entity from MiningState if available
                     if (targetEntity != Entity.Null && aiState.ValueRO.TargetEntity != targetEntity)
@@ -111,6 +121,11 @@ namespace Space4X.Registry
                     aiState.ValueRW.TargetEntity = targetEntity;
                 }
 
+                if (aiState.ValueRO.CurrentGoal != desiredGoal)
+                {
+                    aiState.ValueRW.CurrentGoal = desiredGoal;
+                }
+
                 // Populate TargetPosition directly when we have a transform so movement systems don't skip MiningOrder vessels
                 if (targetEntity != Entity.Null && _transformLookup.HasComponent(targetEntity))
                 {
@@ -121,4 +136,3 @@ namespace Space4X.Registry
         }
     }
 }
-

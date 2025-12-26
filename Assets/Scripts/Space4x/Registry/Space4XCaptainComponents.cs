@@ -212,6 +212,16 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Tracks order status transitions for profile/telemetry events.
+    /// </summary>
+    public struct CaptainOrderEventState : IComponentData
+    {
+        public CaptainOrderStatus LastStatus;
+        public uint LastIssuedTick;
+        public uint LastEmittedTick;
+    }
+
+    /// <summary>
     /// Readiness thresholds for pre-flight checks.
     /// </summary>
     public struct CaptainReadiness : IComponentData
@@ -444,4 +454,3 @@ namespace Space4X.Registry
         }
     }
 }
-

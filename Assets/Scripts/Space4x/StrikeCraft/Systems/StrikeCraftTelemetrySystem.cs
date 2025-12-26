@@ -18,10 +18,14 @@ namespace Space4X.StrikeCraft
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XStrikeCraftSystem))]
-	    public partial struct StrikeCraftTelemetrySystem : ISystem
-	    {
-	        private ComponentLookup<LocalTransform> _transformLookup;
-	        private EntityQuery _missingTelemetryQuery;
+    public partial struct StrikeCraftTelemetrySystem : ISystem
+    {
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<StrikeCraftWingDirective> _wingDirectiveLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
+        private ComponentLookup<StrikeCraftMaintenanceQuality> _maintenanceQualityLookup;
+        private BufferLookup<TopOutlook> _outlookLookup;
+        private EntityQuery _missingTelemetryQuery;
 
         private static readonly FixedString64Bytes SourceId = new FixedString64Bytes("Space4X.StrikeCraft");
         private static readonly FixedString64Bytes EventProfileAssigned = new FixedString64Bytes("BehaviorProfileAssigned");
@@ -30,6 +34,7 @@ namespace Space4X.StrikeCraft
         private static readonly FixedString64Bytes EventAttackRunEnd = new FixedString64Bytes("AttackRunEnd");
         private static readonly FixedString64Bytes EventPatrolStart = new FixedString64Bytes("CombatAirPatrolStart");
         private static readonly FixedString64Bytes EventPatrolEnd = new FixedString64Bytes("CombatAirPatrolEnd");
+        private static readonly FixedString64Bytes EventWingDirective = new FixedString64Bytes("WingDirectiveChanged");
 
         private static bool TelemetryEnabled()
         {
@@ -54,15 +59,19 @@ namespace Space4X.StrikeCraft
                 return;
             }
 	            state.RequireForUpdate<StrikeCraftProfile>();
-	            state.RequireForUpdate<TelemetryStream>();
-	            state.RequireForUpdate<TelemetryStreamSingleton>();
-	            state.RequireForUpdate<ScenarioTick>();
-	            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
-	            _missingTelemetryQuery = SystemAPI.QueryBuilder()
-	                .WithAll<StrikeCraftProfile>()
-	                .WithNone<StrikeCraftTelemetryState>()
-	                .Build();
-	        }
+            state.RequireForUpdate<TelemetryStream>();
+            state.RequireForUpdate<TelemetryStreamSingleton>();
+            state.RequireForUpdate<ScenarioTick>();
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _wingDirectiveLookup = state.GetComponentLookup<StrikeCraftWingDirective>(true);
+            _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _maintenanceQualityLookup = state.GetComponentLookup<StrikeCraftMaintenanceQuality>(true);
+            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _missingTelemetryQuery = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftProfile>()
+                .WithNone<StrikeCraftTelemetryState>()
+                .Build();
+        }
 
         public void OnUpdate(ref SystemState state)
         {
@@ -78,6 +87,10 @@ namespace Space4X.StrikeCraft
             }
 
             _transformLookup.Update(ref state);
+            _wingDirectiveLookup.Update(ref state);
+            _pilotLinkLookup.Update(ref state);
+            _maintenanceQualityLookup.Update(ref state);
+            _outlookLookup.Update(ref state);
             var tick = SystemAPI.GetSingleton<ScenarioTick>().Value;
             var metricsReady = TryGetTelemetryMetricBuffer(ref state, out var metricBuffer);
             var capActive = 0;
@@ -87,6 +100,9 @@ namespace Space4X.StrikeCraft
             var wingMembers = 0;
             var wingDistanceSum = 0f;
             var wingCohesionSum = 0f;
+            var wingLeaders = 0;
+            var wingBreak = 0;
+            var maintenanceQualitySum = 0f;
 
             foreach (var (profile, config, telemetry, entity) in SystemAPI
                          .Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<StrikeCraftTelemetryState>>()
@@ -119,6 +135,33 @@ namespace Space4X.StrikeCraft
                     wingDistanceSum += distance;
                     wingCohesionSum += cohesion;
                 }
+
+                if (_maintenanceQualityLookup.HasComponent(entity))
+                {
+                    maintenanceQualitySum += math.saturate(_maintenanceQualityLookup[entity].Value);
+                }
+
+                var isLeader = profile.ValueRO.WingLeader == Entity.Null && profile.ValueRO.WingPosition == 0;
+                if (isLeader && _wingDirectiveLookup.HasComponent(entity))
+                {
+                    wingLeaders++;
+                    var directive = _wingDirectiveLookup[entity];
+                    if (directive.Mode == 1)
+                    {
+                        wingBreak++;
+                    }
+
+                    if (telemetry.ValueRO.LastWingDirectiveMode != directive.Mode ||
+                        telemetry.ValueRO.LastWingDirectiveTick != directive.LastDecisionTick)
+                    {
+                    var profileEntity = ResolveProfileEntity(entity);
+                    var discipline = ComputeDiscipline(profileEntity);
+                    var payload = BuildWingDirectivePayload(entity, profile.ValueRO, directive, discipline, profileEntity);
+                    eventBuffer.AddEvent(EventWingDirective, tick, SourceId, payload);
+                    telemetry.ValueRW.LastWingDirectiveMode = directive.Mode;
+                    telemetry.ValueRW.LastWingDirectiveTick = directive.LastDecisionTick;
+                }
+            }
 
                 var profileHash = ComputeProfileHash(profile.ValueRO, config.ValueRO);
                 if (telemetry.ValueRO.BehaviorLogged == 0 ||
@@ -181,6 +224,7 @@ namespace Space4X.StrikeCraft
                 var capRatio = capActive / (float)total;
                 var wingAvgDistance = wingMembers > 0 ? wingDistanceSum / wingMembers : 0f;
                 var wingCohesion = wingMembers > 0 ? wingCohesionSum / wingMembers : 0f;
+                var avgMaintenanceQuality = totalCraft > 0 ? maintenanceQualitySum / totalCraft : 0f;
                 metricBuffer.AddMetric("space4x.strikecraft.total", totalCraft, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric("space4x.strikecraft.cap.active", capActive, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric("space4x.strikecraft.cap.noncombat", capNonCombat, TelemetryMetricUnit.Count);
@@ -190,6 +234,10 @@ namespace Space4X.StrikeCraft
                 metricBuffer.AddMetric("space4x.strikecraft.wing.members", wingMembers, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric("space4x.strikecraft.wing.avgDistance", wingAvgDistance, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric("space4x.strikecraft.wing.cohesion", wingCohesion, TelemetryMetricUnit.Ratio);
+                metricBuffer.AddMetric("space4x.strikecraft.wing.leaders", wingLeaders, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.wing.break", wingBreak, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.wing.form", math.max(0, wingLeaders - wingBreak), TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric("space4x.strikecraft.maintenance.quality", avgMaintenanceQuality, TelemetryMetricUnit.Ratio);
             }
         }
 
@@ -307,6 +355,66 @@ namespace Space4X.StrikeCraft
             writer.AddEntity("carrier", profile.Carrier);
             writer.AddEntity("target", profile.Target);
             return writer.Build();
+        }
+
+        private static FixedString128Bytes BuildWingDirectivePayload(Entity entity, in StrikeCraftProfile profile, in StrikeCraftWingDirective directive, float discipline, Entity pilot)
+        {
+            var writer = new TelemetryJsonWriter();
+            writer.AddEntity("entity", entity);
+            writer.AddEntity("pilot", pilot);
+            writer.AddEntity("carrier", profile.Carrier);
+            writer.AddString("role", profile.Role.ToString());
+            writer.AddString("directive", directive.Mode == 1 ? "Break" : "FormUp");
+            writer.AddUInt("decisionTick", directive.LastDecisionTick);
+            writer.AddFloat("discipline", discipline);
+            return writer.Build();
+        }
+
+        private Entity ResolveProfileEntity(Entity craftEntity)
+        {
+            if (_pilotLinkLookup.HasComponent(craftEntity))
+            {
+                var link = _pilotLinkLookup[craftEntity];
+                if (link.Pilot != Entity.Null)
+                {
+                    return link.Pilot;
+                }
+            }
+
+            return craftEntity;
+        }
+
+        private float ComputeDiscipline(Entity entity)
+        {
+            if (!_outlookLookup.HasBuffer(entity))
+            {
+                return 0.5f;
+            }
+
+            var buffer = _outlookLookup[entity];
+            var discipline = 0.5f;
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                var weight = math.clamp((float)entry.Weight, 0f, 1f);
+                switch (entry.OutlookId)
+                {
+                    case OutlookId.Loyalist:
+                        discipline += 0.2f * weight;
+                        break;
+                    case OutlookId.Fanatic:
+                        discipline += 0.25f * weight;
+                        break;
+                    case OutlookId.Opportunist:
+                        discipline -= 0.15f * weight;
+                        break;
+                    case OutlookId.Mutinous:
+                        discipline -= 0.3f * weight;
+                        break;
+                }
+            }
+
+            return math.saturate(discipline);
         }
 
         private static string ResolvePhaseReason(AttackRunPhase previous, AttackRunPhase current)

@@ -47,7 +47,10 @@ namespace Space4X.Tests
             var miner = CreateMiner(resourceId, 10f, 0.5f, float3.zero);
 
             var miningSystem = _world.GetOrCreateSystem<Space4XMinerMiningSystem>();
-            miningSystem.Update(_world.Unmanaged);
+            for (var i = 0; i < 6; i++)
+            {
+                miningSystem.Update(_world.Unmanaged);
+            }
 
             var updatedOrder = _entityManager.GetComponentData<MiningOrder>(miner);
             Assert.AreEqual(MiningOrderStatus.Active, updatedOrder.Status);
@@ -161,7 +164,8 @@ namespace Space4X.Tests
                 Phase = MiningPhase.Idle,
                 ActiveTarget = Entity.Null,
                 MiningTimer = 0f,
-                TickInterval = tickInterval
+                TickInterval = tickInterval,
+                PhaseTimer = 0f
             });
             _entityManager.SetComponentData(entity, new MiningYield
             {
@@ -193,7 +197,10 @@ namespace Space4X.Tests
             var bridgeSystem = _world.GetOrCreateSystem<Space4XMiningYieldSpawnBridgeSystem>();
             var spawnSystem = _world.GetOrCreateSystem<MiningResourceSpawnSystem>();
 
-            miningSystem.Update(_world.Unmanaged);
+            for (var i = 0; i < 6; i++)
+            {
+                miningSystem.Update(_world.Unmanaged);
+            }
             bridgeSystem.Update(_world.Unmanaged);
             spawnSystem.Update(_world.Unmanaged);
 
@@ -323,7 +330,8 @@ namespace Space4X.Tests
                 Phase = MiningPhase.Idle,
                 ActiveTarget = Entity.Null,
                 MiningTimer = 0f,
-                TickInterval = 0.5f
+                TickInterval = 0.5f,
+                PhaseTimer = 0f
             });
             _entityManager.SetComponentData(miner, new MiningYield
             {
@@ -339,7 +347,10 @@ namespace Space4X.Tests
             _entityManager.SetComponentData(miner, LocalTransform.FromPositionRotationScale(float3.zero, quaternion.identity, 1f));
 
             var miningSystem = _world.GetOrCreateSystem<Space4XMinerMiningSystem>();
-            miningSystem.Update(_world.Unmanaged);
+            for (var i = 0; i < 6; i++)
+            {
+                miningSystem.Update(_world.Unmanaged);
+            }
 
             var vessel = _entityManager.GetComponentData<MiningVessel>(miner);
             Assert.AreEqual(4.5f, vessel.CurrentCargo, 1e-3f);

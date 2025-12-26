@@ -195,6 +195,162 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Wing-level directive issued by a wing leader to either regroup or break formation.
+    /// </summary>
+    public struct StrikeCraftWingDirective : IComponentData
+    {
+        /// <summary>
+        /// 0 = FormUp, 1 = Break.
+        /// </summary>
+        public byte Mode;
+
+        /// <summary>
+        /// Next tick when the wing leader may re-evaluate the directive.
+        /// </summary>
+        public uint NextDecisionTick;
+
+        /// <summary>
+        /// Last tick when the directive changed.
+        /// </summary>
+        public uint LastDecisionTick;
+    }
+
+    /// <summary>
+    /// Tracks the last wing directive received and whether it was obeyed.
+    /// </summary>
+    public struct StrikeCraftOrderDecision : IComponentData
+    {
+        public uint LastDirectiveTick;
+        public byte LastDirectiveMode;
+        /// <summary>
+        /// 0 = None, 1 = Obey, 2 = Disobey.
+        /// </summary>
+        public byte LastDecision;
+        public uint LastEmittedTick;
+    }
+
+    /// <summary>
+    /// Links a strike craft to its pilot entity (individual profile owner).
+    /// </summary>
+    public struct StrikeCraftPilotLink : IComponentData
+    {
+        public Entity Pilot;
+    }
+
+    /// <summary>
+    /// Quality of hangar/technical work applied to this craft [0, 1].
+    /// </summary>
+    public struct StrikeCraftMaintenanceQuality : IComponentData
+    {
+        public float Value;
+    }
+
+    /// <summary>
+    /// Default profile values for spawned strike craft pilots.
+    /// </summary>
+    public struct StrikeCraftPilotProfileConfig : IComponentData
+    {
+        public OutlookId FriendlyOutlook;
+        public OutlookId HostileOutlook;
+        public OutlookId NeutralOutlook;
+        public float LoyalistLawThreshold;
+        public float MutinousLawThreshold;
+
+        public static StrikeCraftPilotProfileConfig Default => new StrikeCraftPilotProfileConfig
+        {
+            FriendlyOutlook = OutlookId.Loyalist,
+            HostileOutlook = OutlookId.Mutinous,
+            NeutralOutlook = OutlookId.Neutral,
+            LoyalistLawThreshold = 0.55f,
+            MutinousLawThreshold = -0.55f
+        };
+    }
+
+    /// <summary>
+    /// Tunable thresholds for wing regroup/break decisions.
+    /// </summary>
+    public struct StrikeCraftWingDecisionConfig : IComponentData
+    {
+        public uint DecisionCooldownTicks;
+        public byte MaxWingSize;
+        public float ChaosBreakThreshold;
+        public float ChaosBreakAggressiveThreshold;
+        public float LawfulnessFormThreshold;
+
+        public static StrikeCraftWingDecisionConfig Default => new StrikeCraftWingDecisionConfig
+        {
+            DecisionCooldownTicks = 60,
+            MaxWingSize = 6,
+            ChaosBreakThreshold = 0.55f,
+            ChaosBreakAggressiveThreshold = 0.45f,
+            LawfulnessFormThreshold = 0.55f
+        };
+    }
+
+    /// <summary>
+    /// Tunable profile-driven behavior for strike craft order compliance and extreme tactics.
+    /// </summary>
+    public struct StrikeCraftBehaviorProfileConfig : IComponentData
+    {
+        public byte AllowKamikaze;
+        public byte RequireRewindEnabled;
+        public byte RequireCombatTechTier;
+        public byte AllowDirectiveDisobedience;
+        public byte RequireCaptainConsent;
+        public byte RequireCultureConsent;
+        public byte DefaultCaptainAllowsDireTactics;
+        public byte DefaultCultureAllowsDireTactics;
+        public float ObedienceThreshold;
+        public float LawfulnessWeight;
+        public float DisciplineWeight;
+        public float BaseDisobeyChance;
+        public float ChaosDisobeyBonus;
+        public float MutinyDisobeyBonus;
+        public float KamikazePurityThreshold;
+        public float KamikazeLawfulnessThreshold;
+        public float KamikazeChaosThreshold;
+        public float KamikazeHullThreshold;
+        public float KamikazeChance;
+        public float KamikazeSpeedMultiplier;
+        public float KamikazeTurnMultiplier;
+        public float KitingMinExperience;
+        public float KitingChance;
+        public float KitingMinDistance;
+        public float KitingMaxDistance;
+        public float KitingStrafeStrength;
+
+        public static StrikeCraftBehaviorProfileConfig Default => new StrikeCraftBehaviorProfileConfig
+        {
+            AllowKamikaze = 0,
+            RequireRewindEnabled = 1,
+            RequireCombatTechTier = 0,
+            AllowDirectiveDisobedience = 1,
+            RequireCaptainConsent = 1,
+            RequireCultureConsent = 1,
+            DefaultCaptainAllowsDireTactics = 0,
+            DefaultCultureAllowsDireTactics = 0,
+            ObedienceThreshold = 0.5f,
+            LawfulnessWeight = 0.35f,
+            DisciplineWeight = 0.35f,
+            BaseDisobeyChance = 0.1f,
+            ChaosDisobeyBonus = 0.4f,
+            MutinyDisobeyBonus = 0.35f,
+            KamikazePurityThreshold = 0.7f,
+            KamikazeLawfulnessThreshold = 0.7f,
+            KamikazeChaosThreshold = 0.7f,
+            KamikazeHullThreshold = 0.35f,
+            KamikazeChance = 0.25f,
+            KamikazeSpeedMultiplier = 1.35f,
+            KamikazeTurnMultiplier = 1.2f,
+            KitingMinExperience = 0.6f,
+            KitingChance = 0.35f,
+            KitingMinDistance = 15f,
+            KitingMaxDistance = 80f,
+            KitingStrafeStrength = 0.35f
+        };
+    }
+
+    /// <summary>
     /// Configuration for attack run behavior.
     /// </summary>
     public struct AttackRunConfig : IComponentData
@@ -625,4 +781,3 @@ namespace Space4X.Registry
         }
     }
 }
-

@@ -23,6 +23,7 @@ namespace Space4X.Systems.AI
         private const float DropoffDistance = 3.5f;
         private const float DropoffDistanceSq = DropoffDistance * DropoffDistance;
         private const float DropoffRatePerSecond = 250f;
+        private const float DockingHoldDuration = 1.2f;
 
         private ComponentLookup<LocalTransform> _transformLookup;
         private BufferLookup<ResourceStorage> _storageLookup;
@@ -143,9 +144,10 @@ namespace Space4X.Systems.AI
                     if (SystemAPI.HasComponent<MiningState>(entity))
                     {
                         var miningState = SystemAPI.GetComponentRW<MiningState>(entity).ValueRO;
-                        miningState.Phase = MiningPhase.Idle;
+                        miningState.Phase = MiningPhase.Docking;
                         miningState.ActiveTarget = Entity.Null;
                         miningState.MiningTimer = 0f;
+                        miningState.PhaseTimer = DockingHoldDuration;
                         SystemAPI.GetComponentRW<MiningState>(entity).ValueRW = miningState;
                     }
                 }

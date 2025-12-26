@@ -21,6 +21,8 @@
 - **Combat Systems / CIC**: Tactical coordination, sensor fusion, targeting.
 - **Logistics & Life Support**: Cargo handling, resource routing, environmental control.
 - **Command & Comms**: Bridge crew, communications, diplomacy liaisons.
+- **Navigation & Helm**: Course plotting, formation spacing, maneuver doctrine.
+- **Security & Boarding**: Shipboard security, marine detachments, boarding actions.
 
 ## Crew Stats
 

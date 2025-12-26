@@ -36,6 +36,27 @@ namespace Space4X.Authoring
         [Tooltip("Movement speed")]
         public float speed = 3f;
 
+        [Header("Motion Profile")]
+        [Range(0.05f, 10f)]
+        [Tooltip("Acceleration in units per second squared")]
+        public float acceleration = 0.6f;
+
+        [Range(0.05f, 10f)]
+        [Tooltip("Deceleration in units per second squared")]
+        public float deceleration = 0.9f;
+
+        [Range(0.05f, 5f)]
+        [Tooltip("Turn speed in radians per second")]
+        public float turnSpeed = 0.35f;
+
+        [Range(1f, 100f)]
+        [Tooltip("Distance to start slowing down when approaching targets")]
+        public float slowdownDistance = 12f;
+
+        [Range(0.5f, 20f)]
+        [Tooltip("Arrival threshold for stopping at targets")]
+        public float arrivalDistance = 2.5f;
+
         [Header("Storage")]
         [Tooltip("Resource storage configurations")]
         public ResourceStorageConfig[] resourceStorages = new ResourceStorageConfig[]
@@ -65,6 +86,11 @@ namespace Space4X.Authoring
                     CarrierId = new FixedString64Bytes(authoring.carrierId),
                     AffiliationEntity = Entity.Null, // Can be set up separately if needed
                     Speed = math.max(0.1f, authoring.speed),
+                    Acceleration = math.max(0.01f, authoring.acceleration),
+                    Deceleration = math.max(0.01f, authoring.deceleration),
+                    TurnSpeed = math.max(0.01f, authoring.turnSpeed),
+                    SlowdownDistance = math.max(0.1f, authoring.slowdownDistance),
+                    ArrivalDistance = math.max(0.1f, authoring.arrivalDistance),
                     PatrolCenter = authoring.patrolCenter,
                     PatrolRadius = math.max(1f, authoring.patrolRadius)
                 });
@@ -82,6 +108,26 @@ namespace Space4X.Authoring
                 {
                     TargetPosition = float3.zero, // Will be set by CarrierPatrolSystem
                     ArrivalThreshold = 1f
+                });
+
+                AddComponent(entity, new VesselMovement
+                {
+                    Velocity = float3.zero,
+                    BaseSpeed = math.max(0.1f, authoring.speed),
+                    CurrentSpeed = 0f,
+                    Acceleration = math.max(0.01f, authoring.acceleration),
+                    Deceleration = math.max(0.01f, authoring.deceleration),
+                    TurnSpeed = math.max(0.01f, authoring.turnSpeed),
+                    SlowdownDistance = math.max(0.1f, authoring.slowdownDistance),
+                    ArrivalDistance = math.max(0.1f, authoring.arrivalDistance),
+                    DesiredRotation = quaternion.identity,
+                    IsMoving = 0,
+                    LastMoveTick = 0
+                });
+
+                AddComponent(entity, new PostTransformMatrix
+                {
+                    Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
                 });
 
                 // Add ResourceStorage buffer
