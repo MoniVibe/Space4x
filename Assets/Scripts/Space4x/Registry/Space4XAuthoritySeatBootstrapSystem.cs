@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -37,6 +38,8 @@ namespace Space4X.Registry
             in CaptainOrder order,
             ref EntityCommandBuffer ecb)
         {
+            EnsureAuthorityCraftClaims(entityManager, shipEntity, ref ecb);
+
             var seatCount = 0;
             if (entityManager.HasBuffer<AuthoritySeatRef>(shipEntity))
             {
@@ -190,6 +193,30 @@ namespace Space4X.Registry
                     ActingOccupant = Entity.Null,
                     IssuedTick = 0u
                 });
+            }
+        }
+
+        private static void EnsureAuthorityCraftClaims(
+            EntityManager entityManager,
+            Entity shipEntity,
+            ref EntityCommandBuffer ecb)
+        {
+            if (!entityManager.HasComponent<AuthorityCraftClaimConfig>(shipEntity))
+            {
+                ecb.AddComponent(shipEntity, AuthorityCraftClaimConfig.Default);
+            }
+
+            if (!entityManager.HasBuffer<AuthorityCraftSeatClaim>(shipEntity))
+            {
+                var buffer = ecb.AddBuffer<AuthorityCraftSeatClaim>(shipEntity);
+                AuthorityCraftClaimDefaults.PopulateDefaultSeatClaims(ref buffer);
+                return;
+            }
+
+            var claims = entityManager.GetBuffer<AuthorityCraftSeatClaim>(shipEntity);
+            if (claims.Length == 0)
+            {
+                AuthorityCraftClaimDefaults.PopulateDefaultSeatClaims(ref claims);
             }
         }
 

@@ -54,6 +54,10 @@ namespace Space4X.Registry
         public float MiningTimer;
         public float TickInterval;
         public float PhaseTimer;
+        public float3 DigHeadLocal;
+        public float3 DigDirectionLocal;
+        public Entity DigVolumeEntity;
+        public byte HasDigHead;
     }
 
     /// <summary>

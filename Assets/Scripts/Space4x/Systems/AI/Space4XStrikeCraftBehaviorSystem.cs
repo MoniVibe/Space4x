@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Authority;
+using PureDOTS.Runtime.Formation;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -44,6 +45,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<StrikeCraftMaintenanceQuality> _maintenanceQualityLookup;
         private ComponentLookup<StrikeCraftWingDirective> _wingDirectiveLookup;
         private ComponentLookup<StrikeCraftOrderDecision> _orderDecisionLookup;
+        private ComponentLookup<FormationMember> _formationMemberLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<CarrierTag> _carrierTagLookup;
         private ComponentLookup<StationId> _stationIdLookup;
@@ -82,6 +84,7 @@ namespace Space4X.Systems.AI
             _maintenanceQualityLookup = state.GetComponentLookup<StrikeCraftMaintenanceQuality>(true);
             _wingDirectiveLookup = state.GetComponentLookup<StrikeCraftWingDirective>(true);
             _orderDecisionLookup = state.GetComponentLookup<StrikeCraftOrderDecision>(false);
+            _formationMemberLookup = state.GetComponentLookup<FormationMember>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _carrierTagLookup = state.GetComponentLookup<CarrierTag>(true);
             _stationIdLookup = state.GetComponentLookup<StationId>(true);
@@ -125,6 +128,7 @@ namespace Space4X.Systems.AI
             _maintenanceQualityLookup.Update(ref state);
             _wingDirectiveLookup.Update(ref state);
             _orderDecisionLookup.Update(ref state);
+            _formationMemberLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _carrierTagLookup.Update(ref state);
             _stationIdLookup.Update(ref state);
@@ -177,6 +181,7 @@ namespace Space4X.Systems.AI
                 MaintenanceQualityLookup = _maintenanceQualityLookup,
                 WingDirectiveLookup = _wingDirectiveLookup,
                 OrderDecisionLookup = _orderDecisionLookup,
+                FormationMemberLookup = _formationMemberLookup,
                 CarrierLookup = _carrierLookup,
                 CarrierTagLookup = _carrierTagLookup,
                 StationIdLookup = _stationIdLookup,
@@ -223,6 +228,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<StrikeCraftMaintenanceQuality> MaintenanceQualityLookup;
             [ReadOnly] public ComponentLookup<StrikeCraftWingDirective> WingDirectiveLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<StrikeCraftOrderDecision> OrderDecisionLookup;
+            [ReadOnly] public ComponentLookup<FormationMember> FormationMemberLookup;
             [ReadOnly] public ComponentLookup<Carrier> CarrierLookup;
             [ReadOnly] public ComponentLookup<CarrierTag> CarrierTagLookup;
             [ReadOnly] public ComponentLookup<StationId> StationIdLookup;
@@ -408,7 +414,8 @@ namespace Space4X.Systems.AI
                 spacingScale *= math.lerp(1.15f, 0.85f, maintenanceQuality);
 
                 var wingOffset = ComputeWingOffset(entity, lawfulness, profileEntity);
-                if (leader != Entity.Null && TryResolveWingDirective(entity, leader, out var directiveMode, out var shouldObey))
+                var hasDirective = leader != Entity.Null && TryResolveWingDirective(entity, leader, out var directiveMode, out var shouldObey);
+                if (hasDirective)
                 {
                     if (shouldObey && directiveMode == 1)
                     {
@@ -418,6 +425,31 @@ namespace Space4X.Systems.AI
                     else if (!shouldObey)
                     {
                         spacingScale *= math.lerp(1.1f, 1.6f, chaos);
+                    }
+                }
+
+                var shouldUseFormation = !hasDirective || (shouldObey && directiveMode == 0);
+                if (shouldUseFormation && FormationMemberLookup.HasComponent(entity))
+                {
+                    var member = FormationMemberLookup[entity];
+                    if (member.FormationEntity != Entity.Null)
+                    {
+                        var target = member.TargetPosition;
+                        var toTarget = target - transform.Position;
+                        var distance = math.length(toTarget);
+                        if (distance > 0.05f)
+                        {
+                            var moveSpeed = 10f;
+                            moveSpeed *= math.lerp(0.85f, 1.2f, maintenanceQuality);
+                            moveSpeed *= math.lerp(0.9f, 1.15f, GetMobilityQuality(entity));
+                            var step = math.min(distance, moveSpeed * DeltaTime);
+                            transform.Position += math.normalize(toTarget) * step;
+                        }
+                        else
+                        {
+                            transform.Position = target;
+                        }
+                        return;
                     }
                 }
 

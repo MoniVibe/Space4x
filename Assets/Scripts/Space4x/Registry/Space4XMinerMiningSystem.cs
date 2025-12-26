@@ -1,3 +1,4 @@
+using PureDOTS.Environment;
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Profile;
@@ -28,7 +29,9 @@ namespace Space4X.Registry
         private ComponentLookup<ResourceSourceState> _resourceStateLookup;
         private ComponentLookup<ResourceSourceConfig> _resourceConfigLookup;
         private ComponentLookup<ResourceTypeId> _resourceTypeLookup;
+        private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
         private BufferLookup<PlayEffectRequest> _effectRequestLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLinkLookup;
@@ -73,7 +76,9 @@ namespace Space4X.Registry
             _resourceStateLookup = state.GetComponentLookup<ResourceSourceState>(false);
             _resourceConfigLookup = state.GetComponentLookup<ResourceSourceConfig>(true);
             _resourceTypeLookup = state.GetComponentLookup<ResourceTypeId>(true);
+            _asteroidLookup = state.GetComponentLookup<Asteroid>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             _effectRequestLookup = state.GetBufferLookup<PlayEffectRequest>();
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _pilotLinkLookup = state.GetComponentLookup<VesselPilotLink>(true);
@@ -102,11 +107,13 @@ namespace Space4X.Registry
             _resourceStateLookup.Update(ref state);
             _resourceConfigLookup.Update(ref state);
             _resourceTypeLookup.Update(ref state);
+            _asteroidLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _effectRequestLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
             _pilotLinkLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
+            _asteroidVolumeLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
             var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
@@ -120,6 +127,18 @@ namespace Space4X.Registry
             }
 
             var effectBuffer = GetEffectBuffer(ref state);
+            var digConfig = Space4XMiningDigConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XMiningDigConfig>(out var digConfigSingleton))
+            {
+                digConfig = digConfigSingleton;
+            }
+
+            var hasModificationQueue = SystemAPI.TryGetSingletonEntity<TerrainModificationQueue>(out var modificationQueueEntity);
+            DynamicBuffer<TerrainModificationRequest> modificationBuffer = default;
+            if (hasModificationQueue)
+            {
+                modificationBuffer = SystemAPI.GetBuffer<TerrainModificationRequest>(modificationQueueEntity);
+            }
             var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
             var currentTick = timeState.Tick;
 
