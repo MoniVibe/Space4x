@@ -957,7 +957,7 @@ namespace Space4X.Registry
                         SlingshotSpeedMultiplier = 0.8f
                     });
                     AddComponent(entity, new Space4X.Runtime.Interaction.Space4XCelestialManipulable());
-                    AddComponent(entity, new Space4X.Runtime.Physics.SpaceVelocity
+                    AddComponent(entity, new Space4X.Physics.SpaceVelocity
                     {
                         Linear = float3.zero,
                         Angular = float3.zero
@@ -1031,90 +1031,72 @@ namespace Space4X.Registry
                 const int droneCount = 12;
                 float4 droneTint = new float4(anchorTint.x, anchorTint.y, anchorTint.z, 1f);
 
-                if (!HasComponent<Space4X.Runtime.Space4XSwarmDemoState>(anchorEntity))
+                AddComponent(anchorEntity, new Space4X.Runtime.Space4XSwarmDemoState
                 {
-                    AddComponent(anchorEntity, new Space4X.Runtime.Space4XSwarmDemoState
-                    {
-                        Phase = Space4X.Runtime.Space4XSwarmDemoPhase.Screen,
-                        NextPhaseTick = 0u,
-                        AttackTarget = Entity.Null,
-                        TugDirection = new float3(1f, 0f, 0f)
-                    });
-                }
+                    Phase = Space4X.Runtime.Space4XSwarmDemoPhase.Screen,
+                    NextPhaseTick = 0u,
+                    AttackTarget = Entity.Null,
+                    TugDirection = new float3(1f, 0f, 0f)
+                });
 
-                if (!HasComponent<PureDOTS.Runtime.Agency.ControllerIntegrityState>(anchorEntity))
+                AddComponent(anchorEntity, new PureDOTS.Runtime.Agency.ControllerIntegrityState
                 {
-                    AddComponent(anchorEntity, new PureDOTS.Runtime.Agency.ControllerIntegrityState
-                    {
-                        Integrity01 = 1f,
-                        CompromisedBy = Entity.Null,
-                        LastIntegrityTick = 0u,
-                        IsCompromised = 0,
-                        Reserved0 = 0,
-                        Reserved1 = 0
-                    });
-                }
+                    Integrity01 = 1f,
+                    CompromisedBy = Entity.Null,
+                    LastIntegrityTick = 0u,
+                    IsCompromised = 0,
+                    Reserved0 = 0,
+                    Reserved1 = 0
+                });
 
-                if (!HasComponent<CompromiseState>(anchorEntity))
+                AddComponent(anchorEntity, new CompromiseState
                 {
-                    AddComponent(anchorEntity, new CompromiseState
-                    {
-                        IsCompromised = 0,
-                        Suspicion = 0,
-                        Severity = 0,
-                        Kind = CompromiseKind.Infiltration,
-                        Source = Entity.Null,
-                        SinceTick = 0u,
-                        LastEvidenceTick = 0u
-                    });
-                }
+                    IsCompromised = 0,
+                    Suspicion = 0,
+                    Severity = 0,
+                    Kind = CompromiseKind.Infiltration,
+                    Source = Entity.Null,
+                    SinceTick = 0u,
+                    LastEvidenceTick = 0u
+                });
 
-                if (!HasComponent<Space4X.Runtime.Space4XSmokeCompromiseBeatConfig>(anchorEntity))
+                AddComponent(anchorEntity, new Space4X.Runtime.Space4XSmokeCompromiseBeatConfig
                 {
-                    AddComponent(anchorEntity, new Space4X.Runtime.Space4XSmokeCompromiseBeatConfig
-                    {
-                        CommsDropStartSeconds = 8f,
-                        CommsDropDurationSeconds = 6f,
-                        CommsQualityDuringDrop = 0f,
-                        ControllerCompromiseSeconds = 18f,
-                        ControllerCompromiseSeverity = 220,
-                        ControllerCompromiseKind = CompromiseKind.HostileOverride,
-                        HackStartSeconds = 22f,
-                        HackDroneCount = 4,
-                        HackSeverity = 200,
-                        Initialized = 0,
-                        HackApplied = 0,
-                        CompromiseApplied = 0,
-                        CommsDropApplied = 0,
-                        CommsDropStartTick = 0u,
-                        CommsDropEndTick = 0u,
-                        ControllerCompromiseTick = 0u,
-                        HackStartTick = 0u,
-                        HackerEntity = Entity.Null
-                    });
-                }
+                    CommsDropStartSeconds = 8f,
+                    CommsDropDurationSeconds = 6f,
+                    CommsQualityDuringDrop = 0f,
+                    ControllerCompromiseSeconds = 18f,
+                    ControllerCompromiseSeverity = 220,
+                    ControllerCompromiseKind = CompromiseKind.HostileOverride,
+                    HackStartSeconds = 22f,
+                    HackDroneCount = 4,
+                    HackSeverity = 200,
+                    Initialized = 0,
+                    HackApplied = 0,
+                    CompromiseApplied = 0,
+                    CommsDropApplied = 0,
+                    CommsDropStartTick = 0u,
+                    CommsDropEndTick = 0u,
+                    ControllerCompromiseTick = 0u,
+                    HackStartTick = 0u,
+                    HackerEntity = Entity.Null
+                });
 
-                if (!HasComponent<CompromiseDoctrine>(anchorEntity))
+                AddComponent(anchorEntity, new CompromiseDoctrine
                 {
-                    AddComponent(anchorEntity, new CompromiseDoctrine
-                    {
-                        QuarantineThreshold = 64,
-                        PurgeThreshold = 200,
-                        PreferredResponse = CompromiseResponseMode.Disconnect,
-                        FriendlyFirePenaltyMode = FriendlyFirePenaltyMode.WaivedIfCompromised,
-                        RecoveryBudgetTicks = 0u
-                    });
-                }
+                    QuarantineThreshold = 64,
+                    PurgeThreshold = 200,
+                    PreferredResponse = CompromiseResponseMode.Disconnect,
+                    FriendlyFirePenaltyMode = FriendlyFirePenaltyMode.WaivedIfCompromised,
+                    RecoveryBudgetTicks = 0u
+                });
 
-                if (!HasComponent<SwarmThrustState>(anchorEntity))
+                AddComponent(anchorEntity, new SwarmThrustState
                 {
-                    AddComponent(anchorEntity, new SwarmThrustState
-                    {
-                        DesiredDirection = new float3(1f, 0f, 0f),
-                        CurrentThrust = 0f,
-                        Active = false
-                    });
-                }
+                    DesiredDirection = new float3(1f, 0f, 0f),
+                    CurrentThrust = 0f,
+                    Active = false
+                });
 
                 for (int i = 0; i < droneCount; i++)
                 {
@@ -1200,57 +1182,46 @@ namespace Space4X.Registry
 
             private void SpawnBreakablePieces(Entity anchorEntity, float3 anchorPosition, in float4 anchorTint)
             {
-                Space4XBreakableRoot breakableRoot;
-                if (!HasComponent<Space4XBreakableRoot>(anchorEntity))
-                {
-                    var profile = BuildBreakProfileBlob();
-                    AddBlobAsset(ref profile, out _);
+                var profile = BuildBreakProfileBlob();
+                AddBlobAsset(ref profile, out _);
 
-                    breakableRoot = new Space4XBreakableRoot
+                var breakableRoot = new Space4XBreakableRoot
+                {
+                    Profile = profile,
+                    BreakTick = 0u,
+                    IsBroken = 0,
+                    Damage = 0f,
+                    Instability = 0f,
+                    Reserved0 = 0,
+                    Reserved1 = 0
+                };
+                AddComponent(anchorEntity, breakableRoot);
+                AddComponent(anchorEntity, new Space4XBreakableDamagePulse
+                {
+                    DamageAmount = 120f,
+                    DelaySeconds = 12f,
+                    TriggerTick = 0u,
+                    Fired = 0,
+                    DamageType = PureDOTS.Runtime.Combat.DamageType.Physical,
+                    DamageFlags = PureDOTS.Runtime.Combat.DamageFlags.AoE
+                });
+
+                var edgeBuffer = AddBuffer<Space4XBreakableEdgeState>(anchorEntity);
+                ref var edges = ref breakableRoot.Profile.Value.Edges;
+                for (int i = 0; i < edges.Length; i++)
+                {
+                    edgeBuffer.Add(new Space4XBreakableEdgeState
                     {
-                        Profile = profile,
-                        BreakTick = 0u,
+                        EdgeIndex = i,
+                        BrokenTick = 0u,
                         IsBroken = 0,
-                        Damage = 0f,
-                        Instability = 0f,
                         Reserved0 = 0,
                         Reserved1 = 0
-                    };
-                    AddComponent(anchorEntity, breakableRoot);
-                    AddComponent(anchorEntity, new Space4XBreakableDamagePulse
-                    {
-                        DamageAmount = 120f,
-                        DelaySeconds = 12f,
-                        TriggerTick = 0u,
-                        Fired = 0,
-                        DamageType = PureDOTS.Runtime.Combat.DamageType.Physical,
-                        DamageFlags = PureDOTS.Runtime.Combat.DamageFlags.AoE
                     });
-                }
-                else
-                {
-                    breakableRoot = GetComponent<Space4XBreakableRoot>(anchorEntity);
-                }
-
-                if (!HasBuffer<Space4XBreakableEdgeState>(anchorEntity))
-                {
-                    var edgeBuffer = AddBuffer<Space4XBreakableEdgeState>(anchorEntity);
-                    var edges = breakableRoot.Profile.Value.Edges;
-                    for (int i = 0; i < edges.Length; i++)
-                    {
-                        edgeBuffer.Add(new Space4XBreakableEdgeState
-                        {
-                            EdgeIndex = i,
-                            BrokenTick = 0u,
-                            IsBroken = 0,
-                            Reserved0 = 0,
-                            Reserved1 = 0
-                        });
-                    }
                 }
 
                 float4 pieceTint = new float4(anchorTint.x, anchorTint.y, anchorTint.z, 1f);
-                var pieces = breakableRoot.Profile.Value.Pieces;
+                ref var pieces = ref breakableRoot.Profile.Value.Pieces;
 
                 for (int i = 0; i < pieces.Length; i++)
                 {

@@ -164,8 +164,9 @@ namespace Space4X.Registry
             _toolProfileLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
+            var actionStreamConfig = default(ProfileActionEventStreamConfig);
             var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
-                                 SystemAPI.TryGetSingleton<ProfileActionEventStreamConfig>(out var actionStreamConfig);
+                                 SystemAPI.TryGetSingleton(out actionStreamConfig);
             DynamicBuffer<ProfileActionEvent> actionBuffer = default;
             RefRW<ProfileActionEventStream> actionStream = default;
             if (canEmitActions)

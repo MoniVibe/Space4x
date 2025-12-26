@@ -51,10 +51,18 @@ namespace Space4X.Registry
             var stream = SystemAPI.GetComponentRW<ProfileActionEventStream>(streamEntity);
             var buffer = SystemAPI.GetBuffer<ProfileActionEvent>(streamEntity);
 
+            using var pendingInit = new Unity.Collections.NativeList<Entity>(Unity.Collections.Allocator.Temp);
             foreach (var (order, entity) in SystemAPI.Query<RefRO<CaptainOrder>>()
                          .WithNone<CaptainOrderEventState>()
                          .WithEntityAccess())
             {
+                pendingInit.Add(entity);
+            }
+
+            for (int i = 0; i < pendingInit.Length; i++)
+            {
+                var entity = pendingInit[i];
+                var order = SystemAPI.GetComponentRO<CaptainOrder>(entity);
                 state.EntityManager.AddComponentData(entity, new CaptainOrderEventState
                 {
                     LastStatus = order.ValueRO.Status,
@@ -62,6 +70,8 @@ namespace Space4X.Registry
                     LastEmittedTick = 0
                 });
             }
+
+            _issuedByLookup.Update(ref state);
 
             foreach (var (order, eventState, entity) in SystemAPI.Query<RefRO<CaptainOrder>, RefRW<CaptainOrderEventState>>()
                          .WithEntityAccess())

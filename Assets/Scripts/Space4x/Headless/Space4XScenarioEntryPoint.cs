@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using PureDOTS.Runtime.Scenarios;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using SystemEnv = System.Environment;
 using UnityDebug = UnityEngine.Debug;
 
@@ -13,7 +14,26 @@ namespace Space4X.Headless
         private const string ReportArg = "--report";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
+        private const string RenderingEnvVar = "PUREDOTS_RENDERING";
+        private const string PresentationSceneName = "TRI_Space4X_Smoke";
         private static bool s_executed;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
+        static void LoadPresentationSceneIfRequested()
+        {
+            if (!Application.isBatchMode || !PureDOTS.Runtime.Core.RuntimeMode.IsHeadless)
+            {
+                return;
+            }
+
+            if (!PureDOTS.Runtime.Core.RuntimeMode.IsRenderingEnabled)
+            {
+                return;
+            }
+
+            UnityDebug.Log($"[ScenarioEntryPoint] {RenderingEnvVar}=1 detected; loading presentation scene '{PresentationSceneName}'.");
+            SceneManager.LoadScene(PresentationSceneName, LoadSceneMode.Single);
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         static void RunScenariosIfRequested()

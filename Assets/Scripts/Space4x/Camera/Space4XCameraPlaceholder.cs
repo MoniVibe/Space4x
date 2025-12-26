@@ -42,7 +42,7 @@ namespace Space4X.Camera
 
         private void Awake()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 enabled = false;
                 return;
@@ -76,7 +76,7 @@ namespace Space4X.Camera
 
         private void Update()
         {
-            if (RuntimeMode.IsHeadless || _camera == null)
+            if (!RuntimeMode.IsRenderingEnabled || _camera == null)
             {
                 return;
             }

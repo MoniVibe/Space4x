@@ -2,7 +2,7 @@ using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Space4X.Runtime.Breakables;
-using Space4X.Runtime.Physics;
+using Space4X.Physics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -138,7 +138,7 @@ namespace Space4X.Systems.Breakables
                     continue;
                 }
 
-                var profile = rootState.ValueRO.Profile.Value;
+                ref var profile = ref rootState.ValueRO.Profile.Value;
                 if (profile.Pieces.Length == 0)
                 {
                     continue;
@@ -149,7 +149,7 @@ namespace Space4X.Systems.Breakables
                     var hitEvents = SystemAPI.GetBuffer<HitEvent>(entity);
                     if (hitEvents.Length > 0)
                     {
-                        RouteHitEvents(entity, rootTransform.ValueRO, profile, hitEvents, ref rootState, ref state);
+                        RouteHitEvents(entity, rootTransform.ValueRO, ref profile, hitEvents, rootState, ref state);
                         continue;
                     }
                 }
@@ -165,16 +165,16 @@ namespace Space4X.Systems.Breakables
                     continue;
                 }
 
-                RouteDamageEvents(entity, rootTransform.ValueRO, profile, damageEvents, ref rootState, ref state);
+                RouteDamageEvents(entity, rootTransform.ValueRO, ref profile, damageEvents, rootState, ref state);
             }
         }
 
         private void RouteHitEvents(
             Entity rootEntity,
             in LocalTransform rootTransform,
-            in ShipBreakProfileBlob profile,
+            ref ShipBreakProfileBlob profile,
             DynamicBuffer<HitEvent> hitEvents,
-            ref RefRW<Space4XBreakableRoot> rootState,
+            RefRW<Space4XBreakableRoot> rootState,
             ref SystemState state)
         {
             var inverseRotation = math.inverse(rootTransform.Rotation);
@@ -187,17 +187,17 @@ namespace Space4X.Systems.Breakables
                 }
 
                 float3 localHit = math.rotate(inverseRotation, hit.HitPosition - rootTransform.Position);
-                ushort pieceId = SelectPieceByLocalPoint(profile, localHit);
-                ApplyDamageToPiece(rootEntity, pieceId, hit.DamageAmount, DamageFlags.None, ref rootState, ref state);
+                ushort pieceId = SelectPieceByLocalPoint(ref profile, localHit);
+                ApplyDamageToPiece(rootEntity, pieceId, hit.DamageAmount, DamageFlags.None, rootState, ref state);
             }
         }
 
         private void RouteDamageEvents(
             Entity rootEntity,
             in LocalTransform rootTransform,
-            in ShipBreakProfileBlob profile,
+            ref ShipBreakProfileBlob profile,
             DynamicBuffer<DamageEvent> damageEvents,
-            ref RefRW<Space4XBreakableRoot> rootState,
+            RefRW<Space4XBreakableRoot> rootState,
             ref SystemState state)
         {
             for (int i = 0; i < damageEvents.Length; i++)
@@ -208,13 +208,13 @@ namespace Space4X.Systems.Breakables
                     continue;
                 }
 
-                float3 direction = ResolveDamageDirection(rootTransform, damage.SourceEntity, profile);
-                ushort pieceId = SelectPieceByDirection(profile, direction);
-                ApplyDamageToPiece(rootEntity, pieceId, damage.RawDamage, damage.Flags, ref rootState, ref state);
+                float3 direction = ResolveDamageDirection(rootTransform, damage.SourceEntity);
+                ushort pieceId = SelectPieceByDirection(ref profile, direction);
+                ApplyDamageToPiece(rootEntity, pieceId, damage.RawDamage, damage.Flags, rootState, ref state);
             }
         }
 
-        private float3 ResolveDamageDirection(in LocalTransform rootTransform, Entity sourceEntity, in ShipBreakProfileBlob profile)
+        private float3 ResolveDamageDirection(in LocalTransform rootTransform, Entity sourceEntity)
         {
             if (sourceEntity != Entity.Null && _transformLookup.HasComponent(sourceEntity))
             {
@@ -225,14 +225,15 @@ namespace Space4X.Systems.Breakables
             return math.normalizesafe(math.mul(rootTransform.Rotation, new float3(0f, 0f, 1f)), new float3(0f, 0f, 1f));
         }
 
-        private static ushort SelectPieceByLocalPoint(in ShipBreakProfileBlob profile, float3 localHit)
+        private static ushort SelectPieceByLocalPoint(ref ShipBreakProfileBlob profile, float3 localHit)
         {
-            ushort bestPiece = profile.Pieces[0].PieceId;
+            ref var pieces = ref profile.Pieces;
+            ushort bestPiece = pieces[0].PieceId;
             float bestDistance = float.MaxValue;
 
-            for (int i = 0; i < profile.Pieces.Length; i++)
+            for (int i = 0; i < pieces.Length; i++)
             {
-                var piece = profile.Pieces[i];
+                var piece = pieces[i];
                 float distance = math.lengthsq(localHit - piece.LocalOffset);
                 if (distance < bestDistance)
                 {
@@ -244,16 +245,17 @@ namespace Space4X.Systems.Breakables
             return bestPiece;
         }
 
-        private static ushort SelectPieceByDirection(in ShipBreakProfileBlob profile, float3 direction)
+        private static ushort SelectPieceByDirection(ref ShipBreakProfileBlob profile, float3 direction)
         {
             float3 dir = math.normalizesafe(direction, new float3(0f, 0f, 1f));
             float bestScore = -float.MaxValue;
-            ushort bestPiece = profile.Pieces[0].PieceId;
+            ref var pieces = ref profile.Pieces;
+            ushort bestPiece = pieces[0].PieceId;
             ushort corePiece = bestPiece;
 
-            for (int i = 0; i < profile.Pieces.Length; i++)
+            for (int i = 0; i < pieces.Length; i++)
             {
-                var piece = profile.Pieces[i];
+                var piece = pieces[i];
                 if (piece.IsCore != 0)
                 {
                     corePiece = piece.PieceId;
@@ -282,7 +284,7 @@ namespace Space4X.Systems.Breakables
             ushort pieceId,
             float rawDamage,
             DamageFlags damageFlags,
-            ref RefRW<Space4XBreakableRoot> rootState,
+            RefRW<Space4XBreakableRoot> rootState,
             ref SystemState state)
         {
             float damageDelta = rawDamage * DamageToPieceScale;
@@ -352,7 +354,7 @@ namespace Space4X.Systems.Breakables
                     continue;
                 }
 
-                var profile = rootState.ValueRO.Profile.Value;
+                ref var profile = ref rootState.ValueRO.Profile.Value;
                 if (!state.EntityManager.HasBuffer<Space4XBreakableEdgeState>(rootEntity))
                 {
                     continue;
@@ -632,7 +634,7 @@ namespace Space4X.Systems.Breakables
                     continue;
                 }
 
-                var profile = rootState.ValueRO.Profile.Value;
+                ref var profile = ref rootState.ValueRO.Profile.Value;
                 var provides = ShipCapabilityFlags.None;
                 float maxThrust = 0f;
                 float powerGen = 0f;
@@ -642,7 +644,7 @@ namespace Space4X.Systems.Breakables
                 for (int i = 0; i < profile.Pieces.Length; i++)
                 {
                     var pieceDef = profile.Pieces[i];
-                    if (!HasPiece(entity, pieceDef.PieceId))
+                    if (!HasPiece(ref state, entity, pieceDef.PieceId))
                     {
                         continue;
                     }
@@ -678,11 +680,13 @@ namespace Space4X.Systems.Breakables
             }
         }
 
-        private static bool HasPiece(Entity rootEntity, ushort pieceId)
+        private static bool HasPiece(ref SystemState state, Entity rootEntity, ushort pieceId)
         {
-            foreach (var piece in SystemAPI.Query<RefRO<Space4XBreakablePiece>>())
+            var query = state.GetEntityQuery(ComponentType.ReadOnly<Space4XBreakablePiece>());
+            using var pieces = query.ToComponentDataArray<Space4XBreakablePiece>(Allocator.Temp);
+            for (int i = 0; i < pieces.Length; i++)
             {
-                if (piece.ValueRO.Root == rootEntity && piece.ValueRO.PieceIndex == pieceId)
+                if (pieces[i].Root == rootEntity && pieces[i].PieceIndex == pieceId)
                 {
                     return true;
                 }

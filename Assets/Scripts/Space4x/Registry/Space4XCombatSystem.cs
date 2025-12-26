@@ -12,6 +12,7 @@ namespace Space4X.Registry
     using PDCarrierModuleSlot = PureDOTS.Runtime.Ships.CarrierModuleSlot;
     using PDShipModule = PureDOTS.Runtime.Ships.ShipModule;
     using PDModuleHealth = PureDOTS.Runtime.Ships.ModuleHealth;
+    using PDModuleClass = PureDOTS.Runtime.Ships.ModuleClass;
 
     
     /// <summary>
@@ -775,49 +776,49 @@ namespace Space4X.Registry
             var moduleClass = _moduleLookup[moduleEntity].Class;
             return kind switch
             {
-                ModuleTargetPolicyKind.DisableMobility when moduleClass == ModuleClass.Engine => 80,
+                ModuleTargetPolicyKind.DisableMobility when moduleClass == PDModuleClass.Engine => 80,
                 ModuleTargetPolicyKind.DisableFighting when IsWeaponClass(moduleClass) => 80,
-                ModuleTargetPolicyKind.DisableFighting when moduleClass == ModuleClass.Hangar => 70,
-                ModuleTargetPolicyKind.DisableSensors when moduleClass == ModuleClass.Sensor => 70,
+                ModuleTargetPolicyKind.DisableFighting when moduleClass == PDModuleClass.Hangar => 70,
+                ModuleTargetPolicyKind.DisableSensors when moduleClass == PDModuleClass.Sensor => 70,
                 ModuleTargetPolicyKind.DisableLogistics when IsLogisticsClass(moduleClass) => 60,
                 _ => 0
             };
         }
 
-        private static bool IsWeaponClass(ModuleClass moduleClass)
+        private static bool IsWeaponClass(PDModuleClass moduleClass)
         {
-            return moduleClass == ModuleClass.BeamCannon
-                   || moduleClass == ModuleClass.MassDriver
-                   || moduleClass == ModuleClass.Missile
-                   || moduleClass == ModuleClass.PointDefense;
+            return moduleClass == PDModuleClass.BeamCannon
+                   || moduleClass == PDModuleClass.MassDriver
+                   || moduleClass == PDModuleClass.Missile
+                   || moduleClass == PDModuleClass.PointDefense;
         }
 
-        private static bool IsLogisticsClass(ModuleClass moduleClass)
+        private static bool IsLogisticsClass(PDModuleClass moduleClass)
         {
-            return moduleClass == ModuleClass.Cargo
-                   || moduleClass == ModuleClass.Fabrication
-                   || moduleClass == ModuleClass.Agriculture
-                   || moduleClass == ModuleClass.Mining
-                   || moduleClass == ModuleClass.Terraforming;
+            return moduleClass == PDModuleClass.Cargo
+                   || moduleClass == PDModuleClass.Fabrication
+                   || moduleClass == PDModuleClass.Agriculture
+                   || moduleClass == PDModuleClass.Mining
+                   || moduleClass == PDModuleClass.Terraforming;
         }
 
-        private static byte GetDefaultPriority(ModuleClass moduleClass)
+        private static byte GetDefaultPriority(PDModuleClass moduleClass)
         {
             return moduleClass switch
             {
-                ModuleClass.Engine => 200,
-                ModuleClass.BeamCannon => 150,
-                ModuleClass.MassDriver => 150,
-                ModuleClass.Missile => 150,
-                ModuleClass.PointDefense => 140,
-                ModuleClass.Shield => 120,
-                ModuleClass.Armor => 100,
-                ModuleClass.Sensor => 80,
-                ModuleClass.Cargo => 50,
-                ModuleClass.Hangar => 60,
-                ModuleClass.Fabrication => 40,
-                ModuleClass.Research => 40,
-                ModuleClass.Medical => 30,
+                PDModuleClass.Engine => 200,
+                PDModuleClass.BeamCannon => 150,
+                PDModuleClass.MassDriver => 150,
+                PDModuleClass.Missile => 150,
+                PDModuleClass.PointDefense => 140,
+                PDModuleClass.Shield => 120,
+                PDModuleClass.Armor => 100,
+                PDModuleClass.Sensor => 80,
+                PDModuleClass.Cargo => 50,
+                PDModuleClass.Hangar => 60,
+                PDModuleClass.Fabrication => 40,
+                PDModuleClass.Research => 40,
+                PDModuleClass.Medical => 30,
                 _ => 20
             };
         }

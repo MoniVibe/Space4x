@@ -82,6 +82,12 @@ namespace Space4x.Scenario
                 return;
             }
 
+            if (!hasScenarioInfo)
+            {
+                scenarioInfo = EnsureScenarioInfoFromPath(scenarioPath);
+                hasScenarioInfo = true;
+            }
+
             var jsonText = File.ReadAllText(scenarioPath);
             _scenarioData = JsonUtility.FromJson<MiningScenarioJson>(jsonText);
             if (_scenarioData == null || _scenarioData.spawn == null)
@@ -103,6 +109,7 @@ namespace Space4x.Scenario
             var endTick = startTick + safeDurationTicks;
             var runtimeEntity = EnsureScenarioRuntime(startTick, endTick, durationSeconds);
             ScheduleScenarioActions(runtimeEntity, startTick, fixedDt);
+            UpdateScenarioInfoSingleton(scenarioInfo, safeDurationTicks);
 
             Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Spawned carriers/miners/asteroids. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
 
@@ -125,6 +132,51 @@ namespace Space4x.Scenario
             });
 
             return runtimeEntity;
+        }
+
+        private ScenarioInfo EnsureScenarioInfoFromPath(string scenarioPath)
+        {
+            var scenarioId = Path.GetFileNameWithoutExtension(scenarioPath);
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                scenarioId = "space4x_smoke";
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<ScenarioInfo>(out var scenarioEntity))
+            {
+                scenarioEntity = EntityManager.CreateEntity(typeof(ScenarioInfo));
+            }
+
+            var scenarioInfo = new ScenarioInfo
+            {
+                ScenarioId = new FixedString64Bytes(scenarioId),
+                Seed = 0,
+                RunTicks = 0
+            };
+
+            EntityManager.SetComponentData(scenarioEntity, scenarioInfo);
+            return scenarioInfo;
+        }
+
+        private void UpdateScenarioInfoSingleton(ScenarioInfo scenarioInfo, uint runTicks)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<ScenarioInfo>(out var scenarioEntity))
+            {
+                scenarioEntity = EntityManager.CreateEntity(typeof(ScenarioInfo));
+            }
+
+            var scenarioId = scenarioInfo.ScenarioId;
+            if (scenarioId.Length == 0)
+            {
+                scenarioId = new FixedString64Bytes("space4x_smoke");
+            }
+
+            EntityManager.SetComponentData(scenarioEntity, new ScenarioInfo
+            {
+                ScenarioId = scenarioId,
+                Seed = (uint)math.max(0, _scenarioData.seed),
+                RunTicks = (int)runTicks
+            });
         }
 
         private string ResolveScenarioPath(out ScenarioInfo scenarioInfo, out bool hasScenarioInfo)
@@ -707,8 +759,10 @@ namespace Space4x.Scenario
                 EntityManager.AddComponentData(pilot, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
             }
 
-            var outlookEntries = EntityManager.AddBuffer<OutlookEntry>(pilot);
-            var outlooks = EntityManager.AddBuffer<TopOutlook>(pilot);
+            EntityManager.AddBuffer<OutlookEntry>(pilot);
+            EntityManager.AddBuffer<TopOutlook>(pilot);
+            var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(pilot);
+            var outlooks = EntityManager.GetBuffer<TopOutlook>(pilot);
             if (profileData != null && profileData.outlooks != null && profileData.outlooks.Count > 0)
             {
                 for (int i = 0; i < profileData.outlooks.Count; i++)
@@ -867,108 +921,94 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(carrierEntity, CaptainState.Default);
             EntityManager.AddComponentData(carrierEntity, CaptainReadiness.Standard);
 
-            var crew = EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
             var config = StrikeCraftPilotProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<StrikeCraftPilotProfileConfig>(out var configSingleton))
             {
                 config = configSingleton;
             }
 
-            crew.Add(new PlatformCrewMember
-            {
-                CrewEntity = CreateCrewEntity(lawfulness, config,
-                    new IndividualStats
-                    {
-                        Command = (half)90,
-                        Tactics = (half)70,
-                        Logistics = (half)60,
-                        Diplomacy = (half)60,
-                        Engineering = (half)40,
-                        Resolve = (half)85
-                    },
-                    BehaviorDisposition.FromValues(0.8f, 0.6f, 0.8f, 0.4f, 0.45f, 0.7f)),
-                RoleId = 0
-            });
+            var crewEntities = new Entity[6];
+            crewEntities[0] = CreateCrewEntity(lawfulness, config,
+                new IndividualStats
+                {
+                    Command = (half)90,
+                    Tactics = (half)70,
+                    Logistics = (half)60,
+                    Diplomacy = (half)60,
+                    Engineering = (half)40,
+                    Resolve = (half)85
+                },
+                BehaviorDisposition.FromValues(0.8f, 0.6f, 0.8f, 0.4f, 0.45f, 0.7f));
 
-            crew.Add(new PlatformCrewMember
-            {
-                CrewEntity = CreateCrewEntity(lawfulness, config,
-                    new IndividualStats
-                    {
-                        Command = (half)75,
-                        Tactics = (half)55,
-                        Logistics = (half)80,
-                        Diplomacy = (half)50,
-                        Engineering = (half)45,
-                        Resolve = (half)70
-                    },
-                    BehaviorDisposition.FromValues(0.75f, 0.6f, 0.7f, 0.45f, 0.4f, 0.7f)),
-                RoleId = 0
-            });
+            crewEntities[1] = CreateCrewEntity(lawfulness, config,
+                new IndividualStats
+                {
+                    Command = (half)75,
+                    Tactics = (half)55,
+                    Logistics = (half)80,
+                    Diplomacy = (half)50,
+                    Engineering = (half)45,
+                    Resolve = (half)70
+                },
+                BehaviorDisposition.FromValues(0.75f, 0.6f, 0.7f, 0.45f, 0.4f, 0.7f));
 
-            crew.Add(new PlatformCrewMember
-            {
-                CrewEntity = CreateCrewEntity(lawfulness, config,
-                    new IndividualStats
-                    {
-                        Command = (half)65,
-                        Tactics = (half)80,
-                        Logistics = (half)50,
-                        Diplomacy = (half)45,
-                        Engineering = (half)40,
-                        Resolve = (half)60
-                    },
-                    BehaviorDisposition.FromValues(0.65f, 0.55f, 0.7f, 0.5f, 0.45f, 0.6f)),
-                RoleId = 0
-            });
+            crewEntities[2] = CreateCrewEntity(lawfulness, config,
+                new IndividualStats
+                {
+                    Command = (half)65,
+                    Tactics = (half)80,
+                    Logistics = (half)50,
+                    Diplomacy = (half)45,
+                    Engineering = (half)40,
+                    Resolve = (half)60
+                },
+                BehaviorDisposition.FromValues(0.65f, 0.55f, 0.7f, 0.5f, 0.45f, 0.6f));
 
-            crew.Add(new PlatformCrewMember
-            {
-                CrewEntity = CreateCrewEntity(lawfulness, config,
-                    new IndividualStats
-                    {
-                        Command = (half)55,
-                        Tactics = (half)75,
-                        Logistics = (half)45,
-                        Diplomacy = (half)60,
-                        Engineering = (half)45,
-                        Resolve = (half)55
-                    },
-                    BehaviorDisposition.FromValues(0.6f, 0.7f, 0.55f, 0.35f, 0.35f, 0.65f)),
-                RoleId = 0
-            });
+            crewEntities[3] = CreateCrewEntity(lawfulness, config,
+                new IndividualStats
+                {
+                    Command = (half)55,
+                    Tactics = (half)75,
+                    Logistics = (half)45,
+                    Diplomacy = (half)60,
+                    Engineering = (half)45,
+                    Resolve = (half)55
+                },
+                BehaviorDisposition.FromValues(0.6f, 0.7f, 0.55f, 0.35f, 0.35f, 0.65f));
 
-            crew.Add(new PlatformCrewMember
-            {
-                CrewEntity = CreateCrewEntity(lawfulness, config,
-                    new IndividualStats
-                    {
-                        Command = (half)70,
-                        Tactics = (half)70,
-                        Logistics = (half)55,
-                        Diplomacy = (half)50,
-                        Engineering = (half)45,
-                        Resolve = (half)60
-                    },
-                    BehaviorDisposition.FromValues(0.7f, 0.55f, 0.65f, 0.5f, 0.6f, 0.55f)),
-                RoleId = 0
-            });
+            crewEntities[4] = CreateCrewEntity(lawfulness, config,
+                new IndividualStats
+                {
+                    Command = (half)70,
+                    Tactics = (half)70,
+                    Logistics = (half)55,
+                    Diplomacy = (half)50,
+                    Engineering = (half)45,
+                    Resolve = (half)60
+                },
+                BehaviorDisposition.FromValues(0.7f, 0.55f, 0.65f, 0.5f, 0.6f, 0.55f));
 
-            crew.Add(new PlatformCrewMember
+            crewEntities[5] = CreateCrewEntity(lawfulness, config,
+                new IndividualStats
+                {
+                    Command = (half)55,
+                    Tactics = (half)55,
+                    Logistics = (half)60,
+                    Diplomacy = (half)45,
+                    Engineering = (half)85,
+                    Resolve = (half)55
+                },
+                BehaviorDisposition.FromValues(0.65f, 0.7f, 0.5f, 0.4f, 0.3f, 0.75f));
+
+            var crew = EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
+            for (int i = 0; i < crewEntities.Length; i++)
             {
-                CrewEntity = CreateCrewEntity(lawfulness, config,
-                    new IndividualStats
-                    {
-                        Command = (half)55,
-                        Tactics = (half)55,
-                        Logistics = (half)60,
-                        Diplomacy = (half)45,
-                        Engineering = (half)85,
-                        Resolve = (half)55
-                    },
-                    BehaviorDisposition.FromValues(0.65f, 0.7f, 0.5f, 0.4f, 0.3f, 0.75f)),
-                RoleId = 0
-            });
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = crewEntities[i],
+                    RoleId = 0
+                });
+            }
         }
 
         private Entity CreateCrewEntity(
@@ -983,8 +1023,10 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(crew, disposition);
 
             var outlookId = ResolveOutlookId(config, lawfulness);
-            var outlookEntries = EntityManager.AddBuffer<OutlookEntry>(crew);
-            var outlooks = EntityManager.AddBuffer<TopOutlook>(crew);
+            EntityManager.AddBuffer<OutlookEntry>(crew);
+            EntityManager.AddBuffer<TopOutlook>(crew);
+            var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(crew);
+            var outlooks = EntityManager.GetBuffer<TopOutlook>(crew);
             outlookEntries.Add(new OutlookEntry
             {
                 OutlookId = outlookId,

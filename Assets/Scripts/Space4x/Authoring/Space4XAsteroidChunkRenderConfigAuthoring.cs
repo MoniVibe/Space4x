@@ -21,14 +21,14 @@ namespace Space4X.Authoring
                 }
 
                 var entity = GetEntity(TransformUsageFlags.None);
-                AddComponent(entity, new Space4XAsteroidChunkRenderConfig
+                AddComponentObject(entity, new Space4XAsteroidChunkRenderConfig
                 {
                     Material = authoring.ChunkMaterial
                 });
 
                 if (authoring.MaterialPalette != null)
                 {
-                    AddComponent(entity, new Space4XAsteroidChunkPaletteConfig
+                    AddComponentObject(entity, new Space4XAsteroidChunkPaletteConfig
                     {
                         Palette = authoring.MaterialPalette
                     });

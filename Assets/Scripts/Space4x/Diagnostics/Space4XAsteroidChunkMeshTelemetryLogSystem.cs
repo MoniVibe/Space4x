@@ -3,6 +3,8 @@ using PureDOTS.Runtime.Core;
 using Space4X.Presentation;
 using Unity.Entities;
 using UnityEngine;
+using UDebug = UnityEngine.Debug;
+using UTime = UnityEngine.Time;
 
 namespace Space4X.Diagnostics
 {
@@ -26,7 +28,7 @@ namespace Space4X.Diagnostics
                 return;
             }
 
-            var now = Time.realtimeSinceStartupAsDouble;
+            var now = UTime.realtimeSinceStartupAsDouble;
             if (now < _nextLogTime)
             {
                 return;
@@ -46,7 +48,7 @@ namespace Space4X.Diagnostics
                 return;
             }
 
-            Debug.Log(
+            UDebug.Log(
                 $"[Space4XAsteroidChunkMeshTelemetry] Queue={stats.QueueLength} Built={stats.ChunksBuiltThisFrame} " +
                 $"BuildMs={stats.TotalBuildMsThisFrame:0.00} Verts={stats.TotalVertsThisFrame} " +
                 $"Indices={stats.TotalIndicesThisFrame} LastMs={stats.LastChunkBuildMs:0.00} " +

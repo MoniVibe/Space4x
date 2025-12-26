@@ -26,7 +26,7 @@ namespace Space4X.Presentation
                 return false;
             }
 
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return false;
             }

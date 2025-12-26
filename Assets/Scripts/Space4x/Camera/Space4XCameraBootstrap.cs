@@ -21,7 +21,7 @@ namespace Space4X.Camera
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureBootstrapExistsOnLoad()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
                 return;
 
             // Check if we already have a bootstrap or a rig controller
@@ -36,7 +36,7 @@ namespace Space4X.Camera
 
         private void Awake()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
                 return;
             EnsureCameraExists();
         }

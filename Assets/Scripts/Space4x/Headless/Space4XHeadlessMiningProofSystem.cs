@@ -200,13 +200,8 @@ namespace Space4X.Headless
 
         private float GetOreInHold(ref SystemState state)
         {
-            if (SystemAPI.TryGetSingleton<Space4XMiningTelemetry>(out var telemetry))
-            {
-                return telemetry.OreInHold;
-            }
-
             var total = 0f;
-            foreach (var storage in SystemAPI.Query<DynamicBuffer<ResourceStorage>>())
+            foreach (var storage in SystemAPI.Query<DynamicBuffer<ResourceStorage>>().WithAll<Carrier>())
             {
                 for (var i = 0; i < storage.Length; i++)
                 {
@@ -214,7 +209,12 @@ namespace Space4X.Headless
                 }
             }
 
-            return total;
+            if (total > 0f || !SystemAPI.TryGetSingleton<Space4XMiningTelemetry>(out var telemetry))
+            {
+                return total;
+            }
+
+            return telemetry.OreInHold;
         }
 
         private (uint gather, uint pickup, uint total) GetCommandCounts(ref SystemState state)

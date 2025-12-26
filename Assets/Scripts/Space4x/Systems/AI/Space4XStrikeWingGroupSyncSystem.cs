@@ -11,11 +11,9 @@ using Unity.Transforms;
 
 namespace Space4X.Systems.AI
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(PureDOTS.Systems.GroupDecisionSystemGroup), OrderFirst = true)]
     public partial struct Space4XStrikeWingGroupSyncSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<StrikeCraftProfile>();
@@ -23,7 +21,6 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<RewindState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -419,7 +416,8 @@ namespace Space4X.Systems.AI
 
             var membersBuffer = state.EntityManager.GetBuffer<GroupMember>(leader);
             membersBuffer.Clear();
-            AddMember(ref state, membersBuffer, leader, leader, GroupRole.Leader, tick);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            AddMember(ref state, ref ecb, membersBuffer, leader, leader, GroupRole.Leader, tick);
 
             if (leaderMembers.TryGetFirstValue(leader, out member, out iterator))
             {
@@ -435,13 +433,16 @@ namespace Space4X.Systems.AI
                         continue;
                     }
 
-                    AddMember(ref state, membersBuffer, leader, member, GroupRole.Member, tick);
+                    AddMember(ref state, ref ecb, membersBuffer, leader, member, GroupRole.Member, tick);
                 } while (leaderMembers.TryGetNextValue(out member, ref iterator));
             }
 
             syncState.LastMemberCount = clampedCount;
             syncState.LastMemberHash = memberHash;
             state.EntityManager.SetComponentData(leader, syncState);
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private static uint HashEntity(Entity entity)
@@ -451,6 +452,7 @@ namespace Space4X.Systems.AI
 
         private void AddMember(
             ref SystemState state,
+            ref EntityCommandBuffer ecb,
             DynamicBuffer<GroupMember> membersBuffer,
             Entity groupEntity,
             Entity member,
@@ -473,17 +475,18 @@ namespace Space4X.Systems.AI
 
             if (!state.EntityManager.HasComponent<GroupMembership>(member))
             {
-                state.EntityManager.AddComponentData(member, new GroupMembership
+                ecb.AddComponent(member, new GroupMembership
                 {
                     Group = Entity.Null,
                     Role = 0
                 });
             }
 
-            var membership = state.EntityManager.GetComponentData<GroupMembership>(member);
-            membership.Group = groupEntity;
-            membership.Role = (byte)role;
-            state.EntityManager.SetComponentData(member, membership);
+            ecb.SetComponent(member, new GroupMembership
+            {
+                Group = groupEntity,
+                Role = (byte)role
+            });
         }
     }
 }

@@ -10,7 +10,6 @@ using Unity.Transforms;
 
 namespace Space4X.Systems.AI
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateBefore(typeof(SwarmBehaviorSystem))]
     public partial struct Space4XSwarmDemoSystem : ISystem
@@ -22,7 +21,6 @@ namespace Space4X.Systems.AI
         private const uint OrderLeaseTicks = 120;
         private const uint RescueReissueTicks = 60;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -33,7 +31,6 @@ namespace Space4X.Systems.AI
             _controlLinkLookup = state.GetComponentLookup<PureDOTS.Runtime.Agency.ControlLinkState>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -105,7 +102,8 @@ namespace Space4X.Systems.AI
             ToggleSwarmThrust(anchorEntity, phase, canTug, demo, ref state);
 
             foreach (var (orderState, droneOrbit, droneEntity) in SystemAPI.Query<RefRW<PureDOTS.Runtime.Agency.ControlOrderState>, RefRO<DroneOrbit>>()
-                         .WithAll<DroneTag>())
+                         .WithAll<DroneTag>()
+                         .WithEntityAccess())
             {
                 if (droneOrbit.ValueRO.AnchorShip != anchorEntity)
                 {

@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Systems;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -8,12 +9,10 @@ using Unity.Mathematics;
 
 namespace Space4X.Systems.AI
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(GameplaySystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.Agency.ControlLinkHealthSystem))]
     public partial struct Space4XSmokeCompromiseBeatSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -21,7 +20,6 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<Space4XSmokeCompromiseBeatConfig>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -48,7 +46,7 @@ namespace Space4X.Systems.AI
             }
         }
 
-        private static void InitializeConfig(ref Space4XSmokeCompromiseBeatConfig config, float fixedDt, ref SystemState state)
+        private void InitializeConfig(ref Space4XSmokeCompromiseBeatConfig config, float fixedDt, ref SystemState state)
         {
             config.CommsDropStartTick = SecondsToTicks(config.CommsDropStartSeconds, fixedDt);
             config.CommsDropEndTick = config.CommsDropStartTick + SecondsToTicks(config.CommsDropDurationSeconds, fixedDt);
@@ -71,7 +69,7 @@ namespace Space4X.Systems.AI
             config.Initialized = 1;
         }
 
-        private static void ApplyCommsDrop(Entity anchorEntity, uint tick, in Space4XSmokeCompromiseBeatConfig config, ref SystemState state)
+        private void ApplyCommsDrop(Entity anchorEntity, uint tick, in Space4XSmokeCompromiseBeatConfig config, ref SystemState state)
         {
             bool inDrop = tick >= config.CommsDropStartTick && tick < config.CommsDropEndTick;
 
@@ -98,7 +96,7 @@ namespace Space4X.Systems.AI
             }
         }
 
-        private static void ApplyControllerCompromise(Entity anchorEntity, uint tick, ref Space4XSmokeCompromiseBeatConfig config, ref SystemState state)
+        private void ApplyControllerCompromise(Entity anchorEntity, uint tick, ref Space4XSmokeCompromiseBeatConfig config, ref SystemState state)
         {
             if (config.CompromiseApplied != 0 || tick < config.ControllerCompromiseTick)
             {
@@ -134,7 +132,7 @@ namespace Space4X.Systems.AI
             config.CompromiseApplied = 1;
         }
 
-        private static void ApplyHackBeat(Entity anchorEntity, uint tick, ref Space4XSmokeCompromiseBeatConfig config, ref SystemState state)
+        private void ApplyHackBeat(Entity anchorEntity, uint tick, ref Space4XSmokeCompromiseBeatConfig config, ref SystemState state)
         {
             if (config.HackApplied != 0 || config.HackDroneCount == 0 || tick < config.HackStartTick)
             {

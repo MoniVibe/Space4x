@@ -25,7 +25,7 @@ namespace Space4X.Systems
 
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
                 return;
 
             _selectableLookup.Update(ref state);

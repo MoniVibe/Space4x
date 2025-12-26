@@ -18,7 +18,7 @@ namespace Space4X.Presentation
 
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
@@ -121,16 +121,20 @@ namespace Space4X.Presentation
 
         private static NativeParallelHashMap<EffectKey, Entity> BuildExistingMap(ref SystemState state)
         {
-            var count = SystemAPI.QueryBuilder().WithAll<Space4XEffectInstance>().Build().CalculateEntityCount();
+            var query = state.GetEntityQuery(ComponentType.ReadOnly<Space4XEffectInstance>());
+            var count = query.CalculateEntityCount();
             if (count <= 0)
             {
                 return default;
             }
 
             var map = new NativeParallelHashMap<EffectKey, Entity>(count, Allocator.Temp);
-            foreach (var (instance, entity) in SystemAPI.Query<RefRO<Space4XEffectInstance>>().WithEntityAccess())
+            using var instances = query.ToComponentDataArray<Space4XEffectInstance>(Allocator.Temp);
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < instances.Length; i++)
             {
-                map.TryAdd(new EffectKey { EffectId = instance.ValueRO.EffectId, Source = instance.ValueRO.Source }, entity);
+                var instance = instances[i];
+                map.TryAdd(new EffectKey { EffectId = instance.EffectId, Source = instance.Source }, entities[i]);
             }
 
             return map;
@@ -159,7 +163,7 @@ namespace Space4X.Presentation
     {
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }

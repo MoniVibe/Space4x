@@ -3,6 +3,8 @@ using PureDOTS.Runtime.Core;
 using Space4X.Presentation;
 using Unity.Entities;
 using UnityEngine;
+using UDebug = UnityEngine.Debug;
+using UTime = UnityEngine.Time;
 
 namespace Space4X.Diagnostics
 {
@@ -29,7 +31,7 @@ namespace Space4X.Diagnostics
                 return;
             }
 
-            var deltaTime = Time.deltaTime;
+            var deltaTime = UTime.deltaTime;
             if (deltaTime <= 0f)
             {
                 return;
@@ -45,7 +47,7 @@ namespace Space4X.Diagnostics
                 _accumulatedSpawnCount = 0;
             }
 
-            var now = Time.realtimeSinceStartupAsDouble;
+            var now = UTime.realtimeSinceStartupAsDouble;
             if (now < _nextLogTime)
             {
                 return;
@@ -58,7 +60,7 @@ namespace Space4X.Diagnostics
                 return;
             }
 
-            Debug.Log($"[Space4XDebrisSpallTelemetry] Spawned={stats.DebrisSpawnedThisFrame} Events={stats.DebrisSpawnEventsThisFrame} " +
+            UDebug.Log($"[Space4XDebrisSpallTelemetry] Spawned={stats.DebrisSpawnedThisFrame} Events={stats.DebrisSpawnEventsThisFrame} " +
                       $"Suppressed={stats.DebrisSuppressedByBudget} RatePerSec={_lastSpawnRate:0.0}");
         }
     }

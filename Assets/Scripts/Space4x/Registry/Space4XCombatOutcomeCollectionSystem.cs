@@ -7,12 +7,10 @@ using Unity.Entities;
 
 namespace Space4X.Registry
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Combat.DamageApplicationSystem))]
     public partial struct Space4XCombatOutcomeCollectionSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -20,7 +18,6 @@ namespace Space4X.Registry
             state.RequireForUpdate<DeathEvent>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -61,7 +58,8 @@ namespace Space4X.Registry
 
         private static Entity EnsureStreamEntity(ref SystemState state)
         {
-            if (SystemAPI.TryGetSingletonEntity<Space4XCombatOutcomeStream>(out var streamEntity))
+            using var query = state.GetEntityQuery(ComponentType.ReadOnly<Space4XCombatOutcomeStream>());
+            if (query.TryGetSingletonEntity<Space4XCombatOutcomeStream>(out var streamEntity))
             {
                 if (!state.EntityManager.HasBuffer<Space4XCombatOutcomeEvent>(streamEntity))
                 {

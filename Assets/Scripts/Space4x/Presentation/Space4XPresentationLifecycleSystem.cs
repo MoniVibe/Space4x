@@ -10,6 +10,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Presentation
 {
@@ -31,6 +32,8 @@ namespace Space4X.Presentation
         private EntityQuery _fleetImpostorInitQuery;
         private EntityQuery _projectileInitQuery;
         private EntityQuery _debrisInitQuery;
+        private bool _loggedRenderingGate;
+        private bool _loggedFirstUpdate;
 
         private const ushort RenderSampleModulus = 1024;
         private const float DefaultCarrierScale = 0.5f;
@@ -99,16 +102,34 @@ namespace Space4X.Presentation
                 .WithAll<Space4XDebrisTag, LocalTransform>()
                 .WithNone<RenderKey>()
                 .Build();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnityDebug.Log($"[Space4XPresentationLifecycle] OnCreate World='{state.WorldUnmanaged.Name}' RenderingEnabled={RuntimeMode.IsRenderingEnabled} Headless={RuntimeMode.IsHeadless} HasCatalog={SystemAPI.HasSingleton<RenderPresentationCatalog>()}");
+#endif
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!_loggedRenderingGate && !RuntimeMode.IsRenderingEnabled)
+            {
+                _loggedRenderingGate = true;
+                UnityDebug.LogWarning($"[Space4XPresentationLifecycle] Rendering gate active. World='{state.WorldUnmanaged.Name}' RenderingEnabled={RuntimeMode.IsRenderingEnabled} Headless={RuntimeMode.IsHeadless} HasCatalog={SystemAPI.HasSingleton<RenderPresentationCatalog>()}");
+            }
+#endif
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!_loggedFirstUpdate)
+            {
+                _loggedFirstUpdate = true;
+                UnityDebug.Log($"[Space4XPresentationLifecycle] FirstUpdate World='{state.WorldUnmanaged.Name}' HasCatalog={SystemAPI.HasSingleton<RenderPresentationCatalog>()} CarrierInit={_carrierInitQuery.CalculateEntityCount()} VesselInit={_vesselInitQuery.CalculateEntityCount()} AsteroidInit={_asteroidInitQuery.CalculateEntityCount()}");
+            }
+#endif
             if (_carrierInitQuery.IsEmptyIgnoreFilter &&
                 _vesselInitQuery.IsEmptyIgnoreFilter &&
                 _asteroidInitQuery.IsEmptyIgnoreFilter &&

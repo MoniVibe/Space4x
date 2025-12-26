@@ -24,7 +24,7 @@ namespace Space4X.Presentation
 
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
@@ -195,7 +195,7 @@ namespace Space4X.Presentation
     {
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }

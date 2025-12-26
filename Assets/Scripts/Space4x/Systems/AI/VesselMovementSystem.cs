@@ -76,9 +76,61 @@ namespace Space4X.Systems.AI
             _mobilityProfileLookup = state.GetComponentLookup<VesselMobilityProfile>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
-            _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
-            _roleShipmaster = new FixedString64Bytes("ship.shipmaster");
-            _roleCaptain = new FixedString64Bytes("ship.captain");
+            _roleNavigationOfficer = default;
+            _roleNavigationOfficer.Append('s');
+            _roleNavigationOfficer.Append('h');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('p');
+            _roleNavigationOfficer.Append('.');
+            _roleNavigationOfficer.Append('n');
+            _roleNavigationOfficer.Append('a');
+            _roleNavigationOfficer.Append('v');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('g');
+            _roleNavigationOfficer.Append('a');
+            _roleNavigationOfficer.Append('t');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('o');
+            _roleNavigationOfficer.Append('n');
+            _roleNavigationOfficer.Append('_');
+            _roleNavigationOfficer.Append('o');
+            _roleNavigationOfficer.Append('f');
+            _roleNavigationOfficer.Append('f');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('c');
+            _roleNavigationOfficer.Append('e');
+            _roleNavigationOfficer.Append('r');
+
+            _roleShipmaster = default;
+            _roleShipmaster.Append('s');
+            _roleShipmaster.Append('h');
+            _roleShipmaster.Append('i');
+            _roleShipmaster.Append('p');
+            _roleShipmaster.Append('.');
+            _roleShipmaster.Append('s');
+            _roleShipmaster.Append('h');
+            _roleShipmaster.Append('i');
+            _roleShipmaster.Append('p');
+            _roleShipmaster.Append('m');
+            _roleShipmaster.Append('a');
+            _roleShipmaster.Append('s');
+            _roleShipmaster.Append('t');
+            _roleShipmaster.Append('e');
+            _roleShipmaster.Append('r');
+
+            _roleCaptain = default;
+            _roleCaptain.Append('s');
+            _roleCaptain.Append('h');
+            _roleCaptain.Append('i');
+            _roleCaptain.Append('p');
+            _roleCaptain.Append('.');
+            _roleCaptain.Append('c');
+            _roleCaptain.Append('a');
+            _roleCaptain.Append('p');
+            _roleCaptain.Append('t');
+            _roleCaptain.Append('a');
+            _roleCaptain.Append('i');
+            _roleCaptain.Append('n');
         }
 
         [BurstCompile]

@@ -18,7 +18,7 @@ namespace Space4X.Presentation
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }

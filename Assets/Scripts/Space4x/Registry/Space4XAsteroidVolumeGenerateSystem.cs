@@ -20,6 +20,18 @@ namespace Space4X.Registry
             state.RequireForUpdate<Space4XAsteroidVolumeConfig>();
         }
 
+        public void OnDestroy(ref SystemState state)
+        {
+            foreach (var chunk in SystemAPI.Query<RefRW<TerrainChunk>>())
+            {
+                if (chunk.ValueRO.BaseBlob.IsCreated)
+                {
+                    chunk.ValueRO.BaseBlob.Dispose();
+                    chunk.ValueRW.BaseBlob = default;
+                }
+            }
+        }
+
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();

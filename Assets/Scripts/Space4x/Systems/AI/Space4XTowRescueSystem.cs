@@ -10,7 +10,6 @@ using Unity.Transforms;
 
 namespace Space4X.Systems.AI
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XSwarmDemoSystem))]
     public partial struct Space4XTowRescueSystem : ISystem
@@ -19,7 +18,6 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Space4XShipCapabilityState> _capabilityLookup;
         private ComponentLookup<SwarmThrustState> _swarmThrustLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -28,7 +26,6 @@ namespace Space4X.Systems.AI
             _swarmThrustLookup = state.GetComponentLookup<SwarmThrustState>(false);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();

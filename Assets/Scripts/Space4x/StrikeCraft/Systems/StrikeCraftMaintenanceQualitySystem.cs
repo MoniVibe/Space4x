@@ -18,7 +18,7 @@ namespace Space4X.StrikeCraft
     [UpdateBefore(typeof(Space4X.Systems.AI.Space4XStrikeCraftBehaviorSystem))]
     public partial struct StrikeCraftMaintenanceQualitySystem : ISystem
     {
-        private ComponentLookup<DepartmentStatsBuffer> _departmentStatsLookup;
+        private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
         private ComponentLookup<StrikeCraftMaintenanceQuality> _qualityLookup;
 
         [BurstCompile]
@@ -27,7 +27,7 @@ namespace Space4X.StrikeCraft
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<StrikeCraftProfile>();
-            _departmentStatsLookup = state.GetComponentLookup<DepartmentStatsBuffer>(true);
+            _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
             _qualityLookup = state.GetComponentLookup<StrikeCraftMaintenanceQuality>(false);
         }
 

@@ -1,4 +1,5 @@
 using Space4X.Registry;
+using Space4X.Runtime;
 using PureDOTS.Runtime.Communication;
 using Unity.Collections;
 using Unity.Entities;

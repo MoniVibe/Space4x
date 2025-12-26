@@ -66,7 +66,8 @@ namespace Space4X.Registry
         private static bool TryGetEventBuffer(ref SystemState state, out DynamicBuffer<TelemetryEvent> buffer)
         {
             buffer = default;
-            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            using var query = state.GetEntityQuery(ComponentType.ReadOnly<TelemetryStreamSingleton>());
+            if (!query.TryGetSingleton(out TelemetryStreamSingleton telemetryRef))
             {
                 return false;
             }

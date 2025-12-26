@@ -1,5 +1,6 @@
 using System;
 using Space4X.Presentation;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 

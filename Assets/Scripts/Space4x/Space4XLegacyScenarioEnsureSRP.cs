@@ -21,7 +21,7 @@ public sealed class Space4XLegacyScenarioEnsureSRP : MonoBehaviour
             return;
         }
 
-        if (RuntimeMode.IsHeadless)
+        if (!RuntimeMode.IsRenderingEnabled)
             return;
 
         if (GraphicsSettings.currentRenderPipeline != null)

@@ -53,8 +53,8 @@ namespace Space4X.Registry
                          .WithAll<MiningOrder>()
                          .WithEntityAccess())
             {
-                // Only sync if MiningOrder is active
-                if (miningOrder.ValueRO.Status != MiningOrderStatus.Active)
+                // Only skip when no order exists; Completed orders still need return/dock syncing.
+                if (miningOrder.ValueRO.Status == MiningOrderStatus.None)
                 {
                     continue;
                 }

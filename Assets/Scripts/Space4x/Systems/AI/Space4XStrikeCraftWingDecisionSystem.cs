@@ -13,7 +13,6 @@ namespace Space4X.Systems.AI
     /// <summary>
     /// Issues wing regroup/break directives based on leader alignment and stance.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XStrikeCraftLaunchSystem))]
     [UpdateBefore(typeof(Space4XStrikeCraftSystem))]
@@ -31,7 +30,6 @@ namespace Space4X.Systems.AI
         private BufferLookup<TopOutlook> _outlookLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<StrikeCraftProfile>();
@@ -48,7 +46,6 @@ namespace Space4X.Systems.AI
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var time = SystemAPI.GetSingleton<TimeState>();
@@ -81,8 +78,9 @@ namespace Space4X.Systems.AI
                 config = configSingleton;
             }
 
+            var actionStreamConfig = default(ProfileActionEventStreamConfig);
             var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
-                                 SystemAPI.TryGetSingleton<ProfileActionEventStreamConfig>(out var actionStreamConfig);
+                                 SystemAPI.TryGetSingleton(out actionStreamConfig);
             DynamicBuffer<ProfileActionEvent> actionBuffer = default;
             RefRW<ProfileActionEventStream> actionStream = default;
             if (canEmitActions)
@@ -93,8 +91,8 @@ namespace Space4X.Systems.AI
 
             var craftCount = SystemAPI.QueryBuilder().WithAll<StrikeCraftProfile>().Build().CalculateEntityCount();
             var leaders = new NativeList<Entity>(math.max(1, craftCount), Allocator.Temp);
-            var wingMembers = new NativeMultiHashMap<Entity, Entity>(math.max(1, craftCount), Allocator.Temp);
-            var unassignedByCarrier = new NativeMultiHashMap<Entity, Entity>(math.max(1, craftCount), Allocator.Temp);
+            var wingMembers = new NativeParallelMultiHashMap<Entity, Entity>(math.max(1, craftCount), Allocator.Temp);
+            var unassignedByCarrier = new NativeParallelMultiHashMap<Entity, Entity>(math.max(1, craftCount), Allocator.Temp);
 
             foreach (var (profile, entity) in SystemAPI.Query<RefRW<StrikeCraftProfile>>().WithEntityAccess())
             {
@@ -237,7 +235,6 @@ namespace Space4X.Systems.AI
 
                     if (canEmitActions)
                     {
-                        var profileEntity = ResolveProfileEntity(leader);
                         var issuedBy = ResolveIssuedByAuthority(leaderProfile.Carrier);
                         var actionEvent = new ProfileActionEvent
                         {

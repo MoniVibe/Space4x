@@ -22,7 +22,7 @@ namespace Space4X.Presentation
 
         protected override void OnUpdate()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
@@ -216,7 +216,7 @@ namespace Space4X.Presentation
     {
         protected override void OnUpdate()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }

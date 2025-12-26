@@ -22,7 +22,6 @@ namespace Space4X.Systems.AI
     /// Implements strike craft behavior per StrikeCraftBehavior.md: attack runs, formation behavior,
     /// experience progression, and auto-return logic based on ammunition/fuel/hull thresholds.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XVesselMovementAISystem))]
     public partial struct Space4XStrikeCraftBehaviorSystem : ISystem
@@ -62,7 +61,6 @@ namespace Space4X.Systems.AI
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private FixedString64Bytes _roleCaptain;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -100,10 +98,21 @@ namespace Space4X.Systems.AI
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
-            _roleCaptain = new FixedString64Bytes("ship.captain");
+            _roleCaptain = default;
+            _roleCaptain.Append('s');
+            _roleCaptain.Append('h');
+            _roleCaptain.Append('i');
+            _roleCaptain.Append('p');
+            _roleCaptain.Append('.');
+            _roleCaptain.Append('c');
+            _roleCaptain.Append('a');
+            _roleCaptain.Append('p');
+            _roleCaptain.Append('t');
+            _roleCaptain.Append('a');
+            _roleCaptain.Append('i');
+            _roleCaptain.Append('n');
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -208,6 +217,7 @@ namespace Space4X.Systems.AI
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
         }
+
 
         [BurstCompile]
         public partial struct UpdateStrikeCraftBehaviorJob : IJobEntity
@@ -423,7 +433,9 @@ namespace Space4X.Systems.AI
                 spacingScale *= math.lerp(1.15f, 0.85f, maintenanceQuality);
 
                 var wingOffset = ComputeWingOffset(entity, lawfulness, profileEntity);
-                var hasDirective = leader != Entity.Null && TryResolveWingDirective(entity, leader, out var directiveMode, out var shouldObey);
+                byte directiveMode = 0;
+                var shouldObey = false;
+                var hasDirective = leader != Entity.Null && TryResolveWingDirective(entity, leader, out directiveMode, out shouldObey);
                 if (hasDirective)
                 {
                     if (shouldObey && directiveMode == 1)

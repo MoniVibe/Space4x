@@ -1,6 +1,8 @@
+using System;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Streaming;
+using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
@@ -8,6 +10,9 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UTime = UnityEngine.Time;
+using UObject = UnityEngine.Object;
 
 namespace Space4X.Presentation
 {
@@ -108,7 +113,7 @@ namespace Space4X.Presentation
 
         protected override void OnUpdate()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
@@ -118,6 +123,8 @@ namespace Space4X.Presentation
             var queue = EntityManager.GetBuffer<Space4XAsteroidChunkRebuildRequest>(queueEntity);
             var volumeConfigLookup = GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             volumeConfigLookup.Update(this);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var queuedThisFrame = new NativeParallelHashMap<Entity, uint>(256, Allocator.Temp);
 
             var currentMap = BuildCurrentChunkMap();
             foreach (var (chunk, entity) in SystemAPI.Query<RefRO<TerrainChunk>>().WithEntityAccess())
@@ -135,10 +142,10 @@ namespace Space4X.Presentation
 
                 var key = new TerrainChunkKey { VolumeEntity = chunk.ValueRO.VolumeEntity, ChunkCoord = chunk.ValueRO.ChunkCoord };
                 var isNew = !_knownChunks.ContainsKey(key);
-                EnqueueChunk(queue, entity, version, force: isNew);
+                EnqueueChunk(queue, entity, version, force: isNew, ecb, ref queuedThisFrame);
                 if (isNew)
                 {
-                    EnqueueNeighbors(queue, currentMap, key, version);
+                    EnqueueNeighbors(queue, currentMap, key, version, ecb, ref queuedThisFrame);
                 }
             }
 
@@ -149,7 +156,7 @@ namespace Space4X.Presentation
                     continue;
                 }
 
-                EnqueueNeighbors(queue, currentMap, entry.Key, 0u);
+                EnqueueNeighbors(queue, currentMap, entry.Key, 0u, ecb, ref queuedThisFrame);
             }
 
             _knownChunks.Clear();
@@ -162,6 +169,10 @@ namespace Space4X.Presentation
 
                 currentMap.Dispose();
             }
+
+            ecb.Playback(EntityManager);
+            ecb.Dispose();
+            queuedThisFrame.Dispose();
         }
 
         private void EnsureQueue()
@@ -206,7 +217,13 @@ namespace Space4X.Presentation
             return map;
         }
 
-        private void EnqueueChunk(DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue, Entity entity, uint version, bool force)
+        private void EnqueueChunk(
+            DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue,
+            Entity entity,
+            uint version,
+            bool force,
+            EntityCommandBuffer ecb,
+            ref NativeParallelHashMap<Entity, uint> queuedThisFrame)
         {
             var hasState = EntityManager.HasComponent<Space4XAsteroidChunkMeshState>(entity);
             var state = hasState ? EntityManager.GetComponentData<Space4XAsteroidChunkMeshState>(entity) : default;
@@ -229,6 +246,16 @@ namespace Space4X.Presentation
                 return;
             }
 
+            if (queuedThisFrame.IsCreated)
+            {
+                if (queuedThisFrame.TryGetValue(entity, out var queued) && queuedVersion <= queued)
+                {
+                    return;
+                }
+
+                queuedThisFrame[entity] = queuedVersion;
+            }
+
             queue.Add(new Space4XAsteroidChunkRebuildRequest { Chunk = entity });
             state.LastQueuedVersion = queuedVersion;
             if (hasState)
@@ -237,7 +264,7 @@ namespace Space4X.Presentation
             }
             else
             {
-                EntityManager.AddComponentData(entity, state);
+                ecb.AddComponent(entity, state);
             }
         }
 
@@ -245,14 +272,16 @@ namespace Space4X.Presentation
             DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue,
             NativeParallelHashMap<TerrainChunkKey, Entity> currentMap,
             TerrainChunkKey key,
-            uint version)
+            uint version,
+            EntityCommandBuffer ecb,
+            ref NativeParallelHashMap<Entity, uint> queuedThisFrame)
         {
             if (!currentMap.IsCreated)
             {
                 return;
             }
 
-            var coords = stackalloc int3[6];
+            Span<int3> coords = stackalloc int3[6];
             coords[0] = new int3(key.ChunkCoord.x + 1, key.ChunkCoord.y, key.ChunkCoord.z);
             coords[1] = new int3(key.ChunkCoord.x - 1, key.ChunkCoord.y, key.ChunkCoord.z);
             coords[2] = new int3(key.ChunkCoord.x, key.ChunkCoord.y + 1, key.ChunkCoord.z);
@@ -268,7 +297,7 @@ namespace Space4X.Presentation
                     continue;
                 }
 
-                EnqueueChunk(queue, neighborEntity, version, force: true);
+                EnqueueChunk(queue, neighborEntity, version, force: true, ecb, ref queuedThisFrame);
             }
         }
     }
@@ -286,6 +315,8 @@ namespace Space4X.Presentation
         private NativeList<Color32> _colors;
         private NativeList<Space4XAsteroidChunkFaceCell> _faceMask;
         private NativeList<byte> _faceUsed;
+        private EntityQuery _renderConfigQuery;
+        private EntityQuery _paletteConfigQuery;
 
         protected override void OnCreate()
         {
@@ -300,11 +331,13 @@ namespace Space4X.Presentation
             _faceUsed = new NativeList<byte>(1024, Allocator.Persistent);
             _chunkLookup = default;
             _chunkLookupCount = -1;
+            _renderConfigQuery = GetEntityQuery(ComponentType.ReadOnly<Space4XAsteroidChunkRenderConfig>());
+            _paletteConfigQuery = GetEntityQuery(ComponentType.ReadOnly<Space4XAsteroidChunkPaletteConfig>());
         }
 
         protected override void OnUpdate()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
@@ -334,6 +367,13 @@ namespace Space4X.Presentation
                 return;
             }
 
+            var pending = new NativeList<Space4XAsteroidChunkRebuildRequest>(queue.Length, Allocator.Temp);
+            for (int i = 0; i < queue.Length; i++)
+            {
+                pending.Add(queue[i]);
+            }
+            queue.Clear();
+
             var config = Space4XAsteroidChunkMeshRebuildConfig.Default;
             if (EntityManager.HasComponent<Space4XAsteroidChunkMeshRebuildConfig>(queueEntity))
             {
@@ -345,12 +385,12 @@ namespace Space4X.Presentation
             nearRadiusSq *= nearRadiusSq;
             var minChunks = math.max(1, config.MinChunksPerFrame);
             var nearBudget = math.max(0, config.NearRebuildCap);
-            var startTime = Time.realtimeSinceStartupAsDouble;
+            var startTime = UTime.realtimeSinceStartupAsDouble;
             var builtCount = 0;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             var frameStats = new Space4XAsteroidChunkMeshFrameStats
             {
-                QueueLength = queue.Length,
+                QueueLength = pending.Length,
                 BudgetMs = config.MaxBuildMillisecondsPerFrame,
                 MinChunksPerFrame = minChunks
             };
@@ -370,15 +410,20 @@ namespace Space4X.Presentation
 
             var renderMeshDesc = new RenderMeshDescription();
 
-            while (nearBudget > 0 && queue.Length > 0)
+            while (nearBudget > 0 && pending.Length > 0)
             {
-                var idx = FindClosestWithin(queue, focus, nearRadiusSq);
+                var idx = FindClosestWithin(pending, focus, nearRadiusSq);
                 if (idx < 0)
                 {
                     break;
                 }
 
-                if (TryRebuildChunk(queue[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
+                chunkLookup.Update(this);
+                runtimeLookup.Update(this);
+                voxelAccessor.Chunks = chunkLookup;
+                voxelAccessor.RuntimeVoxels = runtimeLookup;
+
+                if (TryRebuildChunk(pending[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
                         out var buildMs, out var vertexCount, out var indexCount, out var quadBefore, out var quadAfter))
                 {
                     builtCount++;
@@ -392,22 +437,27 @@ namespace Space4X.Presentation
 #endif
                 }
 
-                queue.RemoveAt(idx);
+                pending.RemoveAt(idx);
                 if (ExceededTimeBudget(startTime, config.MaxBuildMillisecondsPerFrame, builtCount, minChunks))
                 {
                     break;
                 }
             }
 
-            while (queue.Length > 0)
+            while (pending.Length > 0)
             {
-                var idx = FindClosest(queue, focus);
+                var idx = FindClosest(pending, focus);
                 if (idx < 0)
                 {
                     break;
                 }
 
-                if (TryRebuildChunk(queue[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
+                chunkLookup.Update(this);
+                runtimeLookup.Update(this);
+                voxelAccessor.Chunks = chunkLookup;
+                voxelAccessor.RuntimeVoxels = runtimeLookup;
+
+                if (TryRebuildChunk(pending[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
                         out var buildMs, out var vertexCount, out var indexCount, out var quadBefore, out var quadAfter))
                 {
                     builtCount++;
@@ -420,20 +470,29 @@ namespace Space4X.Presentation
 #endif
                 }
 
-                queue.RemoveAt(idx);
+                pending.RemoveAt(idx);
                 if (ExceededTimeBudget(startTime, config.MaxBuildMillisecondsPerFrame, builtCount, minChunks))
                 {
                     break;
                 }
             }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (queue.Length > 0)
+            if (pending.Length > 0)
             {
-                frameStats.SkippedDueToBudget = queue.Length;
+                queue = EntityManager.GetBuffer<Space4XAsteroidChunkRebuildRequest>(queueEntity);
+                for (int i = 0; i < pending.Length; i++)
+                {
+                    queue.Add(pending[i]);
+                }
             }
 
-            frameStats.QueueLength = queue.Length;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (pending.Length > 0)
+            {
+                frameStats.SkippedDueToBudget = pending.Length;
+            }
+
+            frameStats.QueueLength = pending.Length;
             if (EntityManager.HasComponent<Space4XAsteroidChunkMeshFrameStats>(queueEntity))
             {
                 EntityManager.SetComponentData(queueEntity, frameStats);
@@ -443,6 +502,8 @@ namespace Space4X.Presentation
                 EntityManager.AddComponentData(queueEntity, frameStats);
             }
 #endif
+
+            pending.Dispose();
         }
 
         protected override void OnDestroy()
@@ -491,19 +552,19 @@ namespace Space4X.Presentation
             {
                 if (reference.Mesh != null)
                 {
-                    Object.Destroy(reference.Mesh);
+                    UObject.Destroy(reference.Mesh);
                 }
             }
         }
 
         private Material ResolveMaterial()
         {
-            if (SystemAPI.TryGetSingletonEntity<Space4XAsteroidChunkRenderConfig>(out var configEntity))
+            if (_renderConfigQuery.TryGetSingletonEntity<Space4XAsteroidChunkRenderConfig>(out var configEntity))
             {
-                var config = EntityManager.GetComponentData<Space4XAsteroidChunkRenderConfig>(configEntity);
+                var config = EntityManager.GetComponentObject<Space4XAsteroidChunkRenderConfig>(configEntity);
                 if (EntityManager.HasComponent<Space4XAsteroidChunkPaletteConfig>(configEntity))
                 {
-                    var palette = EntityManager.GetComponentData<Space4XAsteroidChunkPaletteConfig>(configEntity).Palette;
+                    var palette = EntityManager.GetComponentObject<Space4XAsteroidChunkPaletteConfig>(configEntity).Palette;
                     if (palette != null && config.Material != null && config.Material.HasProperty("_MaterialPalette"))
                     {
                         config.Material.SetTexture("_MaterialPalette", palette);
@@ -514,9 +575,9 @@ namespace Space4X.Presentation
             }
 
             var paletteTexture = default(Texture2D);
-            if (SystemAPI.TryGetSingletonEntity<Space4XAsteroidChunkPaletteConfig>(out var paletteEntity))
+            if (_paletteConfigQuery.TryGetSingletonEntity<Space4XAsteroidChunkPaletteConfig>(out var paletteEntity))
             {
-                paletteTexture = EntityManager.GetComponentData<Space4XAsteroidChunkPaletteConfig>(paletteEntity).Palette;
+                paletteTexture = EntityManager.GetComponentObject<Space4XAsteroidChunkPaletteConfig>(paletteEntity).Palette;
             }
 
             var paletteShader = Shader.Find("Space4X/AsteroidChunkPalette");
@@ -540,8 +601,8 @@ namespace Space4X.Presentation
                 material.SetTexture("_MaterialPalette", paletteTexture);
             }
 
-            var entity = EntityManager.CreateEntity(typeof(Space4XAsteroidChunkRenderConfig));
-            EntityManager.SetComponentData(entity, new Space4XAsteroidChunkRenderConfig
+            var entity = EntityManager.CreateEntity();
+            EntityManager.AddComponentObject(entity, new Space4XAsteroidChunkRenderConfig
             {
                 Material = material
             });
@@ -592,7 +653,7 @@ namespace Space4X.Presentation
             return float3.zero;
         }
 
-        private int FindClosestWithin(DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue, float3 focus, float maxDistanceSq)
+        private int FindClosestWithin(NativeList<Space4XAsteroidChunkRebuildRequest> queue, float3 focus, float maxDistanceSq)
         {
             var bestIdx = -1;
             var bestDistance = maxDistanceSq;
@@ -616,7 +677,7 @@ namespace Space4X.Presentation
             return bestIdx;
         }
 
-        private int FindClosest(DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue, float3 focus)
+        private int FindClosest(NativeList<Space4XAsteroidChunkRebuildRequest> queue, float3 focus)
         {
             var bestIdx = -1;
             var bestDistance = float.MaxValue;
@@ -692,7 +753,7 @@ namespace Space4X.Presentation
             out int quadBefore,
             out int quadAfter)
         {
-            var startTime = Time.realtimeSinceStartupAsDouble;
+            var startTime = UTime.realtimeSinceStartupAsDouble;
             if (!EntityManager.Exists(entity) || !EntityManager.HasComponent<TerrainChunk>(entity))
             {
                 buildMs = 0f;
@@ -746,18 +807,18 @@ namespace Space4X.Presentation
             {
                 var meshDataArray = Mesh.AllocateWritableMeshData(1);
                 var meshData = meshDataArray[0];
-                var vertexCount = _vertices.Length;
-                var indexCount = _indices.Length;
+                var meshVertexCount = _vertices.Length;
+                var meshIndexCount = _indices.Length;
                 var descriptors = new NativeArray<VertexAttributeDescriptor>(4, Allocator.Temp);
                 descriptors[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
                 descriptors[1] = new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3);
                 descriptors[2] = new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4);
                 descriptors[3] = new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2);
-                meshData.SetVertexBufferParams(vertexCount, descriptors);
+                meshData.SetVertexBufferParams(meshVertexCount, descriptors);
                 descriptors.Dispose();
 
                 var vertexData = meshData.GetVertexData<Space4XAsteroidChunkVertex>();
-                for (int i = 0; i < vertexCount; i++)
+                for (int i = 0; i < meshVertexCount; i++)
                 {
                     vertexData[i] = new Space4XAsteroidChunkVertex
                     {
@@ -771,11 +832,11 @@ namespace Space4X.Presentation
                 var indexFormat = _indices.Length > 65535
                     ? UnityEngine.Rendering.IndexFormat.UInt32
                     : UnityEngine.Rendering.IndexFormat.UInt16;
-                meshData.SetIndexBufferParams(indexCount, indexFormat);
+                meshData.SetIndexBufferParams(meshIndexCount, indexFormat);
                 if (indexFormat == UnityEngine.Rendering.IndexFormat.UInt32)
                 {
                     var indexData = meshData.GetIndexData<int>();
-                    for (int i = 0; i < indexCount; i++)
+                    for (int i = 0; i < meshIndexCount; i++)
                     {
                         indexData[i] = _indices[i];
                     }
@@ -783,14 +844,14 @@ namespace Space4X.Presentation
                 else
                 {
                     var indexData = meshData.GetIndexData<ushort>();
-                    for (int i = 0; i < indexCount; i++)
+                    for (int i = 0; i < meshIndexCount; i++)
                     {
                         indexData[i] = (ushort)_indices[i];
                     }
                 }
 
                 meshData.subMeshCount = 1;
-                meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount), MeshUpdateFlags.DontRecalculateBounds);
+                meshData.SetSubMesh(0, new SubMeshDescriptor(0, meshIndexCount), MeshUpdateFlags.DontRecalculateBounds);
                 Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, mesh);
                 mesh.RecalculateBounds();
             }
@@ -822,7 +883,7 @@ namespace Space4X.Presentation
 
             vertexCount = _vertices.Length;
             indexCount = _indices.Length;
-            buildMs = (float)((Time.realtimeSinceStartupAsDouble - startTime) * 1000.0);
+            buildMs = (float)((UTime.realtimeSinceStartupAsDouble - startTime) * 1000.0);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             var tick = 0u;
@@ -1365,7 +1426,7 @@ namespace Space4X.Presentation
                 return true;
             }
 
-            var elapsedMs = (Time.realtimeSinceStartupAsDouble - startTime) * 1000.0;
+            var elapsedMs = (UTime.realtimeSinceStartupAsDouble - startTime) * 1000.0;
             return elapsedMs >= maxMs;
         }
 
@@ -1380,7 +1441,7 @@ namespace Space4X.Presentation
             int directionIndex,
             byte materialId,
             byte oreGrade,
-            byte4 ao)
+            int4 ao)
         {
             var basePos = new float3(voxelCoord) * voxelSize;
             var v0 = basePos;
@@ -1448,10 +1509,10 @@ namespace Space4X.Presentation
             uvs.Add(new Vector2(0f, 1f));
             uvs.Add(new Vector2(1f, 1f));
             uvs.Add(new Vector2(1f, 0f));
-            colors.Add(new Color32(materialId, oreGrade, 0, ao.x));
-            colors.Add(new Color32(materialId, oreGrade, 0, ao.y));
-            colors.Add(new Color32(materialId, oreGrade, 0, ao.z));
-            colors.Add(new Color32(materialId, oreGrade, 0, ao.w));
+            colors.Add(new Color32(materialId, oreGrade, 0, (byte)ao.x));
+            colors.Add(new Color32(materialId, oreGrade, 0, (byte)ao.y));
+            colors.Add(new Color32(materialId, oreGrade, 0, (byte)ao.z));
+            colors.Add(new Color32(materialId, oreGrade, 0, (byte)ao.w));
             indices.Add(start + 0);
             indices.Add(start + 1);
             indices.Add(start + 2);
@@ -1467,7 +1528,7 @@ namespace Space4X.Presentation
     {
         protected override void OnUpdate()
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
@@ -1485,7 +1546,7 @@ namespace Space4X.Presentation
                     var reference = EntityManager.GetComponentData<Space4XAsteroidChunkMeshReference>(entity);
                     if (reference.Mesh != null)
                     {
-                        Object.Destroy(reference.Mesh);
+                    UObject.Destroy(reference.Mesh);
                     }
                 }
 
