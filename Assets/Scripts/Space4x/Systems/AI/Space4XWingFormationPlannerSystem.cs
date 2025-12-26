@@ -1,7 +1,9 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Formation;
 using PureDOTS.Runtime.Groups;
+using PureDOTS.Runtime.Profile;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -23,6 +25,9 @@ namespace Space4X.Systems.AI
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<SquadAckState> _ackLookup;
         private ComponentLookup<FormationMember> _formationMemberLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
+        private ComponentLookup<VesselPilotLink> _vesselPilotLookup;
+        private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -37,6 +42,9 @@ namespace Space4X.Systems.AI
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _ackLookup = state.GetComponentLookup<SquadAckState>(true);
             _formationMemberLookup = state.GetComponentLookup<FormationMember>(false);
+            _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _vesselPilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
         }
 
         [BurstCompile]
@@ -66,6 +74,9 @@ namespace Space4X.Systems.AI
             _transformLookup.Update(ref state);
             _ackLookup.Update(ref state);
             _formationMemberLookup.Update(ref state);
+            _strikePilotLookup.Update(ref state);
+            _vesselPilotLookup.Update(ref state);
+            _behaviorDispositionLookup.Update(ref state);
 
             var groupQuery = SystemAPI.QueryBuilder()
                 .WithAll<GroupTag, GroupMeta, GroupFormation>()
@@ -104,31 +115,53 @@ namespace Space4X.Systems.AI
                 }
 
                 var tactic = EnsureTacticOrder(groupEntity, defaults, timeState.Tick, ref state);
-                var ackRatio = ComputeAckRatio(tactic, membersBuffer, state.EntityManager, out var activeCount, out var memberHash);
+                var ackRatio = ComputeAckRatio(
+                    tactic,
+                    membersBuffer,
+                    state.EntityManager,
+                    out var activeCount,
+                    out var memberHash,
+                    out var avgCompliance,
+                    out var avgFormationAdherence,
+                    out var avgPatience,
+                    out var avgAggression,
+                    out var avgRiskTolerance);
                 if (activeCount == 0)
                 {
                     continue;
                 }
 
-                var acked = tactic.AckMode == 0 || ackRatio >= defaults.AckSuccessThreshold;
+                var discipline = math.saturate(avgCompliance * 0.6f + avgFormationAdherence * 0.4f);
+                var tightBias = math.saturate(discipline * 0.7f + avgPatience * 0.3f);
+                var splitBias = math.saturate(discipline * 0.5f + avgAggression * 0.3f + avgRiskTolerance * 0.2f);
+                var ackThreshold = ResolveAckThreshold(defaults.AckSuccessThreshold, discipline);
+                var acked = tactic.AckMode == 0 || ackRatio >= ackThreshold;
 
                 var wantsTight = WantsTight(tactic.Kind);
-                var spacing = wantsTight && acked ? defaults.TightSpacing : defaults.LooseSpacing;
-                var cohesion = wantsTight && acked ? defaults.TightCohesion : defaults.LooseCohesion;
-                var facing = wantsTight && acked ? defaults.TightFacingWeight : defaults.LooseFacingWeight;
-                var formationType = wantsTight && acked ? defaults.TightFormation : defaults.LooseFormation;
+                var tightActive = wantsTight && acked && tightBias >= 0.35f;
+                var spacing = tightActive
+                    ? math.lerp(defaults.TightSpacing, defaults.LooseSpacing, 1f - tightBias)
+                    : defaults.LooseSpacing;
+                var cohesion = tightActive
+                    ? math.lerp(defaults.TightCohesion, defaults.LooseCohesion, 1f - tightBias)
+                    : defaults.LooseCohesion;
+                var facing = tightActive
+                    ? math.lerp(defaults.TightFacingWeight, defaults.LooseFacingWeight, 1f - tightBias)
+                    : defaults.LooseFacingWeight;
+                var formationType = tightActive ? defaults.TightFormation : defaults.LooseFormation;
 
                 var groupFormation = state.EntityManager.GetComponentData<GroupFormation>(groupEntity);
                 groupFormation.Spacing = spacing;
                 groupFormation.Cohesion = cohesion;
                 groupFormation.FacingWeight = facing;
-                groupFormation.Type = wantsTight ? PureDOTS.Runtime.Groups.FormationType.Line : PureDOTS.Runtime.Groups.FormationType.Swarm;
+                groupFormation.Type = tightActive ? PureDOTS.Runtime.Groups.FormationType.Line : PureDOTS.Runtime.Groups.FormationType.Swarm;
                 state.EntityManager.SetComponentData(groupEntity, groupFormation);
 
                 byte splitCount = 1;
                 if (acked && IsSplitTactic(tactic.Kind))
                 {
-                    splitCount = (byte)math.max(1, defaults.MaxSplitGroups);
+                    var desiredSplit = math.max(1, defaults.MaxSplitGroups);
+                    splitCount = (byte)math.max(1, math.round(math.lerp(1f, desiredSplit, splitBias)));
                 }
 
                 splitCount = (byte)math.clamp(splitCount, 1, math.min(activeCount, 255));
@@ -280,11 +313,22 @@ namespace Space4X.Systems.AI
             DynamicBuffer<GroupMember> members,
             EntityManager entityManager,
             out int activeCount,
-            out uint memberHash)
+            out uint memberHash,
+            out float avgCompliance,
+            out float avgFormationAdherence,
+            out float avgPatience,
+            out float avgAggression,
+            out float avgRiskTolerance)
         {
             activeCount = 0;
             memberHash = 0u;
             var ackCount = 0;
+            var dispositionCount = 0;
+            var complianceSum = 0f;
+            var formationSum = 0f;
+            var patienceSum = 0f;
+            var aggressionSum = 0f;
+            var riskSum = 0f;
             var requiresAck = tactic.AckMode != 0 && tactic.IssueTick != 0;
             for (int i = 0; i < members.Length; i++)
             {
@@ -310,6 +354,34 @@ namespace Space4X.Systems.AI
                         ackCount++;
                     }
                 }
+
+                if (TryResolveDisposition(memberEntity, out var disposition))
+                {
+                    complianceSum += disposition.Compliance;
+                    formationSum += disposition.FormationAdherence;
+                    patienceSum += disposition.Patience;
+                    aggressionSum += disposition.Aggression;
+                    riskSum += disposition.RiskTolerance;
+                    dispositionCount++;
+                }
+            }
+
+            if (dispositionCount == 0)
+            {
+                avgCompliance = 0.5f;
+                avgFormationAdherence = 0.5f;
+                avgPatience = 0.5f;
+                avgAggression = 0.5f;
+                avgRiskTolerance = 0.5f;
+            }
+            else
+            {
+                var invCount = 1f / dispositionCount;
+                avgCompliance = complianceSum * invCount;
+                avgFormationAdherence = formationSum * invCount;
+                avgPatience = patienceSum * invCount;
+                avgAggression = aggressionSum * invCount;
+                avgRiskTolerance = riskSum * invCount;
             }
 
             if (activeCount == 0)
@@ -323,6 +395,54 @@ namespace Space4X.Systems.AI
             }
 
             return ackCount / (float)activeCount;
+        }
+
+        private bool TryResolveDisposition(Entity memberEntity, out BehaviorDisposition disposition)
+        {
+            var profileEntity = ResolveProfileEntity(memberEntity);
+            if (_behaviorDispositionLookup.HasComponent(profileEntity))
+            {
+                disposition = _behaviorDispositionLookup[profileEntity];
+                return true;
+            }
+
+            if (_behaviorDispositionLookup.HasComponent(memberEntity))
+            {
+                disposition = _behaviorDispositionLookup[memberEntity];
+                return true;
+            }
+
+            disposition = default;
+            return false;
+        }
+
+        private Entity ResolveProfileEntity(Entity memberEntity)
+        {
+            if (_strikePilotLookup.HasComponent(memberEntity))
+            {
+                var pilot = _strikePilotLookup[memberEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            if (_vesselPilotLookup.HasComponent(memberEntity))
+            {
+                var pilot = _vesselPilotLookup[memberEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            return memberEntity;
+        }
+
+        private static float ResolveAckThreshold(float baseThreshold, float discipline)
+        {
+            var maxThreshold = math.min(0.95f, baseThreshold + 0.25f);
+            return math.clamp(math.lerp(baseThreshold, maxThreshold, 1f - discipline), baseThreshold, 0.98f);
         }
 
         private static int ResolveSplitCount(int totalMembers, int splitCount, int anchorIndex)

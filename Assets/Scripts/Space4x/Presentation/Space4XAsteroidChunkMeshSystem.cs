@@ -47,25 +47,63 @@ namespace Space4X.Presentation
 
     public struct Space4XAsteroidChunkMeshRebuildConfig : IComponentData
     {
-        public int MaxChunkRebuildsPerFrame;
+        public float MaxBuildMillisecondsPerFrame;
+        public int MinChunksPerFrame;
         public int NearRebuildCap;
         public float NearRadius;
 
         public static Space4XAsteroidChunkMeshRebuildConfig Default => new()
         {
-            MaxChunkRebuildsPerFrame = 4,
+            MaxBuildMillisecondsPerFrame = 3f,
+            MinChunksPerFrame = 1,
             NearRebuildCap = 2,
             NearRadius = 40f
         };
     }
 
+    public struct Space4XAsteroidChunkFaceCell
+    {
+        public byte Exists;
+        public byte MaterialId;
+        public byte OreGrade;
+    }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public struct Space4XAsteroidChunkMeshTelemetry : IComponentData
+    {
+        public float LastBuildMs;
+        public int LastVertexCount;
+        public int LastIndexCount;
+        public int LastQuadCountBeforeGreedy;
+        public int LastQuadCountAfterGreedy;
+        public uint LastBuiltVersion;
+        public uint LastBuiltTick;
+    }
+
+    public struct Space4XAsteroidChunkMeshFrameStats : IComponentData
+    {
+        public int ChunksBuiltThisFrame;
+        public float TotalBuildMsThisFrame;
+        public int TotalVertsThisFrame;
+        public int TotalIndicesThisFrame;
+        public float LastChunkBuildMs;
+        public int QueueLength;
+        public int SkippedDueToBudget;
+        public float BudgetMs;
+        public int MinChunksPerFrame;
+    }
+#endif
+
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
     public partial class Space4XAsteroidChunkMeshQueueSystem : SystemBase
     {
+        private NativeParallelHashMap<TerrainChunkKey, Entity> _knownChunks;
+
         protected override void OnCreate()
         {
             RequireForUpdate<TerrainWorldConfig>();
+            _knownChunks = new NativeParallelHashMap<TerrainChunkKey, Entity>(128, Allocator.Persistent);
         }
 
         protected override void OnUpdate()
@@ -81,6 +119,7 @@ namespace Space4X.Presentation
             var volumeConfigLookup = GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             volumeConfigLookup.Update(this);
 
+            var currentMap = BuildCurrentChunkMap();
             foreach (var (chunk, entity) in SystemAPI.Query<RefRO<TerrainChunk>>().WithEntityAccess())
             {
                 if (chunk.ValueRO.VolumeEntity != Entity.Null && !volumeConfigLookup.HasComponent(chunk.ValueRO.VolumeEntity))
@@ -94,30 +133,34 @@ namespace Space4X.Presentation
                     version = SystemAPI.GetComponent<TerrainChunkDirty>(entity).EditVersion;
                 }
 
-                var hasState = SystemAPI.HasComponent<Space4XAsteroidChunkMeshState>(entity);
-                var state = hasState ? SystemAPI.GetComponent<Space4XAsteroidChunkMeshState>(entity) : default;
-                var hasMesh = SystemAPI.HasComponent<Space4XAsteroidChunkMeshReference>(entity);
-                var needsBuild = !hasMesh || !hasState || version > state.LastBuiltVersion;
-                if (!needsBuild)
+                var key = new TerrainChunkKey { VolumeEntity = chunk.ValueRO.VolumeEntity, ChunkCoord = chunk.ValueRO.ChunkCoord };
+                var isNew = !_knownChunks.ContainsKey(key);
+                EnqueueChunk(queue, entity, version, force: isNew);
+                if (isNew)
+                {
+                    EnqueueNeighbors(queue, currentMap, key, version);
+                }
+            }
+
+            foreach (var entry in _knownChunks)
+            {
+                if (currentMap.IsCreated && currentMap.ContainsKey(entry.Key))
                 {
                     continue;
                 }
 
-                if (hasState && version <= state.LastQueuedVersion)
+                EnqueueNeighbors(queue, currentMap, entry.Key, 0u);
+            }
+
+            _knownChunks.Clear();
+            if (currentMap.IsCreated)
+            {
+                foreach (var entry in currentMap)
                 {
-                    continue;
+                    _knownChunks.TryAdd(entry.Key, entry.Value);
                 }
 
-                queue.Add(new Space4XAsteroidChunkRebuildRequest { Chunk = entity });
-                state.LastQueuedVersion = version;
-                if (hasState)
-                {
-                    EntityManager.SetComponentData(entity, state);
-                }
-                else
-                {
-                    EntityManager.AddComponentData(entity, state);
-                }
+                currentMap.Dispose();
             }
         }
 
@@ -133,6 +176,101 @@ namespace Space4X.Presentation
             EntityManager.AddBuffer<Space4XAsteroidChunkRebuildRequest>(entity);
             EntityManager.AddComponentData(entity, Space4XAsteroidChunkMeshRebuildConfig.Default);
         }
+
+        protected override void OnDestroy()
+        {
+            if (_knownChunks.IsCreated)
+            {
+                _knownChunks.Dispose();
+            }
+        }
+
+        private NativeParallelHashMap<TerrainChunkKey, Entity> BuildCurrentChunkMap()
+        {
+            var count = SystemAPI.QueryBuilder().WithAll<TerrainChunk>().Build().CalculateEntityCount();
+            if (count <= 0)
+            {
+                return default;
+            }
+
+            var map = new NativeParallelHashMap<TerrainChunkKey, Entity>(count, Allocator.Temp);
+            foreach (var (chunk, entity) in SystemAPI.Query<RefRO<TerrainChunk>>().WithEntityAccess())
+            {
+                map.TryAdd(new TerrainChunkKey
+                {
+                    VolumeEntity = chunk.ValueRO.VolumeEntity,
+                    ChunkCoord = chunk.ValueRO.ChunkCoord
+                }, entity);
+            }
+
+            return map;
+        }
+
+        private void EnqueueChunk(DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue, Entity entity, uint version, bool force)
+        {
+            var hasState = EntityManager.HasComponent<Space4XAsteroidChunkMeshState>(entity);
+            var state = hasState ? EntityManager.GetComponentData<Space4XAsteroidChunkMeshState>(entity) : default;
+            var hasMesh = EntityManager.HasComponent<Space4XAsteroidChunkMeshReference>(entity);
+            var needsBuild = !hasMesh || !hasState || version > state.LastBuiltVersion;
+
+            if (!force && !needsBuild)
+            {
+                return;
+            }
+
+            var queuedVersion = version;
+            if (hasState && queuedVersion <= state.LastBuiltVersion)
+            {
+                queuedVersion = state.LastBuiltVersion + 1;
+            }
+
+            if (hasState && queuedVersion <= state.LastQueuedVersion)
+            {
+                return;
+            }
+
+            queue.Add(new Space4XAsteroidChunkRebuildRequest { Chunk = entity });
+            state.LastQueuedVersion = queuedVersion;
+            if (hasState)
+            {
+                EntityManager.SetComponentData(entity, state);
+            }
+            else
+            {
+                EntityManager.AddComponentData(entity, state);
+            }
+        }
+
+        private void EnqueueNeighbors(
+            DynamicBuffer<Space4XAsteroidChunkRebuildRequest> queue,
+            NativeParallelHashMap<TerrainChunkKey, Entity> currentMap,
+            TerrainChunkKey key,
+            uint version)
+        {
+            if (!currentMap.IsCreated)
+            {
+                return;
+            }
+
+            var coords = stackalloc int3[6];
+            coords[0] = new int3(key.ChunkCoord.x + 1, key.ChunkCoord.y, key.ChunkCoord.z);
+            coords[1] = new int3(key.ChunkCoord.x - 1, key.ChunkCoord.y, key.ChunkCoord.z);
+            coords[2] = new int3(key.ChunkCoord.x, key.ChunkCoord.y + 1, key.ChunkCoord.z);
+            coords[3] = new int3(key.ChunkCoord.x, key.ChunkCoord.y - 1, key.ChunkCoord.z);
+            coords[4] = new int3(key.ChunkCoord.x, key.ChunkCoord.y, key.ChunkCoord.z + 1);
+            coords[5] = new int3(key.ChunkCoord.x, key.ChunkCoord.y, key.ChunkCoord.z - 1);
+
+            for (int i = 0; i < 6; i++)
+            {
+                var neighborKey = new TerrainChunkKey { VolumeEntity = key.VolumeEntity, ChunkCoord = coords[i] };
+                if (!currentMap.TryGetValue(neighborKey, out var neighborEntity))
+                {
+                    continue;
+                }
+
+                EnqueueChunk(queue, neighborEntity, version, force: true);
+            }
+        }
     }
 
     [UpdateInGroup(typeof(PresentationSystemGroup))]
@@ -146,6 +284,8 @@ namespace Space4X.Presentation
         private NativeList<Vector2> _uvs;
         private NativeList<int> _indices;
         private NativeList<Color32> _colors;
+        private NativeList<Space4XAsteroidChunkFaceCell> _faceMask;
+        private NativeList<byte> _faceUsed;
 
         protected override void OnCreate()
         {
@@ -156,6 +296,8 @@ namespace Space4X.Presentation
             _uvs = new NativeList<Vector2>(2048, Allocator.Persistent);
             _indices = new NativeList<int>(4096, Allocator.Persistent);
             _colors = new NativeList<Color32>(2048, Allocator.Persistent);
+            _faceMask = new NativeList<Space4XAsteroidChunkFaceCell>(1024, Allocator.Persistent);
+            _faceUsed = new NativeList<byte>(1024, Allocator.Persistent);
             _chunkLookup = default;
             _chunkLookupCount = -1;
         }
@@ -201,8 +343,18 @@ namespace Space4X.Presentation
             var focus = ResolveFocusPosition();
             var nearRadiusSq = math.max(0f, config.NearRadius);
             nearRadiusSq *= nearRadiusSq;
-            var remainingBudget = math.max(0, config.MaxChunkRebuildsPerFrame);
+            var minChunks = math.max(1, config.MinChunksPerFrame);
             var nearBudget = math.max(0, config.NearRebuildCap);
+            var startTime = Time.realtimeSinceStartupAsDouble;
+            var builtCount = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            var frameStats = new Space4XAsteroidChunkMeshFrameStats
+            {
+                QueueLength = queue.Length,
+                BudgetMs = config.MaxBuildMillisecondsPerFrame,
+                MinChunksPerFrame = minChunks
+            };
+#endif
 
             var chunkLookup = GetComponentLookup<TerrainChunk>(true);
             var runtimeLookup = GetBufferLookup<TerrainVoxelRuntime>(true);
@@ -226,15 +378,28 @@ namespace Space4X.Presentation
                     break;
                 }
 
-                if (TryRebuildChunk(queue[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig))
+                if (TryRebuildChunk(queue[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
+                        out var buildMs, out var vertexCount, out var indexCount, out var quadBefore, out var quadAfter))
                 {
+                    builtCount++;
                     nearBudget--;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    frameStats.ChunksBuiltThisFrame++;
+                    frameStats.TotalBuildMsThisFrame += buildMs;
+                    frameStats.TotalVertsThisFrame += vertexCount;
+                    frameStats.TotalIndicesThisFrame += indexCount;
+                    frameStats.LastChunkBuildMs = buildMs;
+#endif
                 }
 
                 queue.RemoveAt(idx);
+                if (ExceededTimeBudget(startTime, config.MaxBuildMillisecondsPerFrame, builtCount, minChunks))
+                {
+                    break;
+                }
             }
 
-            while (remainingBudget > 0 && queue.Length > 0)
+            while (queue.Length > 0)
             {
                 var idx = FindClosest(queue, focus);
                 if (idx < 0)
@@ -242,13 +407,42 @@ namespace Space4X.Presentation
                     break;
                 }
 
-                if (TryRebuildChunk(queue[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig))
+                if (TryRebuildChunk(queue[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
+                        out var buildMs, out var vertexCount, out var indexCount, out var quadBefore, out var quadAfter))
                 {
-                    remainingBudget--;
+                    builtCount++;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    frameStats.ChunksBuiltThisFrame++;
+                    frameStats.TotalBuildMsThisFrame += buildMs;
+                    frameStats.TotalVertsThisFrame += vertexCount;
+                    frameStats.TotalIndicesThisFrame += indexCount;
+                    frameStats.LastChunkBuildMs = buildMs;
+#endif
                 }
 
                 queue.RemoveAt(idx);
+                if (ExceededTimeBudget(startTime, config.MaxBuildMillisecondsPerFrame, builtCount, minChunks))
+                {
+                    break;
+                }
             }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (queue.Length > 0)
+            {
+                frameStats.SkippedDueToBudget = queue.Length;
+            }
+
+            frameStats.QueueLength = queue.Length;
+            if (EntityManager.HasComponent<Space4XAsteroidChunkMeshFrameStats>(queueEntity))
+            {
+                EntityManager.SetComponentData(queueEntity, frameStats);
+            }
+            else
+            {
+                EntityManager.AddComponentData(queueEntity, frameStats);
+            }
+#endif
         }
 
         protected override void OnDestroy()
@@ -276,6 +470,16 @@ namespace Space4X.Presentation
             if (_colors.IsCreated)
             {
                 _colors.Dispose();
+            }
+
+            if (_faceMask.IsCreated)
+            {
+                _faceMask.Dispose();
+            }
+
+            if (_faceUsed.IsCreated)
+            {
+                _faceUsed.Dispose();
             }
 
             if (_chunkLookup.IsCreated)
@@ -481,10 +685,21 @@ namespace Space4X.Presentation
             ref TerrainVoxelAccessor voxelAccessor,
             Material material,
             RenderMeshDescription renderMeshDesc,
-            TerrainWorldConfig terrainConfig)
+            TerrainWorldConfig terrainConfig,
+            out float buildMs,
+            out int vertexCount,
+            out int indexCount,
+            out int quadBefore,
+            out int quadAfter)
         {
+            var startTime = Time.realtimeSinceStartupAsDouble;
             if (!EntityManager.Exists(entity) || !EntityManager.HasComponent<TerrainChunk>(entity))
             {
+                buildMs = 0f;
+                vertexCount = 0;
+                indexCount = 0;
+                quadBefore = 0;
+                quadAfter = 0;
                 return false;
             }
 
@@ -501,7 +716,10 @@ namespace Space4X.Presentation
             _indices.Clear();
             _colors.Clear();
 
-            BuildChunkMesh(ref voxelAccessor, chunk, terrainConfig.VoxelSize, _vertices, _normals, _uvs, _colors, _indices);
+            quadBefore = 0;
+            quadAfter = 0;
+            BuildChunkMesh(ref voxelAccessor, chunk, terrainConfig.VoxelSize, _vertices, _normals, _uvs, _colors, _indices,
+                _faceMask, _faceUsed, ref quadBefore, ref quadAfter);
 
             var hasMeshRef = EntityManager.HasComponent<Space4XAsteroidChunkMeshReference>(entity);
             Mesh mesh;
@@ -526,12 +744,54 @@ namespace Space4X.Presentation
             }
             else
             {
-                mesh.Clear();
-                mesh.SetVertices(_vertices.AsArray());
-                mesh.SetNormals(_normals.AsArray());
-                mesh.SetUVs(0, _uvs.AsArray());
-                mesh.SetColors(_colors.AsArray());
-                mesh.SetTriangles(_indices.AsArray(), 0);
+                var meshDataArray = Mesh.AllocateWritableMeshData(1);
+                var meshData = meshDataArray[0];
+                var vertexCount = _vertices.Length;
+                var indexCount = _indices.Length;
+                var descriptors = new NativeArray<VertexAttributeDescriptor>(4, Allocator.Temp);
+                descriptors[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
+                descriptors[1] = new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3);
+                descriptors[2] = new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4);
+                descriptors[3] = new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2);
+                meshData.SetVertexBufferParams(vertexCount, descriptors);
+                descriptors.Dispose();
+
+                var vertexData = meshData.GetVertexData<Space4XAsteroidChunkVertex>();
+                for (int i = 0; i < vertexCount; i++)
+                {
+                    vertexData[i] = new Space4XAsteroidChunkVertex
+                    {
+                        Position = _vertices[i],
+                        Normal = _normals[i],
+                        Color = _colors[i],
+                        TexCoord0 = _uvs[i]
+                    };
+                }
+
+                var indexFormat = _indices.Length > 65535
+                    ? UnityEngine.Rendering.IndexFormat.UInt32
+                    : UnityEngine.Rendering.IndexFormat.UInt16;
+                meshData.SetIndexBufferParams(indexCount, indexFormat);
+                if (indexFormat == UnityEngine.Rendering.IndexFormat.UInt32)
+                {
+                    var indexData = meshData.GetIndexData<int>();
+                    for (int i = 0; i < indexCount; i++)
+                    {
+                        indexData[i] = _indices[i];
+                    }
+                }
+                else
+                {
+                    var indexData = meshData.GetIndexData<ushort>();
+                    for (int i = 0; i < indexCount; i++)
+                    {
+                        indexData[i] = (ushort)_indices[i];
+                    }
+                }
+
+                meshData.subMeshCount = 1;
+                meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount), MeshUpdateFlags.DontRecalculateBounds);
+                Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, mesh);
                 mesh.RecalculateBounds();
             }
 
@@ -560,6 +820,38 @@ namespace Space4X.Presentation
                 EntityManager.AddComponentData(entity, state);
             }
 
+            vertexCount = _vertices.Length;
+            indexCount = _indices.Length;
+            buildMs = (float)((Time.realtimeSinceStartupAsDouble - startTime) * 1000.0);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            var tick = 0u;
+            if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            {
+                tick = timeState.Tick;
+            }
+
+            var telemetry = new Space4XAsteroidChunkMeshTelemetry
+            {
+                LastBuildMs = buildMs,
+                LastVertexCount = vertexCount,
+                LastIndexCount = indexCount,
+                LastQuadCountBeforeGreedy = quadBefore,
+                LastQuadCountAfterGreedy = quadAfter,
+                LastBuiltVersion = version,
+                LastBuiltTick = tick
+            };
+
+            if (EntityManager.HasComponent<Space4XAsteroidChunkMeshTelemetry>(entity))
+            {
+                EntityManager.SetComponentData(entity, telemetry);
+            }
+            else
+            {
+                EntityManager.AddComponentData(entity, telemetry);
+            }
+#endif
+
             return true;
         }
 
@@ -571,7 +863,11 @@ namespace Space4X.Presentation
             NativeList<Vector3> normals,
             NativeList<Vector2> uvs,
             NativeList<Color32> colors,
-            NativeList<int> indices)
+            NativeList<int> indices,
+            NativeList<Space4XAsteroidChunkFaceCell> faceMask,
+            NativeList<byte> faceUsed,
+            ref int quadBefore,
+            ref int quadAfter)
         {
             var dims = chunk.VoxelsPerChunk;
             if (dims.x <= 0 || dims.y <= 0 || dims.z <= 0)
@@ -579,33 +875,498 @@ namespace Space4X.Presentation
                 return;
             }
 
-            for (int z = 0; z < dims.z; z++)
+            GreedyMeshDirection(ref accessor, chunk, dims, voxelSize, TerrainVoxelFaceDirection.PosX,
+                vertices, normals, uvs, colors, indices, faceMask, faceUsed, ref quadBefore, ref quadAfter);
+            GreedyMeshDirection(ref accessor, chunk, dims, voxelSize, TerrainVoxelFaceDirection.NegX,
+                vertices, normals, uvs, colors, indices, faceMask, faceUsed, ref quadBefore, ref quadAfter);
+            GreedyMeshDirection(ref accessor, chunk, dims, voxelSize, TerrainVoxelFaceDirection.PosY,
+                vertices, normals, uvs, colors, indices, faceMask, faceUsed, ref quadBefore, ref quadAfter);
+            GreedyMeshDirection(ref accessor, chunk, dims, voxelSize, TerrainVoxelFaceDirection.NegY,
+                vertices, normals, uvs, colors, indices, faceMask, faceUsed, ref quadBefore, ref quadAfter);
+            GreedyMeshDirection(ref accessor, chunk, dims, voxelSize, TerrainVoxelFaceDirection.PosZ,
+                vertices, normals, uvs, colors, indices, faceMask, faceUsed, ref quadBefore, ref quadAfter);
+            GreedyMeshDirection(ref accessor, chunk, dims, voxelSize, TerrainVoxelFaceDirection.NegZ,
+                vertices, normals, uvs, colors, indices, faceMask, faceUsed, ref quadBefore, ref quadAfter);
+        }
+
+        private static void GreedyMeshDirection(
+            ref TerrainVoxelAccessor accessor,
+            in TerrainChunk chunk,
+            int3 dims,
+            float voxelSize,
+            TerrainVoxelFaceDirection face,
+            NativeList<Vector3> vertices,
+            NativeList<Vector3> normals,
+            NativeList<Vector2> uvs,
+            NativeList<Color32> colors,
+            NativeList<int> indices,
+            NativeList<Space4XAsteroidChunkFaceCell> faceMask,
+            NativeList<byte> faceUsed,
+            ref int quadBefore,
+            ref int quadAfter)
+        {
+            int uDim;
+            int vDim;
+            int wDim;
+            switch (face)
             {
-                for (int y = 0; y < dims.y; y++)
+                case TerrainVoxelFaceDirection.PosX:
+                case TerrainVoxelFaceDirection.NegX:
+                    uDim = dims.y;
+                    vDim = dims.z;
+                    wDim = dims.x;
+                    break;
+                case TerrainVoxelFaceDirection.PosY:
+                case TerrainVoxelFaceDirection.NegY:
+                    uDim = dims.x;
+                    vDim = dims.z;
+                    wDim = dims.y;
+                    break;
+                default:
+                    uDim = dims.x;
+                    vDim = dims.y;
+                    wDim = dims.z;
+                    break;
+            }
+
+            var maskSize = uDim * vDim;
+            if (maskSize <= 0 || wDim <= 0)
+            {
+                return;
+            }
+
+            if (faceMask.Capacity < maskSize)
+            {
+                faceMask.Capacity = maskSize;
+            }
+
+            if (faceUsed.Capacity < maskSize)
+            {
+                faceUsed.Capacity = maskSize;
+            }
+
+            for (int w = 0; w < wDim; w++)
+            {
+                faceMask.ResizeUninitialized(maskSize);
+                faceUsed.ResizeUninitialized(maskSize);
+                for (int i = 0; i < maskSize; i++)
                 {
-                    for (int x = 0; x < dims.x; x++)
+                    faceMask[i] = default;
+                    faceUsed[i] = 0;
+                }
+
+                for (int v = 0; v < vDim; v++)
+                {
+                    for (int u = 0; u < uDim; u++)
                     {
-                        var voxelCoord = new int3(x, y, z);
+                        var voxelCoord = ResolveVoxelCoord(face, u, v, w);
                         if (!accessor.TrySampleVoxel(chunk.VolumeEntity, chunk.ChunkCoord, voxelCoord, out var voxelSample) ||
                             voxelSample.SolidMask == 0)
                         {
                             continue;
                         }
 
-                        for (int dir = 0; dir < TerrainVoxelMath.NeighborOffsets.Length; dir++)
+                        var neighborOffset = ResolveNeighborOffset(face);
+                        if (accessor.TrySampleNeighbor(chunk.VolumeEntity, chunk.ChunkCoord, voxelCoord, neighborOffset, out var neighbor) &&
+                            neighbor.SolidMask != 0)
                         {
-                            var offset = TerrainVoxelMath.NeighborOffsets[dir];
-                            if (accessor.TrySampleNeighbor(chunk.VolumeEntity, chunk.ChunkCoord, voxelCoord, offset, out var neighbor) &&
-                                neighbor.SolidMask != 0)
+                            continue;
+                        }
+
+                        var oreGrade = QuantizeOreGrade(voxelSample.OreGrade);
+                        var cell = new Space4XAsteroidChunkFaceCell
+                        {
+                            Exists = 1,
+                            MaterialId = voxelSample.MaterialId,
+                            OreGrade = oreGrade
+                        };
+
+                        faceMask[u + v * uDim] = cell;
+                        quadBefore++;
+                    }
+                }
+
+                for (int v = 0; v < vDim; v++)
+                {
+                    for (int u = 0; u < uDim; u++)
+                    {
+                        var idx = u + v * uDim;
+                        if (faceUsed[idx] != 0)
+                        {
+                            continue;
+                        }
+
+                        var cell = faceMask[idx];
+                        if (cell.Exists == 0)
+                        {
+                            continue;
+                        }
+
+                        var width = 1;
+                        var height = 1;
+                        if (cell.Exists != 0)
+                        {
+                            while (u + width < uDim &&
+                                   faceUsed[idx + width] == 0 &&
+                                   CanMerge(cell, faceMask[idx + width]))
                             {
-                                continue;
+                                width++;
                             }
 
-                            AppendFace(vertices, normals, uvs, colors, indices, voxelCoord, voxelSize, dir, voxelSample.MaterialId);
+                            var done = false;
+                            while (v + height < vDim && !done)
+                            {
+                                for (int x = 0; x < width; x++)
+                                {
+                                    var scanIdx = (u + x) + (v + height) * uDim;
+                                    if (faceUsed[scanIdx] != 0 || !CanMerge(cell, faceMask[scanIdx]))
+                                    {
+                                        done = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!done)
+                                {
+                                    height++;
+                                }
+                            }
                         }
+
+                        for (int vy = 0; vy < height; vy++)
+                        {
+                            for (int vx = 0; vx < width; vx++)
+                            {
+                                faceUsed[(u + vx) + (v + vy) * uDim] = 1;
+                            }
+                        }
+
+                        quadAfter++;
+                        AppendMergedFace(ref accessor, chunk, vertices, normals, uvs, colors, indices, face, w, u, v, width, height,
+                            voxelSize, cell.MaterialId, cell.OreGrade);
                     }
                 }
             }
+        }
+
+        private static byte QuantizeOreGrade(byte oreGrade)
+        {
+            const int bins = 8;
+            var bin = (oreGrade * (bins - 1) + 127) / 255;
+            var value = bin * (255 / (bins - 1));
+            return (byte)math.clamp(value, 0, 255);
+        }
+
+        private static bool CanMerge(in Space4XAsteroidChunkFaceCell a, in Space4XAsteroidChunkFaceCell b)
+        {
+            if (b.Exists == 0)
+            {
+                return false;
+            }
+
+            if (a.MaterialId != b.MaterialId || a.OreGrade != b.OreGrade)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static int3 ResolveVoxelCoord(TerrainVoxelFaceDirection face, int u, int v, int w)
+        {
+            switch (face)
+            {
+                case TerrainVoxelFaceDirection.PosX:
+                case TerrainVoxelFaceDirection.NegX:
+                    return new int3(w, u, v);
+                case TerrainVoxelFaceDirection.PosY:
+                case TerrainVoxelFaceDirection.NegY:
+                    return new int3(u, w, v);
+                default:
+                    return new int3(u, v, w);
+            }
+        }
+
+        private static int3 ResolveNeighborOffset(TerrainVoxelFaceDirection face)
+        {
+            switch (face)
+            {
+                case TerrainVoxelFaceDirection.PosX:
+                    return new int3(1, 0, 0);
+                case TerrainVoxelFaceDirection.NegX:
+                    return new int3(-1, 0, 0);
+                case TerrainVoxelFaceDirection.PosY:
+                    return new int3(0, 1, 0);
+                case TerrainVoxelFaceDirection.NegY:
+                    return new int3(0, -1, 0);
+                case TerrainVoxelFaceDirection.PosZ:
+                    return new int3(0, 0, 1);
+                default:
+                    return new int3(0, 0, -1);
+            }
+        }
+
+        private static void AppendMergedFace(
+            ref TerrainVoxelAccessor accessor,
+            in TerrainChunk chunk,
+            NativeList<Vector3> vertices,
+            NativeList<Vector3> normals,
+            NativeList<Vector2> uvs,
+            NativeList<Color32> colors,
+            NativeList<int> indices,
+            TerrainVoxelFaceDirection face,
+            int w,
+            int u,
+            int v,
+            int width,
+            int height,
+            float voxelSize,
+            byte materialId,
+            byte oreGrade)
+        {
+            float3 v0;
+            float3 v1;
+            float3 v2;
+            float3 v3;
+            float3 normal;
+
+            var u0 = u * voxelSize;
+            var u1 = (u + width) * voxelSize;
+            var v0p = v * voxelSize;
+            var v1p = (v + height) * voxelSize;
+            var uMax = u + width - 1;
+            var vMax = v + height - 1;
+
+            switch (face)
+            {
+                case TerrainVoxelFaceDirection.PosX:
+                    {
+                        var x = (w + 1) * voxelSize;
+                        v0 = new float3(x, u0, v0p);
+                        v1 = new float3(x, u1, v0p);
+                        v2 = new float3(x, u1, v1p);
+                        v3 = new float3(x, u0, v1p);
+                        normal = new float3(1f, 0f, 0f);
+                        break;
+                    }
+                case TerrainVoxelFaceDirection.NegX:
+                    {
+                        var x = w * voxelSize;
+                        v0 = new float3(x, u0, v1p);
+                        v1 = new float3(x, u1, v1p);
+                        v2 = new float3(x, u1, v0p);
+                        v3 = new float3(x, u0, v0p);
+                        normal = new float3(-1f, 0f, 0f);
+                        break;
+                    }
+                case TerrainVoxelFaceDirection.PosY:
+                    {
+                        var y = (w + 1) * voxelSize;
+                        v0 = new float3(u0, y, v1p);
+                        v1 = new float3(u1, y, v1p);
+                        v2 = new float3(u1, y, v0p);
+                        v3 = new float3(u0, y, v0p);
+                        normal = new float3(0f, 1f, 0f);
+                        break;
+                    }
+                case TerrainVoxelFaceDirection.NegY:
+                    {
+                        var y = w * voxelSize;
+                        v0 = new float3(u0, y, v0p);
+                        v1 = new float3(u1, y, v0p);
+                        v2 = new float3(u1, y, v1p);
+                        v3 = new float3(u0, y, v1p);
+                        normal = new float3(0f, -1f, 0f);
+                        break;
+                    }
+                case TerrainVoxelFaceDirection.PosZ:
+                    {
+                        var z = (w + 1) * voxelSize;
+                        v0 = new float3(u1, v0p, z);
+                        v1 = new float3(u1, v1p, z);
+                        v2 = new float3(u0, v1p, z);
+                        v3 = new float3(u0, v0p, z);
+                        normal = new float3(0f, 0f, 1f);
+                        break;
+                    }
+                default:
+                    {
+                        var z = w * voxelSize;
+                        v0 = new float3(u0, v0p, z);
+                        v1 = new float3(u0, v1p, z);
+                        v2 = new float3(u1, v1p, z);
+                        v3 = new float3(u1, v0p, z);
+                        normal = new float3(0f, 0f, -1f);
+                        break;
+                    }
+            }
+
+            var start = vertices.Length;
+            vertices.Add(new Vector3(v0.x, v0.y, v0.z));
+            vertices.Add(new Vector3(v1.x, v1.y, v1.z));
+            vertices.Add(new Vector3(v2.x, v2.y, v2.z));
+            vertices.Add(new Vector3(v3.x, v3.y, v3.z));
+            normals.Add(new Vector3(normal.x, normal.y, normal.z));
+            normals.Add(new Vector3(normal.x, normal.y, normal.z));
+            normals.Add(new Vector3(normal.x, normal.y, normal.z));
+            normals.Add(new Vector3(normal.x, normal.y, normal.z));
+            uvs.Add(new Vector2(0f, 0f));
+            uvs.Add(new Vector2(0f, 1f));
+            uvs.Add(new Vector2(1f, 1f));
+            uvs.Add(new Vector2(1f, 0f));
+            byte ao0;
+            byte ao1;
+            byte ao2;
+            byte ao3;
+            switch (face)
+            {
+                case TerrainVoxelFaceDirection.PosX:
+                    ao0 = ComputeCornerAo(ref accessor, chunk, face, u, v, w, 0, 0);
+                    ao1 = ComputeCornerAo(ref accessor, chunk, face, uMax, v, w, 1, 0);
+                    ao2 = ComputeCornerAo(ref accessor, chunk, face, uMax, vMax, w, 1, 1);
+                    ao3 = ComputeCornerAo(ref accessor, chunk, face, u, vMax, w, 0, 1);
+                    break;
+                case TerrainVoxelFaceDirection.NegX:
+                    ao0 = ComputeCornerAo(ref accessor, chunk, face, u, vMax, w, 0, 1);
+                    ao1 = ComputeCornerAo(ref accessor, chunk, face, uMax, vMax, w, 1, 1);
+                    ao2 = ComputeCornerAo(ref accessor, chunk, face, uMax, v, w, 1, 0);
+                    ao3 = ComputeCornerAo(ref accessor, chunk, face, u, v, w, 0, 0);
+                    break;
+                case TerrainVoxelFaceDirection.PosY:
+                    ao0 = ComputeCornerAo(ref accessor, chunk, face, u, vMax, w, 0, 1);
+                    ao1 = ComputeCornerAo(ref accessor, chunk, face, uMax, vMax, w, 1, 1);
+                    ao2 = ComputeCornerAo(ref accessor, chunk, face, uMax, v, w, 1, 0);
+                    ao3 = ComputeCornerAo(ref accessor, chunk, face, u, v, w, 0, 0);
+                    break;
+                case TerrainVoxelFaceDirection.NegY:
+                    ao0 = ComputeCornerAo(ref accessor, chunk, face, u, v, w, 0, 0);
+                    ao1 = ComputeCornerAo(ref accessor, chunk, face, uMax, v, w, 1, 0);
+                    ao2 = ComputeCornerAo(ref accessor, chunk, face, uMax, vMax, w, 1, 1);
+                    ao3 = ComputeCornerAo(ref accessor, chunk, face, u, vMax, w, 0, 1);
+                    break;
+                case TerrainVoxelFaceDirection.PosZ:
+                    ao0 = ComputeCornerAo(ref accessor, chunk, face, uMax, v, w, 1, 0);
+                    ao1 = ComputeCornerAo(ref accessor, chunk, face, uMax, vMax, w, 1, 1);
+                    ao2 = ComputeCornerAo(ref accessor, chunk, face, u, vMax, w, 0, 1);
+                    ao3 = ComputeCornerAo(ref accessor, chunk, face, u, v, w, 0, 0);
+                    break;
+                default:
+                    ao0 = ComputeCornerAo(ref accessor, chunk, face, u, v, w, 0, 0);
+                    ao1 = ComputeCornerAo(ref accessor, chunk, face, u, vMax, w, 0, 1);
+                    ao2 = ComputeCornerAo(ref accessor, chunk, face, uMax, vMax, w, 1, 1);
+                    ao3 = ComputeCornerAo(ref accessor, chunk, face, uMax, v, w, 1, 0);
+                    break;
+            }
+            colors.Add(new Color32(materialId, oreGrade, 0, ao0));
+            colors.Add(new Color32(materialId, oreGrade, 0, ao1));
+            colors.Add(new Color32(materialId, oreGrade, 0, ao2));
+            colors.Add(new Color32(materialId, oreGrade, 0, ao3));
+            indices.Add(start + 0);
+            indices.Add(start + 1);
+            indices.Add(start + 2);
+            indices.Add(start + 0);
+            indices.Add(start + 2);
+            indices.Add(start + 3);
+        }
+
+        private static byte ComputeCornerAo(
+            ref TerrainVoxelAccessor accessor,
+            in TerrainChunk chunk,
+            TerrainVoxelFaceDirection face,
+            int u,
+            int v,
+            int w,
+            int uOffset,
+            int vOffset)
+        {
+            var voxelCoord = ResolveVoxelCoord(face, u, v, w);
+            ResolveFaceAxes(face, out var axisU, out var axisV);
+            return ComputeVertexAo(ref accessor, chunk, voxelCoord, axisU, axisV, uOffset, vOffset);
+        }
+
+        private static void ResolveFaceAxes(TerrainVoxelFaceDirection face, out int3 axisU, out int3 axisV)
+        {
+            switch (face)
+            {
+                case TerrainVoxelFaceDirection.PosX:
+                case TerrainVoxelFaceDirection.NegX:
+                    axisU = new int3(0, 1, 0);
+                    axisV = new int3(0, 0, 1);
+                    break;
+                case TerrainVoxelFaceDirection.PosY:
+                case TerrainVoxelFaceDirection.NegY:
+                    axisU = new int3(1, 0, 0);
+                    axisV = new int3(0, 0, 1);
+                    break;
+                default:
+                    axisU = new int3(1, 0, 0);
+                    axisV = new int3(0, 1, 0);
+                    break;
+            }
+        }
+
+        private struct Space4XAsteroidChunkVertex
+        {
+            public Vector3 Position;
+            public Vector3 Normal;
+            public Color32 Color;
+            public Vector2 TexCoord0;
+        }
+
+        private static byte ComputeVertexAo(
+            ref TerrainVoxelAccessor accessor,
+            in TerrainChunk chunk,
+            int3 voxelCoord,
+            int3 axisU,
+            int3 axisV,
+            int uOffset,
+            int vOffset)
+        {
+            var sideA = uOffset == 0 ? -axisU : axisU;
+            var sideB = vOffset == 0 ? -axisV : axisV;
+            return ComputeVertexAo(ref accessor, chunk, voxelCoord, sideA, sideB);
+        }
+
+        private static byte ComputeVertexAo(
+            ref TerrainVoxelAccessor accessor,
+            in TerrainChunk chunk,
+            int3 voxelCoord,
+            int3 sideOffsetA,
+            int3 sideOffsetB)
+        {
+            var sideA = IsSolid(ref accessor, chunk, voxelCoord, sideOffsetA);
+            var sideB = IsSolid(ref accessor, chunk, voxelCoord, sideOffsetB);
+            var corner = IsSolid(ref accessor, chunk, voxelCoord, sideOffsetA + sideOffsetB);
+
+            var occlusion = sideA && sideB ? 3 : (sideA ? 1 : 0) + (sideB ? 1 : 0) + (corner ? 1 : 0);
+            var ao = 255 - occlusion * 85;
+            return (byte)math.clamp(ao, 0, 255);
+        }
+
+        private static bool IsSolid(
+            ref TerrainVoxelAccessor accessor,
+            in TerrainChunk chunk,
+            int3 voxelCoord,
+            int3 offset)
+        {
+            return accessor.TrySampleNeighbor(chunk.VolumeEntity, chunk.ChunkCoord, voxelCoord, offset, out var sample) &&
+                   sample.SolidMask != 0;
+        }
+
+        private static bool ExceededTimeBudget(double startTime, float maxMs, int builtCount, int minChunks)
+        {
+            if (builtCount < minChunks)
+            {
+                return false;
+            }
+
+            if (maxMs <= 0f)
+            {
+                return true;
+            }
+
+            var elapsedMs = (Time.realtimeSinceStartupAsDouble - startTime) * 1000.0;
+            return elapsedMs >= maxMs;
         }
 
         private static void AppendFace(
@@ -617,7 +1378,9 @@ namespace Space4X.Presentation
             int3 voxelCoord,
             float voxelSize,
             int directionIndex,
-            byte materialId)
+            byte materialId,
+            byte oreGrade,
+            byte4 ao)
         {
             var basePos = new float3(voxelCoord) * voxelSize;
             var v0 = basePos;
@@ -685,11 +1448,10 @@ namespace Space4X.Presentation
             uvs.Add(new Vector2(0f, 1f));
             uvs.Add(new Vector2(1f, 1f));
             uvs.Add(new Vector2(1f, 0f));
-            var color = new Color32(materialId, 0, 0, 255);
-            colors.Add(color);
-            colors.Add(color);
-            colors.Add(color);
-            colors.Add(color);
+            colors.Add(new Color32(materialId, oreGrade, 0, ao.x));
+            colors.Add(new Color32(materialId, oreGrade, 0, ao.y));
+            colors.Add(new Color32(materialId, oreGrade, 0, ao.z));
+            colors.Add(new Color32(materialId, oreGrade, 0, ao.w));
             indices.Add(start + 0);
             indices.Add(start + 1);
             indices.Add(start + 2);

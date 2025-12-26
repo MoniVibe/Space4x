@@ -75,6 +75,7 @@ namespace Space4X.Tests
             Assert.AreEqual("FX.Mining.Sparks", effects[0].EffectId.ToString());
             Assert.AreEqual(miner, effects[0].AttachTo);
             Assert.Greater(effects[0].Lifetime, 0f);
+            Assert.Greater(effects[0].Intensity, 0f);
         }
 
         [Test]

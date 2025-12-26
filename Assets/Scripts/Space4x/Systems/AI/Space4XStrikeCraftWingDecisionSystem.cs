@@ -27,6 +27,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
         private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<IssuedByAuthority> _issuedByLookup;
+        private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<TopOutlook> _outlookLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
@@ -42,6 +43,7 @@ namespace Space4X.Systems.AI
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(false);
             _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _issuedByLookup = state.GetComponentLookup<IssuedByAuthority>(true);
+            _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
@@ -66,6 +68,7 @@ namespace Space4X.Systems.AI
             _profileLookup.Update(ref state);
             _pilotLinkLookup.Update(ref state);
             _issuedByLookup.Update(ref state);
+            _behaviorDispositionLookup.Update(ref state);
             _outlookLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
 
@@ -172,6 +175,16 @@ namespace Space4X.Systems.AI
                     discipline = ComputeDiscipline(_outlookLookup[profileEntity]);
                 }
 
+                var disposition = ResolveBehaviorDisposition(profileEntity, leader);
+                var compliance = disposition.Compliance;
+                var formationAdherence = disposition.FormationAdherence;
+                var patience = disposition.Patience;
+                var aggression = disposition.Aggression;
+                var riskTolerance = disposition.RiskTolerance;
+                var caution = disposition.Caution;
+
+                discipline = math.saturate(math.lerp(discipline, (compliance + formationAdherence) * 0.5f, 0.55f));
+
                 var stance = VesselStanceMode.Balanced;
                 if (_patrolStanceLookup.HasComponent(leaderProfile.Carrier))
                 {
@@ -182,9 +195,21 @@ namespace Space4X.Systems.AI
                     stance = _patrolStanceLookup[leader].Stance;
                 }
 
-                var breakThreshold = math.saturate(config.ChaosBreakThreshold + (discipline - 0.5f) * 0.2f);
-                var aggressiveBreakThreshold = math.saturate(config.ChaosBreakAggressiveThreshold + (discipline - 0.5f) * 0.2f);
-                var formThreshold = math.saturate(config.LawfulnessFormThreshold - (discipline - 0.5f) * 0.2f);
+                var breakThreshold = math.saturate(config.ChaosBreakThreshold +
+                                                   (discipline - 0.5f) * 0.2f -
+                                                   (aggression - 0.5f) * 0.15f -
+                                                   (riskTolerance - 0.5f) * 0.1f +
+                                                   (caution - 0.5f) * 0.1f);
+                var aggressiveBreakThreshold = math.saturate(config.ChaosBreakAggressiveThreshold +
+                                                             (discipline - 0.5f) * 0.2f -
+                                                             (aggression - 0.5f) * 0.2f -
+                                                             (riskTolerance - 0.5f) * 0.15f +
+                                                             (caution - 0.5f) * 0.1f);
+                var formThreshold = math.saturate(config.LawfulnessFormThreshold -
+                                                  (discipline - 0.5f) * 0.2f -
+                                                  (compliance - 0.5f) * 0.15f -
+                                                  (formationAdherence - 0.5f) * 0.15f +
+                                                  (aggression - 0.5f) * 0.05f);
 
                 var wantsBreak = chaos >= breakThreshold &&
                                  (leaderProfile.Phase == AttackRunPhase.Approach || leaderProfile.Phase == AttackRunPhase.Execute);
@@ -233,7 +258,7 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                directive.ValueRW.NextDecisionTick = time.Tick + config.DecisionCooldownTicks;
+                directive.ValueRW.NextDecisionTick = time.Tick + ResolveDecisionCooldown(config.DecisionCooldownTicks, patience);
 
                 if (desiredMode == WingModeBreak)
                 {
@@ -359,6 +384,27 @@ namespace Space4X.Systems.AI
             }
 
             return default;
+        }
+
+        private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity craftEntity)
+        {
+            if (_behaviorDispositionLookup.HasComponent(profileEntity))
+            {
+                return _behaviorDispositionLookup[profileEntity];
+            }
+
+            if (_behaviorDispositionLookup.HasComponent(craftEntity))
+            {
+                return _behaviorDispositionLookup[craftEntity];
+            }
+
+            return BehaviorDisposition.Default;
+        }
+
+        private static uint ResolveDecisionCooldown(uint baseCooldown, float patience)
+        {
+            var multiplier = math.lerp(0.85f, 1.25f, patience);
+            return (uint)math.max(1f, math.round(baseCooldown * multiplier));
         }
 
         private static float ComputeDiscipline(DynamicBuffer<TopOutlook> outlooks)

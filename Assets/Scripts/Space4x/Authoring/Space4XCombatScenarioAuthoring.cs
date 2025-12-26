@@ -1,5 +1,7 @@
 using System;
 using PureDOTS.Authoring;
+using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Editor.DevMenu;
 using Space4X.Registry;
@@ -276,6 +278,18 @@ namespace Space4X.Authoring
                     SuccessCount = 0,
                     FailureCount = 0
                 });
+                AddComponent(entity, CaptainReadiness.Standard);
+                AddComponent(entity, new CaptainOrder
+                {
+                    Type = CaptainOrderType.None,
+                    Status = CaptainOrderStatus.None,
+                    Priority = 0,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = float3.zero,
+                    IssuedTick = 0,
+                    TimeoutTick = 0,
+                    IssuingAuthority = Entity.Null
+                });
 
                 // Morale
                 AddComponent(entity, new MoraleState
@@ -298,6 +312,9 @@ namespace Space4X.Authoring
 
                 // Resources
                 AddBuffer<ResourceStorage>(entity);
+
+                var lawfulness = factionId == "enemy" ? -0.6f : 0.6f;
+                AddCarrierCrew(entity, lawfulness);
 
                 return entity;
             }
@@ -335,6 +352,11 @@ namespace Space4X.Authoring
 
                 var pilot = CreateAdditionalEntity(TransformUsageFlags.None);
                 AddComponent(pilot, AlignmentTriplet.FromFloats(0f, 0f, 0f));
+                AddComponent(pilot, new BehaviorDispositionSeedRequest
+                {
+                    Seed = 0u,
+                    SeedSalt = (uint)(index + 1)
+                });
                 var outlookEntries = AddBuffer<OutlookEntry>(pilot);
                 outlookEntries.Add(new OutlookEntry
                 {
@@ -422,6 +444,103 @@ namespace Space4X.Authoring
                 });
 
                 return entity;
+            }
+
+            private void AddCarrierCrew(Entity carrierEntity, float lawfulness)
+            {
+                var crew = AddBuffer<PlatformCrewMember>(carrierEntity);
+                var config = StrikeCraftPilotProfileConfig.Default;
+
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = CreateCrewEntity(lawfulness, config,
+                        new IndividualStats
+                        {
+                            Command = (half)90,
+                            Tactics = (half)70,
+                            Logistics = (half)60,
+                            Diplomacy = (half)60,
+                            Engineering = (half)40,
+                            Resolve = (half)85
+                        },
+                        BehaviorDisposition.FromValues(0.8f, 0.6f, 0.8f, 0.4f, 0.45f, 0.7f)),
+                    RoleId = 0
+                });
+
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = CreateCrewEntity(lawfulness, config,
+                        new IndividualStats
+                        {
+                            Command = (half)75,
+                            Tactics = (half)55,
+                            Logistics = (half)80,
+                            Diplomacy = (half)50,
+                            Engineering = (half)45,
+                            Resolve = (half)70
+                        },
+                        BehaviorDisposition.FromValues(0.75f, 0.6f, 0.7f, 0.45f, 0.4f, 0.7f)),
+                    RoleId = 0
+                });
+
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = CreateCrewEntity(lawfulness, config,
+                        new IndividualStats
+                        {
+                            Command = (half)65,
+                            Tactics = (half)80,
+                            Logistics = (half)50,
+                            Diplomacy = (half)45,
+                            Engineering = (half)40,
+                            Resolve = (half)60
+                        },
+                        BehaviorDisposition.FromValues(0.65f, 0.55f, 0.7f, 0.5f, 0.45f, 0.6f)),
+                    RoleId = 0
+                });
+            }
+
+            private Entity CreateCrewEntity(
+                float lawfulness,
+                in StrikeCraftPilotProfileConfig config,
+                in IndividualStats stats,
+                in BehaviorDisposition disposition)
+            {
+                var crew = CreateAdditionalEntity(TransformUsageFlags.None);
+                AddComponent(crew, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
+                AddComponent(crew, stats);
+                AddComponent(crew, disposition);
+
+                var outlookId = ResolveOutlookId(config, lawfulness);
+                var outlookEntries = AddBuffer<OutlookEntry>(crew);
+                var outlooks = AddBuffer<TopOutlook>(crew);
+                outlookEntries.Add(new OutlookEntry
+                {
+                    OutlookId = outlookId,
+                    Weight = (half)1f
+                });
+                outlooks.Add(new TopOutlook
+                {
+                    OutlookId = outlookId,
+                    Weight = (half)1f
+                });
+
+                return crew;
+            }
+
+            private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+            {
+                if (lawfulness >= config.LoyalistLawThreshold)
+                {
+                    return config.FriendlyOutlook;
+                }
+
+                if (lawfulness <= config.MutinousLawThreshold)
+                {
+                    return config.HostileOutlook;
+                }
+
+                return config.NeutralOutlook;
             }
 
             private Entity SpawnEscort(float3 position, string factionId, string shipType, Entity fleetEntity)

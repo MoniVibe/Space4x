@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Aggregate;
+using PureDOTS.Runtime.Comms;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Groups;
 using Space4X.Registry;
@@ -131,6 +132,89 @@ namespace Space4X.Systems.AI
                 });
             }
 
+            if (!state.EntityManager.HasComponent<GroupFormationSpread>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new GroupFormationSpread
+                {
+                    CohesionNormalized = 0f
+                });
+            }
+
+            if (!state.EntityManager.HasComponent<SquadCohesionProfile>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, SquadCohesionProfile.Default);
+            }
+
+            if (!state.EntityManager.HasComponent<SquadCohesionState>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new SquadCohesionState
+                {
+                    NormalizedCohesion = 0f,
+                    Flags = 0,
+                    LastUpdateTick = 0,
+                    LastBroadcastTick = 0,
+                    LastTelemetryTick = 0
+                });
+            }
+
+            if (!state.EntityManager.HasComponent<GroupStanceState>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new GroupStanceState
+                {
+                    Stance = GroupStance.Hold,
+                    PrimaryTarget = Entity.Null,
+                    Aggression = 0f,
+                    Discipline = 0.5f
+                });
+            }
+
+            if (!state.EntityManager.HasComponent<EngagementThreatSummary>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new EngagementThreatSummary
+                {
+                    PrimaryThreat = Entity.Null,
+                    PrimaryThreatDistance = 0f,
+                    PrimaryThreatHullRatio = 0f,
+                    FriendlyAverageHull = 0f,
+                    ThreatAverageHull = 0f,
+                    FriendlyStrength = 0f,
+                    ThreatStrength = 0f,
+                    ThreatPressure = 0f,
+                    AdvantageRatio = 1f,
+                    FriendlyCount = 0,
+                    ThreatCount = 0,
+                    EscapeProbability = 1f,
+                    LastUpdateTick = 0
+                });
+            }
+
+            if (!state.EntityManager.HasComponent<EngagementIntent>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new EngagementIntent
+                {
+                    Kind = EngagementIntentKind.None,
+                    PrimaryTarget = Entity.Null,
+                    AdvantageRatio = 1f,
+                    ThreatPressure = 0f,
+                    LastUpdateTick = 0
+                });
+            }
+
+            if (!state.EntityManager.HasComponent<EngagementPlannerState>(leader))
+            {
+                state.EntityManager.AddComponentData(leader, new EngagementPlannerState
+                {
+                    LastIntentTick = 0,
+                    LastTacticTick = 0,
+                    LastTargetingTick = 0
+                });
+            }
+
+            if (!state.EntityManager.HasBuffer<CommsOutboxEntry>(leader))
+            {
+                state.EntityManager.AddBuffer<CommsOutboxEntry>(leader);
+            }
+
             if (!state.EntityManager.HasBuffer<GroupMember>(leader))
             {
                 state.EntityManager.AddBuffer<GroupMember>(leader);
@@ -221,6 +305,46 @@ namespace Space4X.Systems.AI
                 if (state.EntityManager.HasComponent<GroupFormation>(groupEntity))
                 {
                     state.EntityManager.RemoveComponent<GroupFormation>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<GroupFormationSpread>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<GroupFormationSpread>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<SquadCohesionProfile>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<SquadCohesionProfile>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<SquadCohesionState>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<SquadCohesionState>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<GroupStanceState>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<GroupStanceState>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<EngagementThreatSummary>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<EngagementThreatSummary>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<EngagementIntent>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<EngagementIntent>(groupEntity);
+                }
+
+                if (state.EntityManager.HasComponent<EngagementPlannerState>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<EngagementPlannerState>(groupEntity);
+                }
+
+                if (state.EntityManager.HasBuffer<CommsOutboxEntry>(groupEntity))
+                {
+                    state.EntityManager.RemoveComponent<CommsOutboxEntry>(groupEntity);
                 }
 
                 if (state.EntityManager.HasBuffer<GroupMember>(groupEntity))

@@ -44,6 +44,7 @@ namespace Space4X.Systems.Interaction
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XHandState>();
+            state.RequireForUpdate<Space4XLegacyHandGrabEnabled>();
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<PhysicsWorldSingleton>();

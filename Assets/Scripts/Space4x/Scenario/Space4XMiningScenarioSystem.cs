@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
+using PureDOTS.Runtime.Platform;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -270,6 +273,8 @@ namespace Space4x.Scenario
                 });
             }
 
+            EnsureCarrierAuthorityAndCrew(entity, law, currentTick);
+
             EntityManager.AddComponentData(entity, new PatrolBehavior
             {
                 CurrentWaypoint = float3.zero,
@@ -411,6 +416,12 @@ namespace Space4x.Scenario
                 CargoCapacity = cargoCapacity,
                 CurrentCargo = 0f,
                 CargoResourceType = ParseResourceType(spawn.resourceId ?? "Minerals")
+            });
+
+            var toolKind = ParseMiningToolKind(spawn.toolKind);
+            EntityManager.AddComponentData(entity, new Space4XMiningToolProfile
+            {
+                ToolKind = toolKind
             });
 
             var vesselDisposition = ResolveDisposition(spawn.disposition, BuildMiningDisposition(scenarioSide));
@@ -746,6 +757,26 @@ namespace Space4x.Scenario
                 });
             }
 
+            var dispositionData = profileData?.behaviorDisposition;
+            if (dispositionData != null && dispositionData.enabled)
+            {
+                EntityManager.AddComponentData(pilot, BehaviorDisposition.FromValues(
+                    dispositionData.compliance,
+                    dispositionData.caution,
+                    dispositionData.formationAdherence,
+                    dispositionData.riskTolerance,
+                    dispositionData.aggression,
+                    dispositionData.patience));
+            }
+            else
+            {
+                EntityManager.AddComponentData(pilot, new BehaviorDispositionSeedRequest
+                {
+                    Seed = 0u,
+                    SeedSalt = 0u
+                });
+            }
+
             return pilot;
         }
 
@@ -818,6 +849,169 @@ namespace Space4x.Scenario
                     Flags = escortDisposition
                 });
             }
+        }
+
+        private void EnsureCarrierAuthorityAndCrew(Entity carrierEntity, float lawfulness, uint currentTick)
+        {
+            EntityManager.AddComponentData(carrierEntity, new CaptainOrder
+            {
+                Type = CaptainOrderType.None,
+                Status = CaptainOrderStatus.None,
+                Priority = 0,
+                TargetEntity = Entity.Null,
+                TargetPosition = float3.zero,
+                IssuedTick = currentTick,
+                TimeoutTick = 0,
+                IssuingAuthority = Entity.Null
+            });
+            EntityManager.AddComponentData(carrierEntity, CaptainState.Default);
+            EntityManager.AddComponentData(carrierEntity, CaptainReadiness.Standard);
+
+            var crew = EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
+            var config = StrikeCraftPilotProfileConfig.Default;
+            if (SystemAPI.TryGetSingleton<StrikeCraftPilotProfileConfig>(out var configSingleton))
+            {
+                config = configSingleton;
+            }
+
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = CreateCrewEntity(lawfulness, config,
+                    new IndividualStats
+                    {
+                        Command = (half)90,
+                        Tactics = (half)70,
+                        Logistics = (half)60,
+                        Diplomacy = (half)60,
+                        Engineering = (half)40,
+                        Resolve = (half)85
+                    },
+                    BehaviorDisposition.FromValues(0.8f, 0.6f, 0.8f, 0.4f, 0.45f, 0.7f)),
+                RoleId = 0
+            });
+
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = CreateCrewEntity(lawfulness, config,
+                    new IndividualStats
+                    {
+                        Command = (half)75,
+                        Tactics = (half)55,
+                        Logistics = (half)80,
+                        Diplomacy = (half)50,
+                        Engineering = (half)45,
+                        Resolve = (half)70
+                    },
+                    BehaviorDisposition.FromValues(0.75f, 0.6f, 0.7f, 0.45f, 0.4f, 0.7f)),
+                RoleId = 0
+            });
+
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = CreateCrewEntity(lawfulness, config,
+                    new IndividualStats
+                    {
+                        Command = (half)65,
+                        Tactics = (half)80,
+                        Logistics = (half)50,
+                        Diplomacy = (half)45,
+                        Engineering = (half)40,
+                        Resolve = (half)60
+                    },
+                    BehaviorDisposition.FromValues(0.65f, 0.55f, 0.7f, 0.5f, 0.45f, 0.6f)),
+                RoleId = 0
+            });
+
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = CreateCrewEntity(lawfulness, config,
+                    new IndividualStats
+                    {
+                        Command = (half)55,
+                        Tactics = (half)75,
+                        Logistics = (half)45,
+                        Diplomacy = (half)60,
+                        Engineering = (half)45,
+                        Resolve = (half)55
+                    },
+                    BehaviorDisposition.FromValues(0.6f, 0.7f, 0.55f, 0.35f, 0.35f, 0.65f)),
+                RoleId = 0
+            });
+
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = CreateCrewEntity(lawfulness, config,
+                    new IndividualStats
+                    {
+                        Command = (half)70,
+                        Tactics = (half)70,
+                        Logistics = (half)55,
+                        Diplomacy = (half)50,
+                        Engineering = (half)45,
+                        Resolve = (half)60
+                    },
+                    BehaviorDisposition.FromValues(0.7f, 0.55f, 0.65f, 0.5f, 0.6f, 0.55f)),
+                RoleId = 0
+            });
+
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = CreateCrewEntity(lawfulness, config,
+                    new IndividualStats
+                    {
+                        Command = (half)55,
+                        Tactics = (half)55,
+                        Logistics = (half)60,
+                        Diplomacy = (half)45,
+                        Engineering = (half)85,
+                        Resolve = (half)55
+                    },
+                    BehaviorDisposition.FromValues(0.65f, 0.7f, 0.5f, 0.4f, 0.3f, 0.75f)),
+                RoleId = 0
+            });
+        }
+
+        private Entity CreateCrewEntity(
+            float lawfulness,
+            in StrikeCraftPilotProfileConfig config,
+            in IndividualStats stats,
+            in BehaviorDisposition disposition)
+        {
+            var crew = EntityManager.CreateEntity();
+            EntityManager.AddComponentData(crew, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
+            EntityManager.AddComponentData(crew, stats);
+            EntityManager.AddComponentData(crew, disposition);
+
+            var outlookId = ResolveOutlookId(config, lawfulness);
+            var outlookEntries = EntityManager.AddBuffer<OutlookEntry>(crew);
+            var outlooks = EntityManager.AddBuffer<TopOutlook>(crew);
+            outlookEntries.Add(new OutlookEntry
+            {
+                OutlookId = outlookId,
+                Weight = (half)1f
+            });
+            outlooks.Add(new TopOutlook
+            {
+                OutlookId = outlookId,
+                Weight = (half)1f
+            });
+
+            return crew;
+        }
+
+        private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+        {
+            if (lawfulness >= config.LoyalistLawThreshold)
+            {
+                return config.FriendlyOutlook;
+            }
+
+            if (lawfulness <= config.MutinousLawThreshold)
+            {
+                return config.HostileOutlook;
+            }
+
+            return config.NeutralOutlook;
         }
 
         private float3 GetPosition(float[] position)
@@ -1028,6 +1222,31 @@ namespace Space4x.Scenario
 
             return flags;
         }
+
+        private static TerrainModificationToolKind ParseMiningToolKind(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return TerrainModificationToolKind.Drill;
+            }
+
+            if (value.Equals("laser", StringComparison.OrdinalIgnoreCase))
+            {
+                return TerrainModificationToolKind.Laser;
+            }
+
+            if (value.Equals("microwave", StringComparison.OrdinalIgnoreCase))
+            {
+                return TerrainModificationToolKind.Microwave;
+            }
+
+            if (value.Equals("drill", StringComparison.OrdinalIgnoreCase))
+            {
+                return TerrainModificationToolKind.Drill;
+            }
+
+            return TerrainModificationToolKind.Drill;
+        }
     }
 
     [System.Serializable]
@@ -1060,6 +1279,7 @@ namespace Space4x.Scenario
         public string entityId;
         public float[] position;
         public string carrierId;
+        public string toolKind;
         public string resourceId;
         public float miningEfficiency;
         public float speed;
@@ -1113,6 +1333,19 @@ namespace Space4x.Scenario
         public ushort raceId;
         public ushort cultureId;
         public List<OutlookWeightData> outlooks;
+        public BehaviorDispositionData behaviorDisposition;
+    }
+
+    [System.Serializable]
+    public class BehaviorDispositionData
+    {
+        public bool enabled;
+        public float compliance;
+        public float caution;
+        public float formationAdherence;
+        public float riskTolerance;
+        public float aggression;
+        public float patience;
     }
 
     [System.Serializable]

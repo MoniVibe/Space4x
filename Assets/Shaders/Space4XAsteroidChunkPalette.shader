@@ -4,6 +4,9 @@ Shader "Space4X/AsteroidChunkPalette"
     {
         _MaterialPalette("Material Palette", 2D) = "white" {}
         _BaseColor("Base Color", Color) = (1,1,1,1)
+        _AOMin("AO Min", Range(0,1)) = 0.55
+        _OreEmissiveColor("Ore Emissive Color", Color) = (1,0.8,0.4,1)
+        _OreEmissiveStrength("Ore Emissive Strength", Range(0,2)) = 0.5
     }
     SubShader
     {
@@ -36,6 +39,9 @@ Shader "Space4X/AsteroidChunkPalette"
             TEXTURE2D(_MaterialPalette);
             SAMPLER(sampler_MaterialPalette);
             float4 _BaseColor;
+            float _AOMin;
+            float4 _OreEmissiveColor;
+            float _OreEmissiveStrength;
 
             Varyings vert(Attributes input)
             {
@@ -50,7 +56,12 @@ Shader "Space4X/AsteroidChunkPalette"
                 float id = input.color.r * 255.0;
                 float2 uv = float2((id + 0.5) / 256.0, 0.5);
                 half4 tint = SAMPLE_TEXTURE2D(_MaterialPalette, sampler_MaterialPalette, uv);
-                return tint * _BaseColor;
+                half ao = lerp(_AOMin, 1.0, input.color.a);
+                half4 baseColor = tint * _BaseColor;
+                baseColor.rgb *= ao;
+                half ore = input.color.g;
+                baseColor.rgb += _OreEmissiveColor.rgb * (_OreEmissiveStrength * ore);
+                return baseColor;
             }
             ENDHLSL
         }

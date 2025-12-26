@@ -26,6 +26,14 @@ namespace Space4X.Authoring
             [Range(-1f, 1f)] public float OpportunistDelta;
             [Range(-1f, 1f)] public float FanaticDelta;
             [Range(-1f, 1f)] public float MutinousDelta;
+            [Header("Disposition Drift (Compliance/Caution/Formation)")]
+            [Range(-1f, 1f)] public float ComplianceDelta;
+            [Range(-1f, 1f)] public float CautionDelta;
+            [Range(-1f, 1f)] public float FormationAdherenceDelta;
+            [Header("Disposition Drift (Risk/Aggression/Patience)")]
+            [Range(-1f, 1f)] public float RiskToleranceDelta;
+            [Range(-1f, 1f)] public float AggressionDelta;
+            [Range(-1f, 1f)] public float PatienceDelta;
             [Header("Weight")]
             [Range(0f, 2f)] public float Weight;
 
@@ -41,6 +49,12 @@ namespace Space4X.Authoring
                     OpportunistDelta = math.clamp(OpportunistDelta, -1f, 1f),
                     FanaticDelta = math.clamp(FanaticDelta, -1f, 1f),
                     MutinousDelta = math.clamp(MutinousDelta, -1f, 1f),
+                    ComplianceDelta = math.clamp(ComplianceDelta, -1f, 1f),
+                    CautionDelta = math.clamp(CautionDelta, -1f, 1f),
+                    FormationAdherenceDelta = math.clamp(FormationAdherenceDelta, -1f, 1f),
+                    RiskToleranceDelta = math.clamp(RiskToleranceDelta, -1f, 1f),
+                    AggressionDelta = math.clamp(AggressionDelta, -1f, 1f),
+                    PatienceDelta = math.clamp(PatienceDelta, -1f, 1f),
                     Weight = math.max(0f, Weight)
                 };
             }
@@ -85,6 +99,8 @@ namespace Space4X.Authoring
                         Token = data.Token,
                         AlignmentDelta = new float3(data.GoodDelta, data.LawDelta, data.IntegrityDelta),
                         OutlookDelta = new float4(data.LoyalistDelta, data.OpportunistDelta, data.FanaticDelta, data.MutinousDelta),
+                        DispositionDeltaA = new float3(data.ComplianceDelta, data.CautionDelta, data.FormationAdherenceDelta),
+                        DispositionDeltaB = new float3(data.RiskToleranceDelta, data.AggressionDelta, data.PatienceDelta),
                         Weight = math.max(0f, data.Weight)
                     };
                 }

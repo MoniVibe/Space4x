@@ -512,6 +512,7 @@ namespace Space4X.Registry
         private ComponentLookup<PDShipModule> _moduleLookup;
         private ComponentLookup<ModuleTargetPriority> _priorityLookup;
         private ComponentLookup<PDModuleHealth> _healthLookup;
+        private ComponentLookup<ModuleTargetPolicy> _modulePolicyLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -528,6 +529,7 @@ namespace Space4X.Registry
             _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
             _priorityLookup = state.GetComponentLookup<ModuleTargetPriority>(true);
             _healthLookup = state.GetComponentLookup<PDModuleHealth>(true);
+            _modulePolicyLookup = state.GetComponentLookup<ModuleTargetPolicy>(true);
         }
 
         [BurstCompile]
@@ -542,6 +544,7 @@ namespace Space4X.Registry
             _moduleLookup.Update(ref state);
             _priorityLookup.Update(ref state);
             _healthLookup.Update(ref state);
+            _modulePolicyLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -599,14 +602,7 @@ namespace Space4X.Registry
                     // Select module target if target ship has modules
                     if (_slotLookup.HasBuffer(targetShip))
                     {
-                        var moduleTarget = ModuleTargetingService.SelectModuleTarget(
-                            _entityLookup,
-                            _slotLookup,
-                            _moduleLookup,
-                            _priorityLookup,
-                            _healthLookup,
-                            entity,
-                            targetShip);
+                        var moduleTarget = SelectModuleTarget(entity, targetShip);
 
                         if (moduleTarget != Entity.Null)
                         {
@@ -678,6 +674,153 @@ namespace Space4X.Registry
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
         }
+
+        private Entity SelectModuleTarget(Entity attacker, Entity targetShip)
+        {
+            if (_modulePolicyLookup.HasComponent(attacker))
+            {
+                var policy = _modulePolicyLookup[attacker];
+                if (policy.Kind != ModuleTargetPolicyKind.Default)
+                {
+                    return SelectModuleTargetWithPolicy(attacker, targetShip, policy);
+                }
+            }
+
+            return ModuleTargetingService.SelectModuleTarget(
+                _entityLookup,
+                _slotLookup,
+                _moduleLookup,
+                _priorityLookup,
+                _healthLookup,
+                attacker,
+                targetShip);
+        }
+
+        private Entity SelectModuleTargetWithPolicy(Entity attacker, Entity targetShip, ModuleTargetPolicy policy)
+        {
+            if (!_entityLookup.Exists(targetShip) || !_slotLookup.HasBuffer(targetShip))
+            {
+                return Entity.Null;
+            }
+
+            var slots = _slotLookup[targetShip];
+            if (slots.Length == 0)
+            {
+                return Entity.Null;
+            }
+
+            Entity bestModule = Entity.Null;
+            int bestScore = int.MinValue;
+
+            for (int i = 0; i < slots.Length; i++)
+            {
+                var slot = slots[i];
+                if (slot.InstalledModule == Entity.Null)
+                {
+                    continue;
+                }
+
+                var moduleEntity = slot.InstalledModule;
+                if (!_entityLookup.Exists(moduleEntity))
+                {
+                    continue;
+                }
+
+                if (!ModuleTargetingService.IsModuleTargetable(_entityLookup, _moduleLookup, _healthLookup, moduleEntity))
+                {
+                    continue;
+                }
+
+                byte basePriority = 50;
+                if (_priorityLookup.HasComponent(moduleEntity))
+                {
+                    basePriority = _priorityLookup[moduleEntity].Priority;
+                }
+                else if (_moduleLookup.HasComponent(moduleEntity))
+                {
+                    basePriority = GetDefaultPriority(_moduleLookup[moduleEntity].Class);
+                }
+
+                int score = basePriority + GetPolicyBonus(policy.Kind, moduleEntity);
+                if (_healthLookup.HasComponent(moduleEntity))
+                {
+                    var health = _healthLookup[moduleEntity];
+                    if (health.State == ModuleHealthState.Degraded)
+                    {
+                        score += 10;
+                    }
+                    else if (health.State == ModuleHealthState.Failed)
+                    {
+                        score += 20;
+                    }
+                }
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestModule = moduleEntity;
+                }
+            }
+
+            return bestModule;
+        }
+
+        private int GetPolicyBonus(ModuleTargetPolicyKind kind, Entity moduleEntity)
+        {
+            if (!_moduleLookup.HasComponent(moduleEntity))
+            {
+                return 0;
+            }
+
+            var moduleClass = _moduleLookup[moduleEntity].Class;
+            return kind switch
+            {
+                ModuleTargetPolicyKind.DisableMobility when moduleClass == ModuleClass.Engine => 80,
+                ModuleTargetPolicyKind.DisableFighting when IsWeaponClass(moduleClass) => 80,
+                ModuleTargetPolicyKind.DisableFighting when moduleClass == ModuleClass.Hangar => 70,
+                ModuleTargetPolicyKind.DisableSensors when moduleClass == ModuleClass.Sensor => 70,
+                ModuleTargetPolicyKind.DisableLogistics when IsLogisticsClass(moduleClass) => 60,
+                _ => 0
+            };
+        }
+
+        private static bool IsWeaponClass(ModuleClass moduleClass)
+        {
+            return moduleClass == ModuleClass.BeamCannon
+                   || moduleClass == ModuleClass.MassDriver
+                   || moduleClass == ModuleClass.Missile
+                   || moduleClass == ModuleClass.PointDefense;
+        }
+
+        private static bool IsLogisticsClass(ModuleClass moduleClass)
+        {
+            return moduleClass == ModuleClass.Cargo
+                   || moduleClass == ModuleClass.Fabrication
+                   || moduleClass == ModuleClass.Agriculture
+                   || moduleClass == ModuleClass.Mining
+                   || moduleClass == ModuleClass.Terraforming;
+        }
+
+        private static byte GetDefaultPriority(ModuleClass moduleClass)
+        {
+            return moduleClass switch
+            {
+                ModuleClass.Engine => 200,
+                ModuleClass.BeamCannon => 150,
+                ModuleClass.MassDriver => 150,
+                ModuleClass.Missile => 150,
+                ModuleClass.PointDefense => 140,
+                ModuleClass.Shield => 120,
+                ModuleClass.Armor => 100,
+                ModuleClass.Sensor => 80,
+                ModuleClass.Cargo => 50,
+                ModuleClass.Hangar => 60,
+                ModuleClass.Fabrication => 40,
+                ModuleClass.Research => 40,
+                ModuleClass.Medical => 30,
+                _ => 20
+            };
+        }
     }
 
     /// <summary>
@@ -728,4 +871,3 @@ namespace Space4X.Registry
         }
     }
 }
-

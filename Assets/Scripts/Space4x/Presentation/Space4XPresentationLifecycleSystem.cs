@@ -30,6 +30,7 @@ namespace Space4X.Presentation
         private EntityQuery _pickupInitQuery;
         private EntityQuery _fleetImpostorInitQuery;
         private EntityQuery _projectileInitQuery;
+        private EntityQuery _debrisInitQuery;
 
         private const ushort RenderSampleModulus = 1024;
         private const float DefaultCarrierScale = 0.5f;
@@ -93,6 +94,11 @@ namespace Space4X.Presentation
                 .WithAll<ProjectileEntity, LocalTransform>()
                 .WithNone<ProjectilePresentationTag>()
                 .Build();
+
+            _debrisInitQuery = SystemAPI.QueryBuilder()
+                .WithAll<Space4XDebrisTag, LocalTransform>()
+                .WithNone<RenderKey>()
+                .Build();
         }
 
         [BurstCompile]
@@ -110,7 +116,8 @@ namespace Space4X.Presentation
                 _strikeCraftInitQuery.IsEmptyIgnoreFilter &&
                 _pickupInitQuery.IsEmptyIgnoreFilter &&
                 _fleetImpostorInitQuery.IsEmptyIgnoreFilter &&
-                _projectileInitQuery.IsEmptyIgnoreFilter)
+                _projectileInitQuery.IsEmptyIgnoreFilter &&
+                _debrisInitQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }
@@ -126,6 +133,7 @@ namespace Space4X.Presentation
             AddResourcePickupPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
             AddFleetImpostorPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
             AddProjectilePresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
+            AddDebrisPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
@@ -556,6 +564,40 @@ namespace Space4X.Presentation
                     cullDistance: 12000f,
                     cullPriority: 230,
                     importance: 0.9f);
+            }
+        }
+
+        private void AddDebrisPresentation(
+            ref SystemState state,
+            ref EntityCommandBuffer ecb,
+            bool hasVisualConfig,
+            in Space4XMiningVisualConfig visualConfig)
+        {
+            foreach (var (_, _, entity) in SystemAPI
+                         .Query<RefRO<Space4XDebrisTag>, RefRO<LocalTransform>>()
+                         .WithNone<RenderKey>()
+                         .WithEntityAccess())
+            {
+                float4 baseColor = new float4(0.48f, 0.45f, 0.42f, 1f);
+                if (SystemAPI.HasComponent<RenderTint>(entity))
+                {
+                    baseColor = SystemAPI.GetComponentRO<RenderTint>(entity).ValueRO.Value;
+                }
+                else
+                {
+                    ecb.AddComponent(entity, new RenderTint { Value = baseColor });
+                }
+
+                if (!SystemAPI.HasComponent<PresentationLayer>(entity))
+                {
+                    ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.Orbital });
+                }
+
+                AddCommonRenderComponents(ref state, ref ecb, entity,
+                    Space4XRenderKeys.ResourcePickup,
+                    cullDistance: 4000f,
+                    cullPriority: 140,
+                    importance: 0.35f);
             }
         }
 

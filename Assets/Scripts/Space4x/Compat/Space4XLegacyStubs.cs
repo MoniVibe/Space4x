@@ -47,7 +47,10 @@ namespace Space4X.Registry
     {
         public FixedString64Bytes EffectId;
         public Entity AttachTo;
+        public float3 Position;
+        public float3 Direction;
         public float Lifetime;
+        public float Intensity;
     }
 }
 

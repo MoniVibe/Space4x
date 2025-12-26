@@ -29,9 +29,13 @@ namespace Space4X.Registry
         private BufferLookup<PlayEffectRequest> _effectRequestLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLinkLookup;
+        private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
+        private ComponentLookup<Space4XMiningToolProfile> _toolProfileLookup;
         private Entity _effectStreamEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
+        private static readonly FixedString64Bytes MiningLaserEffectId = CreateMiningLaserEffectId();
+        private static readonly FixedString64Bytes MiningMicrowaveEffectId = CreateMiningMicrowaveEffectId();
         private const float UndockDuration = 1.5f;
         private const float LatchDuration = 0.9f;
         private const float DetachDuration = 0.8f;
@@ -60,6 +64,52 @@ namespace Space4X.Registry
             return effectId;
         }
 
+        private static FixedString64Bytes CreateMiningLaserEffectId()
+        {
+            FixedString64Bytes effectId = default;
+            effectId.Append('F');
+            effectId.Append('X');
+            effectId.Append('.');
+            effectId.Append('M');
+            effectId.Append('i');
+            effectId.Append('n');
+            effectId.Append('i');
+            effectId.Append('n');
+            effectId.Append('g');
+            effectId.Append('.');
+            effectId.Append('L');
+            effectId.Append('a');
+            effectId.Append('s');
+            effectId.Append('e');
+            effectId.Append('r');
+            return effectId;
+        }
+
+        private static FixedString64Bytes CreateMiningMicrowaveEffectId()
+        {
+            FixedString64Bytes effectId = default;
+            effectId.Append('F');
+            effectId.Append('X');
+            effectId.Append('.');
+            effectId.Append('M');
+            effectId.Append('i');
+            effectId.Append('n');
+            effectId.Append('i');
+            effectId.Append('n');
+            effectId.Append('g');
+            effectId.Append('.');
+            effectId.Append('M');
+            effectId.Append('i');
+            effectId.Append('c');
+            effectId.Append('r');
+            effectId.Append('o');
+            effectId.Append('w');
+            effectId.Append('a');
+            effectId.Append('v');
+            effectId.Append('e');
+            return effectId;
+        }
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -76,7 +126,9 @@ namespace Space4X.Registry
             _effectRequestLookup = state.GetBufferLookup<PlayEffectRequest>();
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _pilotLinkLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
+            _toolProfileLookup = state.GetComponentLookup<Space4XMiningToolProfile>(true);
 
             EnsureEffectStream(ref state);
         }
@@ -106,8 +158,10 @@ namespace Space4X.Registry
             _effectRequestLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
             _pilotLinkLookup.Update(ref state);
+            _behaviorDispositionLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
             _asteroidVolumeLookup.Update(ref state);
+            _toolProfileLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
             var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
@@ -169,16 +223,23 @@ namespace Space4X.Registry
 
                 var target = miningState.ValueRO.ActiveTarget;
                 var vesselData = vessel.ValueRO;
-                var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * 0.95f;
+                var toolKind = ResolveToolKind(entity);
+                var disposition = ResolveBehaviorDisposition(entity);
+                var returnRatio = ResolveCargoReturnRatio(disposition);
+                var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * returnRatio;
                 var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) &&
                                       _resourceStateLookup[target].UnitsRemaining <= 0f;
+                var undockDuration = ResolvePhaseDuration(UndockDuration, disposition);
+                var latchDuration = ResolvePhaseDuration(LatchDuration, disposition);
+                var detachDuration = ResolvePhaseDuration(DetachDuration, disposition);
+                var dockDuration = ResolvePhaseDuration(DockDuration, disposition);
 
                 switch (phase)
                 {
                     case MiningPhase.Idle:
                         if (miningState.ValueRO.ActiveTarget != Entity.Null)
                         {
-                            SetPhase(ref miningState.ValueRW, MiningPhase.Undocking, UndockDuration);
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Undocking, undockDuration);
                             order.ValueRW.Status = MiningOrderStatus.Active;
                         }
                         else
@@ -204,7 +265,7 @@ namespace Space4X.Registry
 
                         if (IsTargetInRange(target, transform.ValueRO.Position))
                         {
-                            SetPhase(ref miningState.ValueRW, MiningPhase.Latching, LatchDuration);
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Latching, latchDuration);
                         }
                         break;
 
@@ -246,7 +307,7 @@ namespace Space4X.Registry
                         if (isCargoFull || isAsteroidEmpty)
                         {
                             order.ValueRW.Status = MiningOrderStatus.Completed;
-                            SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, DetachDuration);
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, detachDuration);
                             EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
                             ResetDigState(ref miningState.ValueRW);
                             break;
@@ -281,6 +342,7 @@ namespace Space4X.Registry
                                 yieldMultiplier = ResolveYieldMultiplier(distance, math.max(0.01f, volumeConfig.Radius), volumeConfig, digConfig);
                             }
 
+                            yieldMultiplier *= ResolveToolYieldMultiplier(toolKind, digConfig);
                             var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW, order.ValueRO.ResourceId);
                             if (mined <= 0f)
                             {
@@ -290,7 +352,7 @@ namespace Space4X.Registry
                             if (miningState.ValueRW.HasDigHead != 0)
                             {
                                 var distance = math.length(digHead);
-                                var stepLength = ResolveStepLength(mined, digConfig, distance);
+                                var stepLength = ResolveToolStepLength(toolKind, mined, digConfig, distance);
                                 if (stepLength > 0f)
                                 {
                                     var digStart = digHead;
@@ -301,12 +363,18 @@ namespace Space4X.Registry
                                         modificationBuffer.Add(new TerrainModificationRequest
                                         {
                                             Kind = TerrainModificationKind.Dig,
-                                            Shape = TerrainModificationShape.Tunnel,
+                                            Shape = toolKind == TerrainModificationToolKind.Microwave ? TerrainModificationShape.Brush : TerrainModificationShape.Tunnel,
+                                            ToolKind = toolKind,
                                             Start = digStart,
-                                            End = digEnd,
-                                            Radius = math.max(0.1f, digConfig.DrillRadius),
+                                            End = toolKind == TerrainModificationToolKind.Microwave ? digStart : digEnd,
+                                            Radius = ResolveToolRadius(toolKind, digConfig),
                                             Depth = 0f,
                                             MaterialId = 0,
+                                            DamageDelta = ResolveToolDamageDelta(toolKind, digConfig),
+                                            DamageThreshold = ResolveToolDamageThreshold(toolKind, digConfig),
+                                            YieldMultiplier = ResolveToolYieldMultiplier(toolKind, digConfig),
+                                            HeatDelta = ResolveToolHeatDelta(toolKind, digConfig),
+                                            InstabilityDelta = ResolveToolInstabilityDelta(toolKind, digConfig),
                                             Flags = TerrainModificationFlags.AffectsVolume,
                                             RequestedTick = currentTick,
                                             Actor = entity,
@@ -321,14 +389,15 @@ namespace Space4X.Registry
 
                             UpdateYield(ref yield.ValueRW, order.ValueRO.ResourceId, mined);
                             LogMiningCommand(hasCommandLog, commandLog, currentTick, target, entity, vessel.ValueRO.CargoResourceType, mined, transform.ValueRO.Position);
-                            EmitEffect(effectBuffer, entity, tickInterval);
+                            var effectDirection = ResolveEffectDirection(miningState.ValueRO, target, transform.ValueRO.Position);
+                            EmitEffect(effectBuffer, entity, tickInterval, toolKind, digConfig, transform.ValueRO.Position, effectDirection);
                             order.ValueRW.Status = MiningOrderStatus.Active;
                             safetyCounter++;
 
                             if (vessel.ValueRO.CurrentCargo >= vessel.ValueRO.CargoCapacity * 0.95f)
                             {
                                 order.ValueRW.Status = MiningOrderStatus.Completed;
-                                SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, DetachDuration);
+                                SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, detachDuration);
                                 EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
                                 break;
                             }
@@ -352,7 +421,7 @@ namespace Space4X.Registry
 
                         if (IsTargetInRange(target, transform.ValueRO.Position))
                         {
-                            SetPhase(ref miningState.ValueRW, MiningPhase.Docking, DockDuration);
+                            SetPhase(ref miningState.ValueRW, MiningPhase.Docking, dockDuration);
                         }
                         break;
 
@@ -652,6 +721,80 @@ namespace Space4X.Registry
             return math.min(step, maxStep);
         }
 
+        private TerrainModificationToolKind ResolveToolKind(Entity entity)
+        {
+            if (_toolProfileLookup.HasComponent(entity))
+            {
+                return _toolProfileLookup[entity].ToolKind;
+            }
+
+            return TerrainModificationToolKind.Drill;
+        }
+
+        private static float ResolveToolRadius(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig)
+        {
+            return toolKind switch
+            {
+                TerrainModificationToolKind.Laser => math.max(0.1f, digConfig.LaserRadius),
+                TerrainModificationToolKind.Microwave => math.max(0.1f, digConfig.MicrowaveRadius),
+                _ => math.max(0.1f, digConfig.DrillRadius)
+            };
+        }
+
+        private static float ResolveToolStepLength(TerrainModificationToolKind toolKind, float mined, in Space4XMiningDigConfig digConfig, float maxStep)
+        {
+            if (toolKind == TerrainModificationToolKind.Laser)
+            {
+                return math.min(math.max(0f, digConfig.LaserStepLength), maxStep);
+            }
+
+            return ResolveStepLength(mined, digConfig, maxStep);
+        }
+
+        private static float ResolveToolYieldMultiplier(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig)
+        {
+            return toolKind switch
+            {
+                TerrainModificationToolKind.Laser => math.max(0f, digConfig.LaserYieldMultiplier),
+                TerrainModificationToolKind.Microwave => math.max(0f, digConfig.MicrowaveYieldMultiplier),
+                _ => 1f
+            };
+        }
+
+        private static float ResolveToolHeatDelta(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig)
+        {
+            return toolKind switch
+            {
+                TerrainModificationToolKind.Laser => math.max(0f, digConfig.LaserHeatDelta),
+                TerrainModificationToolKind.Microwave => math.max(0f, digConfig.MicrowaveHeatDelta),
+                _ => 0f
+            };
+        }
+
+        private static float ResolveToolInstabilityDelta(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig)
+        {
+            return toolKind switch
+            {
+                TerrainModificationToolKind.Laser => math.max(0f, digConfig.LaserInstabilityDelta),
+                TerrainModificationToolKind.Microwave => math.max(0f, digConfig.MicrowaveInstabilityDelta),
+                _ => 0f
+            };
+        }
+
+        private static byte ResolveToolDamageDelta(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig)
+        {
+            return toolKind == TerrainModificationToolKind.Microwave
+                ? digConfig.MicrowaveDamageDelta
+                : (byte)0;
+        }
+
+        private static byte ResolveToolDamageThreshold(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig)
+        {
+            return toolKind == TerrainModificationToolKind.Microwave
+                ? digConfig.MicrowaveDamageThreshold
+                : (byte)0;
+        }
+
         private static float3 WorldToLocal(in LocalTransform transform, float3 worldPosition)
         {
             var local = worldPosition - transform.Position;
@@ -689,19 +832,72 @@ namespace Space4X.Registry
             return _effectRequestLookup[_effectStreamEntity];
         }
 
-        private void EmitEffect(DynamicBuffer<PlayEffectRequest> effectBuffer, Entity attachTo, float tickInterval)
+        private void EmitEffect(
+            DynamicBuffer<PlayEffectRequest> effectBuffer,
+            Entity attachTo,
+            float tickInterval,
+            TerrainModificationToolKind toolKind,
+            in Space4XMiningDigConfig digConfig,
+            float3 position,
+            float3 direction)
         {
             if (!effectBuffer.IsCreated)
             {
                 return;
             }
 
+            var effectId = toolKind switch
+            {
+                TerrainModificationToolKind.Laser => MiningLaserEffectId,
+                TerrainModificationToolKind.Microwave => MiningMicrowaveEffectId,
+                _ => MiningSparksEffectId
+            };
+
             effectBuffer.Add(new PlayEffectRequest
             {
-                EffectId = MiningSparksEffectId,
+                EffectId = effectId,
                 AttachTo = attachTo,
-                Lifetime = math.max(0.1f, tickInterval)
+                Position = position,
+                Direction = direction,
+                Lifetime = math.max(0.1f, tickInterval),
+                Intensity = ResolveToolEffectIntensity(toolKind, digConfig, tickInterval)
             });
+        }
+
+        private float3 ResolveEffectDirection(in MiningState miningState, Entity target, float3 minerPosition)
+        {
+            if (miningState.HasDigHead != 0)
+            {
+                var localDirection = math.normalizesafe(miningState.DigDirectionLocal, new float3(0f, 0f, 1f));
+                if (_transformLookup.HasComponent(target))
+                {
+                    var targetTransform = _transformLookup[target];
+                    return math.normalizesafe(math.rotate(targetTransform.Rotation, localDirection), localDirection);
+                }
+
+                return localDirection;
+            }
+
+            if (_transformLookup.HasComponent(target))
+            {
+                var targetPosition = _transformLookup[target].Position;
+                return math.normalizesafe(targetPosition - minerPosition, new float3(0f, 0f, 1f));
+            }
+
+            return new float3(0f, 0f, 1f);
+        }
+
+        private static float ResolveToolEffectIntensity(TerrainModificationToolKind toolKind, in Space4XMiningDigConfig digConfig, float tickInterval)
+        {
+            var rate = 1f / math.max(0.05f, tickInterval);
+            return toolKind switch
+            {
+                TerrainModificationToolKind.Laser => math.saturate(rate * 0.02f * (1f + digConfig.LaserHeatDelta) *
+                                                                  (1f + math.max(0f, 1f - digConfig.LaserYieldMultiplier))),
+                TerrainModificationToolKind.Microwave => math.saturate((digConfig.MicrowaveDamageDelta / math.max(1f, digConfig.MicrowaveDamageThreshold)) * 1.25f +
+                                                                       digConfig.MicrowaveHeatDelta * 0.1f),
+                _ => math.saturate(0.2f + digConfig.DrillRadius * 0.06f)
+            };
         }
 
         private void LogMiningCommand(bool hasCommandLog, DynamicBuffer<MiningCommandLogEntry> commandLog, uint tick, Entity source, Entity miner, ResourceType resourceType, float amount, in float3 fallbackPosition)
@@ -764,6 +960,43 @@ namespace Space4X.Registry
             _effectStreamEntity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponent<Space4XEffectRequestStream>(_effectStreamEntity);
             state.EntityManager.AddBuffer<PlayEffectRequest>(_effectStreamEntity);
+        }
+
+        private BehaviorDisposition ResolveBehaviorDisposition(Entity miner)
+        {
+            var profileEntity = ResolveProfileEntity(miner);
+            if (_behaviorDispositionLookup.HasComponent(profileEntity))
+            {
+                return _behaviorDispositionLookup[profileEntity];
+            }
+
+            if (_behaviorDispositionLookup.HasComponent(miner))
+            {
+                return _behaviorDispositionLookup[miner];
+            }
+
+            return BehaviorDisposition.Default;
+        }
+
+        private static float ResolvePhaseDuration(float baseDuration, in BehaviorDisposition disposition)
+        {
+            var caution = disposition.Caution;
+            var patience = disposition.Patience;
+            var cautionMultiplier = math.lerp(0.85f, 1.35f, caution);
+            var patienceMultiplier = math.lerp(0.9f, 1.2f, patience);
+            return math.max(0.05f, baseDuration * cautionMultiplier * patienceMultiplier);
+        }
+
+        private static float ResolveCargoReturnRatio(in BehaviorDisposition disposition)
+        {
+            var caution = disposition.Caution;
+            var risk = disposition.RiskTolerance;
+            var patience = disposition.Patience;
+            var ratio = 0.9f +
+                        (risk - 0.5f) * 0.2f -
+                        (caution - 0.5f) * 0.2f +
+                        (patience - 0.5f) * 0.1f;
+            return math.clamp(ratio, 0.6f, 0.98f);
         }
 
         private float GetMiningSkillMultiplier(Entity miner)

@@ -41,6 +41,17 @@ namespace Space4X.Registry
         public float MinStepLength;
         public float MaxStepLength;
         public float DigUnitsPerMeter;
+        public float LaserRadius;
+        public float LaserStepLength;
+        public float LaserYieldMultiplier;
+        public float LaserHeatDelta;
+        public float LaserInstabilityDelta;
+        public float MicrowaveRadius;
+        public byte MicrowaveDamageDelta;
+        public byte MicrowaveDamageThreshold;
+        public float MicrowaveYieldMultiplier;
+        public float MicrowaveHeatDelta;
+        public float MicrowaveInstabilityDelta;
         public float CrustYieldMultiplier;
         public float MantleYieldMultiplier;
         public float CoreYieldMultiplier;
@@ -52,6 +63,17 @@ namespace Space4X.Registry
             MinStepLength = 0.1f,
             MaxStepLength = 1.25f,
             DigUnitsPerMeter = 20f,
+            LaserRadius = 1.8f,
+            LaserStepLength = 3f,
+            LaserYieldMultiplier = 0.6f,
+            LaserHeatDelta = 1.5f,
+            LaserInstabilityDelta = 0.8f,
+            MicrowaveRadius = 2.5f,
+            MicrowaveDamageDelta = 12,
+            MicrowaveDamageThreshold = 200,
+            MicrowaveYieldMultiplier = 0.4f,
+            MicrowaveHeatDelta = 2.5f,
+            MicrowaveInstabilityDelta = 1.2f,
             CrustYieldMultiplier = 0.8f,
             MantleYieldMultiplier = 1.1f,
             CoreYieldMultiplier = 1.6f,

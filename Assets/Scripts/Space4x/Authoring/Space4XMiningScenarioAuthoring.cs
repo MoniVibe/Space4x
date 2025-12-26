@@ -1,10 +1,16 @@
 using System;
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Authoring;
+using PureDOTS.Environment;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Spatial;
+using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Swarms;
 using Space4X.Presentation;
 using Space4X.Runtime;
+using Space4X.Runtime.Breakables;
 using MiningPrimitive = Space4X.Presentation.Space4XMiningPrimitive;
 using Unity.Collections;
 using Unity.Entities;
@@ -61,6 +67,7 @@ namespace Space4X.Registry
                 ResourceId = "space4x.resource.minerals",
                 Position = new float3(5f, 0f, -2f),
                 CarrierId = "CARRIER-1",
+                ToolKind = TerrainModificationToolKind.Drill,
                 Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -81,6 +88,28 @@ namespace Space4X.Registry
                 ResourceId = "space4x.resource.minerals",
                 Position = new float3(-5f, 0f, -14f),
                 CarrierId = "CARRIER-1",
+                ToolKind = TerrainModificationToolKind.Laser,
+                Disposition = EntityDispositionFlags.None,
+                Alignment = AlignmentDefinition.CreateNeutral(),
+                RaceId = 0,
+                CultureId = 0,
+                AffiliationId = "AFFILIATION-1",
+                PilotAlignment = AlignmentDefinition.CreateNeutral(),
+                PilotRaceId = 0,
+                PilotCultureId = 0
+            },
+            new MiningVesselDefinition
+            {
+                VesselId = "MINER-3",
+                Speed = 10f,
+                MiningEfficiency = 0.8f,
+                CargoCapacity = 100f,
+                MiningTickInterval = 0.5f,
+                OutputSpawnThreshold = 20f,
+                ResourceId = "space4x.resource.minerals",
+                Position = new float3(12f, 0f, -18f),
+                CarrierId = "CARRIER-1",
+                ToolKind = TerrainModificationToolKind.Microwave,
                 Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -245,6 +274,9 @@ namespace Space4X.Registry
             [Tooltip("If true, vessel starts docked at carrier position")]
             public bool StartDocked;
 
+            [Header("Mining Tool")]
+            public TerrainModificationToolKind ToolKind;
+
             [Header("Disposition")]
             [Tooltip("Optional explicit disposition flags; leave None to auto-classify.")]
             public EntityDispositionFlags Disposition;
@@ -259,6 +291,22 @@ namespace Space4X.Registry
             public AlignmentDefinition PilotAlignment;
             public ushort PilotRaceId;
             public ushort PilotCultureId;
+
+            [Header("Pilot Disposition")]
+            [Tooltip("If true, uses the explicit pilot disposition values instead of seeding.")]
+            public bool OverridePilotDisposition;
+            public BehaviorDispositionDefinition PilotDisposition;
+        }
+
+        [Serializable]
+        public struct BehaviorDispositionDefinition
+        {
+            [Range(0f, 1f)] public float Compliance;
+            [Range(0f, 1f)] public float Caution;
+            [Range(0f, 1f)] public float FormationAdherence;
+            [Range(0f, 1f)] public float RiskTolerance;
+            [Range(0f, 1f)] public float Aggression;
+            [Range(0f, 1f)] public float Patience;
         }
 
         [Serializable]
@@ -540,6 +588,7 @@ namespace Space4X.Registry
 
                     AddAlignment(entity, carrier.Alignment, carrier.RaceId, carrier.CultureId);
                     AddAffiliationTag(entity, carrier.AffiliationId);
+                    AddCarrierAuthorityAndCrew(entity, math.clamp(carrier.Alignment.Law, -1f, 1f));
 
                     AddComponent(entity, new PatrolBehavior
                     {
@@ -594,6 +643,11 @@ namespace Space4X.Registry
                     }
 
                     AssignRenderPresentation(entity, RenderKeys.Carrier, carrierTint);
+                    if (i == 0)
+                    {
+                        SpawnSwarmDrones(entity, carrierPosition, carrierTint);
+                        SpawnBreakablePieces(entity, carrierPosition, carrierTint);
+                    }
 
                     // Store entity in map for vessel references
                     _carrierEntityMap.TryAdd(carrierIdBytes, entity);
@@ -701,6 +755,24 @@ namespace Space4X.Registry
 
                     var pilot = CreateAdditionalEntity(TransformUsageFlags.None);
                     AddAlignment(pilot, vessel.PilotAlignment, vessel.PilotRaceId, vessel.PilotCultureId);
+                    if (vessel.OverridePilotDisposition)
+                    {
+                        AddComponent(pilot, BehaviorDisposition.FromValues(
+                            vessel.PilotDisposition.Compliance,
+                            vessel.PilotDisposition.Caution,
+                            vessel.PilotDisposition.FormationAdherence,
+                            vessel.PilotDisposition.RiskTolerance,
+                            vessel.PilotDisposition.Aggression,
+                            vessel.PilotDisposition.Patience));
+                    }
+                    else
+                    {
+                        AddComponent(pilot, new BehaviorDispositionSeedRequest
+                        {
+                            Seed = 0u,
+                            SeedSalt = (uint)(i + 1)
+                        });
+                    }
                     AddComponent(entity, new VesselPilotLink
                     {
                         Pilot = pilot
@@ -742,6 +814,11 @@ namespace Space4X.Registry
                         MiningProgress = 0f
                     });
 
+                    AddComponent(entity, new Space4XMiningToolProfile
+                    {
+                        ToolKind = vessel.ToolKind
+                    });
+
                     AddComponent(entity, new VesselAIState
                     {
                         CurrentState = VesselAIState.State.Idle,
@@ -760,6 +837,21 @@ namespace Space4X.Registry
                         DesiredRotation = quaternion.identity,
                         IsMoving = 0,
                         LastMoveTick = 0
+                    });
+
+                    AddComponent<PickableTag>(entity);
+                    AddComponent(entity, new HandPickable
+                    {
+                        Mass = 5f,
+                        MaxHoldDistance = 75f,
+                        ThrowImpulseMultiplier = 1f,
+                        FollowLerp = 0.35f
+                    });
+                    AddComponent(entity, new Space4X.Runtime.Interaction.Space4XHandPickable
+                    {
+                        MaxMass = 250f,
+                        ThrowSpeedMultiplier = 1f,
+                        SlingshotSpeedMultiplier = 1.5f
                     });
 
                     AssignRenderPresentation(entity, RenderKeys.Miner, miningVesselTint);
@@ -850,6 +942,27 @@ namespace Space4X.Registry
                         Seed = (uint)math.max(0, asteroid.VolumeSeed)
                     });
 
+                    AddComponent<PickableTag>(entity);
+                    AddComponent(entity, new HandPickable
+                    {
+                        Mass = math.max(asteroid.VolumeRadius * 5f, 1f),
+                        MaxHoldDistance = 150f,
+                        ThrowImpulseMultiplier = 1f,
+                        FollowLerp = 0.2f
+                    });
+                    AddComponent(entity, new Space4X.Runtime.Interaction.Space4XHandPickable
+                    {
+                        MaxMass = 50000f,
+                        ThrowSpeedMultiplier = 0.6f,
+                        SlingshotSpeedMultiplier = 0.8f
+                    });
+                    AddComponent(entity, new Space4X.Runtime.Interaction.Space4XCelestialManipulable());
+                    AddComponent(entity, new Space4X.Runtime.Physics.SpaceVelocity
+                    {
+                        Linear = float3.zero,
+                        Angular = float3.zero
+                    });
+
                     AssignRenderPresentation(entity, RenderKeys.Asteroid, asteroidTint);
 #if UNITY_EDITOR
                     if (!s_loggedAsteroids)
@@ -911,6 +1024,361 @@ namespace Space4X.Registry
                 {
                     Value = new float4(1f, 1f, 0f, 0f)
                 });
+            }
+
+            private void SpawnSwarmDrones(Entity anchorEntity, float3 anchorPosition, in float4 anchorTint)
+            {
+                const int droneCount = 12;
+                float4 droneTint = new float4(anchorTint.x, anchorTint.y, anchorTint.z, 1f);
+
+                if (!HasComponent<Space4X.Runtime.Space4XSwarmDemoState>(anchorEntity))
+                {
+                    AddComponent(anchorEntity, new Space4X.Runtime.Space4XSwarmDemoState
+                    {
+                        Phase = Space4X.Runtime.Space4XSwarmDemoPhase.Screen,
+                        NextPhaseTick = 0u,
+                        AttackTarget = Entity.Null,
+                        TugDirection = new float3(1f, 0f, 0f)
+                    });
+                }
+
+                if (!HasComponent<PureDOTS.Runtime.Agency.ControllerIntegrityState>(anchorEntity))
+                {
+                    AddComponent(anchorEntity, new PureDOTS.Runtime.Agency.ControllerIntegrityState
+                    {
+                        Integrity01 = 1f,
+                        CompromisedBy = Entity.Null,
+                        LastIntegrityTick = 0u,
+                        IsCompromised = 0,
+                        Reserved0 = 0,
+                        Reserved1 = 0
+                    });
+                }
+
+                if (!HasComponent<CompromiseState>(anchorEntity))
+                {
+                    AddComponent(anchorEntity, new CompromiseState
+                    {
+                        IsCompromised = 0,
+                        Suspicion = 0,
+                        Severity = 0,
+                        Kind = CompromiseKind.Infiltration,
+                        Source = Entity.Null,
+                        SinceTick = 0u,
+                        LastEvidenceTick = 0u
+                    });
+                }
+
+                if (!HasComponent<Space4X.Runtime.Space4XSmokeCompromiseBeatConfig>(anchorEntity))
+                {
+                    AddComponent(anchorEntity, new Space4X.Runtime.Space4XSmokeCompromiseBeatConfig
+                    {
+                        CommsDropStartSeconds = 8f,
+                        CommsDropDurationSeconds = 6f,
+                        CommsQualityDuringDrop = 0f,
+                        ControllerCompromiseSeconds = 18f,
+                        ControllerCompromiseSeverity = 220,
+                        ControllerCompromiseKind = CompromiseKind.HostileOverride,
+                        HackStartSeconds = 22f,
+                        HackDroneCount = 4,
+                        HackSeverity = 200,
+                        Initialized = 0,
+                        HackApplied = 0,
+                        CompromiseApplied = 0,
+                        CommsDropApplied = 0,
+                        CommsDropStartTick = 0u,
+                        CommsDropEndTick = 0u,
+                        ControllerCompromiseTick = 0u,
+                        HackStartTick = 0u,
+                        HackerEntity = Entity.Null
+                    });
+                }
+
+                if (!HasComponent<CompromiseDoctrine>(anchorEntity))
+                {
+                    AddComponent(anchorEntity, new CompromiseDoctrine
+                    {
+                        QuarantineThreshold = 64,
+                        PurgeThreshold = 200,
+                        PreferredResponse = CompromiseResponseMode.Disconnect,
+                        FriendlyFirePenaltyMode = FriendlyFirePenaltyMode.WaivedIfCompromised,
+                        RecoveryBudgetTicks = 0u
+                    });
+                }
+
+                if (!HasComponent<SwarmThrustState>(anchorEntity))
+                {
+                    AddComponent(anchorEntity, new SwarmThrustState
+                    {
+                        DesiredDirection = new float3(1f, 0f, 0f),
+                        CurrentThrust = 0f,
+                        Active = false
+                    });
+                }
+
+                for (int i = 0; i < droneCount; i++)
+                {
+                    var droneEntity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
+                    float radius = 6f + (i % 4) * 1.5f;
+                    float angularSpeed = 1.2f + (i % 3) * 0.35f;
+                    float phase = math.radians((360f / droneCount) * i);
+                    float elevation = (i % 5 - 2) * 0.25f;
+
+                    float3 offset = new float3(
+                        math.cos(phase) * radius,
+                        elevation,
+                        math.sin(phase) * radius);
+
+                    SetLocalTransform(droneEntity, anchorPosition + offset, quaternion.identity, 0.35f);
+                    AddComponent(droneEntity, new AgencySelfPreset { Kind = AgencySelfPresetKind.Tool });
+                    AddComponent<DroneTag>(droneEntity);
+                    AddComponent(droneEntity, new DroneOrbit
+                    {
+                        AnchorShip = anchorEntity,
+                        Radius = radius,
+                        AngularSpeed = angularSpeed,
+                        PhaseOffset = phase,
+                        Elevation = elevation
+                    });
+                    AddComponent(droneEntity, new SwarmBehavior
+                    {
+                        Mode = SwarmMode.Screen,
+                        Target = Entity.Null
+                    });
+                    AddComponent(droneEntity, new PureDOTS.Runtime.Agency.ControlOrderState
+                    {
+                        Kind = PureDOTS.Runtime.Agency.ControlOrderKind.Screen,
+                        FallbackKind = PureDOTS.Runtime.Agency.ControlOrderKind.Return,
+                        TargetEntity = Entity.Null,
+                        AnchorEntity = anchorEntity,
+                        AnchorPosition = anchorPosition,
+                        Radius = radius,
+                        IssuedTick = 0u,
+                        ExpiryTick = 0u,
+                        LastUpdatedTick = 0u,
+                        Sequence = 0u,
+                        RequiresHeartbeat = 1,
+                        Reserved0 = 0,
+                        Reserved1 = 0
+                    });
+                    AddComponent(droneEntity, new PureDOTS.Runtime.Agency.ControlLinkState
+                    {
+                        ControllerEntity = anchorEntity,
+                        CompromiseSource = Entity.Null,
+                        LastHeartbeatTick = 0u,
+                        CommsQuality01 = 1f,
+                        IsCompromised = 0,
+                        IsLost = 0,
+                        Reserved0 = 0
+                    });
+                    AddComponent(droneEntity, new CompromiseDoctrine
+                    {
+                        QuarantineThreshold = 64,
+                        PurgeThreshold = 200,
+                        PreferredResponse = CompromiseResponseMode.Disconnect,
+                        FriendlyFirePenaltyMode = FriendlyFirePenaltyMode.WaivedIfCompromised,
+                        RecoveryBudgetTicks = 0u
+                    });
+                    var claims = AddBuffer<ControlClaim>(droneEntity);
+                    claims.Add(new ControlClaim
+                    {
+                        Controller = anchorEntity,
+                        SourceSeat = Entity.Null,
+                        Domains = AgencyDomain.FlightOps | AgencyDomain.Movement | AgencyDomain.Combat,
+                        Pressure = 0.9f,
+                        Legitimacy = 0.85f,
+                        Hostility = 0f,
+                        Consent = 0.95f,
+                        EstablishedTick = 0u,
+                        ExpireTick = 0u,
+                        SourceKind = ControlClaimSourceKind.Scripted
+                    });
+
+                    AssignRenderPresentation(droneEntity, RenderKeys.StrikeCraft, droneTint);
+                }
+            }
+
+            private void SpawnBreakablePieces(Entity anchorEntity, float3 anchorPosition, in float4 anchorTint)
+            {
+                Space4XBreakableRoot breakableRoot;
+                if (!HasComponent<Space4XBreakableRoot>(anchorEntity))
+                {
+                    var profile = BuildBreakProfileBlob();
+                    AddBlobAsset(ref profile, out _);
+
+                    breakableRoot = new Space4XBreakableRoot
+                    {
+                        Profile = profile,
+                        BreakTick = 0u,
+                        IsBroken = 0,
+                        Damage = 0f,
+                        Instability = 0f,
+                        Reserved0 = 0,
+                        Reserved1 = 0
+                    };
+                    AddComponent(anchorEntity, breakableRoot);
+                    AddComponent(anchorEntity, new Space4XBreakableDamagePulse
+                    {
+                        DamageAmount = 120f,
+                        DelaySeconds = 12f,
+                        TriggerTick = 0u,
+                        Fired = 0,
+                        DamageType = PureDOTS.Runtime.Combat.DamageType.Physical,
+                        DamageFlags = PureDOTS.Runtime.Combat.DamageFlags.AoE
+                    });
+                }
+                else
+                {
+                    breakableRoot = GetComponent<Space4XBreakableRoot>(anchorEntity);
+                }
+
+                if (!HasBuffer<Space4XBreakableEdgeState>(anchorEntity))
+                {
+                    var edgeBuffer = AddBuffer<Space4XBreakableEdgeState>(anchorEntity);
+                    var edges = breakableRoot.Profile.Value.Edges;
+                    for (int i = 0; i < edges.Length; i++)
+                    {
+                        edgeBuffer.Add(new Space4XBreakableEdgeState
+                        {
+                            EdgeIndex = i,
+                            BrokenTick = 0u,
+                            IsBroken = 0,
+                            Reserved0 = 0,
+                            Reserved1 = 0
+                        });
+                    }
+                }
+
+                float4 pieceTint = new float4(anchorTint.x, anchorTint.y, anchorTint.z, 1f);
+                var pieces = breakableRoot.Profile.Value.Pieces;
+
+                for (int i = 0; i < pieces.Length; i++)
+                {
+                    var pieceDef = pieces[i];
+                    var pieceEntity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
+                    SetLocalTransform(pieceEntity, anchorPosition + pieceDef.LocalOffset, quaternion.identity, 0.55f);
+                    AddComponent(pieceEntity, new Space4XBreakablePiece
+                    {
+                        Root = anchorEntity,
+                        PieceIndex = pieceDef.PieceId,
+                        LocalOffset = pieceDef.LocalOffset,
+                        AttachmentGroup = pieceDef.AttachmentGroup
+                    });
+                    AddComponent(pieceEntity, new Space4XBreakablePieceState
+                    {
+                        Damage01 = 0f,
+                        Instability01 = 0f
+                    });
+
+                    AssignRenderPresentation(pieceEntity, RenderKeys.Carrier, pieceTint);
+                }
+            }
+
+            private BlobAssetReference<ShipBreakProfileBlob> BuildBreakProfileBlob()
+            {
+                using var builder = new BlobBuilder(Allocator.Temp);
+                ref var root = ref builder.ConstructRoot<ShipBreakProfileBlob>();
+                root.BreakDelaySeconds = 14f;
+                root.MaxFragments = 6;
+                root.MinFragmentMass = 0.1f;
+
+                var pieces = builder.Allocate(ref root.Pieces, 4);
+                pieces[0] = new ShipBreakPieceDef
+                {
+                    PieceId = 0,
+                    LocalOffset = new float3(0f, 0f, 0f),
+                    MassFraction = 0.45f,
+                    AttachmentGroup = 0,
+                    ColliderPreset = 0,
+                    VisualPreset = 0,
+                    IsCore = 1,
+                    ProvidesFlags = ShipCapabilityFlags.Command | ShipCapabilityFlags.Power | ShipCapabilityFlags.Sensors | ShipCapabilityFlags.LifeSupport,
+                    ThrustContribution = 0f,
+                    PowerGeneration = 2.5f,
+                    SensorRangeMultiplier = 1.1f,
+                    WeaponHardpointCount = 0
+                };
+                pieces[1] = new ShipBreakPieceDef
+                {
+                    PieceId = 1,
+                    LocalOffset = new float3(-6f, 0f, 0f),
+                    MassFraction = 0.2f,
+                    AttachmentGroup = 1,
+                    ColliderPreset = 0,
+                    VisualPreset = 0,
+                    IsCore = 0,
+                    ProvidesFlags = ShipCapabilityFlags.Propulsion | ShipCapabilityFlags.Steering | ShipCapabilityFlags.Power,
+                    ThrustContribution = 6f,
+                    PowerGeneration = 1.5f,
+                    SensorRangeMultiplier = 1f,
+                    WeaponHardpointCount = 0
+                };
+                pieces[2] = new ShipBreakPieceDef
+                {
+                    PieceId = 2,
+                    LocalOffset = new float3(4f, 0f, -2f),
+                    MassFraction = 0.2f,
+                    AttachmentGroup = 2,
+                    ColliderPreset = 0,
+                    VisualPreset = 0,
+                    IsCore = 0,
+                    ProvidesFlags = ShipCapabilityFlags.Weapons,
+                    ThrustContribution = 0f,
+                    PowerGeneration = 0f,
+                    SensorRangeMultiplier = 1f,
+                    WeaponHardpointCount = 2
+                };
+                pieces[3] = new ShipBreakPieceDef
+                {
+                    PieceId = 3,
+                    LocalOffset = new float3(2f, 0f, 4f),
+                    MassFraction = 0.15f,
+                    AttachmentGroup = 3,
+                    ColliderPreset = 0,
+                    VisualPreset = 0,
+                    IsCore = 0,
+                    ProvidesFlags = ShipCapabilityFlags.Hangar | ShipCapabilityFlags.Cargo,
+                    ThrustContribution = 0f,
+                    PowerGeneration = 0f,
+                    SensorRangeMultiplier = 1f,
+                    WeaponHardpointCount = 0
+                };
+
+                var edges = builder.Allocate(ref root.Edges, 3);
+                edges[0] = new ShipBreakEdgeDef
+                {
+                    PieceA = 0,
+                    PieceB = 1,
+                    BreakDamageThreshold = 0.6f,
+                    BreakInstabilityThreshold = 0.8f,
+                    BreakMode = Space4XBreakMode.Threshold,
+                    IsCriticalPath = 1
+                };
+                edges[1] = new ShipBreakEdgeDef
+                {
+                    PieceA = 0,
+                    PieceB = 2,
+                    BreakDamageThreshold = 0.6f,
+                    BreakInstabilityThreshold = 0.8f,
+                    BreakMode = Space4XBreakMode.Threshold,
+                    IsCriticalPath = 0
+                };
+                edges[2] = new ShipBreakEdgeDef
+                {
+                    PieceA = 0,
+                    PieceB = 3,
+                    BreakDamageThreshold = 0.6f,
+                    BreakInstabilityThreshold = 0.8f,
+                    BreakMode = Space4XBreakMode.Threshold,
+                    IsCriticalPath = 0
+                };
+
+                root.AliveRequired = ShipCapabilityFlags.Command | ShipCapabilityFlags.Power;
+                root.MobileRequiredAny = ShipCapabilityFlags.Propulsion | ShipCapabilityFlags.Towable;
+                root.CombatRequiredAny = ShipCapabilityFlags.Weapons | ShipCapabilityFlags.Hangar;
+                root.FtlRequiredAll = ShipCapabilityFlags.Ftl | ShipCapabilityFlags.Power | ShipCapabilityFlags.Sensors;
+
+                return builder.CreateBlobAssetReference<ShipBreakProfileBlob>(Allocator.Persistent);
             }
 
             private static float4 ToFloat4(Color color)
@@ -1060,6 +1528,117 @@ namespace Space4X.Registry
                     Target = target,
                     Loyalty = (half)math.saturate(definition.Loyalty)
                 });
+            }
+
+            private void AddCarrierAuthorityAndCrew(Entity carrierEntity, float lawfulness)
+            {
+                AddComponent(carrierEntity, new CaptainOrder
+                {
+                    Type = CaptainOrderType.None,
+                    Status = CaptainOrderStatus.None,
+                    Priority = 0,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = float3.zero,
+                    IssuedTick = 0,
+                    TimeoutTick = 0,
+                    IssuingAuthority = Entity.Null
+                });
+                AddComponent(carrierEntity, CaptainState.Default);
+                AddComponent(carrierEntity, CaptainReadiness.Standard);
+
+                var crew = AddBuffer<PlatformCrewMember>(carrierEntity);
+                var config = StrikeCraftPilotProfileConfig.Default;
+
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = CreateCrewEntity(lawfulness, config,
+                        new IndividualStats
+                        {
+                            Command = (half)90,
+                            Tactics = (half)70,
+                            Logistics = (half)60,
+                            Diplomacy = (half)60,
+                            Engineering = (half)40,
+                            Resolve = (half)85
+                        },
+                        BehaviorDisposition.FromValues(0.8f, 0.6f, 0.8f, 0.4f, 0.45f, 0.7f)),
+                    RoleId = 0
+                });
+
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = CreateCrewEntity(lawfulness, config,
+                        new IndividualStats
+                        {
+                            Command = (half)75,
+                            Tactics = (half)55,
+                            Logistics = (half)80,
+                            Diplomacy = (half)50,
+                            Engineering = (half)45,
+                            Resolve = (half)70
+                        },
+                        BehaviorDisposition.FromValues(0.75f, 0.6f, 0.7f, 0.45f, 0.4f, 0.7f)),
+                    RoleId = 0
+                });
+
+                crew.Add(new PlatformCrewMember
+                {
+                    CrewEntity = CreateCrewEntity(lawfulness, config,
+                        new IndividualStats
+                        {
+                            Command = (half)65,
+                            Tactics = (half)80,
+                            Logistics = (half)50,
+                            Diplomacy = (half)45,
+                            Engineering = (half)40,
+                            Resolve = (half)60
+                        },
+                        BehaviorDisposition.FromValues(0.65f, 0.55f, 0.7f, 0.5f, 0.45f, 0.6f)),
+                    RoleId = 0
+                });
+            }
+
+            private Entity CreateCrewEntity(
+                float lawfulness,
+                in StrikeCraftPilotProfileConfig config,
+                in IndividualStats stats,
+                in BehaviorDisposition disposition)
+            {
+                var crew = CreateAdditionalEntity(TransformUsageFlags.None);
+                AddComponent(crew, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
+                AddComponent(crew, stats);
+                AddComponent(crew, disposition);
+
+                var outlookId = ResolveOutlookId(config, lawfulness);
+                var outlookEntries = AddBuffer<OutlookEntry>(crew);
+                var outlooks = AddBuffer<TopOutlook>(crew);
+                outlookEntries.Add(new OutlookEntry
+                {
+                    OutlookId = outlookId,
+                    Weight = (half)1f
+                });
+                outlooks.Add(new TopOutlook
+                {
+                    OutlookId = outlookId,
+                    Weight = (half)1f
+                });
+
+                return crew;
+            }
+
+            private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+            {
+                if (lawfulness >= config.LoyalistLawThreshold)
+                {
+                    return config.FriendlyOutlook;
+                }
+
+                if (lawfulness <= config.MutinousLawThreshold)
+                {
+                    return config.HostileOutlook;
+                }
+
+                return config.NeutralOutlook;
             }
 
             private void AddAlignment(Entity entity, AlignmentDefinition alignment, ushort raceId, ushort cultureId)
