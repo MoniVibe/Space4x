@@ -93,6 +93,11 @@ namespace Space4X.Authoring
                     Seed = (uint)math.max(0, authoring.VolumeSeed)
                 });
 
+                AddComponent(entity, new Space4XAsteroidCenter
+                {
+                    Position = authoring.transform.position
+                });
+
             }
 
             private static FixedString64Bytes GetResourceTypeId(ResourceType resourceType)

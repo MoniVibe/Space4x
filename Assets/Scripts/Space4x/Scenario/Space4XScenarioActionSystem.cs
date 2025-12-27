@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Interrupts;
 using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
@@ -10,11 +11,10 @@ namespace Space4x.Scenario
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     public partial struct Space4XScenarioActionSystem : ISystem
     {
-        private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<PatrolBehavior> _patrolLookup;
         private ComponentLookup<MovementCommand> _movementLookup;
-        private ComponentLookup<FleetMovementBroadcast> _broadcastLookup;
+        private ComponentLookup<EntityIntent> _intentLookup;
 
         public void OnCreate(ref SystemState state)
         {
@@ -23,11 +23,10 @@ namespace Space4x.Scenario
             state.RequireForUpdate<Space4XScenarioAction>();
             state.RequireForUpdate<RewindState>();
 
-            _transformLookup = state.GetComponentLookup<LocalTransform>(false);
             _carrierLookup = state.GetComponentLookup<Carrier>(false);
             _patrolLookup = state.GetComponentLookup<PatrolBehavior>(false);
             _movementLookup = state.GetComponentLookup<MovementCommand>(false);
-            _broadcastLookup = state.GetComponentLookup<FleetMovementBroadcast>(false);
+            _intentLookup = state.GetComponentLookup<EntityIntent>(false);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -46,11 +45,10 @@ namespace Space4x.Scenario
 
             var tick = time.Tick;
 
-            _transformLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _patrolLookup.Update(ref state);
             _movementLookup.Update(ref state);
-            _broadcastLookup.Update(ref state);
+            _intentLookup.Update(ref state);
 
             foreach (var actions in SystemAPI.Query<DynamicBuffer<Space4XScenarioAction>>())
             {
@@ -86,17 +84,13 @@ namespace Space4x.Scenario
                 return;
             }
 
+            var moveTarget = GetOrCreateMoveTarget(ref state, action.FleetId, action.TargetPosition, tick);
+
             foreach (var (fleet, entity) in SystemAPI.Query<RefRO<Space4XFleet>>().WithEntityAccess())
             {
                 if (!fleet.ValueRO.FleetId.Equals(action.FleetId))
                 {
                     continue;
-                }
-
-                if (_transformLookup.HasComponent(entity))
-                {
-                    var transform = _transformLookup.GetRefRW(entity);
-                    transform.ValueRW.Position = action.TargetPosition;
                 }
 
                 if (_carrierLookup.HasComponent(entity))
@@ -119,14 +113,43 @@ namespace Space4x.Scenario
                     movement.ValueRW.ArrivalThreshold = math.max(1f, movement.ValueRO.ArrivalThreshold);
                 }
 
-                if (_broadcastLookup.HasComponent(entity))
+                if (_intentLookup.HasComponent(entity))
                 {
-                    var broadcast = _broadcastLookup.GetRefRW(entity);
-                    broadcast.ValueRW.Position = action.TargetPosition;
-                    broadcast.ValueRW.Velocity = float3.zero;
-                    broadcast.ValueRW.LastUpdateTick = tick;
+                    var intent = _intentLookup[entity];
+                    intent.Mode = IntentMode.MoveTo;
+                    intent.TargetEntity = moveTarget;
+                    intent.TargetPosition = action.TargetPosition;
+                    intent.TriggeringInterrupt = InterruptType.ObjectiveChanged;
+                    intent.IntentSetTick = tick;
+                    intent.Priority = InterruptPriority.High;
+                    intent.IsValid = 1;
+                    _intentLookup[entity] = intent;
                 }
             }
+        }
+
+        private Entity GetOrCreateMoveTarget(ref SystemState state, FixedString64Bytes fleetId, float3 position, uint tick)
+        {
+            foreach (var (target, transform, entity) in SystemAPI.Query<RefRW<Space4XScenarioMoveTarget>, RefRW<LocalTransform>>()
+                         .WithEntityAccess())
+            {
+                if (!target.ValueRO.FleetId.Equals(fleetId))
+                {
+                    continue;
+                }
+
+                transform.ValueRW = LocalTransform.FromPosition(position);
+                return entity;
+            }
+
+            var targetEntity = state.EntityManager.CreateEntity(typeof(Space4XScenarioMoveTarget), typeof(LocalTransform));
+            state.EntityManager.SetComponentData(targetEntity, new Space4XScenarioMoveTarget
+            {
+                FleetId = fleetId,
+                CreatedTick = tick
+            });
+            state.EntityManager.SetComponentData(targetEntity, LocalTransform.FromPosition(position));
+            return targetEntity;
         }
 
         private void ProcessTriggerIntercept(ref SystemState state, in Space4XScenarioAction action, uint tick)

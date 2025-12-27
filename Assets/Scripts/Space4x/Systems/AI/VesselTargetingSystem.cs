@@ -22,6 +22,10 @@ namespace Space4X.Systems.AI
     public partial struct VesselTargetingSystem : ISystem
     {
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
+        private ComponentLookup<MiningVessel> _miningVesselLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
         private BufferLookup<ResourceRegistryEntry> _resourceEntriesLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private EntityQuery _resourceRegistryQuery;
@@ -30,6 +34,10 @@ namespace Space4X.Systems.AI
         public void OnCreate(ref SystemState state)
         {
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+            _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
+            _miningVesselLookup = state.GetComponentLookup<MiningVessel>(true);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _resourceEntriesLookup = state.GetBufferLookup<ResourceRegistryEntry>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
 
@@ -57,6 +65,10 @@ namespace Space4X.Systems.AI
             }
 
             _transformLookup.Update(ref state);
+            _asteroidLookup.Update(ref state);
+            _asteroidVolumeLookup.Update(ref state);
+            _miningVesselLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
             _statsLookup.Update(ref state);
 
             // Initialize with empty array to ensure it's always valid (Burst requirement)
@@ -87,6 +99,10 @@ namespace Space4X.Systems.AI
             var job = new ResolveVesselTargetPositionsJob
             {
                 TransformLookup = _transformLookup,
+                AsteroidLookup = _asteroidLookup,
+                AsteroidVolumeLookup = _asteroidVolumeLookup,
+                MiningVesselLookup = _miningVesselLookup,
+                CarrierLookup = _carrierLookup,
                 StatsLookup = _statsLookup,
                 ResourceEntries = resourceEntries,
                 HasResourceEntries = hasResourceEntries
@@ -110,6 +126,10 @@ namespace Space4X.Systems.AI
         public partial struct ResolveVesselTargetPositionsJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
+            [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
+            [ReadOnly] public ComponentLookup<Space4XAsteroidVolumeConfig> AsteroidVolumeLookup;
+            [ReadOnly] public ComponentLookup<MiningVessel> MiningVesselLookup;
+            [ReadOnly] public ComponentLookup<Carrier> CarrierLookup;
             [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;
             public bool HasResourceEntries;
@@ -126,10 +146,27 @@ namespace Space4X.Systems.AI
                 if (TransformLookup.TryGetComponent(aiState.TargetEntity, out var targetTransform))
                 {
                     var targetPos = targetTransform.Position;
+                    var hasAsteroidSurfaceTarget = false;
+                    if (AsteroidLookup.HasComponent(aiState.TargetEntity) &&
+                        AsteroidVolumeLookup.HasComponent(aiState.TargetEntity) &&
+                        TransformLookup.TryGetComponent(entity, out var selfTransform))
+                    {
+                        var volume = AsteroidVolumeLookup[aiState.TargetEntity];
+                        var radius = math.max(0.5f, volume.Radius);
+                        var toSelf = selfTransform.Position - targetPos;
+                        var direction = math.normalizesafe(toSelf, new float3(0f, 0f, 1f));
+                        var standoff = MiningVesselLookup.HasComponent(entity) ? 1.1f : 5.5f;
+                        if (CarrierLookup.HasComponent(entity))
+                        {
+                            standoff = 6.5f;
+                        }
+                        targetPos += direction * (radius + standoff);
+                        hasAsteroidSurfaceTarget = true;
+                    }
                     
                     // Tactics stat improves targeting accuracy (reduces position error)
                     float tacticsAccuracy = 1f;
-                    if (StatsLookup.HasComponent(entity))
+                    if (!hasAsteroidSurfaceTarget && StatsLookup.HasComponent(entity))
                     {
                         var stats = StatsLookup[entity];
                         var tacticsModifier = stats.Tactics / 100f; // 0-1 normalized
@@ -169,7 +206,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
 
 
 

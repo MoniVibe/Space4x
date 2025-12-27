@@ -1,5 +1,6 @@
 using Space4X.Registry;
 using Space4X.Runtime;
+using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Communication;
 using Unity.Collections;
 using Unity.Entities;
@@ -57,6 +58,20 @@ namespace Space4X.Authoring
         [Range(0.5f, 20f)]
         [Tooltip("Arrival threshold for stopping at targets")]
         public float arrivalDistance = 2.5f;
+
+        [Header("Physics")]
+        [Range(0.2f, 20f)]
+        public float collisionRadius = 2.6f;
+        [Range(1f, 1000f)]
+        public float baseMass = 120f;
+        [Range(0.1f, 5f)]
+        public float hullDensity = 1.2f;
+        [Range(0.0f, 1f)]
+        public float cargoMassPerUnit = 0.02f;
+        [Range(0f, 1f)]
+        public float restitution = 0.08f;
+        [Range(0f, 1f)]
+        public float tangentialDamping = 0.25f;
 
         [Header("Storage")]
         [Tooltip("Resource storage configurations")]
@@ -126,9 +141,42 @@ namespace Space4X.Authoring
                     LastMoveTick = 0
                 });
 
+                AddComponent(entity, new VesselAIState
+                {
+                    CurrentState = VesselAIState.State.Idle,
+                    CurrentGoal = VesselAIState.Goal.None,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = float3.zero,
+                    StateTimer = 0f,
+                    StateStartTick = 0
+                });
+
+                AddComponent(entity, new EntityIntent
+                {
+                    Mode = IntentMode.Idle,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = float3.zero,
+                    TriggeringInterrupt = InterruptType.None,
+                    IntentSetTick = 0,
+                    Priority = InterruptPriority.Low,
+                    IsValid = 0
+                });
+
+                AddBuffer<Interrupt>(entity);
+
                 AddComponent(entity, new PostTransformMatrix
                 {
                     Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
+                });
+
+                AddComponent(entity, new VesselPhysicalProperties
+                {
+                    Radius = math.max(0.1f, authoring.collisionRadius),
+                    BaseMass = math.max(1f, authoring.baseMass),
+                    HullDensity = math.max(0.1f, authoring.hullDensity),
+                    CargoMassPerUnit = math.max(0f, authoring.cargoMassPerUnit),
+                    Restitution = math.clamp(authoring.restitution, 0f, 1f),
+                    TangentialDamping = math.clamp(authoring.tangentialDamping, 0f, 1f)
                 });
 
                 // Add ResourceStorage buffer

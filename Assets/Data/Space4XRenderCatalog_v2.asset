@@ -14,19 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogDefinition
   Variants:
   - Name: Carrier
-    Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+    Mesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
-    BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
+    BoundsExtents: {x: 0.6, y: 1.2, z: 0.6}
     PresenterMask: 1
     RenderLayer: 0
   - Name: Miner
-    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Mesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
-    BoundsExtents: {x: 0.5, y: 1, z: 0.5}
+    BoundsExtents: {x: 0.35, y: 0.7, z: 0.35}
     PresenterMask: 1
     RenderLayer: 0
   - Name: Asteroid
@@ -128,4 +128,3 @@ MonoBehaviour:
   FallbackMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   FallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
   LodCount: 1
-

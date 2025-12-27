@@ -216,8 +216,12 @@ namespace Space4X.Registry
         public float3 TargetPosition;
         public float ArrivalThreshold;
     }
-}
 
+    /// <summary>
+    /// Disables legacy mining systems when present (used by smoke scenarios).
+    /// </summary>
+    public struct Space4XLegacyMiningDisabledTag : IComponentData { }
+}
 
 
 

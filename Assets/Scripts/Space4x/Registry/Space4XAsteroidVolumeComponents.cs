@@ -1,4 +1,5 @@
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
@@ -28,6 +29,11 @@ namespace Space4X.Registry
             OreGradeExponent = 2f,
             Seed = 1u
         };
+    }
+
+    public struct Space4XAsteroidCenter : IComponentData
+    {
+        public float3 Position;
     }
 
     public struct Space4XAsteroidVolumeState : IComponentData

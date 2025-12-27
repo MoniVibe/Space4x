@@ -7,6 +7,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
@@ -39,6 +40,7 @@ namespace Space4x.Scenario
         private bool _hasLoaded;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
+        private bool _useSmokeMotionTuning;
 
         protected override void OnCreate()
         {
@@ -97,6 +99,13 @@ namespace Space4x.Scenario
                 return;
             }
 
+            _useSmokeMotionTuning = IsSmokeScenario(scenarioPath, scenarioInfo);
+            if (_useSmokeMotionTuning)
+            {
+                ApplySmokeMotionProfile();
+                ApplyFloatingOriginConfig();
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
 
             _spawnedEntities = new Dictionary<string, Entity>();
@@ -115,6 +124,67 @@ namespace Space4x.Scenario
 
             _hasLoaded = true;
             Enabled = false;
+        }
+
+        private static bool IsSmokeScenario(string scenarioPath, ScenarioInfo scenarioInfo)
+        {
+            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
+            if (!string.IsNullOrWhiteSpace(scenarioName) &&
+                (scenarioName.Equals("space4x_smoke", StringComparison.OrdinalIgnoreCase)
+                 || scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            var scenarioId = scenarioInfo.ScenarioId.ToString();
+            if (scenarioId.Equals("space4x_smoke", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return scenarioId.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ApplySmokeMotionProfile()
+        {
+            var config = VesselMotionProfileConfig.Default;
+            config.CapitalShipSpeedMultiplier = 0.65f;
+            config.CapitalShipTurnMultiplier = 0.7f;
+            config.CapitalShipAccelerationMultiplier = 0.6f;
+            config.CapitalShipDecelerationMultiplier = 0.7f;
+            config.MiningUndockSpeedMultiplier = 0.3f;
+            config.MiningApproachSpeedMultiplier = 0.6f;
+            config.MiningLatchSpeedMultiplier = 0.25f;
+            config.MiningDetachSpeedMultiplier = 0.35f;
+            config.MiningReturnSpeedMultiplier = 0.7f;
+            config.MiningDockSpeedMultiplier = 0.25f;
+
+            if (!SystemAPI.TryGetSingletonEntity<VesselMotionProfileConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(VesselMotionProfileConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XLegacyMiningDisabledTag>(out _))
+            {
+                EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
+            }
+        }
+
+        private void ApplyFloatingOriginConfig()
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XFloatingOriginConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XFloatingOriginConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, new Space4XFloatingOriginConfig
+            {
+                Threshold = 500f,
+                CooldownTicks = 300,
+                Enabled = 1
+            });
         }
 
         private Entity EnsureScenarioRuntime(uint startTick, uint endTick, float durationSeconds)
@@ -294,16 +364,32 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(entity, MediumContext.Vacuum);
 
             var carrierId = new FixedString64Bytes(spawn.entityId ?? $"carrier-{_spawnedEntities.Count}");
+            var carrierSpeed = 3f;
+            var carrierAcceleration = 0.4f;
+            var carrierDeceleration = 0.6f;
+            var carrierTurnSpeed = 0.25f;
+            var carrierSlowdown = 20f;
+            var carrierArrival = 3f;
+            if (_useSmokeMotionTuning)
+            {
+                carrierSpeed = 7.2f;
+                carrierAcceleration = 0.3f;
+                carrierDeceleration = 0.45f;
+                carrierTurnSpeed = 0.6f;
+                carrierSlowdown = 30f;
+                carrierArrival = 4f;
+            }
+
             EntityManager.AddComponentData(entity, new Carrier
             {
                 CarrierId = carrierId,
                 AffiliationEntity = Entity.Null,
-                Speed = 3f,
-                Acceleration = 0.4f,
-                Deceleration = 0.6f,
-                TurnSpeed = 0.25f,
-                SlowdownDistance = 20f,
-                ArrivalDistance = 3f,
+                Speed = carrierSpeed,
+                Acceleration = carrierAcceleration,
+                Deceleration = carrierDeceleration,
+                TurnSpeed = carrierTurnSpeed,
+                SlowdownDistance = carrierSlowdown,
+                ArrivalDistance = carrierArrival,
                 PatrolCenter = position,
                 PatrolRadius = 50f
             });
@@ -343,16 +429,49 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(entity, new VesselMovement
             {
                 Velocity = float3.zero,
-                BaseSpeed = 3f,
+                BaseSpeed = carrierSpeed,
                 CurrentSpeed = 0f,
-                Acceleration = 0.4f,
-                Deceleration = 0.6f,
-                TurnSpeed = 0.25f,
-                SlowdownDistance = 20f,
-                ArrivalDistance = 3f,
+                Acceleration = carrierAcceleration,
+                Deceleration = carrierDeceleration,
+                TurnSpeed = carrierTurnSpeed,
+                SlowdownDistance = carrierSlowdown,
+                ArrivalDistance = carrierArrival,
                 DesiredRotation = quaternion.identity,
                 IsMoving = 0,
                 LastMoveTick = 0
+            });
+
+            EntityManager.AddComponentData(entity, new VesselAIState
+            {
+                CurrentState = VesselAIState.State.Idle,
+                CurrentGoal = VesselAIState.Goal.None,
+                TargetEntity = Entity.Null,
+                TargetPosition = float3.zero,
+                StateTimer = 0f,
+                StateStartTick = 0
+            });
+
+            EntityManager.AddComponentData(entity, new EntityIntent
+            {
+                Mode = IntentMode.Idle,
+                TargetEntity = Entity.Null,
+                TargetPosition = float3.zero,
+                TriggeringInterrupt = InterruptType.None,
+                IntentSetTick = 0,
+                Priority = InterruptPriority.Low,
+                IsValid = 0
+            });
+
+            EntityManager.AddBuffer<Interrupt>(entity);
+
+            EntityManager.AddComponentData(entity, new VesselPhysicalProperties
+            {
+                Radius = 2.6f,
+                BaseMass = 120f,
+                HullDensity = 1.2f,
+                CargoMassPerUnit = 0.02f,
+                Restitution = 0.08f,
+                TangentialDamping = 0.25f
             });
 
             EntityManager.AddComponentData(entity, DockingCapacity.MiningCarrier);
@@ -457,6 +576,10 @@ namespace Space4x.Scenario
             var resourceId = new FixedString64Bytes(spawn.resourceId ?? "Minerals");
             var miningEfficiency = spawn.miningEfficiency > 0f ? spawn.miningEfficiency : 0.8f;
             var speed = spawn.speed > 0f ? spawn.speed : 5f;
+            if (_useSmokeMotionTuning)
+            {
+                speed = math.max(1.8f, speed * 0.45f);
+            }
             var cargoCapacity = spawn.cargoCapacity > 0f ? spawn.cargoCapacity : 100f;
 
             EntityManager.AddComponentData(entity, new MiningVessel
@@ -473,7 +596,21 @@ namespace Space4x.Scenario
             var toolKind = ParseMiningToolKind(spawn.toolKind);
             EntityManager.AddComponentData(entity, new Space4XMiningToolProfile
             {
-                ToolKind = toolKind
+                ToolKind = toolKind,
+                HasShapeOverride = spawn.toolShapeOverride || !string.IsNullOrWhiteSpace(spawn.toolShape) ? (byte)1 : (byte)0,
+                Shape = ParseMiningToolShape(spawn.toolShape),
+                RadiusOverride = spawn.toolRadiusOverride,
+                RadiusMultiplier = spawn.toolRadiusMultiplier,
+                StepLengthOverride = spawn.toolStepLengthOverride,
+                StepLengthMultiplier = spawn.toolStepLengthMultiplier,
+                DigUnitsPerMeterOverride = spawn.toolDigUnitsPerMeterOverride,
+                MinStepLengthOverride = spawn.toolMinStepLengthOverride,
+                MaxStepLengthOverride = spawn.toolMaxStepLengthOverride,
+                YieldMultiplier = spawn.toolYieldMultiplier,
+                HeatDeltaMultiplier = spawn.toolHeatDeltaMultiplier,
+                InstabilityDeltaMultiplier = spawn.toolInstabilityDeltaMultiplier,
+                DamageDeltaOverride = (byte)math.clamp(spawn.toolDamageDeltaOverride, 0, 255),
+                DamageThresholdOverride = (byte)math.clamp(spawn.toolDamageThresholdOverride, 0, 255)
             });
 
             var vesselDisposition = ResolveDisposition(spawn.disposition, BuildMiningDisposition(scenarioSide));
@@ -529,19 +666,43 @@ namespace Space4x.Scenario
                 StateStartTick = 0
             });
 
+            var minerAcceleration = math.max(1f, speed * 0.8f);
+            var minerDeceleration = math.max(1f, speed * 1.1f);
+            var minerTurnSpeed = 2.4f;
+            var minerSlowdown = 6f;
+            var minerArrival = 1.5f;
+            if (_useSmokeMotionTuning)
+            {
+                minerAcceleration = math.max(0.6f, speed * 0.6f);
+                minerDeceleration = math.max(0.7f, speed * 0.8f);
+                minerTurnSpeed = 1.2f;
+                minerSlowdown = 10f;
+                minerArrival = 1.8f;
+            }
+
             EntityManager.AddComponentData(entity, new VesselMovement
             {
                 Velocity = float3.zero,
                 BaseSpeed = speed,
                 CurrentSpeed = 0f,
-                Acceleration = math.max(1f, speed * 0.8f),
-                Deceleration = math.max(1f, speed * 1.1f),
-                TurnSpeed = 2.4f,
-                SlowdownDistance = 6f,
-                ArrivalDistance = 1.5f,
+                Acceleration = minerAcceleration,
+                Deceleration = minerDeceleration,
+                TurnSpeed = minerTurnSpeed,
+                SlowdownDistance = minerSlowdown,
+                ArrivalDistance = minerArrival,
                 DesiredRotation = quaternion.identity,
                 IsMoving = 0,
                 LastMoveTick = 0
+            });
+
+            EntityManager.AddComponentData(entity, new VesselPhysicalProperties
+            {
+                Radius = 0.6f,
+                BaseMass = 6f,
+                HullDensity = 1.05f,
+                CargoMassPerUnit = 0.04f,
+                Restitution = 0.15f,
+                TangentialDamping = 0.3f
             });
 
             EntityManager.AddBuffer<SpawnResourceRequest>(entity);
@@ -619,6 +780,11 @@ namespace Space4x.Scenario
             var volumeConfig = Space4XAsteroidVolumeConfig.Default;
             volumeConfig.Radius = math.max(0.1f, volumeConfig.Radius);
             EntityManager.AddComponentData(entity, volumeConfig);
+
+            EntityManager.AddComponentData(entity, new Space4XAsteroidCenter
+            {
+                Position = position
+            });
 
             if (!string.IsNullOrEmpty(spawn.entityId))
             {
@@ -1289,6 +1455,31 @@ namespace Space4x.Scenario
 
             return TerrainModificationToolKind.Drill;
         }
+
+        private static TerrainModificationShape ParseMiningToolShape(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return TerrainModificationShape.Brush;
+            }
+
+            if (value.Equals("tunnel", StringComparison.OrdinalIgnoreCase))
+            {
+                return TerrainModificationShape.Tunnel;
+            }
+
+            if (value.Equals("ramp", StringComparison.OrdinalIgnoreCase))
+            {
+                return TerrainModificationShape.Ramp;
+            }
+
+            if (value.Equals("brush", StringComparison.OrdinalIgnoreCase))
+            {
+                return TerrainModificationShape.Brush;
+            }
+
+            return TerrainModificationShape.Brush;
+        }
     }
 
     [System.Serializable]
@@ -1322,6 +1513,20 @@ namespace Space4x.Scenario
         public float[] position;
         public string carrierId;
         public string toolKind;
+        public string toolShape;
+        public bool toolShapeOverride;
+        public float toolRadiusOverride;
+        public float toolRadiusMultiplier;
+        public float toolStepLengthOverride;
+        public float toolStepLengthMultiplier;
+        public float toolDigUnitsPerMeterOverride;
+        public float toolMinStepLengthOverride;
+        public float toolMaxStepLengthOverride;
+        public float toolYieldMultiplier;
+        public float toolHeatDeltaMultiplier;
+        public float toolInstabilityDeltaMultiplier;
+        public int toolDamageDeltaOverride;
+        public int toolDamageThresholdOverride;
         public string resourceId;
         public float miningEfficiency;
         public float speed;

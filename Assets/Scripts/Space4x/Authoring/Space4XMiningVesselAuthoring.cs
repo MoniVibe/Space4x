@@ -39,6 +39,20 @@ namespace Space4X.Authoring
         [Tooltip("Maximum cargo capacity")]
         public float cargoCapacity = 50f;
 
+        [Header("Physics")]
+        [Range(0.1f, 5f)]
+        public float collisionRadius = 0.6f;
+        [Range(0.5f, 100f)]
+        public float baseMass = 6f;
+        [Range(0.1f, 5f)]
+        public float hullDensity = 1.05f;
+        [Range(0f, 1f)]
+        public float cargoMassPerUnit = 0.04f;
+        [Range(0f, 1f)]
+        public float restitution = 0.15f;
+        [Range(0f, 1f)]
+        public float tangentialDamping = 0.3f;
+
         public class Baker : Unity.Entities.Baker<Space4XMiningVesselAuthoring>
         {
             public override void Bake(Space4XMiningVesselAuthoring authoring)
@@ -99,6 +113,16 @@ namespace Space4X.Authoring
                     DesiredRotation = quaternion.identity,
                     IsMoving = 0,
                     LastMoveTick = 0
+                });
+
+                AddComponent(entity, new VesselPhysicalProperties
+                {
+                    Radius = math.max(0.1f, authoring.collisionRadius),
+                    BaseMass = math.max(0.5f, authoring.baseMass),
+                    HullDensity = math.max(0.1f, authoring.hullDensity),
+                    CargoMassPerUnit = math.max(0f, authoring.cargoMassPerUnit),
+                    Restitution = math.clamp(authoring.restitution, 0f, 1f),
+                    TangentialDamping = math.clamp(authoring.tangentialDamping, 0f, 1f)
                 });
 
                 AddBuffer<SpawnResourceRequest>(entity);

@@ -1,0 +1,238 @@
+{
+  "seed": 1337,
+  "duration_s": 140,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "movement-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 8000},
+          {"type": "RareMetals", "capacity": 4000}
+        ],
+        "Fleet": {
+          "fleetId": "MOVE-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 35
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "movement-carrier-bravo",
+      "position": [160, -50],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 7000}
+        ],
+        "Fleet": {
+          "fleetId": "MOVE-BRAVO",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.5,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 40
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "movement-carrier-echo",
+      "position": [320, 60],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 7000}
+        ],
+        "Fleet": {
+          "fleetId": "MOVE-ECHO",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 11.0,
+          "isHostile": true,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 45
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "movement-miner-alpha-1",
+      "position": [0, 0],
+      "carrierId": "movement-carrier-alpha",
+      "resourceId": "Minerals",
+      "toolKind": "drill",
+      "miningEfficiency": 0.82,
+      "speed": 9.0,
+      "cargoCapacity": 110.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "movement-miner-alpha-2",
+      "position": [0, 0],
+      "carrierId": "movement-carrier-alpha",
+      "resourceId": "RareMetals",
+      "toolKind": "laser",
+      "miningEfficiency": 0.75,
+      "speed": 9.2,
+      "cargoCapacity": 90.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "movement-miner-bravo-1",
+      "position": [160, -50],
+      "carrierId": "movement-carrier-bravo",
+      "resourceId": "Minerals",
+      "toolKind": "microwave",
+      "miningEfficiency": 0.78,
+      "speed": 8.8,
+      "cargoCapacity": 95.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "movement-miner-echo-1",
+      "position": [320, 60],
+      "carrierId": "movement-carrier-echo",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 9.6,
+      "cargoCapacity": 100.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "movement-deposit-alpha",
+      "position": [45, 15],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "movement-deposit-bravo",
+      "position": [130, -80],
+      "resourceId": "Minerals",
+      "unitsRemaining": 800.0,
+      "gatherRatePerWorker": 9.5,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "movement-deposit-charlie",
+      "position": [250, 20],
+      "resourceId": "Minerals",
+      "unitsRemaining": 750.0,
+      "gatherRatePerWorker": 9.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "movement-deposit-raremetals",
+      "position": [80, 70],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 420.0,
+      "gatherRatePerWorker": 8.0,
+      "maxSimultaneousWorkers": 2
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 15,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-ALPHA",
+      "targetPosition": [60, 20],
+      "description": "Alpha approaches first belt"
+    },
+    {
+      "time_s": 35,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-ALPHA",
+      "targetPosition": [20, 90],
+      "description": "Alpha arcs to upper deposit"
+    },
+    {
+      "time_s": 55,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-ALPHA",
+      "targetPosition": [-30, 25],
+      "description": "Alpha returns to inner belt"
+    },
+    {
+      "time_s": 20,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-BRAVO",
+      "targetPosition": [120, -95],
+      "description": "Bravo drops toward lower belt"
+    },
+    {
+      "time_s": 50,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-BRAVO",
+      "targetPosition": [190, -10],
+      "description": "Bravo pivots toward mid belt"
+    },
+    {
+      "time_s": 40,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-ECHO",
+      "targetPosition": [240, 20],
+      "description": "Echo pushes into contested belt"
+    },
+    {
+      "time_s": 70,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "MOVE-BRAVO",
+      "targetFleetId": "MOVE-ECHO",
+      "description": "Bravo escorts intercept echo incursion"
+    },
+    {
+      "time_s": 95,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-ECHO",
+      "targetPosition": [280, 5],
+      "description": "Echo drifts toward lower belt"
+    },
+    {
+      "time_s": 115,
+      "kind": "MoveFleet",
+      "fleetId": "MOVE-ALPHA",
+      "targetPosition": [90, 40],
+      "description": "Alpha repositions to assist"
+    }
+  ],
+  "telemetryExpectations": {
+    "expectMiningYield": true,
+    "expectCarrierPickup": true,
+    "expectInterceptAttempts": true,
+    "expectFleetRegistry": true,
+    "expectResourceRegistry": true,
+    "export": {
+      "csv": "Reports/space4x_movement_precision_metrics.csv",
+      "json": "Reports/space4x_movement_precision_metrics.json"
+    }
+  }
+}

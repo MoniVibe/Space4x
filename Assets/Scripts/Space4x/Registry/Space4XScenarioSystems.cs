@@ -7,6 +7,7 @@ using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using UnityEngine;
@@ -139,6 +140,7 @@ namespace Space4X.Registry
 
             var carrierQuery = SystemAPI.QueryBuilder()
                 .WithAll<Carrier, PatrolBehavior, MovementCommand, LocalTransform>()
+                .WithNone<EntityIntent>()
                 .Build();
             var carrierCount = carrierQuery.CalculateEntityCount();
 
@@ -150,6 +152,7 @@ namespace Space4X.Registry
 
             foreach (var (carrier, patrol, movement, vesselMovement, transform, entity) in SystemAPI
                          .Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<VesselMovement>, RefRW<LocalTransform>>()
+                         .WithNone<EntityIntent>()
                          .WithEntityAccess())
             {
                 var carrierData = carrier.ValueRO;
@@ -558,6 +561,11 @@ namespace Space4X.Registry
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>())
+            {
+                return;
+            }
+
             _transformLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _asteroidLookup.Update(ref state);

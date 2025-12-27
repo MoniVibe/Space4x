@@ -153,6 +153,12 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                if (target.ValueRO.TargetEntity != Entity.Null &&
+                    _transformLookup.HasComponent(target.ValueRO.TargetEntity))
+                {
+                    target.ValueRW.TargetPosition = _transformLookup[target.ValueRO.TargetEntity].Position;
+                }
+
                 if (!ShouldRescan(target.ValueRO, timeState.Tick, ref _resourceStateLookup))
                 {
                     continue;
@@ -198,13 +204,12 @@ namespace Space4X.Systems.AI
         {
             if (target.TargetEntity != Entity.Null &&
                 resourceStateLookup.HasComponent(target.TargetEntity) &&
-                resourceStateLookup[target.TargetEntity].UnitsRemaining > 0f &&
-                currentTick < target.NextScanTick)
+                resourceStateLookup[target.TargetEntity].UnitsRemaining > 0f)
             {
                 return false;
             }
 
-            return currentTick >= target.NextScanTick || target.TargetEntity == Entity.Null;
+            return target.TargetEntity == Entity.Null || currentTick >= target.NextScanTick;
         }
 
         private struct ResourceCandidate

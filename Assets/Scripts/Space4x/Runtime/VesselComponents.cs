@@ -126,6 +126,29 @@ namespace Space4X.Runtime
     }
 
     /// <summary>
+    /// Physical characteristics for collision response and mass scaling.
+    /// </summary>
+    public struct VesselPhysicalProperties : IComponentData
+    {
+        public float Radius;
+        public float BaseMass;
+        public float HullDensity;
+        public float CargoMassPerUnit;
+        public float Restitution;
+        public float TangentialDamping;
+
+        public static VesselPhysicalProperties Default => new VesselPhysicalProperties
+        {
+            Radius = 0.6f,
+            BaseMass = 5f,
+            HullDensity = 1f,
+            CargoMassPerUnit = 0.02f,
+            Restitution = 0.12f,
+            TangentialDamping = 0.25f
+        };
+    }
+
+    /// <summary>
     /// Quality factors derived from production, blueprints, and integration.
     /// </summary>
     public struct VesselQuality : IComponentData

@@ -692,6 +692,11 @@ namespace Space4X.Authoring
                         GatherRatePerWorker = miningRate,
                         MaxSimultaneousWorkers = 4
                     });
+
+                    AddComponent(entity, new Space4XAsteroidCenter
+                    {
+                        Position = position
+                    });
                 }
             }
         }

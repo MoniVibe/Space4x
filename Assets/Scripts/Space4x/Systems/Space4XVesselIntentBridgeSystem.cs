@@ -26,6 +26,7 @@ namespace Space4X.Systems
     {
         private ComponentLookup<VesselAIState> _aiStateLookup;
         private ComponentLookup<MiningVessel> _miningVesselLookup;
+        private ComponentLookup<Asteroid> _asteroidLookup;
         private EntityStorageInfoLookup _entityStorageInfoLookup;
 
         [BurstCompile]
@@ -35,6 +36,7 @@ namespace Space4X.Systems
             state.RequireForUpdate<RewindState>();
             _aiStateLookup = state.GetComponentLookup<VesselAIState>(false);
             _miningVesselLookup = state.GetComponentLookup<MiningVessel>(true);
+            _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
             _entityStorageInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -54,6 +56,7 @@ namespace Space4X.Systems
 
             _aiStateLookup.Update(ref state);
             _miningVesselLookup.Update(ref state);
+            _asteroidLookup.Update(ref state);
             _entityStorageInfoLookup.Update(ref state);
 
             // Process all entities with EntityIntent and VesselAIState
@@ -78,12 +81,6 @@ namespace Space4X.Systems
                 }
 
                 if (!_aiStateLookup.HasComponent(entity))
-                {
-                    continue;
-                }
-
-                // Only process mining vessels for now
-                if (!_miningVesselLookup.HasComponent(entity))
                 {
                     continue;
                 }
@@ -136,19 +133,21 @@ namespace Space4X.Systems
         private VesselAIState.Goal MapIntentToGoal(in EntityIntent intent, Entity vesselEntity)
         {
             // Check if target is an asteroid (for mining vessels)
-            bool isMiningTarget = intent.TargetEntity != Entity.Null && _miningVesselLookup.HasComponent(vesselEntity);
             bool isMiningVessel = _miningVesselLookup.HasComponent(vesselEntity);
+            bool isMiningTarget = intent.TargetEntity != Entity.Null && _asteroidLookup.HasComponent(intent.TargetEntity);
 
             return intent.Mode switch
             {
                 IntentMode.Idle => VesselAIState.Goal.None,
-                IntentMode.MoveTo => isMiningTarget 
-                    ? VesselAIState.Goal.Mining 
-                    : VesselAIState.Goal.Idle, // Use Idle as fallback for MoveTo
+                IntentMode.MoveTo => isMiningTarget && isMiningVessel
+                    ? VesselAIState.Goal.Mining
+                    : VesselAIState.Goal.Patrol,
                 IntentMode.Attack => VesselAIState.Goal.None, // Combat not yet implemented for vessels (may need VesselAIState.Goal.Combat extension)
                 IntentMode.Flee => VesselAIState.Goal.Returning, // Retreat to carrier
                 IntentMode.Gather => VesselAIState.Goal.Mining, // Mining vessels gather resources
-                IntentMode.ExecuteOrder => VesselAIState.Goal.Mining, // Assume mining order
+                IntentMode.ExecuteOrder => isMiningVessel
+                    ? VesselAIState.Goal.Mining
+                    : VesselAIState.Goal.Patrol,
                 IntentMode.Patrol => VesselAIState.Goal.Patrol,
                 IntentMode.Follow => VesselAIState.Goal.Formation, // Follow as formation
                 IntentMode.Defend => VesselAIState.Goal.Escort, // Defend as escort
@@ -206,4 +205,3 @@ namespace Space4X.Systems
         }
     }
 }
-

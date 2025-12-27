@@ -19,4 +19,13 @@ namespace Space4x.Scenario
         public float3 TargetPosition;
         public byte Executed;
     }
+
+    /// <summary>
+    /// Marker for scenario-created move targets so fleets can move without teleporting.
+    /// </summary>
+    public struct Space4XScenarioMoveTarget : IComponentData
+    {
+        public FixedString64Bytes FleetId;
+        public uint CreatedTick;
+    }
 }

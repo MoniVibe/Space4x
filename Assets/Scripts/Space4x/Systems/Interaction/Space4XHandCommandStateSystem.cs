@@ -1,5 +1,4 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Hand;
 using Space4X.Runtime.Interaction;
 using Unity.Burst;

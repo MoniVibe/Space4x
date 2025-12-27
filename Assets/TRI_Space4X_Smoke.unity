@@ -329,10 +329,10 @@ MonoBehaviour:
   rotationSpeed: 0.2
   minPitch: 5
   maxPitch: 85
-  zoomSpeed: 40
+  zoomSpeed: 400
   minZoomDistance: 5
-  maxZoomDistance: 300
-  scrollUnitsPerNotch: 120
+  maxZoomDistance: 3000
+  scrollUnitsPerNotch: 1200
   defaultPosition: {x: 0, y: 0, z: 0}
   defaultYawDegrees: 0
   defaultPitchDegrees: 45
@@ -370,7 +370,7 @@ Transform:
   m_GameObject: {fileID: 865863174}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 5.3, z: -4.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -604,6 +604,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2100000004}
   - component: {fileID: 2100000005}
+  - component: {fileID: 2100000006}
   m_Layer: 0
   m_Name: Space4X_MiningScenario_SubScene
   m_TagString: Untagged
@@ -647,6 +648,23 @@ MonoBehaviour:
       y: 1179930756
       z: 2232590210
       w: 3109346164
+--- !u!114 &2100000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdca2f744d92c584a8ceed3085c14dfb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Authoring.Space4XVesselMobilityProfileAuthoring
+  thrustMode: 1
+  reverseSpeedMultiplier: 0
+  strafeSpeedMultiplier: 0
+  allowKiting: 0
+  turnMultiplier: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

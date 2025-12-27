@@ -78,6 +78,11 @@ namespace Space4X.Mining
 
         public void OnUpdate(ref SystemState state)
         {
+            if (SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>())
+            {
+                return;
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var rewindState = SystemAPI.GetSingleton<RewindState>();
 
@@ -774,4 +779,3 @@ namespace Space4X.Mining
         }
     }
 }
-

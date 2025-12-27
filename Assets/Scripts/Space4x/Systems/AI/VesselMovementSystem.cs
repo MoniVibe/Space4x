@@ -44,8 +44,17 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ModuleStatAggregate> _moduleAggregateLookup;
         private ComponentLookup<VesselQuality> _qualityLookup;
         private ComponentLookup<VesselMobilityProfile> _mobilityProfileLookup;
+        private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
+        private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
+        private ComponentLookup<Space4XAsteroidCenter> _asteroidCenterLookup;
+        private ComponentLookup<MoveIntent> _moveIntentLookup;
+        private ComponentLookup<MovePlan> _movePlanLookup;
+        private ComponentLookup<DecisionTrace> _decisionTraceLookup;
+        private ComponentLookup<MovementDebugState> _movementDebugLookup;
+        private BufferLookup<MoveTraceEvent> _traceEventLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -74,8 +83,17 @@ namespace Space4X.Systems.AI
             _moduleAggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
             _qualityLookup = state.GetComponentLookup<VesselQuality>(true);
             _mobilityProfileLookup = state.GetComponentLookup<VesselMobilityProfile>(true);
+            _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
+            _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+            _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
+            _asteroidCenterLookup = state.GetComponentLookup<Space4XAsteroidCenter>(true);
+            _moveIntentLookup = state.GetComponentLookup<MoveIntent>(false);
+            _movePlanLookup = state.GetComponentLookup<MovePlan>(false);
+            _decisionTraceLookup = state.GetComponentLookup<DecisionTrace>(false);
+            _movementDebugLookup = state.GetComponentLookup<MovementDebugState>(false);
+            _traceEventLookup = state.GetBufferLookup<MoveTraceEvent>(false);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -177,8 +195,19 @@ namespace Space4X.Systems.AI
             _moduleAggregateLookup.Update(ref state);
             _qualityLookup.Update(ref state);
             _mobilityProfileLookup.Update(ref state);
+            _physicalLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
+            _asteroidLookup.Update(ref state);
+            _asteroidVolumeLookup.Update(ref state);
+            _asteroidCenterLookup.Update(ref state);
+            _moveIntentLookup.Update(ref state);
+            _movePlanLookup.Update(ref state);
+            _decisionTraceLookup.Update(ref state);
+            _movementDebugLookup.Update(ref state);
+            _traceEventLookup.Update(ref state);
+
+            EnsureMovementDebugSurfaces(ref state);
 
             var motionConfig = VesselMotionProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
@@ -213,8 +242,17 @@ namespace Space4X.Systems.AI
                 ModuleAggregateLookup = _moduleAggregateLookup,
                 QualityLookup = _qualityLookup,
                 MobilityProfileLookup = _mobilityProfileLookup,
+                PhysicalLookup = _physicalLookup,
                 ResolvedControlLookup = _resolvedControlLookup,
-                BehaviorDispositionLookup = _behaviorDispositionLookup
+                BehaviorDispositionLookup = _behaviorDispositionLookup,
+                AsteroidLookup = _asteroidLookup,
+                AsteroidVolumeLookup = _asteroidVolumeLookup,
+                AsteroidCenterLookup = _asteroidCenterLookup,
+                MoveIntentLookup = _moveIntentLookup,
+                MovePlanLookup = _movePlanLookup,
+                DecisionTraceLookup = _decisionTraceLookup,
+                MovementDebugLookup = _movementDebugLookup,
+                TraceEventLookup = _traceEventLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -248,11 +286,40 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<ModuleStatAggregate> ModuleAggregateLookup;
             [ReadOnly] public ComponentLookup<VesselQuality> QualityLookup;
             [ReadOnly] public ComponentLookup<VesselMobilityProfile> MobilityProfileLookup;
+            [ReadOnly] public ComponentLookup<VesselPhysicalProperties> PhysicalLookup;
             [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
+            [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
+            [ReadOnly] public ComponentLookup<Space4XAsteroidVolumeConfig> AsteroidVolumeLookup;
+            [ReadOnly] public ComponentLookup<Space4XAsteroidCenter> AsteroidCenterLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<MoveIntent> MoveIntentLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<MovePlan> MovePlanLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<DecisionTrace> DecisionTraceLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<MovementDebugState> MovementDebugLookup;
+            [NativeDisableParallelForRestriction] public BufferLookup<MoveTraceEvent> TraceEventLookup;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
+                var debugState = new MovementDebugState();
+                var hasDebug = MovementDebugLookup.HasComponent(entity);
+                if (hasDebug)
+                {
+                    debugState = MovementDebugLookup[entity];
+                }
+
+                if (!IsFinite(transform.Position) || !IsFinite(transform.Rotation.value) || !IsFinite(movement.Velocity))
+                {
+                    movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
+                    movement.IsMoving = 0;
+                    if (hasDebug)
+                    {
+                        debugState.NaNInfCount += 1;
+                        MovementDebugLookup[entity] = debugState;
+                    }
+                    return;
+                }
+
                 // Check Movement capability - if disabled, stop movement
                 if (CapabilityStateLookup.HasComponent(entity))
                 {
@@ -270,6 +337,7 @@ namespace Space4X.Systems.AI
                 {
                     movement.Velocity = float3.zero;
                     movement.IsMoving = 0;
+                    UpdateDecisionTrace(entity, DecisionReasonCode.MiningHold, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
                 }
 
@@ -278,13 +346,40 @@ namespace Space4X.Systems.AI
                 {
                     movement.Velocity = float3.zero;
                     movement.IsMoving = 0;
+                    UpdateDecisionTrace(entity, DecisionReasonCode.NoTarget, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
                 }
                 
                 // TargetPosition should be resolved by VesselTargetingSystem (runs earlier in Space4XTransportAISystemGroup).
                 var targetPosition = aiState.TargetPosition;
+                var isAsteroidTarget = false;
+                var asteroidRadius = 0f;
+                var asteroidStandoff = 0f;
+                if (AsteroidLookup.HasComponent(aiState.TargetEntity) &&
+                    AsteroidVolumeLookup.HasComponent(aiState.TargetEntity))
+                {
+                    var volume = AsteroidVolumeLookup[aiState.TargetEntity];
+                    asteroidRadius = math.max(0.5f, volume.Radius);
+                    asteroidStandoff = MiningVesselLookup.HasComponent(entity) ? 1.4f : 6.5f;
+                    isAsteroidTarget = true;
+                }
+
+                var physical = PhysicalLookup.HasComponent(entity)
+                    ? PhysicalLookup[entity]
+                    : VesselPhysicalProperties.Default;
+                var vesselRadius = math.max(0.1f, physical.Radius);
+                var baseMass = math.max(0.1f, physical.BaseMass);
+                var cargoMass = 0f;
+                if (MiningVesselLookup.HasComponent(entity))
+                {
+                    cargoMass = math.max(0f, MiningVesselLookup[entity].CurrentCargo) * math.max(0f, physical.CargoMassPerUnit);
+                }
+                var massFactor = math.saturate(1f / (1f + cargoMass / baseMass));
+                var restitution = math.clamp(physical.Restitution * massFactor, 0f, 1f);
+                var tangentialDamping = math.clamp(physical.TangentialDamping, 0f, 1f);
                 var toTarget = targetPosition - transform.Position;
                 var distance = math.length(toTarget);
+                var blockerEntity = Entity.Null;
 
                 var arrivalDistance = movement.ArrivalDistance > 0f ? movement.ArrivalDistance : ArrivalDistance;
                 var profileEntity = ResolveProfileEntity(entity);
@@ -297,6 +392,10 @@ namespace Space4X.Systems.AI
 
                 arrivalDistance *= math.lerp(0.95f, 1.15f, caution);
                 arrivalDistance *= math.lerp(0.95f, 1.1f, patience);
+                if (isAsteroidTarget)
+                {
+                    arrivalDistance = math.max(arrivalDistance, MiningVesselLookup.HasComponent(entity) ? 1.2f : 4.5f);
+                }
 
                 var alignment = AlignmentLookup.HasComponent(profileEntity)
                     ? AlignmentLookup[profileEntity]
@@ -330,11 +429,14 @@ namespace Space4X.Systems.AI
                     movement.Velocity = float3.zero;
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
+                    UpdateMoveIntent(entity, aiState.TargetEntity, targetPosition, MoveIntentType.Hold, ref debugState, hasDebug);
+                    UpdateMovePlan(entity, MovePlanMode.Arrive, float3.zero, 0f, 0f, ref debugState, hasDebug);
+                    UpdateDecisionTrace(entity, DecisionReasonCode.Arrived, aiState.TargetEntity, 1f, Entity.Null, ref debugState, hasDebug);
                     // VesselGatheringSystem will transition to Mining state when close enough
                     return;
                 }
 
-                var direction = math.normalize(toTarget);
+                var direction = math.normalizesafe(toTarget, new float3(0f, 0f, 1f));
                 
                 // Get stance parameters (default to Balanced if no stance component)
                 var stanceType = VesselStanceMode.Balanced;
@@ -392,9 +494,11 @@ namespace Space4X.Systems.AI
                 accelerationMultiplier *= math.lerp(1f, moduleSpeedMultiplier, 0.6f);
                 decelerationMultiplier *= math.lerp(1f, moduleSpeedMultiplier, 0.4f);
 
+                var mobilitySpeedMultiplier = 1f;
                 if (MobilityProfileLookup.HasComponent(entity))
                 {
                     var mobilityProfile = MobilityProfileLookup[entity];
+                    ApplyMobilityConstraints(ref direction, transform.Rotation, mobilityProfile, out mobilitySpeedMultiplier);
                     rotationMultiplier *= math.max(0.1f, mobilityProfile.TurnMultiplier);
                 }
                 
@@ -413,6 +517,15 @@ namespace Space4X.Systems.AI
                 if (deviationStrength > 0.001f && distance > MotionConfig.ChaoticDeviationMinDistance)
                 {
                     direction = ApplyDeviation(direction, entity, aiState.TargetEntity, deviationStrength);
+                }
+
+                var currentSpeedSq = math.lengthsq(movement.Velocity);
+                if (currentSpeedSq > 1e-4f)
+                {
+                    var currentDir = math.normalize(movement.Velocity);
+                    var turnSpeed = movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed;
+                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f);
+                    direction = math.normalizesafe(math.lerp(currentDir, direction, steer), direction);
                 }
 
                 if (MiningStateLookup.HasComponent(entity))
@@ -441,18 +554,57 @@ namespace Space4X.Systems.AI
                     effectivenessMultiplier = math.max(0f, effectiveness.MovementEffectiveness);
                 }
 
-                var desiredSpeed = movement.BaseSpeed * speedMultiplier * effectivenessMultiplier;
+                var desiredSpeed = movement.BaseSpeed * speedMultiplier * effectivenessMultiplier * mobilitySpeedMultiplier;
+                var maxSpeed = math.max(0.1f, movement.BaseSpeed * 4f);
+                if (desiredSpeed > maxSpeed)
+                {
+                    desiredSpeed = maxSpeed;
+                    if (hasDebug)
+                    {
+                        debugState.SpeedClampCount += 1;
+                    }
+                }
                 var slowdownDistance = movement.SlowdownDistance > 0f ? movement.SlowdownDistance : arrivalDistance * 4f;
                 slowdownDistance = math.max(arrivalDistance * 1.5f, slowdownDistance * slowdownMultiplier);
+                if (isAsteroidTarget && asteroidRadius > 0f)
+                {
+                    slowdownDistance = math.max(slowdownDistance, asteroidRadius + asteroidStandoff + arrivalDistance * 2f);
+                }
                 if (distance < slowdownDistance)
                 {
                     desiredSpeed *= math.saturate(distance / slowdownDistance);
+                }
+                var overshoot = currentSpeedSq > 1e-4f && math.dot(movement.Velocity, toTarget) < 0f;
+                if (overshoot)
+                {
+                    desiredSpeed *= 0.55f;
+                    rotationMultiplier *= 0.7f;
                 }
 
                 var acceleration = movement.Acceleration > 0f ? movement.Acceleration : math.max(0.1f, movement.BaseSpeed * 2f);
                 var deceleration = movement.Deceleration > 0f ? movement.Deceleration : math.max(0.1f, movement.BaseSpeed * 2.5f);
                 acceleration = math.max(0.01f, acceleration * accelerationMultiplier);
                 deceleration = math.max(0.01f, deceleration * decelerationMultiplier);
+                var maxAccel = math.max(0.1f, movement.BaseSpeed * 6f);
+                if (acceleration > maxAccel)
+                {
+                    acceleration = maxAccel;
+                    if (hasDebug)
+                    {
+                        debugState.AccelClampCount += 1;
+                    }
+                }
+                var speedRatio = math.saturate(movement.CurrentSpeed / math.max(0.1f, desiredSpeed));
+                acceleration *= math.lerp(0.35f, 1f, speedRatio);
+                if (overshoot)
+                {
+                    deceleration *= 1.5f;
+                }
+                if (isAsteroidTarget && asteroidRadius > 0f && distance < asteroidRadius + asteroidStandoff * 0.8f)
+                {
+                    desiredSpeed = math.min(desiredSpeed, math.max(0.2f, movement.BaseSpeed * 0.35f));
+                    deceleration *= 1.6f;
+                }
                 if (movement.CurrentSpeed < desiredSpeed)
                 {
                     movement.CurrentSpeed = math.min(desiredSpeed, movement.CurrentSpeed + acceleration * DeltaTime);
@@ -465,6 +617,33 @@ namespace Space4X.Systems.AI
                 movement.Velocity = direction * movement.CurrentSpeed;
                 transform.Position += movement.Velocity * DeltaTime;
 
+                if (isAsteroidTarget && AsteroidCenterLookup.HasComponent(aiState.TargetEntity))
+                {
+                    var asteroidCenter = AsteroidCenterLookup[aiState.TargetEntity].Position;
+                    var toVessel = transform.Position - asteroidCenter;
+                    var centerDistance = math.length(toVessel);
+                    var surfaceRadius = math.max(0.1f, asteroidRadius + vesselRadius);
+                    if (centerDistance < surfaceRadius)
+                    {
+                        blockerEntity = aiState.TargetEntity;
+                        var normal = centerDistance > 1e-4f ? toVessel / centerDistance : math.up();
+                        var penetration = surfaceRadius - centerDistance;
+                        transform.Position += normal * penetration;
+
+                        var velocity = movement.Velocity;
+                        var normalSpeed = math.dot(velocity, normal);
+                        if (normalSpeed < 0f)
+                        {
+                            velocity -= (1f + restitution) * normalSpeed * normal;
+                        }
+
+                        var tangent = velocity - math.dot(velocity, normal) * normal;
+                        velocity -= tangent * tangentialDamping;
+                        movement.Velocity = velocity;
+                        movement.CurrentSpeed = math.length(velocity);
+                    }
+                }
+
                 if (math.lengthsq(movement.Velocity) > 0.001f)
                 {
                     movement.DesiredRotation = quaternion.LookRotationSafe(direction, math.up());
@@ -474,6 +653,14 @@ namespace Space4X.Systems.AI
 
                 movement.IsMoving = 1;
                 movement.LastMoveTick = CurrentTick;
+
+                var intentType = ResolveIntentType(entity, aiState);
+                var planMode = ResolvePlanMode(entity, aiState, distance, arrivalDistance, isAsteroidTarget);
+                var eta = desiredSpeed > 0.01f ? distance / desiredSpeed : 0f;
+                UpdateMoveIntent(entity, aiState.TargetEntity, targetPosition, intentType, ref debugState, hasDebug);
+                UpdateMovePlan(entity, planMode, direction * desiredSpeed, acceleration, eta, ref debugState, hasDebug);
+                UpdateDecisionTrace(entity, DecisionReasonCode.Moving, aiState.TargetEntity, 1f, blockerEntity, ref debugState, hasDebug);
+                UpdateMovementInvariants(entity, transform.Position, distance, movement.CurrentSpeed, movement.BaseSpeed, ref debugState, hasDebug);
             }
 
             private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity vesselEntity)
@@ -667,6 +854,307 @@ namespace Space4X.Systems.AI
                 var lateral = math.normalize(math.cross(direction, math.up()));
                 var adjusted = direction + lateral * offset * strength;
                 return math.normalize(adjusted);
+            }
+
+            private MoveIntentType ResolveIntentType(Entity vesselEntity, VesselAIState aiState)
+            {
+                if (aiState.TargetEntity == Entity.Null)
+                {
+                    return MoveIntentType.None;
+                }
+
+                if (MiningStateLookup.HasComponent(vesselEntity))
+                {
+                    var phase = MiningStateLookup[vesselEntity].Phase;
+                    return phase switch
+                    {
+                        MiningPhase.Docking => MoveIntentType.Dock,
+                        MiningPhase.Latching => MoveIntentType.Latch,
+                        MiningPhase.Mining => MoveIntentType.Hold,
+                        _ => MoveIntentType.MoveTo
+                    };
+                }
+
+                return MoveIntentType.MoveTo;
+            }
+
+            private MovePlanMode ResolvePlanMode(Entity vesselEntity, VesselAIState aiState, float distance, float arrivalDistance, bool isAsteroidTarget)
+            {
+                if (distance <= arrivalDistance)
+                {
+                    return MovePlanMode.Arrive;
+                }
+
+                if (MiningStateLookup.HasComponent(vesselEntity))
+                {
+                    var phase = MiningStateLookup[vesselEntity].Phase;
+                    return phase switch
+                    {
+                        MiningPhase.Latching => MovePlanMode.Latch,
+                        MiningPhase.Docking => MovePlanMode.Dock,
+                        _ => MovePlanMode.Approach
+                    };
+                }
+
+                if (isAsteroidTarget)
+                {
+                    return MovePlanMode.Orbit;
+                }
+
+                return MovePlanMode.Approach;
+            }
+
+            private void UpdateMoveIntent(Entity entity, Entity target, float3 targetPosition, MoveIntentType intentType, ref MovementDebugState debugState, bool hasDebug)
+            {
+                if (!MoveIntentLookup.HasComponent(entity))
+                {
+                    return;
+                }
+
+                var intent = MoveIntentLookup[entity];
+                if (intent.IntentType != intentType || intent.TargetEntity != target)
+                {
+                    intent.IntentType = intentType;
+                    intent.TargetEntity = target;
+                    intent.TargetPosition = targetPosition;
+                    MoveIntentLookup[entity] = intent;
+                    PushTraceEvent(entity, MoveTraceEventKind.IntentChanged, target, ref debugState, hasDebug);
+                }
+                else
+                {
+                    intent.TargetPosition = targetPosition;
+                    MoveIntentLookup[entity] = intent;
+                }
+            }
+
+            private void UpdateMovePlan(Entity entity, MovePlanMode mode, float3 desiredVelocity, float maxAccel, float eta, ref MovementDebugState debugState, bool hasDebug)
+            {
+                if (!MovePlanLookup.HasComponent(entity))
+                {
+                    return;
+                }
+
+                var plan = MovePlanLookup[entity];
+                if (plan.Mode != mode)
+                {
+                    plan.Mode = mode;
+                    plan.DesiredVelocity = desiredVelocity;
+                    plan.MaxAccel = maxAccel;
+                    plan.EstimatedTime = eta;
+                    MovePlanLookup[entity] = plan;
+                    PushTraceEvent(entity, MoveTraceEventKind.PlanChanged, Entity.Null, ref debugState, hasDebug);
+                }
+                else
+                {
+                    plan.DesiredVelocity = desiredVelocity;
+                    plan.MaxAccel = maxAccel;
+                    plan.EstimatedTime = eta;
+                    MovePlanLookup[entity] = plan;
+                }
+            }
+
+            private void UpdateDecisionTrace(Entity entity, DecisionReasonCode reason, Entity target, float score, Entity blocker, ref MovementDebugState debugState, bool hasDebug)
+            {
+                if (!DecisionTraceLookup.HasComponent(entity))
+                {
+                    return;
+                }
+
+                var trace = DecisionTraceLookup[entity];
+                if (trace.ReasonCode != reason || trace.ChosenTarget != target || trace.BlockerEntity != blocker)
+                {
+                    trace.ReasonCode = reason;
+                    trace.ChosenTarget = target;
+                    trace.Score = score;
+                    trace.BlockerEntity = blocker;
+                    trace.SinceTick = CurrentTick;
+                    DecisionTraceLookup[entity] = trace;
+                    PushTraceEvent(entity, MoveTraceEventKind.DecisionChanged, target, ref debugState, hasDebug);
+                }
+                else
+                {
+                    trace.Score = score;
+                    DecisionTraceLookup[entity] = trace;
+                }
+            }
+
+            private void UpdateMovementInvariants(Entity entity, float3 position, float distanceToTarget, float currentSpeed, float baseSpeed, ref MovementDebugState debugState, bool hasDebug)
+            {
+                if (!hasDebug)
+                {
+                    return;
+                }
+
+                if (debugState.Initialized == 0)
+                {
+                    debugState.LastPosition = position;
+                    debugState.LastDistanceToTarget = distanceToTarget;
+                    debugState.LastSpeed = currentSpeed;
+                    debugState.LastProgressTick = CurrentTick;
+                    debugState.LastSampleTick = CurrentTick;
+                    debugState.Initialized = 1;
+                    MovementDebugLookup[entity] = debugState;
+                    return;
+                }
+
+                var delta = math.length(position - debugState.LastPosition);
+                var teleportThreshold = math.max(5f, baseSpeed * 4f * DeltaTime);
+                if (delta > teleportThreshold)
+                {
+                    debugState.TeleportCount += 1;
+                    debugState.MaxTeleportDistance = math.max(debugState.MaxTeleportDistance, delta);
+                }
+
+                var speedDelta = math.abs(currentSpeed - debugState.LastSpeed);
+                debugState.MaxSpeedDelta = math.max(debugState.MaxSpeedDelta, speedDelta);
+
+                if (distanceToTarget + 0.05f < debugState.LastDistanceToTarget)
+                {
+                    debugState.LastProgressTick = CurrentTick;
+                }
+                else if (CurrentTick - debugState.LastProgressTick > 120)
+                {
+                    debugState.StuckCount += 1;
+                    debugState.LastProgressTick = CurrentTick;
+                }
+
+                debugState.LastPosition = position;
+                debugState.LastDistanceToTarget = distanceToTarget;
+                debugState.LastSpeed = currentSpeed;
+                debugState.LastSampleTick = CurrentTick;
+                MovementDebugLookup[entity] = debugState;
+            }
+
+            private void PushTraceEvent(Entity entity, MoveTraceEventKind kind, Entity target, ref MovementDebugState debugState, bool hasDebug)
+            {
+                if (!TraceEventLookup.HasBuffer(entity))
+                {
+                    return;
+                }
+
+                var buffer = TraceEventLookup[entity];
+                if (buffer.Length >= MovementDebugState.TraceCapacity)
+                {
+                    buffer.RemoveAt(0);
+                }
+
+                buffer.Add(new MoveTraceEvent
+                {
+                    Kind = kind,
+                    Tick = CurrentTick,
+                    Target = target
+                });
+
+                if (hasDebug)
+                {
+                    debugState.StateFlipCount += 1;
+                    MovementDebugLookup[entity] = debugState;
+                }
+            }
+
+            private static bool IsFinite(float3 value)
+            {
+                return math.all(math.isfinite(value));
+            }
+
+            private static bool IsFinite(float4 value)
+            {
+                return math.all(math.isfinite(value));
+            }
+
+            private static void ApplyMobilityConstraints(
+                ref float3 direction,
+                in quaternion rotation,
+                in VesselMobilityProfile mobility,
+                out float speedMultiplier)
+            {
+                speedMultiplier = 1f;
+
+                var forward = math.forward(rotation);
+                var right = math.normalizesafe(math.cross(math.up(), forward), new float3(1f, 0f, 0f));
+                var forwardDot = math.dot(direction, forward);
+                var lateralDot = math.dot(direction, right);
+
+                var reverseMultiplier = math.max(0f, mobility.ReverseSpeedMultiplier);
+                var strafeMultiplier = math.max(0f, mobility.StrafeSpeedMultiplier);
+
+                switch (mobility.ThrustMode)
+                {
+                    case VesselThrustMode.ForwardOnly:
+                        if (forwardDot <= 0f)
+                        {
+                            direction = forward;
+                            speedMultiplier = 0f;
+                            return;
+                        }
+
+                        speedMultiplier = math.saturate(forwardDot);
+                        direction = math.normalizesafe(forward * forwardDot, forward);
+                        return;
+
+                    case VesselThrustMode.Vectored:
+                    {
+                        var forwardComponent = forwardDot >= 0f
+                            ? forwardDot
+                            : forwardDot * reverseMultiplier;
+                        var lateralComponent = lateralDot * strafeMultiplier;
+                        direction = math.normalizesafe(forward * forwardComponent + right * lateralComponent, direction);
+                        speedMultiplier = math.saturate(math.abs(forwardComponent) + math.abs(lateralComponent));
+                        return;
+                    }
+
+                    case VesselThrustMode.Omnidirectional:
+                        speedMultiplier = math.lerp(1f, strafeMultiplier, math.abs(lateralDot));
+                        return;
+                }
+            }
+        }
+
+        private void EnsureMovementDebugSurfaces(ref SystemState state)
+        {
+            var moveIntentQuery = SystemAPI.QueryBuilder()
+                .WithAll<VesselMovement>()
+                .WithNone<MoveIntent>()
+                .Build();
+            if (!moveIntentQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<MoveIntent>(moveIntentQuery);
+            }
+
+            var movePlanQuery = SystemAPI.QueryBuilder()
+                .WithAll<VesselMovement>()
+                .WithNone<MovePlan>()
+                .Build();
+            if (!movePlanQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<MovePlan>(movePlanQuery);
+            }
+
+            var decisionTraceQuery = SystemAPI.QueryBuilder()
+                .WithAll<VesselMovement>()
+                .WithNone<DecisionTrace>()
+                .Build();
+            if (!decisionTraceQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<DecisionTrace>(decisionTraceQuery);
+            }
+
+            var debugStateQuery = SystemAPI.QueryBuilder()
+                .WithAll<VesselMovement>()
+                .WithNone<MovementDebugState>()
+                .Build();
+            if (!debugStateQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<MovementDebugState>(debugStateQuery);
+            }
+
+            var traceBufferQuery = SystemAPI.QueryBuilder()
+                .WithAll<VesselMovement>()
+                .WithNone<MoveTraceEvent>()
+                .Build();
+            if (!traceBufferQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<MoveTraceEvent>(traceBufferQuery);
             }
         }
     }

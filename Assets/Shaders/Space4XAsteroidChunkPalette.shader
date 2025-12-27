@@ -17,6 +17,7 @@ Shader "Space4X/AsteroidChunkPalette"
         {
             Name "Forward"
             Tags { "LightMode"="UniversalForward" }
+            Cull Off
 
             HLSLPROGRAM
             #pragma vertex vert

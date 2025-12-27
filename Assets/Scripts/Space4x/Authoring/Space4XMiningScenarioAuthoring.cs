@@ -10,6 +10,7 @@ using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Swarms;
 using Space4X.Presentation;
 using Space4X.Runtime;
+using PureDOTS.Runtime.Interrupts;
 using Space4X.Runtime.Breakables;
 using MiningPrimitive = Space4X.Presentation.Space4XMiningPrimitive;
 using Unity.Collections;
@@ -68,6 +69,11 @@ namespace Space4X.Registry
                 Position = new float3(5f, 0f, -2f),
                 CarrierId = "CARRIER-1",
                 ToolKind = TerrainModificationToolKind.Drill,
+                ToolShapeOverride = true,
+                ToolShape = TerrainModificationShape.Tunnel,
+                ToolRadiusOverride = 0.9f,
+                ToolStepLengthOverride = 0.35f,
+                ToolDigUnitsPerMeterOverride = 18f,
                 Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -89,6 +95,13 @@ namespace Space4X.Registry
                 Position = new float3(-5f, 0f, -14f),
                 CarrierId = "CARRIER-1",
                 ToolKind = TerrainModificationToolKind.Laser,
+                ToolShapeOverride = true,
+                ToolShape = TerrainModificationShape.Tunnel,
+                ToolRadiusOverride = 1.4f,
+                ToolStepLengthOverride = 4.5f,
+                ToolYieldMultiplier = 0.55f,
+                ToolHeatDeltaMultiplier = 1.35f,
+                ToolInstabilityDeltaMultiplier = 1.2f,
                 Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -110,6 +123,40 @@ namespace Space4X.Registry
                 Position = new float3(12f, 0f, -18f),
                 CarrierId = "CARRIER-1",
                 ToolKind = TerrainModificationToolKind.Microwave,
+                ToolShapeOverride = true,
+                ToolShape = TerrainModificationShape.Brush,
+                ToolRadiusOverride = 2.6f,
+                ToolDamageDeltaOverride = 6,
+                ToolDamageThresholdOverride = 220,
+                ToolYieldMultiplier = 0.35f,
+                ToolHeatDeltaMultiplier = 1.4f,
+                Disposition = EntityDispositionFlags.None,
+                Alignment = AlignmentDefinition.CreateNeutral(),
+                RaceId = 0,
+                CultureId = 0,
+                AffiliationId = "AFFILIATION-1",
+                PilotAlignment = AlignmentDefinition.CreateNeutral(),
+                PilotRaceId = 0,
+                PilotCultureId = 0
+            },
+            new MiningVesselDefinition
+            {
+                VesselId = "MINER-4",
+                Speed = 9f,
+                MiningEfficiency = 0.75f,
+                CargoCapacity = 120f,
+                MiningTickInterval = 0.6f,
+                OutputSpawnThreshold = 25f,
+                ResourceId = "space4x.resource.minerals",
+                Position = new float3(-12f, 0f, -6f),
+                CarrierId = "CARRIER-1",
+                ToolKind = TerrainModificationToolKind.Drill,
+                ToolShapeOverride = true,
+                ToolShape = TerrainModificationShape.Brush,
+                ToolRadiusOverride = 3.2f,
+                ToolStepLengthOverride = 1.1f,
+                ToolYieldMultiplier = 0.9f,
+                ToolHeatDeltaMultiplier = 0.8f,
                 Disposition = EntityDispositionFlags.None,
                 Alignment = AlignmentDefinition.CreateNeutral(),
                 RaceId = 0,
@@ -276,6 +323,33 @@ namespace Space4X.Registry
 
             [Header("Mining Tool")]
             public TerrainModificationToolKind ToolKind;
+            [Tooltip("If true, override the default tool shape for this miner.")]
+            public bool ToolShapeOverride;
+            public TerrainModificationShape ToolShape;
+            [Tooltip("Override tool radius (<=0 uses config).")]
+            public float ToolRadiusOverride;
+            [Tooltip("Multiply base tool radius (<=0 uses 1).")]
+            public float ToolRadiusMultiplier;
+            [Tooltip("Override step length (<=0 uses config).")]
+            public float ToolStepLengthOverride;
+            [Tooltip("Multiply base step length (<=0 uses 1).")]
+            public float ToolStepLengthMultiplier;
+            [Tooltip("Override dig units per meter (<=0 uses config).")]
+            public float ToolDigUnitsPerMeterOverride;
+            [Tooltip("Override minimum step length (<=0 uses config).")]
+            public float ToolMinStepLengthOverride;
+            [Tooltip("Override maximum step length (<=0 uses config).")]
+            public float ToolMaxStepLengthOverride;
+            [Tooltip("Multiply tool yield (<=0 uses 1).")]
+            public float ToolYieldMultiplier;
+            [Tooltip("Multiply tool heat delta (<=0 uses 1).")]
+            public float ToolHeatDeltaMultiplier;
+            [Tooltip("Multiply tool instability delta (<=0 uses 1).")]
+            public float ToolInstabilityDeltaMultiplier;
+            [Tooltip("Override microwave damage delta (<=0 uses config).")]
+            public int ToolDamageDeltaOverride;
+            [Tooltip("Override microwave damage threshold (<=0 uses config).")]
+            public int ToolDamageThresholdOverride;
 
             [Header("Disposition")]
             [Tooltip("Optional explicit disposition flags; leave None to auto-classify.")]
@@ -565,6 +639,11 @@ namespace Space4X.Registry
                         CarrierId = carrierIdBytes,
                         AffiliationEntity = ResolveAffiliation(carrier.AffiliationId),
                         Speed = math.max(0.1f, carrier.Speed),
+                        Acceleration = math.max(0.1f, carrier.Speed * 0.4f),
+                        Deceleration = math.max(0.1f, carrier.Speed * 0.6f),
+                        TurnSpeed = 0.35f,
+                        SlowdownDistance = 12f,
+                        ArrivalDistance = 2.5f,
                         PatrolCenter = carrier.PatrolCenter,
                         PatrolRadius = math.max(1f, carrier.PatrolRadius)
                     });
@@ -601,6 +680,54 @@ namespace Space4X.Registry
                     {
                         TargetPosition = float3.zero,
                         ArrivalThreshold = 1f
+                    });
+
+                    AddComponent(entity, new VesselMovement
+                    {
+                        Velocity = float3.zero,
+                        BaseSpeed = math.max(0.1f, carrier.Speed),
+                        CurrentSpeed = 0f,
+                        Acceleration = math.max(0.1f, carrier.Speed * 0.4f),
+                        Deceleration = math.max(0.1f, carrier.Speed * 0.6f),
+                        TurnSpeed = 0.35f,
+                        SlowdownDistance = 12f,
+                        ArrivalDistance = 2.5f,
+                        DesiredRotation = quaternion.identity,
+                        IsMoving = 0,
+                        LastMoveTick = 0
+                    });
+
+                    AddComponent(entity, new VesselAIState
+                    {
+                        CurrentState = VesselAIState.State.Idle,
+                        CurrentGoal = VesselAIState.Goal.None,
+                        TargetEntity = Entity.Null,
+                        TargetPosition = float3.zero,
+                        StateTimer = 0f,
+                        StateStartTick = 0
+                    });
+
+                    AddComponent(entity, new EntityIntent
+                    {
+                        Mode = IntentMode.Idle,
+                        TargetEntity = Entity.Null,
+                        TargetPosition = float3.zero,
+                        TriggeringInterrupt = InterruptType.None,
+                        IntentSetTick = 0,
+                        Priority = InterruptPriority.Low,
+                        IsValid = 0
+                    });
+
+                    AddBuffer<Interrupt>(entity);
+
+                    AddComponent(entity, new VesselPhysicalProperties
+                    {
+                        Radius = 2.6f,
+                        BaseMass = 120f,
+                        HullDensity = 1.2f,
+                        CargoMassPerUnit = 0.02f,
+                        Restitution = 0.08f,
+                        TangentialDamping = 0.25f
                     });
 
                     // Add ResourceStorage buffer for the carrier
@@ -816,7 +943,21 @@ namespace Space4X.Registry
 
                     AddComponent(entity, new Space4XMiningToolProfile
                     {
-                        ToolKind = vessel.ToolKind
+                        ToolKind = vessel.ToolKind,
+                        HasShapeOverride = vessel.ToolShapeOverride ? (byte)1 : (byte)0,
+                        Shape = vessel.ToolShape,
+                        RadiusOverride = vessel.ToolRadiusOverride,
+                        RadiusMultiplier = vessel.ToolRadiusMultiplier,
+                        StepLengthOverride = vessel.ToolStepLengthOverride,
+                        StepLengthMultiplier = vessel.ToolStepLengthMultiplier,
+                        DigUnitsPerMeterOverride = vessel.ToolDigUnitsPerMeterOverride,
+                        MinStepLengthOverride = vessel.ToolMinStepLengthOverride,
+                        MaxStepLengthOverride = vessel.ToolMaxStepLengthOverride,
+                        YieldMultiplier = vessel.ToolYieldMultiplier,
+                        HeatDeltaMultiplier = vessel.ToolHeatDeltaMultiplier,
+                        InstabilityDeltaMultiplier = vessel.ToolInstabilityDeltaMultiplier,
+                        DamageDeltaOverride = (byte)math.clamp(vessel.ToolDamageDeltaOverride, 0, 255),
+                        DamageThresholdOverride = (byte)math.clamp(vessel.ToolDamageThresholdOverride, 0, 255)
                     });
 
                     AddComponent(entity, new VesselAIState
@@ -837,6 +978,16 @@ namespace Space4X.Registry
                         DesiredRotation = quaternion.identity,
                         IsMoving = 0,
                         LastMoveTick = 0
+                    });
+
+                    AddComponent(entity, new VesselPhysicalProperties
+                    {
+                        Radius = 0.6f,
+                        BaseMass = 6f,
+                        HullDensity = 1.05f,
+                        CargoMassPerUnit = 0.04f,
+                        Restitution = 0.15f,
+                        TangentialDamping = 0.3f
                     });
 
                     AddComponent<PickableTag>(entity);
@@ -942,6 +1093,11 @@ namespace Space4X.Registry
                         Seed = (uint)math.max(0, asteroid.VolumeSeed)
                     });
 
+                    AddComponent(entity, new Space4XAsteroidCenter
+                    {
+                        Position = asteroidPosition
+                    });
+
                     AddComponent<PickableTag>(entity);
                     AddComponent(entity, new HandPickable
                     {
@@ -956,13 +1112,6 @@ namespace Space4X.Registry
                         ThrowSpeedMultiplier = 0.6f,
                         SlingshotSpeedMultiplier = 0.8f
                     });
-                    AddComponent(entity, new Space4X.Runtime.Interaction.Space4XCelestialManipulable());
-                    AddComponent(entity, new Space4X.Physics.SpaceVelocity
-                    {
-                        Linear = float3.zero,
-                        Angular = float3.zero
-                    });
-
                     AssignRenderPresentation(entity, RenderKeys.Asteroid, asteroidTint);
 #if UNITY_EDITOR
                     if (!s_loggedAsteroids)

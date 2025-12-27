@@ -323,6 +323,11 @@ namespace Space4X.Scenario
                 volumeConfig.Radius = math.max(0.1f, volumeConfig.Radius);
                 ecb.AddComponent(asteroid, volumeConfig);
 
+                ecb.AddComponent(asteroid, new Space4XAsteroidCenter
+                {
+                    Position = position
+                });
+
             }
         }
 

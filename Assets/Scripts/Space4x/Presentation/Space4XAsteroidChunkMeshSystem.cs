@@ -418,12 +418,7 @@ namespace Space4X.Presentation
                     break;
                 }
 
-                chunkLookup.Update(this);
-                runtimeLookup.Update(this);
-                voxelAccessor.Chunks = chunkLookup;
-                voxelAccessor.RuntimeVoxels = runtimeLookup;
-
-                if (TryRebuildChunk(pending[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
+                if (TryRebuildChunk(pending[idx].Chunk, ref voxelAccessor, ref chunkLookup, ref runtimeLookup, material, renderMeshDesc, terrainConfig,
                         out var buildMs, out var vertexCount, out var indexCount, out var quadBefore, out var quadAfter))
                 {
                     builtCount++;
@@ -452,12 +447,7 @@ namespace Space4X.Presentation
                     break;
                 }
 
-                chunkLookup.Update(this);
-                runtimeLookup.Update(this);
-                voxelAccessor.Chunks = chunkLookup;
-                voxelAccessor.RuntimeVoxels = runtimeLookup;
-
-                if (TryRebuildChunk(pending[idx].Chunk, ref voxelAccessor, material, renderMeshDesc, terrainConfig,
+                if (TryRebuildChunk(pending[idx].Chunk, ref voxelAccessor, ref chunkLookup, ref runtimeLookup, material, renderMeshDesc, terrainConfig,
                         out var buildMs, out var vertexCount, out var indexCount, out var quadBefore, out var quadAfter))
                 {
                     builtCount++;
@@ -744,6 +734,8 @@ namespace Space4X.Presentation
         private bool TryRebuildChunk(
             Entity entity,
             ref TerrainVoxelAccessor voxelAccessor,
+            ref ComponentLookup<TerrainChunk> chunkLookup,
+            ref BufferLookup<TerrainVoxelRuntime> runtimeLookup,
             Material material,
             RenderMeshDescription renderMeshDesc,
             TerrainWorldConfig terrainConfig,
@@ -779,6 +771,10 @@ namespace Space4X.Presentation
 
             quadBefore = 0;
             quadAfter = 0;
+            chunkLookup.Update(this);
+            runtimeLookup.Update(this);
+            voxelAccessor.Chunks = chunkLookup;
+            voxelAccessor.RuntimeVoxels = runtimeLookup;
             BuildChunkMesh(ref voxelAccessor, chunk, terrainConfig.VoxelSize, _vertices, _normals, _uvs, _colors, _indices,
                 _faceMask, _faceUsed, ref quadBefore, ref quadAfter);
 
