@@ -121,7 +121,7 @@ namespace Space4X.Headless
                 UnityDebug.Log($"[Space4XHeadlessMiningProof] PASS tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount}");
                 TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, true, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
                 TryFlushRewindProof(ref state);
-                ExitIfRequested(0);
+                RequestExitOnPassIfEnabled(ref state, timeState.Tick);
                 return;
             }
 
@@ -134,7 +134,7 @@ namespace Space4X.Headless
                 UnityDebug.LogError($"[Space4XHeadlessMiningProof] FAIL tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount} commands={totalCommands} (deltaCommands={math.max(0, (int)totalCommands - (int)_lastCommandCount)})");
                 TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, false, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
                 TryFlushRewindProof(ref state);
-                ExitIfRequested(3);
+                RequestExitOnFail(ref state, timeState.Tick, 3);
                 return;
             }
 
@@ -170,14 +170,19 @@ namespace Space4X.Headless
             _rewindPending = 0;
         }
 
-        private static void ExitIfRequested(int exitCode)
+        private static void RequestExitOnPassIfEnabled(ref SystemState state, uint tick)
         {
             if (!string.Equals(SystemEnv.GetEnvironmentVariable(ExitOnResultEnv), "1", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            Application.Quit(exitCode);
+            HeadlessExitUtility.Request(state.EntityManager, tick, 0);
+        }
+
+        private static void RequestExitOnFail(ref SystemState state, uint tick, int exitCode)
+        {
+            HeadlessExitUtility.Request(state.EntityManager, tick, exitCode);
         }
 
         private (float cargoSum, int returning, int mining, int total) GetVesselStats(ref SystemState state)

@@ -1,123 +1,88 @@
 # Space4X Render Catalog Truth Source
 
 **Last Updated**: 2025-12-10
-**Status**: Working pipeline - do not modify unless explicitly requested
+**Status**: Active pipeline - keep in sync with PureDOTS
 
 ## Canonical Types (Truth)
 
-### RenderCatalogBlob
-```csharp
-public struct RenderCatalogBlob
-{
-    public BlobArray<RenderCatalogEntry> Entries;
-}
-```
-- **File**: `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogTypes.cs`
-- **Purpose**: Immutable blob data containing catalog entries
-- **Lifetime**: Persistent blob asset created by baker
+All catalog authoring and runtime types live in PureDOTS:
 
-### RenderCatalogEntry
-```csharp
-public struct RenderCatalogEntry
-{
-    public ushort ArchetypeId;
-    public int MeshIndex;
-    public int MaterialIndex;
-    public float3 BoundsCenter;
-    public float3 BoundsExtents;
-}
-```
-- **File**: `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogTypes.cs`
-- **Purpose**: Maps visual archetype IDs to mesh/material/bounds data
-- **Lookup**: Consumed by `PureDOTS.Rendering.ResolveRenderVariantSystem`, which scans the blob entries when resolving `RenderVariantKey`
+- `puredots/Packages/com.moni.puredots/Runtime/Rendering/RenderPresentationCatalogDefinition.cs`
+  - `RenderPresentationCatalogDefinition` (ScriptableObject with `Variants` + `Themes`)
+- `puredots/Packages/com.moni.puredots/Runtime/Rendering/RenderPresentationCatalogAuthoring.cs`
+  - `RenderPresentationCatalogAuthoring` (MonoBehaviour for baking)
+- `puredots/Packages/com.moni.puredots/Runtime/Authoring/Rendering/RenderPresentationCatalogBaker.cs`
+  - `RenderPresentationCatalogBaker` (creates `RenderPresentationCatalog` + `RenderMeshArray`)
+- `puredots/Packages/com.moni.puredots/Runtime/Rendering/RenderPresentationContract.cs`
+  - `RenderPresentationCatalog` + `RenderPresentationCatalogBlob`
 
-### Space4XRenderCatalogDefinition.Entry (Authoring)
 ```csharp
-[Serializable]
-public struct Entry
+public struct RenderPresentationCatalog : IComponentData
 {
-    public ushort ArchetypeId;
-    public Mesh Mesh;
-    public Material Material;
-    public Vector3 BoundsCenter;
-    public Vector3 BoundsExtents;
+    public BlobAssetReference<RenderPresentationCatalogBlob> Blob;
+    public Entity RenderMeshArrayEntity;
 }
 ```
-- **File**: `Assets/Scripts/Space4x/Rendering/Catalog/Space4XRenderCatalogDefinition.cs`
-- **Purpose**: ScriptableObject-based authoring data
-- **Conversion**: Baker converts to blob entries + RenderMeshArray
+
+## Space4X Catalog Assets
+
+- `space4x/Assets/Data/Space4XRenderCatalog_v2.asset` (canonical, referenced by scenes)
+- `space4x/Assets/Data/Space4XRenderCatalog.asset` (legacy, not referenced by smoke/bootstrap scenes)
 
 ## Data Flow Pipeline
 
 ```
-Space4XRenderCatalogDefinition (ScriptableObject)
-    ↓ [Baker: RenderCatalogBaker]
-RenderPresentationCatalog (IComponentData with BlobAssetReference)
-    +
-RenderMeshArray shared component
-    ↓ [Runtime: PureDOTS.ResolveRenderVariantSystem + ApplyRenderVariantSystem]
-Entities with RenderSemanticKey + presenters → MaterialMeshInfo + RenderBounds
+Space4XRenderCatalog_v2.asset (RenderPresentationCatalogDefinition)
+    -> RenderPresentationCatalogAuthoring (scene/subscene)
+    -> RenderPresentationCatalogBaker
+    -> RenderPresentationCatalog + RenderMeshArray entity
+    -> PureDOTS.ResolveRenderVariantSystem + ApplyRenderVariantSystem
+    -> Entities with RenderSemanticKey / RenderKey + presenters
 ```
 
-### Baker Process (RenderCatalogBaker)
-- **Input**: `Space4XRenderCatalogDefinition` assigned to `RenderCatalogAuthoring`
-- **Output**:
-  - `RenderPresentationCatalog` with themed+variant blob reference
-  - `RenderMeshArray` shared component with meshes/materials
-- **File**: `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogAuthoring.cs`
+Fallback path when no baked catalog exists:
 
-### Runtime Application (PureDOTS Resolve/Apply)
-- **Resolve**: `PureDOTS.Rendering.ResolveRenderVariantSystem` change-filters on `RenderSemanticKey`, `RenderKey.LOD`, themes, and overrides to write `RenderVariantKey`.
-- **Apply**: `PureDOTS.Rendering.ApplyRenderVariantSystem` (MeshPresenter) + `SpritePresenterSystem`/`DebugPresenterSystem` bind `MaterialMeshInfo`, `RenderBounds`, and `WorldRenderBounds` whenever `RenderVariantKey` changes or the catalog version increments.
-- **Shared Data**: Entities store `RenderSemanticKey`, optional `RenderKey` (for LOD), `RenderVariantKey`, and enableable presenter components (`MeshPresenter`, `SpritePresenter`, `DebugPresenter`).
+```
+Space4XRenderCatalog_v2.asset
+    -> RenderPresentationCatalogRuntimeBootstrap
+    -> RenderPresentationCatalog + RenderMeshArray entity
+```
 
-## Archetype ID Mapping
+## Scene Wiring
 
-| Entity Type | ArchetypeId | Mesh Shape | Notes |
-|-------------|-------------|------------|-------|
-| Carrier | 200 | Sphere | Space4XRenderKeys.Carrier |
-| Miner | 210 | Cube | Space4XRenderKeys.Miner |
-| Asteroid | 220 | Sphere | Space4XRenderKeys.Asteroid |
-| Projectile | 230 | - | Space4XRenderKeys.Projectile |
-| FleetImpostor | 240 | - | Space4XRenderKeys.FleetImpostor |
+- `space4x/Assets/TRI_Space4X_Smoke.unity`
+  - `RenderPresentationCatalogAuthoring` + `RenderPresentationCatalogRuntimeBootstrap`
+  - Both reference `Space4XRenderCatalog_v2.asset`
+- `space4x/Assets/Scenes/Space4X_Bootstrap.unity`
+  - `RenderPresentationCatalogAuthoring` referencing `Space4XRenderCatalog_v2.asset`
 
-## Editor Setup
+## How to Add a Render Entry (Space4X)
 
-### ConfigureRenderCatalog.cs
-- **Menu**: `Space4X → Configure Render Catalog`
-- **Creates**: `Assets/Space4XRenderCatalog.asset` (Space4XRenderCatalogDefinition)
-- **Populates**: 3 entries with primitive meshes (Sphere/Cube/Sphere)
-- **Assigns**: CatalogDefinition to RenderCatalogAuthoring GameObject
-- **File**: `Assets/Editor/ConfigureRenderCatalog.cs`
+1. Open `space4x/Assets/Data/Space4XRenderCatalog_v2.asset`.
+2. Add a new item under `Variants` with Mesh/Material/Bounds/PresenterMask.
+3. Update Theme 0 (and any active themes) to map the `SemanticKey` to the new variant indices (`Lod0Variant`, `Lod1Variant`, `Lod2Variant`).
+4. Ensure gameplay writes `RenderSemanticKey` using `Space4XRenderKeys` values (`space4x/Assets/Scripts/Space4x/Presentation/Space4XRenderKeys.cs`).
+5. The baker/runtime bootstrap bumps `RenderCatalogVersion` automatically; no manual versioning needed.
 
-### Scene Requirements
-- **RenderCatalog GameObject** with `RenderCatalogAuthoring` component
-- **CatalogDefinition** field assigned to `Space4XRenderCatalogDefinition.asset`
-- **SubScene conversion** or scene baking to trigger baker
+## Archetype / Semantic Key Map
+
+| Key | Value | Notes |
+| --- | --- | --- |
+| Carrier | 200 | `Space4XRenderKeys.Carrier` |
+| Miner | 210 | `Space4XRenderKeys.Miner` |
+| Asteroid | 220 | `Space4XRenderKeys.Asteroid` |
+| Projectile | 230 | `Space4XRenderKeys.Projectile` |
+| FleetImpostor | 240 | `Space4XRenderKeys.FleetImpostor` |
+| Individual | 250 | `Space4XRenderKeys.Individual` |
+| StrikeCraft | 260 | `Space4XRenderKeys.StrikeCraft` |
+| ResourcePickup | 270 | `Space4XRenderKeys.ResourcePickup` |
+| GhostTether | 280 | `Space4XRenderKeys.GhostTether` |
 
 ## Runtime Verification
 
-### System Checks
 - `RenderPresentationCatalog.Blob.IsCreated == true`
-- `RenderPresentationCatalog.RenderMeshArrayEntity` has `RenderMeshArray` shared component with mesh/material references
-
-### Entity Checks
-- Entities with `RenderSemanticKey` map to valid theme entries (see `Space4XRenderKeys`)
-- After the PureDOTS apply systems run: entities with enabled presenters have `MaterialMeshInfo` + `RenderBounds`
-- `MaterialMeshInfo` indices are valid for the shared `RenderMeshArray`
-
-## Files (Do Not Modify)
-
-- `Assets/Scripts/Space4x/Rendering/Catalog/RenderCatalogAuthoring.cs`
-- `Assets/Scripts/Space4x/Rendering/Catalog/Space4XRenderCatalogDefinition.cs`
-- `Assets/Editor/ConfigureRenderCatalog.cs`
-- `Assets/Editor/DiagnoseRenderCatalog.cs` (legacy, guarded)
-
-## Notes
-
-- **PresentationSystemGroup**: PureDOTS presenter systems run in the presentation phase before Entities Graphics.
-- **Shared Component**: `RenderMeshArray` lives on the entity referenced by `RenderPresentationCatalog.RenderMeshArrayEntity`.
-
+- `RenderPresentationCatalog.RenderMeshArrayEntity` has `RenderMeshArray` shared component
+- Entities with `RenderSemanticKey` + enabled presenters resolve to `MaterialMeshInfo` + `RenderBounds`
 
 
 

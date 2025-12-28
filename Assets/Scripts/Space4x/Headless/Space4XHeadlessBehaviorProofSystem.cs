@@ -86,6 +86,8 @@ namespace Space4X.Headless
         private byte _rewindAttackPass;
         private byte _rewindDockingPass;
         private bool _patrolEnabled;
+        private bool _attackEnabled;
+        private bool _wingDirectiveEnabled;
         private bool _exitOnFail;
 
         public void OnCreate(ref SystemState state)
@@ -106,14 +108,20 @@ namespace Space4X.Headless
             _miningQuery = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build();
 
             _patrolEnabled = true;
+            _attackEnabled = true;
+            _wingDirectiveEnabled = true;
             var scenarioPath = global::System.Environment.GetEnvironmentVariable(ScenarioPathEnv);
             if (!string.IsNullOrWhiteSpace(scenarioPath) &&
                 scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
+                // Smoke scenario doesn't guarantee patrol/combat loops; avoid false negatives.
                 _patrolEnabled = false;
+                _attackEnabled = false;
+                _wingDirectiveEnabled = false;
             }
 
-            _exitOnFail = IsTruthy(global::System.Environment.GetEnvironmentVariable(BehaviorProofExitEnv));
+            var exitOnFailEnv = global::System.Environment.GetEnvironmentVariable(BehaviorProofExitEnv);
+            _exitOnFail = string.IsNullOrWhiteSpace(exitOnFailEnv) || IsTruthy(exitOnFailEnv);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -132,12 +140,12 @@ namespace Space4X.Headless
                 _escortExpected = true;
             }
 
-            if (!_attackExpected && !_strikeCraftQuery.IsEmptyIgnoreFilter)
+            if (_attackEnabled && !_attackExpected && !_strikeCraftQuery.IsEmptyIgnoreFilter)
             {
                 _attackExpected = true;
             }
 
-            if (!_wingDirectiveExpected && !_wingDirectiveQuery.IsEmptyIgnoreFilter)
+            if (_wingDirectiveEnabled && !_wingDirectiveExpected && !_wingDirectiveQuery.IsEmptyIgnoreFilter)
             {
                 _wingDirectiveExpected = true;
             }
@@ -152,7 +160,7 @@ namespace Space4X.Headless
                 _profileActionExpected = true;
             }
 
-            if (!_capAttackSeen)
+            if (_attackEnabled && !_capAttackSeen)
             {
                 foreach (var profile in SystemAPI.Query<RefRO<StrikeCraftProfile>>())
                 {
@@ -198,7 +206,7 @@ namespace Space4X.Headless
                 TryFlushRewindProofs(ref state);
             }
 
-            if (_capAttackSeen && !_capAttackPassed && CheckCapToAttack(ref state, time.Tick))
+            if (_attackEnabled && _capAttackSeen && !_capAttackPassed && CheckCapToAttack(ref state, time.Tick))
             {
                 _capAttackPassed = true;
                 UnityDebug.Log($"[Space4XHeadlessLoopProof] PASS CapToAttack tick={time.Tick}");
@@ -241,7 +249,7 @@ namespace Space4X.Headless
                     anyFail = true;
                 }
 
-                if (_capAttackSeen && !_capAttackPassed)
+                if (_attackEnabled && _capAttackSeen && !_capAttackPassed)
                 {
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL CapToAttack tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepCapToAttack);

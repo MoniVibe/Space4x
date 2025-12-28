@@ -79,7 +79,7 @@ namespace Space4X.Registry
         public static Space4XMiningLatchConfig Default => new Space4XMiningLatchConfig
         {
             RegionCount = Space4XMiningLatchUtility.DefaultLatchRegionCount,
-            SurfaceEpsilon = 1.25f,
+            SurfaceEpsilon = 3.2f, // Match latch readiness to mining standoff + arrival distance.
             AlignDotThreshold = 0.25f,
             SettleTicks = 6u,
             ReserveRegionWhileApproaching = 1,
