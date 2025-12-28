@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -61,6 +62,13 @@ namespace Space4X.Registry
         Capital = 3
     }
 
+    [Flags]
+    public enum WeaponFlags : byte
+    {
+        None = 0,
+        AntiSubsystem = 1 << 0
+    }
+
     /// <summary>
     /// Weapon system component.
     /// </summary>
@@ -75,6 +83,11 @@ namespace Space4X.Registry
         /// Mount size.
         /// </summary>
         public WeaponSize Size;
+
+        /// <summary>
+        /// Special weapon flags.
+        /// </summary>
+        public WeaponFlags Flags;
 
         /// <summary>
         /// Base damage per hit.
@@ -125,6 +138,7 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Laser,
             Size = size,
+            Flags = WeaponFlags.None,
             BaseDamage = 10f * (1 + (int)size),
             OptimalRange = 300f + 100f * (int)size,
             MaxRange = 500f + 150f * (int)size,
@@ -140,6 +154,7 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Kinetic,
             Size = size,
+            Flags = WeaponFlags.None,
             BaseDamage = 15f * (1 + (int)size),
             OptimalRange = 200f + 80f * (int)size,
             MaxRange = 400f + 120f * (int)size,
@@ -155,6 +170,7 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Missile,
             Size = size,
+            Flags = WeaponFlags.None,
             BaseDamage = 25f * (1 + (int)size),
             OptimalRange = 400f + 150f * (int)size,
             MaxRange = 800f + 200f * (int)size,
@@ -170,6 +186,7 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Torpedo,
             Size = size,
+            Flags = WeaponFlags.None,
             BaseDamage = 100f * (1 + (int)size),
             OptimalRange = 200f + 100f * (int)size,
             MaxRange = 500f + 150f * (int)size,
@@ -191,6 +208,16 @@ namespace Space4X.Registry
         public Space4XWeapon Weapon;
         public Entity CurrentTarget;
         public byte IsEnabled;
+    }
+
+    public struct Space4XWeaponTuningConfig : IComponentData
+    {
+        public float ProjectileSpeedMultiplier;
+
+        public static Space4XWeaponTuningConfig Default => new Space4XWeaponTuningConfig
+        {
+            ProjectileSpeedMultiplier = 1f
+        };
     }
 
     /// <summary>
@@ -480,6 +507,52 @@ namespace Space4X.Registry
         public byte IsCritical;
     }
 
+    public enum SubsystemType : byte
+    {
+        Engines = 0,
+        Weapons = 1
+    }
+
+    [Flags]
+    public enum SubsystemFlags : byte
+    {
+        None = 0,
+        Inherent = 1 << 0,
+        Destroyed = 1 << 1
+    }
+
+    [InternalBufferCapacity(2)]
+    public struct SubsystemHealth : IBufferElementData
+    {
+        public SubsystemType Type;
+        public float Current;
+        public float Max;
+        public float RegenPerTick;
+        public SubsystemFlags Flags;
+    }
+
+    [InternalBufferCapacity(2)]
+    public struct SubsystemDisabled : IBufferElementData
+    {
+        public SubsystemType Type;
+        public uint UntilTick;
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct DamageScarEvent : IBufferElementData
+    {
+        public int3 LocalPositionQ;
+        public int3 NormalQ;
+        public byte Intensity;
+        public byte ScarType;
+        public uint Tick;
+    }
+
+    public struct SubsystemTargetDirective : IComponentData
+    {
+        public SubsystemType TargetSubsystem;
+    }
+
     /// <summary>
     /// Tag for entities currently in combat.
     /// </summary>
@@ -599,4 +672,3 @@ namespace Space4X.Registry
         }
     }
 }
-

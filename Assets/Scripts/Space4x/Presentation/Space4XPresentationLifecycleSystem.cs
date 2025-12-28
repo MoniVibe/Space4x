@@ -1,4 +1,5 @@
 using PureDOTS.Rendering;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Individual;
@@ -18,7 +19,6 @@ namespace Space4X.Presentation
     /// Ensures Space4X gameplay entities receive presentation components compatible with the RenderKey/catalog pipeline.
     /// Assigns RenderKey/RenderFlags, colors, and visual-state tags per entity type.
     /// </summary>
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     public partial struct Space4XPresentationLifecycleSystem : ISystem
@@ -28,7 +28,6 @@ namespace Space4X.Presentation
         private EntityQuery _asteroidInitQuery;
         private EntityQuery _individualInitQuery;
         private EntityQuery _strikeCraftInitQuery;
-        private EntityQuery _pickupInitQuery;
         private EntityQuery _fleetImpostorInitQuery;
         private EntityQuery _projectileInitQuery;
         private EntityQuery _debrisInitQuery;
@@ -53,7 +52,6 @@ namespace Space4X.Presentation
         private const float PickupScaleMin = 0.5f;
         private const float PickupScaleMax = 3f;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RenderPresentationCatalog>();
@@ -83,11 +81,6 @@ namespace Space4X.Presentation
                 .WithNone<StrikeCraftPresentationTag>()
                 .Build();
 
-            _pickupInitQuery = SystemAPI.QueryBuilder()
-                .WithAll<SpawnResource, LocalTransform>()
-                .WithNone<ResourcePickupPresentationTag>()
-                .Build();
-
             _fleetImpostorInitQuery = SystemAPI.QueryBuilder()
                 .WithAll<FleetImpostorTag, LocalTransform>()
                 .WithNone<RenderKey>()
@@ -108,18 +101,17 @@ namespace Space4X.Presentation
 #endif
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (!_loggedRenderingGate && !RuntimeMode.IsRenderingEnabled)
-            {
-                _loggedRenderingGate = true;
-                UnityDebug.LogWarning($"[Space4XPresentationLifecycle] Rendering gate active. World='{state.WorldUnmanaged.Name}' RenderingEnabled={RuntimeMode.IsRenderingEnabled} Headless={RuntimeMode.IsHeadless} HasCatalog={SystemAPI.HasSingleton<RenderPresentationCatalog>()}");
-            }
-#endif
             if (!RuntimeMode.IsRenderingEnabled)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (!_loggedRenderingGate)
+                {
+                    _loggedRenderingGate = true;
+                    UnityDebug.LogWarning($"[Space4XPresentationLifecycle] Rendering gate active. World='{state.WorldUnmanaged.Name}' RenderingEnabled={RuntimeMode.IsRenderingEnabled} Headless={RuntimeMode.IsHeadless} HasCatalog={SystemAPI.HasSingleton<RenderPresentationCatalog>()}");
+                }
+#endif
                 return;
             }
 
@@ -135,7 +127,6 @@ namespace Space4X.Presentation
                 _asteroidInitQuery.IsEmptyIgnoreFilter &&
                 _individualInitQuery.IsEmptyIgnoreFilter &&
                 _strikeCraftInitQuery.IsEmptyIgnoreFilter &&
-                _pickupInitQuery.IsEmptyIgnoreFilter &&
                 _fleetImpostorInitQuery.IsEmptyIgnoreFilter &&
                 _projectileInitQuery.IsEmptyIgnoreFilter &&
                 _debrisInitQuery.IsEmptyIgnoreFilter)
@@ -143,24 +134,28 @@ namespace Space4X.Presentation
                 return;
             }
 
+            var currentTick = 0u;
+            if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            {
+                currentTick = timeState.Tick;
+            }
+
             var hasVisualConfig = SystemAPI.TryGetSingleton<Space4XMiningVisualConfig>(out var visualConfig);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            AddCarrierPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddVesselPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddAsteroidPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddIndividualPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddStrikeCraftPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddResourcePickupPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddFleetImpostorPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddProjectilePresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
-            AddDebrisPresentation(ref state, ref ecb, hasVisualConfig, visualConfig);
+            AddCarrierPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddVesselPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddAsteroidPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddIndividualPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddStrikeCraftPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddFleetImpostorPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddProjectilePresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddDebrisPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
@@ -169,9 +164,10 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (_, _, entity) in SystemAPI
+            foreach (var (_, transform, entity) in SystemAPI
                          .Query<RefRO<Carrier>, RefRO<LocalTransform>>()
                          .WithNone<CarrierPresentationTag>()
                          .WithEntityAccess())
@@ -190,6 +186,7 @@ namespace Space4X.Presentation
                 }
 
                 ecb.AddComponent(entity, new CarrierPresentationTag());
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 ecb.AddComponent(entity, new CarrierVisualState
                 {
                     State = CarrierVisualStateType.Idle,
@@ -227,9 +224,10 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (vessel, _, entity) in SystemAPI
+            foreach (var (vessel, transform, entity) in SystemAPI
                          .Query<RefRO<MiningVessel>, RefRO<LocalTransform>>()
                          .WithNone<CraftPresentationTag>()
                          .WithEntityAccess())
@@ -258,6 +256,7 @@ namespace Space4X.Presentation
                 }
 
                 ecb.AddComponent(entity, new CraftPresentationTag());
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 ecb.AddComponent(entity, new CraftVisualState
                 {
                     State = CraftVisualStateType.Idle,
@@ -291,9 +290,10 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (asteroid, _, entity) in SystemAPI
+            foreach (var (asteroid, transform, entity) in SystemAPI
                          .Query<RefRO<Asteroid>, RefRO<LocalTransform>>()
                          .WithNone<AsteroidPresentationTag>()
                          .WithEntityAccess())
@@ -322,6 +322,7 @@ namespace Space4X.Presentation
                     : 1f;
 
                 ecb.AddComponent(entity, new AsteroidPresentationTag());
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 if (!SystemAPI.HasComponent<ResourceTypeColor>(entity) && hasBaseColor)
                 {
                     ecb.AddComponent(entity, new ResourceTypeColor { Value = baseColor });
@@ -332,6 +333,10 @@ namespace Space4X.Presentation
                     DepletionRatio = 1f - math.saturate(ratio),
                     StateTimer = 0f
                 });
+                if (!SystemAPI.HasComponent<PresentationScaleMultiplier>(entity))
+                {
+                    ecb.AddComponent(entity, new PresentationScaleMultiplier { Value = 1f });
+                }
 
                 if (hasBaseColor)
                 {
@@ -354,9 +359,10 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (_, _, entity) in SystemAPI
+            foreach (var (_, transform, entity) in SystemAPI
                          .Query<RefRO<SimIndividualTag>, RefRO<LocalTransform>>()
                          .WithNone<IndividualPresentationTag>()
                          .WithEntityAccess())
@@ -370,6 +376,7 @@ namespace Space4X.Presentation
                 }
 
                 ecb.AddComponent(entity, new IndividualPresentationTag());
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 if (hasBaseColor)
                 {
                     AddMaterialColor(ref state, ref ecb, entity, baseColor);
@@ -396,9 +403,10 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (profile, _, entity) in SystemAPI
+            foreach (var (profile, transform, entity) in SystemAPI
                          .Query<RefRO<StrikeCraftProfile>, RefRO<LocalTransform>>()
                          .WithNone<StrikeCraftPresentationTag>()
                          .WithEntityAccess())
@@ -417,6 +425,7 @@ namespace Space4X.Presentation
                 }
 
                 ecb.AddComponent(entity, new StrikeCraftPresentationTag());
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 ecb.AddComponent(entity, new StrikeCraftVisualState
                 {
                     State = StrikeCraftVisualStateType.Docked,
@@ -445,76 +454,20 @@ namespace Space4X.Presentation
             }
         }
 
-        private void AddResourcePickupPresentation(
-            ref SystemState state,
-            ref EntityCommandBuffer ecb,
-            bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
-        {
-            foreach (var (spawn, _, entity) in SystemAPI
-                         .Query<RefRO<SpawnResource>, RefRO<LocalTransform>>()
-                         .WithNone<ResourcePickupPresentationTag>()
-                         .WithEntityAccess())
-            {
-                float4 baseColor = default;
-                bool hasBaseColor = false;
-
-                if (SystemAPI.HasComponent<RenderTint>(entity))
-                {
-                    baseColor = SystemAPI.GetComponentRO<RenderTint>(entity).ValueRO.Value;
-                    hasBaseColor = true;
-                }
-                else if (SystemAPI.HasComponent<ResourceTypeColor>(entity))
-                {
-                    baseColor = SystemAPI.GetComponentRO<ResourceTypeColor>(entity).ValueRO.Value;
-                    hasBaseColor = true;
-                }
-                else
-                {
-                    baseColor = GetResourceColor(spawn.ValueRO.Type);
-                    hasBaseColor = true;
-                }
-
-                ecb.AddComponent(entity, new ResourcePickupPresentationTag());
-                if (!SystemAPI.HasComponent<ResourceTypeColor>(entity) && hasBaseColor)
-                {
-                    ecb.AddComponent(entity, new ResourceTypeColor { Value = baseColor });
-                }
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
-
-                if (!SystemAPI.HasComponent<PresentationScale>(entity))
-                {
-                    var scale = ResolvePickupScale(spawn.ValueRO.Amount);
-                    ecb.AddComponent(entity, new PresentationScale { Value = scale });
-                }
-                if (!SystemAPI.HasComponent<PresentationLayer>(entity))
-                {
-                    ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.Orbital });
-                }
-
-                AddCommonRenderComponents(ref state, ref ecb, entity,
-                    Space4XRenderKeys.ResourcePickup,
-                    cullDistance: 6000f,
-                    cullPriority: 120,
-                    importance: 0.4f);
-            }
-        }
-
         private void AddFleetImpostorPresentation(
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (iconMesh, _, entity) in SystemAPI
+            foreach (var (iconMesh, transform, entity) in SystemAPI
                          .Query<RefRO<FleetIconMesh>, RefRO<LocalTransform>>()
                          .WithAll<FleetImpostorTag>()
                          .WithNone<RenderKey>()
                          .WithEntityAccess())
             {
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 float4 baseColor = default;
                 bool hasBaseColor = false;
                 if (SystemAPI.HasComponent<RenderTint>(entity))
@@ -549,9 +502,10 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (_, _, entity) in SystemAPI
+            foreach (var (_, transform, entity) in SystemAPI
                          .Query<RefRO<ProjectileEntity>, RefRO<LocalTransform>>()
                          .WithNone<ProjectilePresentationTag>()
                          .WithEntityAccess())
@@ -565,6 +519,7 @@ namespace Space4X.Presentation
                 }
 
                 ecb.AddComponent(entity, new ProjectilePresentationTag());
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 ecb.AddComponent<ProjectileTag>(entity);
                 if (hasBaseColor)
                 {
@@ -592,13 +547,15 @@ namespace Space4X.Presentation
             ref SystemState state,
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
-            in Space4XMiningVisualConfig visualConfig)
+            in Space4XMiningVisualConfig visualConfig,
+            uint currentTick)
         {
-            foreach (var (_, _, entity) in SystemAPI
+            foreach (var (_, transform, entity) in SystemAPI
                          .Query<RefRO<Space4XDebrisTag>, RefRO<LocalTransform>>()
                          .WithNone<RenderKey>()
                          .WithEntityAccess())
             {
+                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 float4 baseColor = new float4(0.48f, 0.45f, 0.42f, 1f);
                 if (SystemAPI.HasComponent<RenderTint>(entity))
                 {
@@ -620,6 +577,31 @@ namespace Space4X.Presentation
                     cullPriority: 140,
                     importance: 0.35f);
             }
+        }
+
+        private void AddSimPoseSnapshot(
+            ref SystemState state,
+            ref EntityCommandBuffer ecb,
+            Entity entity,
+            in LocalTransform transform,
+            uint currentTick)
+        {
+            if (state.EntityManager.HasComponent<SimPoseSnapshot>(entity))
+            {
+                return;
+            }
+
+            ecb.AddComponent(entity, new SimPoseSnapshot
+            {
+                PrevPosition = transform.Position,
+                PrevRotation = transform.Rotation,
+                PrevScale = transform.Scale,
+                CurrPosition = transform.Position,
+                CurrRotation = transform.Rotation,
+                CurrScale = transform.Scale,
+                PrevTick = currentTick,
+                CurrTick = currentTick
+            });
         }
 
         private void AddCommonRenderComponents(
@@ -682,6 +664,11 @@ namespace Space4X.Presentation
             {
                 ecb.AddComponent<MeshPresenter>(entity);
                 ecb.SetComponentEnabled<MeshPresenter>(entity, true);
+            }
+
+            if (SystemAPI.HasComponent<LocalTransform>(entity) && !SystemAPI.HasComponent<LocalToWorld>(entity))
+            {
+                ecb.AddComponent(entity, new LocalToWorld { Value = float4x4.identity });
             }
 
             if (!SystemAPI.HasComponent<SpritePresenter>(entity))

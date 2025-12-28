@@ -246,6 +246,14 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Kinematic state used for accel-limited steering and intercept guidance.
+    /// </summary>
+    public struct StrikeCraftKinematics : IComponentData
+    {
+        public float3 Velocity;
+    }
+
+    /// <summary>
     /// Default profile values for spawned strike craft pilots.
     /// </summary>
     public struct StrikeCraftPilotProfileConfig : IComponentData

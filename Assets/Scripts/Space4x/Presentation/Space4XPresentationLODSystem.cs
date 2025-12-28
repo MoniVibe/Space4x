@@ -15,7 +15,6 @@ namespace Space4X.Presentation
     /// Updates RenderLODData for Space4X entities based on the active camera position and configurable thresholds.
     /// Runs first in the presentation phase so downstream systems can respect RecommendedLOD values.
     /// </summary>
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
     public partial struct Space4XPresentationLODSystem : ISystem
@@ -23,7 +22,6 @@ namespace Space4X.Presentation
         private uint _tick;
         private ComponentLookup<PresentationLayer> _layerLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             _tick = 0;
@@ -31,7 +29,6 @@ namespace Space4X.Presentation
             _layerLookup = state.GetComponentLookup<PresentationLayer>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!RuntimeMode.IsRenderingEnabled)
@@ -64,7 +61,6 @@ namespace Space4X.Presentation
             }.ScheduleParallel();
         }
 
-        [BurstCompile]
         private partial struct UpdateLODJob : IJobEntity
         {
             public float3 CameraPosition;
@@ -125,13 +121,11 @@ namespace Space4X.Presentation
     /// Manages render density by toggling RenderSampleIndex.ShouldRender based on the configured density values.
     /// Targets craft entities to keep scene density manageable when scaling entity counts.
     /// </summary>
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLODSystem))]
     public partial struct Space4XRenderDensitySystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             if (!SystemAPI.HasSingleton<RenderDensityConfig>())
@@ -141,7 +135,6 @@ namespace Space4X.Presentation
             }
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!RuntimeMode.IsRenderingEnabled)
@@ -177,7 +170,6 @@ namespace Space4X.Presentation
     /// <summary>
     /// Toggles presenter enablement based on the resolved LOD so impostors can render via SpritePresenter.
     /// </summary>
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLODSystem))]
@@ -186,7 +178,6 @@ namespace Space4X.Presentation
     {
         private EntityQuery _presenterQuery;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             _presenterQuery = SystemAPI.QueryBuilder()
@@ -196,7 +187,6 @@ namespace Space4X.Presentation
             state.RequireForUpdate(_presenterQuery);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!RuntimeMode.IsRenderingEnabled)
@@ -207,12 +197,10 @@ namespace Space4X.Presentation
             state.Dependency = new UpdatePresentationModeJob().ScheduleParallel(state.Dependency);
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
 
-        [BurstCompile]
         public partial struct UpdatePresentationModeJob : IJobEntity
         {
             public void Execute(in RenderLODData lodData,

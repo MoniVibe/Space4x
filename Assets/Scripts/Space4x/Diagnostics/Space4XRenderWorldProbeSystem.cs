@@ -1,6 +1,7 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using PureDOTS.Rendering;
+using PureDOTS.Runtime.Core;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Entities;
@@ -26,6 +27,12 @@ namespace Space4X.Diagnostics
 
         public void OnUpdate(ref SystemState state)
         {
+            if (!RuntimeMode.IsRenderingEnabled)
+            {
+                state.Enabled = false;
+                return;
+            }
+
             if (_logged)
             {
                 state.Enabled = false;

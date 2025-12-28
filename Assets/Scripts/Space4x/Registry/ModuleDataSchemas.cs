@@ -1007,6 +1007,10 @@ namespace Space4X.Registry
         public uint StateStartTick;
         public byte KamikazeActive;
         public uint KamikazeStartTick;
+        public StrikeCraftDogfightPhase DogfightPhase;
+        public uint DogfightPhaseStartTick;
+        public uint DogfightLastFireTick;
+        public Entity DogfightWingLeader;
     }
 
     public struct ChildVesselTether : IComponentData

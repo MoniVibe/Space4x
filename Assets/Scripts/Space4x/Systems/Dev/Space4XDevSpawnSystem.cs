@@ -22,47 +22,79 @@ namespace Space4X.Systems.Dev
     public partial struct Space4XDevSpawnSystem : ISystem
     {
         private static uint _spawnCounter;
+        private NativeHashMap<FixedString64Bytes, Entity> _affiliationEntityCache;
+
+        private struct DevSpawnSnapshot
+        {
+            public Entity Entity;
+            public DevSpawnRequest Request;
+        }
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<DevSpawnRequest>();
+            if (!_affiliationEntityCache.IsCreated)
+            {
+                _affiliationEntityCache = new NativeHashMap<FixedString64Bytes, Entity>(8, Allocator.Persistent);
+            }
+        }
+
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_affiliationEntityCache.IsCreated)
+            {
+                _affiliationEntityCache.Dispose();
+            }
         }
 
         public void OnUpdate(ref SystemState state)
         {
+            EnsureDogfightConfigSingleton(ref state);
+
+            var requests = new NativeList<DevSpawnSnapshot>(Allocator.Temp);
+            foreach (var (request, entity) in SystemAPI.Query<RefRO<DevSpawnRequest>>().WithEntityAccess())
+            {
+                requests.Add(new DevSpawnSnapshot
+                {
+                    Entity = entity,
+                    Request = request.ValueRO
+                });
+            }
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var random = new Random((uint)UnityEngine.Time.frameCount + _spawnCounter++);
 
-            foreach (var (request, entity) in SystemAPI.Query<RefRO<DevSpawnRequest>>().WithEntityAccess())
+            for (int i = 0; i < requests.Length; i++)
             {
-                var category = request.ValueRO.Category.ToString();
-                var templateId = request.ValueRO.TemplateId.ToString();
-                var factionId = request.ValueRO.FactionId.ToString();
-                var position = request.ValueRO.Position;
+                var snapshot = requests[i];
+                var category = snapshot.Request.Category.ToString();
+                var templateId = snapshot.Request.TemplateId.ToString();
+                var factionId = snapshot.Request.FactionId.ToString();
+                var position = snapshot.Request.Position;
 
                 // Remove the spawn request
-                ecb.RemoveComponent<DevSpawnRequest>(entity);
+                ecb.RemoveComponent<DevSpawnRequest>(snapshot.Entity);
 
                 // Add appropriate components based on category
                 switch (category)
                 {
                     case "Carriers":
-                        SetupCarrier(ref ecb, entity, templateId, factionId, position, ref random);
+                        SetupCarrier(ref state, ref ecb, snapshot.Entity, templateId, factionId, position, ref random);
                         break;
                     case "Capital Ships":
-                        SetupCapitalShip(ref ecb, entity, templateId, factionId, position, ref random);
+                        SetupCapitalShip(ref state, ref ecb, snapshot.Entity, templateId, factionId, position, ref random);
                         break;
                     case "Strike Craft":
-                        SetupStrikeCraft(ref ecb, entity, templateId, factionId, position, ref random);
+                        SetupStrikeCraft(ref state, ref ecb, snapshot.Entity, templateId, factionId, position, ref random);
                         break;
                     case "Support Vessels":
-                        SetupSupportVessel(ref ecb, entity, templateId, factionId, position, ref random);
+                        SetupSupportVessel(ref state, ref ecb, snapshot.Entity, templateId, factionId, position, ref random);
                         break;
                     case "Stations":
-                        SetupStation(ref ecb, entity, templateId, factionId, position, ref random);
+                        SetupStation(ref state, ref ecb, snapshot.Entity, templateId, factionId, position, ref random);
                         break;
                     case "Celestial":
-                        SetupCelestial(ref ecb, entity, templateId, position, ref random);
+                        SetupCelestial(ref ecb, snapshot.Entity, templateId, position, ref random);
                         break;
                     default:
                         UnityDebug.LogWarning($"[DevSpawnSystem] Unknown category: {category}");
@@ -72,9 +104,19 @@ namespace Space4X.Systems.Dev
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+            requests.Dispose();
         }
 
-        private static void SetupCarrier(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
+        private void EnsureDogfightConfigSingleton(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<StrikeCraftDogfightConfig>(out var configEntity))
+            {
+                configEntity = state.EntityManager.CreateEntity(typeof(StrikeCraftDogfightConfig));
+                state.EntityManager.SetComponentData(configEntity, StrikeCraftDogfightConfig.Default);
+            }
+        }
+
+        private void SetupCarrier(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
         {
             var carrierId = $"DEV_{templateId}_{random.NextUInt(10000)}";
 
@@ -138,6 +180,10 @@ namespace Space4X.Systems.Dev
                 Max = hullPoints,
                 BaseMax = hullPoints
             });
+            AddDefaultSubsystems(ref ecb, entity, hullPoints);
+            AddDefaultSubsystems(ref ecb, entity, hullPoints);
+            AddDefaultSubsystems(ref ecb, entity, hullPoints);
+            AddDefaultSubsystems(ref ecb, entity, hullPoints);
 
             // Hangar
             ecb.AddComponent(entity, new DockingCapacity
@@ -164,7 +210,7 @@ namespace Space4X.Systems.Dev
 
             // Faction
             ecb.AddBuffer<AffiliationTag>(entity);
-            AddFactionTag(ref ecb, entity, factionId);
+            AddFactionTag(ref state, ref ecb, entity, factionId);
 
             // Morale
             ecb.AddComponent(entity, new MoraleState
@@ -182,7 +228,7 @@ namespace Space4X.Systems.Dev
             UnityDebug.Log($"[DevSpawnSystem] Created carrier {carrierId} at {position}");
         }
 
-        private static void SetupCapitalShip(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
+        private void SetupCapitalShip(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
         {
             var shipId = $"DEV_{templateId}_{random.NextUInt(10000)}";
 
@@ -281,12 +327,12 @@ namespace Space4X.Systems.Dev
 
             // Faction
             ecb.AddBuffer<AffiliationTag>(entity);
-            AddFactionTag(ref ecb, entity, factionId);
+            AddFactionTag(ref state, ref ecb, entity, factionId);
 
             UnityDebug.Log($"[DevSpawnSystem] Created capital ship {shipId} ({templateId}) at {position}");
         }
 
-        private static void SetupStrikeCraft(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
+        private void SetupStrikeCraft(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
         {
             var craftId = $"DEV_{templateId}_{random.NextUInt(10000)}";
 
@@ -320,6 +366,21 @@ namespace Space4X.Systems.Dev
             // Strike craft specific
             var profile = StrikeCraftProfile.Create(strikeCraftRole, Entity.Null);
             ecb.AddComponent(entity, profile);
+            ecb.AddComponent(entity, new StrikeCraftState
+            {
+                CurrentState = StrikeCraftState.State.Approaching,
+                TargetEntity = Entity.Null,
+                TargetPosition = position,
+                Experience = 0f,
+                StateStartTick = 0,
+                KamikazeActive = 0,
+                KamikazeStartTick = 0,
+                DogfightPhase = StrikeCraftDogfightPhase.Approach,
+                DogfightPhaseStartTick = 0,
+                DogfightLastFireTick = 0,
+                DogfightWingLeader = Entity.Null
+            });
+            ecb.AddComponent<StrikeCraftDogfightTag>(entity);
             ecb.AddComponent(entity, AttackRunConfig.ForRole(strikeCraftRole));
             var pilot = ecb.CreateEntity();
             ecb.AddComponent(pilot, AlignmentTriplet.FromFloats(0f, 0f, 0f));
@@ -405,12 +466,12 @@ namespace Space4X.Systems.Dev
 
             // Faction
             ecb.AddBuffer<AffiliationTag>(entity);
-            AddFactionTag(ref ecb, entity, factionId);
+            AddFactionTag(ref state, ref ecb, entity, factionId);
 
             UnityDebug.Log($"[DevSpawnSystem] Created strike craft {craftId} ({templateId}) at {position}");
         }
 
-        private static void SetupSupportVessel(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
+        private void SetupSupportVessel(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
         {
             var vesselId = $"DEV_{templateId}_{random.NextUInt(10000)}";
 
@@ -479,12 +540,12 @@ namespace Space4X.Systems.Dev
 
             // Faction
             ecb.AddBuffer<AffiliationTag>(entity);
-            AddFactionTag(ref ecb, entity, factionId);
+            AddFactionTag(ref state, ref ecb, entity, factionId);
 
             UnityDebug.Log($"[DevSpawnSystem] Created support vessel {vesselId} ({templateId}) at {position}");
         }
 
-        private static void SetupStation(ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
+        private void SetupStation(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, string templateId, string factionId, float3 position, ref Random random)
         {
             var stationId = $"DEV_{templateId}_{random.NextUInt(10000)}";
 
@@ -523,7 +584,7 @@ namespace Space4X.Systems.Dev
 
             // Faction
             ecb.AddBuffer<AffiliationTag>(entity);
-            AddFactionTag(ref ecb, entity, factionId);
+            AddFactionTag(ref state, ref ecb, entity, factionId);
 
             // Resources
             ecb.AddBuffer<ResourceStorage>(entity);
@@ -575,8 +636,47 @@ namespace Space4X.Systems.Dev
             UnityDebug.Log($"[DevSpawnSystem] Created celestial {celestialId} ({templateId}) at {position}");
         }
 
-        private static void AddFactionTag(ref EntityCommandBuffer ecb, Entity entity, string factionId)
+        private static void AddDefaultSubsystems(ref EntityCommandBuffer ecb, Entity entity, float hullMax)
         {
+            var subsystems = ecb.AddBuffer<SubsystemHealth>(entity);
+            var engineMax = math.max(5f, hullMax * 0.3f);
+            var weaponMax = math.max(5f, hullMax * 0.2f);
+
+            subsystems.Add(new SubsystemHealth
+            {
+                Type = SubsystemType.Engines,
+                Current = engineMax,
+                Max = engineMax,
+                RegenPerTick = math.max(0.01f, engineMax * 0.005f),
+                Flags = SubsystemFlags.None
+            });
+            subsystems.Add(new SubsystemHealth
+            {
+                Type = SubsystemType.Weapons,
+                Current = weaponMax,
+                Max = weaponMax,
+                RegenPerTick = math.max(0.01f, weaponMax * 0.005f),
+                Flags = SubsystemFlags.None
+            });
+
+            ecb.AddBuffer<SubsystemDisabled>(entity);
+            ecb.AddBuffer<DamageScarEvent>(entity);
+        }
+
+        private void AddFactionTag(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, string factionId)
+        {
+            if (string.IsNullOrWhiteSpace(factionId))
+            {
+                return;
+            }
+
+            var affiliationName = new FixedString64Bytes(factionId);
+            var affiliationEntity = ResolveAffiliationEntity(ref state, affiliationName);
+            if (affiliationEntity == Entity.Null)
+            {
+                return;
+            }
+
             AffiliationType affType = AffiliationType.Fleet;
             half loyalty = (half)1f;
 
@@ -593,9 +693,50 @@ namespace Space4X.Systems.Dev
             ecb.AppendToBuffer(entity, new AffiliationTag
             {
                 Type = affType,
-                Target = Entity.Null,
+                Target = affiliationEntity,
                 Loyalty = loyalty
             });
+        }
+
+        private Entity ResolveAffiliationEntity(ref SystemState state, FixedString64Bytes affiliationName)
+        {
+            if (affiliationName.Length == 0)
+            {
+                return Entity.Null;
+            }
+
+            if (_affiliationEntityCache.TryGetValue(affiliationName, out var cached))
+            {
+                if (state.EntityManager.Exists(cached))
+                {
+                    return cached;
+                }
+
+                _affiliationEntityCache.Remove(affiliationName);
+            }
+
+            var query = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<AffiliationRelation>());
+            using var relations = query.ToComponentDataArray<AffiliationRelation>(Allocator.Temp);
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < relations.Length; i++)
+            {
+                if (!relations[i].AffiliationName.Equals(affiliationName))
+                {
+                    continue;
+                }
+
+                var existing = entities[i];
+                _affiliationEntityCache[affiliationName] = existing;
+                return existing;
+            }
+
+            var entity = state.EntityManager.CreateEntity(typeof(AffiliationRelation));
+            state.EntityManager.SetComponentData(entity, new AffiliationRelation
+            {
+                AffiliationName = affiliationName
+            });
+            _affiliationEntityCache[affiliationName] = entity;
+            return entity;
         }
     }
 }

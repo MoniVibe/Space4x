@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -45,6 +46,7 @@ namespace Space4X.Registry
 
             foreach (var (craftState, config, transform, entity) in
                 SystemAPI.Query<RefRW<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>>()
+                    .WithNone<StrikeCraftDogfightTag>()
                     .WithEntityAccess())
             {
                 var previousPhase = craftState.ValueRO.Phase;
@@ -223,9 +225,15 @@ namespace Space4X.Registry
         public void OnUpdate(ref SystemState state)
         {
             _alignmentLookup.Update(ref state);
+            var stanceConfig = Space4XStanceTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
+            {
+                stanceConfig = stanceConfigSingleton;
+            }
 
             foreach (var (craftState, config, transform, entity) in
                 SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>>()
+                    .WithNone<StrikeCraftDogfightTag>()
                     .WithEntityAccess())
             {
                 var lawfulness = 0.5f;
@@ -237,10 +245,20 @@ namespace Space4X.Registry
                     chaos = AlignmentMath.Chaos(alignment);
                 }
 
+                // Get stance
+                VesselStanceMode stance = VesselStanceMode.Balanced;
+                if (SystemAPI.HasComponent<PatrolStance>(craftState.ValueRO.Carrier))
+                {
+                    stance = SystemAPI.GetComponent<PatrolStance>(craftState.ValueRO.Carrier).Stance;
+                }
+
+                var tuning = stanceConfig.Resolve(stance);
+                var maintainFormation = tuning.MaintainFormationWhenAttacking >= 0.5f;
+
                 // Only apply formation during form-up/approach, and keep lawful wings tight into execute.
                 var canHoldFormation = craftState.ValueRO.Phase == AttackRunPhase.FormUp ||
                                        craftState.ValueRO.Phase == AttackRunPhase.Approach ||
-                                       (craftState.ValueRO.Phase == AttackRunPhase.Execute && lawfulness >= 0.6f);
+                                       (craftState.ValueRO.Phase == AttackRunPhase.Execute && (maintainFormation || lawfulness >= 0.6f));
 
                 if (!canHoldFormation)
                 {
@@ -260,13 +278,6 @@ namespace Space4X.Registry
                 }
 
                 var leaderTransform = SystemAPI.GetComponent<LocalTransform>(craftState.ValueRO.WingLeader);
-
-                // Get stance
-                VesselStanceMode stance = VesselStanceMode.Balanced;
-                if (SystemAPI.HasComponent<PatrolStance>(craftState.ValueRO.Carrier))
-                {
-                    stance = SystemAPI.GetComponent<PatrolStance>(craftState.ValueRO.Carrier).Stance;
-                }
 
                 // Calculate formation offset
                 var spacing = config.ValueRO.FormationSpacing * math.lerp(1.5f, 0.75f, lawfulness);
@@ -306,7 +317,10 @@ namespace Space4X.Registry
     public partial struct Space4XStrikeCraftMovementSystem : ISystem
     {
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
+        private ComponentLookup<StrikeCraftKinematics> _kinematicsLookup;
+        private ComponentLookup<VesselMovement> _vesselMovementLookup;
         private uint _lastTick;
+        private const float PnNavConstant = 3.5f;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -315,6 +329,8 @@ namespace Space4X.Registry
             state.RequireForUpdate<TimeState>();
             _lastTick = 0;
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
+            _kinematicsLookup = state.GetComponentLookup<StrikeCraftKinematics>(true);
+            _vesselMovementLookup = state.GetComponentLookup<VesselMovement>(true);
         }
 
         [BurstCompile]
@@ -332,10 +348,23 @@ namespace Space4X.Registry
             var deltaTime = timeState.FixedDeltaTime * tickDelta;
             var worldSeconds = timeState.WorldSeconds;
 
-            _alignmentLookup.Update(ref state);
+            var missingKinematics = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftProfile, LocalTransform>()
+                .WithNone<StrikeCraftKinematics>()
+                .Build();
+            if (!missingKinematics.IsEmptyIgnoreFilter)
+            {
+                state.CompleteDependency();
+                state.EntityManager.AddComponent<StrikeCraftKinematics>(missingKinematics);
+            }
 
-            foreach (var (craftState, config, transform, entity) in
-                SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>>()
+            _alignmentLookup.Update(ref state);
+            _kinematicsLookup.Update(ref state);
+            _vesselMovementLookup.Update(ref state);
+
+            foreach (var (craftState, config, transform, kinematics, entity) in
+                SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>, RefRW<StrikeCraftKinematics>>()
+                    .WithNone<StrikeCraftDogfightTag>()
                     .WithEntityAccess())
             {
                 float speed = 50f; // Base speed
@@ -344,6 +373,19 @@ namespace Space4X.Registry
                 {
                     chaos = AlignmentMath.Chaos(_alignmentLookup[entity]);
                 }
+
+                if (craftState.ValueRO.Phase == AttackRunPhase.Docked ||
+                    craftState.ValueRO.Phase == AttackRunPhase.FormUp ||
+                    craftState.ValueRO.Phase == AttackRunPhase.Launching ||
+                    craftState.ValueRO.Phase == AttackRunPhase.Landing)
+                {
+                    kinematics.ValueRW.Velocity = float3.zero;
+                    continue;
+                }
+
+                var velocity = kinematics.ValueRO.Velocity;
+                var accel = speed * 1.8f;
+                var decel = speed * 2.4f;
 
                 switch (craftState.ValueRO.Phase)
                 {
@@ -358,6 +400,8 @@ namespace Space4X.Registry
                                 targetTransform.Position,
                                 transform.ValueRO.Position
                             );
+                            var toTarget = targetTransform.Position - transform.ValueRO.Position;
+                            var distance = math.length(toTarget);
 
                             if (chaos > 0.4f)
                             {
@@ -366,23 +410,38 @@ namespace Space4X.Registry
                                 direction = math.normalize(direction + right * sway);
                             }
 
-                            float approachSpeed = speed * (float)config.ValueRO.ApproachSpeedMod;
-                            transform.ValueRW.Position += direction * approachSpeed * deltaTime;
-                            transform.ValueRW.Rotation = quaternion.LookRotationSafe(direction, new float3(0, 1, 0));
+                            var approachSpeed = speed * (float)config.ValueRO.ApproachSpeedMod;
+                            var targetVelocity = ResolveTargetVelocity(craftState.ValueRO.Target, _vesselMovementLookup, _kinematicsLookup);
+                            var pnAccel = ComputePnAcceleration(toTarget, targetVelocity - velocity);
+                            var desiredVelocity = direction * approachSpeed + pnAccel * deltaTime;
+                            var slowdownDistance = math.max(8f, config.ValueRO.AttackRange * 0.2f);
+
+                            ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toTarget, distance, slowdownDistance);
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                        }
+                        else
+                        {
+                            velocity = float3.zero;
                         }
                         break;
 
                     case AttackRunPhase.Execute:
                         // Continue through target
-                        float3 forward = math.forward(transform.ValueRO.Rotation);
-                        float attackSpeed = speed * (float)config.ValueRO.AttackSpeedMod;
-                        transform.ValueRW.Position += forward * attackSpeed * deltaTime;
+                        {
+                            var forward = math.normalizesafe(velocity, math.forward(transform.ValueRO.Rotation));
+                            var attackSpeed = speed * (float)config.ValueRO.AttackSpeedMod;
+                            var desiredVelocity = forward * attackSpeed;
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, forward, deltaTime, accel, decel);
+                        }
                         break;
 
                     case AttackRunPhase.Disengage:
                         // Break away from target
-                        float3 breakDir = math.forward(transform.ValueRO.Rotation);
-                        transform.ValueRW.Position += breakDir * speed * 1.2f * deltaTime;
+                        {
+                            var breakDir = math.normalizesafe(velocity, math.forward(transform.ValueRO.Rotation));
+                            var desiredVelocity = breakDir * speed * 1.2f;
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, breakDir, deltaTime, accel, decel);
+                        }
                         break;
 
                     case AttackRunPhase.Return:
@@ -391,9 +450,18 @@ namespace Space4X.Registry
                             SystemAPI.HasComponent<LocalTransform>(craftState.ValueRO.Carrier))
                         {
                             var carrierTransform = SystemAPI.GetComponent<LocalTransform>(craftState.ValueRO.Carrier);
-                            float3 toCarrier = math.normalize(carrierTransform.Position - transform.ValueRO.Position);
-                            transform.ValueRW.Position += toCarrier * speed * deltaTime;
-                            transform.ValueRW.Rotation = quaternion.LookRotationSafe(toCarrier, new float3(0, 1, 0));
+                            var toCarrier = carrierTransform.Position - transform.ValueRO.Position;
+                            var distance = math.length(toCarrier);
+                            var direction = math.normalizesafe(toCarrier);
+                            var desiredSpeed = speed;
+                            var desiredVelocity = direction * desiredSpeed;
+                            var slowdownDistance = 50f;
+                            ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toCarrier, distance, slowdownDistance);
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                        }
+                        else
+                        {
+                            velocity = float3.zero;
                         }
                         break;
 
@@ -413,8 +481,18 @@ namespace Space4X.Registry
                             if (isNonCombat)
                             {
                                 var anchor = carrierTransform.Position + new float3(0f, 0f, -baseRadius * 0.4f);
-                                transform.ValueRW.Position = math.lerp(transform.ValueRO.Position, anchor, math.saturate(deltaTime * 2f));
-                                transform.ValueRW.Rotation = carrierTransform.Rotation;
+                                var toAnchor = anchor - transform.ValueRO.Position;
+                                if (math.lengthsq(toAnchor) > 0.01f)
+                                {
+                                    var direction = math.normalizesafe(toAnchor);
+                                    var desiredVelocity = direction * speed * 0.35f;
+                                    ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                                }
+                                else
+                                {
+                                    velocity = float3.zero;
+                                    transform.ValueRW.Rotation = carrierTransform.Rotation;
+                                }
                             }
                             else
                             {
@@ -423,14 +501,129 @@ namespace Space4X.Registry
                                 var patrolSpeed = speed * 0.45f;
                                 if (math.lengthsq(toTarget) > 0.01f)
                                 {
-                                    var direction = math.normalize(toTarget);
-                                    transform.ValueRW.Position += direction * patrolSpeed * deltaTime;
-                                    transform.ValueRW.Rotation = quaternion.LookRotationSafe(direction, new float3(0, 1, 0));
+                                    var direction = math.normalizesafe(toTarget);
+                                    var desiredVelocity = direction * patrolSpeed;
+                                    ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                                }
+                                else
+                                {
+                                    velocity = float3.zero;
                                 }
                             }
                         }
                         break;
                 }
+
+                kinematics.ValueRW.Velocity = velocity;
+            }
+        }
+
+        private static float3 ResolveTargetVelocity(
+            Entity target,
+            in ComponentLookup<VesselMovement> vesselMovementLookup,
+            in ComponentLookup<StrikeCraftKinematics> kinematicsLookup)
+        {
+            if (vesselMovementLookup.HasComponent(target))
+            {
+                return vesselMovementLookup[target].Velocity;
+            }
+
+            if (kinematicsLookup.HasComponent(target))
+            {
+                return kinematicsLookup[target].Velocity;
+            }
+
+            return float3.zero;
+        }
+
+        private static float3 ComputePnAcceleration(float3 relativePosition, float3 relativeVelocity)
+        {
+            var distanceSq = math.lengthsq(relativePosition);
+            if (distanceSq < 1e-4f)
+            {
+                return float3.zero;
+            }
+
+            var distance = math.sqrt(distanceSq);
+            var los = relativePosition / distance;
+            var closingSpeed = math.max(0f, -math.dot(relativeVelocity, los));
+            if (closingSpeed <= 0f)
+            {
+                return float3.zero;
+            }
+
+            var losRate = math.cross(relativePosition, relativeVelocity) / distanceSq;
+            return PnNavConstant * closingSpeed * math.cross(losRate, los);
+        }
+
+        private static void ApplyArrivalBraking(
+            ref float3 desiredVelocity,
+            ref float3 desiredDirection,
+            float3 currentVelocity,
+            float3 toTarget,
+            float distance,
+            float slowdownDistance)
+        {
+            if (slowdownDistance <= 0f || distance <= 0f)
+            {
+                return;
+            }
+
+            if (distance < slowdownDistance)
+            {
+                var speedScale = math.saturate(distance / slowdownDistance);
+                desiredVelocity *= speedScale;
+            }
+
+            var currentSpeedSq = math.lengthsq(currentVelocity);
+            if (currentSpeedSq < 1e-4f)
+            {
+                return;
+            }
+
+            var overshoot = math.dot(currentVelocity, toTarget) < 0f;
+            var retrogradeWeight = overshoot
+                ? 1f
+                : math.saturate((slowdownDistance - distance) / math.max(1e-4f, slowdownDistance));
+
+            if (retrogradeWeight <= 0f)
+            {
+                return;
+            }
+
+            var retroDir = math.normalizesafe(-currentVelocity, desiredDirection);
+            var retroVelocity = retroDir * math.length(desiredVelocity);
+            desiredVelocity = math.lerp(desiredVelocity, retroVelocity, retrogradeWeight);
+            desiredDirection = math.normalizesafe(math.lerp(desiredDirection, retroDir, retrogradeWeight), retroDir);
+        }
+
+        private static void ApplySteering(
+            ref LocalTransform transform,
+            ref float3 velocity,
+            float3 desiredVelocity,
+            float3 desiredDirection,
+            float deltaTime,
+            float acceleration,
+            float deceleration)
+        {
+            var currentSpeed = math.length(velocity);
+            var desiredSpeed = math.length(desiredVelocity);
+            var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
+            var maxDelta = accelLimit * deltaTime;
+            var deltaV = desiredVelocity - velocity;
+            var deltaSq = math.lengthsq(deltaV);
+            if (maxDelta > 0f && deltaSq > maxDelta * maxDelta)
+            {
+                deltaV = math.normalizesafe(deltaV) * maxDelta;
+            }
+
+            velocity += deltaV;
+            transform.Position += velocity * deltaTime;
+
+            if (math.lengthsq(velocity) > 0.001f)
+            {
+                var forward = math.normalizesafe(velocity, desiredDirection);
+                transform.Rotation = quaternion.LookRotationSafe(forward, math.up());
             }
         }
     }
@@ -456,6 +649,7 @@ namespace Space4X.Registry
 
             foreach (var (craftState, experience, entity) in
                 SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRW<StrikeCraftExperience>>()
+                    .WithNone<StrikeCraftDogfightTag>()
                     .WithEntityAccess())
             {
                 // Check for sortie completion
@@ -522,7 +716,8 @@ namespace Space4X.Registry
             int aceCount = 0;
 
             foreach (var (craftState, experience) in
-                SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<StrikeCraftExperience>>())
+                SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<StrikeCraftExperience>>()
+                    .WithNone<StrikeCraftDogfightTag>())
             {
                 totalCraft++;
                 totalSorties += (int)experience.ValueRO.SortieCount;

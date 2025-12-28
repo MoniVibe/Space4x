@@ -1,5 +1,8 @@
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Ships;
+using PureDOTS.Runtime.Steering;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -24,22 +27,64 @@ namespace Space4X.Registry
     {
         private ComponentLookup<CapabilityState> _capabilityStateLookup;
         private ComponentLookup<CapabilityEffectiveness> _effectivenessLookup;
+        private ComponentLookup<VesselMovement> _movementLookup;
+        private ComponentLookup<StrikeCraftState> _strikeCraftStateLookup;
+        private ComponentLookup<StrikeCraftDogfightMetrics> _dogfightMetricsLookup;
+        private ComponentLookup<StrikeCraftDogfightTag> _dogfightTagLookup;
+        private ComponentLookup<VesselAimDirective> _aimLookup;
+        private BufferLookup<SubsystemHealth> _subsystemLookup;
+        private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<WeaponMount>();
+            state.RequireForUpdate<TimeState>();
             _capabilityStateLookup = state.GetComponentLookup<CapabilityState>(true);
             _effectivenessLookup = state.GetComponentLookup<CapabilityEffectiveness>(true);
+            _movementLookup = state.GetComponentLookup<VesselMovement>(true);
+            _strikeCraftStateLookup = state.GetComponentLookup<StrikeCraftState>(false);
+            _dogfightMetricsLookup = state.GetComponentLookup<StrikeCraftDogfightMetrics>(false);
+            _dogfightTagLookup = state.GetComponentLookup<StrikeCraftDogfightTag>(true);
+            _aimLookup = state.GetComponentLookup<VesselAimDirective>(true);
+            _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
+            _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (timeState.IsPaused)
+            {
+                return;
+            }
+
+            uint currentTick = timeState.Tick;
 
             _capabilityStateLookup.Update(ref state);
             _effectivenessLookup.Update(ref state);
+            _movementLookup.Update(ref state);
+            _strikeCraftStateLookup.Update(ref state);
+            _dogfightMetricsLookup.Update(ref state);
+            _dogfightTagLookup.Update(ref state);
+            _aimLookup.Update(ref state);
+            _subsystemLookup.Update(ref state);
+            _subsystemDisabledLookup.Update(ref state);
+
+            var dogfightConfig = StrikeCraftDogfightConfig.Default;
+            if (SystemAPI.TryGetSingleton<StrikeCraftDogfightConfig>(out var dogfightConfigSingleton))
+            {
+                dogfightConfig = dogfightConfigSingleton;
+            }
+
+            var dogfightFireConeCos = math.cos(math.radians(dogfightConfig.FireConeDegrees));
+            const float defaultFireConeCos = 0.7f;
+            var projectileSpeedMultiplier = 1f;
+            if (SystemAPI.TryGetSingleton<Space4XWeaponTuningConfig>(out var weaponTuning))
+            {
+                projectileSpeedMultiplier = math.max(0f, weaponTuning.ProjectileSpeedMultiplier);
+            }
 
             foreach (var (weapons, engagement, transform, supply, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRO<Space4XEngagement>, RefRO<LocalTransform>, RefRW<SupplyStatus>>()
@@ -82,7 +127,54 @@ namespace Space4X.Registry
                     continue;
                 }
                 var targetTransform = SystemAPI.GetComponent<LocalTransform>(target);
-                float distance = math.distance(transform.ValueRO.Position, targetTransform.Position);
+                float3 toTarget = targetTransform.Position - transform.ValueRO.Position;
+                float distance = math.length(toTarget);
+
+                var hasSubsystems = _subsystemLookup.HasBuffer(entity);
+                var hasSubsystemDisabled = _subsystemDisabledLookup.HasBuffer(entity);
+                DynamicBuffer<SubsystemHealth> subsystems = default;
+                DynamicBuffer<SubsystemDisabled> disabledSubsystems = default;
+                var weaponsDisabled = false;
+                if (hasSubsystems)
+                {
+                    subsystems = _subsystemLookup[entity];
+                    if (hasSubsystemDisabled)
+                    {
+                        disabledSubsystems = _subsystemDisabledLookup[entity];
+                        weaponsDisabled = Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, disabledSubsystems, SubsystemType.Weapons);
+                    }
+                    else
+                    {
+                        weaponsDisabled = Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, SubsystemType.Weapons);
+                    }
+                }
+
+                var forward = math.forward(transform.ValueRO.Rotation);
+                if (_aimLookup.HasComponent(entity))
+                {
+                    var aim = _aimLookup[entity];
+                    if (aim.AimWeight > 0f && math.lengthsq(aim.AimDirection) > 0.001f)
+                    {
+                        forward = math.normalizesafe(aim.AimDirection, forward);
+                    }
+                }
+                else if (_movementLookup.HasComponent(entity))
+                {
+                    var movement = _movementLookup[entity];
+                    if (math.lengthsq(movement.Velocity) > 0.001f)
+                    {
+                        forward = math.normalizesafe(movement.Velocity, forward);
+                    }
+                }
+
+                var directionToTarget = distance > 1e-4f ? toTarget / distance : forward;
+                var fireConeCos = _dogfightTagLookup.HasComponent(entity) ? dogfightFireConeCos : defaultFireConeCos;
+
+                var targetVelocity = float3.zero;
+                if (_movementLookup.HasComponent(target))
+                {
+                    targetVelocity = _movementLookup[target].Velocity;
+                }
 
                 var weaponBuffer = weapons;
 
@@ -95,6 +187,23 @@ namespace Space4X.Registry
                     {
                         continue;
                     }
+                    if (weaponsDisabled)
+                    {
+                        if (hasSubsystemDisabled)
+                        {
+                            if (Space4XSubsystemUtility.IsWeaponMountDisabled(entity, i, subsystems, disabledSubsystems))
+                            {
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            if (Space4XSubsystemUtility.ShouldDisableMount(entity, i))
+                            {
+                                continue;
+                            }
+                        }
+                    }
 
                     // Cooldown tick
                     if (mount.Weapon.CurrentCooldown > 0)
@@ -106,6 +215,21 @@ namespace Space4X.Registry
 
                     // Range check
                     if (distance > mount.Weapon.MaxRange)
+                    {
+                        continue;
+                    }
+
+                    var aimPoint = targetTransform.Position;
+                    var projectileSpeed = ResolveProjectileSpeed(mount.Weapon, projectileSpeedMultiplier);
+                    if (projectileSpeed > 0f && SteeringPrimitives.LeadInterceptPoint(
+                            targetTransform.Position, targetVelocity, transform.ValueRO.Position, projectileSpeed,
+                            out var interceptPoint, out _))
+                    {
+                        aimPoint = interceptPoint;
+                    }
+
+                    var aimDirection = math.normalizesafe(aimPoint - transform.ValueRO.Position, directionToTarget);
+                    if (math.dot(forward, aimDirection) < fireConeCos)
                     {
                         continue;
                     }
@@ -125,6 +249,27 @@ namespace Space4X.Registry
                     mount.CurrentTarget = target;
                     weaponBuffer[i] = mount;
 
+                    if (_dogfightTagLookup.HasComponent(entity))
+                    {
+                        if (_dogfightMetricsLookup.HasComponent(entity))
+                        {
+                            var metrics = _dogfightMetricsLookup.GetRefRW(entity).ValueRW;
+                            if (metrics.FirstFireTick == 0)
+                            {
+                                metrics.FirstFireTick = currentTick;
+                            }
+
+                            metrics.LastFireTick = currentTick;
+                            _dogfightMetricsLookup.GetRefRW(entity).ValueRW = metrics;
+                        }
+
+                        if (_strikeCraftStateLookup.HasComponent(entity))
+                        {
+                            var craftState = _strikeCraftStateLookup.GetRefRW(entity);
+                            craftState.ValueRW.DogfightLastFireTick = currentTick;
+                        }
+                    }
+
                     // Consume ammo
                     if (mount.Weapon.AmmoPerShot > 0)
                     {
@@ -132,6 +277,25 @@ namespace Space4X.Registry
                     }
                 }
             }
+        }
+
+        private static float ResolveProjectileSpeed(in Space4XWeapon weapon, float projectileSpeedMultiplier)
+        {
+            var baseSpeed = weapon.Type switch
+            {
+                WeaponType.Laser => 400f,
+                WeaponType.PointDefense => 450f,
+                WeaponType.Plasma => 320f,
+                WeaponType.Ion => 280f,
+                WeaponType.Kinetic => 220f,
+                WeaponType.Flak => 200f,
+                WeaponType.Missile => 140f,
+                WeaponType.Torpedo => 90f,
+                _ => 200f
+            };
+
+            var sizeScale = 1f + 0.25f * (int)weapon.Size;
+            return baseSpeed * sizeScale * math.max(0f, projectileSpeedMultiplier);
         }
     }
 
@@ -152,6 +316,16 @@ namespace Space4X.Registry
         private ComponentLookup<FormationAssignment> _formationAssignmentLookup;
         private EntityStorageInfoLookup _entityLookup;
         private ComponentLookup<Advantage3D> _advantageLookup;
+        private BufferLookup<SubsystemHealth> _subsystemLookup;
+        private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
+        private BufferLookup<DamageScarEvent> _scarLookup;
+        private ComponentLookup<SubsystemTargetDirective> _subsystemDirectiveLookup;
+        private const float SubsystemDamageFraction = 0.25f;
+        private const float AntiSubsystemDamageMultiplier = 1.5f;
+        private const float CriticalSubsystemDamageMultiplier = 1.25f;
+        private const uint DefaultSubsystemDisableTicks = 120;
+        private const float ScarPositionQuantize = 100f;
+        private const float ScarNormalQuantize = 100f;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -165,12 +339,29 @@ namespace Space4X.Registry
             _formationAssignmentLookup = state.GetComponentLookup<FormationAssignment>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
             _advantageLookup = state.GetComponentLookup<Advantage3D>(false);
+            _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(false);
+            _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(false);
+            _scarLookup = state.GetBufferLookup<DamageScarEvent>(false);
+            _subsystemDirectiveLookup = state.GetComponentLookup<SubsystemTargetDirective>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            uint currentTick;
+            if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            {
+                if (timeState.IsPaused)
+                {
+                    return;
+                }
+
+                currentTick = timeState.Tick;
+            }
+            else
+            {
+                currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            }
 
             _formationBonusLookup.Update(ref state);
             _formationIntegrityLookup.Update(ref state);
@@ -179,6 +370,10 @@ namespace Space4X.Registry
             _formationAssignmentLookup.Update(ref state);
             _entityLookup.Update(ref state);
             _advantageLookup.Update(ref state);
+            _subsystemLookup.Update(ref state);
+            _subsystemDisabledLookup.Update(ref state);
+            _scarLookup.Update(ref state);
+            _subsystemDirectiveLookup.Update(ref state);
 
             foreach (var (weapons, engagement, transform, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>>()
@@ -282,7 +477,7 @@ namespace Space4X.Registry
                     }
 
                     // Apply damage to target
-                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, ref state);
+                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref state);
 
                     engagement.ValueRW.DamageDealt += rawDamage;
                 }
@@ -296,6 +491,8 @@ namespace Space4X.Registry
             float rawDamage,
             bool isCritical,
             uint tick,
+            in LocalTransform sourceTransform,
+            in LocalTransform targetTransform,
             ref SystemState state)
         {
             float remainingDamage = rawDamage;
@@ -349,6 +546,12 @@ namespace Space4X.Registry
                 SystemAPI.SetComponent(target, hull);
             }
 
+            if (hullDamage > 0f)
+            {
+                ApplySubsystemDamage(target, source, weapon, hullDamage, isCritical, tick);
+                TryEmitScarEvent(target, sourceTransform, targetTransform, hullDamage, weapon.Type, isCritical, tick);
+            }
+
             // Log damage event
             if (SystemAPI.HasBuffer<DamageEvent>(target))
             {
@@ -375,6 +578,285 @@ namespace Space4X.Registry
                 var targetEngagement = SystemAPI.GetComponent<Space4XEngagement>(target);
                 targetEngagement.DamageReceived += rawDamage;
                 SystemAPI.SetComponent(target, targetEngagement);
+            }
+        }
+
+        private void ApplySubsystemDamage(Entity target, Entity source, in Space4XWeapon weapon, float hullDamage, bool isCritical, uint tick)
+        {
+            if (!_subsystemLookup.HasBuffer(target) || hullDamage <= 0f)
+            {
+                return;
+            }
+
+            var subsystems = _subsystemLookup[target];
+            if (subsystems.Length == 0)
+            {
+                return;
+            }
+
+            var subsystemIndex = -1;
+            if (_subsystemDirectiveLookup.HasComponent(source))
+            {
+                var directive = _subsystemDirectiveLookup[source];
+                subsystemIndex = FindSubsystemIndex(subsystems, directive.TargetSubsystem);
+            }
+
+            if (subsystemIndex < 0)
+            {
+                subsystemIndex = SelectSubsystemIndex(subsystems, source, target, tick);
+            }
+
+            if (subsystemIndex < 0)
+            {
+                return;
+            }
+
+            var health = subsystems[subsystemIndex];
+            if ((health.Flags & SubsystemFlags.Destroyed) != 0)
+            {
+                return;
+            }
+
+            var damage = hullDamage * SubsystemDamageFraction;
+            if ((weapon.Flags & WeaponFlags.AntiSubsystem) != 0)
+            {
+                damage *= AntiSubsystemDamageMultiplier;
+            }
+
+            if (isCritical)
+            {
+                damage *= CriticalSubsystemDamageMultiplier;
+            }
+
+            health.Current = math.max(0f, health.Current - damage);
+            if (health.Current <= 0f)
+            {
+                health.Current = 0f;
+                var disableUntil = tick + DefaultSubsystemDisableTicks;
+                if ((health.Flags & SubsystemFlags.Inherent) == 0 &&
+                    ((weapon.Flags & WeaponFlags.AntiSubsystem) != 0 || isCritical))
+                {
+                    health.Flags |= SubsystemFlags.Destroyed;
+                    disableUntil = uint.MaxValue;
+                }
+
+                SetSubsystemDisabled(target, health.Type, disableUntil);
+            }
+
+            subsystems[subsystemIndex] = health;
+        }
+
+        private int FindSubsystemIndex(DynamicBuffer<SubsystemHealth> subsystems, SubsystemType targetType)
+        {
+            for (int i = 0; i < subsystems.Length; i++)
+            {
+                var subsystem = subsystems[i];
+                if (subsystem.Type == targetType && (subsystem.Flags & SubsystemFlags.Destroyed) == 0)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static int SelectSubsystemIndex(DynamicBuffer<SubsystemHealth> subsystems, Entity source, Entity target, uint tick)
+        {
+            var eligibleCount = 0;
+            for (int i = 0; i < subsystems.Length; i++)
+            {
+                if ((subsystems[i].Flags & SubsystemFlags.Destroyed) == 0)
+                {
+                    eligibleCount++;
+                }
+            }
+
+            if (eligibleCount == 0)
+            {
+                return -1;
+            }
+
+            var hash = (uint)math.hash(new uint3((uint)source.Index, (uint)target.Index, tick));
+            var choice = (int)(hash % (uint)eligibleCount);
+
+            for (int i = 0; i < subsystems.Length; i++)
+            {
+                if ((subsystems[i].Flags & SubsystemFlags.Destroyed) != 0)
+                {
+                    continue;
+                }
+
+                if (choice == 0)
+                {
+                    return i;
+                }
+
+                choice--;
+            }
+
+            return -1;
+        }
+
+        private void SetSubsystemDisabled(Entity target, SubsystemType type, uint untilTick)
+        {
+            if (!_subsystemDisabledLookup.HasBuffer(target))
+            {
+                return;
+            }
+
+            var buffer = _subsystemDisabledLookup[target];
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].Type == type)
+                {
+                    var entry = buffer[i];
+                    if (entry.UntilTick == uint.MaxValue || untilTick == uint.MaxValue)
+                    {
+                        entry.UntilTick = uint.MaxValue;
+                    }
+                    else
+                    {
+                        entry.UntilTick = math.max(entry.UntilTick, untilTick);
+                    }
+
+                    buffer[i] = entry;
+                    return;
+                }
+            }
+
+            buffer.Add(new SubsystemDisabled
+            {
+                Type = type,
+                UntilTick = untilTick
+            });
+        }
+
+        private void TryEmitScarEvent(Entity target, in LocalTransform sourceTransform, in LocalTransform targetTransform, float hullDamage,
+            WeaponType weaponType, bool isCritical, uint tick)
+        {
+            if (!_scarLookup.HasBuffer(target))
+            {
+                return;
+            }
+
+            var buffer = _scarLookup[target];
+            if (buffer.Length >= buffer.Capacity)
+            {
+                return;
+            }
+
+            var toSource = math.normalizesafe(sourceTransform.Position - targetTransform.Position, math.forward(targetTransform.Rotation));
+            var inverseRotation = math.conjugate(targetTransform.Rotation);
+            var localNormal = math.normalizesafe(math.mul(inverseRotation, toSource), new float3(0f, 0f, 1f));
+            var radius = math.max(0.5f, targetTransform.Scale * 0.5f);
+            var localPos = localNormal * radius;
+            var posQ = Quantize(localPos, ScarPositionQuantize);
+            var normalQ = Quantize(localNormal, ScarNormalQuantize);
+            var intensity = (byte)math.clamp((int)math.round(math.saturate(hullDamage / 50f) * 255f), 1, 255);
+            var scarType = (byte)weaponType;
+            if (isCritical && scarType < 254)
+            {
+                scarType += 1;
+            }
+
+            buffer.Add(new DamageScarEvent
+            {
+                LocalPositionQ = posQ,
+                NormalQ = normalQ,
+                Intensity = intensity,
+                ScarType = scarType,
+                Tick = tick
+            });
+        }
+
+        private static int3 Quantize(float3 value, float scale)
+        {
+            return (int3)math.round(value * scale);
+        }
+    }
+
+    /// <summary>
+    /// Regenerates subsystem health and clears expired disabled timers.
+    /// </summary>
+    [BurstCompile]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XDamageResolutionSystem))]
+    public partial struct Space4XSubsystemStatusSystem : ISystem
+    {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<SubsystemHealth>();
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            uint currentTick;
+            if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            {
+                if (timeState.IsPaused)
+                {
+                    return;
+                }
+
+                currentTick = timeState.Tick;
+            }
+            else
+            {
+                currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            }
+
+            foreach (var (subsystems, entity) in SystemAPI.Query<DynamicBuffer<SubsystemHealth>>().WithEntityAccess())
+            {
+                var subsystemsBuffer = subsystems;
+                var hasDisabled = SystemAPI.HasBuffer<SubsystemDisabled>(entity);
+                DynamicBuffer<SubsystemDisabled> disabled = default;
+                if (hasDisabled)
+                {
+                    disabled = SystemAPI.GetBuffer<SubsystemDisabled>(entity);
+                }
+
+                for (int i = 0; i < subsystems.Length; i++)
+                {
+                    var health = subsystemsBuffer[i];
+                    if ((health.Flags & SubsystemFlags.Destroyed) != 0)
+                    {
+                        continue;
+                    }
+
+                    if (health.Current < health.Max)
+                    {
+                        health.Current = math.min(health.Max, health.Current + health.RegenPerTick);
+                        subsystemsBuffer[i] = health;
+                    }
+                }
+
+                if (!hasDisabled || disabled.Length == 0)
+                {
+                    continue;
+                }
+
+                for (int i = disabled.Length - 1; i >= 0; i--)
+                {
+                    var entry = disabled[i];
+                    if (entry.UntilTick == uint.MaxValue)
+                    {
+                        continue;
+                    }
+
+                    if (currentTick < entry.UntilTick)
+                    {
+                        continue;
+                    }
+
+                    if (Space4XSubsystemUtility.TryGetSubsystem(subsystemsBuffer, entry.Type, out var health, out _) &&
+                        (health.Flags & SubsystemFlags.Destroyed) == 0 &&
+                        health.Current > 0f)
+                    {
+                        disabled.RemoveAt(i);
+                    }
+                }
             }
         }
     }

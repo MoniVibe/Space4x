@@ -59,7 +59,17 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private BufferLookup<TopOutlook> _outlookLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private ComponentLookup<Space4XEngagement> _engagementLookup;
+        private EntityQuery _targetCandidateQuery;
         private FixedString64Bytes _roleCaptain;
+
+        public struct StrikeCraftTargetCandidate
+        {
+            public Entity Entity;
+            public float3 Position;
+            public Entity AffiliationTarget;
+        }
 
         public void OnCreate(ref SystemState state)
         {
@@ -98,6 +108,11 @@ namespace Space4X.Systems.AI
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _engagementLookup = state.GetComponentLookup<Space4XEngagement>(false);
+            _targetCandidateQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<LocalTransform>(),
+                ComponentType.ReadOnly<HullIntegrity>());
             _roleCaptain = default;
             _roleCaptain.Append('s');
             _roleCaptain.Append('h');
@@ -119,6 +134,39 @@ namespace Space4X.Systems.AI
             if (timeState.IsPaused)
             {
                 return;
+            }
+
+            var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
+            var hasStructuralChanges = false;
+            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftState>>()
+                         .WithNone<Space4XEngagement>()
+                         .WithEntityAccess())
+            {
+                ecb.AddComponent(entity, new Space4XEngagement
+                {
+                    PrimaryTarget = Entity.Null,
+                    Phase = EngagementPhase.None,
+                    TargetDistance = 0f,
+                    EngagementDuration = 0,
+                    DamageDealt = 0f,
+                    DamageReceived = 0f,
+                    FormationBonus = (half)0f,
+                    EvasionModifier = (half)0f
+                });
+                hasStructuralChanges = true;
+            }
+
+            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftState>>()
+                         .WithNone<SupplyStatus>()
+                         .WithEntityAccess())
+            {
+                ecb.AddComponent(entity, SupplyStatus.DefaultStrikeCraft);
+                hasStructuralChanges = true;
+            }
+
+            if (hasStructuralChanges)
+            {
+                ecb.Playback(state.EntityManager);
             }
 
             _alignmentLookup.Update(ref state);
@@ -154,11 +202,18 @@ namespace Space4X.Systems.AI
             _seatOccupantLookup.Update(ref state);
             _outlookLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _engagementLookup.Update(ref state);
 
             var behaviorConfig = StrikeCraftBehaviorProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<StrikeCraftBehaviorProfileConfig>(out var behaviorConfigSingleton))
             {
                 behaviorConfig = behaviorConfigSingleton;
+            }
+            var stanceConfig = Space4XStanceTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
+            {
+                stanceConfig = stanceConfigSingleton;
             }
 
             var rewindEnabled = true;
@@ -170,6 +225,24 @@ namespace Space4X.Systems.AI
             var culturePolicyEntity = Entity.Null;
             var hasCulturePolicy = SystemAPI.TryGetSingletonEntity<CultureDireTacticsPolicyCatalog>(out culturePolicyEntity) &&
                                    _culturePolicyLookup.HasBuffer(culturePolicyEntity);
+
+            var candidateCapacity = math.max(16, _targetCandidateQuery.CalculateEntityCount());
+            var candidates = new NativeList<StrikeCraftTargetCandidate>(candidateCapacity, Allocator.TempJob);
+            foreach (var (transform, hull, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>>().WithEntityAccess())
+            {
+                if (hull.ValueRO.Current <= 0f)
+                {
+                    continue;
+                }
+
+                var affiliationTarget = ResolveAffiliationTarget(entity);
+                candidates.Add(new StrikeCraftTargetCandidate
+                {
+                    Entity = entity,
+                    Position = transform.ValueRO.Position,
+                    AffiliationTarget = affiliationTarget
+                });
+            }
 
             var job = new UpdateStrikeCraftBehaviorJob
             {
@@ -208,7 +281,11 @@ namespace Space4X.Systems.AI
                 SeatOccupantLookup = _seatOccupantLookup,
                 OutlookLookup = _outlookLookup,
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
+                AffiliationLookup = _affiliationLookup,
+                EngagementLookup = _engagementLookup,
+                TargetCandidates = candidates.AsArray(),
                 BehaviorConfig = behaviorConfig,
+                StanceConfig = stanceConfig,
                 RewindEnabled = rewindEnabled,
                 CulturePolicyEntity = culturePolicyEntity,
                 HasCulturePolicy = (byte)(hasCulturePolicy ? 1 : 0),
@@ -216,10 +293,72 @@ namespace Space4X.Systems.AI
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
+            state.Dependency = candidates.Dispose(state.Dependency);
+        }
+
+        private Entity ResolveAffiliationTarget(Entity entity)
+        {
+            if (!_affiliationLookup.HasBuffer(entity))
+            {
+                return Entity.Null;
+            }
+
+            var affiliations = _affiliationLookup[entity];
+            Entity fallback = Entity.Null;
+            for (int i = 0; i < affiliations.Length; i++)
+            {
+                var tag = affiliations[i];
+                if (tag.Target == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (tag.Type == AffiliationType.Faction)
+                {
+                    return tag.Target;
+                }
+
+                if (fallback == Entity.Null && tag.Type == AffiliationType.Fleet)
+                {
+                    fallback = tag.Target;
+                }
+                else if (fallback == Entity.Null)
+                {
+                    fallback = tag.Target;
+                }
+            }
+
+            if (fallback == Entity.Null || !_affiliationLookup.HasBuffer(fallback))
+            {
+                return fallback;
+            }
+
+            var nested = _affiliationLookup[fallback];
+            for (int i = 0; i < nested.Length; i++)
+            {
+                var tag = nested[i];
+                if (tag.Target == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (tag.Type == AffiliationType.Faction)
+                {
+                    return tag.Target;
+                }
+
+                if (tag.Type == AffiliationType.Fleet)
+                {
+                    return tag.Target;
+                }
+            }
+
+            return fallback;
         }
 
 
         [BurstCompile]
+        [WithNone(typeof(StrikeCraftDogfightTag))]
         public partial struct UpdateStrikeCraftBehaviorJob : IJobEntity
         {
             public uint CurrentTick;
@@ -257,7 +396,11 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<AuthoritySeatOccupant> SeatOccupantLookup;
             [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
+            [ReadOnly] public BufferLookup<AffiliationTag> AffiliationLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<Space4XEngagement> EngagementLookup;
+            [ReadOnly] public NativeArray<StrikeCraftTargetCandidate> TargetCandidates;
             public StrikeCraftBehaviorProfileConfig BehaviorConfig;
+            public Space4XStanceTuningConfig StanceConfig;
             public bool RewindEnabled;
             public Entity CulturePolicyEntity;
             public byte HasCulturePolicy;
@@ -354,6 +497,8 @@ namespace Space4X.Systems.AI
                         }
                         break;
                 }
+
+                UpdateEngagement(entity, state, transform.Position);
             }
 
             private void FindTarget(Entity entity, ref StrikeCraftState state, float3 position)
@@ -373,23 +518,158 @@ namespace Space4X.Systems.AI
                     }
                 }
 
+                if (TargetCandidates.Length == 0)
+                {
+                    return;
+                }
+
+                var craftAffiliation = ResolveAffiliationTarget(entity);
                 Entity bestTarget = Entity.Null;
                 float3 bestPosition = float3.zero;
-                float searchRadius = 200f; // Search radius for targets
+                float searchRadius = 200f;
                 float searchRadiusSq = searchRadius * searchRadius;
+                float bestDistanceSq = searchRadiusSq;
 
-                // Get craft's alignment to determine enemy criteria
-                var craftAlignment = AlignmentLookup.HasComponent(entity) 
-                    ? AlignmentLookup[entity] 
-                    : default(AlignmentTriplet);
+                if (state.TargetEntity != Entity.Null && TransformLookup.HasComponent(state.TargetEntity))
+                {
+                    var targetAffiliation = ResolveAffiliationTarget(state.TargetEntity);
+                    if (craftAffiliation == Entity.Null || targetAffiliation != craftAffiliation)
+                    {
+                        var targetPos = TransformLookup[state.TargetEntity].Position;
+                        var distanceSq = math.lengthsq(targetPos - position);
+                        if (distanceSq <= searchRadiusSq)
+                        {
+                            state.TargetPosition = targetPos;
+                            return;
+                        }
+                    }
+                }
 
-                // Target search elided while SystemAPI queries are unavailable in this job.
+                for (int i = 0; i < TargetCandidates.Length; i++)
+                {
+                    var candidate = TargetCandidates[i];
+                    if (candidate.Entity == entity)
+                    {
+                        continue;
+                    }
+
+                    if (craftAffiliation != Entity.Null && candidate.AffiliationTarget == craftAffiliation)
+                    {
+                        continue;
+                    }
+
+                    var toCandidate = candidate.Position - position;
+                    var distanceSq = math.lengthsq(toCandidate);
+                    if (distanceSq > bestDistanceSq)
+                    {
+                        continue;
+                    }
+
+                    bestDistanceSq = distanceSq;
+                    bestTarget = candidate.Entity;
+                    bestPosition = candidate.Position;
+                }
 
                 if (bestTarget != Entity.Null)
                 {
                     state.TargetEntity = bestTarget;
                     state.TargetPosition = bestPosition;
                 }
+            }
+
+            private Entity ResolveAffiliationTarget(Entity entity)
+            {
+                if (!AffiliationLookup.HasBuffer(entity))
+                {
+                    return Entity.Null;
+                }
+
+                var affiliations = AffiliationLookup[entity];
+                Entity fallback = Entity.Null;
+                for (int i = 0; i < affiliations.Length; i++)
+                {
+                    var tag = affiliations[i];
+                    if (tag.Target == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    if (tag.Type == AffiliationType.Faction)
+                    {
+                        return tag.Target;
+                    }
+
+                    if (fallback == Entity.Null && tag.Type == AffiliationType.Fleet)
+                    {
+                        fallback = tag.Target;
+                    }
+                    else if (fallback == Entity.Null)
+                    {
+                        fallback = tag.Target;
+                    }
+                }
+
+                if (fallback == Entity.Null || !AffiliationLookup.HasBuffer(fallback))
+                {
+                    return fallback;
+                }
+
+                var nested = AffiliationLookup[fallback];
+                for (int i = 0; i < nested.Length; i++)
+                {
+                    var tag = nested[i];
+                    if (tag.Target == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    if (tag.Type == AffiliationType.Faction)
+                    {
+                        return tag.Target;
+                    }
+
+                    if (tag.Type == AffiliationType.Fleet)
+                    {
+                        return tag.Target;
+                    }
+                }
+
+                return fallback;
+            }
+
+            private void UpdateEngagement(Entity entity, in StrikeCraftState state, float3 position)
+            {
+                if (!EngagementLookup.HasComponent(entity))
+                {
+                    return;
+                }
+
+                var engagement = EngagementLookup.GetRefRW(entity).ValueRW;
+                var target = state.TargetEntity;
+                if (target == Entity.Null || !TransformLookup.HasComponent(target))
+                {
+                    engagement.PrimaryTarget = Entity.Null;
+                    engagement.Phase = EngagementPhase.None;
+                    engagement.TargetDistance = 0f;
+                    return;
+                }
+
+                engagement.PrimaryTarget = target;
+                var targetPos = TransformLookup[target].Position;
+                engagement.TargetDistance = math.distance(position, targetPos);
+                engagement.Phase = MapEngagementPhase(state.CurrentState);
+            }
+
+            private static EngagementPhase MapEngagementPhase(StrikeCraftState.State currentState)
+            {
+                return currentState switch
+                {
+                    StrikeCraftState.State.Approaching => EngagementPhase.Approaching,
+                    StrikeCraftState.State.Engaging => EngagementPhase.Engaged,
+                    StrikeCraftState.State.Disengaging => EngagementPhase.Retreating,
+                    StrikeCraftState.State.Returning => EngagementPhase.Retreating,
+                    _ => EngagementPhase.None
+                };
             }
 
             private void UpdateFormationPosition(Entity entity, ref LocalTransform transform, ref StrikeCraftState state)
@@ -460,15 +740,15 @@ namespace Space4X.Systems.AI
                     if (member.FormationEntity != Entity.Null)
                     {
                         var target = member.TargetPosition;
-                        var toTarget = target - transform.Position;
-                        var distance = math.length(toTarget);
-                        if (distance > 0.05f)
+                        var toMemberTarget = target - transform.Position;
+                        var memberDistance = math.length(toMemberTarget);
+                        if (memberDistance > 0.05f)
                         {
                             var moveSpeed = 10f;
                             moveSpeed *= math.lerp(0.85f, 1.2f, maintenanceQuality);
                             moveSpeed *= math.lerp(0.9f, 1.15f, GetMobilityQuality(entity));
-                            var step = math.min(distance, moveSpeed * DeltaTime);
-                            transform.Position += math.normalize(toTarget) * step;
+                            var step = math.min(memberDistance, moveSpeed * DeltaTime);
+                            transform.Position += math.normalize(toMemberTarget) * step;
                         }
                         else
                         {
@@ -478,7 +758,30 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                transform.Position = anchorPos + wingOffset * spacingScale;
+                var formationTarget = anchorPos + wingOffset * spacingScale;
+                var toTarget = formationTarget - transform.Position;
+                var distance = math.length(toTarget);
+                if (distance > 0.05f)
+                {
+                    var moveSpeed = 10f;
+                    moveSpeed *= math.lerp(0.85f, 1.2f, maintenanceQuality);
+                    moveSpeed *= math.lerp(0.9f, 1.15f, GetMobilityQuality(entity));
+                    var step = math.min(distance, moveSpeed * DeltaTime);
+                    var direction = toTarget / distance;
+                    transform.Position += direction * step;
+
+                    if (MovementLookup.HasComponent(entity))
+                    {
+                        var movement = MovementLookup.GetRefRW(entity).ValueRW;
+                        movement.Velocity = direction * moveSpeed;
+                        movement.IsMoving = 1;
+                        movement.LastMoveTick = CurrentTick;
+                    }
+                }
+                else
+                {
+                    transform.Position = formationTarget;
+                }
             }
 
             private void MoveTowardTarget(ref LocalTransform transform, ref StrikeCraftState state, Entity entity)
@@ -1270,6 +1573,13 @@ namespace Space4X.Systems.AI
                 // Lawful pilots return earlier, chaotic push limits, high resolve extends engagement
                 var hullThreshold = math.lerp(0.3f, 0.5f, lawfulness);
                 var fuelThreshold = math.lerp(0.2f, 0.4f, lawfulness);
+
+                var stanceMode = ResolveStance(entity);
+                var tuning = StanceConfig.Resolve(stanceMode);
+                if (tuning.AbortAttackOnDamageThreshold > 0f)
+                {
+                    hullThreshold = tuning.AbortAttackOnDamageThreshold;
+                }
                 
                 if (HullLookup.HasComponent(entity))
                 {
@@ -1311,6 +1621,25 @@ namespace Space4X.Systems.AI
                 }
 
                 return false;
+            }
+
+            private VesselStanceMode ResolveStance(Entity entity)
+            {
+                if (StanceLookup.HasComponent(entity))
+                {
+                    return StanceLookup[entity].CurrentStance;
+                }
+
+                if (TetherLookup.HasComponent(entity))
+                {
+                    var tether = TetherLookup[entity];
+                    if (tether.ParentCarrier != Entity.Null && StanceLookup.HasComponent(tether.ParentCarrier))
+                    {
+                        return StanceLookup[tether.ParentCarrier].CurrentStance;
+                    }
+                }
+
+                return VesselStanceMode.Balanced;
             }
 
             private bool ShouldDock(Entity entity, ref StrikeCraftState state)

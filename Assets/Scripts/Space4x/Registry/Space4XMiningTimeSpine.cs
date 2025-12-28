@@ -76,6 +76,7 @@ namespace Space4X.Registry
                 typeof(Space4XMiningTimeSpine),
                 typeof(MiningSnapshot),
                 typeof(MiningTelemetrySnapshot),
+                typeof(MiningApproachTelemetrySample),
                 typeof(MiningCommandLogEntry),
                 typeof(SkillChangeLogEntry),
                 typeof(SkillSnapshot));
@@ -89,6 +90,7 @@ namespace Space4X.Registry
 
             state.EntityManager.GetBuffer<MiningSnapshot>(entity);
             state.EntityManager.GetBuffer<MiningTelemetrySnapshot>(entity);
+            state.EntityManager.GetBuffer<MiningApproachTelemetrySample>(entity);
             state.EntityManager.GetBuffer<MiningCommandLogEntry>(entity);
             state.EntityManager.GetBuffer<SkillChangeLogEntry>(entity);
             state.EntityManager.GetBuffer<SkillSnapshot>(entity);
@@ -163,6 +165,7 @@ namespace Space4X.Registry
 
             var snapshots = state.EntityManager.GetBuffer<MiningSnapshot>(spineEntity);
             var telemetrySnapshots = state.EntityManager.GetBuffer<MiningTelemetrySnapshot>(spineEntity);
+            var approachSamples = state.EntityManager.GetBuffer<MiningApproachTelemetrySample>(spineEntity);
             var commandLog = state.EntityManager.GetBuffer<MiningCommandLogEntry>(spineEntity);
             var skillLog = state.EntityManager.GetBuffer<SkillChangeLogEntry>(spineEntity);
             var skillSnapshots = state.EntityManager.GetBuffer<SkillSnapshot>(spineEntity);
@@ -173,6 +176,7 @@ namespace Space4X.Registry
             // Prune old entries to enforce ring buffer capacity
             PruneSnapshotBuffer(snapshots, cutoff);
             PruneTelemetryBuffer(telemetrySnapshots, cutoff);
+            PruneApproachTelemetryBuffer(approachSamples, cutoff);
             PruneCommandLog(commandLog, cutoff);
             PruneSkillLog(skillLog, cutoff);
             PruneSkillSnapshots(skillSnapshots, cutoff);
@@ -180,6 +184,7 @@ namespace Space4X.Registry
             // Enforce capacity limits to prevent unbounded growth
             EnforceBufferCapacity(snapshots, (int)horizon);
             EnforceBufferCapacity(telemetrySnapshots, (int)horizon);
+            EnforceBufferCapacity(approachSamples, (int)horizon);
             EnforceBufferCapacity(commandLog, (int)horizon);
             EnforceBufferCapacity(skillLog, (int)horizon);
             EnforceBufferCapacity(skillSnapshots, (int)horizon);
@@ -215,6 +220,17 @@ namespace Space4X.Registry
         }
 
         private static void PruneTelemetryBuffer(DynamicBuffer<MiningTelemetrySnapshot> buffer, uint cutoffTick)
+        {
+            for (var i = buffer.Length - 1; i >= 0; i--)
+            {
+                if (buffer[i].Tick < cutoffTick)
+                {
+                    buffer.RemoveAt(i);
+                }
+            }
+        }
+
+        private static void PruneApproachTelemetryBuffer(DynamicBuffer<MiningApproachTelemetrySample> buffer, uint cutoffTick)
         {
             for (var i = buffer.Length - 1; i >= 0; i--)
             {

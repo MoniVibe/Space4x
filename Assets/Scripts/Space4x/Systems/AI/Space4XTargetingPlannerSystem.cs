@@ -17,6 +17,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<TargetSelectionProfile> _profileLookup;
         private ComponentLookup<TargetPriority> _priorityLookup;
         private ComponentLookup<ModuleTargetPolicy> _modulePolicyLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -28,6 +29,7 @@ namespace Space4X.Systems.AI
             _profileLookup = state.GetComponentLookup<TargetSelectionProfile>(false);
             _priorityLookup = state.GetComponentLookup<TargetPriority>(false);
             _modulePolicyLookup = state.GetComponentLookup<ModuleTargetPolicy>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -53,6 +55,7 @@ namespace Space4X.Systems.AI
             _profileLookup.Update(ref state);
             _priorityLookup.Update(ref state);
             _modulePolicyLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -118,7 +121,10 @@ namespace Space4X.Systems.AI
                     }
                     else
                     {
-                        ecb.AddComponent(memberEntity, new ModuleTargetPolicy { Kind = policy });
+                        if (_entityInfoLookup.Exists(memberEntity) && _entityInfoLookup[memberEntity].Chunk.Capacity > 1)
+                        {
+                            ecb.AddComponent(memberEntity, new ModuleTargetPolicy { Kind = policy });
+                        }
                     }
                 }
 

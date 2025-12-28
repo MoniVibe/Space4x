@@ -1,6 +1,8 @@
 using PureDOTS.Input;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -37,15 +39,21 @@ namespace Space4X.Systems
             if (rightClicks.Length == 0)
                 return;
 
+            uint tick = 0;
+            if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            {
+                tick = timeState.Tick;
+            }
+
             foreach (var evt in rightClicks)
             {
-                ProcessRightClick(ref state, evt);
+                ProcessRightClick(ref state, evt, tick);
             }
 
             rightClicks.Clear();
         }
 
-        private void ProcessRightClick(ref SystemState state, RightClickEvent evt)
+        private void ProcessRightClick(ref SystemState state, RightClickEvent evt, uint tick)
         {
             UnityEngine.Camera camera = UnityEngine.Camera.main;
             if (camera == null)
@@ -91,21 +99,49 @@ namespace Space4X.Systems
             Entity targetAff = GetPrimaryAffiliation(ref state, hitEntity);
 
             var orderKind = DetermineOrderKind(ref state, hitEntity, hasHit, ownerAff, targetAff);
+            bool attackMove = evt.Ctrl != 0 && orderKind == OrderKind.Move;
+            if (attackMove)
+            {
+                orderKind = OrderKind.Attack;
+                hitEntity = Entity.Null;
+            }
             var order = new Order
             {
                 Kind = orderKind,
                 TargetEntity = hitEntity,
                 TargetPosition = hitPos,
-                Flags = 0
+                Flags = (byte)(attackMove ? OrderFlags.AttackMove : OrderFlags.None)
             };
 
             bool queue = evt.Queue != 0;
             foreach (var entity in selected)
             {
                 ApplyOrder(ref state, entity, order, queue);
+                if (attackMove)
+                {
+                    ApplyAttackMoveSourceHint(ref state, entity, tick);
+                }
             }
 
             selected.Dispose();
+        }
+
+        private void ApplyAttackMoveSourceHint(ref SystemState state, Entity entity, uint tick)
+        {
+            var hint = new AttackMoveSourceHint
+            {
+                Source = AttackMoveSource.CtrlConvert,
+                IssuedTick = tick
+            };
+
+            if (state.EntityManager.HasComponent<AttackMoveSourceHint>(entity))
+            {
+                state.EntityManager.SetComponentData(entity, hint);
+            }
+            else
+            {
+                state.EntityManager.AddComponentData(entity, hint);
+            }
         }
 
         private Entity GetPrimaryAffiliation(ref SystemState state, Entity entity)

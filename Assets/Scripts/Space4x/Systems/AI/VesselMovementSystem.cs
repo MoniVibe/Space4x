@@ -55,6 +55,10 @@ namespace Space4X.Systems.AI
         private ComponentLookup<DecisionTrace> _decisionTraceLookup;
         private ComponentLookup<MovementDebugState> _movementDebugLookup;
         private BufferLookup<MoveTraceEvent> _traceEventLookup;
+        private ComponentLookup<AttackMoveIntent> _attackMoveLookup;
+        private ComponentLookup<VesselAimDirective> _aimDirectiveLookup;
+        private BufferLookup<SubsystemHealth> _subsystemLookup;
+        private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -94,6 +98,10 @@ namespace Space4X.Systems.AI
             _decisionTraceLookup = state.GetComponentLookup<DecisionTrace>(false);
             _movementDebugLookup = state.GetComponentLookup<MovementDebugState>(false);
             _traceEventLookup = state.GetBufferLookup<MoveTraceEvent>(false);
+            _attackMoveLookup = state.GetComponentLookup<AttackMoveIntent>(true);
+            _aimDirectiveLookup = state.GetComponentLookup<VesselAimDirective>(true);
+            _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
+            _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -178,6 +186,8 @@ namespace Space4X.Systems.AI
             }
 #endif
 
+            EnsureMovementDebugSurfaces(ref state);
+
             _threatLookup.Update(ref state);
             _stanceLookup.Update(ref state);
             _capabilityStateLookup.Update(ref state);
@@ -206,13 +216,20 @@ namespace Space4X.Systems.AI
             _decisionTraceLookup.Update(ref state);
             _movementDebugLookup.Update(ref state);
             _traceEventLookup.Update(ref state);
-
-            EnsureMovementDebugSurfaces(ref state);
+            _attackMoveLookup.Update(ref state);
+            _aimDirectiveLookup.Update(ref state);
+            _subsystemLookup.Update(ref state);
+            _subsystemDisabledLookup.Update(ref state);
 
             var motionConfig = VesselMotionProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
             {
                 motionConfig = motionConfigSingleton;
+            }
+            var stanceConfig = Space4XStanceTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
+            {
+                stanceConfig = stanceConfigSingleton;
             }
 
             var job = new UpdateVesselMovementJob
@@ -222,6 +239,7 @@ namespace Space4X.Systems.AI
                 ArrivalDistance = 2f, // Vessels stop 2 units away from target
                 BaseRotationSpeed = 2f, // Base rotate speed in radians per second
                 MotionConfig = motionConfig,
+                StanceConfig = stanceConfig,
                 RoleNavigationOfficer = _roleNavigationOfficer,
                 RoleShipmaster = _roleShipmaster,
                 RoleCaptain = _roleCaptain,
@@ -252,13 +270,18 @@ namespace Space4X.Systems.AI
                 MovePlanLookup = _movePlanLookup,
                 DecisionTraceLookup = _decisionTraceLookup,
                 MovementDebugLookup = _movementDebugLookup,
-                TraceEventLookup = _traceEventLookup
+                TraceEventLookup = _traceEventLookup,
+                AttackMoveLookup = _attackMoveLookup,
+                AimDirectiveLookup = _aimDirectiveLookup,
+                SubsystemLookup = _subsystemLookup,
+                SubsystemDisabledLookup = _subsystemDisabledLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
         }
 
         [BurstCompile]
+        [WithNone(typeof(StrikeCraftDogfightTag))]
         public partial struct UpdateVesselMovementJob : IJobEntity
         {
             public float DeltaTime;
@@ -266,6 +289,7 @@ namespace Space4X.Systems.AI
             public float ArrivalDistance;
             public float BaseRotationSpeed;
             public VesselMotionProfileConfig MotionConfig;
+            public Space4XStanceTuningConfig StanceConfig;
             public FixedString64Bytes RoleNavigationOfficer;
             public FixedString64Bytes RoleShipmaster;
             public FixedString64Bytes RoleCaptain;
@@ -297,6 +321,10 @@ namespace Space4X.Systems.AI
             [NativeDisableParallelForRestriction] public ComponentLookup<DecisionTrace> DecisionTraceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<MovementDebugState> MovementDebugLookup;
             [NativeDisableParallelForRestriction] public BufferLookup<MoveTraceEvent> TraceEventLookup;
+            [ReadOnly] public ComponentLookup<AttackMoveIntent> AttackMoveLookup;
+            [ReadOnly] public ComponentLookup<VesselAimDirective> AimDirectiveLookup;
+            [ReadOnly] public BufferLookup<SubsystemHealth> SubsystemLookup;
+            [ReadOnly] public BufferLookup<SubsystemDisabled> SubsystemDisabledLookup;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
@@ -327,6 +355,7 @@ namespace Space4X.Systems.AI
                     if ((capabilityState.EnabledCapabilities & CapabilityFlags.Movement) == 0)
                     {
                         movement.Velocity = float3.zero;
+                        movement.CurrentSpeed = 0f;
                         movement.IsMoving = 0;
                         return;
                     }
@@ -336,22 +365,44 @@ namespace Space4X.Systems.AI
                 if (aiState.CurrentState == VesselAIState.State.Mining)
                 {
                     movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     UpdateDecisionTrace(entity, DecisionReasonCode.MiningHold, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
                 }
 
-                // Only check TargetEntity - TargetPosition will be resolved by targeting system
-                if (aiState.TargetEntity == Entity.Null)
+                var hasAttackMove = AttackMoveLookup.HasComponent(entity);
+                var attackMove = hasAttackMove ? AttackMoveLookup[entity] : default;
+
+                // Only check TargetEntity unless attack-move intent is present
+                if (aiState.TargetEntity == Entity.Null && !hasAttackMove)
                 {
                     movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     UpdateDecisionTrace(entity, DecisionReasonCode.NoTarget, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
                 }
+
+                var engineScale = 1f;
+                if (SubsystemLookup.HasBuffer(entity))
+                {
+                    var subsystems = SubsystemLookup[entity];
+                    if (SubsystemDisabledLookup.HasBuffer(entity))
+                    {
+                        var disabledSubsystems = SubsystemDisabledLookup[entity];
+                        engineScale = Space4XSubsystemUtility.ResolveEngineScale(subsystems, disabledSubsystems);
+                    }
+                    else if (Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, SubsystemType.Engines))
+                    {
+                        engineScale = Space4XSubsystemUtility.EngineDisabledScale;
+                    }
+                }
+
+                var baseSpeed = math.max(0.1f, movement.BaseSpeed * engineScale);
                 
                 // TargetPosition should be resolved by VesselTargetingSystem (runs earlier in Space4XTransportAISystemGroup).
-                var targetPosition = aiState.TargetPosition;
+                var targetPosition = hasAttackMove ? attackMove.Destination : aiState.TargetPosition;
                 var isAsteroidTarget = false;
                 var asteroidRadius = 0f;
                 var asteroidStandoff = 0f;
@@ -382,6 +433,10 @@ namespace Space4X.Systems.AI
                 var blockerEntity = Entity.Null;
 
                 var arrivalDistance = movement.ArrivalDistance > 0f ? movement.ArrivalDistance : ArrivalDistance;
+                if (hasAttackMove && attackMove.DestinationRadius > 0f)
+                {
+                    arrivalDistance = math.max(arrivalDistance, attackMove.DestinationRadius);
+                }
                 var profileEntity = ResolveProfileEntity(entity);
                 var disposition = ResolveBehaviorDisposition(profileEntity, entity);
                 var compliance = disposition.Compliance;
@@ -424,7 +479,12 @@ namespace Space4X.Systems.AI
                 chaotic = math.saturate(math.lerp(chaotic, 1f - compliance, 0.35f));
                 risk = math.saturate(math.lerp(risk, riskTolerance, 0.5f));
 
-                if (distance <= arrivalDistance)
+                var currentSpeed = math.length(movement.Velocity);
+                var currentSpeedSq = currentSpeed * currentSpeed;
+                movement.CurrentSpeed = currentSpeed;
+
+                var stopSpeed = math.max(0.05f, baseSpeed * 0.1f);
+                if (distance <= arrivalDistance && currentSpeed <= stopSpeed)
                 {
                     movement.Velocity = float3.zero;
                     movement.CurrentSpeed = 0f;
@@ -445,10 +505,11 @@ namespace Space4X.Systems.AI
                     stanceType = StanceLookup[entity].CurrentStance;
                 }
                 
-                var avoidanceRadius = StanceRouting.GetAvoidanceRadius(stanceType);
-                var avoidanceStrength = StanceRouting.GetAvoidanceStrength(stanceType);
-                var speedMultiplier = StanceRouting.GetSpeedMultiplier(stanceType);
-                var rotationMultiplier = StanceRouting.GetRotationMultiplier(stanceType);
+                var stanceConfig = StanceConfig.Resolve(stanceType);
+                var avoidanceRadius = stanceConfig.AvoidanceRadius;
+                var avoidanceStrength = stanceConfig.AvoidanceStrength;
+                var speedMultiplier = stanceConfig.SpeedMultiplier;
+                var rotationMultiplier = stanceConfig.RotationMultiplier;
 
                 speedMultiplier *= math.lerp(1f, MotionConfig.DeliberateSpeedMultiplier, deliberate);
                 speedMultiplier *= math.lerp(1f, MotionConfig.ChaoticSpeedMultiplier, chaotic);
@@ -519,18 +580,18 @@ namespace Space4X.Systems.AI
                     direction = ApplyDeviation(direction, entity, aiState.TargetEntity, deviationStrength);
                 }
 
-                var currentSpeedSq = math.lengthsq(movement.Velocity);
                 if (currentSpeedSq > 1e-4f)
                 {
                     var currentDir = math.normalize(movement.Velocity);
-                    var turnSpeed = movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed;
+                    var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
                     var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f);
                     direction = math.normalizesafe(math.lerp(currentDir, direction, steer), direction);
                 }
 
                 if (MiningStateLookup.HasComponent(entity))
                 {
-                    var phase = MiningStateLookup[entity].Phase;
+                    var miningState = MiningStateLookup[entity];
+                    var phase = miningState.Phase;
                     var phaseSpeedMultiplier = phase switch
                     {
                         MiningPhase.Undocking => MotionConfig.MiningUndockSpeedMultiplier,
@@ -544,6 +605,15 @@ namespace Space4X.Systems.AI
 
                     speedMultiplier *= phaseSpeedMultiplier;
                     rotationMultiplier *= math.lerp(1f, phaseSpeedMultiplier, 0.5f);
+
+                    if ((phase == MiningPhase.Latching || phase == MiningPhase.Mining) && miningState.LatchSettleUntilTick > CurrentTick)
+                    {
+                        // Dampen latch settling to reduce surface jitter while attaching.
+                        speedMultiplier *= 0.35f;
+                        accelerationMultiplier *= 0.6f;
+                        decelerationMultiplier *= 1.4f;
+                        rotationMultiplier *= 0.75f;
+                    }
                 }
 
                 // Apply capability effectiveness to speed (damaged engines reduce speed)
@@ -554,8 +624,8 @@ namespace Space4X.Systems.AI
                     effectivenessMultiplier = math.max(0f, effectiveness.MovementEffectiveness);
                 }
 
-                var desiredSpeed = movement.BaseSpeed * speedMultiplier * effectivenessMultiplier * mobilitySpeedMultiplier;
-                var maxSpeed = math.max(0.1f, movement.BaseSpeed * 4f);
+                var desiredSpeed = baseSpeed * speedMultiplier * effectivenessMultiplier * mobilitySpeedMultiplier;
+                var maxSpeed = math.max(0.1f, baseSpeed * 4f);
                 if (desiredSpeed > maxSpeed)
                 {
                     desiredSpeed = maxSpeed;
@@ -580,12 +650,16 @@ namespace Space4X.Systems.AI
                     desiredSpeed *= 0.55f;
                     rotationMultiplier *= 0.7f;
                 }
+                if (distance <= arrivalDistance)
+                {
+                    desiredSpeed = math.min(desiredSpeed, math.max(0.05f, baseSpeed * 0.2f));
+                }
 
-                var acceleration = movement.Acceleration > 0f ? movement.Acceleration : math.max(0.1f, movement.BaseSpeed * 2f);
-                var deceleration = movement.Deceleration > 0f ? movement.Deceleration : math.max(0.1f, movement.BaseSpeed * 2.5f);
+                var acceleration = movement.Acceleration > 0f ? movement.Acceleration * engineScale : math.max(0.1f, baseSpeed * 2f);
+                var deceleration = movement.Deceleration > 0f ? movement.Deceleration * engineScale : math.max(0.1f, baseSpeed * 2.5f);
                 acceleration = math.max(0.01f, acceleration * accelerationMultiplier);
                 deceleration = math.max(0.01f, deceleration * decelerationMultiplier);
-                var maxAccel = math.max(0.1f, movement.BaseSpeed * 6f);
+                var maxAccel = math.max(0.1f, baseSpeed * 6f);
                 if (acceleration > maxAccel)
                 {
                     acceleration = maxAccel;
@@ -594,7 +668,7 @@ namespace Space4X.Systems.AI
                         debugState.AccelClampCount += 1;
                     }
                 }
-                var speedRatio = math.saturate(movement.CurrentSpeed / math.max(0.1f, desiredSpeed));
+                var speedRatio = math.saturate(currentSpeed / math.max(0.1f, desiredSpeed));
                 acceleration *= math.lerp(0.35f, 1f, speedRatio);
                 if (overshoot)
                 {
@@ -602,19 +676,46 @@ namespace Space4X.Systems.AI
                 }
                 if (isAsteroidTarget && asteroidRadius > 0f && distance < asteroidRadius + asteroidStandoff * 0.8f)
                 {
-                    desiredSpeed = math.min(desiredSpeed, math.max(0.2f, movement.BaseSpeed * 0.35f));
+                    desiredSpeed = math.min(desiredSpeed, math.max(0.2f, baseSpeed * 0.35f));
                     deceleration *= 1.6f;
                 }
-                if (movement.CurrentSpeed < desiredSpeed)
+                var desiredVelocity = direction * desiredSpeed;
+                if (currentSpeedSq > 1e-4f)
                 {
-                    movement.CurrentSpeed = math.min(desiredSpeed, movement.CurrentSpeed + acceleration * DeltaTime);
-                }
-                else
-                {
-                    movement.CurrentSpeed = math.max(desiredSpeed, movement.CurrentSpeed - deceleration * DeltaTime);
+                    var retrogradeWeight = 0f;
+                    if (overshoot)
+                    {
+                        retrogradeWeight = 1f;
+                    }
+                    else if (distance < slowdownDistance)
+                    {
+                        retrogradeWeight = math.saturate((slowdownDistance - distance) / math.max(1e-4f, slowdownDistance));
+                    }
+
+                    if (retrogradeWeight > 0f)
+                    {
+                        var retroDir = math.normalizesafe(-movement.Velocity, direction);
+                        var retroVelocity = retroDir * desiredSpeed;
+                        desiredVelocity = math.lerp(desiredVelocity, retroVelocity, retrogradeWeight);
+                        direction = math.normalizesafe(math.lerp(direction, retroDir, retrogradeWeight), retroDir);
+                    }
                 }
 
-                movement.Velocity = direction * movement.CurrentSpeed;
+                var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
+                var maxDelta = accelLimit * DeltaTime;
+                var deltaV = desiredVelocity - movement.Velocity;
+                var deltaSq = math.lengthsq(deltaV);
+                if (maxDelta > 0f && deltaSq > maxDelta * maxDelta)
+                {
+                    deltaV = math.normalizesafe(deltaV) * maxDelta;
+                    if (hasDebug)
+                    {
+                        debugState.AccelClampCount += 1;
+                    }
+                }
+
+                movement.Velocity += deltaV;
+                movement.CurrentSpeed = math.length(movement.Velocity);
                 transform.Position += movement.Velocity * DeltaTime;
 
                 if (isAsteroidTarget && AsteroidCenterLookup.HasComponent(aiState.TargetEntity))
@@ -646,8 +747,18 @@ namespace Space4X.Systems.AI
 
                 if (math.lengthsq(movement.Velocity) > 0.001f)
                 {
-                    movement.DesiredRotation = quaternion.LookRotationSafe(direction, math.up());
-                    var turnSpeed = movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed;
+                    var rotationDirection = direction;
+                    if (hasAttackMove && AimDirectiveLookup.HasComponent(entity))
+                    {
+                        var aim = AimDirectiveLookup[entity];
+                        if (aim.AimWeight > 0f && math.lengthsq(aim.AimDirection) > 0.001f)
+                        {
+                            rotationDirection = math.normalizesafe(math.lerp(direction, aim.AimDirection, aim.AimWeight), direction);
+                        }
+                    }
+
+                    movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
+                    var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
                     transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, DeltaTime * turnSpeed * rotationMultiplier);
                 }
 
@@ -656,11 +767,12 @@ namespace Space4X.Systems.AI
 
                 var intentType = ResolveIntentType(entity, aiState);
                 var planMode = ResolvePlanMode(entity, aiState, distance, arrivalDistance, isAsteroidTarget);
-                var eta = desiredSpeed > 0.01f ? distance / desiredSpeed : 0f;
+                var planSpeed = math.length(desiredVelocity);
+                var eta = planSpeed > 0.01f ? distance / planSpeed : 0f;
                 UpdateMoveIntent(entity, aiState.TargetEntity, targetPosition, intentType, ref debugState, hasDebug);
-                UpdateMovePlan(entity, planMode, direction * desiredSpeed, acceleration, eta, ref debugState, hasDebug);
+                UpdateMovePlan(entity, planMode, desiredVelocity, accelLimit, eta, ref debugState, hasDebug);
                 UpdateDecisionTrace(entity, DecisionReasonCode.Moving, aiState.TargetEntity, 1f, blockerEntity, ref debugState, hasDebug);
-                UpdateMovementInvariants(entity, transform.Position, distance, movement.CurrentSpeed, movement.BaseSpeed, ref debugState, hasDebug);
+                UpdateMovementInvariants(entity, transform.Position, distance, movement.CurrentSpeed, baseSpeed, ref debugState, hasDebug);
             }
 
             private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity vesselEntity)

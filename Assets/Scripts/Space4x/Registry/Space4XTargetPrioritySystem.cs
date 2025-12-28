@@ -20,6 +20,8 @@ namespace Space4X.Registry
     public partial struct Space4XTargetPrioritySystem : ISystem
     {
         private EntityQuery _potentialTargetsQuery;
+        private ComponentLookup<VesselStanceComponent> _stanceLookup;
+        private ComponentLookup<PatrolStance> _patrolStanceLookup;
         private uint _lastTick;
 
         public void OnCreate(ref SystemState state)
@@ -28,6 +30,8 @@ namespace Space4X.Registry
             state.RequireForUpdate<TargetSelectionProfile>();
             state.RequireForUpdate<TimeState>();
             _lastTick = 0;
+            _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
+            _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
 
             // Query for potential hostile targets
             _potentialTargetsQuery = state.GetEntityQuery(
@@ -49,6 +53,15 @@ namespace Space4X.Registry
             var tickDelta = _lastTick == 0u ? 1u : (currentTick > _lastTick ? currentTick - _lastTick : 1u);
             _lastTick = currentTick;
             var deltaTime = timeState.FixedDeltaTime * tickDelta;
+
+            _stanceLookup.Update(ref state);
+            _patrolStanceLookup.Update(ref state);
+
+            var stanceConfig = Space4XStanceTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
+            {
+                stanceConfig = stanceConfigSingleton;
+            }
 
             // Get all potential targets (simplified - in reality would filter by faction/hostility)
             var potentialTargets = _potentialTargetsQuery.ToEntityArray(Allocator.Temp);
@@ -76,8 +89,25 @@ namespace Space4X.Registry
                 candidates.Clear();
 
                 // Score each potential target
-                float maxRange = profile.ValueRO.MaxEngagementRange > 0 ?
-                    profile.ValueRO.MaxEngagementRange : 10000f;
+                float maxRange = profile.ValueRO.MaxEngagementRange > 0
+                    ? profile.ValueRO.MaxEngagementRange
+                    : 10000f;
+
+                var stance = VesselStanceMode.Balanced;
+                if (_stanceLookup.HasComponent(entity))
+                {
+                    stance = _stanceLookup[entity].CurrentStance;
+                }
+                else if (_patrolStanceLookup.HasComponent(entity))
+                {
+                    stance = _patrolStanceLookup[entity].Stance;
+                }
+
+                var tuning = stanceConfig.Resolve(stance);
+                if (tuning.AutoEngageRadius > 0f)
+                {
+                    maxRange = math.min(maxRange, tuning.AutoEngageRadius);
+                }
 
                 float3 myPosition = transform.ValueRO.Position;
 
@@ -95,7 +125,7 @@ namespace Space4X.Registry
                     float distance = math.distance(myPosition, targetPosition);
 
                     // Skip out of range
-                    if (profile.ValueRO.MaxEngagementRange > 0 && distance > profile.ValueRO.MaxEngagementRange)
+                    if (maxRange > 0f && distance > maxRange)
                     {
                         continue;
                     }
@@ -156,13 +186,16 @@ namespace Space4X.Registry
         {
             Entity bestTarget = Entity.Null;
             float bestScore = float.MinValue;
+            const float scoreEpsilon = 0.0001f;
 
             for (int i = 0; i < candidates.Length; i++)
             {
-                if (candidates[i].Score > bestScore)
+                var candidate = candidates[i];
+                if (candidate.Score > bestScore ||
+                    (math.abs(candidate.Score - bestScore) <= scoreEpsilon && IsPreferredTarget(candidate.Entity, bestTarget)))
                 {
-                    bestScore = candidates[i].Score;
-                    bestTarget = candidates[i].Entity;
+                    bestScore = candidate.Score;
+                    bestTarget = candidate.Entity;
                 }
             }
 
@@ -176,6 +209,21 @@ namespace Space4X.Registry
             priority.CurrentScore = bestScore;
             priority.LastEvaluationTick = currentTick;
             priority.ForceReevaluate = 0;
+        }
+
+        private static bool IsPreferredTarget(Entity candidate, Entity current)
+        {
+            if (current == Entity.Null)
+            {
+                return true;
+            }
+
+            if (candidate.Index != current.Index)
+            {
+                return candidate.Index < current.Index;
+            }
+
+            return candidate.Version < current.Version;
         }
     }
 

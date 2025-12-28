@@ -13,7 +13,6 @@ namespace Space4X.Presentation
     /// Stub behavior → visuals mapping for Space4X.
     /// Keeps behavior readable (moving/mining/returning/depleted) without modeling deeper crew/officer nuance yet.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
     [UpdateBefore(typeof(Space4XRenderTintSyncSystem))]
@@ -29,7 +28,6 @@ namespace Space4X.Presentation
         private ComponentLookup<InCombatTag> _inCombatLookup;
         private ComponentLookup<PatrolBehavior> _patrolLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -47,7 +45,7 @@ namespace Space4X.Presentation
                 .Build();
 
             _asteroidQuery = SystemAPI.QueryBuilder()
-                .WithAll<AsteroidPresentationTag, Asteroid, AsteroidVisualState, RenderTint, MaterialPropertyOverride>()
+                .WithAll<AsteroidPresentationTag, Asteroid, AsteroidVisualState, PresentationScaleMultiplier, RenderTint, MaterialPropertyOverride>()
                 .Build();
 
             _strikeCraftQuery = SystemAPI.QueryBuilder()
@@ -59,7 +57,6 @@ namespace Space4X.Presentation
             _patrolLookup = state.GetComponentLookup<PatrolBehavior>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!RuntimeMode.IsRenderingEnabled)
@@ -191,8 +188,8 @@ namespace Space4X.Presentation
             // Asteroids: depletion ratio → dimming, with a subtle pulse if still rich.
             if (!_asteroidQuery.IsEmptyIgnoreFilter)
             {
-                foreach (var (asteroid, visual, tint, material, entity) in SystemAPI
-                             .Query<RefRO<Asteroid>, RefRW<AsteroidVisualState>, RefRW<RenderTint>, RefRO<MaterialPropertyOverride>>()
+                foreach (var (asteroid, visual, scaleMultiplier, tint, material, entity) in SystemAPI
+                             .Query<RefRO<Asteroid>, RefRW<AsteroidVisualState>, RefRW<PresentationScaleMultiplier>, RefRW<RenderTint>, RefRO<MaterialPropertyOverride>>()
                              .WithAll<AsteroidPresentationTag>()
                              .WithEntityAccess())
                 {
@@ -208,11 +205,14 @@ namespace Space4X.Presentation
                     visual.ValueRW.StateTimer += deltaTime;
 
                     var baseColor = material.ValueRO.BaseColor;
-                    float brightness = stateType == AsteroidVisualStateType.Depleted
-                        ? 0.20f
+                    float pulse = stateType == AsteroidVisualStateType.Depleted
+                        ? 0.55f + 0.20f * math.sin(timeSeconds * 2.2f + entity.Index * 0.04f)
                         : 0.88f + 0.12f * math.sin(timeSeconds * 1.4f + entity.Index * 0.03f);
+                    float alpha = math.lerp(0.35f, 1f, ratio);
+                    float scale = math.lerp(0.65f, 1f, ratio);
 
-                    tint.ValueRW.Value = new float4(baseColor.xyz * brightness, baseColor.w);
+                    scaleMultiplier.ValueRW.Value = scale;
+                    tint.ValueRW.Value = new float4(baseColor.xyz * pulse, baseColor.w * alpha);
                 }
             }
 

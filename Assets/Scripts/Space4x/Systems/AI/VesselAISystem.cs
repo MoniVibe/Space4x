@@ -31,8 +31,11 @@ namespace Space4X.Systems.AI
         private ComponentLookup<MiningOrder> _miningOrderLookup;
         private ComponentLookup<Space4X.Registry.ResourceTypeId> _resourceTypeLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
         private ComponentLookup<MinerTargetStrategy> _targetStrategyLookup;
         private ComponentLookup<ResourceSourceState> _resourceStateLookup;
+        private ComponentLookup<MiningState> _miningStateLookup;
+        private ComponentLookup<LocalTransform> _targetTransformLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -55,8 +58,11 @@ namespace Space4X.Systems.AI
             _miningOrderLookup = state.GetComponentLookup<MiningOrder>(false);
             _resourceTypeLookup = state.GetComponentLookup<Space4X.Registry.ResourceTypeId>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+            _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             _targetStrategyLookup = state.GetComponentLookup<MinerTargetStrategy>(true);
             _resourceStateLookup = state.GetComponentLookup<ResourceSourceState>(true);
+            _miningStateLookup = state.GetComponentLookup<MiningState>(true);
+            _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         [BurstCompile]
@@ -119,8 +125,19 @@ namespace Space4X.Systems.AI
                         _miningOrderLookup.Update(ref state);
                         _resourceTypeLookup.Update(ref state);
                         _asteroidLookup.Update(ref state);
+                        _asteroidVolumeLookup.Update(ref state);
                         _targetStrategyLookup.Update(ref state);
                         _resourceStateLookup.Update(ref state);
+                        _miningStateLookup.Update(ref state);
+                        _targetTransformLookup.Update(ref state);
+
+                        var latchConfig = Space4XMiningLatchConfig.Default;
+                        if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var latchConfigSingleton))
+                        {
+                            latchConfig = latchConfigSingleton;
+                        }
+
+                        var surfaceEpsilon = math.max(0.05f, latchConfig.SurfaceEpsilon);
 
                         var job = new UpdateVesselAIJob
                         {
@@ -131,10 +148,14 @@ namespace Space4X.Systems.AI
                             MiningOrderLookup = _miningOrderLookup,
                             ResourceTypeLookup = _resourceTypeLookup,
                             AsteroidLookup = _asteroidLookup,
+                            AsteroidVolumeLookup = _asteroidVolumeLookup,
                             TargetStrategyLookup = _targetStrategyLookup,
                             ResourceStateLookup = _resourceStateLookup,
+                            MiningStateLookup = _miningStateLookup,
+                            TargetTransformLookup = _targetTransformLookup,
                             DeltaTime = timeState.FixedDeltaTime,
-                            CurrentTick = timeState.Tick
+                            CurrentTick = timeState.Tick,
+                            LatchSurfaceEpsilon = surfaceEpsilon
                         };
 
                         // NOTE: This job writes MiningOrder via ComponentLookup on the current entity.
@@ -181,10 +202,14 @@ namespace Space4X.Systems.AI
             public ComponentLookup<MiningOrder> MiningOrderLookup;
             [ReadOnly] public ComponentLookup<Space4X.Registry.ResourceTypeId> ResourceTypeLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
+            [ReadOnly] public ComponentLookup<Space4XAsteroidVolumeConfig> AsteroidVolumeLookup;
             [ReadOnly] public ComponentLookup<MinerTargetStrategy> TargetStrategyLookup;
             [ReadOnly] public ComponentLookup<ResourceSourceState> ResourceStateLookup;
+            [ReadOnly] public ComponentLookup<MiningState> MiningStateLookup;
+            [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
             public float DeltaTime;
             public uint CurrentTick;
+            public float LatchSurfaceEpsilon;
 
             public void Execute(ref VesselAIState aiState, in MiningVessel vessel, in LocalTransform transform, Entity entity)
             {
@@ -438,11 +463,38 @@ namespace Space4X.Systems.AI
                          aiState.TargetEntity != Entity.Null &&
                          vessel.CurrentCargo < vessel.CargoCapacity * 0.95f)
                 {
-                    // Transition to mining state - VesselGatheringSystem will handle actual gathering
-                    aiState.CurrentState = VesselAIState.State.Mining;
-                    aiState.StateTimer = 0f;
-                    aiState.StateStartTick = CurrentTick;
+                    if (!MiningStateLookup.HasComponent(entity))
+                    {
+                        // Legacy path only: MiningState pipeline owns transitions for mining vessels.
+                        if (IsMiningTargetInRange(aiState.TargetEntity, transform.Position))
+                        {
+                            aiState.CurrentState = VesselAIState.State.Mining;
+                            aiState.StateTimer = 0f;
+                            aiState.StateStartTick = CurrentTick;
+                        }
+                    }
                 }
+            }
+
+            private bool IsMiningTargetInRange(Entity targetEntity, float3 minerPosition)
+            {
+                if (targetEntity == Entity.Null || !TargetTransformLookup.HasComponent(targetEntity))
+                {
+                    return false;
+                }
+
+                var targetPosition = TargetTransformLookup[targetEntity].Position;
+                if (AsteroidVolumeLookup.HasComponent(targetEntity))
+                {
+                    var volume = AsteroidVolumeLookup[targetEntity];
+                    var radius = math.max(0.5f, volume.Radius);
+                    var distanceToSurface = Space4XMiningLatchUtility.ResolveDistanceToSurface(targetPosition, radius, minerPosition);
+                    return distanceToSurface <= LatchSurfaceEpsilon;
+                }
+
+                var distanceSq = math.distancesq(minerPosition, targetPosition);
+                const float requiredDistance = 3f;
+                return distanceSq <= requiredDistance * requiredDistance;
             }
         }
 

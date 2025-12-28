@@ -137,6 +137,7 @@ namespace Space4X.Systems.Orbitals
 
         private void AssignOrbits(ref SystemState state, uint currentTick, NativeArray<Entity> stars)
         {
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>()
                          .WithAny<Asteroid, VesselMovement>()
                          .WithEntityAccess())
@@ -156,7 +157,7 @@ namespace Space4X.Systems.Orbitals
 
                 if (!state.EntityManager.HasComponent<Space4XOrbitAnchor>(entity))
                 {
-                    state.EntityManager.AddComponentData(entity, new Space4XOrbitAnchor
+                    ecb.AddComponent(entity, new Space4XOrbitAnchor
                     {
                         ParentStar = star,
                         Radius = radius,
@@ -169,7 +170,7 @@ namespace Space4X.Systems.Orbitals
 
                 if (!state.EntityManager.HasComponent<Space4XOrbitAnchorState>(entity))
                 {
-                    state.EntityManager.AddComponentData(entity, new Space4XOrbitAnchorState
+                    ecb.AddComponent(entity, new Space4XOrbitAnchorState
                     {
                         LastPosition = position,
                         Initialized = 1
@@ -179,7 +180,7 @@ namespace Space4X.Systems.Orbitals
                 if (state.EntityManager.HasComponent<Asteroid>(entity) &&
                     !state.EntityManager.HasComponent<Space4XAsteroidCenter>(entity))
                 {
-                    state.EntityManager.AddComponentData(entity, new Space4XAsteroidCenter
+                    ecb.AddComponent(entity, new Space4XAsteroidCenter
                     {
                         Position = position
                     });
@@ -187,7 +188,7 @@ namespace Space4X.Systems.Orbitals
 
                 if (!state.EntityManager.HasComponent<SpaceVelocity>(entity))
                 {
-                    state.EntityManager.AddComponentData(entity, new SpaceVelocity
+                    ecb.AddComponent(entity, new SpaceVelocity
                     {
                         Linear = float3.zero,
                         Angular = float3.zero
@@ -196,9 +197,12 @@ namespace Space4X.Systems.Orbitals
 
                 if (!state.EntityManager.HasComponent<Space4XMicroImpulseTag>(entity))
                 {
-                    state.EntityManager.AddComponentData(entity, new Space4XMicroImpulseTag());
+                    ecb.AddComponent<Space4XMicroImpulseTag>(entity);
                 }
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private Entity ResolveNearestStar(float3 position, NativeArray<Entity> stars, ref SystemState state)

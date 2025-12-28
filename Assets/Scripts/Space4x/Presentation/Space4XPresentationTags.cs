@@ -1,5 +1,7 @@
+using Space4X.Registry;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Space4X.Presentation
 {
@@ -39,6 +41,21 @@ namespace Space4X.Presentation
     /// Marker component for resource pickup entities in the presentation layer.
     /// </summary>
     public struct ResourcePickupPresentationTag : IComponentData { }
+
+    /// <summary>
+    /// Marker component for carrier storage markers.
+    /// </summary>
+    public struct StorageMarkerPresentationTag : IComponentData { }
+
+    /// <summary>
+    /// Marker component for asteroid resource markers.
+    /// </summary>
+    public struct ResourceMarkerPresentationTag : IComponentData { }
+
+    /// <summary>
+    /// Marker component for cargo visuals attached to vessels.
+    /// </summary>
+    public struct CargoPresentationTag : IComponentData { }
 
     /// <summary>
     /// Marker component for projectile entities in the presentation layer.
@@ -105,6 +122,7 @@ namespace Space4X.Presentation
         public static ResourceTypeColor RareMetals => new ResourceTypeColor { Value = new float4(0.8f, 0.7f, 0.2f, 1f) };
         public static ResourceTypeColor EnergyCrystals => new ResourceTypeColor { Value = new float4(0.2f, 0.8f, 1f, 1f) };
         public static ResourceTypeColor OrganicMatter => new ResourceTypeColor { Value = new float4(0.2f, 0.8f, 0.3f, 1f) };
+        public static ResourceTypeColor Ore => new ResourceTypeColor { Value = new float4(0.5f, 0.3f, 0.2f, 1f) };
     }
 
     /// <summary>
@@ -113,6 +131,89 @@ namespace Space4X.Presentation
     public struct ParentCarrier : IComponentData
     {
         public Entity Value;
+    }
+
+    /// <summary>
+    /// Links a vessel to its cargo visual entity.
+    /// </summary>
+    public struct CargoVisualLink : IComponentData
+    {
+        public Entity CargoEntity;
+    }
+
+    /// <summary>
+    /// Links a cargo visual entity back to its parent vessel.
+    /// </summary>
+    public struct CargoVisualParent : IComponentData
+    {
+        public Entity Value;
+    }
+
+    /// <summary>
+    /// Links an asteroid to its resource marker entity.
+    /// </summary>
+    public struct ResourceMarkerLink : IComponentData
+    {
+        public Entity MarkerEntity;
+    }
+
+    /// <summary>
+    /// Links a resource marker entity back to its parent asteroid.
+    /// </summary>
+    public struct ResourceMarkerParent : IComponentData
+    {
+        public Entity Value;
+    }
+
+    /// <summary>
+    /// Links a carrier to its storage marker entity.
+    /// </summary>
+    public struct CarrierStorageMarkerLink : IComponentData
+    {
+        public Entity MarkerEntity;
+    }
+
+    /// <summary>
+    /// Links a storage marker entity back to its parent carrier.
+    /// </summary>
+    public struct CarrierStorageMarkerParent : IComponentData
+    {
+        public Entity Value;
+    }
+
+    /// <summary>
+    /// Links a resource pickup to its presenter entity.
+    /// </summary>
+    public struct ResourcePickupPresenterLink : IComponentData
+    {
+        public Entity PresenterEntity;
+    }
+
+    /// <summary>
+    /// Tracks intake pulse timing for carrier storage markers.
+    /// </summary>
+    public struct CarrierIntakePulseState : IComponentData
+    {
+        public float Timer;
+        public float LastTotal;
+        public ResourceType LastType;
+    }
+
+    /// <summary>
+    /// Presentation-only attachment to a presenter entity.
+    /// </summary>
+    public struct PresentationAttachTo : IComponentData
+    {
+        public Entity ParentPresenter;
+        public float3 LocalOffset;
+    }
+
+    /// <summary>
+    /// Marks LocalToWorld as authored by presentation systems.
+    /// </summary>
+    [WriteGroup(typeof(LocalToWorld))]
+    public struct PresentationLocalToWorldOverride : IComponentData
+    {
     }
 
     // ============================================================================

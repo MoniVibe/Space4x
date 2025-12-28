@@ -11,19 +11,16 @@ namespace Space4X.Registry
     /// <summary>
     /// Updates InRefitFacilityTag on carriers based on proximity to stations with RefitFacilityTag.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     // Removed invalid UpdateAfter: GameplayFixedStepSyncSystem runs in TimeSystemGroup.
     public partial struct FacilityProximitySystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<GameplayFixedStep>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var time = SystemAPI.GetSingleton<TimeState>();
@@ -71,4 +68,3 @@ namespace Space4X.Registry
         }
     }
 }
-

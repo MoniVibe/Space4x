@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Editor.DevMenu;
+using Space4X.Presentation;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Collections;
@@ -71,6 +72,10 @@ namespace Space4X.Authoring
         [SerializeField] private bool spawnEnemyFleet = true;
         [SerializeField] private bool spawnEnvironment = true;
 
+        [Header("Debug")]
+        [SerializeField] private bool enableAttackMoveDebugLines = true;
+        [SerializeField] private bool disableDepthBobbing = false;
+
         [Serializable]
         public struct FleetConfiguration
         {
@@ -112,6 +117,11 @@ namespace Space4X.Authoring
                 {
                     PlayerFleetSpawned = authoring.spawnPlayerFleet ? (byte)1 : (byte)0,
                     EnemyFleetSpawned = authoring.spawnEnemyFleet ? (byte)1 : (byte)0
+                });
+                AddComponent(configEntity, new Space4XPresentationDebugConfig
+                {
+                    EnableAttackMoveDebugLines = authoring.enableAttackMoveDebugLines ? (byte)1 : (byte)0,
+                    DisableDepthBobbing = authoring.disableDepthBobbing ? (byte)1 : (byte)0
                 });
 
                 if (authoring.spawnPlayerFleet)
@@ -349,6 +359,21 @@ namespace Space4X.Authoring
                 StrikeCraftRole role = craftType == "bomber" ? StrikeCraftRole.Bomber : StrikeCraftRole.Fighter;
 
                 AddComponent(entity, StrikeCraftProfile.Create(role, carrierEntity));
+                AddComponent(entity, new StrikeCraftState
+                {
+                    CurrentState = StrikeCraftState.State.Approaching,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = position,
+                    Experience = 0f,
+                    StateStartTick = 0,
+                    KamikazeActive = 0,
+                    KamikazeStartTick = 0,
+                    DogfightPhase = StrikeCraftDogfightPhase.Approach,
+                    DogfightPhaseStartTick = 0,
+                    DogfightLastFireTick = 0,
+                    DogfightWingLeader = Entity.Null
+                });
+                AddComponent<StrikeCraftDogfightTag>(entity);
 
                 var pilot = CreateAdditionalEntity(TransformUsageFlags.None);
                 AddComponent(pilot, AlignmentTriplet.FromFloats(0f, 0f, 0f));
@@ -382,6 +407,27 @@ namespace Space4X.Authoring
                     Max = hull,
                     BaseMax = hull
                 });
+                var subsystems = AddBuffer<SubsystemHealth>(entity);
+                var engineMax = math.max(5f, hull * 0.3f);
+                var weaponMax = math.max(5f, hull * 0.2f);
+                subsystems.Add(new SubsystemHealth
+                {
+                    Type = SubsystemType.Engines,
+                    Current = engineMax,
+                    Max = engineMax,
+                    RegenPerTick = math.max(0.01f, engineMax * 0.005f),
+                    Flags = SubsystemFlags.None
+                });
+                subsystems.Add(new SubsystemHealth
+                {
+                    Type = SubsystemType.Weapons,
+                    Current = weaponMax,
+                    Max = weaponMax,
+                    RegenPerTick = math.max(0.01f, weaponMax * 0.005f),
+                    Flags = SubsystemFlags.None
+                });
+                AddBuffer<SubsystemDisabled>(entity);
+                AddBuffer<DamageScarEvent>(entity);
 
                 var weaponBuffer = AddBuffer<WeaponMount>(entity);
                 weaponBuffer.Add(new WeaponMount

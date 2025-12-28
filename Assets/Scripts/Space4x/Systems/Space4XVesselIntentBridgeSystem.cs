@@ -27,7 +27,15 @@ namespace Space4X.Systems
         private ComponentLookup<VesselAIState> _aiStateLookup;
         private ComponentLookup<MiningVessel> _miningVesselLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<AttackMoveIntent> _attackMoveLookup;
+        private ComponentLookup<AttackMoveOrigin> _attackMoveOriginLookup;
+        private ComponentLookup<AttackMoveSourceHint> _attackMoveSourceHintLookup;
+        private ComponentLookup<Space4XEngagement> _engagementLookup;
+        private ComponentLookup<VesselStanceComponent> _stanceLookup;
+        private ComponentLookup<PatrolBehavior> _patrolBehaviorLookup;
+        private ComponentLookup<WaypointPath> _waypointPathLookup;
         private EntityStorageInfoLookup _entityStorageInfoLookup;
+        private const uint AttackMoveHintMaxAgeTicks = 30;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -37,6 +45,13 @@ namespace Space4X.Systems
             _aiStateLookup = state.GetComponentLookup<VesselAIState>(false);
             _miningVesselLookup = state.GetComponentLookup<MiningVessel>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
+            _attackMoveLookup = state.GetComponentLookup<AttackMoveIntent>(false);
+            _attackMoveOriginLookup = state.GetComponentLookup<AttackMoveOrigin>(false);
+            _attackMoveSourceHintLookup = state.GetComponentLookup<AttackMoveSourceHint>(true);
+            _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
+            _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(false);
+            _patrolBehaviorLookup = state.GetComponentLookup<PatrolBehavior>(true);
+            _waypointPathLookup = state.GetComponentLookup<WaypointPath>(true);
             _entityStorageInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -57,7 +72,23 @@ namespace Space4X.Systems
             _aiStateLookup.Update(ref state);
             _miningVesselLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
+            _attackMoveLookup.Update(ref state);
+            _attackMoveOriginLookup.Update(ref state);
+            _attackMoveSourceHintLookup.Update(ref state);
+            _engagementLookup.Update(ref state);
+            _stanceLookup.Update(ref state);
+            _patrolBehaviorLookup.Update(ref state);
+            _waypointPathLookup.Update(ref state);
             _entityStorageInfoLookup.Update(ref state);
+
+            var stanceConfig = Space4XStanceTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
+            {
+                stanceConfig = stanceConfigSingleton;
+            }
+
+            var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
+            var hasStructuralChanges = false;
 
             // Process all entities with EntityIntent and VesselAIState
             foreach (var (intent, entity) in
@@ -83,6 +114,13 @@ namespace Space4X.Systems
                 if (!_aiStateLookup.HasComponent(entity))
                 {
                     continue;
+                }
+
+                TryApplyCommandOverrideNeutral(entity, intent.ValueRO, timeState.Tick, stanceConfig);
+
+                if (!_miningVesselLookup.HasComponent(entity))
+                {
+                    TryApplyAttackMoveIntent(entity, intent.ValueRO, timeState.Tick, ref ecb, ref hasStructuralChanges);
                 }
 
                 var aiState = _aiStateLookup[entity];
@@ -123,6 +161,11 @@ namespace Space4X.Systems
                 {
                     IntentService.ClearIntent(ref intent.ValueRW);
                 }
+            }
+
+            if (hasStructuralChanges)
+            {
+                ecb.Playback(state.EntityManager);
             }
         }
 
@@ -202,6 +245,176 @@ namespace Space4X.Systems
 
             // Don't clear if intent is still valid and goal matches
             return false;
+        }
+
+        private void TryApplyAttackMoveIntent(
+            Entity vesselEntity,
+            in EntityIntent intent,
+            uint currentTick,
+            ref EntityCommandBuffer ecb,
+            ref bool hasStructuralChanges)
+        {
+            if (intent.IsValid == 0)
+            {
+                return;
+            }
+
+            var hasTargetPosition = math.any(intent.TargetPosition != float3.zero);
+            if (!hasTargetPosition)
+            {
+                return;
+            }
+
+            if (intent.Mode == IntentMode.MoveTo)
+            {
+                var engageTarget = Entity.Null;
+                if (_engagementLookup.HasComponent(vesselEntity))
+                {
+                    var engagement = _engagementLookup[vesselEntity];
+                    if (engagement.PrimaryTarget != Entity.Null)
+                    {
+                        engageTarget = engagement.PrimaryTarget;
+                    }
+                }
+
+                if (engageTarget == Entity.Null)
+                {
+                    return;
+                }
+
+                var wasPatrolling = ResolveWasPatrolling(vesselEntity);
+                UpsertAttackMoveIntent(vesselEntity, intent.TargetPosition, engageTarget, 0, wasPatrolling,
+                    AttackMoveSource.MoveWhileEngaged, currentTick, ref ecb, ref hasStructuralChanges);
+                return;
+            }
+
+            if (intent.Mode == IntentMode.Attack)
+            {
+                var engageTarget = intent.TargetEntity;
+                var acquireAlongRoute = engageTarget == Entity.Null ? (byte)1 : (byte)0;
+                var wasPatrolling = ResolveWasPatrolling(vesselEntity);
+                var source = ResolveAttackMoveSource(vesselEntity, intent, currentTick, ref ecb, ref hasStructuralChanges);
+                UpsertAttackMoveIntent(vesselEntity, intent.TargetPosition, engageTarget, acquireAlongRoute, wasPatrolling,
+                    source, currentTick, ref ecb, ref hasStructuralChanges);
+            }
+        }
+
+        private void UpsertAttackMoveIntent(
+            Entity vesselEntity,
+            float3 destination,
+            Entity engageTarget,
+            byte acquireAlongRoute,
+            byte wasPatrolling,
+            AttackMoveSource source,
+            uint currentTick,
+            ref EntityCommandBuffer ecb,
+            ref bool hasStructuralChanges)
+        {
+            var intent = new AttackMoveIntent
+            {
+                Destination = destination,
+                DestinationRadius = 0f,
+                EngageTarget = engageTarget,
+                AcquireTargetsAlongRoute = acquireAlongRoute,
+                KeepFiringWhileInRange = 1,
+                StartTick = currentTick,
+                Source = source
+            };
+
+            if (_attackMoveLookup.HasComponent(vesselEntity))
+            {
+                _attackMoveLookup[vesselEntity] = intent;
+            }
+            else
+            {
+                ecb.AddComponent(vesselEntity, intent);
+                hasStructuralChanges = true;
+            }
+
+            if (!_attackMoveOriginLookup.HasComponent(vesselEntity))
+            {
+                ecb.AddComponent(vesselEntity, new AttackMoveOrigin
+                {
+                    WasPatrolling = wasPatrolling
+                });
+                hasStructuralChanges = true;
+            }
+        }
+
+        private byte ResolveWasPatrolling(Entity vesselEntity)
+        {
+            if (_patrolBehaviorLookup.HasComponent(vesselEntity) || _waypointPathLookup.HasComponent(vesselEntity))
+            {
+                return 1;
+            }
+
+            return 0;
+        }
+
+        private AttackMoveSource ResolveAttackMoveSource(
+            Entity vesselEntity,
+            in EntityIntent intent,
+            uint currentTick,
+            ref EntityCommandBuffer ecb,
+            ref bool hasStructuralChanges)
+        {
+            if (_attackMoveSourceHintLookup.HasComponent(vesselEntity))
+            {
+                var hint = _attackMoveSourceHintLookup[vesselEntity];
+                var isFresh = hint.IssuedTick == 0
+                    ? currentTick <= AttackMoveHintMaxAgeTicks
+                    : currentTick >= hint.IssuedTick && currentTick - hint.IssuedTick <= AttackMoveHintMaxAgeTicks;
+
+                ecb.RemoveComponent<AttackMoveSourceHint>(vesselEntity);
+                hasStructuralChanges = true;
+
+                if (intent.TargetEntity == Entity.Null && isFresh)
+                {
+                    return hint.Source;
+                }
+            }
+
+            return AttackMoveSource.AttackTerrain;
+        }
+
+        private void TryApplyCommandOverrideNeutral(
+            Entity entity,
+            in EntityIntent intent,
+            uint currentTick,
+            in Space4XStanceTuningConfig stanceConfig)
+        {
+            if (intent.IntentSetTick != currentTick)
+            {
+                return;
+            }
+
+            if (intent.Mode == IntentMode.Attack)
+            {
+                return;
+            }
+
+            if (!_stanceLookup.HasComponent(entity) || !_engagementLookup.HasComponent(entity))
+            {
+                return;
+            }
+
+            var engagement = _engagementLookup[entity];
+            if (engagement.PrimaryTarget == Entity.Null)
+            {
+                return;
+            }
+
+            var stance = _stanceLookup[entity];
+            var tuning = stanceConfig.Resolve(stance.CurrentStance);
+            if (tuning.CommandOverrideDropsToNeutral == 0)
+            {
+                return;
+            }
+
+            stance.CurrentStance = VesselStanceMode.Neutral;
+            stance.DesiredStance = VesselStanceMode.Neutral;
+            stance.StanceChangeTick = currentTick;
+            _stanceLookup[entity] = stance;
         }
     }
 }

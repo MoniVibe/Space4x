@@ -20,6 +20,7 @@ namespace Space4X.Presentation
         public float4 CarrierColor;
         public float4 MiningVesselColor;
         public float4 AsteroidColor;
+        public byte DisableDepthOffset;
     }
 }
 

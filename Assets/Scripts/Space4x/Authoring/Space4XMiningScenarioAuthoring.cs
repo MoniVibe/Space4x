@@ -225,10 +225,15 @@ namespace Space4X.Registry
         [SerializeField]
         private MiningVisualSettings visuals = MiningVisualSettings.CreateDefault();
 
+        [Header("Mining Latch Tuning")]
+        [SerializeField]
+        private MiningLatchSettings latchSettings = MiningLatchSettings.CreateDefault();
+
         public CarrierDefinition[] Carriers => carriers;
         public MiningVesselDefinition[] MiningVessels => miningVessels;
         public AsteroidDefinition[] Asteroids => asteroids;
         public MiningVisualSettings Visuals => visuals;
+        public MiningLatchSettings LatchSettings => latchSettings;
         public AffiliationDefinition[] Affiliations => affiliations;
 
         [Serializable]
@@ -483,6 +488,10 @@ namespace Space4X.Registry
             [Min(0.05f)] public float AsteroidScale;
             public Color AsteroidColor;
             public string AsteroidDescriptorKey;
+            [Tooltip("Draw attack-move debug lines in the scene view/game view.")]
+            public bool EnableAttackMoveDebugLines;
+            [Tooltip("Disable Y depth offsets for debugging movement.")]
+            public bool DisableDepthOffset;
 
             public static MiningVisualSettings CreateDefault()
             {
@@ -499,7 +508,37 @@ namespace Space4X.Registry
                     AsteroidPrimitive = MiningPrimitive.Sphere,
                     AsteroidScale = 20f,
                     AsteroidColor = new Color(0.52f, 0.43f, 0.34f, 1f),
-                    AsteroidDescriptorKey = "space4x.prop.asteroid"
+                    AsteroidDescriptorKey = "space4x.prop.asteroid",
+                    EnableAttackMoveDebugLines = true,
+                    DisableDepthOffset = false
+                };
+            }
+        }
+
+        [Serializable]
+        public struct MiningLatchSettings
+        {
+            [Min(1)] public int RegionCount;
+            [Min(0.05f)] public float SurfaceEpsilon;
+            [Range(0f, 1f)] public float AlignDotThreshold;
+            [Min(0)] public int SettleTicks;
+            [Tooltip("Reserve latch regions while approaching to avoid multiple miners stacking.")]
+            public bool ReserveRegionWhileApproaching;
+            [Min(1)] public int TelemetrySampleEveryTicks;
+            [Min(0)] public int TelemetryMaxSamples;
+
+            public static MiningLatchSettings CreateDefault()
+            {
+                var defaults = Space4XMiningLatchConfig.Default;
+                return new MiningLatchSettings
+                {
+                    RegionCount = math.max(1, defaults.RegionCount),
+                    SurfaceEpsilon = math.max(0.05f, defaults.SurfaceEpsilon),
+                    AlignDotThreshold = math.clamp(defaults.AlignDotThreshold, 0f, 1f),
+                    SettleTicks = (int)math.max(0u, defaults.SettleTicks),
+                    ReserveRegionWhileApproaching = defaults.ReserveRegionWhileApproaching != 0,
+                    TelemetrySampleEveryTicks = (int)math.max(1u, defaults.TelemetrySampleEveryTicks),
+                    TelemetryMaxSamples = math.max(0, defaults.TelemetryMaxSamples)
                 };
             }
         }
@@ -513,6 +552,7 @@ namespace Space4X.Registry
             private NativeHashMap<FixedString64Bytes, Entity> _affiliationEntityMap;
 #if UNITY_EDITOR
             private static bool s_loggedStart;
+            private static bool s_loggedLatch;
             private static bool s_loggedVisual;
             private static bool s_loggedCarriers;
             private static bool s_loggedVessels;
@@ -530,7 +570,7 @@ namespace Space4X.Registry
                     s_loggedStart = true;
                 }
 #endif
-                
+                AddLatchConfig(authoring);
                 AddVisualConfig(authoring);
 
                 // Build carrier entity map first
@@ -576,6 +616,32 @@ namespace Space4X.Registry
 #endif
             }
 
+            private void AddLatchConfig(Space4XMiningScenarioAuthoring authoring)
+            {
+                var configEntity = GetEntity(TransformUsageFlags.None);
+                var settings = authoring.latchSettings;
+
+                var config = new Space4XMiningLatchConfig
+                {
+                    RegionCount = math.max(1, settings.RegionCount),
+                    SurfaceEpsilon = math.max(0.05f, settings.SurfaceEpsilon),
+                    AlignDotThreshold = math.clamp(settings.AlignDotThreshold, 0f, 1f),
+                    SettleTicks = (uint)math.max(0, settings.SettleTicks),
+                    ReserveRegionWhileApproaching = settings.ReserveRegionWhileApproaching ? (byte)1 : (byte)0,
+                    TelemetrySampleEveryTicks = (uint)math.max(1, settings.TelemetrySampleEveryTicks),
+                    TelemetryMaxSamples = math.max(0, settings.TelemetryMaxSamples)
+                };
+
+                AddComponent(configEntity, config);
+#if UNITY_EDITOR
+                if (!s_loggedLatch)
+                {
+                    UnityDebug.Log($"[Space4XMiningScenarioAuthoring.Baker] Added Space4XMiningLatchConfig singleton to entity {configEntity.Index}");
+                    s_loggedLatch = true;
+                }
+#endif
+            }
+
             private void AddVisualConfig(Space4XMiningScenarioAuthoring authoring)
             {
                 var configEntity = GetEntity(TransformUsageFlags.None);
@@ -597,10 +663,16 @@ namespace Space4X.Registry
                     AsteroidScale = math.max(0.05f, visuals.AsteroidScale),
                     CarrierColor = ToFloat4(visuals.CarrierColor),
                     MiningVesselColor = ToFloat4(visuals.MiningVesselColor),
-                    AsteroidColor = ToFloat4(visuals.AsteroidColor)
+                    AsteroidColor = ToFloat4(visuals.AsteroidColor),
+                    DisableDepthOffset = visuals.DisableDepthOffset ? (byte)1 : (byte)0
                 };
 
                 AddComponent(configEntity, config);
+                AddComponent(configEntity, new Space4XPresentationDebugConfig
+                {
+                    EnableAttackMoveDebugLines = visuals.EnableAttackMoveDebugLines ? (byte)1 : (byte)0,
+                    DisableDepthBobbing = visuals.DisableDepthOffset ? (byte)1 : (byte)0
+                });
 #if UNITY_EDITOR
                 if (!s_loggedVisual)
                 {
@@ -1078,6 +1150,7 @@ namespace Space4X.Registry
                         OverrideStrideSeconds = 0f
                     });
                     AddBuffer<ResourceHistorySample>(entity);
+                    AddBuffer<Space4XMiningLatchReservation>(entity);
 
                     AddComponent(entity, new Space4XAsteroidVolumeConfig
                     {

@@ -41,6 +41,8 @@ namespace Space4x.Scenario
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
         private bool _useSmokeMotionTuning;
+        private Entity _friendlyAffiliationEntity;
+        private Entity _hostileAffiliationEntity;
 
         protected override void OnCreate()
         {
@@ -105,6 +107,8 @@ namespace Space4x.Scenario
                 ApplySmokeMotionProfile();
                 ApplyFloatingOriginConfig();
             }
+            ApplyDogfightConfig(_scenarioData.dogfightConfig);
+            ApplyStanceConfig(_scenarioData.stanceConfig);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
 
@@ -185,6 +189,195 @@ namespace Space4x.Scenario
                 CooldownTicks = 300,
                 Enabled = 1
             });
+        }
+
+        private void ApplyDogfightConfig(StrikeCraftDogfightConfigData data)
+        {
+            if (data == null)
+            {
+                return;
+            }
+
+            var config = StrikeCraftDogfightConfig.Default;
+            config.TargetAcquireRadius = math.max(0f, data.acquireRadius);
+            config.FireConeDegrees = math.clamp(data.coneDegrees, 1f, 180f);
+            config.NavConstantN = math.max(0.1f, data.navConstantN);
+            config.BreakOffDistance = math.max(0f, data.breakOffDistance);
+            config.BreakOffTicks = (uint)math.max(0, data.breakOffTicks);
+            config.RejoinRadius = math.max(0f, data.rejoinRadius);
+            if (data.rejoinOffset != null && data.rejoinOffset.Length >= 3)
+            {
+                config.RejoinOffset = new float3(data.rejoinOffset[0], data.rejoinOffset[1], data.rejoinOffset[2]);
+            }
+            config.JinkStrength = math.max(0f, data.jinkStrength);
+
+            if (!SystemAPI.TryGetSingletonEntity<StrikeCraftDogfightConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(StrikeCraftDogfightConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private void ApplyStanceConfig(StanceTuningConfigData data)
+        {
+            if (data == null)
+            {
+                return;
+            }
+
+            var config = Space4XStanceTuningConfig.Default;
+            if (data.aggressive != null)
+            {
+                config.Aggressive = ApplyStanceEntry(config.Aggressive, data.aggressive);
+            }
+            if (data.balanced != null)
+            {
+                config.Balanced = ApplyStanceEntry(config.Balanced, data.balanced);
+            }
+            if (data.defensive != null)
+            {
+                config.Defensive = ApplyStanceEntry(config.Defensive, data.defensive);
+            }
+            if (data.evasive != null)
+            {
+                config.Evasive = ApplyStanceEntry(config.Evasive, data.evasive);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XStanceTuningConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XStanceTuningConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private static StanceTuningEntry ApplyStanceEntry(in StanceTuningEntry baseEntry, StanceTuningEntryData data)
+        {
+            var entry = baseEntry;
+            if (data == null)
+            {
+                return entry;
+            }
+
+            entry.AvoidanceRadius = math.max(0f, data.avoidanceRadius);
+            entry.AvoidanceStrength = math.max(0f, data.avoidanceStrength);
+            entry.SpeedMultiplier = math.max(0f, data.speedMultiplier);
+            entry.RotationMultiplier = math.max(0f, data.rotationMultiplier);
+            entry.MaintainFormationWhenAttacking = math.clamp(data.maintainFormationWhenAttacking, 0f, 1f);
+            entry.EvasionJinkStrength = math.max(0f, data.evasionJinkStrength);
+            entry.AutoEngageRadius = math.max(0f, data.autoEngageRadius);
+            entry.AbortAttackOnDamageThreshold = math.clamp(data.abortAttackOnDamageThreshold, 0f, 1f);
+            entry.ReturnToPatrolAfterCombat = (byte)(data.returnToPatrolAfterCombat ? 1 : 0);
+            entry.CommandOverrideDropsToNeutral = (byte)(data.commandOverrideDropsToNeutral ? 1 : 0);
+            entry.AttackMoveBearingWeight = math.max(0f, data.attackMoveBearingWeight);
+            entry.AttackMoveDestinationWeight = math.max(0f, data.attackMoveDestinationWeight);
+            return entry;
+        }
+
+        private Entity EnsureScenarioAffiliation(byte scenarioSide)
+        {
+            if (scenarioSide == 1)
+            {
+                if (_hostileAffiliationEntity != Entity.Null && EntityManager.Exists(_hostileAffiliationEntity))
+                {
+                    return _hostileAffiliationEntity;
+                }
+            }
+            else
+            {
+                if (_friendlyAffiliationEntity != Entity.Null && EntityManager.Exists(_friendlyAffiliationEntity))
+                {
+                    return _friendlyAffiliationEntity;
+                }
+            }
+
+            var entity = EntityManager.CreateEntity(typeof(AffiliationRelation));
+            var affiliationName = scenarioSide == 1 ? "Scenario-Hostile" : "Scenario-Friendly";
+            EntityManager.SetComponentData(entity, new AffiliationRelation
+            {
+                AffiliationName = new FixedString64Bytes(affiliationName)
+            });
+
+            if (scenarioSide == 1)
+            {
+                _hostileAffiliationEntity = entity;
+            }
+            else
+            {
+                _friendlyAffiliationEntity = entity;
+            }
+
+            return entity;
+        }
+
+        private void AddScenarioAffiliation(Entity entity, byte scenarioSide)
+        {
+            var affiliationEntity = EnsureScenarioAffiliation(scenarioSide);
+            if (affiliationEntity == Entity.Null)
+            {
+                return;
+            }
+
+            if (!EntityManager.HasBuffer<AffiliationTag>(entity))
+            {
+                EntityManager.AddBuffer<AffiliationTag>(entity);
+            }
+
+            var buffer = EntityManager.GetBuffer<AffiliationTag>(entity);
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].Target == affiliationEntity)
+                {
+                    return;
+                }
+            }
+
+            buffer.Add(new AffiliationTag
+            {
+                Type = AffiliationType.Faction,
+                Target = affiliationEntity,
+                Loyalty = (half)1f
+            });
+        }
+
+        private void EnsureDefaultSubsystems(Entity entity, float hullMax)
+        {
+            var subsystems = EntityManager.HasBuffer<SubsystemHealth>(entity)
+                ? EntityManager.GetBuffer<SubsystemHealth>(entity)
+                : EntityManager.AddBuffer<SubsystemHealth>(entity);
+
+            if (subsystems.Length == 0)
+            {
+                var engineMax = math.max(5f, hullMax * 0.3f);
+                var weaponMax = math.max(5f, hullMax * 0.2f);
+                subsystems.Add(new SubsystemHealth
+                {
+                    Type = SubsystemType.Engines,
+                    Current = engineMax,
+                    Max = engineMax,
+                    RegenPerTick = math.max(0.01f, engineMax * 0.005f),
+                    Flags = SubsystemFlags.None
+                });
+                subsystems.Add(new SubsystemHealth
+                {
+                    Type = SubsystemType.Weapons,
+                    Current = weaponMax,
+                    Max = weaponMax,
+                    RegenPerTick = math.max(0.01f, weaponMax * 0.005f),
+                    Flags = SubsystemFlags.None
+                });
+            }
+
+            if (!EntityManager.HasBuffer<SubsystemDisabled>(entity))
+            {
+                EntityManager.AddBuffer<SubsystemDisabled>(entity);
+            }
+
+            if (!EntityManager.HasBuffer<DamageScarEvent>(entity))
+            {
+                EntityManager.AddBuffer<DamageScarEvent>(entity);
+            }
         }
 
         private Entity EnsureScenarioRuntime(uint startTick, uint endTick, float durationSeconds)
@@ -402,6 +595,7 @@ namespace Space4x.Scenario
             });
             var law = isHostile ? -0.7f : 0.7f;
             EntityManager.AddComponentData(entity, AlignmentTriplet.FromFloats(law, 0f, 0f));
+            AddScenarioAffiliation(entity, scenarioSide);
             var carrierDisposition = ResolveDisposition(spawn.disposition, BuildCarrierDisposition(spawn.components?.Combat, isHostile));
             if (carrierDisposition != EntityDispositionFlags.None)
             {
@@ -572,6 +766,7 @@ namespace Space4x.Scenario
 
             var law = scenarioSide == 1 ? -0.7f : 0.7f;
             EntityManager.AddComponentData(entity, AlignmentTriplet.FromFloats(law, 0f, 0f));
+            AddScenarioAffiliation(entity, scenarioSide);
 
             var resourceId = new FixedString64Bytes(spawn.resourceId ?? "Minerals");
             var miningEfficiency = spawn.miningEfficiency > 0f ? spawn.miningEfficiency : 0.8f;
@@ -776,6 +971,7 @@ namespace Space4x.Scenario
                 OverrideStrideSeconds = 0f
             });
             EntityManager.AddBuffer<ResourceHistorySample>(entity);
+            EntityManager.AddBuffer<Space4XMiningLatchReservation>(entity);
 
             var volumeConfig = Space4XAsteroidVolumeConfig.Default;
             volumeConfig.Radius = math.max(0.1f, volumeConfig.Radius);
@@ -838,6 +1034,39 @@ namespace Space4x.Scenario
             }
 
             var role = ParseStrikeCraftRole(combatData.strikeCraftRole);
+            var craftSpeed = 12f;
+            var weaponDamage = 10f;
+            var weaponRange = 20f;
+            var hull = HullIntegrity.LightCraft;
+
+            switch (role)
+            {
+                case StrikeCraftRole.Bomber:
+                    craftSpeed = 9f;
+                    weaponDamage = 50f;
+                    weaponRange = 18f;
+                    hull = HullIntegrity.Create(80f, 0.15f);
+                    break;
+                case StrikeCraftRole.Interceptor:
+                    craftSpeed = 14f;
+                    weaponDamage = 12f;
+                    weaponRange = 22f;
+                    hull = HullIntegrity.Create(40f, 0.1f);
+                    break;
+                case StrikeCraftRole.Suppression:
+                    craftSpeed = 10f;
+                    weaponDamage = 20f;
+                    weaponRange = 25f;
+                    hull = HullIntegrity.Create(120f, 0.2f);
+                    break;
+                case StrikeCraftRole.Recon:
+                    craftSpeed = 15f;
+                    weaponDamage = 6f;
+                    weaponRange = 24f;
+                    hull = HullIntegrity.Create(35f, 0.05f);
+                    break;
+            }
+
             for (int i = 0; i < combatData.strikeCraftCount; i++)
             {
                 var entity = EntityManager.CreateEntity();
@@ -845,15 +1074,64 @@ namespace Space4x.Scenario
                 EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
                 EntityManager.AddComponentData(entity, MediumContext.Vacuum);
+                EntityManager.AddComponentData(entity, hull);
+                EnsureDefaultSubsystems(entity, hull.Max);
+                var weaponBuffer = EntityManager.AddBuffer<WeaponMount>(entity);
+                weaponBuffer.Add(new WeaponMount
+                {
+                    Weapon = new Space4XWeapon
+                    {
+                        Type = WeaponType.Laser,
+                        Size = WeaponSize.Small,
+                        BaseDamage = weaponDamage,
+                        OptimalRange = weaponRange * 0.8f,
+                        MaxRange = weaponRange,
+                        BaseAccuracy = (half)0.85f,
+                        CooldownTicks = 1,
+                        CurrentCooldown = 0,
+                        AmmoPerShot = 0,
+                        ShieldModifier = (half)1f,
+                        ArmorPenetration = (half)0.3f
+                    },
+                    CurrentTarget = Entity.Null,
+                    IsEnabled = 1
+                });
                 EntityManager.AddComponentData(entity, StrikeCraftProfile.Create(role, carrierEntity));
+                EntityManager.AddComponentData(entity, new StrikeCraftState
+                {
+                    CurrentState = StrikeCraftState.State.Approaching,
+                    TargetEntity = Entity.Null,
+                    TargetPosition = carrierPosition + offset,
+                    Experience = 0f,
+                    StateStartTick = 0,
+                    KamikazeActive = 0,
+                    KamikazeStartTick = 0,
+                    DogfightPhase = StrikeCraftDogfightPhase.Approach,
+                    DogfightPhaseStartTick = 0,
+                    DogfightLastFireTick = 0,
+                    DogfightWingLeader = Entity.Null
+                });
+                EntityManager.AddComponent<StrikeCraftDogfightTag>(entity);
                 EntityManager.AddComponentData(entity, AttackRunConfig.ForRole(role));
                 EntityManager.AddComponentData(entity, StrikeCraftExperience.Rookie);
                 EntityManager.AddComponentData(entity, new ScenarioSide
                 {
                     Side = scenarioSide
                 });
+                EntityManager.AddComponentData(entity, new VesselMovement
+                {
+                    BaseSpeed = craftSpeed,
+                    CurrentSpeed = 0f,
+                    Velocity = float3.zero,
+                    TurnSpeed = 4.5f,
+                    DesiredRotation = quaternion.identity,
+                    IsMoving = 0,
+                    LastMoveTick = 0
+                });
+                EntityManager.AddComponentData(entity, SupplyStatus.DefaultStrikeCraft);
                 var law = scenarioSide == 1 ? -0.7f : 0.7f;
                 EntityManager.AddComponentData(entity, AlignmentTriplet.FromFloats(law, 0f, 0f));
+                AddScenarioAffiliation(entity, scenarioSide);
                 var craftDisposition = EntityDispositionFlags.Combatant | EntityDispositionFlags.Military;
                 if (scenarioSide == 1)
                 {
@@ -1059,6 +1337,9 @@ namespace Space4x.Scenario
                 {
                     Side = scenarioSide
                 });
+                var law = scenarioSide == 1 ? -0.7f : 0.7f;
+                EntityManager.AddComponentData(entity, AlignmentTriplet.FromFloats(law, 0f, 0f));
+                AddScenarioAffiliation(entity, scenarioSide);
                 var escortDisposition = EntityDispositionFlags.Combatant | EntityDispositionFlags.Military;
                 if (scenarioSide == 1)
                 {
@@ -1487,10 +1768,51 @@ namespace Space4x.Scenario
     {
         public int seed;
         public float duration_s;
+        public StrikeCraftDogfightConfigData dogfightConfig;
+        public StanceTuningConfigData stanceConfig;
         public List<MiningSpawnDefinition> spawn;
         public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
         public List<IndividualProfileData> individuals;
+    }
+
+    [System.Serializable]
+    public class StrikeCraftDogfightConfigData
+    {
+        public float acquireRadius;
+        public float coneDegrees;
+        public float navConstantN;
+        public float breakOffDistance;
+        public int breakOffTicks;
+        public float rejoinRadius;
+        public float[] rejoinOffset;
+        public float jinkStrength;
+    }
+
+    [System.Serializable]
+    public class StanceTuningConfigData
+    {
+        public StanceTuningEntryData aggressive;
+        public StanceTuningEntryData balanced;
+        public StanceTuningEntryData defensive;
+        public StanceTuningEntryData evasive;
+    }
+
+    [System.Serializable]
+    public class StanceTuningEntryData
+    {
+        public float avoidanceRadius;
+        public float avoidanceStrength;
+        public float speedMultiplier;
+        public float rotationMultiplier;
+        public float maintainFormationWhenAttacking;
+        public float evasionJinkStrength;
+        public float autoEngageRadius;
+        public float abortAttackOnDamageThreshold;
+        public bool returnToPatrolAfterCombat;
+        public bool commandOverrideDropsToNeutral;
+        public float attackMoveBearingWeight;
+        public float attackMoveDestinationWeight;
     }
 
     [System.Serializable]

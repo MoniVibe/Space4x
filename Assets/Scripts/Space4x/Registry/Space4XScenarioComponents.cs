@@ -191,6 +191,42 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Path traversal modes for waypoint-driven movement.
+    /// </summary>
+    public enum WaypointPathMode : byte
+    {
+        Linear = 0,
+        Loop = 1,
+        PingPong = 2
+    }
+
+    /// <summary>
+    /// Waypoint path state stored on the moving entity.
+    /// </summary>
+    public struct WaypointPath : IComponentData
+    {
+        public WaypointPathMode Mode;
+        public byte CurrentIndex;
+        public sbyte Direction;
+
+        public static WaypointPath Default => new WaypointPath
+        {
+            Mode = WaypointPathMode.Loop,
+            CurrentIndex = 0,
+            Direction = 1
+        };
+    }
+
+    /// <summary>
+    /// Buffer of waypoint positions for patrol routes.
+    /// </summary>
+    [InternalBufferCapacity(4)]
+    public struct WaypointPathPoint : IBufferElementData
+    {
+        public float3 Position;
+    }
+
+    /// <summary>
     /// Relation component for affiliation entities. Stores the affiliation name for lookup.
     /// </summary>
     public struct AffiliationRelation : IComponentData
@@ -222,7 +258,6 @@ namespace Space4X.Registry
     /// </summary>
     public struct Space4XLegacyMiningDisabledTag : IComponentData { }
 }
-
 
 
 

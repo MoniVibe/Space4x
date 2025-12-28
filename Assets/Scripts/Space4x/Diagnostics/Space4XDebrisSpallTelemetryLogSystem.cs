@@ -25,7 +25,7 @@ namespace Space4X.Diagnostics
 
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless)
+            if (!RuntimeMode.IsRenderingEnabled)
             {
                 state.Enabled = false;
                 return;

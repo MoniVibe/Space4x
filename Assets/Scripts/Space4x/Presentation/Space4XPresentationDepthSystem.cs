@@ -9,13 +9,13 @@ using Unity.Transforms;
 
 namespace Space4X.Presentation
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
     [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XPresentationDepthSystem : ISystem
     {
         private ComponentLookup<PresentationScaleMultiplier> _scaleMultiplierLookup;
+        private ComponentLookup<SimPoseSnapshot> _poseSnapshotLookup;
         private const float CarrierAmplitude = 2.5f;
         private const float VesselAmplitude = 1.25f;
         private const float StrikeCraftAmplitude = 1.1f;
@@ -44,13 +44,12 @@ namespace Space4X.Presentation
         private const float AsteroidBaseOffset = 14f;
         private const float DefaultIndividualScale = 0.003f;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             _scaleMultiplierLookup = state.GetComponentLookup<PresentationScaleMultiplier>(true);
+            _poseSnapshotLookup = state.GetComponentLookup<SimPoseSnapshot>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!RuntimeMode.IsRenderingEnabled)
@@ -58,10 +57,26 @@ namespace Space4X.Presentation
                 return;
             }
 
+            var disableDepthOffset = false;
+            if (SystemAPI.TryGetSingleton<Space4XPresentationDebugConfig>(out var debugConfig))
+            {
+                disableDepthOffset = debugConfig.DisableDepthBobbing != 0;
+            }
+            if (SystemAPI.TryGetSingleton<Space4XMiningVisualConfig>(out var visualConfig))
+            {
+                disableDepthOffset |= visualConfig.DisableDepthOffset != 0;
+            }
+
             var time = (float)SystemAPI.Time.ElapsedTime;
+            var alpha = 1f;
+            if (SystemAPI.TryGetSingleton<FixedStepInterpolationState>(out var interpolation))
+            {
+                alpha = math.saturate(interpolation.Alpha);
+            }
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             ResolveScaleDefaults(ref state, out var carrierScale, out var craftScale, out var asteroidBaseScale);
             _scaleMultiplierLookup.Update(ref state);
+            _poseSnapshotLookup.Update(ref state);
 
             foreach (var (_, _, entity) in SystemAPI
                          .Query<RefRO<CarrierPresentationTag>, RefRO<LocalTransform>>()
@@ -129,6 +144,7 @@ namespace Space4X.Presentation
 
             ecb.Playback(state.EntityManager);
             _scaleMultiplierLookup.Update(ref state);
+            _poseSnapshotLookup.Update(ref state);
             ecb.Dispose();
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -136,18 +152,19 @@ namespace Space4X.Presentation
                          .WithAll<CarrierPresentationTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 31) * CarrierBaseOffset;
-                float offset = baseOffset + math.sin(time * CarrierFrequency + phase) * CarrierAmplitude;
+                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * CarrierFrequency + phase) * CarrierAmplitude;
                 float baseScale = carrierScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
                     baseScale = math.max(0.01f, SystemAPI.GetComponentRO<PresentationScale>(entity).ValueRO.Value);
                 }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                float3 position = transform.ValueRO.Position + new float3(0f, offset, 0f);
-                localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                float3 position = pose.Position + new float3(0f, offset, 0f);
+                localToWorld.ValueRW.Value = float4x4.TRS(position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -155,18 +172,19 @@ namespace Space4X.Presentation
                          .WithAll<CraftPresentationTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 47) * CraftBaseOffset;
-                float offset = baseOffset + math.sin(time * VesselFrequency + phase) * VesselAmplitude;
+                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * VesselFrequency + phase) * VesselAmplitude;
                 float baseScale = craftScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
                     baseScale = math.max(0.005f, SystemAPI.GetComponentRO<PresentationScale>(entity).ValueRO.Value);
                 }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                float3 position = transform.ValueRO.Position + new float3(0f, offset, 0f);
-                localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                float3 position = pose.Position + new float3(0f, offset, 0f);
+                localToWorld.ValueRW.Value = float4x4.TRS(position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -174,18 +192,19 @@ namespace Space4X.Presentation
                          .WithAll<StrikeCraftPresentationTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 53) * StrikeCraftBaseOffset;
-                float offset = baseOffset + math.sin(time * StrikeCraftFrequency + phase) * StrikeCraftAmplitude;
+                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * StrikeCraftFrequency + phase) * StrikeCraftAmplitude;
                 float baseScale = DefaultStrikeCraftScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
                     baseScale = math.max(0.003f, SystemAPI.GetComponentRO<PresentationScale>(entity).ValueRO.Value);
                 }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                float3 position = transform.ValueRO.Position + new float3(0f, offset, 0f);
-                localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                float3 position = pose.Position + new float3(0f, offset, 0f);
+                localToWorld.ValueRW.Value = float4x4.TRS(position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -193,18 +212,19 @@ namespace Space4X.Presentation
                          .WithAll<ResourcePickupPresentationTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 61) * PickupBaseOffset;
-                float offset = baseOffset + math.sin(time * PickupFrequency + phase) * PickupAmplitude;
+                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * PickupFrequency + phase) * PickupAmplitude;
                 float baseScale = DefaultPickupScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
                     baseScale = math.max(0.004f, SystemAPI.GetComponentRO<PresentationScale>(entity).ValueRO.Value);
                 }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                float3 position = transform.ValueRO.Position + new float3(0f, offset, 0f);
-                localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                float3 position = pose.Position + new float3(0f, offset, 0f);
+                localToWorld.ValueRW.Value = float4x4.TRS(position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -212,9 +232,10 @@ namespace Space4X.Presentation
                          .WithAll<AsteroidPresentationTag, Asteroid>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 79) * AsteroidBaseOffset;
-                float offset = baseOffset + math.sin(time * AsteroidFrequency + phase) * AsteroidAmplitude;
+                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * AsteroidFrequency + phase) * AsteroidAmplitude;
                 float baseScale = asteroidBaseScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -222,9 +243,9 @@ namespace Space4X.Presentation
                 }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
                 float jitter = math.lerp(AsteroidJitterMin, AsteroidJitterMax, HashToUnit(entity, 97));
-                float scale = transform.ValueRO.Scale * baseScale * jitter * scaleMultiplier;
-                float3 position = transform.ValueRO.Position + new float3(0f, offset, 0f);
-                localToWorld.ValueRW.Value = float4x4.TRS(position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * jitter * scaleMultiplier;
+                float3 position = pose.Position + new float3(0f, offset, 0f);
+                localToWorld.ValueRW.Value = float4x4.TRS(position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -232,14 +253,15 @@ namespace Space4X.Presentation
                          .WithAll<ProjectilePresentationTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float baseScale = DefaultProjectileScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
                     baseScale = math.max(0.001f, SystemAPI.GetComponentRO<PresentationScale>(entity).ValueRO.Value);
                 }
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                localToWorld.ValueRW.Value = float4x4.TRS(transform.ValueRO.Position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                localToWorld.ValueRW.Value = float4x4.TRS(pose.Position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (iconMesh, transform, localToWorld, entity) in SystemAPI
@@ -247,6 +269,7 @@ namespace Space4X.Presentation
                          .WithAll<FleetImpostorTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float baseScale = DefaultFleetImpostorScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -258,8 +281,8 @@ namespace Space4X.Presentation
                 }
 
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                localToWorld.ValueRW.Value = float4x4.TRS(transform.ValueRO.Position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                localToWorld.ValueRW.Value = float4x4.TRS(pose.Position, pose.Rotation, new float3(scale));
             }
 
             foreach (var (transform, localToWorld, entity) in SystemAPI
@@ -267,6 +290,7 @@ namespace Space4X.Presentation
                          .WithAll<IndividualPresentationTag>()
                          .WithEntityAccess())
             {
+                var pose = ResolvePose(entity, transform.ValueRO, alpha);
                 float baseScale = DefaultIndividualScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -274,9 +298,48 @@ namespace Space4X.Presentation
                 }
 
                 float scaleMultiplier = ResolveScaleMultiplier(entity);
-                float scale = transform.ValueRO.Scale * baseScale * scaleMultiplier;
-                localToWorld.ValueRW.Value = float4x4.TRS(transform.ValueRO.Position, transform.ValueRO.Rotation, new float3(scale));
+                float scale = pose.Scale * baseScale * scaleMultiplier;
+                localToWorld.ValueRW.Value = float4x4.TRS(pose.Position, pose.Rotation, new float3(scale));
             }
+        }
+
+        private struct PoseSample
+        {
+            public float3 Position;
+            public quaternion Rotation;
+            public float Scale;
+        }
+
+        private PoseSample ResolvePose(Entity entity, in LocalTransform fallback, float alpha)
+        {
+            if (_poseSnapshotLookup.HasComponent(entity))
+            {
+                var snapshot = _poseSnapshotLookup[entity];
+                if (snapshot.CurrTick == snapshot.PrevTick)
+                {
+                    return new PoseSample
+                    {
+                        Position = snapshot.CurrPosition,
+                        Rotation = snapshot.CurrRotation,
+                        Scale = snapshot.CurrScale
+                    };
+                }
+
+                var t = math.saturate(alpha);
+                return new PoseSample
+                {
+                    Position = math.lerp(snapshot.PrevPosition, snapshot.CurrPosition, t),
+                    Rotation = math.slerp(snapshot.PrevRotation, snapshot.CurrRotation, t),
+                    Scale = math.lerp(snapshot.PrevScale, snapshot.CurrScale, t)
+                };
+            }
+
+            return new PoseSample
+            {
+                Position = fallback.Position,
+                Rotation = fallback.Rotation,
+                Scale = fallback.Scale
+            };
         }
 
         private void ResolveScaleDefaults(

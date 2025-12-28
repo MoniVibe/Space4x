@@ -33,6 +33,9 @@ namespace Space4X.Registry
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
+        private ComponentLookup<WaypointPath> _waypointPathLookup;
+        private BufferLookup<WaypointPathPoint> _waypointPointsLookup;
+        private ComponentLookup<EntityIntent> _intentLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -51,6 +54,9 @@ namespace Space4X.Registry
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
+            _waypointPathLookup = state.GetComponentLookup<WaypointPath>(false);
+            _waypointPointsLookup = state.GetBufferLookup<WaypointPathPoint>(true);
+            _intentLookup = state.GetComponentLookup<EntityIntent>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -126,6 +132,9 @@ namespace Space4X.Registry
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
+            _waypointPathLookup.Update(ref state);
+            _waypointPointsLookup.Update(ref state);
+            _intentLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
             var deltaTime = SystemAPI.TryGetSingleton<TimeState>(out var timeState) 
@@ -140,7 +149,6 @@ namespace Space4X.Registry
 
             var carrierQuery = SystemAPI.QueryBuilder()
                 .WithAll<Carrier, PatrolBehavior, MovementCommand, LocalTransform>()
-                .WithNone<EntityIntent>()
                 .Build();
             var carrierCount = carrierQuery.CalculateEntityCount();
 
@@ -152,9 +160,17 @@ namespace Space4X.Registry
 
             foreach (var (carrier, patrol, movement, vesselMovement, transform, entity) in SystemAPI
                          .Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<VesselMovement>, RefRW<LocalTransform>>()
-                         .WithNone<EntityIntent>()
                          .WithEntityAccess())
             {
+                if (_intentLookup.HasComponent(entity))
+                {
+                    var intent = _intentLookup[entity];
+                    if (intent.IsValid != 0)
+                    {
+                        continue;
+                    }
+                }
+
                 var carrierData = carrier.ValueRO;
                 var position = transform.ValueRO.Position;
                 var movementCmd = movement.ValueRO;
@@ -197,38 +213,100 @@ namespace Space4X.Registry
                     }
                 }
 
-                // Initialize waypoint if it's uninitialized (zero vector or very close to current position)
-                var waypointInitialized = math.lengthsq(patrolBehavior.CurrentWaypoint) > 0.01f;
-                if (!waypointInitialized || math.distance(position, patrolBehavior.CurrentWaypoint) < 0.01f)
+                var arrivalThreshold = movementCmd.ArrivalThreshold > 0f ? movementCmd.ArrivalThreshold : 1f;
+                var hasPath = _waypointPathLookup.HasComponent(entity) && _waypointPointsLookup.HasBuffer(entity);
+                var path = new WaypointPath();
+                DynamicBuffer<WaypointPathPoint> pathPoints = default;
+                if (hasPath)
                 {
-                    // Generate initial waypoint
-                    var angle = _random.NextFloat(0f, math.PI * 2f);
-                    var radius = _random.NextFloat(0f, carrierData.PatrolRadius);
-                    var offset = new float3(
-                        math.cos(angle) * radius,
-                        0f,
-                        math.sin(angle) * radius
-                    );
-                    patrolBehavior.CurrentWaypoint = carrierData.PatrolCenter + offset;
-                    patrolBehavior.WaitTimer = 0f;
-                    waypointInitialized = true;
+                    pathPoints = _waypointPointsLookup[entity];
+                    if (pathPoints.Length == 0)
+                    {
+                        hasPath = false;
+                    }
+                    else
+                    {
+                        path = _waypointPathLookup[entity];
+                        if (path.Direction == 0)
+                        {
+                            path.Direction = 1;
+                        }
+                        if (path.CurrentIndex >= pathPoints.Length)
+                        {
+                            path.CurrentIndex = 0;
+                        }
+                    }
                 }
 
-                // Check if we've arrived at the current waypoint
-                var distanceToWaypoint = math.distance(position, patrolBehavior.CurrentWaypoint);
-                var arrivalThreshold = movementCmd.ArrivalThreshold > 0f ? movementCmd.ArrivalThreshold : 1f;
-
-                if (distanceToWaypoint <= arrivalThreshold)
+                if (hasPath)
                 {
-                    // Update wait timer
-                    patrolBehavior.WaitTimer += deltaTime;
-                    vesselMovement.ValueRW.CurrentSpeed = 0f;
-                    vesselMovement.ValueRW.Velocity = float3.zero;
-                    vesselMovement.ValueRW.IsMoving = 0;
-
-                    if (patrolBehavior.WaitTimer >= patrolBehavior.WaitTime)
+                    var waypointInitialized = math.lengthsq(patrolBehavior.CurrentWaypoint) > 0.01f;
+                    if (!waypointInitialized || math.distance(position, patrolBehavior.CurrentWaypoint) < 0.01f)
                     {
-                        // Generate new waypoint within patrol radius
+                        var currentPathPoint = pathPoints[path.CurrentIndex].Position;
+                        patrolBehavior.CurrentWaypoint = currentPathPoint;
+                        patrolBehavior.WaitTimer = 0f;
+                        movement.ValueRW = new MovementCommand
+                        {
+                            TargetPosition = currentPathPoint,
+                            ArrivalThreshold = arrivalThreshold
+                        };
+                    }
+
+                    var distanceToWaypoint = math.distance(position, patrolBehavior.CurrentWaypoint);
+                    if (distanceToWaypoint <= arrivalThreshold)
+                    {
+                        patrolBehavior.WaitTimer += deltaTime;
+                        vesselMovement.ValueRW.CurrentSpeed = 0f;
+                        vesselMovement.ValueRW.Velocity = float3.zero;
+                        vesselMovement.ValueRW.IsMoving = 0;
+
+                        if (patrolBehavior.WaitTimer >= patrolBehavior.WaitTime)
+                        {
+                            AdvanceWaypoint(ref path, pathPoints.Length);
+                            var newWaypoint = pathPoints[path.CurrentIndex].Position;
+                            patrolBehavior.CurrentWaypoint = newWaypoint;
+                            patrolBehavior.WaitTimer = 0f;
+                            movement.ValueRW = new MovementCommand
+                            {
+                                TargetPosition = newWaypoint,
+                                ArrivalThreshold = arrivalThreshold
+                            };
+                        }
+                    }
+                    else
+                    {
+                        var toWaypoint = patrolBehavior.CurrentWaypoint - position;
+                        var distanceSq = math.lengthsq(toWaypoint);
+                        if (distanceSq > 0.0001f)
+                        {
+                            var direction = math.normalize(toWaypoint);
+                            if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
+                            {
+                                direction = ApplyDeviation(direction, entity, patrolBehavior.CurrentWaypoint, deviationStrength);
+                            }
+
+                            ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
+                                arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
+
+                            if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
+                            {
+                                movement.ValueRW = new MovementCommand
+                                {
+                                    TargetPosition = patrolBehavior.CurrentWaypoint,
+                                    ArrivalThreshold = arrivalThreshold
+                                };
+                            }
+                        }
+                    }
+
+                    _waypointPathLookup[entity] = path;
+                }
+                else
+                {
+                    var waypointInitialized = math.lengthsq(patrolBehavior.CurrentWaypoint) > 0.01f;
+                    if (!waypointInitialized || math.distance(position, patrolBehavior.CurrentWaypoint) < 0.01f)
+                    {
                         var angle = _random.NextFloat(0f, math.PI * 2f);
                         var radius = _random.NextFloat(0f, carrierData.PatrolRadius);
                         var offset = new float3(
@@ -236,48 +314,100 @@ namespace Space4X.Registry
                             0f,
                             math.sin(angle) * radius
                         );
-                        var newWaypoint = carrierData.PatrolCenter + offset;
-
-                        patrolBehavior.CurrentWaypoint = newWaypoint;
+                        patrolBehavior.CurrentWaypoint = carrierData.PatrolCenter + offset;
                         patrolBehavior.WaitTimer = 0f;
-
-                        movement.ValueRW = new MovementCommand
-                        {
-                            TargetPosition = newWaypoint,
-                            ArrivalThreshold = arrivalThreshold
-                        };
                     }
-                }
-                else
-                {
-                    // Move towards waypoint
-                    var toWaypoint = patrolBehavior.CurrentWaypoint - position;
-                    var distanceSq = math.lengthsq(toWaypoint);
-                    
-                    if (distanceSq > 0.0001f) // Safety check to avoid normalizing zero vector
+
+                    var distanceToWaypoint = math.distance(position, patrolBehavior.CurrentWaypoint);
+                    if (distanceToWaypoint <= arrivalThreshold)
                     {
-                        var direction = math.normalize(toWaypoint);
-                        if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
-                        {
-                            direction = ApplyDeviation(direction, entity, patrolBehavior.CurrentWaypoint, deviationStrength);
-                        }
+                        patrolBehavior.WaitTimer += deltaTime;
+                        vesselMovement.ValueRW.CurrentSpeed = 0f;
+                        vesselMovement.ValueRW.Velocity = float3.zero;
+                        vesselMovement.ValueRW.IsMoving = 0;
 
-                        ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
-                            arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
-
-                        // Update movement command target if needed
-                        if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
+                        if (patrolBehavior.WaitTimer >= patrolBehavior.WaitTime)
                         {
+                            var angle = _random.NextFloat(0f, math.PI * 2f);
+                            var radius = _random.NextFloat(0f, carrierData.PatrolRadius);
+                            var offset = new float3(
+                                math.cos(angle) * radius,
+                                0f,
+                                math.sin(angle) * radius
+                            );
+                            var newWaypoint = carrierData.PatrolCenter + offset;
+
+                            patrolBehavior.CurrentWaypoint = newWaypoint;
+                            patrolBehavior.WaitTimer = 0f;
+
                             movement.ValueRW = new MovementCommand
                             {
-                                TargetPosition = patrolBehavior.CurrentWaypoint,
+                                TargetPosition = newWaypoint,
                                 ArrivalThreshold = arrivalThreshold
                             };
+                        }
+                    }
+                    else
+                    {
+                        var toWaypoint = patrolBehavior.CurrentWaypoint - position;
+                        var distanceSq = math.lengthsq(toWaypoint);
+                        if (distanceSq > 0.0001f)
+                        {
+                            var direction = math.normalize(toWaypoint);
+                            if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
+                            {
+                                direction = ApplyDeviation(direction, entity, patrolBehavior.CurrentWaypoint, deviationStrength);
+                            }
+
+                            ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
+                                arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
+
+                            if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
+                            {
+                                movement.ValueRW = new MovementCommand
+                                {
+                                    TargetPosition = patrolBehavior.CurrentWaypoint,
+                                    ArrivalThreshold = arrivalThreshold
+                                };
+                            }
                         }
                     }
                 }
 
                 patrol.ValueRW = patrolBehavior;
+            }
+        }
+
+        private static void AdvanceWaypoint(ref WaypointPath path, int count)
+        {
+            if (count <= 1)
+            {
+                path.CurrentIndex = 0;
+                return;
+            }
+
+            switch (path.Mode)
+            {
+                case WaypointPathMode.Linear:
+                    if (path.CurrentIndex + 1 < count)
+                    {
+                        path.CurrentIndex++;
+                    }
+                    break;
+                case WaypointPathMode.PingPong:
+                    var direction = path.Direction == 0 ? (sbyte)1 : path.Direction;
+                    var nextIndex = path.CurrentIndex + direction;
+                    if (nextIndex < 0 || nextIndex >= count)
+                    {
+                        direction = (sbyte)(direction > 0 ? -1 : 1);
+                        nextIndex = path.CurrentIndex + direction;
+                    }
+                    path.Direction = direction;
+                    path.CurrentIndex = (byte)math.clamp(nextIndex, 0, count - 1);
+                    break;
+                default:
+                    path.CurrentIndex = (byte)((path.CurrentIndex + 1) % count);
+                    break;
             }
         }
 

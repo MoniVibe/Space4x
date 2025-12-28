@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Registry;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Core;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -35,6 +36,11 @@ namespace Space4X.Presentation
 
         public void OnUpdate(ref SystemState state)
         {
+            if (!RuntimeMode.IsRenderingEnabled)
+            {
+                return;
+            }
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             AddIdentity(ref ecb, _carrierId, ref state, ComponentType.ReadOnly<CarrierPresentationTag>());
