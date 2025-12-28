@@ -84,27 +84,37 @@ namespace Space4X.Systems.AI
 
             var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
             var hasChanges = false;
-            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftDogfightTag>>()
-                         .WithNone<StrikeCraftDogfightSteering>()
-                         .WithEntityAccess())
+
+            using var missingSteering = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftDogfightTag>()
+                .WithNone<StrikeCraftDogfightSteering>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < missingSteering.Length; i++)
             {
-                ecb.AddComponent(entity, new StrikeCraftDogfightSteering());
+                ecb.AddComponent(missingSteering[i], new StrikeCraftDogfightSteering());
                 hasChanges = true;
             }
 
-            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftDogfightTag>>()
-                         .WithNone<StrikeCraftDogfightMetrics>()
-                         .WithEntityAccess())
+            using var missingMetrics = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftDogfightTag>()
+                .WithNone<StrikeCraftDogfightMetrics>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < missingMetrics.Length; i++)
             {
-                ecb.AddComponent(entity, new StrikeCraftDogfightMetrics());
+                ecb.AddComponent(missingMetrics[i], new StrikeCraftDogfightMetrics());
                 hasChanges = true;
             }
 
-            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftDogfightTag>>()
-                         .WithNone<StrikeCraftDogfightSample>()
-                         .WithEntityAccess())
+            using var missingSamples = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftDogfightTag>()
+                .WithNone<StrikeCraftDogfightSample>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < missingSamples.Length; i++)
             {
-                ecb.AddBuffer<StrikeCraftDogfightSample>(entity);
+                ecb.AddBuffer<StrikeCraftDogfightSample>(missingSamples[i]);
                 hasChanges = true;
             }
 

@@ -116,7 +116,11 @@ namespace Space4X.Registry
                 state.CompleteDependency();
                 if (!missingState.IsEmptyIgnoreFilter)
                 {
-                    state.EntityManager.AddComponent<AttackMoveTelemetryState>(missingState);
+                    using var missingEntities = missingState.ToEntityArray(Allocator.Temp);
+                    for (int i = 0; i < missingEntities.Length; i++)
+                    {
+                        state.EntityManager.AddComponent<AttackMoveTelemetryState>(missingEntities[i]);
+                    }
                 }
 
                 if (!missingCooldown.IsEmptyIgnoreFilter)

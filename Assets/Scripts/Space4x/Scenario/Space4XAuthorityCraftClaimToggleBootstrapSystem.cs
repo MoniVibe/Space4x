@@ -24,7 +24,7 @@ namespace Space4x.Scenario
             }
 
             var enabled = AuthorityCraftClaimToggle.Default.Enabled;
-            var envValue = Environment.GetEnvironmentVariable(ClaimsEnabledEnv);
+            var envValue = global::System.Environment.GetEnvironmentVariable(ClaimsEnabledEnv);
             if (!string.IsNullOrWhiteSpace(envValue))
             {
                 enabled = ParseEnabled(envValue, enabled);

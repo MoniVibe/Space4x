@@ -329,7 +329,7 @@ namespace Space4X.Tests
         private void CreateMainCamera()
         {
             _cameraObject = new GameObject("AttackMoveTestCamera");
-            var camera = _cameraObject.AddComponent<UCamera>();
+            var camera = _cameraObject.AddComponent<UnityEngine.Camera>();
             _cameraObject.tag = "MainCamera";
             camera.transform.position = new Vector3(0f, 10f, -10f);
             camera.transform.LookAt(Vector3.zero);

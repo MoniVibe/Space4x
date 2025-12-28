@@ -701,7 +701,7 @@ namespace Space4X.Presentation
         {
             if (SystemAPI.HasComponent<LocalToWorld>(entity))
             {
-                return SystemAPI.GetComponentRO<LocalToWorld>(entity).ValueRO.Position;
+                return SystemAPI.GetComponentRO<LocalToWorld>(entity).ValueRO.Value.c3.xyz;
             }
 
             if (!SystemAPI.HasComponent<LocalTransform>(entity))

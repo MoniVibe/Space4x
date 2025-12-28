@@ -138,11 +138,15 @@ namespace Space4X.Systems.AI
 
             var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
             var hasStructuralChanges = false;
-            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftState>>()
-                         .WithNone<Space4XEngagement>()
-                         .WithEntityAccess())
+
+            using var missingEngagement = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftState>()
+                .WithNone<Space4XEngagement>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < missingEngagement.Length; i++)
             {
-                ecb.AddComponent(entity, new Space4XEngagement
+                ecb.AddComponent(missingEngagement[i], new Space4XEngagement
                 {
                     PrimaryTarget = Entity.Null,
                     Phase = EngagementPhase.None,
@@ -156,11 +160,14 @@ namespace Space4X.Systems.AI
                 hasStructuralChanges = true;
             }
 
-            foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftState>>()
-                         .WithNone<SupplyStatus>()
-                         .WithEntityAccess())
+            using var missingSupply = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftState>()
+                .WithNone<SupplyStatus>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < missingSupply.Length; i++)
             {
-                ecb.AddComponent(entity, SupplyStatus.DefaultStrikeCraft);
+                ecb.AddComponent(missingSupply[i], SupplyStatus.DefaultStrikeCraft);
                 hasStructuralChanges = true;
             }
 
@@ -759,15 +766,15 @@ namespace Space4X.Systems.AI
                 }
 
                 var formationTarget = anchorPos + wingOffset * spacingScale;
-                var toTarget = formationTarget - transform.Position;
-                var distance = math.length(toTarget);
-                if (distance > 0.05f)
+                var formationToTarget = formationTarget - transform.Position;
+                var formationDistance = math.length(formationToTarget);
+                if (formationDistance > 0.05f)
                 {
                     var moveSpeed = 10f;
                     moveSpeed *= math.lerp(0.85f, 1.2f, maintenanceQuality);
                     moveSpeed *= math.lerp(0.9f, 1.15f, GetMobilityQuality(entity));
-                    var step = math.min(distance, moveSpeed * DeltaTime);
-                    var direction = toTarget / distance;
+                    var step = math.min(formationDistance, moveSpeed * DeltaTime);
+                    var direction = formationToTarget / formationDistance;
                     transform.Position += direction * step;
 
                     if (MovementLookup.HasComponent(entity))
@@ -847,10 +854,10 @@ namespace Space4X.Systems.AI
 
                 state.TargetPosition = TransformLookup[state.TargetEntity].Position + targetOffset;
 
-                var toTarget = state.TargetPosition - transform.Position;
-                var distance = math.length(toTarget);
+                var targetDelta = state.TargetPosition - transform.Position;
+                var targetDistance = math.length(targetDelta);
 
-                if (distance < 0.1f)
+                if (targetDistance < 0.1f)
                 {
                     return; // Already at target
                 }
@@ -875,7 +882,7 @@ namespace Space4X.Systems.AI
                 // Finesse affects maneuver precision (applied in direction calculation)
 
                 // Aggressive: direct route, Defensive: flanking approach
-                var direction = math.normalize(toTarget);
+                var direction = math.normalize(targetDelta);
                 if (state.KamikazeActive == 0)
                 {
                     TryActivateKamikaze(entity, profileEntity, ref state, lawfulness, chaos, integrity);
@@ -884,7 +891,7 @@ namespace Space4X.Systems.AI
                 if (StanceLookup.HasComponent(entity) && state.KamikazeActive == 0)
                 {
                     var stance = StanceLookup[entity];
-                    if (stance.CurrentStance == VesselStanceMode.Defensive && distance > 20f)
+                    if (stance.CurrentStance == VesselStanceMode.Defensive && targetDistance > 20f)
                     {
                         // Flanking approach for defensive
                         var flankAngle = math.lerp(0.3f, 0.7f, chaos) * math.PI / 4f;
@@ -905,7 +912,7 @@ namespace Space4X.Systems.AI
 
                 if (state.KamikazeActive == 0)
                 {
-                    TryApplyKiting(entity, ref state, ref direction, ref speed, distance, experience, finesseBonus, mobilityQuality, mobilityProfile, disposition);
+                    TryApplyKiting(entity, ref state, ref direction, ref speed, targetDistance, experience, finesseBonus, mobilityQuality, mobilityProfile, disposition);
                 }
 
                 // Move toward target

@@ -1,6 +1,6 @@
 # Unity Tri-Project Briefing
 
-**Last Updated**: 2025-11-27  
+**Last Updated**: 2025-12-28  
 **Purpose**: Master orientation for agents working across PureDOTS, Space4X, and Godgame
 
 ---
@@ -11,9 +11,9 @@ This workspace contains three interconnected Unity DOTS projects:
 
 | Project | Path | Purpose |
 |---------|------|---------|
-| **PureDOTS** | `C:\Users\Moni\Documents\claudeprojects\unity\PureDOTS` | Shared DOTS framework package |
-| **Space4X** | `C:\Users\Moni\Documents\claudeprojects\unity\Space4x` | Carrier-first 4X strategy game |
-| **Godgame** | `C:\Users\Moni\Documents\claudeprojects\unity\Godgame` | Divine intervention god-game simulation |
+| **PureDOTS** | `C:\dev\Tri\puredots` or `/mnt/c/dev/Tri/puredots` | Shared DOTS framework package |
+| **Space4X** | `C:\dev\Tri\space4x` or `/mnt/c/dev/Tri/space4x` | Carrier-first 4X strategy game |
+| **Godgame** | `C:\dev\Tri\godgame` or `/mnt/c/dev/Tri/godgame` | Divine intervention god-game simulation
 
 ### Architecture Pattern
 
@@ -47,9 +47,42 @@ This workspace contains three interconnected Unity DOTS projects:
 
 ---
 
+## Development Philosophy
+
+The TRI project operates on three parallel tracks with distinct responsibilities:
+
+### Headless Track
+- **Owns**: Proofs, exit codes, telemetry contracts, smoke test maintenance
+- **Responsibility**: Keeps smoke tests green and ensures deterministic simulation correctness
+- **Gating**: Headless track failures block integration milestones
+
+### Presentation Track
+- **Owns**: Look/feel, asset import, visual presentation, camera/HUD systems
+- **Responsibility**: Delivers polished user experience without affecting simulation correctness
+- **Gating**: Does not gate headless track; presentation work can proceed independently
+
+### Implementation Track
+- **Owns**: Gameplay mechanics, system evolution, feature development
+- **Responsibility**: Builds new capabilities and refines existing systems
+- **Gating**: Must maintain headless proofs; changes affecting proofs require expectation updates
+
+### Integration Milestones
+- Integration happens at convenient milestones, not continuously
+- Rebuild servers at integration points to validate cross-track compatibility
+- Any change affecting headless proofs requires:
+  - Updating test expectations, OR
+  - Disabling per-scenario tests with documented rationale
+
+### Change Impact Rules
+- **Headless-breaking changes**: Must update expectations or disable scenarios before merge
+- **Presentation-only changes**: Can proceed without headless approval
+- **Implementation changes**: Must maintain or update headless proofs
+
+---
+
 ## PureDOTS Framework
 
-**Location**: `C:\Users\Moni\Documents\claudeprojects\unity\PureDOTS`  
+**Location**: `C:\dev\Tri\puredots` or `/mnt/c/dev/Tri/puredots`  
 **Package**: `Packages/com.moni.puredots`
 
 ### What It Provides
@@ -135,7 +168,7 @@ public partial struct SomeDebugSystem : ISystem
 
 ## Space4X Game
 
-**Location**: `C:\Users\Moni\Documents\claudeprojects\unity\Space4x`
+**Location**: `C:\dev\Tri\space4x` or `/mnt/c/dev/Tri/space4x`
 
 ### Game Vision
 
@@ -159,7 +192,7 @@ Carrier-first 4X strategy where players command carrier task forces across a liv
 // Packages/manifest.json:
 {
   "dependencies": {
-    "com.moni.puredots": "file:../../PureDOTS/Packages/com.moni.puredots"
+    "com.moni.puredots": "file:../../puredots/Packages/com.moni.puredots"
   }
 }
 ```
@@ -167,14 +200,14 @@ Carrier-first 4X strategy where players command carrier task forces across a liv
 ### Key Documentation
 
 - `Docs/ORIENTATION.md` - Project orientation
-- `Docs/Progress.md` - Current status
+- `Docs/INDEX.md` - Documentation index
 - `space.plan.md` - Demo readiness plan
 
 ---
 
 ## Godgame
 
-**Location**: `C:\Users\Moni\Documents\claudeprojects\unity\Godgame`
+**Location**: `C:\dev\Tri\godgame` or `/mnt/c/dev/Tri/godgame`
 
 ### Game Vision
 
@@ -200,7 +233,7 @@ God-game simulation where players influence villagers, villages, and bands throu
 // Packages/manifest.json:
 {
   "dependencies": {
-    "com.moni.puredots": "file:../../PureDOTS/Packages/com.moni.puredots"
+    "com.moni.puredots": "file:../../puredots/Packages/com.moni.puredots"
   }
 }
 ```
@@ -208,7 +241,7 @@ God-game simulation where players influence villagers, villages, and bands throu
 ### Key Documentation
 
 - `Docs/Project_Orientation.md` - Project orientation
-- `Docs/Progress.md` - Current status
+- `Docs/INDEX.md` - Documentation index
 - `god.plan.md` - Development plan
 
 ---
@@ -583,8 +616,8 @@ If you find camera controller files in PureDOTS workspace paths like:
 - `Assets/Scripts/Space4x/Camera/...`
 
 **These are likely development artifacts that should be moved or removed.** Check the actual project directories:
-- **Space4X**: `C:\Users\Moni\Documents\claudeprojects\unity\Space4x`
-- **Godgame**: `C:\Users\Moni\Documents\claudeprojects\unity\Godgame`
+- **Space4X**: `C:\dev\Tri\space4x` or `/mnt/c/dev/Tri/space4x`
+- **Godgame**: `C:\dev\Tri\godgame` or `/mnt/c/dev/Tri/godgame`
 
 ### **Proper Camera Architecture**
 
@@ -690,23 +723,17 @@ Before completing ANY task:
 
 ### Documentation Sync Requirement
 
-⚠️ **This briefing document exists in 4 locations and must stay synchronized:**
+⚠️ **This briefing document exists in 3 locations and must stay synchronized:**
 
 | Location | Path |
 |----------|------|
-| Unity Root | `C:\Users\Moni\Documents\claudeprojects\unity\TRI_PROJECT_BRIEFING.md` |
-| PureDOTS | `C:\Users\Moni\Documents\claudeprojects\unity\PureDOTS\TRI_PROJECT_BRIEFING.md` |
-| Space4X | `C:\Users\Moni\Documents\claudeprojects\unity\Space4x\TRI_PROJECT_BRIEFING.md` |
-| Godgame | `C:\Users\Moni\Documents\claudeprojects\unity\Godgame\TRI_PROJECT_BRIEFING.md` |
+| Unity Root (Canonical) | `C:\dev\Tri\TRI_PROJECT_BRIEFING.md` or `/mnt/c/dev/Tri/TRI_PROJECT_BRIEFING.md` |
+| Space4X | `C:\dev\Tri\space4x\TRI_PROJECT_BRIEFING.md` or `/mnt/c/dev/Tri/space4x/TRI_PROJECT_BRIEFING.md` |
+| Godgame | `C:\dev\Tri\godgame\TRI_PROJECT_BRIEFING.md` or `/mnt/c/dev/Tri/godgame/TRI_PROJECT_BRIEFING.md` |
 
 **When updating this document:**
-1. Make changes in the PureDOTS version (canonical source)
-2. Copy to all other locations:
-```bash
-cp PureDOTS/TRI_PROJECT_BRIEFING.md ../TRI_PROJECT_BRIEFING.md
-cp PureDOTS/TRI_PROJECT_BRIEFING.md ../Space4x/TRI_PROJECT_BRIEFING.md
-cp PureDOTS/TRI_PROJECT_BRIEFING.md ../Godgame/TRI_PROJECT_BRIEFING.md
-```
+1. Make changes in the Unity root version (canonical source)
+2. Copy to the Space4X and Godgame versions
 
 **When discovering new error patterns:**
 - Document in `Docs/FoundationGuidelines.md` (PureDOTS)
@@ -748,7 +775,7 @@ When fixing errors:
 
 ### Starting Work
 
-1. Check `Docs/Progress.md` in target project
+1. Check `Docs/INDEX.md` and the plan file (`space.plan.md` / `god.plan.md`) in the target project
 2. Verify PureDOTS types exist for your feature
 3. Update TODO with task start
 
@@ -764,402 +791,16 @@ When fixing errors:
 1. Run full build: Verify no compile errors
 2. Run tests: Use CI commands
 3. Update TODOs: Mark complete, note blockers
-4. Log progress in `Docs/Progress.md`
+4. Log progress in the target plan file (`space.plan.md` / `god.plan.md`) or team tracker
 
 ---
 
-## CLI Commands
-
-### Build Verification
-```bash
-# Unity batch build
-Unity -batchmode -projectPath <path> -quit -buildWindows64Player Build/Game.exe
-```
-
-### Test Execution
-```bash
-# EditMode tests
-Unity -batchmode -projectPath <path> -runTests -testPlatform editmode
-
-# Scenario runner
-Unity -batchmode -nographics -executeMethod PureDOTS.Runtime.Devtools.ScenarioRunnerEntryPoints.RunScenarioFromArgs --scenario <path>
-```
-
-### Dependency Verification
-```bash
-# Check if type exists
-grep -r "struct TypeName" --include="*.cs"
-
-# Find all usages
-grep -r "TypeName" --include="*.cs" | grep -v "//"
-```
-
----
-
-## Version Requirements
-
-| Package | Version | Notes |
-|---------|---------|-------|
-| Unity Entities | **1.4.2** | NOT 1.5+ (version lock) |
-| Unity Burst | 1.8.24 | |
-| Unity Collections | 2.6.2 | |
-| Unity Mathematics | 1.3.2 | |
-| Unity Physics | 1.0.16 | |
-| Input System | 1.7.0 | NOT legacy UnityEngine.Input |
-
-**IMPORTANT**: Do NOT upgrade Entities to 1.5+ without coordination.
-
----
-
-## Quick Reference: Project Paths
-
-| Project | Path |
-|---------|------|
-| PureDOTS | `C:\Users\Moni\Documents\claudeprojects\unity\PureDOTS` |
-| Space4X | `C:\Users\Moni\Documents\claudeprojects\unity\Space4x` |
-| Godgame | `C:\Users\Moni\Documents\claudeprojects\unity\Godgame` |
-| PureDOTS Package | `PureDOTS/Packages/com.moni.puredots` |
-
----
-
-## Summary
-
-The three projects form a cohesive ecosystem:
-
-- **PureDOTS** provides deterministic DOTS infrastructure (time, registries, spatial, telemetry)
-- **Space4X** builds a carrier-first 4X strategy game on this foundation
-- **Godgame** builds a god-game simulation on the same foundation
-
-All projects share coding patterns, the PureDOTS package, and architectural principles. Follow the critical DOTS patterns to avoid compile errors that block parallel development.
-
-**Full documentation**: Each project's `Docs/` folder contains detailed orientation and progress tracking.
-
-error fixing:
-Error-hunt pipeline for agents
-
-Have your agents follow this exact loop per project (PureDOTS → Space4X → Godgame):
-
-Step A: Get a clean error list
-
-Trigger a full compile (enter play mode or force a domain reload).
-
-Export all compiler errors (not warnings) into a single text file per project:
-
-PureDOTS/Docs/ErrorLog_PureDOTS.txt
-
-Space4x/Docs/ErrorLog_Space4X.txt
-
-Godgame/Docs/ErrorLog_Godgame.txt
-
-Step B: Classify by error pattern, not by file
-
-Use the quick-reference table + P0–P17 sections in the brief to classify every error into buckets:
-
-Foreach mutation / buffer misuse (CS1654/CS1657) → P1
-
-Blob access / ref issues (EA0001/EA0009) → P1, P4
-
-Enum/byte conversion (CS0266) → P2
-
-ref readonly / C#12 features (CS1031) → P3
-
-Buffer element vs component (CS0411) → P5
-
-Baker / authoring inheritance (CS0311) → P6
-
-Burst parameter passing (BC1064 etc.) → P7
-
-Managed string use in Burst (BC1016) → P8, P13
-
-Missing using / namespace (CS0103, CS0234, CS0246) → P9, P10
-
-Obsolete Unity APIs (CS0618) → P11
-
-CreateAssetMenu on non-SO → P12
-
-SystemAPI in static context (EA0004/EA0006) → P14
-
-Bool in blittable struct with function pointer (BC1063) → P15
-
-Shared component access (CS1061) → P18
-
-Then fix errors by bucket, applying the same patch pattern everywhere. That way you never “invent” ad-hoc fixes system by system.
-
-3. Concrete fix patterns (what your agents should actually do)
-3.1. Buffers & foreach mutation (P1)
-
-Symptom:
-CS1654: Cannot modify members of '...' because it is a 'foreach iteration variable'
-
-Mandatory fix pattern:
-
-// Before
-foreach (var elem in buffer)
-{
-    elem.Value += delta;  // ❌
-}
-
-// After
-for (int i = 0; i < buffer.Length; i++)
-{
-    var elem = buffer[i];
-    elem.Value += delta;
-    buffer[i] = elem;
-}
-
-
-Apply this globally to every DynamicBuffer<T> mutation in systems and jobs.
-
-3.2. Blob refs & Burst rules (P1, P4, P8, P13)
-
-Symptoms:
-
-EA0001/EA0009 around blob access.
-
-BC1016 around FixedStrings / .ToString() in Burst systems.
-
-Fix pattern:
-
-// Always:
-ref var specCatalog = ref blobRef.Value;   // ❌ var = blobRef.Value;
-
-// Helper methods:
-static bool TryGetSpec(ref SpecBlob spec, int id, out SomeSpec result)
-{
-    // Use ref spec, never by value
-}
-
-
-For strings and descriptions in Burst systems:
-
-Move all FixedString literals to static readonly fields outside of the Burst-compiled type.
-
-Replace enum .ToString() in Burst with a switch returning pre-made FixedString constants.
-
-static readonly FixedString64Bytes GoalIdle  = "Idle";
-static readonly FixedString64Bytes GoalWork  = "Work";
-
-static FixedString64Bytes DescribeGoal(Goal goal)
-{
-    return goal switch
-    {
-        Goal.Idle => GoalIdle,
-        Goal.Work => GoalWork,
-        _ => default
-    };
-}
-
-
-Then call DescribeGoal from Burst systems instead of constructing FixedStrings directly.
-
-3.3. Query tags & SGQC001 (Entities source generator)
-
-Symptom:
-SGQC001: WithAll<T>() is not supported. WithAll<T>() may only be invoked on types that implement IComponentData, ... or UnityEngine.Object.
-
-Why: You’re calling WithAll<SomeTag>() where SomeTag is not an IComponentData, IBufferElementData, IAspect or UnityEngine.Object.
-
-Fix pattern (no guessing names):
-
-For gameplay tags used in queries, always define them as empty IComponentData tags:
-
-public struct SomeGameplayTag : IComponentData {}
-
-
-If a type is a pure simulation concept (no fields or only a few scalar fields) and you query it in WithAll/WithNone/WithAny, move it to IComponentData or wrap it in a thin IComponentData tag used only for filtering; keep richer data in a separate component if needed.
-
-Ensure its namespace matches the using in the system; if necessary, adjust using imports rather than duplicating types.
-
-Then rebuild – this usually wipes a whole cluster of SGQC001s.
-
-3.4. Buffer element vs component confusion (P5)
-
-Symptom:
-CS0411: The type arguments for method 'DynamicBuffer<T>' cannot be inferred...
-or “<Type> does not implement IBufferElementData”.
-
-Fix pattern:
-
-Every type used in DynamicBuffer<T> must implement IBufferElementData.
-
-// Before
-public struct PlannedAction
-{
-    public int Id;
-    public float Score;
-}
-
-// After
-public struct PlannedActionElement : IBufferElementData
-{
-    public int Id;
-    public float Score;
-}
-
-
-Rename the buffer type to *Element to keep things obvious.
-
-Update all buffer usages to use the new type.
-
-3.5. Authoring/Baker errors (P6, P12)
-
-Symptoms:
-
-CS0311: MyBaker : Baker<T> where T is not a MonoBehaviour.
-
-CreateAssetMenu warnings on non-ScriptableObject types.
-
-Fix pattern:
-
-// Authoring:
-public class SomethingAuthoring : MonoBehaviour
-{
-    // Serialized fields only
-}
-
-public class SomethingBaker : Baker<SomethingAuthoring>
-{
-    public override void Bake(SomethingAuthoring authoring)
-    {
-        var entity = GetEntity(TransformUsageFlags.Dynamic);
-        AddComponent(entity, new SomethingComponent { ... });
-    }
-}
-
-
-If the data is meant to live as assets (catalogs, specs): use ScriptableObject with [CreateAssetMenu].
-
-If it’s a scene component: MonoBehaviour without [CreateAssetMenu].
-
-3.6. SystemAPI usage & static helpers (P14)
-
-Symptom:
-EA0004/EA0006: SystemAPI.* can only be used in a system's OnCreate/OnUpdate...
-
-Fix pattern:
-
-Never call SystemAPI in static helpers.
-
-Keep SystemAPI calls inside OnCreate, OnDestroy, OnUpdate instance methods.
-
-For helpers:
-
-// Helper uses SystemState and queries:
-static bool TryGetTime(ref SystemState state, out TimeState time)
-{
-    var q = state.GetEntityQuery(ComponentType.ReadOnly<TimeState>());
-    return q.TryGetSingleton(out time);
-}
-
-
-Then call TryGetTime from OnUpdate.
-
-3.7. Bool + Burst function pointers (P15)
-
-Symptom:
-BC1063: 'bool' is not blittable in calli / similar.
-
-Fix pattern:
-
-For structs passed through Burst function pointers, change bool fields to byte or mark with [MarshalAs(UnmanagedType.U1)] as listed in the brief.
-
-Prefer using byte flags for configs to keep everything trivially blittable.
-
-3.9. Shared component access (P18)
-
-Symptom:
-CS1061: 'SystemAPI' does not contain a definition for 'GetSharedComponent'
-
-Fix pattern:
-
-// Before
-var rma = SystemAPI.GetSharedComponent<RenderMeshArray>(catalogEntity);
-
-// After
-var rma = state.EntityManager.GetSharedComponentManaged<RenderMeshArray>(catalogEntity);
-
-// For setting shared components:
-state.EntityManager.SetSharedComponentManaged(entity, new RenderMeshArray { ... });
-
-Apply this to all shared component access in systems. SystemAPI only provides methods for regular components, buffers, and singletons.
-
-3.8. C# version compatibility (P3)
-
-Symptoms:
-
-ref readonly local usage, records, or other C# 12 syntax.
-
-Fix pattern:
-
-Replace ref readonly locals with ref locals + in parameters.
-
-No records; stick to struct + interfaces.
-
-4. PureDOTS-specific cleanup that unblocks both games
-
-The brief explicitly calls out some known violators in PureDOTS (e.g. description helpers, spell effect code, what-if systems) that break Burst rules. These are high-value to fix because both games rely on them. 
-
-TRI_PROJECT_BRIEFING
-
-Have an agent:
-
-Open the systems mentioned under P15 and P13 in the brief.
-
-Apply:
-
-FixedString fixes (static readonly constants, no .ToString() in Burst paths).
-
-Bool/byte alignment for configs.
-
-Rebuild PureDOTS until:
-
-No Burst compile errors in Packages/com.moni.puredots.
-
-No stub types left that mask real implementations.
-
-This gives you a clean, deterministic core for both games.
-
-5. Game-side AI systems: “fix, don’t bypass” strategy
-
-For both Space4X and Godgame, treat systems as follows:
-
-5.1. For every AI system that currently fails to compile
-
-Make sure all components it uses exist in PureDOTS (Body ECS) with complete definitions:
-
-“Needs” component.
-
-“Task/Job/Order” state component(s).
-
-“Motion/Position” or equivalent.
-
-If a field is currently “design-only” and never read, implement a minimal real field, don’t comment it out.
-
-Where the logic is too ambitious right now (e.g. full GOAP/plans), keep the system enabled but gate heavy logic with simple component flags or config values:
-
-if (!config.AISimulationEnabled)
-    return; // ai system still exists, it just short-circuits cleanly
-
-
-or
-
-if (!SystemAPI.HasComponent<SomePrerequisite>(entity))
-    continue;
-
-
-This keeps the system structurally correct and ready for expansion, without having to remove it.
-
-5.2. For runtime “no singleton / no registry” errors
-
-Whenever a system assumes a singleton or registry exists:
-
-Ensure the singleton/registry is created in a single bootstrap flow:
-
-One config (authoring / asset).
-
-One bootstrap system that seeds the runtime component or singleton from that config.
-
-Remove extra manual EntityManager.AddComponentData paths that double-seed things like TimeState / RewindState.
-
-This generally fixes a lot of “nothing moves / nothing updates / sanity systems complaining” issues.
-any non-per frame or hot systems may be de-bursted.
+## Operational Scripts
+
+Headless builds and runs use the shared scripts in `tools/` plus the runbook:
+
+- `tools/build_space4x_linux_from_wsl.sh`
+- `tools/run_space4x_headless.sh`
+- `tools/build_godgame_linux_from_wsl.sh`
+- `tools/run_godgame_headless.sh`
+- `headless_runbook.md`

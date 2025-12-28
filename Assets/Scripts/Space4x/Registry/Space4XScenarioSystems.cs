@@ -395,7 +395,7 @@ namespace Space4X.Registry
                     }
                     break;
                 case WaypointPathMode.PingPong:
-                    var direction = path.Direction == 0 ? (sbyte)1 : path.Direction;
+                    sbyte direction = path.Direction == 0 ? (sbyte)1 : path.Direction;
                     var nextIndex = path.CurrentIndex + direction;
                     if (nextIndex < 0 || nextIndex >= count)
                     {

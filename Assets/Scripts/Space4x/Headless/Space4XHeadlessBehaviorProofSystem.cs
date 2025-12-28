@@ -106,14 +106,14 @@ namespace Space4X.Headless
             _miningQuery = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build();
 
             _patrolEnabled = true;
-            var scenarioPath = Environment.GetEnvironmentVariable(ScenarioPathEnv);
+            var scenarioPath = global::System.Environment.GetEnvironmentVariable(ScenarioPathEnv);
             if (!string.IsNullOrWhiteSpace(scenarioPath) &&
                 scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
                 _patrolEnabled = false;
             }
 
-            _exitOnFail = IsTruthy(Environment.GetEnvironmentVariable(BehaviorProofExitEnv));
+            _exitOnFail = IsTruthy(global::System.Environment.GetEnvironmentVariable(BehaviorProofExitEnv));
         }
 
         public void OnUpdate(ref SystemState state)
