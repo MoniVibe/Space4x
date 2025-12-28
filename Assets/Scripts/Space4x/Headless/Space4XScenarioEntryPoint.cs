@@ -14,7 +14,7 @@ namespace Space4X.Headless
         private const string ReportArg = "--report";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
-        private const string HeadlessPresentationEnvVar = "PUREDOTS_HEADLESS_PRESENTATION";
+        private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
         private static bool s_executed;
 
@@ -26,7 +26,7 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (!EnvIsTruthy(HeadlessPresentationEnvVar))
+            if (!IsTruthy(global::System.Environment.GetEnvironmentVariable(HeadlessPresentationEnv)))
             {
                 return;
             }
@@ -36,7 +36,7 @@ namespace Space4X.Headless
                 return;
             }
 
-            UnityDebug.Log($"[ScenarioEntryPoint] {HeadlessPresentationEnvVar}=1 detected; loading presentation scene '{PresentationSceneName}'.");
+            UnityDebug.Log($"[ScenarioEntryPoint] {HeadlessPresentationEnv}=1 detected; loading presentation scene '{PresentationSceneName}'.");
             SceneManager.LoadScene(PresentationSceneName, LoadSceneMode.Single);
         }
 
@@ -148,9 +148,8 @@ namespace Space4X.Headless
             }
         }
 
-        private static bool EnvIsTruthy(string key)
+        private static bool IsTruthy(string value)
         {
-            var value = SystemEnv.GetEnvironmentVariable(key);
             return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
         }
