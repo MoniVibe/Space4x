@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Time;
 using Space4x.Scenario;
 using Unity.Entities;
 using UnityEngine;
@@ -38,34 +39,10 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (HasExitRequest(ref state))
-            {
-                _quitRequested = 1;
-                UnityDebug.Log("[Space4XHeadlessScenarioQuitSystem] Scenario end reached but a headless exit request exists; skipping Quit(0).");
-                return;
-            }
-
             _quitRequested = 1;
             UnityDebug.Log($"[Space4XHeadlessScenarioQuitSystem] Scenario duration reached (tick {timeState.Tick} >= {scenarioRuntime.EndTick}); quitting.");
-            Quit(0);
-        }
-
-        private static bool HasExitRequest(ref SystemState state)
-        {
-            using var query = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<HeadlessExitRequest>());
-            return !query.IsEmptyIgnoreFilter;
-        }
-
-        private static void Quit(int exitCode)
-        {
-#if UNITY_EDITOR
-            if (Application.isEditor && Application.isBatchMode)
-            {
-                UnityEditor.EditorApplication.Exit(exitCode);
-                return;
-            }
-#endif
-            Application.Quit(exitCode);
+            HeadlessExitUtility.Request(state.EntityManager, timeState.Tick, 0);
+            return;
         }
     }
 }
