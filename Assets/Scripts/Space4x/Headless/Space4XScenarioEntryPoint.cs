@@ -14,7 +14,7 @@ namespace Space4X.Headless
         private const string ReportArg = "--report";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
-        private const string RenderingEnvVar = "PUREDOTS_RENDERING";
+        private const string HeadlessPresentationEnvVar = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
         private static bool s_executed;
 
@@ -26,12 +26,17 @@ namespace Space4X.Headless
                 return;
             }
 
+            if (!EnvIsTruthy(HeadlessPresentationEnvVar))
+            {
+                return;
+            }
+
             if (!PureDOTS.Runtime.Core.RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
 
-            UnityDebug.Log($"[ScenarioEntryPoint] {RenderingEnvVar}=1 detected; loading presentation scene '{PresentationSceneName}'.");
+            UnityDebug.Log($"[ScenarioEntryPoint] {HeadlessPresentationEnvVar}=1 detected; loading presentation scene '{PresentationSceneName}'.");
             SceneManager.LoadScene(PresentationSceneName, LoadSceneMode.Single);
         }
 
@@ -141,6 +146,13 @@ namespace Space4X.Headless
             {
                 SystemEnv.SetEnvironmentVariable(key, value);
             }
+        }
+
+        private static bool EnvIsTruthy(string key)
+        {
+            var value = SystemEnv.GetEnvironmentVariable(key);
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryGetArgument(string key, out string value)

@@ -38,16 +38,21 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (Application.isEditor)
-            {
-                UnityDebug.Log($"[Space4XHeadlessScenarioQuitSystem] Scenario duration reached (tick {timeState.Tick} >= {scenarioRuntime.EndTick}) but running in editor; ignoring quit request.");
-                _quitRequested = 1;
-                return;
-            }
-
             _quitRequested = 1;
             UnityDebug.Log($"[Space4XHeadlessScenarioQuitSystem] Scenario duration reached (tick {timeState.Tick} >= {scenarioRuntime.EndTick}); quitting.");
-            Application.Quit(0);
+            Quit(0);
+        }
+
+        private static void Quit(int exitCode)
+        {
+#if UNITY_EDITOR
+            if (Application.isEditor && Application.isBatchMode)
+            {
+                UnityEditor.EditorApplication.Exit(exitCode);
+                return;
+            }
+#endif
+            Application.Quit(exitCode);
         }
     }
 }
