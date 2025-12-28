@@ -17,11 +17,14 @@
 - Scenarios copied to `Space4X_Headless_Data/Scenarios/space4x`
 - Example:
   ```
+  PUREDOTS_TELEMETRY_LEVEL=summary \
+  PUREDOTS_TELEMETRY_MAX_BYTES=52428800 \
   Builds/Space4X_headless/Linux/Space4X_Headless.x86_64 \
     --scenario Builds/Space4X_headless/Linux/Space4X_Headless_Data/Scenarios/space4x/space4x_demo_mining.json \
     --report reports/space4x_demo_mining.json
   ```
 - Exit codes: `0` success, `1` failure
+- Telemetry: set `PUREDOTS_TELEMETRY_LEVEL=full` (or increase `PUREDOTS_TELEMETRY_MAX_BYTES`) only when debugging
 
 ## Notes
 - `Assets/Space4x/Config/PureDotsResourceTypes.asset` must contain required resource IDs (updated via `Space4XConfigBootstrapper.EnsureAssets`)

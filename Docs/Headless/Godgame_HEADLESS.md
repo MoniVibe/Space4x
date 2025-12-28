@@ -17,11 +17,14 @@
 - Scenarios copied to `Godgame_Headless_Data/Scenarios/godgame` (plus PureDOTS samples)
 - Example:
   ```
+  PUREDOTS_TELEMETRY_LEVEL=summary \
+  PUREDOTS_TELEMETRY_MAX_BYTES=52428800 \
   Builds/Godgame_headless/Linux/Godgame_Headless.x86_64 \
     --scenario Builds/Godgame_headless/Linux/Godgame_Headless_Data/Scenarios/godgame/scenario_god_demo_01.json \
     --report reports/godgame_demo.json
   ```
 - Exit codes: `0` success, `1` failure
+- Telemetry: set `PUREDOTS_TELEMETRY_LEVEL=full` (or increase `PUREDOTS_TELEMETRY_MAX_BYTES`) only when debugging
 
 ## Notes
 - `Assets/Godgame/Config/PureDotsResourceTypes.asset` is populated via `GodgameConfigBootstrapper` and must contain the resource IDs the AI expects

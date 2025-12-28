@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Profile;
@@ -68,6 +70,8 @@ namespace Space4X.Headless
         private static readonly FixedString64Bytes RewindAttackId = new FixedString64Bytes("space4x.attack");
         private static readonly FixedString64Bytes RewindDockingId = new FixedString64Bytes("space4x.docking");
         private const byte RewindRequiredMask = (byte)HeadlessRewindProofStage.RecordReturn;
+        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string SmokeScenarioFile = "space4x_smoke.json";
 
         private byte _rewindPatrolRegistered;
         private byte _rewindEscortRegistered;
@@ -81,6 +85,7 @@ namespace Space4X.Headless
         private byte _rewindEscortPass;
         private byte _rewindAttackPass;
         private byte _rewindDockingPass;
+        private bool _patrolIgnoredForScenario;
 
         public void OnCreate(ref SystemState state)
         {
@@ -98,6 +103,7 @@ namespace Space4X.Headless
             _escortQuery = SystemAPI.QueryBuilder().WithAll<EscortAssignment>().Build();
             _patrolQuery = SystemAPI.QueryBuilder().WithAll<PatrolBehavior>().Build();
             _miningQuery = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build();
+            _patrolIgnoredForScenario = IsSmokeScenario();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -106,7 +112,11 @@ namespace Space4X.Headless
             var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
             var timeoutTicks = scenario.EndTick > scenario.StartTick ? scenario.EndTick - scenario.StartTick : 0u;
 
-            if (!_patrolExpected && !_patrolQuery.IsEmptyIgnoreFilter)
+            if (_patrolIgnoredForScenario)
+            {
+                _patrolExpected = false;
+            }
+            else if (!_patrolExpected && !_patrolQuery.IsEmptyIgnoreFilter)
             {
                 _patrolExpected = true;
             }
@@ -215,24 +225,28 @@ namespace Space4X.Headless
 
             if (!_reportedEnd && time.Tick >= scenario.EndTick)
             {
+                var anyFail = false;
                 if (_attackExpected && !_attackPassed)
                 {
                     _rewindAttackPending = 1;
                     _rewindAttackPass = 0;
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL AttackRun tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepAttackRun);
+                    anyFail = true;
                 }
 
                 if (_capAttackSeen && !_capAttackPassed)
                 {
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL CapToAttack tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepCapToAttack);
+                    anyFail = true;
                 }
 
                 if (_wingDirectiveExpected && !_wingDirectivePassed)
                 {
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL WingDirective tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepWingDirective);
+                    anyFail = true;
                 }
 
                 if (_patrolExpected && !_patrolPassed)
@@ -241,6 +255,7 @@ namespace Space4X.Headless
                     _rewindPatrolPass = 0;
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL Patrol tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Exploration, false, 0f, ExpectedComplete, timeoutTicks, step: StepPatrol);
+                    anyFail = true;
                 }
 
                 if (_escortExpected && !_escortPassed)
@@ -249,6 +264,7 @@ namespace Space4X.Headless
                     _rewindEscortPass = 0;
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL Escort tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepEscort);
+                    anyFail = true;
                 }
 
                 if (_dockingExpected && !_dockingPassed)
@@ -257,15 +273,21 @@ namespace Space4X.Headless
                     _rewindDockingPass = 0;
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL Docking tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Logistics, false, 0f, ExpectedComplete, timeoutTicks, step: StepDocking);
+                    anyFail = true;
                 }
 
                 if (_profileActionExpected && !_profileActionPassed)
                 {
                     UnityDebug.LogError($"[Space4XHeadlessLoopProof] FAIL ProfileAction tick={time.Tick}");
                     TelemetryLoopProofUtility.Emit(state.EntityManager, time.Tick, TelemetryLoopIds.Combat, false, 0f, ExpectedComplete, timeoutTicks, step: StepProfileAction);
+                    anyFail = true;
                 }
 
                 TryFlushRewindProofs(ref state);
+                if (anyFail)
+                {
+                    HeadlessExitUtility.Request(state.EntityManager, time.Tick, 1);
+                }
                 _reportedEnd = true;
             }
         }
@@ -462,6 +484,18 @@ namespace Space4X.Headless
             }
 
             return _dockingUndocked;
+        }
+
+        private static bool IsSmokeScenario()
+        {
+            var scenarioPath = Environment.GetEnvironmentVariable(ScenarioPathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            var fileName = Path.GetFileName(scenarioPath);
+            return string.Equals(fileName, SmokeScenarioFile, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
