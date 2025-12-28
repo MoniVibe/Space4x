@@ -38,9 +38,22 @@ namespace Space4X.Headless
                 return;
             }
 
+            if (HasExitRequest(ref state))
+            {
+                _quitRequested = 1;
+                UnityDebug.Log("[Space4XHeadlessScenarioQuitSystem] Scenario end reached but a headless exit request exists; skipping Quit(0).");
+                return;
+            }
+
             _quitRequested = 1;
             UnityDebug.Log($"[Space4XHeadlessScenarioQuitSystem] Scenario duration reached (tick {timeState.Tick} >= {scenarioRuntime.EndTick}); quitting.");
             Quit(0);
+        }
+
+        private static bool HasExitRequest(ref SystemState state)
+        {
+            using var query = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<HeadlessExitRequest>());
+            return !query.IsEmptyIgnoreFilter;
         }
 
         private static void Quit(int exitCode)

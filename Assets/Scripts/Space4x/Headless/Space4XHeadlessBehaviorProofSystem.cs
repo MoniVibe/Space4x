@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Profile;
@@ -72,6 +71,7 @@ namespace Space4X.Headless
         private const byte RewindRequiredMask = (byte)HeadlessRewindProofStage.RecordReturn;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string SmokeScenarioFile = "space4x_smoke.json";
+        private const string BehaviorProofExitEnv = "SPACE4X_HEADLESS_BEHAVIOR_PROOF_EXIT";
 
         private byte _rewindPatrolRegistered;
         private byte _rewindEscortRegistered;
@@ -85,7 +85,8 @@ namespace Space4X.Headless
         private byte _rewindEscortPass;
         private byte _rewindAttackPass;
         private byte _rewindDockingPass;
-        private bool _patrolIgnoredForScenario;
+        private bool _patrolEnabled;
+        private bool _exitOnFail;
 
         public void OnCreate(ref SystemState state)
         {
@@ -103,7 +104,16 @@ namespace Space4X.Headless
             _escortQuery = SystemAPI.QueryBuilder().WithAll<EscortAssignment>().Build();
             _patrolQuery = SystemAPI.QueryBuilder().WithAll<PatrolBehavior>().Build();
             _miningQuery = SystemAPI.QueryBuilder().WithAll<MiningVessel>().Build();
-            _patrolIgnoredForScenario = IsSmokeScenario();
+
+            _patrolEnabled = true;
+            var scenarioPath = Environment.GetEnvironmentVariable(ScenarioPathEnv);
+            if (!string.IsNullOrWhiteSpace(scenarioPath) &&
+                scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _patrolEnabled = false;
+            }
+
+            _exitOnFail = IsTruthy(Environment.GetEnvironmentVariable(BehaviorProofExitEnv));
         }
 
         public void OnUpdate(ref SystemState state)
@@ -112,11 +122,7 @@ namespace Space4X.Headless
             var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
             var timeoutTicks = scenario.EndTick > scenario.StartTick ? scenario.EndTick - scenario.StartTick : 0u;
 
-            if (_patrolIgnoredForScenario)
-            {
-                _patrolExpected = false;
-            }
-            else if (!_patrolExpected && !_patrolQuery.IsEmptyIgnoreFilter)
+            if (_patrolEnabled && !_patrolExpected && !_patrolQuery.IsEmptyIgnoreFilter)
             {
                 _patrolExpected = true;
             }
@@ -284,7 +290,7 @@ namespace Space4X.Headless
                 }
 
                 TryFlushRewindProofs(ref state);
-                if (anyFail)
+                if (_exitOnFail && anyFail)
                 {
                     HeadlessExitUtility.Request(state.EntityManager, time.Tick, 1);
                 }
@@ -486,16 +492,18 @@ namespace Space4X.Headless
             return _dockingUndocked;
         }
 
-        private static bool IsSmokeScenario()
+        private static bool IsTruthy(string value)
         {
-            var scenarioPath = Environment.GetEnvironmentVariable(ScenarioPathEnv);
-            if (string.IsNullOrWhiteSpace(scenarioPath))
+            if (string.IsNullOrEmpty(value))
             {
                 return false;
             }
 
-            var fileName = Path.GetFileName(scenarioPath);
-            return string.Equals(fileName, SmokeScenarioFile, StringComparison.OrdinalIgnoreCase);
+            value = value.Trim();
+            return value.Equals("1", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("true", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("on", StringComparison.OrdinalIgnoreCase);
         }
     }
 }
