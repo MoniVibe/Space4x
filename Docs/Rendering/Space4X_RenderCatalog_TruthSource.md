@@ -64,6 +64,23 @@ Space4XRenderCatalog_v2.asset
 4. Ensure gameplay writes `RenderSemanticKey` using `Space4XRenderKeys` values (`space4x/Assets/Scripts/Space4x/Presentation/Space4XRenderKeys.cs`).
 5. The baker/runtime bootstrap bumps `RenderCatalogVersion` automatically; no manual versioning needed.
 
+## Assetsvault Upgrade Lane (Hero Pass v1)
+
+Repeatable pipeline:
+
+1. Import from Assetsvault into `space4x/Assets/Art/Assetsvault/PolygonSciFiSpace_Hero/` (Meshes, Materials, Textures, Shaders).
+2. Ensure materials are render-pipeline compatible (URP). If a pack ships built-in shaders, convert to URP Lit or author new URP materials.
+3. Append new variants to `space4x/Assets/Data/Space4XRenderCatalog_v2.asset` (never reorder existing entries).
+4. Update Theme 0 mappings to the new variant indices.
+5. Verify the RenderMeshArray is populated and the smoke scene logs show MaterialMeshInfo assigned.
+
+Current hero mapping (v1):
+
+- `Carrier_Hero_v1` uses `SM_Ship_Galactic_Carrier_01` + `PolygonScifiSpace_Ship_01_A`.
+- `StationModule_Hero_v1` uses `SM_Ship_Station_01` + `PolygonScifiSpace_SpaceStation_01`.
+- Theme 0 maps `Space4XRenderKeys.Carrier` to `Carrier_Hero_v1` and `Space4XRenderKeys.Asteroid` to `StationModule_Hero_v1`.
+  - Note: this is a temporary swap because the smoke scenario currently renders asteroids but not stations.
+
 ## Archetype / Semantic Key Map
 
 | Key | Value | Notes |
@@ -83,6 +100,5 @@ Space4XRenderCatalog_v2.asset
 - `RenderPresentationCatalog.Blob.IsCreated == true`
 - `RenderPresentationCatalog.RenderMeshArrayEntity` has `RenderMeshArray` shared component
 - Entities with `RenderSemanticKey` + enabled presenters resolve to `MaterialMeshInfo` + `RenderBounds`
-
 
 

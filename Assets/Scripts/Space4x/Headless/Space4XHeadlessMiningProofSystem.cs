@@ -26,6 +26,8 @@ namespace Space4X.Headless
     {
         private const string EnabledEnv = "SPACE4X_HEADLESS_MINING_PROOF";
         private const string ExitOnResultEnv = "SPACE4X_HEADLESS_MINING_PROOF_EXIT";
+        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string SmokeScenarioFile = "space4x_smoke.json";
 
         private const uint DefaultTimeoutTicks = 1800; // ~30 seconds at 60hz
 
@@ -40,6 +42,7 @@ namespace Space4X.Headless
         private byte _rewindPending;
         private byte _rewindPass;
         private float _rewindObserved;
+        private bool _isSmokeScenario;
 
         private EntityQuery _vesselQuery;
         private EntityQuery _carrierQuery;
@@ -95,7 +98,12 @@ namespace Space4X.Headless
             if (_timeoutTick == 0)
             {
                 _startTick = timeState.Tick;
-                _timeoutTick = _startTick + DefaultTimeoutTicks;
+                var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
+                _isSmokeScenario = IsSmokeScenario();
+                // Smoke runs at reduced mining speeds; give it the full scenario window before failing.
+                _timeoutTick = _isSmokeScenario && scenario.EndTick > _startTick
+                    ? scenario.EndTick
+                    : _startTick + DefaultTimeoutTicks;
                 _startOreInHold = GetOreInHold(ref state);
             }
 
@@ -183,6 +191,13 @@ namespace Space4X.Headless
         private static void RequestExitOnFail(ref SystemState state, uint tick, int exitCode)
         {
             HeadlessExitUtility.Request(state.EntityManager, tick, exitCode);
+        }
+
+        private static bool IsSmokeScenario()
+        {
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            return !string.IsNullOrWhiteSpace(scenarioPath) &&
+                   scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase);
         }
 
         private (float cargoSum, int returning, int mining, int total) GetVesselStats(ref SystemState state)

@@ -85,12 +85,28 @@ MonoBehaviour:
     BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
     PresenterMask: 1
     RenderLayer: 0
+  - Name: Carrier_Hero_v1
+    Mesh: {fileID: 4300000, guid: f55e6d99649ccff4383a155253a9a573, type: 3}
+    Material: {fileID: 2100000, guid: 2a93bc95e3e543319122bb964eb5994f, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0, y: 0, z: 0}
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: StationModule_Hero_v1
+    Mesh: {fileID: 4300000, guid: 1767323bb78cc384c810ff65e8513e5e, type: 3}
+    Material: {fileID: 2100000, guid: 3a027190545143c1b8f04db0d16d2677, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0, y: 0, z: 0}
+    PresenterMask: 1
+    RenderLayer: 0
   Themes:
   - Name: Default
     ThemeId: 0
     SemanticVariants:
     - SemanticKey: 200
-      Lod0Variant: 0
+      Lod0Variant: 9
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 210
@@ -98,7 +114,7 @@ MonoBehaviour:
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 220
-      Lod0Variant: 2
+      Lod0Variant: 10
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 230
