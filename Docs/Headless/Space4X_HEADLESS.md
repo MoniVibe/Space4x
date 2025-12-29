@@ -23,7 +23,7 @@
     --scenario Builds/Space4X_headless/Linux/Space4X_Headless_Data/Scenarios/space4x/space4x_demo_mining.json \
     --report reports/space4x_demo_mining.json
   ```
-- Exit codes: `0` success, `1` failure
+- Exit codes: `0` success, nonzero failure
 - Telemetry: set `PUREDOTS_TELEMETRY_LEVEL=full` (or increase `PUREDOTS_TELEMETRY_MAX_BYTES`) only when debugging
 
 ## Notes
