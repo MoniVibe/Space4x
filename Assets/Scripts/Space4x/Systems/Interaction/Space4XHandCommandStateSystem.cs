@@ -144,7 +144,18 @@ namespace Space4X.Systems.Interaction
                             input.CtrlHeld ? HandCommandType.SlingshotThrow :
                             HandCommandType.Throw;
 
-                        var speedMultiplier = GetSpeedMultiplier(handState.HeldEntity, commandType);
+                        float speed;
+                        if (commandType == HandCommandType.SlingshotThrow)
+                        {
+                            var throwMult = GetSpeedMultiplier(handState.HeldEntity, HandCommandType.Throw);
+                            var slingMult = GetSpeedMultiplier(handState.HeldEntity, HandCommandType.SlingshotThrow);
+                            speed = math.lerp(ThrowSpeed * throwMult, ThrowSpeed * slingMult, chargeLevel);
+                        }
+                        else
+                        {
+                            var speedMultiplier = GetSpeedMultiplier(handState.HeldEntity, commandType);
+                            speed = ThrowSpeed * speedMultiplier;
+                        }
 
                         commandBuffer.Add(new HandCommand
                         {
@@ -153,7 +164,7 @@ namespace Space4X.Systems.Interaction
                             TargetEntity = handState.HeldEntity,
                             TargetPosition = holdTarget,
                             Direction = direction,
-                            Speed = ThrowSpeed * speedMultiplier,
+                            Speed = speed,
                             ChargeLevel = chargeLevel,
                             ResourceTypeIndex = 0,
                             Amount = 0f

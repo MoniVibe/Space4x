@@ -145,7 +145,8 @@ namespace Space4X.Presentation
                 _strikeCraftInitQuery.IsEmptyIgnoreFilter &&
                 _fleetImpostorInitQuery.IsEmptyIgnoreFilter &&
                 _projectileInitQuery.IsEmptyIgnoreFilter &&
-                _debrisInitQuery.IsEmptyIgnoreFilter)
+                _debrisInitQuery.IsEmptyIgnoreFilter &&
+                _missingPresenterQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }

@@ -25,6 +25,18 @@ namespace Space4X.Systems.Interaction
                 state.EntityManager.AddBuffer<HandCommand>(entity);
                 state.EntityManager.AddBuffer<PureDOTS.Runtime.Interaction.ThrowQueue>(entity);
             }
+
+            if (!SystemAPI.TryGetSingleton<HandPickupPolicy>(out _))
+            {
+                var entity = state.EntityManager.CreateEntity(typeof(HandPickupPolicy));
+                state.EntityManager.SetComponentData(entity, new HandPickupPolicy
+                {
+                    AutoPickDynamicPhysics = 1,
+                    EnableWorldGrab = 1,
+                    DebugWorldGrabAny = 0,
+                    WorldGrabRequiresTag = 1
+                });
+            }
         }
 
         public void OnUpdate(ref SystemState state)

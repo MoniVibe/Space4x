@@ -256,6 +256,7 @@ GameObject:
   m_Component:
   - component: {fileID: 805860694}
   - component: {fileID: 805860695}
+  - component: {fileID: 805860696}
   m_Layer: 0
   m_Name: RenderCatalogBootstrap
   m_TagString: Untagged
@@ -291,6 +292,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogRuntimeBootstrap
   CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
+--- !u!114 &805860696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 805860693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59c7c25d01774a649a017acb2a108b96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PureDOTS.Runtime.Physics::PureDOTS.Runtime.Physics.PhysicsColliderProfileRuntimeBootstrap
+  ProfileDefinition: {fileID: 11400000, guid: fae18f56e9eb472f8ff3c94a279e8df6, type: 2}
 --- !u!1 &865863174
 GameObject:
   m_ObjectHideFlags: 0

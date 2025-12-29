@@ -2,14 +2,17 @@ using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
+using Space4X.Physics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Physics;
 using Unity.Transforms;
 using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
@@ -59,6 +62,9 @@ namespace Space4X.Systems.AI
         private ComponentLookup<VesselAimDirective> _aimDirectiveLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
+        private ComponentLookup<PhysicsCollider> _physicsColliderLookup;
+        private ComponentLookup<SpacePhysicsBody> _spacePhysicsBodyLookup;
+        private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -102,6 +108,9 @@ namespace Space4X.Systems.AI
             _aimDirectiveLookup = state.GetComponentLookup<VesselAimDirective>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
+            _physicsColliderLookup = state.GetComponentLookup<PhysicsCollider>(true);
+            _spacePhysicsBodyLookup = state.GetComponentLookup<SpacePhysicsBody>(true);
+            _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -220,6 +229,11 @@ namespace Space4X.Systems.AI
             _aimDirectiveLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
+            _physicsColliderLookup.Update(ref state);
+            _spacePhysicsBodyLookup.Update(ref state);
+            _colliderSpecLookup.Update(ref state);
+
+            var hasPhysicsWorld = SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorld);
 
             var motionConfig = VesselMotionProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
@@ -274,7 +288,14 @@ namespace Space4X.Systems.AI
                 AttackMoveLookup = _attackMoveLookup,
                 AimDirectiveLookup = _aimDirectiveLookup,
                 SubsystemLookup = _subsystemLookup,
-                SubsystemDisabledLookup = _subsystemDisabledLookup
+                SubsystemDisabledLookup = _subsystemDisabledLookup,
+                PhysicsColliderLookup = _physicsColliderLookup,
+                SpacePhysicsBodyLookup = _spacePhysicsBodyLookup,
+                ColliderSpecLookup = _colliderSpecLookup,
+                HasPhysicsWorld = hasPhysicsWorld,
+                PhysicsWorld = physicsWorld,
+                SweepSkin = 0.05f,
+                AllowSlide = 1
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -325,6 +346,13 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<VesselAimDirective> AimDirectiveLookup;
             [ReadOnly] public BufferLookup<SubsystemHealth> SubsystemLookup;
             [ReadOnly] public BufferLookup<SubsystemDisabled> SubsystemDisabledLookup;
+            [ReadOnly] public ComponentLookup<PhysicsCollider> PhysicsColliderLookup;
+            [ReadOnly] public ComponentLookup<SpacePhysicsBody> SpacePhysicsBodyLookup;
+            [ReadOnly] public ComponentLookup<PhysicsColliderSpec> ColliderSpecLookup;
+            [ReadOnly] public PhysicsWorldSingleton PhysicsWorld;
+            public bool HasPhysicsWorld;
+            public float SweepSkin;
+            public byte AllowSlide;
 
             public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
             {
@@ -716,7 +744,41 @@ namespace Space4X.Systems.AI
 
                 movement.Velocity += deltaV;
                 movement.CurrentSpeed = math.length(movement.Velocity);
-                transform.Position += movement.Velocity * DeltaTime;
+
+                var desiredDelta = movement.Velocity * DeltaTime;
+                var resolvedDelta = desiredDelta;
+                if (HasPhysicsWorld && PhysicsColliderLookup.HasComponent(entity))
+                {
+                    var collider = PhysicsColliderLookup[entity];
+                    if (KinematicSweepUtility.TryResolveSweep(
+                        PhysicsWorld,
+                        collider,
+                        entity,
+                        transform.Position,
+                        transform.Rotation,
+                        desiredDelta,
+                        SweepSkin,
+                        AllowSlide != 0,
+                        true,
+                        out var sweepResult))
+                    {
+                        var hitEntity = sweepResult.HitEntity;
+                        var isNonBlocking = sweepResult.HasHit != 0 && IsNonBlockingHit(hitEntity);
+                        resolvedDelta = isNonBlocking ? desiredDelta : sweepResult.ResolvedDelta;
+
+                        if (sweepResult.HasHit != 0 && blockerEntity == Entity.Null && !isNonBlocking)
+                        {
+                            blockerEntity = sweepResult.HitEntity;
+                        }
+                    }
+                }
+
+                transform.Position += resolvedDelta;
+                if (DeltaTime > 1e-4f)
+                {
+                    movement.Velocity = resolvedDelta / DeltaTime;
+                    movement.CurrentSpeed = math.length(movement.Velocity);
+                }
 
                 if (isAsteroidTarget && AsteroidCenterLookup.HasComponent(aiState.TargetEntity))
                 {
@@ -1219,6 +1281,35 @@ namespace Space4X.Systems.AI
                         speedMultiplier = math.lerp(1f, strafeMultiplier, math.abs(lateralDot));
                         return;
                 }
+            }
+
+            private bool IsNonBlockingHit(Entity hitEntity)
+            {
+                if (ColliderSpecLookup.HasComponent(hitEntity))
+                {
+                    var spec = ColliderSpecLookup[hitEntity];
+                    if (spec.IsTrigger != 0)
+                    {
+                        return true;
+                    }
+                }
+
+                if (SpacePhysicsBodyLookup.HasComponent(hitEntity))
+                {
+                    var body = SpacePhysicsBodyLookup[hitEntity];
+                    if ((body.Flags & SpacePhysicsFlags.IsTrigger) != 0)
+                    {
+                        return true;
+                    }
+
+                    if (body.Layer == Space4XPhysicsLayer.SensorOnly ||
+                        body.Layer == Space4XPhysicsLayer.DockingZone)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 

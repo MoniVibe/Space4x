@@ -130,12 +130,20 @@ namespace Space4X.Authoring
             });
 
             // Add RequiresPhysics from PureDOTS
+            var interactionFlags = PhysicsInteractionFlags.Collidable;
+            if (authoring.isTrigger)
+            {
+                interactionFlags |= PhysicsInteractionFlags.Trigger;
+            }
+            if (authoring.continuousCollision)
+            {
+                interactionFlags |= PhysicsInteractionFlags.ContinuousCollision;
+            }
+
             AddComponent(entity, new RequiresPhysics
             {
                 Priority = (byte)authoring.priority,
-                Flags = authoring.raisesCollisionEvents 
-                    ? PhysicsInteractionFlags.Collidable 
-                    : PhysicsInteractionFlags.None
+                Flags = interactionFlags
             });
 
             // Add PhysicsInteractionConfig
@@ -148,6 +156,30 @@ namespace Space4X.Authoring
                 LinearDamping = 0f,
                 AngularDamping = 0f
             });
+
+            // Add PhysicsColliderSpec so bootstrap uses the intended shape + filter.
+            var spec = new PhysicsColliderSpec
+            {
+                Shape = authoring.colliderType switch
+                {
+                    ColliderType.Capsule => PhysicsColliderShape.Capsule,
+                    ColliderType.Box => PhysicsColliderShape.Box,
+                    _ => PhysicsColliderShape.Sphere
+                },
+                Dimensions = authoring.colliderType switch
+                {
+                    ColliderType.Capsule => new float3(authoring.radius, authoring.height, 0f),
+                    ColliderType.Box => new float3(authoring.size.x, authoring.size.y, authoring.size.z),
+                    _ => new float3(authoring.radius, 0f, 0f)
+                },
+                Flags = interactionFlags,
+                IsTrigger = (byte)(authoring.isTrigger ||
+                    authoring.layer == Space4XPhysicsLayer.SensorOnly ||
+                    authoring.layer == Space4XPhysicsLayer.DockingZone ? 1 : 0),
+                UseCustomFilter = 1,
+                CustomFilter = Space4XPhysicsLayers.CreateFilter(authoring.layer)
+            };
+            AddComponent(entity, spec);
 
             // Add collision event buffer if events are enabled
             if (authoring.raisesCollisionEvents)
@@ -169,4 +201,3 @@ namespace Space4X.Authoring
         }
     }
 }
-

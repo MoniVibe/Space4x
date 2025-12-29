@@ -30,11 +30,11 @@ MonoBehaviour:
     PresenterMask: 1
     RenderLayer: 0
   - Name: Asteroid
-    Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+    Mesh: {fileID: 4300000, guid: 30fce88deedd6bd42b6c3fff791e7b9e, type: 3}
     Material: {fileID: 2100000, guid: e36c0b1c5d5d439689dc3a9da7f3dc85, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
-    BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
+    BoundsExtents: {x: 0, y: 0, z: 0}
     PresenterMask: 1
     RenderLayer: 0
   - Name: Projectile
