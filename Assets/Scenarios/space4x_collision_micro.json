@@ -1,0 +1,36 @@
+{
+  "seed": 7,
+  "duration_s": 30,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "collision-carrier-alpha",
+      "position": [-25, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "COLLISION-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "collision-asteroid",
+      "position": [0, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 200.0,
+      "gatherRatePerWorker": 6.0,
+      "maxSimultaneousWorkers": 1
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 1,
+      "kind": "MoveFleet",
+      "fleetId": "COLLISION-ALPHA",
+      "targetPosition": [0, 0],
+      "description": "Carrier approaches asteroid for collision proof"
+    }
+  ]
+}
