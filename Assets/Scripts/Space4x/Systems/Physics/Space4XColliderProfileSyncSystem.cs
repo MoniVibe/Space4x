@@ -34,7 +34,7 @@ namespace Space4X.Systems.Physics
 
             foreach (var (physical, semanticKey) in SystemAPI.Query<RefRW<VesselPhysicalProperties>, RefRO<RenderSemanticKey>>())
             {
-                if (!PhysicsColliderProfileHelpers.TryGetSpec(entries, semanticKey.ValueRO.Value, out var spec))
+                if (!PhysicsColliderProfileHelpers.TryGetSpec(ref entries, semanticKey.ValueRO.Value, out var spec))
                 {
                     continue;
                 }
