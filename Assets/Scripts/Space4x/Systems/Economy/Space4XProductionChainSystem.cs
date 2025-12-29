@@ -99,7 +99,7 @@ namespace Space4X.Systems.Economy
                 if (_jobLookup.HasComponent(entity))
                 {
                     var job = _jobLookup[entity];
-                    if (!TryGetRecipe(job.RecipeId, ref catalog, out var activeRecipe))
+                    if (!TryGetRecipe(job.RecipeId, ref catalog, out ResourceRecipe activeRecipe))
                     {
                         ecb.RemoveComponent<ProcessingJob>(entity);
                         continue;
@@ -134,7 +134,7 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
-                if (!TryPickQueueEntry(queue, ref catalog, facility.ValueRO.Tier, out var entryIndex, out var queuedRecipe))
+                if (!TryPickQueueEntry(queue, ref catalog, facility.ValueRO.Tier, out int entryIndex, out ResourceRecipe queuedRecipe))
                 {
                     continue;
                 }
@@ -144,7 +144,7 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
-                if (!HasInputs(in queuedRecipe, items, out var missingPrimary, out var missingSecondary))
+                if (!HasInputs(in queuedRecipe, items, out float missingPrimary, out float missingSecondary))
                 {
                     EmitNeedRequests(
                         entity,
@@ -246,7 +246,7 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
-            if (!HasInputs(in recipe, items, out var missingPrimary, out var missingSecondary))
+            if (!HasInputs(in recipe, items, out float missingPrimary, out float missingSecondary))
             {
                 EmitNeedRequests(
                     facilityEntity,
@@ -303,7 +303,7 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
-                if (!TryGetRecipe(entry.RecipeId, ref catalog, out var candidate))
+                if (!TryGetRecipe(entry.RecipeId, ref catalog, out ResourceRecipe candidate))
                 {
                     queue.RemoveAt(i);
                     i--;
@@ -375,7 +375,7 @@ namespace Space4X.Systems.Economy
             DynamicBuffer<StorehouseInventoryItem> items,
             BlobAssetReference<ResourceTypeIndexBlob> catalog)
         {
-            if (!TryResolveResourceTypeIndex(recipe.PrimaryInput.ResourceId, catalog, out var primaryIndex))
+            if (!TryResolveResourceTypeIndex(recipe.PrimaryInput.ResourceId, catalog, out ushort primaryIndex))
             {
                 return false;
             }
@@ -387,7 +387,7 @@ namespace Space4X.Systems.Economy
 
             if (recipe.HasSecondaryInput != 0)
             {
-                if (!TryResolveResourceTypeIndex(recipe.SecondaryInput.ResourceId, catalog, out var secondaryIndex))
+                if (!TryResolveResourceTypeIndex(recipe.SecondaryInput.ResourceId, catalog, out ushort secondaryIndex))
                 {
                     return false;
                 }
@@ -408,7 +408,7 @@ namespace Space4X.Systems.Economy
             DynamicBuffer<StorehouseInventoryItem> items,
             BlobAssetReference<ResourceTypeIndexBlob> catalog)
         {
-            if (!TryResolveResourceTypeIndex(recipe.PrimaryOutput.ResourceId, catalog, out var primaryIndex))
+            if (!TryResolveResourceTypeIndex(recipe.PrimaryOutput.ResourceId, catalog, out ushort primaryIndex))
             {
                 return false;
             }
@@ -420,7 +420,7 @@ namespace Space4X.Systems.Economy
                        StorehouseMutationService.HasCapacityForDeposit(primaryIndex, primaryAmount, catalog, items, capacities, reservations);
             }
 
-            if (!TryResolveResourceTypeIndex(recipe.SecondaryOutput.ResourceId, catalog, out var secondaryIndex))
+            if (!TryResolveResourceTypeIndex(recipe.SecondaryOutput.ResourceId, catalog, out ushort secondaryIndex))
             {
                 return false;
             }
@@ -461,7 +461,7 @@ namespace Space4X.Systems.Economy
                 return false;
             }
 
-            if (!TryResolveResourceTypeIndex(recipe.PrimaryOutput.ResourceId, catalog, out var primaryIndex))
+            if (!TryResolveResourceTypeIndex(recipe.PrimaryOutput.ResourceId, catalog, out ushort primaryIndex))
             {
                 return false;
             }

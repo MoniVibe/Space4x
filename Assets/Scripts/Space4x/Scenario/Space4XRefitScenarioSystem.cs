@@ -12,6 +12,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using SystemEnv = System.Environment;
 
 namespace Space4x.Scenario
 {
@@ -22,6 +23,7 @@ namespace Space4x.Scenario
     [UpdateAfter(typeof(ModuleCatalogBootstrapSystem))]
     public partial class Space4XRefitScenarioSystem : SystemBase
     {
+        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private bool _hasLoaded;
         private RefitScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
@@ -78,6 +80,16 @@ namespace Space4x.Scenario
 
         private string FindScenarioPath(string scenarioId)
         {
+            var envPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            if (!string.IsNullOrWhiteSpace(envPath))
+            {
+                var fullEnvPath = Path.GetFullPath(envPath);
+                if (File.Exists(fullEnvPath))
+                {
+                    return fullEnvPath;
+                }
+            }
+
             var possiblePaths = new[]
             {
                 Path.Combine(Application.dataPath, "Scenarios", $"{scenarioId}.json"),

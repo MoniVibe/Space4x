@@ -18,7 +18,7 @@
 - Example:
   ```
   PUREDOTS_TELEMETRY_LEVEL=summary \
-  PUREDOTS_TELEMETRY_MAX_BYTES=52428800 \
+  PUREDOTS_TELEMETRY_MAX_BYTES=524288000 \
   Builds/Space4X_headless/Linux/Space4X_Headless.x86_64 \
     --scenario Builds/Space4X_headless/Linux/Space4X_Headless_Data/Scenarios/space4x/space4x_demo_mining.json \
     --report reports/space4x_demo_mining.json

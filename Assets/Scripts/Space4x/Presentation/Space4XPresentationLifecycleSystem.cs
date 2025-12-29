@@ -56,6 +56,10 @@ namespace Space4X.Presentation
         private const float PickupScaleMin = 0.5f;
         private const float PickupScaleMax = 3f;
 
+        private const int CarrierLightVariantIndex = 12;
+        private const int CarrierMediumVariantIndex = 13;
+        private const int CarrierHeavyVariantIndex = 10;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RenderPresentationCatalog>();
@@ -207,6 +211,7 @@ namespace Space4X.Presentation
                 });
                 baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
                 AddMaterialColor(ref state, ref ecb, entity, baseColor);
+                ApplyCarrierVariantOverride(ref state, ref ecb, entity);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -618,6 +623,42 @@ namespace Space4X.Presentation
         private static bool IsNearBlack(in float4 color)
         {
             return math.all(color.xyz <= 0.001f) || color.w <= 0.001f;
+        }
+
+        private void ApplyCarrierVariantOverride(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity)
+        {
+            var variantIndex = ResolveCarrierVariantIndex(ref state, entity);
+            if (SystemAPI.HasComponent<RenderVariantOverride>(entity))
+            {
+                ecb.SetComponent(entity, new RenderVariantOverride { Value = variantIndex });
+            }
+            else
+            {
+                ecb.AddComponent(entity, new RenderVariantOverride { Value = variantIndex });
+            }
+            ecb.SetComponentEnabled<RenderVariantOverride>(entity, true);
+        }
+
+        private int ResolveCarrierVariantIndex(ref SystemState state, Entity entity)
+        {
+            var hashSeed = entity.Index;
+            if (SystemAPI.HasComponent<Carrier>(entity))
+            {
+                var carrierId = SystemAPI.GetComponentRO<Carrier>(entity).ValueRO.CarrierId;
+                var carrierHash = carrierId.GetHashCode();
+                if (carrierHash != 0)
+                {
+                    hashSeed = carrierHash;
+                }
+            }
+
+            var choice = math.abs(hashSeed) % 3;
+            return choice switch
+            {
+                0 => CarrierLightVariantIndex,
+                1 => CarrierMediumVariantIndex,
+                _ => CarrierHeavyVariantIndex
+            };
         }
 
         private void RepairMissingPresentation(ref SystemState state, ref EntityCommandBuffer ecb)

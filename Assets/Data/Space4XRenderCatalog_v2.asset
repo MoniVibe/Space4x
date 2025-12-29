@@ -101,44 +101,76 @@ MonoBehaviour:
     BoundsExtents: {x: 0, y: 0, z: 0}
     PresenterMask: 1
     RenderLayer: 0
+  - Name: Carrier_Light_Transport_01
+    Mesh: {fileID: 4300000, guid: 9d950fef1d73c544981503de4e025823, type: 3}
+    Material: {fileID: 2100000, guid: 2a93bc95e3e543319122bb964eb5994f, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0, y: 0, z: 0}
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: Carrier_Medium_Cruiser_01
+    Mesh: {fileID: 4300000, guid: 3fa985975343a5a41a6756e9a237ca39, type: 3}
+    Material: {fileID: 2100000, guid: 2a93bc95e3e543319122bb964eb5994f, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0, y: 0, z: 0}
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: Miner_Transport_01
+    Mesh: {fileID: 4300000, guid: 9d950fef1d73c544981503de4e025823, type: 3}
+    Material: {fileID: 2100000, guid: 2a93bc95e3e543319122bb964eb5994f, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0, y: 0, z: 0}
+    PresenterMask: 1
+    RenderLayer: 0
+  - Name: StrikeCraft_Fighter_01
+    Mesh: {fileID: 4300000, guid: df183b756c0d6f542852af3c753d4e80, type: 3}
+    Material: {fileID: 2100000, guid: 2a93bc95e3e543319122bb964eb5994f, type: 2}
+    SubMesh: 0
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0, y: 0, z: 0}
+    PresenterMask: 1
+    RenderLayer: 0
   Themes:
   - Name: Default
     ThemeId: 0
     SemanticVariants:
     - SemanticKey: 200
-      Lod0Variant: 9
+      Lod0Variant: 13
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 210
-      Lod0Variant: 1
+      Lod0Variant: 14
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 220
-      Lod0Variant: 10
-      Lod1Variant: -1
-      Lod2Variant: -1
-    - SemanticKey: 230
       Lod0Variant: 3
       Lod1Variant: -1
       Lod2Variant: -1
-    - SemanticKey: 240
+    - SemanticKey: 230
       Lod0Variant: 4
       Lod1Variant: -1
       Lod2Variant: -1
-    - SemanticKey: 250
+    - SemanticKey: 240
       Lod0Variant: 5
       Lod1Variant: -1
       Lod2Variant: -1
-    - SemanticKey: 260
+    - SemanticKey: 250
       Lod0Variant: 6
       Lod1Variant: -1
       Lod2Variant: -1
+    - SemanticKey: 260
+      Lod0Variant: 15
+      Lod1Variant: -1
+      Lod2Variant: -1
     - SemanticKey: 270
-      Lod0Variant: 7
+      Lod0Variant: 8
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 280
-      Lod0Variant: 8
+      Lod0Variant: 9
       Lod1Variant: -1
       Lod2Variant: -1
   FallbackMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}

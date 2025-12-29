@@ -37,6 +37,8 @@ namespace Space4x.Scenario
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string JsonExtension = ".json";
         private const float DefaultSpawnVerticalRange = 60f;
+        private const string RefitScenarioFile = "space4x_refit.json";
+        private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private bool _hasLoaded;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
@@ -113,8 +115,16 @@ namespace Space4x.Scenario
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
 
+            var scenarioFileName = Path.GetFileName(scenarioPath);
+            var isRefitScenario = scenarioFileName.Equals(RefitScenarioFile, StringComparison.OrdinalIgnoreCase);
+            var isResearchScenario = scenarioFileName.Equals(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase);
+            var isMiningScenario = !(isRefitScenario || isResearchScenario);
+
             _spawnedEntities = new Dictionary<string, Entity>();
-            SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
+            if (isMiningScenario)
+            {
+                SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
+            }
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
             var durationSeconds = math.max(0f, _scenarioData.duration_s);
             var durationTicks = (uint)math.ceil(durationSeconds / fixedDt);
@@ -122,10 +132,20 @@ namespace Space4x.Scenario
             var safeDurationTicks = durationTicks == 0 ? 1u : durationTicks;
             var endTick = startTick + safeDurationTicks;
             var runtimeEntity = EnsureScenarioRuntime(startTick, endTick, durationSeconds);
-            ScheduleScenarioActions(runtimeEntity, startTick, fixedDt);
+            if (isMiningScenario)
+            {
+                ScheduleScenarioActions(runtimeEntity, startTick, fixedDt);
+            }
             UpdateScenarioInfoSingleton(scenarioInfo, safeDurationTicks);
 
-            Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Spawned carriers/miners/asteroids. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
+            if (isMiningScenario)
+            {
+                Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Spawned carriers/miners/asteroids. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
+            }
+            else
+            {
+                Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Deferring spawns to scenario-specific systems. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
+            }
 
             _hasLoaded = true;
             Enabled = false;

@@ -72,7 +72,9 @@ namespace Space4X.Headless
         private const byte RewindRequiredMask = (byte)HeadlessRewindProofStage.RecordReturn;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string SmokeScenarioFile = "space4x_smoke.json";
+        private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
+        private const string BehaviorProofEnv = "SPACE4X_HEADLESS_BEHAVIOR_PROOF";
         private const string BehaviorProofExitEnv = "SPACE4X_HEADLESS_BEHAVIOR_PROOF_EXIT";
 
         private byte _rewindPatrolRegistered;
@@ -91,6 +93,7 @@ namespace Space4X.Headless
         private bool _attackEnabled;
         private bool _wingDirectiveEnabled;
         private bool _exitOnFail;
+        private bool _scenarioResolved;
         private FixedString64Bytes _bankTestId;
         private byte _bankResolved;
         private bool _bankLogged;
@@ -98,6 +101,13 @@ namespace Space4X.Headless
         public void OnCreate(ref SystemState state)
         {
             if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            var behaviorEnv = global::System.Environment.GetEnvironmentVariable(BehaviorProofEnv);
+            if (!IsTruthy(behaviorEnv))
             {
                 state.Enabled = false;
                 return;
@@ -115,15 +125,7 @@ namespace Space4X.Headless
             _patrolEnabled = true;
             _attackEnabled = true;
             _wingDirectiveEnabled = true;
-            var scenarioPath = global::System.Environment.GetEnvironmentVariable(ScenarioPathEnv);
-            if (!string.IsNullOrWhiteSpace(scenarioPath) &&
-                scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
-            {
-                // Smoke scenario doesn't guarantee patrol/combat loops; avoid false negatives.
-                _patrolEnabled = false;
-                _attackEnabled = false;
-                _wingDirectiveEnabled = false;
-            }
+            ResolveScenarioFlags();
 
             var exitOnFailEnv = global::System.Environment.GetEnvironmentVariable(BehaviorProofExitEnv);
             _exitOnFail = string.IsNullOrWhiteSpace(exitOnFailEnv) || IsTruthy(exitOnFailEnv);
@@ -131,6 +133,11 @@ namespace Space4X.Headless
 
         public void OnUpdate(ref SystemState state)
         {
+            if (!_scenarioResolved)
+            {
+                ResolveScenarioFlags();
+            }
+
             var time = SystemAPI.GetSingleton<TimeState>();
             var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
             var timeoutTicks = scenario.EndTick > scenario.StartTick ? scenario.EndTick - scenario.StartTick : 0u;
@@ -309,6 +316,33 @@ namespace Space4X.Headless
                     HeadlessExitUtility.Request(state.EntityManager, time.Tick, 1);
                 }
                 _reportedEnd = true;
+            }
+        }
+
+        private void ResolveScenarioFlags()
+        {
+            var scenarioPath = global::System.Environment.GetEnvironmentVariable(ScenarioPathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return;
+            }
+
+            _scenarioResolved = true;
+            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                // Smoke scenario doesn't guarantee patrol/combat loops; avoid false negatives.
+                _patrolEnabled = false;
+                _attackEnabled = false;
+                _wingDirectiveEnabled = false;
+                return;
+            }
+
+            if (scenarioPath.EndsWith(MiningScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                // Mining-only runs should not require combat/patrol loops.
+                _patrolEnabled = false;
+                _attackEnabled = false;
+                _wingDirectiveEnabled = false;
             }
         }
 

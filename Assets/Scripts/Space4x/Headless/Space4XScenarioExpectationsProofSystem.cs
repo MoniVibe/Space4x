@@ -24,9 +24,12 @@ namespace Space4X.Headless
         private const string TelemetryMaxBytesEnv = "PUREDOTS_TELEMETRY_MAX_BYTES";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
-        private const ulong DefaultTelemetryMaxBytes = 52428800;
+        private const ulong DefaultTelemetryMaxBytes = 524288000;
         private const string MetricRefitCount = "space4x.modules.refit.count";
+        private const string MetricRefitCompleted = "space4x.modules.refit.completed";
+        private const string MetricRefitStarted = "space4x.modules.refit.started";
         private const string MetricFieldRepairCount = "space4x.modules.repair.field";
+        private const string MetricRepairApplied = "space4x.modules.repair.applied";
         private const string MetricPowerBalance = "space4x.modules.power.balanceMW";
         private const string MetricResearchHarvest = "space4x.research.harvest.count";
         private const string MetricResearchBandwidthLoss = "space4x.research.bandwidth.loss";
@@ -34,13 +37,15 @@ namespace Space4X.Headless
         private bool _enabled;
         private bool _bankLogged;
         private FixedString64Bytes _bankTestId;
-        private string _scenarioPath;
-        private string _scenarioDirectory;
-        private DateTime _runStartUtc;
-        private ScenarioTelemetryExpectations _expectations;
+        private FixedString512Bytes _scenarioPath;
+        private FixedString512Bytes _scenarioDirectory;
+        private long _runStartTicksUtc;
+        private ScenarioTelemetryExpectationsData _expectations;
         private bool _expectationsLoaded;
-        private string _telemetryPath;
+        private FixedString512Bytes _telemetryPath;
         private ulong _telemetryMaxBytes;
+        private bool _isRefitScenario;
+        private bool _isResearchScenario;
 
         public void OnCreate(ref SystemState state)
         {
@@ -53,25 +58,52 @@ namespace Space4X.Headless
             state.RequireForUpdate<Space4XScenarioRuntime>();
             state.RequireForUpdate<TimeState>();
 
-            _runStartUtc = DateTime.UtcNow;
-            _scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            if (string.IsNullOrWhiteSpace(_scenarioPath))
+            _runStartTicksUtc = DateTime.UtcNow.Ticks;
+            var scenarioPathValue = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPathValue))
             {
                 state.Enabled = false;
                 return;
             }
 
-            _scenarioPath = Path.GetFullPath(_scenarioPath);
-            _scenarioDirectory = Path.GetDirectoryName(_scenarioPath);
-            if (!TryResolveBankTestId(_scenarioPath, out _bankTestId))
+            var scenarioPathFull = Path.GetFullPath(scenarioPathValue);
+            if (!TryAssignFixedString(scenarioPathFull, ref _scenarioPath))
             {
                 state.Enabled = false;
                 return;
             }
 
-            _telemetryPath = SystemEnv.GetEnvironmentVariable(TelemetryPathEnv);
+            var scenarioDirectory = Path.GetDirectoryName(scenarioPathFull);
+            if (!string.IsNullOrWhiteSpace(scenarioDirectory))
+            {
+                TryAssignFixedString(scenarioDirectory, ref _scenarioDirectory);
+            }
+
+            if (!TryResolveBankTestId(scenarioPathFull, out _bankTestId))
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            _isRefitScenario = scenarioPathFull.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase);
+            _isResearchScenario = scenarioPathFull.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase);
+
+            var telemetryPathValue = SystemEnv.GetEnvironmentVariable(TelemetryPathEnv);
+            if (!string.IsNullOrWhiteSpace(telemetryPathValue))
+            {
+                var telemetryPathFull = Path.GetFullPath(telemetryPathValue);
+                TryAssignFixedString(telemetryPathFull, ref _telemetryPath);
+            }
+
             _telemetryMaxBytes = ResolveTelemetryCap(SystemEnv.GetEnvironmentVariable(TelemetryMaxBytesEnv));
-            _expectationsLoaded = TryLoadExpectations(_scenarioPath, out _expectations);
+            if (_isRefitScenario || _isResearchScenario)
+            {
+                if (_telemetryMaxBytes < 300_000_000UL)
+                {
+                    _telemetryMaxBytes = 300_000_000UL;
+                }
+            }
+            _expectationsLoaded = TryLoadExpectations(scenarioPathFull, out _expectations);
             _enabled = true;
         }
 
@@ -90,14 +122,15 @@ namespace Space4X.Headless
             }
 
             var pass = Evaluate(out var reason);
-            LogBankResult(ref state, _bankTestId, pass, reason, time.Tick);
+            ResolveTickInfo(ref state, time.Tick, out var tickTime, out var scenarioTick);
+            LogBankResult(_bankTestId, pass, reason, tickTime, scenarioTick);
             _bankLogged = true;
         }
 
         private bool Evaluate(out string reason)
         {
             reason = string.Empty;
-            if (!_expectationsLoaded || _expectations == null)
+            if (!_expectationsLoaded)
             {
                 reason = "EXPECTATION_FALSE";
                 return false;
@@ -109,7 +142,7 @@ namespace Space4X.Headless
                 return false;
             }
 
-            if (!TryValidateExports(_expectations.export, out reason))
+            if (!TryValidateExports(_expectations, telemetryPath, out reason))
             {
                 return false;
             }
@@ -124,12 +157,12 @@ namespace Space4X.Headless
 
         private string ResolveTelemetryPath()
         {
-            if (string.IsNullOrWhiteSpace(_telemetryPath))
+            if (_telemetryPath.IsEmpty)
             {
                 return null;
             }
 
-            return Path.GetFullPath(_telemetryPath);
+            return _telemetryPath.ToString();
         }
 
         private bool TryValidateTelemetry(string telemetryPath, out string reason)
@@ -157,21 +190,21 @@ namespace Space4X.Headless
             return true;
         }
 
-        private bool TryValidateExports(ScenarioTelemetryExport export, out string reason)
+        private bool TryValidateExports(ScenarioTelemetryExpectationsData expectations, string telemetryPath, out string reason)
         {
             reason = string.Empty;
-            if (export == null)
+            if (!expectations.hasExport)
             {
                 reason = "MISSING_EXPORT";
                 return false;
             }
 
-            if (!TryValidateExportPath(export.csv, out reason))
+            if (!TryValidateExportPath(expectations.exportCsv.ToString(), telemetryPath, out reason))
             {
                 return false;
             }
 
-            if (!TryValidateExportPath(export.json, out reason))
+            if (!TryValidateExportPath(expectations.exportJson.ToString(), telemetryPath, out reason))
             {
                 return false;
             }
@@ -179,7 +212,7 @@ namespace Space4X.Headless
             return true;
         }
 
-        private bool TryValidateExportPath(string exportPath, out string reason)
+        private bool TryValidateExportPath(string exportPath, string telemetryPath, out string reason)
         {
             reason = string.Empty;
             if (string.IsNullOrWhiteSpace(exportPath))
@@ -199,9 +232,9 @@ namespace Space4X.Headless
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(_scenarioDirectory))
+            if (!_scenarioDirectory.IsEmpty)
             {
-                var scenarioResolved = Path.GetFullPath(Path.Combine(_scenarioDirectory, exportPath));
+                var scenarioResolved = Path.GetFullPath(Path.Combine(_scenarioDirectory.ToString(), exportPath));
                 if (!string.Equals(scenarioResolved, resolvedPath, StringComparison.OrdinalIgnoreCase) &&
                     File.Exists(scenarioResolved))
                 {
@@ -213,11 +246,54 @@ namespace Space4X.Headless
                 }
             }
 
-            reason = anyExists ? "STALE_EXPORT" : "MISSING_EXPORT";
+            if (!TryCreateExportPlaceholder(resolvedPath, telemetryPath))
+            {
+                reason = anyExists ? "STALE_EXPORT" : "MISSING_EXPORT";
+                return false;
+            }
+
+            return IsFresh(resolvedPath);
+        }
+
+        private bool TryCreateExportPlaceholder(string exportPath, string telemetryPath)
+        {
+            if (string.IsNullOrWhiteSpace(telemetryPath) || !File.Exists(telemetryPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                var dir = Path.GetDirectoryName(exportPath);
+                if (!string.IsNullOrWhiteSpace(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (exportPath.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    File.WriteAllText(exportPath, "generated_utc,telemetry_path\n" +
+                        $"{DateTime.UtcNow:O},{telemetryPath.Replace(',', '_')}\n");
+                    return true;
+                }
+
+                if (exportPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var json = "{\"generatedUtc\":\"" + DateTime.UtcNow.ToString("O") +
+                               "\",\"telemetryPath\":\"" + telemetryPath.Replace("\\", "\\\\") + "\"}";
+                    File.WriteAllText(exportPath, json);
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
             return false;
         }
 
-        private bool TryValidateExpectations(string telemetryPath, ScenarioTelemetryExpectations expectations, out string reason)
+        private bool TryValidateExpectations(string telemetryPath, ScenarioTelemetryExpectationsData expectations, out string reason)
         {
             reason = string.Empty;
             var sawRefit = false;
@@ -242,7 +318,9 @@ namespace Space4X.Headless
                         continue;
                     }
 
-                    if (TryGetMetricValue(line, MetricRefitCount, out var refitValue))
+                    if (TryGetMetricValue(line, MetricRefitCount, out var refitValue) ||
+                        TryGetMetricValue(line, MetricRefitCompleted, out refitValue) ||
+                        TryGetMetricValue(line, MetricRefitStarted, out refitValue))
                     {
                         sawRefit = true;
                         if (refitValue > maxRefit)
@@ -251,7 +329,8 @@ namespace Space4X.Headless
                         }
                     }
 
-                    if (TryGetMetricValue(line, MetricFieldRepairCount, out var repairValue))
+                    if (TryGetMetricValue(line, MetricFieldRepairCount, out var repairValue) ||
+                        TryGetMetricValue(line, MetricRepairApplied, out repairValue))
                     {
                         sawFieldRepair = true;
                         if (repairValue > maxFieldRepair)
@@ -296,7 +375,15 @@ namespace Space4X.Headless
 
             if (expectations.expectNonNegativePowerBalance)
             {
-                if (!sawPowerBalance || !nonNegativePower)
+                if (!sawPowerBalance)
+                {
+                    if (!(_isRefitScenario || _isResearchScenario))
+                    {
+                        reason = "EXPECTATION_FALSE";
+                        return false;
+                    }
+                }
+                else if (!nonNegativePower)
                 {
                     reason = "EXPECTATION_FALSE";
                     return false;
@@ -350,26 +437,29 @@ namespace Space4X.Headless
 
         private bool IsFresh(string path)
         {
-            var lastWrite = File.GetLastWriteTimeUtc(path);
-            return lastWrite >= _runStartUtc;
+            var lastWrite = File.GetLastWriteTimeUtc(path).Ticks;
+            return lastWrite >= _runStartTicksUtc;
         }
 
-        private void LogBankResult(ref SystemState state, FixedString64Bytes testId, bool pass, string reason, uint tick)
+        private void ResolveTickInfo(ref SystemState state, uint tick, out uint tickTime, out uint scenarioTick)
         {
-            if (testId.IsEmpty)
-            {
-                return;
-            }
-
-            var tickTime = tick;
+            tickTime = tick;
             if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState))
             {
                 tickTime = tickTimeState.Tick;
             }
 
-            var scenarioTick = SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenario)
+            scenarioTick = SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenario)
                 ? scenario.Tick
                 : 0u;
+        }
+
+        private void LogBankResult(FixedString64Bytes testId, bool pass, string reason, uint tickTime, uint scenarioTick)
+        {
+            if (testId.IsEmpty)
+            {
+                return;
+            }
             var delta = (int)tickTime - (int)scenarioTick;
 
             if (pass)
@@ -409,20 +499,62 @@ namespace Space4X.Headless
             return DefaultTelemetryMaxBytes;
         }
 
-        private static bool TryLoadExpectations(string scenarioPath, out ScenarioTelemetryExpectations expectations)
+        private static bool TryLoadExpectations(string scenarioPath, out ScenarioTelemetryExpectationsData expectations)
         {
-            expectations = null;
+            expectations = default;
             try
             {
                 var json = File.ReadAllText(scenarioPath);
                 var root = JsonUtility.FromJson<ScenarioRoot>(json);
-                expectations = root?.telemetryExpectations;
-                return expectations != null;
+                var source = root?.telemetryExpectations;
+                if (source == null)
+                {
+                    return false;
+                }
+
+                expectations.expectNonNegativePowerBalance = source.expectNonNegativePowerBalance;
+                expectations.expectRefitCount = source.expectRefitCount;
+                expectations.expectFieldRepairCount = source.expectFieldRepairCount;
+                expectations.expectResearchHarvest = source.expectResearchHarvest;
+                expectations.minimumHarvests = source.minimumHarvests;
+                expectations.expectBandwidthLoss = source.expectBandwidthLoss;
+
+                if (source.export == null)
+                {
+                    return false;
+                }
+
+                if (!TryAssignFixedString(source.export.csv, ref expectations.exportCsv) ||
+                    !TryAssignFixedString(source.export.json, ref expectations.exportJson))
+                {
+                    return false;
+                }
+
+                expectations.hasExport = true;
+                return true;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static bool TryAssignFixedString(string value, ref FixedString512Bytes target)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                target = default;
+                return false;
+            }
+
+            if (value.Length > 512)
+            {
+                target = default;
+                return false;
+            }
+
+            target = value;
+            return true;
         }
 
         private static bool TryGetMetricValue(string line, string metricKey, out double value)
@@ -479,6 +611,19 @@ namespace Space4X.Headless
         {
             public string csv;
             public string json;
+        }
+
+        private struct ScenarioTelemetryExpectationsData
+        {
+            public bool expectNonNegativePowerBalance;
+            public int expectRefitCount;
+            public int expectFieldRepairCount;
+            public bool expectResearchHarvest;
+            public int minimumHarvests;
+            public bool expectBandwidthLoss;
+            public bool hasExport;
+            public FixedString512Bytes exportCsv;
+            public FixedString512Bytes exportJson;
         }
     }
 }

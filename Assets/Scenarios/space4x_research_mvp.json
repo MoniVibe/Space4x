@@ -6,102 +6,92 @@
       "kind": "ResearchAnomaly",
       "entityId": "anomaly-alpha",
       "position": [40.0, 0.0],
-      "components": {
-        "PureDOTS.Runtime.Research.AnomalyConfig": {
-          "FieldId": 1,
-          "BaseYieldPerTick": 6.0,
-          "ChargeCapacity": 320.0,
-          "RechargePerTick": 1.0,
-          "BandwidthCost": 2.5,
-          "IsPermanent": 1
-        },
-        "PureDOTS.Runtime.Research.AnomalyState": {
-          "RemainingCharge": 320.0,
-          "ActiveHarvesters": 0,
-          "RechargeProgress": 0.0
-        },
-        "PureDOTS.Runtime.Research.AnomalyVisualIntent": {
-          "FieldId": 1,
-          "StrengthBucket": 180
-        }
+      "anomalyConfig": {
+        "fieldId": "Materials",
+        "baseYieldPerTick": 6.0,
+        "chargeCapacity": 320.0,
+        "rechargePerTick": 1.0,
+        "bandwidthCost": 2.5,
+        "isPermanent": 1
+      },
+      "anomalyState": {
+        "remainingCharge": 320.0,
+        "activeHarvesters": 0,
+        "rechargeProgress": 0.0
+      },
+      "anomalyVisual": {
+        "fieldId": "Materials",
+        "strengthBucket": 180
       }
     },
     {
       "kind": "ResearchAnomaly",
       "entityId": "anomaly-beta",
       "position": [-60.0, -5.0],
-      "components": {
-        "PureDOTS.Runtime.Research.AnomalyConfig": {
-          "FieldId": 2,
-          "BaseYieldPerTick": 10.0,
-          "ChargeCapacity": 420.0,
-          "RechargePerTick": 0.5,
-          "BandwidthCost": 3.5,
-          "IsPermanent": 0
-        },
-        "PureDOTS.Runtime.Research.AnomalyState": {
-          "RemainingCharge": 420.0,
-          "ActiveHarvesters": 0,
-          "RechargeProgress": 0.0
-        },
-        "PureDOTS.Runtime.Research.AnomalyVisualIntent": {
-          "FieldId": 2,
-          "StrengthBucket": 200
-        }
+      "anomalyConfig": {
+        "fieldId": "Propulsion",
+        "baseYieldPerTick": 10.0,
+        "chargeCapacity": 420.0,
+        "rechargePerTick": 0.5,
+        "bandwidthCost": 3.5,
+        "isPermanent": 0
+      },
+      "anomalyState": {
+        "remainingCharge": 420.0,
+        "activeHarvesters": 0,
+        "rechargeProgress": 0.0
+      },
+      "anomalyVisual": {
+        "fieldId": "Propulsion",
+        "strengthBucket": 200
       }
     },
     {
       "kind": "Carrier",
       "entityId": "carrier-research-01",
       "position": [0.0, 0.0],
-      "components": {
-        "PureDOTS.Runtime.Research.CarrierResearchModuleTag": {},
-        "PureDOTS.Runtime.Research.CarrierResearchAssignment": {
-          "CooldownTicks": 3.0,
-          "NextHarvestInTicks": 0.25
-        },
-        "PureDOTS.Runtime.Research.ResearchBandwidthState": {
-          "CurrentBandwidth": 18.0,
-          "Capacity": 18.0,
-          "RefillPerTick": 2.0,
-          "LossFraction": 0.1
-        },
-        "PureDOTS.Runtime.Research.ResearchHarvestState": {
-          "PendingRawPoints": 0.0,
-          "RefinedPoints": 0.0,
-          "FocusField": 1
-        },
-        "PureDOTS.Runtime.Research.CarrierThreatIntent": {
-          "Intent": 1,
-          "Confidence": 32
-        }
+      "researchAssignment": {
+        "cooldownTicks": 3.0,
+        "nextHarvestInTicks": 0.25
+      },
+      "researchBandwidth": {
+        "currentBandwidth": 18.0,
+        "capacity": 18.0,
+        "refillPerTick": 2.0,
+        "lossFraction": 0.1
+      },
+      "researchHarvest": {
+        "pendingRawPoints": 0.0,
+        "refinedPoints": 0.0,
+        "focusField": "Materials"
+      },
+      "threatIntent": {
+        "intent": "Probe",
+        "confidence": 32
       }
     },
     {
       "kind": "Carrier",
       "entityId": "carrier-research-02",
       "position": [10.0, 8.0],
-      "components": {
-        "PureDOTS.Runtime.Research.CarrierResearchModuleTag": {},
-        "PureDOTS.Runtime.Research.CarrierResearchAssignment": {
-          "CooldownTicks": 2.0,
-          "NextHarvestInTicks": 0.25
-        },
-        "PureDOTS.Runtime.Research.ResearchBandwidthState": {
-          "CurrentBandwidth": 15.0,
-          "Capacity": 20.0,
-          "RefillPerTick": 2.5,
-          "LossFraction": 0.2
-        },
-        "PureDOTS.Runtime.Research.ResearchHarvestState": {
-          "PendingRawPoints": 0.0,
-          "RefinedPoints": 0.0,
-          "FocusField": 2
-        },
-        "PureDOTS.Runtime.Research.CarrierThreatIntent": {
-          "Intent": 2,
-          "Confidence": 45
-        }
+      "researchAssignment": {
+        "cooldownTicks": 2.0,
+        "nextHarvestInTicks": 0.25
+      },
+      "researchBandwidth": {
+        "currentBandwidth": 15.0,
+        "capacity": 20.0,
+        "refillPerTick": 2.5,
+        "lossFraction": 0.2
+      },
+      "researchHarvest": {
+        "pendingRawPoints": 0.0,
+        "refinedPoints": 0.0,
+        "focusField": "Propulsion"
+      },
+      "threatIntent": {
+        "intent": "Ambush",
+        "confidence": 45
       }
     }
   ],

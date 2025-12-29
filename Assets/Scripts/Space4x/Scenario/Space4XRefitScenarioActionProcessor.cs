@@ -125,6 +125,14 @@ namespace Space4x.Scenario
             var startIdx = 0;
             var target = action.Target;
             
+            var hasMaintenanceLog = SystemAPI.TryGetSingletonBuffer<ModuleMaintenanceCommandLogEntry>(out var maintenanceLog);
+            var hasMaintenanceTelemetry = SystemAPI.TryGetSingletonEntity<ModuleMaintenanceTelemetry>(out var maintenanceTelemetryEntity);
+            var maintenanceTelemetry = hasMaintenanceTelemetry
+                ? state.EntityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceTelemetryEntity)
+                : default;
+            var telemetryDirty = false;
+            var tick = SystemAPI.GetSingleton<TimeState>().Tick;
+
             while (startIdx < target.Length)
             {
                 var commaIdx = FindByte(target, (byte)',', startIdx);
@@ -142,9 +150,21 @@ namespace Space4x.Scenario
                             var health = _healthLookup[moduleEntity];
                             if (health.CurrentHealth < health.MaxFieldRepairHealth)
                             {
-                                health.CurrentHealth = math.min(health.MaxFieldRepairHealth, health.CurrentHealth + health.MaxHealth * 0.1f);
+                                var maxDelta = health.MaxHealth * 0.1f;
+                                var newHealth = math.min(health.MaxFieldRepairHealth, health.CurrentHealth + maxDelta);
+                                var applied = newHealth - health.CurrentHealth;
+                                health.CurrentHealth = newHealth;
                                 health.Failed = 0;
                                 _healthLookup[moduleEntity] = health;
+
+                                if (applied > 0f)
+                                {
+                                    Space4XModuleMaintenanceUtility.LogEvent(hasMaintenanceLog, maintenanceLog, tick, Entity.Null, -1, moduleEntity, ModuleMaintenanceEventType.RepairApplied, applied);
+                                    if (hasMaintenanceTelemetry)
+                                    {
+                                        telemetryDirty |= Space4XModuleMaintenanceUtility.ApplyTelemetry(ModuleMaintenanceEventType.RepairApplied, applied, tick, ref maintenanceTelemetry);
+                                    }
+                                }
                             }
                         }
                     }
@@ -155,6 +175,11 @@ namespace Space4x.Scenario
                     break;
                 }
                 startIdx = commaIdx + 1;
+            }
+
+            if (telemetryDirty && hasMaintenanceTelemetry)
+            {
+                state.EntityManager.SetComponentData(maintenanceTelemetryEntity, maintenanceTelemetry);
             }
         }
 
@@ -212,6 +237,19 @@ namespace Space4x.Scenario
                 };
                 break;
             }
+
+            foreach (var (transform, carrierEntity) in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Carrier>().WithEntityAccess())
+            {
+                if (!state.EntityManager.HasComponent<MovementCommand>(carrierEntity))
+                {
+                    state.EntityManager.AddComponentData(carrierEntity, new MovementCommand
+                    {
+                        TargetPosition = targetPosition,
+                        ArrivalThreshold = 1f
+                    });
+                }
+                break;
+            }
         }
 
         private void ProcessRefitAction(ref SystemState state, ScenarioActionEntry action)
@@ -236,6 +274,12 @@ namespace Space4x.Scenario
             if (!_slotLookup.HasBuffer(carrierEntity.Value))
             {
                 return;
+            }
+
+            var facilityMode = new FixedString64Bytes("Facility");
+            if (action.Mode == facilityMode && !state.EntityManager.HasComponent<InRefitFacilityTag>(carrierEntity.Value))
+            {
+                state.EntityManager.AddComponent<InRefitFacilityTag>(carrierEntity.Value);
             }
 
             var slots = _slotLookup[carrierEntity.Value];
@@ -432,4 +476,3 @@ namespace Space4x.Scenario
         }
     }
 }
-

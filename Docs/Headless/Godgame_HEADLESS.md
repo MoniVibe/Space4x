@@ -18,7 +18,7 @@
 - Example:
   ```
   PUREDOTS_TELEMETRY_LEVEL=summary \
-  PUREDOTS_TELEMETRY_MAX_BYTES=52428800 \
+  PUREDOTS_TELEMETRY_MAX_BYTES=524288000 \
   Builds/Godgame_headless/Linux/Godgame_Headless.x86_64 \
     --scenario Builds/Godgame_headless/Linux/Godgame_Headless_Data/Scenarios/godgame/scenario_god_demo_01.json \
     --report reports/godgame_demo.json
