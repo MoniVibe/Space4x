@@ -2,6 +2,7 @@ using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
@@ -71,6 +72,7 @@ namespace Space4X.Headless
         private const byte RewindRequiredMask = (byte)HeadlessRewindProofStage.RecordReturn;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string SmokeScenarioFile = "space4x_smoke.json";
+        private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
         private const string BehaviorProofExitEnv = "SPACE4X_HEADLESS_BEHAVIOR_PROOF_EXIT";
 
         private byte _rewindPatrolRegistered;
@@ -89,6 +91,9 @@ namespace Space4X.Headless
         private bool _attackEnabled;
         private bool _wingDirectiveEnabled;
         private bool _exitOnFail;
+        private FixedString64Bytes _bankTestId;
+        private byte _bankResolved;
+        private bool _bankLogged;
 
         public void OnCreate(ref SystemState state)
         {
@@ -298,12 +303,59 @@ namespace Space4X.Headless
                 }
 
                 TryFlushRewindProofs(ref state);
+                LogBankResult(ref state, ResolveBankTestId(), !anyFail, "missing_loops", time.Tick);
                 if (_exitOnFail && anyFail)
                 {
                     HeadlessExitUtility.Request(state.EntityManager, time.Tick, 1);
                 }
                 _reportedEnd = true;
             }
+        }
+
+        private FixedString64Bytes ResolveBankTestId()
+        {
+            if (_bankResolved != 0)
+            {
+                return _bankTestId;
+            }
+
+            _bankResolved = 1;
+            var scenarioPath = global::System.Environment.GetEnvironmentVariable(ScenarioPathEnv);
+            if (!string.IsNullOrWhiteSpace(scenarioPath) &&
+                scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _bankTestId = new FixedString64Bytes("S5.SPACE4X_BEHAVIOR_LOOPS");
+            }
+
+            return _bankTestId;
+        }
+
+        private void LogBankResult(ref SystemState state, FixedString64Bytes testId, bool pass, string reason, uint tick)
+        {
+            if (_bankLogged || testId.IsEmpty)
+            {
+                return;
+            }
+
+            _bankLogged = true;
+            var tickTime = tick;
+            if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState))
+            {
+                tickTime = tickTimeState.Tick;
+            }
+
+            var scenarioTick = SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenario)
+                ? scenario.Tick
+                : 0u;
+            var delta = (int)tickTime - (int)scenarioTick;
+
+            if (pass)
+            {
+                UnityDebug.Log($"BANK:{testId}:PASS tickTime={tickTime} scenarioTick={scenarioTick} delta={delta}");
+                return;
+            }
+
+            UnityDebug.Log($"BANK:{testId}:FAIL reason={reason} tickTime={tickTime} scenarioTick={scenarioTick} delta={delta}");
         }
 
         private bool CheckWingDirectiveLoop(ref SystemState state, uint tick)

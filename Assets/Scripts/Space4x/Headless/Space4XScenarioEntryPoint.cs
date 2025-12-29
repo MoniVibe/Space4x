@@ -17,6 +17,7 @@ namespace Space4X.Headless
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
         private static bool s_executed;
+        private static bool s_loggedTelemetry;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         static void LoadPresentationSceneIfRequested()
@@ -78,10 +79,13 @@ namespace Space4X.Headless
                         EnsureTelemetryPathDerivedFromReport(reportPath);
                     }
 
-                    UnityDebug.Log($"[ScenarioEntryPoint] Space4X mining scenario requested: '{scenarioPath}'. Telemetry path='{SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)"}'.");
+                    var telemetryPath = SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)";
+                    LogTelemetryOutOnce(telemetryPath);
+                    UnityDebug.Log($"[ScenarioEntryPoint] Space4X mining scenario requested: '{scenarioPath}'. Telemetry path='{telemetryPath}'.");
                     return;
                 }
 
+                LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
                 var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
                 if (result.PerformanceBudgetFailed)
@@ -118,6 +122,17 @@ namespace Space4X.Headless
             var telemetryPath = $"{reportBase}_telemetry.ndjson";
             SystemEnv.SetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH", telemetryPath);
             SystemEnv.SetEnvironmentVariable("PUREDOTS_TELEMETRY_ENABLE", "1");
+        }
+
+        private static void LogTelemetryOutOnce(string telemetryPath)
+        {
+            if (s_loggedTelemetry)
+            {
+                return;
+            }
+
+            s_loggedTelemetry = true;
+            UnityDebug.Log($"TELEMETRY_OUT:{telemetryPath}");
         }
 
         private static bool LooksLikeSpace4XMiningScenarioJson(string scenarioPath)

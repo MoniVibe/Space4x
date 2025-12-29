@@ -15,6 +15,21 @@ namespace Space4X.Presentation
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
     public partial struct Space4XRenderTintSyncSystem : ISystem
     {
+        private static float4 ResolveSafeTint(in float4 color)
+        {
+            if (color.w <= 0.001f || math.all(color.xyz <= 0.001f))
+            {
+                return new float4(1f, 1f, 1f, 1f);
+            }
+
+            return color;
+        }
+
+        private static bool IsNearBlack(in float4 color)
+        {
+            return color.w <= 0.001f || math.all(color.xyz <= 0.001f);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
@@ -30,9 +45,10 @@ namespace Space4X.Presentation
                          .WithNone<URPMaterialPropertyBaseColor>()
                          .WithEntityAccess())
             {
+                var resolved = ResolveSafeTint(tint.ValueRO.Value);
                 ecb.AddComponent(entity, new URPMaterialPropertyBaseColor
                 {
-                    Value = tint.ValueRO.Value
+                    Value = resolved
                 });
             }
 
@@ -41,9 +57,10 @@ namespace Space4X.Presentation
                          .WithNone<URPMaterialPropertyEmissionColor>()
                          .WithEntityAccess())
             {
+                var resolved = ResolveSafeTint(tint.ValueRO.Value);
                 ecb.AddComponent(entity, new URPMaterialPropertyEmissionColor
                 {
-                    Value = new float4(tint.ValueRO.Value.xyz * 0.75f, 1f)
+                    Value = new float4(resolved.xyz * 0.75f, 1f)
                 });
             }
 
@@ -51,12 +68,15 @@ namespace Space4X.Presentation
             ecb.Dispose();
 
             foreach (var (tint, baseColor, emission) in SystemAPI
-                         .Query<RefRO<global::PureDOTS.Rendering.RenderTint>, RefRW<URPMaterialPropertyBaseColor>, RefRW<URPMaterialPropertyEmissionColor>>()
-                         .WithChangeFilter<global::PureDOTS.Rendering.RenderTint>())
+                         .Query<RefRW<global::PureDOTS.Rendering.RenderTint>, RefRW<URPMaterialPropertyBaseColor>, RefRW<URPMaterialPropertyEmissionColor>>())
             {
-                var color = tint.ValueRO.Value;
-                baseColor.ValueRW.Value = color;
-                emission.ValueRW.Value = new float4(color.xyz * 0.75f, 1f);
+                var resolved = ResolveSafeTint(tint.ValueRO.Value);
+                if (IsNearBlack(tint.ValueRO.Value) || IsNearBlack(baseColor.ValueRO.Value) || IsNearBlack(emission.ValueRO.Value))
+                {
+                    tint.ValueRW.Value = resolved;
+                    baseColor.ValueRW.Value = resolved;
+                    emission.ValueRW.Value = new float4(resolved.xyz * 0.75f, 1f);
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.History;
+using PureDOTS.Runtime.Logistics.Components;
 using PureDOTS.Runtime.Resource;
 using PureDOTS.Runtime.Resources;
 using PureDOTS.Runtime.Scenarios;
@@ -74,10 +75,14 @@ namespace Space4X.Scenario
             var stationSubstring = new FixedString64Bytes("station");
             var storehouseExact = new FixedString64Bytes("space4x.storehouse");
             var stationExact = new FixedString64Bytes("space4x.station");
+            var oreSupplySubstring = new FixedString64Bytes("iron_ore_supply");
+            var oreSupplyExact = new FixedString64Bytes("registry.storehouse.iron_ore_supply");
             var refinerySubstring = new FixedString64Bytes("refinery");
             var factorySubstring = new FixedString64Bytes("factory");
             var refineryExact = new FixedString64Bytes("space4x.refinery");
             var factoryExact = new FixedString64Bytes("space4x.factory");
+            var haulerSubstring = new FixedString64Bytes("hauler");
+            var haulerExact = new FixedString64Bytes("registry.hauler");
 
             for (int i = 0; i < counts.Length; i++)
             {
@@ -100,6 +105,10 @@ namespace Space4X.Scenario
                 {
                     SpawnAsteroids(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
+                else if (registryId.Equals(oreSupplyExact) || registryId.IndexOf(oreSupplySubstring) >= 0)
+                {
+                    SpawnIronOreSupplyStations(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                }
                 else if (registryId.Equals(storehouseExact) || registryId.Equals(stationExact) ||
                          registryId.IndexOf(storehouseSubstring) >= 0 || registryId.IndexOf(stationSubstring) >= 0)
                 {
@@ -109,6 +118,10 @@ namespace Space4X.Scenario
                          registryId.IndexOf(refinerySubstring) >= 0 || registryId.IndexOf(factorySubstring) >= 0)
                 {
                     SpawnProcessingFacilities(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                }
+                else if (registryId.Equals(haulerExact) || registryId.IndexOf(haulerSubstring) >= 0)
+                {
+                    SpawnHaulers(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
             }
 
@@ -399,6 +412,78 @@ namespace Space4X.Scenario
             }
         }
 
+        private static void SpawnIronOreSupplyStations(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        {
+            var resourceIdOre = new FixedString64Bytes("iron_ore");
+            var storehouseLabel = new FixedString64Bytes("Ore Supply");
+            const float initialOre = 80f;
+            const float maxCapacity = 200f;
+
+            for (int i = 0; i < count; i++)
+            {
+                var angle = (float)i / count * math.PI * 2f;
+                var distance = random.NextFloat(radius * 0.2f, radius * 0.6f);
+                var position = center + new float3(
+                    math.cos(angle) * distance,
+                    0f,
+                    math.sin(angle) * distance
+                );
+
+                var station = ecb.CreateEntity();
+                ecb.AddComponent(station, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 5f));
+                ecb.AddComponent<SpatialIndexedTag>(station);
+                ecb.AddComponent<RewindableTag>(station);
+
+                var capacityBuffer = ecb.AddBuffer<StorehouseCapacityElement>(station);
+                capacityBuffer.Add(new StorehouseCapacityElement
+                {
+                    ResourceTypeId = resourceIdOre,
+                    MaxCapacity = maxCapacity
+                });
+
+                ecb.AddComponent(station, new StorehouseConfig
+                {
+                    ShredRate = 1f,
+                    MaxShredQueueSize = 8,
+                    InputRate = 20f,
+                    OutputRate = 18f,
+                    Label = storehouseLabel
+                });
+                ecb.AddComponent(station, new StorehouseInventory
+                {
+                    TotalStored = initialOre,
+                    TotalCapacity = maxCapacity,
+                    ItemTypeCount = capacityBuffer.Length,
+                    IsShredding = 0,
+                    LastUpdateTick = 0
+                });
+
+                var items = ecb.AddBuffer<StorehouseInventoryItem>(station);
+                items.Add(new StorehouseInventoryItem
+                {
+                    ResourceTypeId = resourceIdOre,
+                    Amount = initialOre,
+                    Reserved = 0f,
+                    TierId = (byte)ResourceQualityTier.Unknown,
+                    AverageQuality = 0
+                });
+
+                ecb.AddBuffer<StorehouseReservationItem>(station);
+                ecb.AddComponent(station, new StorehouseJobReservation
+                {
+                    ReservedCapacity = 0f,
+                    LastMutationTick = 0
+                });
+
+                ecb.AddComponent(station, new HistoryTier
+                {
+                    Tier = HistoryTier.TierType.Default,
+                    OverrideStrideSeconds = 0f
+                });
+                ecb.AddBuffer<StorehouseHistorySample>(station);
+            }
+        }
+
         private static void SpawnProcessingFacilities(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
         {
             var inputId = new FixedString64Bytes("iron_ore");
@@ -468,6 +553,32 @@ namespace Space4X.Scenario
                 {
                     ReservedCapacity = 0f,
                     LastMutationTick = 0
+                });
+            }
+        }
+
+        private static void SpawnHaulers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var angle = (float)i / count * math.PI * 2f;
+                var distance = random.NextFloat(radius * 0.2f, radius * 0.6f);
+                var position = center + new float3(
+                    math.cos(angle) * distance,
+                    0f,
+                    math.sin(angle) * distance
+                );
+
+                var hauler = ecb.CreateEntity();
+                ecb.AddComponent(hauler, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 2f));
+                ecb.AddComponent<SpatialIndexedTag>(hauler);
+                ecb.AddComponent<RewindableTag>(hauler);
+                ecb.AddComponent(hauler, new HaulerTag());
+                ecb.AddComponent(hauler, new HaulerCapacity
+                {
+                    MaxMass = 1000f,
+                    MaxVolume = 1000f,
+                    MaxContainers = 0
                 });
             }
         }

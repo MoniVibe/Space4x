@@ -1,6 +1,7 @@
 using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4x.Scenario;
@@ -28,8 +29,11 @@ namespace Space4X.Headless
         private const string ExitOnResultEnv = "SPACE4X_HEADLESS_MINING_PROOF_EXIT";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string SmokeScenarioFile = "space4x_smoke.json";
+        private const string MiningScenarioFile = "space4x_mining.json";
+        private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
 
         private const uint DefaultTimeoutTicks = 1800; // ~30 seconds at 60hz
+        private const double DefaultTimeoutSeconds = 27d;
 
         private byte _enabled;
         private byte _done;
@@ -38,12 +42,15 @@ namespace Space4X.Headless
         private uint _lastCommandCount;
         private float _startOreInHold;
         private float _startCargoSum;
+        private double _startElapsedTime;
         private byte _loggedDiagnostics;
         private byte _rewindSubjectRegistered;
         private byte _rewindPending;
         private byte _rewindPass;
         private float _rewindObserved;
         private bool _isSmokeScenario;
+        private FixedString64Bytes _bankTestId;
+        private byte _bankResolved;
 
         private EntityQuery _vesselQuery;
         private EntityQuery _carrierQuery;
@@ -107,6 +114,7 @@ namespace Space4X.Headless
                     : _startTick + DefaultTimeoutTicks;
                 _startOreInHold = GetOreInHold(ref state);
                 _startCargoSum = GetVesselStats(ref state).cargoSum;
+                _startElapsedTime = SystemAPI.Time.ElapsedTime;
             }
 
             if (_loggedDiagnostics == 0 && timeState.Tick >= _startTick + 30)
@@ -135,19 +143,22 @@ namespace Space4X.Headless
                 _rewindPass = 1;
                 _rewindObserved = oreDelta;
                 UnityDebug.Log($"[Space4XHeadlessMiningProof] PASS tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount}");
+                LogBankResult(ref state, ResolveBankTestId(), true, string.Empty, timeState.Tick);
                 TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, true, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
                 TryFlushRewindProof(ref state);
                 RequestExitOnPassIfEnabled(ref state, timeState.Tick);
                 return;
             }
 
-            if (timeState.Tick >= _timeoutTick)
+            var elapsedSeconds = SystemAPI.Time.ElapsedTime - _startElapsedTime;
+            if (elapsedSeconds >= DefaultTimeoutSeconds || timeState.Tick >= _timeoutTick)
             {
                 _done = 1;
                 _rewindPending = 1;
                 _rewindPass = 0;
                 _rewindObserved = oreDelta;
-                UnityDebug.LogError($"[Space4XHeadlessMiningProof] FAIL tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount} commands={totalCommands} (deltaCommands={math.max(0, (int)totalCommands - (int)_lastCommandCount)})");
+                UnityDebug.LogError($"[Space4XHeadlessMiningProof] FAIL tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount} commands={totalCommands} elapsed={elapsedSeconds:F1}s (deltaCommands={math.max(0, (int)totalCommands - (int)_lastCommandCount)})");
+                LogBankResult(ref state, ResolveBankTestId(), false, "timeout", timeState.Tick);
                 TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, false, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
                 TryFlushRewindProof(ref state);
                 RequestExitOnFail(ref state, timeState.Tick, 3);
@@ -206,6 +217,63 @@ namespace Space4X.Headless
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             return !string.IsNullOrWhiteSpace(scenarioPath) &&
                    scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private FixedString64Bytes ResolveBankTestId()
+        {
+            if (_bankResolved != 0)
+            {
+                return _bankTestId;
+            }
+
+            _bankResolved = 1;
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return _bankTestId;
+            }
+
+            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _bankTestId = new FixedString64Bytes("S0.SPACE4X_SMOKE");
+            }
+            else if (scenarioPath.EndsWith(MiningScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _bankTestId = new FixedString64Bytes("S1.MINING_ONLY");
+            }
+            else if (scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _bankTestId = new FixedString64Bytes("S2.MINING_COMBAT");
+            }
+
+            return _bankTestId;
+        }
+
+        private void LogBankResult(ref SystemState state, FixedString64Bytes testId, bool pass, string reason, uint tick)
+        {
+            if (testId.IsEmpty)
+            {
+                return;
+            }
+
+            var tickTime = tick;
+            if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState))
+            {
+                tickTime = tickTimeState.Tick;
+            }
+
+            var scenarioTick = SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenario)
+                ? scenario.Tick
+                : 0u;
+            var delta = (int)tickTime - (int)scenarioTick;
+
+            if (pass)
+            {
+                UnityDebug.Log($"BANK:{testId}:PASS tickTime={tickTime} scenarioTick={scenarioTick} delta={delta}");
+                return;
+            }
+
+            UnityDebug.Log($"BANK:{testId}:FAIL reason={reason} tickTime={tickTime} scenarioTick={scenarioTick} delta={delta}");
         }
 
         private (float cargoSum, int returning, int mining, int total) GetVesselStats(ref SystemState state)
