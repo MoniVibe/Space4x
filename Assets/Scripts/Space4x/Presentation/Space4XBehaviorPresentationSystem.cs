@@ -131,7 +131,7 @@ namespace Space4X.Presentation
                         visual.ValueRW.StateTimer += deltaTime;
                     }
 
-                    var baseColor = material.ValueRO.BaseColor;
+                    var baseColor = ResolveBehaviorBaseColor(material.ValueRO.BaseColor);
                     var pulse = ResolvePulse(mapped, timeSeconds, entity.Index);
                     tint.ValueRW.Value = new float4(baseColor.xyz * pulse, baseColor.w);
                 }
@@ -177,7 +177,7 @@ namespace Space4X.Presentation
                         visual.ValueRW.StateTimer += deltaTime;
                     }
 
-                    var baseColor = material.ValueRO.BaseColor;
+                    var baseColor = ResolveBehaviorBaseColor(material.ValueRO.BaseColor);
                     var pulse = ResolveCarrierPulse(desired, timeSeconds, entity.Index);
                     tint.ValueRW.Value = new float4(baseColor.xyz * pulse, baseColor.w);
                 }
@@ -204,7 +204,7 @@ namespace Space4X.Presentation
                     visual.ValueRW.DepletionRatio = 1f - ratio;
                     visual.ValueRW.StateTimer += deltaTime;
 
-                    var baseColor = material.ValueRO.BaseColor;
+                    var baseColor = ResolveBehaviorBaseColor(material.ValueRO.BaseColor);
                     float pulse = stateType == AsteroidVisualStateType.Depleted
                         ? 0.55f + 0.20f * math.sin(timeSeconds * 2.2f + entity.Index * 0.04f)
                         : 0.88f + 0.12f * math.sin(timeSeconds * 1.4f + entity.Index * 0.03f);
@@ -235,7 +235,7 @@ namespace Space4X.Presentation
                         visual.ValueRW.StateTimer += deltaTime;
                     }
 
-                    var baseColor = material.ValueRO.BaseColor;
+                    var baseColor = ResolveBehaviorBaseColor(material.ValueRO.BaseColor);
                     var pulse = ResolveStrikeCraftPulse(mapped, timeSeconds, entity.Index);
                     tint.ValueRW.Value = new float4(baseColor.xyz * pulse, baseColor.w);
                 }
@@ -305,6 +305,17 @@ namespace Space4X.Presentation
                 CarrierVisualStateType.Patrolling => 0.92f + 0.12f * math.sin(timeSeconds * 2.0f + entityIndex * 0.04f),
                 _ => 1f
             };
+        }
+
+        private static float4 ResolveBehaviorBaseColor(in float4 baseColor)
+        {
+            if (baseColor.w <= 0.001f ||
+                (baseColor.x <= 0.001f && baseColor.y <= 0.001f && baseColor.z <= 0.001f))
+            {
+                return new float4(1f, 1f, 1f, 1f);
+            }
+
+            return baseColor;
         }
 
         private float ResolveDeltaTime(in TimeState timeState)

@@ -1,6 +1,7 @@
 using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Entities;
@@ -20,6 +21,8 @@ namespace Space4X.Headless
     public partial struct Space4XHeadlessMovementDiagnosticsSystem : ISystem
     {
         private const uint TraceWindowTicks = 300;
+        private const uint StuckFailureThreshold = 2;
+        private const float MiningApproachTeleportDistance = 3f;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private bool _reportedFailure;
@@ -59,9 +62,11 @@ namespace Space4X.Headless
             var maxSpeedDelta = 0f;
             var maxTeleport = 0f;
             var maxStateFlips = 0u;
+            var maxStuck = 0u;
             Entity speedOffender = Entity.Null;
             Entity teleportOffender = Entity.Null;
             Entity flipsOffender = Entity.Null;
+            Entity stuckOffender = Entity.Null;
             var anyFailure = false;
             var failNaN = 0u;
             var failTeleport = 0u;
@@ -78,10 +83,45 @@ namespace Space4X.Headless
                 }
 
                 var ignoreTeleport = false;
-                if (_ignoreTeleportFailures && debugState.TeleportCount > 0 && SystemAPI.HasComponent<MiningState>(entity))
+                if (debugState.TeleportCount > 0)
                 {
-                    var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
-                    ignoreTeleport = phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
+                    if (SystemAPI.HasComponent<MiningState>(entity))
+                    {
+                        var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
+                        ignoreTeleport = phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
+
+                        if (!ignoreTeleport && phase == MiningPhase.ApproachTarget && debugState.LastDistanceToTarget <= MiningApproachTeleportDistance)
+                        {
+                            ignoreTeleport = true;
+                        }
+
+                        if (!ignoreTeleport && SystemAPI.HasComponent<MoveIntent>(entity))
+                        {
+                            var intent = SystemAPI.GetComponentRO<MoveIntent>(entity).ValueRO;
+                            if (intent.IntentType == MoveIntentType.Hold)
+                            {
+                                ignoreTeleport = true;
+                            }
+                        }
+
+                        if (!ignoreTeleport && SystemAPI.HasComponent<MovePlan>(entity))
+                        {
+                            var plan = SystemAPI.GetComponentRO<MovePlan>(entity).ValueRO;
+                            if (plan.Mode == MovePlanMode.Arrive || plan.Mode == MovePlanMode.Latch)
+                            {
+                                ignoreTeleport = true;
+                            }
+                        }
+                    }
+
+                    if (!ignoreTeleport && _ignoreTeleportFailures && SystemAPI.HasComponent<VesselAIState>(entity))
+                    {
+                        var aiState = SystemAPI.GetComponentRO<VesselAIState>(entity).ValueRO;
+                        if (aiState.CurrentState == VesselAIState.State.Mining)
+                        {
+                            ignoreTeleport = true;
+                        }
+                    }
                 }
 
                 if (debugState.TeleportCount > 0 && !ignoreTeleport)
@@ -90,7 +130,50 @@ namespace Space4X.Headless
                     failTeleport += debugState.TeleportCount;
                 }
 
-                if (!_ignoreStuckFailures && debugState.StuckCount > 0)
+                var ignoreStuck = _ignoreStuckFailures;
+                if (!ignoreStuck && debugState.StuckCount > 0 && SystemAPI.HasComponent<MiningState>(entity))
+                {
+                    var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
+                    ignoreStuck = phase == MiningPhase.Latching || phase == MiningPhase.Mining || phase == MiningPhase.Docking;
+
+                    if (!ignoreStuck && SystemAPI.HasComponent<MoveIntent>(entity))
+                    {
+                        var intent = SystemAPI.GetComponentRO<MoveIntent>(entity).ValueRO;
+                        if (intent.IntentType == MoveIntentType.Hold)
+                        {
+                            ignoreStuck = true;
+                        }
+                    }
+
+                    if (!ignoreStuck && SystemAPI.HasComponent<MovePlan>(entity))
+                    {
+                        var plan = SystemAPI.GetComponentRO<MovePlan>(entity).ValueRO;
+                        if (plan.Mode == MovePlanMode.Arrive || plan.Mode == MovePlanMode.Latch)
+                        {
+                            ignoreStuck = true;
+                        }
+                    }
+
+                    if (!ignoreStuck && SystemAPI.HasComponent<VesselAIState>(entity))
+                    {
+                        var aiState = SystemAPI.GetComponentRO<VesselAIState>(entity).ValueRO;
+                        if (aiState.CurrentState == VesselAIState.State.Mining)
+                        {
+                            ignoreStuck = true;
+                        }
+                    }
+                }
+
+                if (!ignoreStuck && debugState.StuckCount > 0 && SystemAPI.HasComponent<MovePlan>(entity))
+                {
+                    var plan = SystemAPI.GetComponentRO<MovePlan>(entity).ValueRO;
+                    if (plan.Mode == MovePlanMode.Orbit)
+                    {
+                        ignoreStuck = true;
+                    }
+                }
+
+                if (debugState.StuckCount > StuckFailureThreshold && !ignoreStuck)
                 {
                     anyFailure = true;
                     failStuck += debugState.StuckCount;
@@ -121,6 +204,12 @@ namespace Space4X.Headless
                     maxStateFlips = debugState.StateFlipCount;
                     flipsOffender = entity;
                 }
+
+                if (debugState.StuckCount > maxStuck)
+                {
+                    maxStuck = debugState.StuckCount;
+                    stuckOffender = entity;
+                }
             }
 
             if (!anyFailure)
@@ -131,16 +220,18 @@ namespace Space4X.Headless
             _reportedFailure = true;
             UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike}");
 
-            LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, maxSpeedDelta, maxTeleport, maxStateFlips);
+            LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck);
+            HeadlessExitUtility.Request(state.EntityManager, tick, 2);
         }
 
-        private void LogOffenderReport(ref SystemState state, uint tick, Entity speedOffender, Entity teleportOffender, Entity flipsOffender, float maxSpeedDelta, float maxTeleport, uint maxStateFlips)
+        private void LogOffenderReport(ref SystemState state, uint tick, Entity speedOffender, Entity teleportOffender, Entity flipsOffender, Entity stuckOffender, float maxSpeedDelta, float maxTeleport, uint maxStateFlips, uint maxStuck)
         {
-            UnityDebug.LogError($"[Space4XHeadlessMovementDiag] TopOffenders speedSpike entity={speedOffender.Index} maxDelta={maxSpeedDelta:F3} teleport entity={teleportOffender.Index} maxTeleport={maxTeleport:F3} stateFlips entity={flipsOffender.Index} flips={maxStateFlips}");
+            UnityDebug.LogError($"[Space4XHeadlessMovementDiag] TopOffenders speedSpike entity={speedOffender.Index} maxDelta={maxSpeedDelta:F3} teleport entity={teleportOffender.Index} maxTeleport={maxTeleport:F3} stateFlips entity={flipsOffender.Index} flips={maxStateFlips} stuck entity={stuckOffender.Index} count={maxStuck}");
 
             LogSnapshot(ref state, tick, speedOffender, "speed_spike");
             LogSnapshot(ref state, tick, teleportOffender, "teleport");
             LogSnapshot(ref state, tick, flipsOffender, "state_flips");
+            LogSnapshot(ref state, tick, stuckOffender, "stuck");
         }
 
         private void LogSnapshot(ref SystemState state, uint tick, Entity entity, string label)

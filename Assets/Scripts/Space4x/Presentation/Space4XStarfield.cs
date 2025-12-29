@@ -305,6 +305,7 @@ namespace Space4X.Presentation
             }
 
             _starSystem.SetParticles(_starParticles, _starParticles.Length);
+            _starSystem.Play(true);
         }
 
         private void BuildNebulaLayer(int count, float outerRadius)
@@ -345,6 +346,7 @@ namespace Space4X.Presentation
             }
 
             _nebulaSystem.SetParticles(_nebulaParticles, _nebulaParticles.Length);
+            _nebulaSystem.Play(true);
         }
 
         private void EnsureStarSystem(int maxParticles)

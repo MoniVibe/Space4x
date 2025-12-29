@@ -393,7 +393,7 @@ namespace Space4X.Registry
         public static ResourceDefinition Carbon => ResourceDefinition.Create("carbon", "Carbon", ResourceFamily.Metals, ProcessingTier.Raw, 0.8f, 0.8f);
 
         // Refined resources
-        public static ResourceDefinition IronIngots => ResourceDefinition.Create("iron_ingots", "Iron Ingots", ResourceFamily.Metals, ProcessingTier.Refined, 2f, 1.8f);
+        public static ResourceDefinition IronIngot => ResourceDefinition.Create("iron_ingot", "Iron Ingot", ResourceFamily.Metals, ProcessingTier.Refined, 2f, 1.8f);
         public static ResourceDefinition TitaniumIngots => ResourceDefinition.Create("titanium_ingots", "Titanium Ingots", ResourceFamily.AdvancedMetals, ProcessingTier.Refined, 8f, 2f);
         public static ResourceDefinition Nutrients => ResourceDefinition.Create("nutrients", "Nutrients", ResourceFamily.Organics, ProcessingTier.Refined, 1.5f, 0.3f);
         public static ResourceDefinition RefinedFuels => ResourceDefinition.Create("refined_fuels", "Refined Fuels", ResourceFamily.Petrochemicals, ProcessingTier.Refined, 4f, 0.8f);
@@ -416,14 +416,14 @@ namespace Space4X.Registry
     public static class StandardRecipes
     {
         // Basic refining
-        public static ResourceRecipe RefineIron => ResourceRecipe.CreateSimple("refine_iron", "Refine Iron", "iron_ore", 2f, "iron_ingots", 1f, 5f, 10f);
+        public static ResourceRecipe RefineIronIngot => ResourceRecipe.CreateSimple("refine_iron_ingot", "Refine Iron", "iron_ore", 2f, "iron_ingot", 1f, 5f, 10f);
         public static ResourceRecipe RefineTitanium => ResourceRecipe.CreateSimple("refine_titanium", "Refine Titanium", "titanium_ore", 2f, "titanium_ingots", 1f, 8f, 20f);
         public static ResourceRecipe ProcessBiomass => ResourceRecipe.CreateSimple("process_biomass", "Process Biomass", "biomass", 3f, "nutrients", 1f, 4f, 5f);
         public static ResourceRecipe RefineHydrocarbons => ResourceRecipe.CreateSimple("refine_hydrocarbons", "Refine Hydrocarbons", "hydrocarbon_ice", 2f, "refined_fuels", 1f, 6f, 15f);
         public static ResourceRecipe ExtractConductors => ResourceRecipe.CreateSimple("extract_conductors", "Extract Conductors", "rare_earths", 2f, "conductors", 1f, 10f, 25f);
 
         // Combination recipes
-        public static ResourceRecipe SmeltSteel => ResourceRecipe.CreateCombination("smelt_steel", "Smelt Steel", "iron_ingots", 2f, "carbon", 1f, "steel", 1f, 8f, 20f, 1);
+        public static ResourceRecipe SmeltSteel => ResourceRecipe.CreateCombination("smelt_steel", "Smelt Steel", "iron_ingot", 2f, "carbon", 1f, "steel", 1f, 8f, 20f, 1);
         public static ResourceRecipe SynthesizePolymers => ResourceRecipe.CreateCombination("synthesize_polymers", "Synthesize Polymers", "refined_fuels", 2f, "nutrients", 1f, "polymers", 1f, 10f, 15f, 1);
         public static ResourceRecipe CreateBiopolymers => ResourceRecipe.CreateCombination("create_biopolymers", "Create Biopolymers", "nutrients", 2f, "polymers", 1f, "biopolymers", 1f, 12f, 20f, 2);
 
@@ -433,4 +433,3 @@ namespace Space4X.Registry
         public static ResourceRecipe CreateCompositeAlloys => ResourceRecipe.CreateCombination("create_composite_alloys", "Create Composite Alloys", "plasteel", 2f, "quantum_cores", 1f, "composite_alloys", 1f, 25f, 80f, 3);
     }
 }
-

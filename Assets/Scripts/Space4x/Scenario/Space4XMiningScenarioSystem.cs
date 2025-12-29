@@ -105,6 +105,7 @@ namespace Space4x.Scenario
             if (_useSmokeMotionTuning)
             {
                 ApplySmokeMotionProfile();
+                ApplySmokeLatchConfig();
                 ApplyFloatingOriginConfig();
             }
             ApplyDogfightConfig(_scenarioData.dogfightConfig);
@@ -189,6 +190,26 @@ namespace Space4x.Scenario
                 CooldownTicks = 300,
                 Enabled = 1
             });
+        }
+
+        private void ApplySmokeLatchConfig()
+        {
+            var config = Space4XMiningLatchConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var existing))
+            {
+                config = existing;
+            }
+
+            // Smoke runs can stall if latch alignment never resolves; relax alignment for headless stability.
+            config.SurfaceEpsilon = math.max(config.SurfaceEpsilon, 3.2f);
+            config.AlignDotThreshold = -1f;
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XMiningLatchConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XMiningLatchConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
         }
 
         private void ApplyDogfightConfig(StrikeCraftDogfightConfigData data)

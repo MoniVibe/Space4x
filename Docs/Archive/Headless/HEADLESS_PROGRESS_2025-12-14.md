@@ -4,7 +4,7 @@
 
 ## Canonical Scenario & Showcase Scene (Space4X)
 
-- **Headless proof**: `space4x_mining_combat.json` (`space4x/Assets/Scenarios/space4x_mining_combat.json`) driven by the Space4X headless command in `headless_runbook.md`.
+- **Headless proof**: `space4x_mining_combat.json` (`space4x/Assets/Scenarios/space4x_mining_combat.json`) driven by the Space4X headless command in `Docs/Headless/headless_runbook.md`.
 - **Showcase scene**: `Assets/Scenes/TRI_Space4X_Smoke.unity` is the canonical "Headless Progress" scene.
   - Uses the same scenario/config SubScenes as the headless run; no separate "headless-only" scene is allowed.
   - When a new behavior is proven in headless for this scenario (e.g., mining loop, carrier motion, combat events), add the minimal presentation hook here (entities, overlays, debug UI).
@@ -28,7 +28,7 @@
 When adding a new feature to headless, ensure it appears in presentation:
 
 1. **Headless first**: Implement the feature in `space4x_mining_combat.json` scenario or related systems under `space4x/Assets/Scripts/Space4x`.
-2. **Prove in headless**: Run headless command from `headless_runbook.md` and verify the feature appears in telemetry/logs.
+2. **Prove in headless**: Run headless command from `Docs/Headless/headless_runbook.md` and verify the feature appears in telemetry/logs.
 3. **Extend diagnostics**: Update `Space4XSmokeWorldCountsSystem` and `Space4XSmokePresentationCountsSystem` to track the new entity/behavior type.
 4. **Wire presentation**: Ensure rendering systems (`Space4XPresentationLifecycleSystem`, etc.) map the new entities to `RenderSemanticKey` values.
 5. **Update smoke scene**: Add minimal visual hooks in `TRI_Space4X_Smoke` (entities, overlays, debug UI) - no new spawners, only visualization of what headless produces.

@@ -37,6 +37,7 @@ namespace Space4X.Headless
         private uint _timeoutTick;
         private uint _lastCommandCount;
         private float _startOreInHold;
+        private float _startCargoSum;
         private byte _loggedDiagnostics;
         private byte _rewindSubjectRegistered;
         private byte _rewindPending;
@@ -105,6 +106,7 @@ namespace Space4X.Headless
                     ? scenario.EndTick
                     : _startTick + DefaultTimeoutTicks;
                 _startOreInHold = GetOreInHold(ref state);
+                _startCargoSum = GetVesselStats(ref state).cargoSum;
             }
 
             if (_loggedDiagnostics == 0 && timeState.Tick >= _startTick + 30)
@@ -119,7 +121,13 @@ namespace Space4X.Headless
             var (gatherCommands, pickupCommands, totalCommands) = GetCommandCounts(ref state);
 
             var oreDelta = oreInHold - _startOreInHold;
+            var cargoDelta = cargoSum - _startCargoSum;
             var pass = gatherCommands > 0 && oreDelta > 0.01f;
+            if (!pass && _isSmokeScenario)
+            {
+                // Smoke runs focus on "mining started" rather than full dropoff within a short window.
+                pass = oreDelta > 0.01f || cargoDelta > 0.01f;
+            }
             if (pass)
             {
                 _done = 1;

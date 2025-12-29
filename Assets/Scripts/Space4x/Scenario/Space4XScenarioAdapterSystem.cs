@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.History;
 using PureDOTS.Runtime.Resource;
+using PureDOTS.Runtime.Resources;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
@@ -73,6 +74,10 @@ namespace Space4X.Scenario
             var stationSubstring = new FixedString64Bytes("station");
             var storehouseExact = new FixedString64Bytes("space4x.storehouse");
             var stationExact = new FixedString64Bytes("space4x.station");
+            var refinerySubstring = new FixedString64Bytes("refinery");
+            var factorySubstring = new FixedString64Bytes("factory");
+            var refineryExact = new FixedString64Bytes("space4x.refinery");
+            var factoryExact = new FixedString64Bytes("space4x.factory");
 
             for (int i = 0; i < counts.Length; i++)
             {
@@ -99,6 +104,11 @@ namespace Space4X.Scenario
                          registryId.IndexOf(storehouseSubstring) >= 0 || registryId.IndexOf(stationSubstring) >= 0)
                 {
                     SpawnStations(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                }
+                else if (registryId.Equals(refineryExact) || registryId.Equals(factoryExact) ||
+                         registryId.IndexOf(refinerySubstring) >= 0 || registryId.IndexOf(factorySubstring) >= 0)
+                {
+                    SpawnProcessingFacilities(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
             }
 
@@ -386,6 +396,79 @@ namespace Space4X.Scenario
                     OverrideStrideSeconds = 0f
                 });
                 ecb.AddBuffer<StorehouseHistorySample>(station);
+            }
+        }
+
+        private static void SpawnProcessingFacilities(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        {
+            var inputId = new FixedString64Bytes("iron_ore");
+            var outputId = new FixedString64Bytes("iron_ingot");
+            var recipeId = new FixedString32Bytes("refine_iron_ingot");
+            var storehouseLabel = new FixedString64Bytes("Refinery");
+
+            for (int i = 0; i < count; i++)
+            {
+                var angle = (float)i / count * math.PI * 2f;
+                var distance = random.NextFloat(radius * 0.15f, radius * 0.4f);
+                var position = center + new float3(
+                    math.cos(angle) * distance,
+                    0f,
+                    math.sin(angle) * distance
+                );
+
+                var facility = ecb.CreateEntity();
+                ecb.AddComponent(facility, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 4f));
+                ecb.AddComponent<SpatialIndexedTag>(facility);
+                ecb.AddComponent<RewindableTag>(facility);
+                ecb.AddComponent(facility, ProcessingFacility.Tier1);
+
+                var queueBuffer = ecb.AddBuffer<ProcessingQueueEntry>(facility);
+                queueBuffer.Add(new ProcessingQueueEntry
+                {
+                    RecipeId = recipeId,
+                    BatchCount = 1,
+                    Priority = 64,
+                    QueuedTick = 0
+                });
+
+                ecb.AddBuffer<NeedRequest>(facility);
+
+                var capacityBuffer = ecb.AddBuffer<StorehouseCapacityElement>(facility);
+                capacityBuffer.Add(new StorehouseCapacityElement
+                {
+                    ResourceTypeId = inputId,
+                    MaxCapacity = 200f
+                });
+                capacityBuffer.Add(new StorehouseCapacityElement
+                {
+                    ResourceTypeId = outputId,
+                    MaxCapacity = 200f
+                });
+
+                ecb.AddComponent(facility, new StorehouseConfig
+                {
+                    ShredRate = 1f,
+                    MaxShredQueueSize = 8,
+                    InputRate = 20f,
+                    OutputRate = 18f,
+                    Label = storehouseLabel
+                });
+                ecb.AddComponent(facility, new StorehouseInventory
+                {
+                    TotalStored = 0f,
+                    TotalCapacity = 400f,
+                    ItemTypeCount = capacityBuffer.Length,
+                    IsShredding = 0,
+                    LastUpdateTick = 0
+                });
+
+                ecb.AddBuffer<StorehouseInventoryItem>(facility);
+                ecb.AddBuffer<StorehouseReservationItem>(facility);
+                ecb.AddComponent(facility, new StorehouseJobReservation
+                {
+                    ReservedCapacity = 0f,
+                    LastMutationTick = 0
+                });
             }
         }
     }

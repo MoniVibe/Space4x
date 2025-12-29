@@ -31,6 +31,7 @@ namespace Space4X.Presentation
         private EntityQuery _fleetImpostorInitQuery;
         private EntityQuery _projectileInitQuery;
         private EntityQuery _debrisInitQuery;
+        private EntityQuery _missingPresenterQuery;
         private bool _loggedRenderingGate;
         private bool _loggedFirstUpdate;
 
@@ -45,6 +46,9 @@ namespace Space4X.Presentation
         private const float CarrierCapacityReference = 20f;
         private const float MiningCargoReference = 100f;
         private const float PickupAmountReference = 80f;
+        private const float FallbackCullDistance = 4000f;
+        private const byte FallbackCullPriority = 140;
+        private const float FallbackImportance = 0.35f;
         private const float CarrierScaleMin = 0.6f;
         private const float CarrierScaleMax = 2.5f;
         private const float VesselScaleMin = 0.6f;
@@ -94,6 +98,14 @@ namespace Space4X.Presentation
             _debrisInitQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4XDebrisTag, LocalTransform>()
                 .WithNone<RenderKey>()
+                .Build();
+
+            _missingPresenterQuery = SystemAPI.QueryBuilder()
+                .WithAll<RenderSemanticKey>()
+                .WithNone<MeshPresenter>()
+                .WithNone<SpritePresenter>()
+                .WithNone<DebugPresenter>()
+                .WithNone<TracerPresenter>()
                 .Build();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -151,6 +163,7 @@ namespace Space4X.Presentation
             AddFleetImpostorPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
             AddProjectilePresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
             AddDebrisPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            RepairMissingPresentation(ref state, ref ecb);
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
@@ -192,10 +205,8 @@ namespace Space4X.Presentation
                     State = CarrierVisualStateType.Idle,
                     StateTimer = 0f
                 });
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -263,10 +274,8 @@ namespace Space4X.Presentation
                     StateTimer = 0f
                 });
                 ecb.AddComponent(entity, new ParentCarrier { Value = parentCarrier });
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -338,10 +347,8 @@ namespace Space4X.Presentation
                     ecb.AddComponent(entity, new PresentationScaleMultiplier { Value = 1f });
                 }
 
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
                 if (!SystemAPI.HasComponent<PresentationLayer>(entity))
                 {
                     ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.System });
@@ -377,10 +384,8 @@ namespace Space4X.Presentation
 
                 ecb.AddComponent(entity, new IndividualPresentationTag());
                 AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -431,10 +436,8 @@ namespace Space4X.Presentation
                     State = StrikeCraftVisualStateType.Docked,
                     StateTimer = 0f
                 });
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -475,10 +478,8 @@ namespace Space4X.Presentation
                     baseColor = SystemAPI.GetComponentRO<RenderTint>(entity).ValueRO.Value;
                     hasBaseColor = true;
                 }
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -521,10 +522,8 @@ namespace Space4X.Presentation
                 ecb.AddComponent(entity, new ProjectilePresentationTag());
                 AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
                 ecb.AddComponent<ProjectileTag>(entity);
-                if (hasBaseColor)
-                {
-                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                }
+                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                AddMaterialColor(ref state, ref ecb, entity, baseColor);
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -566,6 +565,8 @@ namespace Space4X.Presentation
                     ecb.AddComponent(entity, new RenderTint { Value = baseColor });
                 }
 
+                baseColor = ResolveFallbackColor(true, baseColor);
+
                 if (!SystemAPI.HasComponent<PresentationLayer>(entity))
                 {
                     ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.Orbital });
@@ -602,6 +603,49 @@ namespace Space4X.Presentation
                 PrevTick = currentTick,
                 CurrTick = currentTick
             });
+        }
+
+        private static float4 ResolveFallbackColor(bool hasBaseColor, in float4 baseColor)
+        {
+            if (!hasBaseColor || IsNearBlack(baseColor))
+            {
+                return new float4(1f, 1f, 1f, 1f);
+            }
+
+            return baseColor;
+        }
+
+        private static bool IsNearBlack(in float4 color)
+        {
+            return math.all(color.xyz <= 0.001f) || color.w <= 0.001f;
+        }
+
+        private void RepairMissingPresentation(ref SystemState state, ref EntityCommandBuffer ecb)
+        {
+            if (_missingPresenterQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            foreach (var (semantic, entity) in SystemAPI
+                         .Query<RefRO<RenderSemanticKey>>()
+                         .WithNone<MeshPresenter>()
+                         .WithNone<SpritePresenter>()
+                         .WithNone<DebugPresenter>()
+                         .WithNone<TracerPresenter>()
+                         .WithEntityAccess())
+            {
+                if (!SystemAPI.HasComponent<PresentationLayer>(entity))
+                {
+                    ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.Orbital });
+                }
+
+                AddCommonRenderComponents(ref state, ref ecb, entity,
+                    semantic.ValueRO.Value,
+                    cullDistance: FallbackCullDistance,
+                    cullPriority: FallbackCullPriority,
+                    importance: FallbackImportance);
+            }
         }
 
         private void AddCommonRenderComponents(
@@ -719,7 +763,21 @@ namespace Space4X.Presentation
         private void AddMaterialColor(ref SystemState state, ref EntityCommandBuffer ecb, Entity entity, float4 baseColor)
         {
             var emissiveColor = new float4(baseColor.xyz * 0.75f, 1f);
-            if (!SystemAPI.HasComponent<MaterialPropertyOverride>(entity))
+            if (SystemAPI.HasComponent<MaterialPropertyOverride>(entity))
+            {
+                var current = SystemAPI.GetComponentRO<MaterialPropertyOverride>(entity).ValueRO;
+                if (IsNearBlack(current.BaseColor))
+                {
+                    ecb.SetComponent(entity, new MaterialPropertyOverride
+                    {
+                        BaseColor = baseColor,
+                        EmissiveColor = emissiveColor,
+                        Alpha = 1f,
+                        PulsePhase = current.PulsePhase
+                    });
+                }
+            }
+            else
             {
                 ecb.AddComponent(entity, new MaterialPropertyOverride
                 {
@@ -730,7 +788,18 @@ namespace Space4X.Presentation
                 });
             }
 
-            if (!SystemAPI.HasComponent<URPMaterialPropertyBaseColor>(entity))
+            if (SystemAPI.HasComponent<URPMaterialPropertyBaseColor>(entity))
+            {
+                var current = SystemAPI.GetComponentRO<URPMaterialPropertyBaseColor>(entity).ValueRO.Value;
+                if (IsNearBlack(current))
+                {
+                    ecb.SetComponent(entity, new URPMaterialPropertyBaseColor
+                    {
+                        Value = baseColor
+                    });
+                }
+            }
+            else
             {
                 ecb.AddComponent(entity, new URPMaterialPropertyBaseColor
                 {
@@ -738,7 +807,18 @@ namespace Space4X.Presentation
                 });
             }
 
-            if (!SystemAPI.HasComponent<URPMaterialPropertyEmissionColor>(entity))
+            if (SystemAPI.HasComponent<URPMaterialPropertyEmissionColor>(entity))
+            {
+                var current = SystemAPI.GetComponentRO<URPMaterialPropertyEmissionColor>(entity).ValueRO.Value;
+                if (IsNearBlack(current))
+                {
+                    ecb.SetComponent(entity, new URPMaterialPropertyEmissionColor
+                    {
+                        Value = emissiveColor
+                    });
+                }
+            }
+            else
             {
                 ecb.AddComponent(entity, new URPMaterialPropertyEmissionColor
                 {
@@ -746,7 +826,18 @@ namespace Space4X.Presentation
                 });
             }
 
-            if (!SystemAPI.HasComponent<RenderTint>(entity))
+            if (SystemAPI.HasComponent<RenderTint>(entity))
+            {
+                var current = SystemAPI.GetComponentRO<RenderTint>(entity).ValueRO.Value;
+                if (IsNearBlack(current))
+                {
+                    ecb.SetComponent(entity, new RenderTint
+                    {
+                        Value = baseColor
+                    });
+                }
+            }
+            else
             {
                 ecb.AddComponent(entity, new RenderTint
                 {

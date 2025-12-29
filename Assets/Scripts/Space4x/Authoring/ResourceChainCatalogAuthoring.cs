@@ -53,7 +53,7 @@ namespace Space4X.Authoring
                     resources[5] = StandardResources.Carbon;
 
                     // Refined resources
-                    resources[6] = StandardResources.IronIngots;
+                    resources[6] = StandardResources.IronIngot;
                     resources[7] = StandardResources.TitaniumIngots;
                     resources[8] = StandardResources.Nutrients;
                     resources[9] = StandardResources.RefinedFuels;
@@ -69,7 +69,7 @@ namespace Space4X.Authoring
                     resources[15] = StandardResources.QuantumCores;
 
                     // Basic refining recipes
-                    recipes[0] = StandardRecipes.RefineIron;
+                    recipes[0] = StandardRecipes.RefineIronIngot;
                     recipes[1] = StandardRecipes.RefineTitanium;
                     recipes[2] = StandardRecipes.ProcessBiomass;
                     recipes[3] = StandardRecipes.RefineHydrocarbons;
@@ -103,4 +103,3 @@ namespace Space4X.Authoring
         }
     }
 }
-
