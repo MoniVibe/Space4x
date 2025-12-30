@@ -29,7 +29,7 @@ namespace Space4X.Systems.Interaction
                 var policy = SystemAPI.GetSingleton<HandPickupPolicy>();
                 policy.DebugWorldGrabAny = (byte)(policy.DebugWorldGrabAny == 0 ? 1 : 0);
                 SystemAPI.SetSingleton(policy);
-                UnityEngine.Debug.Log($"[Hand] DebugWorldGrabAny = {(policy.DebugWorldGrabAny != 0 ? \"ON\" : \"OFF\")}");
+                UnityEngine.Debug.Log($"[Hand] DebugWorldGrabAny = {(policy.DebugWorldGrabAny != 0 ? "ON" : "OFF")}");
             }
 #endif
         }

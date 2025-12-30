@@ -64,3 +64,10 @@ If a detail is critical (API choice, breaking change), ask the user once rather 
 - SystemAPI.* in static methods or non-system contexts → move the logic into OnUpdate or use SystemState APIs.
 - GetSingleton<T>() requires exactly one entity → never hack around it; ensure the singleton is baked/created by the canonical pipeline.
 - Any deviation from these rules is a design bug to correct, not tolerate.
+
+## Cross-OS Workflow (WSL + Windows)
+
+- Preferred WSL root: `/home/oni/Tri` (ext4). Avoid `/mnt/c` for active work (drvfs I/O errors).
+- If running dual clones, keep ownership boundaries: WSL edits PureDOTS + logic; Windows edits `Assets/` + `.meta` + scenes/prefabs.
+- Do not share `Library` between OSes; each clone keeps its own cache.
+- WSL is case-sensitive; fix casing mismatches that Windows may tolerate.

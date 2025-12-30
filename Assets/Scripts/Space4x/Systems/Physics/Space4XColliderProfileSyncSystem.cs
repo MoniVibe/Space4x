@@ -30,7 +30,7 @@ namespace Space4X.Systems.Physics
                 return;
             }
 
-            var entries = profileComponent.Profile.Value.Entries;
+            ref var entries = ref profileComponent.Profile.Value.Entries;
 
             foreach (var (physical, semanticKey) in SystemAPI.Query<RefRW<VesselPhysicalProperties>, RefRO<RenderSemanticKey>>())
             {

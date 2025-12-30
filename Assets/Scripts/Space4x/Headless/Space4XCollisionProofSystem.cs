@@ -158,7 +158,7 @@ namespace Space4X.Headless
                 return;
             }
 
-            var entries = profileComponent.Profile.Value.Entries;
+            ref var entries = ref profileComponent.Profile.Value.Entries;
             if (!PhysicsColliderProfileHelpers.TryGetSpec(ref entries, Space4XRenderKeys.Carrier, out var carrierSpec))
             {
                 return;

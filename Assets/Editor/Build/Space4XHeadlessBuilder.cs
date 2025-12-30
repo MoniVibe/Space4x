@@ -42,31 +42,36 @@ namespace Space4X.Headless.Editor
 
         public static void BuildLinuxHeadless(string outputDirectory)
         {
-            RunHeadlessPreflight();
-            EnsureLinuxServerSupport();
-
-            var absoluteOutput = Path.GetFullPath(outputDirectory);
-            Directory.CreateDirectory(absoluteOutput);
-
-            using var targetScope = new BuildTargetScope(BuildTarget.StandaloneLinux64, BuildTargetGroup.Standalone);
-            using var buildSettingsSceneScope = new BuildSettingsSceneScope(HeadlessScenes);
-
-            var buildPlayerOptions = new BuildPlayerOptions
-            {
-                scenes = HeadlessScenes,
-                locationPathName = Path.Combine(absoluteOutput, "Space4X_Headless.x86_64"),
-                target = BuildTarget.StandaloneLinux64,
-                targetGroup = BuildTargetGroup.Standalone,
-                subtarget = (int)StandaloneBuildSubtarget.Server,
-                options = BuildOptions.StrictMode
-            };
+            var absoluteOutput = ResolveOutputDirectory(outputDirectory);
+            UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] START BUILD {DateTime.UtcNow:O}");
+            UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Output path: {absoluteOutput}");
+            UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Working directory: {Directory.GetCurrentDirectory()}");
 
             BuildReport? report = null;
             string editorLogSnapshotPath = string.Empty;
+            string reportPath = string.Empty;
             try
             {
+                Directory.CreateDirectory(absoluteOutput);
+                RunHeadlessPreflight();
+                EnsureLinuxServerSupport();
+
+                using var targetScope = new BuildTargetScope(BuildTarget.StandaloneLinux64, BuildTargetGroup.Standalone);
+                using var buildSettingsSceneScope = new BuildSettingsSceneScope(HeadlessScenes);
+
+                var buildPlayerOptions = new BuildPlayerOptions
+                {
+                    scenes = HeadlessScenes,
+                    locationPathName = Path.Combine(absoluteOutput, "Space4X_Headless.x86_64"),
+                    target = BuildTarget.StandaloneLinux64,
+                    targetGroup = BuildTargetGroup.Standalone,
+                    subtarget = (int)StandaloneBuildSubtarget.Server,
+                    options = BuildOptions.StrictMode
+                };
+
                 report = BuildPipeline.BuildPlayer(buildPlayerOptions);
-                var reportPath = PersistBuildReport(report, absoluteOutput);
+                LogBuildSummary(report);
+                reportPath = PersistBuildReport(report, absoluteOutput);
                 if (report.summary.result != BuildResult.Succeeded)
                 {
                     throw new BuildFailedException($"Space4X headless build failed: {report.summary.result}. See {reportPath} for details.");
@@ -77,13 +82,17 @@ namespace Space4X.Headless.Editor
             }
             catch (Exception ex)
             {
-                var failureLog = WriteFailureLog(absoluteOutput, ex, report);
-                UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Build failed. Details written to {failureLog}");
+                var failureLog = TryWriteFailureLog(absoluteOutput, ex, report);
+                if (!string.IsNullOrEmpty(failureLog))
+                {
+                    UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Build failed. Details written to {failureLog}");
+                }
                 throw;
             }
             finally
             {
                 editorLogSnapshotPath = CaptureEditorLogSnapshot(absoluteOutput);
+                UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] END BUILD {DateTime.UtcNow:O}");
             }
 
             if (!string.IsNullOrEmpty(editorLogSnapshotPath))
@@ -193,6 +202,21 @@ namespace Space4X.Headless.Editor
         }
 
         private static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+
+        private static string ResolveOutputDirectory(string outputDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                outputDirectory = DefaultOutputFolder;
+            }
+
+            if (Path.IsPathRooted(outputDirectory))
+            {
+                return Path.GetFullPath(outputDirectory);
+            }
+
+            return Path.GetFullPath(Path.Combine(ProjectRoot, outputDirectory));
+        }
 
         private static void EnsureLinuxServerSupport()
         {
@@ -429,6 +453,30 @@ namespace Space4X.Headless.Editor
 
             File.WriteAllText(path, sb.ToString());
             return path;
+        }
+
+        private static string TryWriteFailureLog(string outputDirectory, Exception exception, BuildReport? report)
+        {
+            try
+            {
+                return WriteFailureLog(outputDirectory, exception, report);
+            }
+            catch (Exception logEx)
+            {
+                UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Failed to write failure log: {logEx.Message}");
+                return string.Empty;
+            }
+        }
+
+        private static void LogBuildSummary(BuildReport? report)
+        {
+            if (report == null)
+            {
+                return;
+            }
+
+            var summary = report.summary;
+            UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Build summary: result={summary.result} errors={summary.totalErrors} warnings={summary.totalWarnings} output={summary.outputPath}");
         }
 
         private static string CaptureEditorLogSnapshot(string outputDirectory)
