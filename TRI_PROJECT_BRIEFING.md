@@ -1,6 +1,6 @@
 # Unity Tri-Project Briefing
 
-**Last Updated**: 2025-12-28  
+**Last Updated**: 2025-12-30  
 **Purpose**: Master orientation for agents working across PureDOTS, Space4X, and Godgame
 
 ---
@@ -11,9 +11,11 @@ This workspace contains three interconnected Unity DOTS projects:
 
 | Project | Path | Purpose |
 |---------|------|---------|
-| **PureDOTS** | `C:\dev\Tri\puredots` or `/mnt/c/dev/Tri/puredots` | Shared DOTS framework package |
-| **Space4X** | `C:\dev\Tri\space4x` or `/mnt/c/dev/Tri/space4x` | Carrier-first 4X strategy game |
-| **Godgame** | `C:\dev\Tri\godgame` or `/mnt/c/dev/Tri/godgame` | Divine intervention god-game simulation
+| **PureDOTS** | `C:\dev\Tri\puredots` (Windows) or `/home/oni/Tri/puredots` (WSL ext4) | Shared DOTS framework package |
+| **Space4X** | `C:\dev\Tri\space4x` (Windows) or `/home/oni/Tri/space4x` (WSL ext4) | Carrier-first 4X strategy game |
+| **Godgame** | `C:\dev\Tri\godgame` (Windows) or `/home/oni/Tri/godgame` (WSL ext4) | Divine intervention god-game simulation
+
+**WSL path policy**: Use `/home/oni/Tri` for WSL work (ext4). Avoid `/mnt/c` for active work due to drvfs I/O errors. When running dual clones (Windows + WSL), keep ownership boundaries: Windows edits `Assets/` + `.meta`; WSL edits PureDOTS/logic; do not share `Library` across OSes. Keep `Packages/manifest.json` and `Packages/packages-lock.json` synced across clones when logic changes to avoid slice-only compile errors.
 
 ### Architecture Pattern
 
@@ -82,7 +84,7 @@ The TRI project operates on three parallel tracks with distinct responsibilities
 
 ## PureDOTS Framework
 
-**Location**: `C:\dev\Tri\puredots` or `/mnt/c/dev/Tri/puredots`  
+**Location**: `C:\dev\Tri\puredots` (Windows) or `/home/oni/Tri/puredots` (WSL)  
 **Package**: `Packages/com.moni.puredots`
 
 ### What It Provides
@@ -168,7 +170,7 @@ public partial struct SomeDebugSystem : ISystem
 
 ## Space4X Game
 
-**Location**: `C:\dev\Tri\space4x` or `/mnt/c/dev/Tri/space4x`
+**Location**: `C:\dev\Tri\space4x` (Windows) or `/home/oni/Tri/space4x` (WSL)
 
 ### Game Vision
 
@@ -207,7 +209,7 @@ Carrier-first 4X strategy where players command carrier task forces across a liv
 
 ## Godgame
 
-**Location**: `C:\dev\Tri\godgame` or `/mnt/c/dev/Tri/godgame`
+**Location**: `C:\dev\Tri\godgame` (Windows) or `/home/oni/Tri/godgame` (WSL)
 
 ### Game Vision
 
@@ -616,8 +618,8 @@ If you find camera controller files in PureDOTS workspace paths like:
 - `Assets/Scripts/Space4x/Camera/...`
 
 **These are likely development artifacts that should be moved or removed.** Check the actual project directories:
-- **Space4X**: `C:\dev\Tri\space4x` or `/mnt/c/dev/Tri/space4x`
-- **Godgame**: `C:\dev\Tri\godgame` or `/mnt/c/dev/Tri/godgame`
+- **Space4X**: `C:\dev\Tri\space4x` (Windows) or `/home/oni/Tri/space4x` (WSL)
+- **Godgame**: `C:\dev\Tri\godgame` (Windows) or `/home/oni/Tri/godgame` (WSL)
 
 ### **Proper Camera Architecture**
 
@@ -727,9 +729,9 @@ Before completing ANY task:
 
 | Location | Path |
 |----------|------|
-| Unity Root (Canonical) | `C:\dev\Tri\TRI_PROJECT_BRIEFING.md` or `/mnt/c/dev/Tri/TRI_PROJECT_BRIEFING.md` |
-| Space4X | `C:\dev\Tri\space4x\TRI_PROJECT_BRIEFING.md` or `/mnt/c/dev/Tri/space4x/TRI_PROJECT_BRIEFING.md` |
-| Godgame | `C:\dev\Tri\godgame\TRI_PROJECT_BRIEFING.md` or `/mnt/c/dev/Tri/godgame/TRI_PROJECT_BRIEFING.md` |
+| Unity Root (Canonical) | `C:\dev\Tri\TRI_PROJECT_BRIEFING.md` (Windows) or `/home/oni/Tri/TRI_PROJECT_BRIEFING.md` (WSL) |
+| Space4X | `C:\dev\Tri\space4x\TRI_PROJECT_BRIEFING.md` (Windows) or `/home/oni/Tri/space4x/TRI_PROJECT_BRIEFING.md` (WSL) |
+| Godgame | `C:\dev\Tri\godgame\TRI_PROJECT_BRIEFING.md` (Windows) or `/home/oni/Tri/godgame/TRI_PROJECT_BRIEFING.md` (WSL) |
 
 **When updating this document:**
 1. Make changes in the Unity root version (canonical source)

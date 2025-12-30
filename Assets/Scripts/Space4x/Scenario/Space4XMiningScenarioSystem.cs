@@ -1553,7 +1553,14 @@ namespace Space4x.Scenario
                 float y = position.Length > 2 ? position[2] : ResolveSpawnHeight(x, z);
                 return new float3(x, y, z);
             }
-            return float3.zero;
+            // Deterministic fallback to keep spawns separated when position data is missing.
+            var index = _spawnedEntities?.Count ?? 0;
+            var angle = math.radians(137.5f * index);
+            var radius = 20f + (index % 5) * 5f;
+            var xFallback = math.cos(angle) * radius;
+            var zFallback = math.sin(angle) * radius;
+            var yFallback = ResolveSpawnHeight(xFallback, zFallback);
+            return new float3(xFallback, yFallback, zFallback);
         }
 
         private static float ResolveSpawnHeight(float x, float z)

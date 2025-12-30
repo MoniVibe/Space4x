@@ -69,5 +69,6 @@ If a detail is critical (API choice, breaking change), ask the user once rather 
 
 - Preferred WSL root: `/home/oni/Tri` (ext4). Avoid `/mnt/c` for active work (drvfs I/O errors).
 - If running dual clones, keep ownership boundaries: WSL edits PureDOTS + logic; Windows edits `Assets/` + `.meta` + scenes/prefabs.
+- Keep `Packages/manifest.json` and `Packages/packages-lock.json` in sync across clones when logic changes; drift causes slice-only compile errors.
 - Do not share `Library` between OSes; each clone keeps its own cache.
 - WSL is case-sensitive; fix casing mismatches that Windows may tolerate.

@@ -1,10 +1,10 @@
 using System;
-using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
+using Space4X.Registry;
 using Space4X.Presentation;
 using Unity.Collections;
 using Unity.Entities;
@@ -59,7 +59,8 @@ namespace Space4X.Headless
 
             _enabled = 1;
             state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<RenderSemanticKey>();
+            state.RequireForUpdate<Carrier>();
+            state.RequireForUpdate<Asteroid>();
             state.RequireForUpdate<LocalTransform>();
         }
 
@@ -100,24 +101,14 @@ namespace Space4X.Headless
             var minAllowedSq = minAllowed * minAllowed;
 
             using var asteroidPositions = new NativeList<float3>(Allocator.Temp);
-            foreach (var (semantic, transform) in SystemAPI.Query<RefRO<RenderSemanticKey>, RefRO<LocalTransform>>())
+            foreach (var (_, transform) in SystemAPI.Query<RefRO<Asteroid>, RefRO<LocalTransform>>().WithNone<Prefab>())
             {
-                if (semantic.ValueRO.Value != Space4XRenderKeys.Asteroid)
-                {
-                    continue;
-                }
-
                 hasAsteroid = true;
                 asteroidPositions.Add(transform.ValueRO.Position);
             }
 
-            foreach (var (semantic, transform) in SystemAPI.Query<RefRO<RenderSemanticKey>, RefRO<LocalTransform>>())
+            foreach (var (_, transform) in SystemAPI.Query<RefRO<Carrier>, RefRO<LocalTransform>>().WithNone<Prefab>())
             {
-                if (semantic.ValueRO.Value != Space4XRenderKeys.Carrier)
-                {
-                    continue;
-                }
-
                 hasCarrier = true;
                 var carrierPos = transform.ValueRO.Position;
                 for (int i = 0; i < asteroidPositions.Length; i++)
