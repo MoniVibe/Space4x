@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using Space4X.Runtime;
 using TimeState = PureDOTS.Runtime.Components.TimeState;
 using RewindState = PureDOTS.Runtime.Components.RewindState;
 using RewindMode = PureDOTS.Runtime.Components.RewindMode;
@@ -47,6 +48,11 @@ namespace Space4X.Systems.AI
 
             var rewindState = SystemAPI.GetSingleton<RewindState>();
             if (rewindState.Mode != RewindMode.Record)
+            {
+                return;
+            }
+
+            if (SystemAPI.HasSingleton<Space4XCollisionScenarioTag>())
             {
                 return;
             }

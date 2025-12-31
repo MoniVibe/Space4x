@@ -147,6 +147,8 @@ namespace Space4X.Registry
                 motionConfig = motionConfigSingleton;
             }
 
+            var skipMiningTargets = SystemAPI.HasSingleton<Space4XCollisionScenarioTag>();
+
             var carrierQuery = SystemAPI.QueryBuilder()
                 .WithAll<Carrier, PatrolBehavior, MovementCommand, LocalTransform>()
                 .Build();
@@ -178,13 +180,14 @@ namespace Space4X.Registry
                 ComputeMotionProfile(entity, motionConfig, out var speedMultiplier, out var accelerationMultiplier,
                     out var decelerationMultiplier, out var turnMultiplier, out var slowdownMultiplier, out var deviationStrength);
 
-                if (_miningTargetLookup.HasComponent(entity))
+                if (!skipMiningTargets && _miningTargetLookup.HasComponent(entity))
                 {
                     var miningTarget = _miningTargetLookup[entity];
                     if (miningTarget.TargetEntity != Entity.Null)
                     {
                         var targetPos = miningTarget.TargetPosition;
                         var miningArrivalThreshold = movementCmd.ArrivalThreshold > 0f ? movementCmd.ArrivalThreshold : 1f;
+                        miningArrivalThreshold = math.max(miningArrivalThreshold, carrierData.ArrivalDistance);
                         var toTarget = targetPos - position;
                         var distanceSq = math.lengthsq(toTarget);
 

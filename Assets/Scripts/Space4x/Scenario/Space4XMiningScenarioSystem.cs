@@ -43,6 +43,7 @@ namespace Space4x.Scenario
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
         private bool _useSmokeMotionTuning;
+        private bool _isCollisionScenario;
         private Entity _friendlyAffiliationEntity;
         private Entity _hostileAffiliationEntity;
 
@@ -119,6 +120,11 @@ namespace Space4x.Scenario
             var isRefitScenario = scenarioFileName.Equals(RefitScenarioFile, StringComparison.OrdinalIgnoreCase);
             var isResearchScenario = scenarioFileName.Equals(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase);
             var isMiningScenario = !(isRefitScenario || isResearchScenario);
+            _isCollisionScenario = scenarioFileName.Equals("space4x_collision_micro.json", StringComparison.OrdinalIgnoreCase);
+            if (_isCollisionScenario)
+            {
+                EnsureCollisionScenarioTag();
+            }
 
             _spawnedEntities = new Dictionary<string, Entity>();
             if (isMiningScenario)
@@ -613,6 +619,10 @@ namespace Space4x.Scenario
                 carrierSlowdown = 30f;
                 carrierArrival = 4f;
             }
+            if (_isCollisionScenario)
+            {
+                carrierArrival = math.max(carrierArrival, 16f);
+            }
 
             EntityManager.AddComponentData(entity, new Carrier
             {
@@ -1065,6 +1075,17 @@ namespace Space4x.Scenario
                     Executed = 0
                 });
             }
+        }
+
+        private void EnsureCollisionScenarioTag()
+        {
+            if (SystemAPI.HasSingleton<Space4XCollisionScenarioTag>())
+            {
+                return;
+            }
+
+            var entity = EntityManager.CreateEntity(typeof(Space4XCollisionScenarioTag));
+            EntityManager.SetName(entity, "Space4XCollisionScenarioTag");
         }
 
         private void SpawnStrikeCraft(Entity carrierEntity, float3 carrierPosition, CombatComponentData combatData, byte scenarioSide)
