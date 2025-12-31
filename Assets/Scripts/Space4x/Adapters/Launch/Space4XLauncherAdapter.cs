@@ -1,7 +1,11 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Launch;
 using PureDOTS.Runtime.Physics;
+using PureDOTS.Runtime.Swarms;
+using PureDOTS.Systems.Physics;
 using Space4X.Authoring;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -107,21 +111,32 @@ namespace Space4X.Adapters.Launch
     /// Translates generic collision events to Space4X-specific effects.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.Launch.LaunchExecutionSystem))]
+    [UpdateInGroup(typeof(PhysicsPostEventSystemGroup))]
+    [UpdateAfter(typeof(PureDOTS.Systems.Physics.PhysicsEventSystem))]
     public partial struct Space4XLauncherCollisionAdapter : ISystem
     {
+        private const float DamagePerImpulse = 0.1f;
+        private ComponentLookup<Space4XLauncherConfig> _launcherConfigLookup;
+        private BufferLookup<DamageEvent> _damageBufferLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            state.RequireForUpdate<PhysicsConfig>();
+            state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
+
+            _launcherConfigLookup = state.GetComponentLookup<Space4XLauncherConfig>(true);
+            _damageBufferLookup = state.GetBufferLookup<DamageEvent>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var timeState = SystemAPI.GetSingleton<TimeState>();
             var rewindState = SystemAPI.GetSingleton<RewindState>();
+            var config = SystemAPI.GetSingleton<PhysicsConfig>();
 
             // Only process in Record mode
             if (rewindState.Mode != RewindMode.Record)
@@ -129,32 +144,188 @@ namespace Space4X.Adapters.Launch
                 return;
             }
 
+            if (config.ProviderId == PhysicsProviderIds.None || !config.IsSpace4XPhysicsEnabled)
+            {
+                return;
+            }
+
+            if (PhysicsConfigHelpers.IsPostRewindSettleFrame(in config, timeState.Tick))
+            {
+                return;
+            }
+
+            _launcherConfigLookup.Update(ref state);
+            _damageBufferLookup.Update(ref state);
+
+            var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged);
+
+            var streamEntity = EnsureRequestStream(ref state, ecb);
+
             // Process collision events for launched objects
             foreach (var (projectileTag, collisionBuffer, entity) in
                 SystemAPI.Query<RefRO<LaunchedProjectileTag>, DynamicBuffer<PhysicsCollisionEventElement>>()
                     .WithEntityAccess())
             {
+                if (collisionBuffer.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!_launcherConfigLookup.HasComponent(projectileTag.ValueRO.SourceLauncher))
+                {
+                    continue;
+                }
+
+                var launchConfig = _launcherConfigLookup[projectileTag.ValueRO.SourceLauncher];
+                var launchType = launchConfig.LaunchType;
+
                 for (int i = 0; i < collisionBuffer.Length; i++)
                 {
                     var collision = collisionBuffer[i];
 
-                    // Process Space4X-specific collision effects
-                    // Examples:
-                    // - Cargo pod delivery (transfer resources to target)
-                    // - Torpedo impact (apply damage based on impulse)
-                    // - Probe arrival (activate scanning at location)
-                    // - Drone deployment (convert to active drone entity)
+                    if (collision.EventType == PhysicsCollisionEventType.TriggerExit)
+                    {
+                        continue;
+                    }
 
-                    // This is where game-specific logic goes
-                    // The adapter translates generic collision events to Space4X behavior
+                    if (collision.OtherEntity == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    if (launchType == Space4XLaunchType.Torpedo)
+                    {
+                        if (collision.EventType != PhysicsCollisionEventType.Collision)
+                        {
+                            continue;
+                        }
+
+                        var damage = math.max(0f, collision.Impulse) * DamagePerImpulse;
+                        if (damage <= 0f)
+                        {
+                            continue;
+                        }
+
+                        var damageEvent = new DamageEvent
+                        {
+                            SourceEntity = projectileTag.ValueRO.SourceLauncher,
+                            TargetEntity = collision.OtherEntity,
+                            RawDamage = damage,
+                            Type = DamageType.Physical,
+                            Tick = collision.Tick,
+                            Flags = DamageFlags.None
+                        };
+
+                        if (!_damageBufferLookup.HasBuffer(collision.OtherEntity))
+                        {
+                            ecb.AddBuffer<DamageEvent>(collision.OtherEntity);
+                        }
+
+                        ecb.AppendToBuffer(collision.OtherEntity, damageEvent);
+                        ecb.RemoveComponent<LaunchedProjectileTag>(entity);
+                        break;
+                    }
+
+                    if (launchType == Space4XLaunchType.CargoPod)
+                    {
+                        if (collision.EventType != PhysicsCollisionEventType.TriggerEnter)
+                        {
+                            continue;
+                        }
+
+                        ecb.AppendToBuffer(streamEntity, new Space4XCargoDeliveryRequest
+                        {
+                            SourceLauncher = projectileTag.ValueRO.SourceLauncher,
+                            Payload = entity,
+                            Target = collision.OtherEntity,
+                            Tick = collision.Tick
+                        });
+                        ecb.RemoveComponent<LaunchedProjectileTag>(entity);
+                        break;
+                    }
+
+                    if (launchType == Space4XLaunchType.Probe)
+                    {
+                        if (collision.EventType != PhysicsCollisionEventType.TriggerEnter)
+                        {
+                            continue;
+                        }
+
+                        ecb.AppendToBuffer(streamEntity, new Space4XProbeActivateRequest
+                        {
+                            SourceLauncher = projectileTag.ValueRO.SourceLauncher,
+                            Payload = entity,
+                            Target = collision.OtherEntity,
+                            Tick = collision.Tick
+                        });
+                        ecb.RemoveComponent<LaunchedProjectileTag>(entity);
+                        break;
+                    }
+
+                    if (launchType == Space4XLaunchType.Drone)
+                    {
+                        if (collision.EventType != PhysicsCollisionEventType.Collision &&
+                            collision.EventType != PhysicsCollisionEventType.TriggerEnter)
+                        {
+                            continue;
+                        }
+
+                        if (!SystemAPI.HasComponent<DroneTag>(entity))
+                        {
+                            ecb.AddComponent<DroneTag>(entity);
+                        }
+                        ecb.RemoveComponent<LaunchedProjectileTag>(entity);
+                        break;
+                    }
+
+                    if (launchType == Space4XLaunchType.EscapePod)
+                    {
+                        if (collision.EventType != PhysicsCollisionEventType.TriggerEnter)
+                        {
+                            continue;
+                        }
+
+                        ecb.AppendToBuffer(streamEntity, new Space4XCrewTransferRequest
+                        {
+                            SourceLauncher = projectileTag.ValueRO.SourceLauncher,
+                            Payload = entity,
+                            Target = collision.OtherEntity,
+                            Tick = collision.Tick
+                        });
+                        ecb.RemoveComponent<LaunchedProjectileTag>(entity);
+                        break;
+                    }
                 }
             }
         }
+
+        private Entity EnsureRequestStream(ref SystemState state, EntityCommandBuffer ecb)
+        {
+            if (SystemAPI.TryGetSingletonEntity<Space4XLaunchRequestStream>(out var streamEntity))
+            {
+                if (!SystemAPI.HasBuffer<Space4XCargoDeliveryRequest>(streamEntity))
+                {
+                    ecb.AddBuffer<Space4XCargoDeliveryRequest>(streamEntity);
+                }
+                if (!SystemAPI.HasBuffer<Space4XProbeActivateRequest>(streamEntity))
+                {
+                    ecb.AddBuffer<Space4XProbeActivateRequest>(streamEntity);
+                }
+                if (!SystemAPI.HasBuffer<Space4XCrewTransferRequest>(streamEntity))
+                {
+                    ecb.AddBuffer<Space4XCrewTransferRequest>(streamEntity);
+                }
+                return streamEntity;
+            }
+
+            streamEntity = ecb.CreateEntity();
+            ecb.AddComponent<Space4XLaunchRequestStream>(streamEntity);
+            ecb.AddBuffer<Space4XCargoDeliveryRequest>(streamEntity);
+            ecb.AddBuffer<Space4XProbeActivateRequest>(streamEntity);
+            ecb.AddBuffer<Space4XCrewTransferRequest>(streamEntity);
+            return streamEntity;
+        }
     }
 }
-
-
-
-
-
 
