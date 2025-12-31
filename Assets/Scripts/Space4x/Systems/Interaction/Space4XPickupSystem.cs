@@ -53,8 +53,8 @@ namespace Space4X.Systems.Interaction
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var rewindState = SystemAPI.GetSingleton<RewindState>();
 
-            // Skip during rewind playback
-            if (rewindState.Mode == RewindMode.Playback)
+            // Only mutate during record mode (play)
+            if (rewindState.Mode != RewindMode.Record)
             {
                 return;
             }

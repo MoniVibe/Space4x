@@ -830,22 +830,37 @@ namespace Space4X.Registry
                             TechTier = 1
                         });
 
-                        if (carrier.CanIntercept && carrier.InterceptSpeed > 0f)
-                        {
-                            AddComponent(entity, new InterceptCapability
-                            {
-                                MaxSpeed = math.max(0.1f, carrier.InterceptSpeed),
-                                TechTier = 1,
-                                AllowIntercept = 1
-                            });
-                        }
-                    }
-
-                    AssignRenderPresentation(entity, RenderKeys.Carrier, carrierTint);
-                    if (i == 0)
+                    if (carrier.CanIntercept && carrier.InterceptSpeed > 0f)
                     {
-                        SpawnSwarmDrones(entity, carrierPosition, carrierTint);
-                        SpawnBreakablePieces(entity, carrierPosition, carrierTint);
+                        AddComponent(entity, new InterceptCapability
+                        {
+                            MaxSpeed = math.max(0.1f, carrier.InterceptSpeed),
+                                TechTier = 1,
+                            AllowIntercept = 1
+                        });
+                    }
+                }
+
+                AddComponent<PickableTag>(entity);
+                AddComponent(entity, new HandPickable
+                {
+                    Mass = 120f,
+                    MaxHoldDistance = 150f,
+                    ThrowImpulseMultiplier = 0.9f,
+                    FollowLerp = 0.2f
+                });
+                AddComponent(entity, new Space4X.Runtime.Interaction.Space4XHandPickable
+                {
+                    MaxMass = 10000f,
+                    ThrowSpeedMultiplier = 0.9f,
+                    SlingshotSpeedMultiplier = 1.2f
+                });
+
+                AssignRenderPresentation(entity, RenderKeys.Carrier, carrierTint);
+                if (i == 0)
+                {
+                    SpawnSwarmDrones(entity, carrierPosition, carrierTint);
+                    SpawnBreakablePieces(entity, carrierPosition, carrierTint);
                     }
 
                     // Store entity in map for vessel references
@@ -1334,6 +1349,20 @@ namespace Space4X.Registry
                         math.sin(phase) * radius);
 
                     SetLocalTransform(droneEntity, anchorPosition + offset, quaternion.identity, 0.35f);
+                    AddComponent<PickableTag>(droneEntity);
+                    AddComponent(droneEntity, new HandPickable
+                    {
+                        Mass = 2f,
+                        MaxHoldDistance = 75f,
+                        ThrowImpulseMultiplier = 1f,
+                        FollowLerp = 0.35f
+                    });
+                    AddComponent(droneEntity, new Space4X.Runtime.Interaction.Space4XHandPickable
+                    {
+                        MaxMass = 50f,
+                        ThrowSpeedMultiplier = 1f,
+                        SlingshotSpeedMultiplier = 1.5f
+                    });
                     AddComponent(droneEntity, new AgencySelfPreset { Kind = AgencySelfPresetKind.Tool });
                     AddComponent<DroneTag>(droneEntity);
                     AddComponent(droneEntity, new DroneOrbit
@@ -1450,6 +1479,20 @@ namespace Space4X.Registry
                     var pieceDef = pieces[i];
                     var pieceEntity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
                     SetLocalTransform(pieceEntity, anchorPosition + pieceDef.LocalOffset, quaternion.identity, 0.55f);
+                    AddComponent<PickableTag>(pieceEntity);
+                    AddComponent(pieceEntity, new HandPickable
+                    {
+                        Mass = 20f,
+                        MaxHoldDistance = 100f,
+                        ThrowImpulseMultiplier = 1f,
+                        FollowLerp = 0.3f
+                    });
+                    AddComponent(pieceEntity, new Space4X.Runtime.Interaction.Space4XHandPickable
+                    {
+                        MaxMass = 250f,
+                        ThrowSpeedMultiplier = 1f,
+                        SlingshotSpeedMultiplier = 1.5f
+                    });
                     AddComponent(pieceEntity, new Space4XBreakablePiece
                     {
                         Root = anchorEntity,

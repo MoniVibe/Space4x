@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Environment;
 using PureDOTS.Runtime.Launch;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Swarms;
@@ -116,8 +117,13 @@ namespace Space4X.Adapters.Launch
     public partial struct Space4XLauncherCollisionAdapter : ISystem
     {
         private const float DamagePerImpulse = 0.1f;
+        private const float TorpedoImpactRadiusMin = 0.5f;
+        private const float TorpedoImpactRadiusMax = 12f;
         private ComponentLookup<Space4XLauncherConfig> _launcherConfigLookup;
         private BufferLookup<DamageEvent> _damageBufferLookup;
+        private ComponentLookup<TerrainChunk> _terrainChunkLookup;
+        private ComponentLookup<TerrainVolume> _terrainVolumeLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -125,10 +131,14 @@ namespace Space4X.Adapters.Launch
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<PhysicsConfig>();
+            state.RequireForUpdate<TerrainModificationQueue>();
             state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
 
             _launcherConfigLookup = state.GetComponentLookup<Space4XLauncherConfig>(true);
             _damageBufferLookup = state.GetBufferLookup<DamageEvent>(false);
+            _terrainChunkLookup = state.GetComponentLookup<TerrainChunk>(true);
+            _terrainVolumeLookup = state.GetComponentLookup<TerrainVolume>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         [BurstCompile]
@@ -156,11 +166,20 @@ namespace Space4X.Adapters.Launch
 
             _launcherConfigLookup.Update(ref state);
             _damageBufferLookup.Update(ref state);
+            _terrainChunkLookup.Update(ref state);
+            _terrainVolumeLookup.Update(ref state);
+            _transformLookup.Update(ref state);
 
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
 
             var streamEntity = EnsureRequestStream(ref state, ecb);
+            var hasQueue = SystemAPI.TryGetSingletonEntity<TerrainModificationQueue>(out var queueEntity);
+            DynamicBuffer<TerrainModificationRequest> terrainRequests = default;
+            if (hasQueue)
+            {
+                terrainRequests = SystemAPI.GetBuffer<TerrainModificationRequest>(queueEntity);
+            }
 
             // Process collision events for launched objects
             foreach (var (projectileTag, collisionBuffer, entity) in
@@ -205,6 +224,51 @@ namespace Space4X.Adapters.Launch
                         if (damage <= 0f)
                         {
                             continue;
+                        }
+
+                        if (hasQueue)
+                        {
+                            Entity volumeEntity = Entity.Null;
+                            if (_terrainVolumeLookup.HasComponent(collision.OtherEntity))
+                            {
+                                volumeEntity = collision.OtherEntity;
+                            }
+                            else if (_terrainChunkLookup.HasComponent(collision.OtherEntity))
+                            {
+                                volumeEntity = _terrainChunkLookup[collision.OtherEntity].VolumeEntity;
+                            }
+
+                            if (volumeEntity != Entity.Null)
+                            {
+                                var impactPosition = collision.ContactPoint;
+                                if (math.lengthsq(impactPosition) < 1e-4f && _transformLookup.HasComponent(entity))
+                                {
+                                    impactPosition = _transformLookup[entity].Position;
+                                }
+
+                                var radius = math.clamp(collision.Impulse * 0.1f, TorpedoImpactRadiusMin, TorpedoImpactRadiusMax);
+                                terrainRequests.Add(new TerrainModificationRequest
+                                {
+                                    Kind = TerrainModificationKind.Dig,
+                                    Shape = TerrainModificationShape.Brush,
+                                    ToolKind = TerrainModificationToolKind.Drill,
+                                    Start = impactPosition,
+                                    End = impactPosition,
+                                    Radius = radius,
+                                    Depth = radius,
+                                    MaterialId = 0,
+                                    DamageDelta = 0,
+                                    DamageThreshold = 0,
+                                    YieldMultiplier = 1f,
+                                    HeatDelta = 0f,
+                                    InstabilityDelta = 0f,
+                                    Flags = TerrainModificationFlags.AffectsSurface | TerrainModificationFlags.AffectsVolume,
+                                    RequestedTick = collision.Tick,
+                                    Actor = entity,
+                                    VolumeEntity = volumeEntity,
+                                    Space = TerrainModificationSpace.World
+                                });
+                            }
                         }
 
                         var damageEvent = new DamageEvent
@@ -328,4 +392,3 @@ namespace Space4X.Adapters.Launch
         }
     }
 }
-
