@@ -4,6 +4,7 @@ using PureDOTS.Authoring;
 using PureDOTS.Environment;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
@@ -842,6 +843,12 @@ namespace Space4X.Registry
                 }
 
                 AddComponent<PickableTag>(entity);
+                AddComponent<HeldByPlayer>(entity);
+                SetComponentEnabled<HeldByPlayer>(entity, false);
+                AddComponent<MovementSuppressed>(entity);
+                SetComponentEnabled<MovementSuppressed>(entity, false);
+                AddComponent<BeingThrown>(entity);
+                SetComponentEnabled<BeingThrown>(entity, false);
                 AddComponent(entity, new HandPickable
                 {
                     Mass = 120f,
@@ -1078,6 +1085,12 @@ namespace Space4X.Registry
                     });
 
                     AddComponent<PickableTag>(entity);
+                    AddComponent<HeldByPlayer>(entity);
+                    SetComponentEnabled<HeldByPlayer>(entity, false);
+                    AddComponent<MovementSuppressed>(entity);
+                    SetComponentEnabled<MovementSuppressed>(entity, false);
+                    AddComponent<BeingThrown>(entity);
+                    SetComponentEnabled<BeingThrown>(entity, false);
                     AddComponent(entity, new HandPickable
                     {
                         Mass = 5f,
@@ -1187,6 +1200,12 @@ namespace Space4X.Registry
                     });
 
                     AddComponent<PickableTag>(entity);
+                    AddComponent<HeldByPlayer>(entity);
+                    SetComponentEnabled<HeldByPlayer>(entity, false);
+                    AddComponent<MovementSuppressed>(entity);
+                    SetComponentEnabled<MovementSuppressed>(entity, false);
+                    AddComponent<BeingThrown>(entity);
+                    SetComponentEnabled<BeingThrown>(entity, false);
                     AddComponent(entity, new HandPickable
                     {
                         Mass = math.max(asteroid.VolumeRadius * 5f, 1f),
@@ -1350,6 +1369,12 @@ namespace Space4X.Registry
 
                     SetLocalTransform(droneEntity, anchorPosition + offset, quaternion.identity, 0.35f);
                     AddComponent<PickableTag>(droneEntity);
+                    AddComponent<HeldByPlayer>(droneEntity);
+                    SetComponentEnabled<HeldByPlayer>(droneEntity, false);
+                    AddComponent<MovementSuppressed>(droneEntity);
+                    SetComponentEnabled<MovementSuppressed>(droneEntity, false);
+                    AddComponent<BeingThrown>(droneEntity);
+                    SetComponentEnabled<BeingThrown>(droneEntity, false);
                     AddComponent(droneEntity, new HandPickable
                     {
                         Mass = 2f,
@@ -1480,6 +1505,12 @@ namespace Space4X.Registry
                     var pieceEntity = CreateAdditionalEntity(TransformUsageFlags.Dynamic | TransformUsageFlags.Renderable);
                     SetLocalTransform(pieceEntity, anchorPosition + pieceDef.LocalOffset, quaternion.identity, 0.55f);
                     AddComponent<PickableTag>(pieceEntity);
+                    AddComponent<HeldByPlayer>(pieceEntity);
+                    SetComponentEnabled<HeldByPlayer>(pieceEntity, false);
+                    AddComponent<MovementSuppressed>(pieceEntity);
+                    SetComponentEnabled<MovementSuppressed>(pieceEntity, false);
+                    AddComponent<BeingThrown>(pieceEntity);
+                    SetComponentEnabled<BeingThrown>(pieceEntity, false);
                     AddComponent(pieceEntity, new HandPickable
                     {
                         Mass = 20f,

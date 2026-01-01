@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
@@ -179,3 +180,4 @@ namespace Space4X.Tests.PlayMode
         }
     }
 }
+#endif

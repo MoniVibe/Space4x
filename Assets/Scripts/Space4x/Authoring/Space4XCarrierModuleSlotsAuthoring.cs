@@ -1,4 +1,5 @@
 using System;
+using PureDOTS.Runtime.Modules;
 using Unity.Entities;
 using UnityEngine;
 
@@ -35,6 +36,7 @@ namespace Space4X.Registry
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 var buffer = AddBuffer<CarrierModuleSlot>(entity);
+                var attachments = AddBuffer<ModuleAttachment>(entity);
 
                 var slots = authoring.slots ?? Array.Empty<SlotDefinition>();
                 SortSlots(slots);
@@ -51,6 +53,11 @@ namespace Space4X.Registry
                         RefitProgress = 0f,
                         State = moduleEntity == Entity.Null ? ModuleSlotState.Empty : ModuleSlotState.Active
                     });
+
+                    if (moduleEntity != Entity.Null)
+                    {
+                        attachments.Add(new ModuleAttachment { Module = moduleEntity });
+                    }
                 }
 
                 if (authoring.RefitRatePerSecond > 0f)

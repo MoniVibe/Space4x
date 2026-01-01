@@ -1,8 +1,6 @@
 ## Unity generated content
 [Ll]ibrary/
 [Tt]emp/
-[Ll]ibrary_backup_*/
-[Tt]emp_backup_*/
 [Oo]bj/
 [Bb]uild/
 [Bb]uilds/
@@ -14,10 +12,6 @@
 [Bb]ee/
 Assets/StreamingAssets/aa/
 Assets/StreamingAssets/aa.meta
-Assets/_Recovery/
-Assets/_Recovery.meta
-Packages/*.bak
-*.apiupaterconfigs
 
 ## IDE / tooling artifacts
 .vs/
@@ -66,3 +60,7 @@ SourceAssetDB/
 *.swp
 *.mmdb
 *.mmdb.meta
+
+## Backup directories
+Library_backup_*/
+Temp_backup_*/

@@ -1,4 +1,4 @@
-#if SPACE4X_MIRACLES_WIP
+#if SPACE4X_MIRACLES_WIP && (UNITY_EDITOR || UNITY_INCLUDE_TESTS)
 // TODO: Update these tests to the new miracle API in PureDOTS.Runtime.Miracles and re-enable SPACE4X_MIRACLES_WIP.
 using System.Collections.Generic;
 using NUnit.Framework;

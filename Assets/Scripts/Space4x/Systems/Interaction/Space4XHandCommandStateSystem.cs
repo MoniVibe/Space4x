@@ -24,6 +24,7 @@ namespace Space4X.Systems.Interaction
         private ComponentLookup<Space4XHandPickable> _spacePickableLookup;
         private ComponentLookup<PhysicsMass> _massLookup;
         private ComponentLookup<Space4XCelestialManipulable> _celestialLookup;
+        private uint _lastInputSampleId;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -46,6 +47,10 @@ namespace Space4X.Systems.Interaction
             var timeState = SystemAPI.GetSingleton<TimeState>();
             uint currentTick = timeState.Tick;
             float deltaTime = timeState.DeltaTime > 0f ? timeState.DeltaTime : 1f / 60f;
+            bool isNewSample = input.SampleId != _lastInputSampleId;
+            bool rmbPressed = isNewSample && input.RmbPressed;
+            bool rmbReleased = isNewSample && input.RmbReleased;
+            float scrollDelta = isNewSample ? input.ScrollDelta : 0f;
 
             _pickableLookup.Update(ref state);
             _spacePickableLookup.Update(ref state);
@@ -60,10 +65,10 @@ namespace Space4X.Systems.Interaction
                     handState.HoldDistance = DefaultHoldDistance;
                 }
 
-                if (math.abs(input.ScrollDelta) > 0.001f)
+                if (math.abs(scrollDelta) > 0.001f)
                 {
                     handState.HoldDistance = math.clamp(
-                        handState.HoldDistance + input.ScrollDelta * ScrollAdjustSpeed,
+                        handState.HoldDistance + scrollDelta * ScrollAdjustSpeed,
                         2f,
                         200f);
                 }
@@ -86,7 +91,7 @@ namespace Space4X.Systems.Interaction
 
                 if (handState.HeldEntity == Entity.Null)
                 {
-                    if (input.RmbPressed && ((affordances.Flags & HandAffordanceFlags.CanPickUp) != 0 || celestialPick))
+                    if (rmbPressed && ((affordances.Flags & HandAffordanceFlags.CanPickUp) != 0 || celestialPick))
                     {
                         if (!CanPickTarget(affordances.TargetEntity, celestialPick))
                         {
@@ -135,7 +140,7 @@ namespace Space4X.Systems.Interaction
                         });
                     }
 
-                    if (input.RmbReleased)
+                    if (rmbReleased)
                     {
                         var direction = math.normalizesafe(input.RayDirection, new float3(0f, 1f, 0f));
                         var chargeLevel = math.clamp(handState.ChargeTimer / MaxChargeSeconds, 0f, 1f);
@@ -175,6 +180,11 @@ namespace Space4X.Systems.Interaction
                 }
 
                 handStateRef.ValueRW = handState;
+            }
+
+            if (isNewSample)
+            {
+                _lastInputSampleId = input.SampleId;
             }
         }
 

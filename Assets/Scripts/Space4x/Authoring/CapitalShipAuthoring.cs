@@ -1,5 +1,7 @@
 using Space4X.Registry;
+using Space4X.Runtime;
 using PureDOTS.Runtime.Communication;
+using PureDOTS.Runtime.Modules;
 using Unity.Entities;
 using UnityEngine;
 
@@ -21,6 +23,25 @@ namespace Space4X.Authoring
 
                 AddComponent(entity, CommDecisionConfig.Default);
                 AddComponent(entity, CommDecodeFactors.Default);
+
+                AddComponent(entity, new ModulePowerSupply
+                {
+                    AvailablePower = 20f
+                });
+                AddComponent(entity, new ModuleCapabilityOutput
+                {
+                    ThrustAuthority = 0f,
+                    TurnAuthority = 0f
+                });
+                AddComponent(entity, new EngineeringCohesion { Value = 0.5f });
+                AddComponent(entity, new NavigationCohesion { Value = 0.5f });
+                AddComponent(entity, new BridgeTechLevel { Value = 0.5f });
+                AddComponent(entity, new ManeuverMode { Mode = ShipManeuverMode.Transit });
+                AddComponent(entity, new OfficerProfile
+                {
+                    ExpectedManeuverHorizonSeconds = 6f,
+                    RiskTolerance = 0.5f
+                });
             }
         }
     }

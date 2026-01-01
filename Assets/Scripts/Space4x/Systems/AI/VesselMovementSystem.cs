@@ -2,6 +2,8 @@ using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Modules;
+using PureDOTS.Runtime.Power;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
@@ -45,6 +47,10 @@ namespace Space4X.Systems.AI
         private ComponentLookup<MiningVessel> _miningVesselLookup;
         private ComponentLookup<MiningState> _miningStateLookup;
         private ComponentLookup<ModuleStatAggregate> _moduleAggregateLookup;
+        private ComponentLookup<ModuleCapabilityOutput> _moduleCapabilityLookup;
+        private BufferLookup<ShipPowerConsumer> _shipPowerConsumerLookup;
+        private ComponentLookup<PowerConsumer> _powerConsumerLookup;
+        private ComponentLookup<PowerEffectiveness> _powerEffectivenessLookup;
         private ComponentLookup<VesselQuality> _qualityLookup;
         private ComponentLookup<VesselMobilityProfile> _mobilityProfileLookup;
         private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
@@ -91,6 +97,10 @@ namespace Space4X.Systems.AI
             _miningVesselLookup = state.GetComponentLookup<MiningVessel>(true);
             _miningStateLookup = state.GetComponentLookup<MiningState>(true);
             _moduleAggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
+            _moduleCapabilityLookup = state.GetComponentLookup<ModuleCapabilityOutput>(true);
+            _shipPowerConsumerLookup = state.GetBufferLookup<ShipPowerConsumer>(true);
+            _powerConsumerLookup = state.GetComponentLookup<PowerConsumer>(true);
+            _powerEffectivenessLookup = state.GetComponentLookup<PowerEffectiveness>(true);
             _qualityLookup = state.GetComponentLookup<VesselQuality>(true);
             _mobilityProfileLookup = state.GetComponentLookup<VesselMobilityProfile>(true);
             _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
@@ -212,6 +222,10 @@ namespace Space4X.Systems.AI
             _miningVesselLookup.Update(ref state);
             _miningStateLookup.Update(ref state);
             _moduleAggregateLookup.Update(ref state);
+            _moduleCapabilityLookup.Update(ref state);
+            _shipPowerConsumerLookup.Update(ref state);
+            _powerConsumerLookup.Update(ref state);
+            _powerEffectivenessLookup.Update(ref state);
             _qualityLookup.Update(ref state);
             _mobilityProfileLookup.Update(ref state);
             _physicalLookup.Update(ref state);
@@ -272,6 +286,10 @@ namespace Space4X.Systems.AI
                 MiningVesselLookup = _miningVesselLookup,
                 MiningStateLookup = _miningStateLookup,
                 ModuleAggregateLookup = _moduleAggregateLookup,
+                ModuleCapabilityLookup = _moduleCapabilityLookup,
+                ShipPowerConsumerLookup = _shipPowerConsumerLookup,
+                PowerConsumerLookup = _powerConsumerLookup,
+                PowerEffectivenessLookup = _powerEffectivenessLookup,
                 QualityLookup = _qualityLookup,
                 MobilityProfileLookup = _mobilityProfileLookup,
                 PhysicalLookup = _physicalLookup,
@@ -329,6 +347,10 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<MiningVessel> MiningVesselLookup;
             [ReadOnly] public ComponentLookup<MiningState> MiningStateLookup;
             [ReadOnly] public ComponentLookup<ModuleStatAggregate> ModuleAggregateLookup;
+            [ReadOnly] public ComponentLookup<ModuleCapabilityOutput> ModuleCapabilityLookup;
+            [ReadOnly] public BufferLookup<ShipPowerConsumer> ShipPowerConsumerLookup;
+            [ReadOnly] public ComponentLookup<PowerConsumer> PowerConsumerLookup;
+            [ReadOnly] public ComponentLookup<PowerEffectiveness> PowerEffectivenessLookup;
             [ReadOnly] public ComponentLookup<VesselQuality> QualityLookup;
             [ReadOnly] public ComponentLookup<VesselMobilityProfile> MobilityProfileLookup;
             [ReadOnly] public ComponentLookup<VesselPhysicalProperties> PhysicalLookup;
@@ -426,6 +448,18 @@ namespace Space4X.Systems.AI
                         engineScale = Space4XSubsystemUtility.EngineDisabledScale;
                     }
                 }
+
+                var thrustAuthority = 1f;
+                var turnAuthority = 1f;
+                if (ModuleCapabilityLookup.HasComponent(entity))
+                {
+                    var capability = ModuleCapabilityLookup[entity];
+                    thrustAuthority = math.saturate(capability.ThrustAuthority);
+                    turnAuthority = math.saturate(capability.TurnAuthority);
+                }
+                var powerAuthority = ResolvePowerAuthority(entity);
+                thrustAuthority *= powerAuthority;
+                turnAuthority *= powerAuthority;
 
                 var baseSpeed = math.max(0.1f, movement.BaseSpeed * engineScale);
                 
@@ -582,6 +616,11 @@ namespace Space4X.Systems.AI
                 speedMultiplier *= moduleSpeedMultiplier;
                 accelerationMultiplier *= math.lerp(1f, moduleSpeedMultiplier, 0.6f);
                 decelerationMultiplier *= math.lerp(1f, moduleSpeedMultiplier, 0.4f);
+
+                speedMultiplier *= thrustAuthority;
+                accelerationMultiplier *= thrustAuthority;
+                decelerationMultiplier *= thrustAuthority;
+                rotationMultiplier *= turnAuthority;
 
                 var mobilitySpeedMultiplier = 1f;
                 if (MobilityProfileLookup.HasComponent(entity))
@@ -819,9 +858,15 @@ namespace Space4X.Systems.AI
                         }
                     }
 
-                    movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
-                    var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
-                    transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, DeltaTime * turnSpeed * rotationMultiplier);
+                    var forward = math.forward(transform.Rotation);
+                    var angle = math.acos(math.clamp(math.dot(forward, rotationDirection), -1f, 1f));
+                    const float headingDeadbandRadians = 0.026f;
+                    if (angle > headingDeadbandRadians)
+                    {
+                        movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
+                        var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
+                        transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, DeltaTime * turnSpeed * rotationMultiplier);
+                    }
                 }
 
                 movement.IsMoving = 1;
@@ -1086,12 +1131,30 @@ namespace Space4X.Systems.AI
                 }
 
                 var intent = MoveIntentLookup[entity];
-                if (intent.IntentType != intentType || intent.TargetEntity != target)
+                var targetChanged = intent.TargetEntity != target;
+                var intentChanged = intent.IntentType != intentType;
+                if (intentChanged && !targetChanged && hasDebug)
+                {
+                    const uint intentCommitTicks = 6u;
+                    if (debugState.LastIntentChangeTick != 0u &&
+                        CurrentTick - debugState.LastIntentChangeTick < intentCommitTicks)
+                    {
+                        intent.TargetPosition = targetPosition;
+                        MoveIntentLookup[entity] = intent;
+                        return;
+                    }
+                }
+
+                if (intentChanged || targetChanged)
                 {
                     intent.IntentType = intentType;
                     intent.TargetEntity = target;
                     intent.TargetPosition = targetPosition;
                     MoveIntentLookup[entity] = intent;
+                    if (hasDebug)
+                    {
+                        debugState.LastIntentChangeTick = CurrentTick;
+                    }
                     PushTraceEvent(entity, MoveTraceEventKind.IntentChanged, target, ref debugState, hasDebug);
                 }
                 else
@@ -1109,6 +1172,20 @@ namespace Space4X.Systems.AI
                 }
 
                 var plan = MovePlanLookup[entity];
+                if (plan.Mode != mode && hasDebug)
+                {
+                    const uint planCommitTicks = 6u;
+                    if (debugState.LastPlanChangeTick != 0u &&
+                        CurrentTick - debugState.LastPlanChangeTick < planCommitTicks)
+                    {
+                        plan.DesiredVelocity = desiredVelocity;
+                        plan.MaxAccel = maxAccel;
+                        plan.EstimatedTime = eta;
+                        MovePlanLookup[entity] = plan;
+                        return;
+                    }
+                }
+
                 if (plan.Mode != mode)
                 {
                     plan.Mode = mode;
@@ -1116,6 +1193,10 @@ namespace Space4X.Systems.AI
                     plan.MaxAccel = maxAccel;
                     plan.EstimatedTime = eta;
                     MovePlanLookup[entity] = plan;
+                    if (hasDebug)
+                    {
+                        debugState.LastPlanChangeTick = CurrentTick;
+                    }
                     PushTraceEvent(entity, MoveTraceEventKind.PlanChanged, Entity.Null, ref debugState, hasDebug);
                 }
                 else
@@ -1197,6 +1278,50 @@ namespace Space4X.Systems.AI
                 debugState.LastSpeed = currentSpeed;
                 debugState.LastSampleTick = CurrentTick;
                 MovementDebugLookup[entity] = debugState;
+            }
+
+            private float ResolvePowerAuthority(Entity vesselEntity)
+            {
+                if (!ShipPowerConsumerLookup.HasBuffer(vesselEntity))
+                {
+                    return 1f;
+                }
+
+                var consumers = ShipPowerConsumerLookup[vesselEntity];
+                for (var i = 0; i < consumers.Length; i++)
+                {
+                    if (consumers[i].Type != ShipPowerConsumerType.Mobility)
+                    {
+                        continue;
+                    }
+
+                    var consumerEntity = consumers[i].Consumer;
+                    if (consumerEntity == Entity.Null)
+                    {
+                        return 1f;
+                    }
+
+                    var ratio = 1f;
+                    if (PowerConsumerLookup.HasComponent(consumerEntity))
+                    {
+                        var consumer = PowerConsumerLookup[consumerEntity];
+                        var requested = consumer.RequestedDraw > 0f ? consumer.RequestedDraw : consumer.BaselineDraw;
+                        if (requested > 0f)
+                        {
+                            ratio = math.saturate(consumer.AllocatedDraw / requested);
+                        }
+                    }
+
+                    var effectiveness = 1f;
+                    if (PowerEffectivenessLookup.HasComponent(consumerEntity))
+                    {
+                        effectiveness = math.max(0f, PowerEffectivenessLookup[consumerEntity].Value);
+                    }
+
+                    return ratio * effectiveness;
+                }
+
+                return 1f;
             }
 
             private void PushTraceEvent(Entity entity, MoveTraceEventKind kind, Entity target, ref MovementDebugState debugState, bool hasDebug)

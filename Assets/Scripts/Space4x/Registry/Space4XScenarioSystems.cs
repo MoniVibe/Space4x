@@ -15,6 +15,13 @@ using Random = Unity.Mathematics.Random;
 
 namespace Space4X.Registry
 {
+    public struct WaypointDeviationState : IComponentData
+    {
+        public float3 Deviation;
+        public float3 LastWaypoint;
+        public uint LastSeedTick;
+    }
+
     /// <summary>
     /// Manages carrier patrol behavior, generating waypoints and waiting at them.
     /// </summary>
@@ -35,6 +42,7 @@ namespace Space4X.Registry
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<WaypointPath> _waypointPathLookup;
         private BufferLookup<WaypointPathPoint> _waypointPointsLookup;
+        private ComponentLookup<WaypointDeviationState> _deviationLookup;
         private ComponentLookup<EntityIntent> _intentLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
@@ -56,6 +64,7 @@ namespace Space4X.Registry
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _waypointPathLookup = state.GetComponentLookup<WaypointPath>(false);
             _waypointPointsLookup = state.GetBufferLookup<WaypointPathPoint>(true);
+            _deviationLookup = state.GetComponentLookup<WaypointDeviationState>(false);
             _intentLookup = state.GetComponentLookup<EntityIntent>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
@@ -135,11 +144,12 @@ namespace Space4X.Registry
             _waypointPathLookup.Update(ref state);
             _waypointPointsLookup.Update(ref state);
             _intentLookup.Update(ref state);
+            _deviationLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
-            var deltaTime = SystemAPI.TryGetSingleton<TimeState>(out var timeState) 
-                ? timeState.FixedDeltaTime 
-                : SystemAPI.Time.DeltaTime;
+            var hasTimeState = SystemAPI.TryGetSingleton<TimeState>(out var timeState);
+            var deltaTime = hasTimeState ? timeState.FixedDeltaTime : SystemAPI.Time.DeltaTime;
+            var currentTick = hasTimeState ? timeState.Tick : (uint)SystemAPI.Time.ElapsedTime;
 
             var motionConfig = VesselMotionProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<VesselMotionProfileConfig>(out var motionConfigSingleton))
@@ -160,6 +170,8 @@ namespace Space4X.Registry
                 return;
             }
 
+            var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
+
             foreach (var (carrier, patrol, movement, vesselMovement, transform, entity) in SystemAPI
                          .Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<VesselMovement>, RefRW<LocalTransform>>()
                          .WithEntityAccess())
@@ -177,6 +189,8 @@ namespace Space4X.Registry
                 var position = transform.ValueRO.Position;
                 var movementCmd = movement.ValueRO;
                 var patrolBehavior = patrol.ValueRO;
+                var hasDeviationState = _deviationLookup.HasComponent(entity);
+                var deviationState = hasDeviationState ? _deviationLookup[entity] : default;
                 ComputeMotionProfile(entity, motionConfig, out var speedMultiplier, out var accelerationMultiplier,
                     out var decelerationMultiplier, out var turnMultiplier, out var slowdownMultiplier, out var deviationStrength);
 
@@ -196,7 +210,7 @@ namespace Space4X.Registry
                             var direction = math.normalize(toTarget);
                             if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
                             {
-                                direction = ApplyDeviation(direction, entity, targetPos, deviationStrength);
+                                direction = ApplyDeviation(ref deviationState, entity, targetPos, direction, deviationStrength, currentTick);
                             }
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
@@ -286,7 +300,7 @@ namespace Space4X.Registry
                             var direction = math.normalize(toWaypoint);
                             if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
                             {
-                                direction = ApplyDeviation(direction, entity, patrolBehavior.CurrentWaypoint, deviationStrength);
+                                direction = ApplyDeviation(ref deviationState, entity, patrolBehavior.CurrentWaypoint, direction, deviationStrength, currentTick);
                             }
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
@@ -359,7 +373,7 @@ namespace Space4X.Registry
                             var direction = math.normalize(toWaypoint);
                             if (deviationStrength > 0.001f && distanceSq > motionConfig.ChaoticDeviationMinDistance * motionConfig.ChaoticDeviationMinDistance)
                             {
-                                direction = ApplyDeviation(direction, entity, patrolBehavior.CurrentWaypoint, deviationStrength);
+                                direction = ApplyDeviation(ref deviationState, entity, patrolBehavior.CurrentWaypoint, direction, deviationStrength, currentTick);
                             }
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
@@ -377,8 +391,22 @@ namespace Space4X.Registry
                     }
                 }
 
+                if (deviationStrength > 0.001f && math.lengthsq(deviationState.Deviation) > 0f)
+                {
+                    if (hasDeviationState)
+                    {
+                        _deviationLookup[entity] = deviationState;
+                    }
+                    else
+                    {
+                        ecb.AddComponent(entity, deviationState);
+                    }
+                }
+
                 patrol.ValueRW = patrolBehavior;
             }
+
+            ecb.Playback(state.EntityManager);
         }
 
         private static void AdvanceWaypoint(ref WaypointPath path, int count)
@@ -647,15 +675,47 @@ namespace Space4X.Registry
             return math.saturate(discipline);
         }
 
-        private static float3 ApplyDeviation(float3 direction, Entity carrierEntity, float3 targetPosition, float strength)
+        private static float3 ApplyDeviation(ref WaypointDeviationState deviationState, Entity carrierEntity, float3 targetPosition,
+            float3 direction, float strength, uint currentTick)
+        {
+            if (strength <= 0f || math.lengthsq(direction) <= 1e-6f)
+            {
+                return direction;
+            }
+
+            const float waypointChangeThresholdSq = 0.01f;
+            const uint deviationReseedTicks = 0u;
+            var targetChanged = math.lengthsq(targetPosition - deviationState.LastWaypoint) > waypointChangeThresholdSq;
+            var ticksSinceSeed = currentTick > deviationState.LastSeedTick
+                ? currentTick - deviationState.LastSeedTick
+                : 0u;
+            var shouldReseed = deviationState.LastSeedTick == 0u
+                               || targetChanged
+                               || (deviationReseedTicks > 0u && ticksSinceSeed >= deviationReseedTicks);
+            if (shouldReseed)
+            {
+                deviationState.LastWaypoint = targetPosition;
+                deviationState.LastSeedTick = currentTick;
+                deviationState.Deviation = ComputeDeviation(carrierEntity, targetPosition, direction, strength);
+            }
+
+            return math.normalizesafe(direction + deviationState.Deviation, direction);
+        }
+
+        private static float3 ComputeDeviation(Entity carrierEntity, float3 targetPosition, float3 direction, float strength)
         {
             var targetHash = math.hash(math.asuint(targetPosition));
             var seed = math.hash(new uint2((uint)carrierEntity.Index, targetHash));
-            float offset = seed * (1f / uint.MaxValue);
+            var offset = seed * (1f / uint.MaxValue);
             offset = offset * 2f - 1f;
 
-            var lateral = math.normalize(math.cross(direction, math.up()));
-            return math.normalize(direction + lateral * offset * strength);
+            var lateral = math.cross(direction, math.up());
+            if (math.lengthsq(lateral) <= 1e-6f)
+            {
+                lateral = math.cross(direction, math.right());
+            }
+            lateral = math.normalizesafe(lateral);
+            return lateral * offset * strength;
         }
     }
 

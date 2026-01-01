@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Interaction;
 using Space4X.Runtime.Interaction;
 using Unity.Entities;
 using UnityEngine;
@@ -19,6 +20,12 @@ namespace Space4X.Authoring.Interaction
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent<PickableTag>(entity);
+                AddComponent<HeldByPlayer>(entity);
+                SetComponentEnabled<HeldByPlayer>(entity, false);
+                AddComponent<MovementSuppressed>(entity);
+                SetComponentEnabled<MovementSuppressed>(entity, false);
+                AddComponent<BeingThrown>(entity);
+                SetComponentEnabled<BeingThrown>(entity, false);
                 AddComponent(entity, new HandPickable
                 {
                     Mass = 1f,
