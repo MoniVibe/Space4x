@@ -78,7 +78,7 @@ namespace Space4X.Systems.Interaction
             var godHandEntity = _godHandQuery.GetSingletonEntity();
             var pickupStateRef = SystemAPI.GetComponentRW<PickupState>(godHandEntity);
             var inputFrame = SystemAPI.GetSingleton<HandInputFrame>();
-            var hover = SystemAPI.GetSingleton<HandHover>();
+            var handHover = SystemAPI.GetSingleton<HandHover>();
             var interactionPolicy = InteractionPolicy.CreateDefault();
             if (SystemAPI.TryGetSingleton(out InteractionPolicy policyValue))
             {
@@ -104,9 +104,9 @@ namespace Space4X.Systems.Interaction
 
             var rayOrigin = inputFrame.RayOrigin;
             var rayDirection = math.normalizesafe(inputFrame.RayDirection, new float3(0f, 0f, 1f));
-            Entity hitEntity = hover.TargetEntity;
-            float3 hitPosition = hover.HitPosition;
-            float hoverDistance = hover.Distance;
+            Entity hitEntity = handHover.TargetEntity;
+            float3 hitPosition = handHover.HitPosition;
+            float hoverDistance = handHover.Distance;
 
             // Update state machine
             ref var pickupState = ref pickupStateRef.ValueRW;

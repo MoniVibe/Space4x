@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using RuntimeModuleSpec = global::PureDOTS.Runtime.Modules.ModuleSpec;
 
 namespace Space4X.Registry
 {
@@ -97,7 +98,7 @@ namespace Space4X.Registry
             var spec = BuildSpec(powerDrawOff, powerDrawStandby, powerDrawOnline, powerDrawEmergency,
                 tauColdToOnline, tauWarmToOnline, tauOnlineToStandby, tauStandbyToOff, maxOutput, rampRateLimit, capability);
 
-            baker.AddComponent(entity, new PureDOTS.Runtime.Modules.ModuleSpec { Spec = spec });
+            baker.AddComponent(entity, new RuntimeModuleSpec { Spec = spec });
             baker.AddComponent(entity, new ModuleRuntimeState
             {
                 Posture = initialPosture,
