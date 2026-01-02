@@ -117,6 +117,11 @@ namespace Space4X.Systems.AI
                 return;
             }
 
+            if (SystemAPI.HasSingleton<Space4XCollisionScenarioTag>())
+            {
+                return;
+            }
+
             _behaviorDispositionLookup.Update(ref state);
             _pilotLookup.Update(ref state);
             _seatRefLookup.Update(ref state);

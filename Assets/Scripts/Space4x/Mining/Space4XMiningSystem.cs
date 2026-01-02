@@ -256,9 +256,11 @@ namespace Space4X.Mining
                 in Entity entity)
             {
                 // Skip mining logic if movement is suppressed or entity is being thrown/held
-                if (MovementSuppressedLookup.HasComponent(entity) ||
-                    BeingThrownLookup.HasComponent(entity) ||
-                    HandHeldLookup.HasComponent(entity))
+                bool movementSuppressed = MovementSuppressedLookup.HasComponent(entity) &&
+                                          MovementSuppressedLookup.IsComponentEnabled(entity);
+                bool beingThrown = BeingThrownLookup.HasComponent(entity) &&
+                                   BeingThrownLookup.IsComponentEnabled(entity);
+                if (movementSuppressed || beingThrown || HandHeldLookup.HasComponent(entity))
                 {
                     movement.Velocity = float3.zero;
                     movement.IsMoving = 0;

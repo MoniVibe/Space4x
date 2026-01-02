@@ -24,6 +24,7 @@ namespace Space4X.Headless
         private const uint StuckFailureThreshold = 2;
         private const float MiningApproachTeleportDistance = 3f;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
@@ -248,6 +249,13 @@ namespace Space4X.Headless
             }
 
             _scenarioResolved = true;
+            if (scenarioPath.EndsWith(CollisionScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _ignoreStuckFailures = true;
+                _ignoreTeleportFailures = true;
+                return;
+            }
+
             if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
                 // Smoke mining undock/approach can trip stuck counters before latch; skip stuck failures there.

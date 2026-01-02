@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interaction;
+using PureDOTS.Runtime.Hand;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Time;
 using Space4X.Runtime.Interaction;
@@ -7,19 +8,15 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Physics;
 using Unity.Physics.Systems;
 using Unity.Transforms;
-using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Space4X.Systems.Interaction
 {
     /// <summary>
     /// Handles throw/drop mechanics: RMB release, 3s settle timer, movement detection, velocity accumulation.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XHeldFollowSystem))]
+    [UpdateInGroup(typeof(AfterPhysicsSystemGroup))]
     public partial struct Space4XThrowSystem : ISystem
     {
         private ComponentLookup<LocalTransform> _transformLookup;
@@ -27,6 +24,8 @@ namespace Space4X.Systems.Interaction
         private ComponentLookup<PickupState> _pickupStateLookup;
         private EntityQuery _godHandQuery;
         private EntityQuery _heldEntitiesQuery;
+        private uint _lastInputSampleId;
+        private NativeParallelHashSet<Entity> _loggedFallbackEntities;
 
         // Settle timer threshold (3 seconds)
         private const float SettleHoldTime = 3f;
@@ -38,6 +37,8 @@ namespace Space4X.Systems.Interaction
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            state.RequireForUpdate<HandInputFrame>();
+            state.RequireForUpdate<HandHover>();
 
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _physicsVelocityLookup = state.GetComponentLookup<Unity.Physics.PhysicsVelocity>(false);
@@ -50,6 +51,15 @@ namespace Space4X.Systems.Interaction
             _heldEntitiesQuery = SystemAPI.QueryBuilder()
                 .WithAll<HeldByPlayer>()
                 .Build();
+            _loggedFallbackEntities = new NativeParallelHashSet<Entity>(128, Allocator.Persistent);
+        }
+
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_loggedFallbackEntities.IsCreated)
+            {
+                _loggedFallbackEntities.Dispose();
+            }
         }
 
         public void OnUpdate(ref SystemState state)
@@ -57,8 +67,8 @@ namespace Space4X.Systems.Interaction
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var rewindState = SystemAPI.GetSingleton<RewindState>();
 
-            // Skip during rewind playback
-            if (rewindState.Mode == RewindMode.Playback)
+            // Only mutate during record mode (play)
+            if (rewindState.Mode != RewindMode.Record)
             {
                 return;
             }
@@ -70,29 +80,23 @@ namespace Space4X.Systems.Interaction
 
             var godHandEntity = _godHandQuery.GetSingletonEntity();
             var pickupStateRef = SystemAPI.GetComponentRW<PickupState>(godHandEntity);
+            var inputFrame = SystemAPI.GetSingleton<HandInputFrame>();
+            var hover = SystemAPI.GetSingleton<HandHover>();
+            var interactionPolicy = InteractionPolicy.CreateDefault();
+            if (SystemAPI.TryGetSingleton(out InteractionPolicy policyValue))
+            {
+                interactionPolicy = policyValue;
+            }
 
             _transformLookup.Update(ref state);
             _physicsVelocityLookup.Update(ref state);
             _pickupStateLookup.Update(ref state);
 
-            // Read input
-            var mouse = Mouse.current;
-            var keyboard = Keyboard.current;
-            if (mouse == null)
-            {
-                return;
-            }
-
-            bool rmbDown = mouse.rightButton.isPressed;
-            bool rmbWasReleased = mouse.rightButton.wasReleasedThisFrame;
-            bool shiftHeld = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
-
-            // Get camera for direction calculation
-            var camera = UnityEngine.Camera.main;
-            if (camera == null)
-            {
-                return;
-            }
+            bool isNewSample = inputFrame.SampleId != _lastInputSampleId;
+            bool rmbDown = inputFrame.RmbHeld;
+            bool rmbWasReleased = isNewSample && inputFrame.RmbReleased;
+            bool shiftHeld = inputFrame.ShiftHeld;
+            var aimDirection = math.normalizesafe(inputFrame.RayDirection, new float3(0f, 0f, 1f));
 
             ref var pickupState = ref pickupStateRef.ValueRW;
             var deltaTime = timeState.FixedDeltaTime;
@@ -105,7 +109,7 @@ namespace Space4X.Systems.Interaction
                 // Check for 3s settle
                 if (pickupState.HoldTime >= SettleHoldTime && rmbDown)
                 {
-                    HandleSettleToTerrain(ref state, pickupState.TargetEntity, camera);
+                    HandleSettleToTerrain(ref state, pickupState.TargetEntity, hover);
                     return;
                 }
 
@@ -130,16 +134,21 @@ namespace Space4X.Systems.Interaction
                     if (shiftHeld)
                     {
                         // Queue throw
-                        HandleQueueThrow(ref state, godHandEntity, pickupState.TargetEntity, camera, pickupState);
+                        HandleQueueThrow(ref state, godHandEntity, pickupState.TargetEntity, aimDirection, pickupState);
                         ResetPickupState(ref pickupState);
                     }
                     else
                     {
                         // Immediate throw
-                        HandleThrow(ref state, pickupState.TargetEntity, camera, pickupState);
+                        HandleThrow(ref state, pickupState.TargetEntity, aimDirection, pickupState, interactionPolicy);
                         ResetPickupState(ref pickupState);
                     }
                 }
+            }
+
+            if (isNewSample)
+            {
+                _lastInputSampleId = inputFrame.SampleId;
             }
         }
 
@@ -153,16 +162,16 @@ namespace Space4X.Systems.Interaction
 
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
 
-            // Remove HeldByPlayer
+            // Disable HeldByPlayer
             if (state.EntityManager.HasComponent<HeldByPlayer>(targetEntity))
             {
-                ecb.RemoveComponent<HeldByPlayer>(targetEntity);
+                ecb.SetComponentEnabled<HeldByPlayer>(targetEntity, false);
             }
 
-            // Remove MovementSuppressed
+            // Disable MovementSuppressed
             if (state.EntityManager.HasComponent<MovementSuppressed>(targetEntity))
             {
-                ecb.RemoveComponent<MovementSuppressed>(targetEntity);
+                ecb.SetComponentEnabled<MovementSuppressed>(targetEntity, false);
             }
 
             // Set velocity to zero (gentle drop)
@@ -182,8 +191,9 @@ namespace Space4X.Systems.Interaction
         private void HandleThrow(
             ref SystemState state,
             Entity targetEntity,
-            UnityEngine.Camera camera,
-            PickupState pickupState)
+            float3 aimDirection,
+            PickupState pickupState,
+            InteractionPolicy interactionPolicy)
         {
             if (targetEntity == Entity.Null || !state.EntityManager.Exists(targetEntity))
             {
@@ -201,24 +211,24 @@ namespace Space4X.Systems.Interaction
             }
             else
             {
-                // Fallback to camera forward
-                throwDirection = camera.transform.forward;
+                // Fallback to input ray direction
+                throwDirection = aimDirection;
             }
 
             // Calculate throw force
             float throwForce = BaseThrowForce + math.length(pickupState.AccumulatedVelocity) * 0.5f;
             float3 throwVelocity = throwDirection * throwForce;
 
-            // Remove HeldByPlayer
+            // Disable HeldByPlayer
             if (state.EntityManager.HasComponent<HeldByPlayer>(targetEntity))
             {
-                ecb.RemoveComponent<HeldByPlayer>(targetEntity);
+                ecb.SetComponentEnabled<HeldByPlayer>(targetEntity, false);
             }
 
-            // Remove MovementSuppressed
+            // Disable MovementSuppressed
             if (state.EntityManager.HasComponent<MovementSuppressed>(targetEntity))
             {
-                ecb.RemoveComponent<MovementSuppressed>(targetEntity);
+                ecb.SetComponentEnabled<MovementSuppressed>(targetEntity, false);
             }
 
             // Set physics velocity
@@ -230,15 +240,63 @@ namespace Space4X.Systems.Interaction
                 ecb.SetComponent(targetEntity, velocity);
             }
 
-            // Add BeingThrown component
-            ecb.AddComponent(targetEntity, new BeingThrown
+            var prevPosition = float3.zero;
+            var prevRotation = quaternion.identity;
+            if (_transformLookup.HasComponent(targetEntity))
+            {
+                var transform = _transformLookup[targetEntity];
+                prevPosition = transform.Position;
+                prevRotation = transform.Rotation;
+            }
+
+            bool hasBeingThrown = state.EntityManager.HasComponent<BeingThrown>(targetEntity);
+            if (!hasBeingThrown && interactionPolicy.AllowStructuralFallback == 0)
+            {
+                if (interactionPolicy.LogStructuralFallback != 0)
+                {
+                    LogFallbackOnce(targetEntity, "BeingThrown", skipped: true);
+                }
+                ecb.Playback(state.EntityManager);
+                ecb.Dispose();
+                return;
+            }
+
+            // Enable BeingThrown component
+            var thrown = new BeingThrown
             {
                 InitialVelocity = throwVelocity,
-                TimeSinceThrow = 0f
-            });
+                TimeSinceThrow = 0f,
+                PrevPosition = prevPosition,
+                PrevRotation = prevRotation
+            };
+            if (hasBeingThrown)
+            {
+                ecb.SetComponent(targetEntity, thrown);
+                ecb.SetComponentEnabled<BeingThrown>(targetEntity, true);
+            }
+            else
+            {
+                ecb.AddComponent(targetEntity, thrown);
+                if (interactionPolicy.LogStructuralFallback != 0)
+                {
+                    LogFallbackOnce(targetEntity, "BeingThrown", skipped: false);
+                }
+            }
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+        }
+
+        [BurstDiscard]
+        private void LogFallbackOnce(Entity target, string missingComponents, bool skipped)
+        {
+            if (!_loggedFallbackEntities.IsCreated || !_loggedFallbackEntities.Add(target))
+            {
+                return;
+            }
+
+            var action = skipped ? "skipping throw tag (strict policy)" : "using structural fallback";
+            UnityEngine.Debug.LogWarning($"[Space4XThrowSystem] Missing {missingComponents} on entity {target.Index}:{target.Version}; {action}.");
         }
 
         [BurstDiscard]
@@ -246,7 +304,7 @@ namespace Space4X.Systems.Interaction
             ref SystemState state,
             Entity godHandEntity,
             Entity targetEntity,
-            UnityEngine.Camera camera,
+            float3 aimDirection,
             PickupState pickupState)
         {
             if (targetEntity == Entity.Null || !state.EntityManager.Exists(targetEntity))
@@ -262,7 +320,7 @@ namespace Space4X.Systems.Interaction
             }
             else
             {
-                throwDirection = camera.transform.forward;
+                throwDirection = aimDirection;
             }
 
             // Calculate throw force
@@ -283,58 +341,29 @@ namespace Space4X.Systems.Interaction
                 });
             }
 
-            // Remove HeldByPlayer and MovementSuppressed
+            // Disable HeldByPlayer and MovementSuppressed
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
             if (state.EntityManager.HasComponent<HeldByPlayer>(targetEntity))
             {
-                ecb.RemoveComponent<HeldByPlayer>(targetEntity);
+                ecb.SetComponentEnabled<HeldByPlayer>(targetEntity, false);
             }
             if (state.EntityManager.HasComponent<MovementSuppressed>(targetEntity))
             {
-                ecb.RemoveComponent<MovementSuppressed>(targetEntity);
+                ecb.SetComponentEnabled<MovementSuppressed>(targetEntity, false);
             }
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
         }
 
         [BurstDiscard]
-        private void HandleSettleToTerrain(ref SystemState state, Entity targetEntity, UnityEngine.Camera camera)
+        private void HandleSettleToTerrain(ref SystemState state, Entity targetEntity, HandHover hover)
         {
             if (targetEntity == Entity.Null || !state.EntityManager.Exists(targetEntity))
             {
                 return;
             }
 
-            // Raycast to terrain from camera
-            var mouse = Mouse.current;
-            if (mouse == null)
-            {
-                return;
-            }
-
-            var mousePosition = mouse.position.ReadValue();
-            var ray = camera.ScreenPointToRay(mousePosition);
-
-            // Simple terrain raycast (assuming Y=0 is ground, or use physics raycast)
-            if (!SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorldSingleton))
-            {
-                return;
-            }
-
-            var collisionWorld = physicsWorldSingleton.CollisionWorld;
-            var raycastInput = new RaycastInput
-            {
-                Start = ray.origin,
-                End = ray.origin + ray.direction * 1000f,
-                Filter = new CollisionFilter
-                {
-                    BelongsTo = ~0u,
-                    CollidesWith = ~0u,
-                    GroupIndex = 0
-                }
-            };
-
-            if (collisionWorld.CastRay(raycastInput, out var hit))
+            if (hover.TargetEntity != Entity.Null)
             {
                 var ecb = new EntityCommandBuffer(Allocator.TempJob);
 
@@ -342,18 +371,18 @@ namespace Space4X.Systems.Interaction
                 if (_transformLookup.HasComponent(targetEntity))
                 {
                     var transform = _transformLookup[targetEntity];
-                    transform.Position = hit.Position;
+                    transform.Position = hover.HitPosition;
                     ecb.SetComponent(targetEntity, transform);
                 }
 
-                // Remove HeldByPlayer and MovementSuppressed
+                // Disable HeldByPlayer and MovementSuppressed
                 if (state.EntityManager.HasComponent<HeldByPlayer>(targetEntity))
                 {
-                    ecb.RemoveComponent<HeldByPlayer>(targetEntity);
+                    ecb.SetComponentEnabled<HeldByPlayer>(targetEntity, false);
                 }
                 if (state.EntityManager.HasComponent<MovementSuppressed>(targetEntity))
                 {
-                    ecb.RemoveComponent<MovementSuppressed>(targetEntity);
+                    ecb.SetComponentEnabled<MovementSuppressed>(targetEntity, false);
                 }
 
                 // Zero velocity
@@ -377,6 +406,7 @@ namespace Space4X.Systems.Interaction
             pickupState.LastRaycastPosition = float3.zero;
             pickupState.CursorMovementAccumulator = 0f;
             pickupState.HoldTime = 0f;
+            pickupState.HoldDistance = 0f;
             pickupState.AccumulatedVelocity = float3.zero;
             pickupState.IsMoving = false;
         }

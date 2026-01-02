@@ -6,6 +6,7 @@ using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Space4X.Presentation;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -28,13 +29,17 @@ namespace Space4X.Headless
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const uint DefaultTimeoutTicks = 600;
+        private const uint WarmupTicks = 120;
         private const float PenetrationEpsilon = 0.05f;
+        private static readonly FixedString64Bytes CollisionCarrierId = new FixedString64Bytes("collision-carrier-alpha");
+        private static readonly FixedString64Bytes CollisionAsteroidId = new FixedString64Bytes("collision-asteroid");
         private static readonly FixedString64Bytes CollisionTestId = new FixedString64Bytes("S0.SPACE4X_COLLISION_MICRO");
 
         private byte _enabled;
         private byte _done;
         private byte _bankResolved;
         private byte _bankLogged;
+        private byte _useScenarioFilter;
         private FixedString64Bytes _bankTestId;
         private uint _startTick;
         private uint _timeoutTick;
@@ -93,6 +98,11 @@ namespace Space4X.Headless
                 _timeoutTick = _startTick + DefaultTimeoutTicks;
             }
 
+            if (timeState.Tick - _startTick < WarmupTicks)
+            {
+                return;
+            }
+
             EnsureProfileRadii(ref state);
 
             var hasCarrier = false;
@@ -101,14 +111,24 @@ namespace Space4X.Headless
             var minAllowedSq = minAllowed * minAllowed;
 
             using var asteroidPositions = new NativeList<float3>(Allocator.Temp);
-            foreach (var (_, transform) in SystemAPI.Query<RefRO<Asteroid>, RefRO<LocalTransform>>().WithNone<Prefab>())
+            foreach (var (asteroid, transform) in SystemAPI.Query<RefRO<Asteroid>, RefRO<LocalTransform>>().WithNone<Prefab>())
             {
+                if (_useScenarioFilter != 0 && !asteroid.ValueRO.AsteroidId.Equals(CollisionAsteroidId))
+                {
+                    continue;
+                }
+
                 hasAsteroid = true;
                 asteroidPositions.Add(transform.ValueRO.Position);
             }
 
-            foreach (var (_, transform) in SystemAPI.Query<RefRO<Carrier>, RefRO<LocalTransform>>().WithNone<Prefab>())
+            foreach (var (carrier, transform) in SystemAPI.Query<RefRO<Carrier>, RefRO<LocalTransform>>().WithNone<Prefab>())
             {
+                if (_useScenarioFilter != 0 && !carrier.ValueRO.CarrierId.Equals(CollisionCarrierId))
+                {
+                    continue;
+                }
+
                 hasCarrier = true;
                 var carrierPos = transform.ValueRO.Position;
                 for (int i = 0; i < asteroidPositions.Length; i++)
@@ -146,6 +166,12 @@ namespace Space4X.Headless
             if (!SystemAPI.TryGetSingleton<PhysicsColliderProfileComponent>(out var profileComponent) ||
                 !profileComponent.Profile.IsCreated)
             {
+                if (TryResolveFallbackRadii(ref state, out var fallbackCarrier, out var fallbackAsteroid))
+                {
+                    _carrierRadius = fallbackCarrier;
+                    _asteroidRadius = fallbackAsteroid;
+                    _profileReady = 1;
+                }
                 return;
             }
 
@@ -157,6 +183,12 @@ namespace Space4X.Headless
 
             if (!PhysicsColliderProfileHelpers.TryGetSpec(ref entries, Space4XRenderKeys.Asteroid, out var asteroidSpec))
             {
+                if (TryResolveFallbackRadii(ref state, out var fallbackCarrier, out var fallbackAsteroid))
+                {
+                    _carrierRadius = fallbackCarrier;
+                    _asteroidRadius = fallbackAsteroid;
+                    _profileReady = 1;
+                }
                 return;
             }
 
@@ -164,10 +196,36 @@ namespace Space4X.Headless
             _asteroidRadius = ResolveRadius(asteroidSpec);
             if (_carrierRadius <= 0f || _asteroidRadius <= 0f)
             {
+                if (TryResolveFallbackRadii(ref state, out var fallbackCarrier, out var fallbackAsteroid))
+                {
+                    _carrierRadius = fallbackCarrier;
+                    _asteroidRadius = fallbackAsteroid;
+                    _profileReady = 1;
+                }
                 return;
             }
 
             _profileReady = 1;
+        }
+
+        private bool TryResolveFallbackRadii(ref SystemState state, out float carrierRadius, out float asteroidRadius)
+        {
+            carrierRadius = 0f;
+            asteroidRadius = 0f;
+
+            foreach (var (physical, _) in SystemAPI.Query<RefRO<VesselPhysicalProperties>, RefRO<Carrier>>().WithNone<Prefab>())
+            {
+                carrierRadius = math.max(carrierRadius, physical.ValueRO.Radius);
+                break;
+            }
+
+            foreach (var (volume, _) in SystemAPI.Query<RefRO<Space4XAsteroidVolumeConfig>, RefRO<Asteroid>>().WithNone<Prefab>())
+            {
+                asteroidRadius = math.max(asteroidRadius, volume.ValueRO.Radius);
+                break;
+            }
+
+            return carrierRadius > 0f && asteroidRadius > 0f;
         }
 
         private static float ResolveRadius(in PhysicsColliderSpec spec)
@@ -213,16 +271,18 @@ namespace Space4X.Headless
                 return !_bankTestId.IsEmpty;
             }
 
-            _bankResolved = 1;
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
                 return false;
             }
 
+            _bankResolved = 1;
+            _useScenarioFilter = 0;
             if (scenarioPath.EndsWith(CollisionScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
                 _bankTestId = CollisionTestId;
+                _useScenarioFilter = 1;
                 return true;
             }
 

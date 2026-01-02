@@ -79,6 +79,8 @@ namespace Space4X.Runtime
         public uint TeleportCount;
         public uint StuckCount;
         public uint StateFlipCount;
+        public uint LastIntentChangeTick;
+        public uint LastPlanChangeTick;
         public byte Initialized;
     }
 

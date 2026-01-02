@@ -61,3 +61,6 @@ SourceAssetDB/
 *.mmdb
 *.mmdb.meta
 
+## Backup directories
+Library_backup_*/
+Temp_backup_*/
