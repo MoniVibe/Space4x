@@ -1,6 +1,7 @@
 using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -31,10 +32,13 @@ namespace Space4X.Headless
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
+        private const float MaxAngularSpeedRad = math.PI * 4f;
+        private const float MaxAngularAccelRad = math.PI * 8f;
         private bool _reportedFailure;
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
         private bool _scenarioResolved;
+        private EntityQuery _turnStateMissingQuery;
 
         public void OnCreate(ref SystemState state)
         {
@@ -47,6 +51,11 @@ namespace Space4X.Headless
             state.RequireForUpdate<TimeState>();
 
             ResolveScenarioFlags();
+
+            _turnStateMissingQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<VesselMovement>(),
+                ComponentType.ReadOnly<LocalTransform>(),
+                ComponentType.Exclude<HeadlessTurnRateState>());
         }
 
         public void OnUpdate(ref SystemState state)
@@ -61,7 +70,14 @@ namespace Space4X.Headless
                 ResolveScenarioFlags();
             }
 
-            var tick = SystemAPI.GetSingleton<TimeState>().Tick;
+            if (!_turnStateMissingQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<HeadlessTurnRateState>(_turnStateMissingQuery);
+            }
+
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            var tick = timeState.Tick;
+            var deltaTime = math.max(1e-5f, timeState.FixedDeltaTime);
 
             var maxSpeedDelta = 0f;
             var maxTeleport = 0f;
@@ -76,14 +92,34 @@ namespace Space4X.Headless
             var failTeleport = 0u;
             var failStuck = 0u;
             var failSpike = 0u;
+            var failTurnRate = 0u;
+            var failTurnAccel = 0u;
+            var maxTurnRate = 0f;
+            var maxTurnAccel = 0f;
+            Entity nanOffender = Entity.Null;
+            Entity turnRateOffender = Entity.Null;
+            Entity turnAccelOffender = Entity.Null;
 
-            foreach (var (movement, debug, entity) in SystemAPI.Query<RefRO<VesselMovement>, RefRO<MovementDebugState>>().WithEntityAccess())
+            foreach (var (movement, debug, transform, turnState, entity) in SystemAPI
+                         .Query<RefRO<VesselMovement>, RefRO<MovementDebugState>, RefRO<LocalTransform>, RefRW<HeadlessTurnRateState>>()
+                         .WithEntityAccess())
             {
                 var debugState = debug.ValueRO;
-                if (debugState.NaNInfCount > 0)
+                var velocityNaN = HasNaNOrInf(movement.ValueRO.Velocity);
+                var nanCount = debugState.NaNInfCount;
+                if (velocityNaN && nanCount == 0)
+                {
+                    nanCount = 1;
+                }
+
+                if (nanCount > 0)
                 {
                     anyFailure = true;
-                    failNaN += debugState.NaNInfCount;
+                    failNaN += nanCount;
+                    if (nanOffender == Entity.Null)
+                    {
+                        nanOffender = entity;
+                    }
                 }
 
                 var ignoreTeleport = false;
@@ -219,6 +255,53 @@ namespace Space4X.Headless
                     maxStuck = debugState.StuckCount;
                     stuckOffender = entity;
                 }
+
+                var wantsMove = movement.ValueRO.IsMoving != 0 || math.lengthsq(movement.ValueRO.Velocity) > 0.01f;
+                if (wantsMove)
+                {
+                    var stateValue = turnState.ValueRW;
+                    if (stateValue.Initialized == 0)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = 0f;
+                        stateValue.Initialized = 1;
+                    }
+                    else
+                    {
+                        var dot = math.abs(math.dot(stateValue.LastRotation.value, transform.ValueRO.Rotation.value));
+                        dot = math.clamp(dot, -1f, 1f);
+                        var angle = 2f * math.acos(dot);
+                        var angularSpeed = angle / deltaTime;
+                        var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
+
+                        if (angularSpeed > MaxAngularSpeedRad)
+                        {
+                            anyFailure = true;
+                            failTurnRate++;
+                            if (angularSpeed > maxTurnRate)
+                            {
+                                maxTurnRate = angularSpeed;
+                                turnRateOffender = entity;
+                            }
+                        }
+
+                        if (angularAccel > MaxAngularAccelRad)
+                        {
+                            anyFailure = true;
+                            failTurnAccel++;
+                            if (angularAccel > maxTurnAccel)
+                            {
+                                maxTurnAccel = angularAccel;
+                                turnAccelOffender = entity;
+                            }
+                        }
+
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = angularSpeed;
+                    }
+
+                    turnState.ValueRW = stateValue;
+                }
             }
 
             if (!anyFailure)
@@ -227,17 +310,18 @@ namespace Space4X.Headless
             }
 
             _reportedFailure = true;
-            var fatalFailure = failNaN > 0 || failStuck > 0 || failSpike > 0;
+            var fatalFailure = failNaN > 0 || failStuck > 0 || failSpike > 0 || failTurnRate > 0 || failTurnAccel > 0;
             if (fatalFailure)
             {
-                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike}");
-                LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck);
+                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
+                LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
+                WriteInvariantBundle(ref state, tick, timeState.WorldSeconds, failNaN, failStuck, failSpike, failTurnRate, failTurnAccel, nanOffender, stuckOffender, speedOffender, turnRateOffender, turnAccelOffender);
                 HeadlessExitUtility.Request(state.EntityManager, tick, 2);
                 return;
             }
 
-            UnityDebug.LogWarning($"[Space4XHeadlessMovementDiag] WARN tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike}");
-            LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck);
+            UnityDebug.LogWarning($"[Space4XHeadlessMovementDiag] WARN tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
+            LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
         }
 
         private void ResolveScenarioFlags()
@@ -283,14 +367,76 @@ namespace Space4X.Headless
             }
         }
 
-        private void LogOffenderReport(ref SystemState state, uint tick, Entity speedOffender, Entity teleportOffender, Entity flipsOffender, Entity stuckOffender, float maxSpeedDelta, float maxTeleport, uint maxStateFlips, uint maxStuck)
+        private void WriteInvariantBundle(ref SystemState state, uint tick, float worldSeconds, uint failNaN, uint failStuck, uint failSpike, uint failTurnRate, uint failTurnAccel, Entity nanOffender, Entity stuckOffender, Entity speedOffender, Entity turnRateOffender, Entity turnAccelOffender)
         {
-            UnityDebug.LogError($"[Space4XHeadlessMovementDiag] TopOffenders speedSpike entity={speedOffender.Index} maxDelta={maxSpeedDelta:F3} teleport entity={teleportOffender.Index} maxTeleport={maxTeleport:F3} stateFlips entity={flipsOffender.Index} flips={maxStateFlips} stuck entity={stuckOffender.Index} count={maxStuck}");
+            var code = "Invariant/Movement";
+            var message = "Movement invariant failure.";
+            var offender = Entity.Null;
+
+            if (failNaN > 0)
+            {
+                code = "Invariant/NaNTransform";
+                message = $"NaN/Inf detected in vessel movement at tick {tick}.";
+                offender = nanOffender;
+            }
+            else if (failTurnRate > 0)
+            {
+                code = "Invariant/TurnRate";
+                message = $"Turn rate exceeded at tick {tick}.";
+                offender = turnRateOffender;
+            }
+            else if (failTurnAccel > 0)
+            {
+                code = "Invariant/TurnAccel";
+                message = $"Turn acceleration exceeded at tick {tick}.";
+                offender = turnAccelOffender;
+            }
+            else if (failStuck > 0)
+            {
+                code = "Invariant/MovementStuck";
+                message = $"Movement stuck detected at tick {tick}.";
+                offender = stuckOffender;
+            }
+            else if (failSpike > 0)
+            {
+                code = "Invariant/SpeedSpike";
+                message = $"Speed spike detected at tick {tick}.";
+                offender = speedOffender;
+            }
+
+            var hasEntity = offender != Entity.Null;
+            var hasTransform = hasEntity && SystemAPI.HasComponent<LocalTransform>(offender);
+            var hasMovement = hasEntity && SystemAPI.HasComponent<VesselMovement>(offender);
+            var position = hasTransform ? SystemAPI.GetComponentRO<LocalTransform>(offender).ValueRO.Position : default;
+            var rotation = hasTransform ? SystemAPI.GetComponentRO<LocalTransform>(offender).ValueRO.Rotation : default;
+            var velocity = hasMovement ? SystemAPI.GetComponentRO<VesselMovement>(offender).ValueRO.Velocity : default;
+
+            HeadlessInvariantBundleWriter.TryWriteBundle(
+                state.EntityManager,
+                code,
+                message,
+                tick,
+                worldSeconds,
+                offender,
+                hasEntity,
+                position,
+                hasTransform,
+                velocity,
+                hasMovement,
+                rotation,
+                hasTransform);
+        }
+
+        private void LogOffenderReport(ref SystemState state, uint tick, Entity speedOffender, Entity teleportOffender, Entity flipsOffender, Entity stuckOffender, Entity turnRateOffender, Entity turnAccelOffender, float maxSpeedDelta, float maxTeleport, uint maxStateFlips, uint maxStuck, float maxTurnRate, float maxTurnAccel)
+        {
+            UnityDebug.LogError($"[Space4XHeadlessMovementDiag] TopOffenders speedSpike entity={speedOffender.Index} maxDelta={maxSpeedDelta:F3} teleport entity={teleportOffender.Index} maxTeleport={maxTeleport:F3} stateFlips entity={flipsOffender.Index} flips={maxStateFlips} stuck entity={stuckOffender.Index} count={maxStuck} turnRate entity={turnRateOffender.Index} rate={maxTurnRate:F3} turnAccel entity={turnAccelOffender.Index} accel={maxTurnAccel:F3}");
 
             LogSnapshot(ref state, tick, speedOffender, "speed_spike");
             LogSnapshot(ref state, tick, teleportOffender, "teleport");
             LogSnapshot(ref state, tick, flipsOffender, "state_flips");
             LogSnapshot(ref state, tick, stuckOffender, "stuck");
+            LogSnapshot(ref state, tick, turnRateOffender, "turn_rate");
+            LogSnapshot(ref state, tick, turnAccelOffender, "turn_accel");
         }
 
         private void LogSnapshot(ref SystemState state, uint tick, Entity entity, string label)
@@ -375,6 +521,11 @@ namespace Space4X.Headless
                     UnityDebug.LogError($"[Space4XHeadlessMovementDiag] TraceEvent kind={trace.Kind} tick={trace.Tick} target={trace.Target.Index}");
                 }
             }
+        }
+
+        private static bool HasNaNOrInf(float3 value)
+        {
+            return math.any(math.isnan(value)) || math.any(math.isinf(value));
         }
     }
 }
