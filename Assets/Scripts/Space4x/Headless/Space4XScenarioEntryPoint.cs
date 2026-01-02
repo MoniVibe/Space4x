@@ -13,6 +13,7 @@ namespace Space4X.Headless
         private const string ScenarioArg = "--scenario";
         private const string ReportArg = "--report";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string ReportPathEnv = "SPACE4X_SCENARIO_REPORT_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
@@ -73,6 +74,10 @@ namespace Space4X.Headless
                 if (LooksLikeSpace4XMiningScenarioJson(scenarioPath))
                 {
                     SystemEnv.SetEnvironmentVariable(ScenarioPathEnv, scenarioPath);
+                    if (!string.IsNullOrEmpty(reportPath))
+                    {
+                        SystemEnv.SetEnvironmentVariable(ReportPathEnv, reportPath);
+                    }
                     DisableHeadlessProofsForScenario();
                     if (!string.IsNullOrEmpty(reportPath))
                     {
