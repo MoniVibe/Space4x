@@ -24,6 +24,12 @@ namespace Space4X.Runtime
         public uint LastMoveTick;
     }
 
+    public struct VesselTurnRateState : IComponentData
+    {
+        public float LastAngularSpeed;
+        public byte Initialized;
+    }
+
     /// <summary>
     /// AI state for vessels - tracks targets and goals
     /// </summary>

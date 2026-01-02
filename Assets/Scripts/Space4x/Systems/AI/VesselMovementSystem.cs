@@ -376,7 +376,7 @@ namespace Space4X.Systems.AI
             public float SweepSkin;
             public byte AllowSlide;
 
-            public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, in VesselAIState aiState)
+            public void Execute(Entity entity, ref VesselMovement movement, ref LocalTransform transform, ref VesselTurnRateState turnRateState, in VesselAIState aiState)
             {
                 var debugState = new MovementDebugState();
                 var hasDebug = MovementDebugLookup.HasComponent(entity);
@@ -385,11 +385,18 @@ namespace Space4X.Systems.AI
                     debugState = MovementDebugLookup[entity];
                 }
 
+                if (turnRateState.Initialized == 0)
+                {
+                    turnRateState.Initialized = 1;
+                    turnRateState.LastAngularSpeed = 0f;
+                }
+
                 if (!IsFinite(transform.Position) || !IsFinite(transform.Rotation.value) || !IsFinite(movement.Velocity))
                 {
                     movement.Velocity = float3.zero;
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
+                    turnRateState.LastAngularSpeed = 0f;
                     if (hasDebug)
                     {
                         debugState.NaNInfCount += 1;
@@ -407,6 +414,7 @@ namespace Space4X.Systems.AI
                         movement.Velocity = float3.zero;
                         movement.CurrentSpeed = 0f;
                         movement.IsMoving = 0;
+                        turnRateState.LastAngularSpeed = 0f;
                         return;
                     }
                 }
@@ -417,6 +425,7 @@ namespace Space4X.Systems.AI
                     movement.Velocity = float3.zero;
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
+                    turnRateState.LastAngularSpeed = 0f;
                     UpdateDecisionTrace(entity, DecisionReasonCode.MiningHold, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
                 }
@@ -430,6 +439,7 @@ namespace Space4X.Systems.AI
                     movement.Velocity = float3.zero;
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
+                    turnRateState.LastAngularSpeed = 0f;
                     UpdateDecisionTrace(entity, DecisionReasonCode.NoTarget, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
                 }
@@ -551,6 +561,7 @@ namespace Space4X.Systems.AI
                     movement.Velocity = float3.zero;
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
+                    turnRateState.LastAngularSpeed = 0f;
                     UpdateMoveIntent(entity, aiState.TargetEntity, targetPosition, MoveIntentType.Hold, ref debugState, hasDebug);
                     UpdateMovePlan(entity, MovePlanMode.Arrive, float3.zero, 0f, 0f, ref debugState, hasDebug);
                     UpdateDecisionTrace(entity, DecisionReasonCode.Arrived, aiState.TargetEntity, 1f, Entity.Null, ref debugState, hasDebug);
@@ -865,8 +876,26 @@ namespace Space4X.Systems.AI
                     {
                         movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
                         var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
-                        transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, DeltaTime * turnSpeed * rotationMultiplier);
+                        var dt = math.max(DeltaTime, 1e-4f);
+                        var maxAngularSpeed = math.PI * 4f;
+                        var maxAngularAccel = math.PI * 8f;
+                        var desiredSpeed = math.min(maxAngularSpeed, angle * turnSpeed * rotationMultiplier);
+                        desiredSpeed = math.min(desiredSpeed, angle / dt);
+                        var maxDeltaSpeed = maxAngularAccel * dt;
+                        var angularSpeed = math.clamp(desiredSpeed, turnRateState.LastAngularSpeed - maxDeltaSpeed, turnRateState.LastAngularSpeed + maxDeltaSpeed);
+                        var stepAngle = angularSpeed * dt;
+                        var stepT = stepAngle >= angle ? 1f : math.saturate(stepAngle / angle);
+                        transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, stepT);
+                        turnRateState.LastAngularSpeed = angularSpeed;
                     }
+                    else
+                    {
+                        turnRateState.LastAngularSpeed = 0f;
+                    }
+                }
+                else
+                {
+                    turnRateState.LastAngularSpeed = 0f;
                 }
 
                 movement.IsMoving = 1;
@@ -1474,6 +1503,15 @@ namespace Space4X.Systems.AI
             if (!debugStateQuery.IsEmptyIgnoreFilter)
             {
                 state.EntityManager.AddComponent<MovementDebugState>(debugStateQuery);
+            }
+
+            var turnRateQuery = SystemAPI.QueryBuilder()
+                .WithAll<VesselMovement>()
+                .WithNone<VesselTurnRateState>()
+                .Build();
+            if (!turnRateQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<VesselTurnRateState>(turnRateQuery);
             }
 
             var traceBufferQuery = SystemAPI.QueryBuilder()
