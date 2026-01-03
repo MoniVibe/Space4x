@@ -31,7 +31,7 @@ namespace Space4X.Headless
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
-        private const uint TeleportFailureThreshold = 1;
+        private const uint TeleportFailureThreshold = 2;
         private const float MaxAngularSpeedRad = math.PI * 4f;
         private const float MaxAngularAccelRad = math.PI * 8f;
         private bool _reportedFailure;
