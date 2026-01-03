@@ -69,15 +69,16 @@ namespace Space4X.Headless
                     Directory.CreateDirectory(dir);
             }
 
+            SystemEnv.SetEnvironmentVariable(ScenarioPathEnv, scenarioPath);
+            if (!string.IsNullOrEmpty(reportPath))
+            {
+                SystemEnv.SetEnvironmentVariable(ReportPathEnv, reportPath);
+            }
+
             try
             {
                 if (LooksLikeSpace4XMiningScenarioJson(scenarioPath))
                 {
-                    SystemEnv.SetEnvironmentVariable(ScenarioPathEnv, scenarioPath);
-                    if (!string.IsNullOrEmpty(reportPath))
-                    {
-                        SystemEnv.SetEnvironmentVariable(ReportPathEnv, reportPath);
-                    }
                     DisableHeadlessProofsForScenario();
                     if (!string.IsNullOrEmpty(reportPath))
                     {
