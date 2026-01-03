@@ -334,6 +334,10 @@ namespace Space4X.Headless
             }
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
+                scenarioPath = TryGetScenarioArg();
+            }
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
                 return;
             }
 
@@ -370,6 +374,37 @@ namespace Space4X.Headless
                 // Refit/research focus on module loops; ignore stuck spikes to keep telemetry flowing.
                 _ignoreStuckFailures = true;
             }
+        }
+
+        private static string TryGetScenarioArg()
+        {
+            var args = SystemEnv.GetCommandLineArgs();
+            if (args == null || args.Length == 0)
+            {
+                return null;
+            }
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                var arg = args[i];
+                if (string.IsNullOrWhiteSpace(arg))
+                {
+                    continue;
+                }
+
+                if (arg.Equals("--scenario", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    return args[i + 1];
+                }
+
+                const string prefix = "--scenario=";
+                if (arg.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return arg.Substring(prefix.Length);
+                }
+            }
+
+            return null;
         }
 
         private void WriteInvariantBundle(ref SystemState state, uint tick, float worldSeconds, uint failNaN, uint failStuck, uint failSpike, uint failTurnRate, uint failTurnAccel, Entity nanOffender, Entity stuckOffender, Entity speedOffender, Entity turnRateOffender, Entity turnAccelOffender)
