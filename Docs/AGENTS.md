@@ -11,3 +11,5 @@
 - Ownership boundary: keep `Assets/` + `.meta` changes on Windows; keep PureDOTS/logic changes on WSL to avoid GUID/PPtr churn.
 - Keep `Packages/manifest.json` and `Packages/packages-lock.json` synced across clones when logic changes so headless/editor compile against the same dependencies.
 - WSL is case-sensitive; fix casing mismatches that Windows may tolerate.
+
+Headless automation is driven by `Docs/Headless/*.md` and the ops bus protocol (`../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`); do not invent ad-hoc comms or side channels.
