@@ -18,7 +18,6 @@ namespace Space4X.Headless
     /// Headless-only diagnostics for movement invariants and trace snapshots.
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4X.Systems.AI.VesselMovementSystem))]
     public partial struct Space4XHeadlessMovementDiagnosticsSystem : ISystem
     {
         private const uint TraceWindowTicks = 300;
