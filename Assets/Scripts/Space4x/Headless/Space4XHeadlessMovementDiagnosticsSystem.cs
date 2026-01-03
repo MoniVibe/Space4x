@@ -329,6 +329,11 @@ namespace Space4X.Headless
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
+                // Fall back to the generic runner env var used by headless scripts.
+                scenarioPath = SystemEnv.GetEnvironmentVariable("SCENARIO_PATH");
+            }
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
                 return;
             }
 
