@@ -130,7 +130,7 @@ namespace Space4X.Headless
                         ignoreTeleport = true;
                     }
 
-                    if (SystemAPI.HasComponent<MiningState>(entity))
+                    if (!ignoreTeleport && SystemAPI.HasComponent<MiningState>(entity))
                     {
                         var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
                         ignoreTeleport = phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
