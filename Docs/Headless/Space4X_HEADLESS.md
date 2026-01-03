@@ -28,7 +28,7 @@
 
 ## Nightly Ops Bus + Rebuild Handshake
 - `TRI_STATE_DIR` (recommended): `/home/oni/Tri/.tri/state` (WSL) and `\\wsl$\Ubuntu\home\oni\Tri\.tri\state` (Windows).
-- Ops layout: `ops/heartbeats`, `ops/requests`, `ops/claims`, `ops/results`, `ops/locks` (see `../../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`).
+- Ops layout: `ops/heartbeats`, `ops/requests`, `ops/claims`, `ops/results`, `ops/locks` (see `https://github.com/MoniVibe/PureDOTS/blob/main/Docs/Headless/OPS_BUS_PROTOCOL.md`).
 - Lock rule: WSL runners must not execute players while `ops/locks/build.lock` exists and the lease is valid.
 - Rebuild flow: request -> claim -> lock -> rebuild/publish -> result -> unlock.
 - Reports/logs: written under `TRI_STATE_DIR/runs/YYYY-MM-DD/`.
@@ -36,7 +36,7 @@
 ## Headless/Test Conventions
 - Player args: `-batchmode -nographics -logFile <path>`
 - Scenario args: `--scenario <scenario.json> --report <report.json>`
-- Test Runner CLI: `-runTests -testPlatform editmode|playmode -testResults <xml>`
+- Test Runner CLI (licensed build lane only): `-runTests -testPlatform editmode|playmode -testResults <xml>`
 - Exit codes: `0` success, nonzero failure
 - Tests compile only when `UNITY_INCLUDE_TESTS` is enabled.
 - Resource/config assets required for headless builds must be validated in the PS build step.
