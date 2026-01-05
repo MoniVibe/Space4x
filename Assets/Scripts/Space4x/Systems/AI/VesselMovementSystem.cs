@@ -879,10 +879,10 @@ namespace Space4X.Systems.AI
                         var dt = math.max(DeltaTime, 1e-4f);
                         var maxAngularSpeed = math.PI * 4f;
                         var maxAngularAccel = math.PI * 8f;
-                        var desiredSpeed = math.min(maxAngularSpeed, angle * turnSpeed * rotationMultiplier);
-                        desiredSpeed = math.min(desiredSpeed, angle / dt);
+                        var desiredAngularSpeed = math.min(maxAngularSpeed, angle * turnSpeed * rotationMultiplier);
+                        desiredAngularSpeed = math.min(desiredAngularSpeed, angle / dt);
                         var maxDeltaSpeed = maxAngularAccel * dt;
-                        var angularSpeed = math.clamp(desiredSpeed, turnRateState.LastAngularSpeed - maxDeltaSpeed, turnRateState.LastAngularSpeed + maxDeltaSpeed);
+                        var angularSpeed = math.clamp(desiredAngularSpeed, turnRateState.LastAngularSpeed - maxDeltaSpeed, turnRateState.LastAngularSpeed + maxDeltaSpeed);
                         var stepAngle = angularSpeed * dt;
                         var stepT = stepAngle >= angle ? 1f : math.saturate(stepAngle / angle);
                         transform.Rotation = math.slerp(transform.Rotation, movement.DesiredRotation, stepT);
