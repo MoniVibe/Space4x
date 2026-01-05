@@ -22,10 +22,13 @@ namespace Space4X.Headless
     public partial struct Space4XHeadlessMovementDiagnosticsSystem : ISystem
     {
         private const uint TraceWindowTicks = 300;
-        private const uint StuckFailureThreshold = 2;
+        private const uint DefaultStuckWarnThreshold = 2;
+        private const uint DefaultStuckFailThreshold = 6;
         private const float MiningApproachTeleportDistance = 3f;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string ScenarioSourcePathEnv = "SPACE4X_SCENARIO_SOURCE_PATH";
+        private const string StuckWarnThresholdEnv = "SPACE4X_HEADLESS_STUCK_WARN_THRESHOLD";
+        private const string StuckFailThresholdEnv = "SPACE4X_HEADLESS_STUCK_FAIL_THRESHOLD";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
@@ -39,6 +42,8 @@ namespace Space4X.Headless
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
         private bool _scenarioResolved;
+        private uint _stuckWarnThreshold;
+        private uint _stuckFailThreshold;
         private EntityQuery _turnStateMissingQuery;
 
         public void OnCreate(ref SystemState state)
@@ -52,6 +57,7 @@ namespace Space4X.Headless
             state.RequireForUpdate<TimeState>();
 
             ResolveScenarioFlags();
+            ResolveStuckThresholds();
 
             _turnStateMissingQuery = state.GetEntityQuery(
                 ComponentType.ReadOnly<VesselMovement>(),
@@ -92,6 +98,7 @@ namespace Space4X.Headless
             var failNaN = 0u;
             var failTeleport = 0u;
             var failStuck = 0u;
+            var fatalStuck = 0u;
             var failSpike = 0u;
             var failTurnRate = 0u;
             var failTurnAccel = 0u;
@@ -219,10 +226,14 @@ namespace Space4X.Headless
                     }
                 }
 
-                if (debugState.StuckCount > StuckFailureThreshold && !ignoreStuck)
+                if (debugState.StuckCount > _stuckWarnThreshold && !ignoreStuck)
                 {
                     anyFailure = true;
                     failStuck += debugState.StuckCount;
+                    if (debugState.StuckCount > _stuckFailThreshold)
+                    {
+                        fatalStuck += debugState.StuckCount;
+                    }
                 }
 
                 var baseSpeed = math.max(0.1f, movement.ValueRO.BaseSpeed);
@@ -311,18 +322,28 @@ namespace Space4X.Headless
             }
 
             _reportedFailure = true;
-            var fatalFailure = failNaN > 0 || failStuck > 0 || failSpike > 0 || failTurnRate > 0 || failTurnAccel > 0;
+            var fatalFailure = failNaN > 0 || fatalStuck > 0 || failSpike > 0 || failTurnRate > 0 || failTurnAccel > 0;
             if (fatalFailure)
             {
-                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
+                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
                 LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
-                WriteInvariantBundle(ref state, tick, timeState.WorldSeconds, failNaN, failStuck, failSpike, failTurnRate, failTurnAccel, nanOffender, stuckOffender, speedOffender, turnRateOffender, turnAccelOffender);
+                WriteInvariantBundle(ref state, tick, timeState.WorldSeconds, failNaN, fatalStuck, failSpike, failTurnRate, failTurnAccel, nanOffender, stuckOffender, speedOffender, turnRateOffender, turnAccelOffender);
                 HeadlessExitUtility.Request(state.EntityManager, tick, 2);
                 return;
             }
 
-            UnityDebug.LogWarning($"[Space4XHeadlessMovementDiag] WARN tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
+            UnityDebug.LogWarning($"[Space4XHeadlessMovementDiag] WARN tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
             LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
+        }
+
+        private void ResolveStuckThresholds()
+        {
+            _stuckWarnThreshold = ReadUIntEnv(StuckWarnThresholdEnv, DefaultStuckWarnThreshold);
+            _stuckFailThreshold = ReadUIntEnv(StuckFailThresholdEnv, DefaultStuckFailThreshold);
+            if (_stuckFailThreshold < _stuckWarnThreshold)
+            {
+                _stuckFailThreshold = _stuckWarnThreshold;
+            }
         }
 
         private void ResolveScenarioFlags()
@@ -531,6 +552,17 @@ namespace Space4X.Headless
         private static bool HasNaNOrInf(float3 value)
         {
             return math.any(math.isnan(value)) || math.any(math.isinf(value));
+        }
+
+        private static uint ReadUIntEnv(string key, uint defaultValue)
+        {
+            var raw = SystemEnv.GetEnvironmentVariable(key);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return defaultValue;
+            }
+
+            return uint.TryParse(raw, out var parsed) ? parsed : defaultValue;
         }
     }
 }
