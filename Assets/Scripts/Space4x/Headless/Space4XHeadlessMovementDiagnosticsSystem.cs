@@ -25,6 +25,7 @@ namespace Space4X.Headless
         private const uint StuckFailureThreshold = 2;
         private const float MiningApproachTeleportDistance = 3f;
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string ScenarioSourcePathEnv = "SPACE4X_SCENARIO_SOURCE_PATH";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
@@ -326,7 +327,11 @@ namespace Space4X.Headless
 
         private void ResolveScenarioFlags()
         {
-            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioSourcePathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            }
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
                 return;
