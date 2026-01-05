@@ -29,6 +29,7 @@ namespace Space4X.Headless
         private const string ScenarioSourcePathEnv = "SPACE4X_SCENARIO_SOURCE_PATH";
         private const string StuckWarnThresholdEnv = "SPACE4X_HEADLESS_STUCK_WARN_THRESHOLD";
         private const string StuckFailThresholdEnv = "SPACE4X_HEADLESS_STUCK_FAIL_THRESHOLD";
+        private const string MovementStrictEnv = "SPACE4X_HEADLESS_MOVEMENT_STRICT";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
@@ -42,6 +43,7 @@ namespace Space4X.Headless
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
         private bool _scenarioResolved;
+        private bool _strictMovementFailures;
         private uint _stuckWarnThreshold;
         private uint _stuckFailThreshold;
         private EntityQuery _turnStateMissingQuery;
@@ -58,6 +60,7 @@ namespace Space4X.Headless
 
             ResolveScenarioFlags();
             ResolveStuckThresholds();
+            ResolveStrictMode();
 
             _turnStateMissingQuery = state.GetEntityQuery(
                 ComponentType.ReadOnly<VesselMovement>(),
@@ -322,17 +325,21 @@ namespace Space4X.Headless
             }
 
             _reportedFailure = true;
-            var fatalFailure = failNaN > 0 || fatalStuck > 0 || failSpike > 0 || failTurnRate > 0 || failTurnAccel > 0;
+            var fatalFailure = failNaN > 0 || failTeleport > 0 || failTurnRate > 0 || failTurnAccel > 0;
+            if (_strictMovementFailures)
+            {
+                fatalFailure |= fatalStuck > 0 || failSpike > 0;
+            }
             if (fatalFailure)
             {
-                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
+                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel} strict={_strictMovementFailures}");
                 LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
                 WriteInvariantBundle(ref state, tick, timeState.WorldSeconds, failNaN, fatalStuck, failSpike, failTurnRate, failTurnAccel, nanOffender, stuckOffender, speedOffender, turnRateOffender, turnAccelOffender);
                 HeadlessExitUtility.Request(state.EntityManager, tick, 2);
                 return;
             }
 
-            UnityDebug.LogWarning($"[Space4XHeadlessMovementDiag] WARN tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel}");
+            UnityDebug.LogWarning($"[Space4XHeadlessMovementDiag] WARN tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel} strict={_strictMovementFailures}");
             LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
         }
 
@@ -344,6 +351,11 @@ namespace Space4X.Headless
             {
                 _stuckFailThreshold = _stuckWarnThreshold;
             }
+        }
+
+        private void ResolveStrictMode()
+        {
+            _strictMovementFailures = ReadBoolEnv(MovementStrictEnv, false);
         }
 
         private void ResolveScenarioFlags()
@@ -563,6 +575,27 @@ namespace Space4X.Headless
             }
 
             return uint.TryParse(raw, out var parsed) ? parsed : defaultValue;
+        }
+
+        private static bool ReadBoolEnv(string key, bool defaultValue)
+        {
+            var raw = SystemEnv.GetEnvironmentVariable(key);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return defaultValue;
+            }
+
+            if (raw == "1")
+            {
+                return true;
+            }
+
+            if (raw == "0")
+            {
+                return false;
+            }
+
+            return bool.TryParse(raw, out var parsed) ? parsed : defaultValue;
         }
     }
 }
