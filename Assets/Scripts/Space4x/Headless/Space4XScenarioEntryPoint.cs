@@ -48,6 +48,12 @@ namespace Space4X.Headless
             if (s_executed || !Application.isBatchMode)
                 return;
 
+            Space4XHeadlessDiagnostics.InitializeFromArgs();
+            if (Space4XHeadlessDiagnostics.Enabled)
+            {
+                Space4XHeadlessDiagnostics.UpdateProgress("bootstrap", "entrypoint", 0);
+            }
+
             if (!TryGetArgument(ScenarioArg, out var scenarioArg))
                 return;
 
@@ -79,7 +85,7 @@ namespace Space4X.Headless
                         SystemEnv.SetEnvironmentVariable(ReportPathEnv, reportPath);
                     }
                     DisableHeadlessProofsForScenario();
-                    if (!string.IsNullOrEmpty(reportPath))
+                    if (!Space4XHeadlessDiagnostics.Enabled && !string.IsNullOrEmpty(reportPath))
                     {
                         EnsureTelemetryPathDerivedFromReport(reportPath);
                     }
@@ -93,15 +99,25 @@ namespace Space4X.Headless
                 LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
                 var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
-                if (result.PerformanceBudgetFailed)
+                var exitCode = 0;
+                var invariantFail = ScenarioExitUtility.ShouldExitNonZero(result, out _);
+                if (invariantFail)
+                {
+                    exitCode = Space4XHeadlessDiagnostics.TestFailExitCode;
+                }
+                else if (result.PerformanceBudgetFailed)
                 {
                     UnityDebug.LogError($"[ScenarioEntryPoint] Performance budget failure ({result.PerformanceBudgetMetric}) at tick {result.PerformanceBudgetTick}: value={result.PerformanceBudgetValue:F2}, budget={result.PerformanceBudgetLimit:F2}");
-                    Quit(string.Equals(SystemEnv.GetEnvironmentVariable(FailOnBudgetEnv), "1", StringComparison.OrdinalIgnoreCase) ? 2 : 0);
+                    exitCode = string.Equals(SystemEnv.GetEnvironmentVariable(FailOnBudgetEnv), "1", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
                 }
-                else
+
+                if (Space4XHeadlessDiagnostics.Enabled)
                 {
-                    Quit(0);
+                    Space4XHeadlessDiagnostics.UpdateProgress("complete", "scenario_runner", (uint)result.RunTicks);
+                    Space4XHeadlessDiagnostics.WriteScenarioRunnerInvariants(result, exitCode);
+                    Space4XHeadlessDiagnostics.ShutdownWriter();
                 }
+                Quit(exitCode);
             }
             catch (Exception ex)
             {

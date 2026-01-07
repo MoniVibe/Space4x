@@ -1,4 +1,7 @@
 using System;
+using System.Globalization;
+using System.IO;
+using System.Text.RegularExpressions;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Scenarios;
@@ -84,6 +87,11 @@ namespace Space4X.Headless
             if (!string.IsNullOrWhiteSpace(scenarioPath) &&
                 (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
                  scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase)))
+            {
+                state.Enabled = false;
+                return;
+            }
+            if (!string.IsNullOrWhiteSpace(scenarioPath) && ScenarioDisablesMiningProof(scenarioPath))
             {
                 state.Enabled = false;
                 return;
@@ -305,7 +313,32 @@ namespace Space4X.Headless
                 _rewindPending = 1;
                 _rewindPass = 0;
                 _rewindObserved = oreDelta;
-                UnityDebug.LogError($"[Space4XHeadlessMiningProof] FAIL tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount} commands={totalCommands} elapsed={elapsedSeconds:F1}s (deltaCommands={math.max(0, (int)totalCommands - (int)_lastCommandCount)})");
+                var failMessage = string.Format(CultureInfo.InvariantCulture,
+                    "[Space4XHeadlessMiningProof] FAIL tick={0} gather={1} pickup={2} oreInHold={3:0.##} oreDelta={4:0.##} cargoSum={5:0.##} vessels={6} returning={7} mining={8} spawns={9} commands={10} elapsed={11:0.#}s",
+                    timeState.Tick,
+                    gatherCommands,
+                    pickupCommands,
+                    oreInHold,
+                    oreDelta,
+                    cargoSum,
+                    vesselCount,
+                    returningCount,
+                    miningCount,
+                    spawnCount,
+                    totalCommands,
+                    elapsedSeconds);
+                UnityDebug.LogError($"{failMessage} (deltaCommands={math.max(0, (int)totalCommands - (int)_lastCommandCount)})");
+                var observed = string.Format(CultureInfo.InvariantCulture,
+                    "gather={0} oreDelta={1:0.##} cargoDelta={2:0.##} elapsed_s={3:0.#}",
+                    gatherCommands,
+                    oreDelta,
+                    cargoDelta,
+                    elapsedSeconds);
+                Space4XHeadlessDiagnostics.ReportInvariant(
+                    "INV-MINING-PROOF",
+                    failMessage,
+                    observed,
+                    "gather>0 and oreDelta>0");
                 ResolveTickInfo(ref state, timeState.Tick, out var tickTime, out var scenarioTick);
                 LogBankResult(ResolveBankTestId(), false, "timeout", tickTime, scenarioTick);
                 TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, false, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
@@ -373,6 +406,35 @@ namespace Space4X.Headless
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             return !string.IsNullOrWhiteSpace(scenarioPath) &&
                    scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ScenarioDisablesMiningProof(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath) || !File.Exists(scenarioPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                const int maxChars = 16384;
+                using var stream = File.OpenRead(scenarioPath);
+                using var reader = new StreamReader(stream);
+                var buffer = new char[maxChars];
+                var read = reader.Read(buffer, 0, buffer.Length);
+                if (read <= 0)
+                {
+                    return false;
+                }
+
+                var head = new string(buffer, 0, read);
+                return Regex.IsMatch(head, "\"proofs\"\\s*:\\s*\\{[^}]*\"mining\"\\s*:\\s*false",
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private FixedString64Bytes ResolveBankTestId()

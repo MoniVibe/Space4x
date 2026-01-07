@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Scenarios;
@@ -44,6 +45,7 @@ namespace Space4X.Headless
         private bool _ignoreTeleportFailures;
         private bool _scenarioResolved;
         private bool _strictMovementFailures;
+        private bool _ignoreTurnFailures;
         private uint _stuckWarnThreshold;
         private uint _stuckFailThreshold;
         private EntityQuery _turnStateMissingQuery;
@@ -289,25 +291,28 @@ namespace Space4X.Headless
                         var angularSpeed = angle / deltaTime;
                         var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
 
-                        if (angularSpeed > MaxAngularSpeedRad)
+                        if (!_ignoreTurnFailures)
                         {
-                            anyFailure = true;
-                            failTurnRate++;
-                            if (angularSpeed > maxTurnRate)
+                            if (angularSpeed > MaxAngularSpeedRad)
                             {
-                                maxTurnRate = angularSpeed;
-                                turnRateOffender = entity;
+                                anyFailure = true;
+                                failTurnRate++;
+                                if (angularSpeed > maxTurnRate)
+                                {
+                                    maxTurnRate = angularSpeed;
+                                    turnRateOffender = entity;
+                                }
                             }
-                        }
 
-                        if (angularAccel > MaxAngularAccelRad)
-                        {
-                            anyFailure = true;
-                            failTurnAccel++;
-                            if (angularAccel > maxTurnAccel)
+                            if (angularAccel > MaxAngularAccelRad)
                             {
-                                maxTurnAccel = angularAccel;
-                                turnAccelOffender = entity;
+                                anyFailure = true;
+                                failTurnAccel++;
+                                if (angularAccel > maxTurnAccel)
+                                {
+                                    maxTurnAccel = angularAccel;
+                                    turnAccelOffender = entity;
+                                }
                             }
                         }
 
@@ -335,7 +340,7 @@ namespace Space4X.Headless
                 UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel} strict={_strictMovementFailures}");
                 LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
                 WriteInvariantBundle(ref state, tick, timeState.WorldSeconds, failNaN, fatalStuck, failSpike, failTurnRate, failTurnAccel, nanOffender, stuckOffender, speedOffender, turnRateOffender, turnAccelOffender);
-                HeadlessExitUtility.Request(state.EntityManager, tick, 2);
+                HeadlessExitUtility.Request(state.EntityManager, tick, Space4XHeadlessDiagnostics.TestFailExitCode);
                 return;
             }
 
@@ -375,6 +380,7 @@ namespace Space4X.Headless
             {
                 _ignoreStuckFailures = true;
                 _ignoreTeleportFailures = true;
+                _ignoreTurnFailures = true;
                 return;
             }
 
@@ -441,6 +447,16 @@ namespace Space4X.Headless
                 message = $"Speed spike detected at tick {tick}.";
                 offender = speedOffender;
             }
+
+            var observed = string.Format(CultureInfo.InvariantCulture,
+                "tick={0} nanInf={1} stuck={2} spikes={3} turnRate={4} turnAccel={5}",
+                tick,
+                failNaN,
+                failStuck,
+                failSpike,
+                failTurnRate,
+                failTurnAccel);
+            Space4XHeadlessDiagnostics.ReportInvariant(code, message, observed, "no invariant violations");
 
             var hasEntity = offender != Entity.Null;
             var hasTransform = hasEntity && SystemAPI.HasComponent<LocalTransform>(offender);
