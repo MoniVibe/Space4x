@@ -38,9 +38,9 @@ namespace Space4X.Headless.Editor
         /// Creates a StandaloneLinux64 server build with bundled scenarios.
         /// Can be invoked via -executeMethod Space4X.Headless.Editor.Space4XHeadlessBuilder.BuildLinuxHeadless
         /// </summary>
-        public static void BuildLinuxHeadless() => BuildLinuxHeadless(DefaultOutputFolder);
+        public static BuildReport BuildLinuxHeadless() => BuildLinuxHeadless(DefaultOutputFolder);
 
-        public static void BuildLinuxHeadless(string outputDirectory)
+        public static BuildReport BuildLinuxHeadless(string outputDirectory)
         {
             var absoluteOutput = ResolveOutputDirectory(outputDirectory);
             UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] START BUILD {DateTime.UtcNow:O}");
@@ -66,7 +66,7 @@ namespace Space4X.Headless.Editor
                     target = BuildTarget.StandaloneLinux64,
                     targetGroup = BuildTargetGroup.Standalone,
                     subtarget = (int)StandaloneBuildSubtarget.Server,
-                    options = BuildOptions.StrictMode
+                    options = BuildOptions.StrictMode | BuildOptions.EnableHeadlessMode | BuildOptions.DetailedBuildReport
                 };
 
                 report = BuildPipeline.BuildPlayer(buildPlayerOptions);
@@ -99,6 +99,13 @@ namespace Space4X.Headless.Editor
             {
                 UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Editor log snapshot: {editorLogSnapshotPath}");
             }
+
+            if (report == null)
+            {
+                throw new BuildFailedException("Space4X headless build did not produce a BuildReport.");
+            }
+
+            return report;
         }
 
         private sealed class BuildSettingsSceneScope : IDisposable
