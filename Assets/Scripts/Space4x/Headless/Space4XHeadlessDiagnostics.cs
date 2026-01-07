@@ -10,6 +10,7 @@ using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Scenarios;
+using Space4x.Scenario;
 using Unity.Entities;
 using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
@@ -44,6 +45,7 @@ namespace Space4X.Headless
         private static string s_lastCheckpoint = string.Empty;
         private static uint s_lastProgressTick;
         private static uint s_simTicks;
+        private static uint s_expectedSimTicks;
         private static int s_entityCountPeak;
         private static long s_allocBytesPeak;
         private static float s_avgDtMs;
@@ -143,6 +145,7 @@ namespace Space4X.Headless
             }
 
             s_simTicks = tick;
+            TryCaptureExpectedSimTicks(entityManager);
             if (fixedDeltaTime > 0f)
             {
                 s_avgDtMs = fixedDeltaTime * 1000f;
@@ -232,6 +235,7 @@ namespace Space4X.Headless
             }
 
             var simTicks = s_simTicks != 0 ? s_simTicks : fallbackTick;
+            var expectedSimTicks = ResolveExpectedSimTicks(entityManager, simTicks);
             var invariants = new List<InvariantRecord>(s_invariants);
             if (exitCode != 0 && invariants.Count == 0)
             {
@@ -250,6 +254,7 @@ namespace Space4X.Headless
                 scenarioId,
                 seed,
                 simTicks,
+                expectedSimTicks,
                 s_entityCountPeak,
                 s_allocBytesPeak,
                 s_avgDtMs,
@@ -269,6 +274,7 @@ namespace Space4X.Headless
             var scenarioId = string.IsNullOrWhiteSpace(result.ScenarioId) ? ScenarioIdOverride : result.ScenarioId;
             var seed = result.Seed != 0 ? result.Seed : SeedOverride;
             var simTicks = result.RunTicks > 0 ? (uint)result.RunTicks : s_simTicks;
+            var expectedSimTicks = s_expectedSimTicks != 0 ? s_expectedSimTicks : simTicks;
             var avgDtMs = s_avgDtMs > 0f ? s_avgDtMs : 1000f / 60f;
             var invariants = new List<InvariantRecord>();
 
@@ -333,6 +339,7 @@ namespace Space4X.Headless
                 scenarioId,
                 seed,
                 simTicks,
+                expectedSimTicks,
                 0,
                 0,
                 avgDtMs,
@@ -510,6 +517,7 @@ namespace Space4X.Headless
             string scenarioId,
             uint seed,
             uint simTicks,
+            uint expectedSimTicks,
             int entityCountPeak,
             long allocBytesPeak,
             float avgDtMs,
@@ -523,7 +531,7 @@ namespace Space4X.Headless
             var buildId = string.IsNullOrWhiteSpace(BuildId) ? "unknown" : BuildId;
             var commit = string.IsNullOrWhiteSpace(Commit) ? "unknown" : Commit;
             var scenario = string.IsNullOrWhiteSpace(scenarioId) ? "unknown" : scenarioId;
-            var determinismHash = ComputeDeterminismHash(scenario, seed, simTicks,
+            var determinismHash = ComputeDeterminismHash(scenario, seed, expectedSimTicks,
                 allocBytesPeak, avgDtMs, invariants);
 
             var sb = new StringBuilder(512);
@@ -534,6 +542,7 @@ namespace Space4X.Headless
             AppendString(sb, "scenario_id", scenario); sb.Append(',');
             AppendUInt(sb, "seed", seed); sb.Append(',');
             AppendUInt(sb, "sim_ticks", simTicks); sb.Append(',');
+            AppendUInt(sb, "expected_sim_ticks", expectedSimTicks); sb.Append(',');
 
             sb.Append("\"metrics\":{");
             AppendLong(sb, "alloc_bytes_peak", allocBytesPeak, prependComma: false); sb.Append(',');
@@ -582,7 +591,7 @@ namespace Space4X.Headless
         private static string ComputeDeterminismHash(
             string scenarioId,
             uint seed,
-            uint simTicks,
+            uint expectedSimTicks,
             long allocBytesPeak,
             float avgDtMs,
             List<InvariantRecord> invariants)
@@ -590,7 +599,7 @@ namespace Space4X.Headless
             var sb = new StringBuilder(256);
             sb.Append("scenario_id=").Append(scenarioId).Append('\n');
             sb.Append("seed=").Append(seed).Append('\n');
-            sb.Append("sim_ticks=").Append(simTicks).Append('\n');
+            sb.Append("sim_ticks=").Append(expectedSimTicks).Append('\n');
             sb.Append("alloc_bytes_peak=").Append(allocBytesPeak).Append('\n');
             sb.Append("avg_dt_ms=").Append(FormatFloat(avgDtMs)).Append('\n');
             for (int i = 0; i < invariants.Count; i++)
@@ -635,6 +644,51 @@ namespace Space4X.Headless
             var trimmed = scenarioArg.Trim('"');
             var fileName = Path.GetFileNameWithoutExtension(trimmed);
             return string.IsNullOrWhiteSpace(fileName) ? trimmed : fileName;
+        }
+
+        private static void TryCaptureExpectedSimTicks(EntityManager entityManager)
+        {
+            if (s_expectedSimTicks != 0)
+            {
+                return;
+            }
+
+            if (TryGetExpectedSimTicks(entityManager, out var expectedSimTicks))
+            {
+                s_expectedSimTicks = expectedSimTicks;
+            }
+        }
+
+        private static uint ResolveExpectedSimTicks(EntityManager entityManager, uint observedSimTicks)
+        {
+            TryCaptureExpectedSimTicks(entityManager);
+            return s_expectedSimTicks != 0 ? s_expectedSimTicks : observedSimTicks;
+        }
+
+        private static bool TryGetExpectedSimTicks(EntityManager entityManager, out uint expectedSimTicks)
+        {
+            expectedSimTicks = 0;
+            try
+            {
+                using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XScenarioRuntime>());
+                if (query.IsEmptyIgnoreFilter)
+                {
+                    return false;
+                }
+
+                var runtime = query.GetSingleton<Space4XScenarioRuntime>();
+                if (runtime.EndTick <= runtime.StartTick)
+                {
+                    return false;
+                }
+
+                expectedSimTicks = runtime.EndTick - runtime.StartTick;
+                return expectedSimTicks > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static string ResolvePathWithinOutDir(string outDir, string candidate, string defaultFileName)
