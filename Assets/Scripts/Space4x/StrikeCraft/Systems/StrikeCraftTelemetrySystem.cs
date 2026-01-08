@@ -292,6 +292,7 @@ namespace Space4X.StrikeCraft
             hash = HashStep(hash, math.asuint(config.FormationSpacing));
             hash = HashStep(hash, math.asuint((float)config.ApproachSpeedMod));
             hash = HashStep(hash, math.asuint((float)config.AttackSpeedMod));
+            hash = HashStep(hash, math.asuint(config.BrakeLeadFactor));
             return hash;
         }
 
@@ -314,6 +315,7 @@ namespace Space4X.StrikeCraft
             writer.AddFloat("formationSpacing", config.FormationSpacing);
             writer.AddFloat("approachSpeed", (float)config.ApproachSpeedMod);
             writer.AddFloat("attackSpeed", (float)config.AttackSpeedMod);
+            writer.AddFloat("brakeLead", config.BrakeLeadFactor);
             writer.AddInt("maxPasses", config.MaxPasses);
             writer.AddBool("reattackEnabled", config.ReattackEnabled == 1);
             return writer.Build();
