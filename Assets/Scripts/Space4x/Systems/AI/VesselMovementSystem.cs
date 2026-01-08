@@ -908,7 +908,7 @@ namespace Space4X.Systems.AI
                 UpdateMoveIntent(entity, aiState.TargetEntity, targetPosition, intentType, ref debugState, hasDebug);
                 UpdateMovePlan(entity, planMode, desiredVelocity, accelLimit, eta, ref debugState, hasDebug);
                 UpdateDecisionTrace(entity, DecisionReasonCode.Moving, aiState.TargetEntity, 1f, blockerEntity, ref debugState, hasDebug);
-                UpdateMovementInvariants(entity, transform.Position, distance, movement.CurrentSpeed, baseSpeed, ref debugState, hasDebug);
+                UpdateMovementInvariants(entity, transform.Position, distance, movement.CurrentSpeed, baseSpeed, accelLimit, ref debugState, hasDebug);
             }
 
             private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity vesselEntity)
@@ -1262,7 +1262,7 @@ namespace Space4X.Systems.AI
                 }
             }
 
-            private void UpdateMovementInvariants(Entity entity, float3 position, float distanceToTarget, float currentSpeed, float baseSpeed, ref MovementDebugState debugState, bool hasDebug)
+            private void UpdateMovementInvariants(Entity entity, float3 position, float distanceToTarget, float currentSpeed, float baseSpeed, float accelLimit, ref MovementDebugState debugState, bool hasDebug)
             {
                 if (!hasDebug)
                 {
@@ -1291,6 +1291,11 @@ namespace Space4X.Systems.AI
 
                 var speedDelta = math.abs(currentSpeed - debugState.LastSpeed);
                 debugState.MaxSpeedDelta = math.max(debugState.MaxSpeedDelta, speedDelta);
+                var accelSpikeThreshold = accelLimit * DeltaTime * 1.1f;
+                if (accelSpikeThreshold > 0f && speedDelta > accelSpikeThreshold)
+                {
+                    debugState.AccelSpikeCount += 1;
+                }
 
                 if (distanceToTarget + 0.05f < debugState.LastDistanceToTarget)
                 {
