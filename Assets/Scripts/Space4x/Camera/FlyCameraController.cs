@@ -52,6 +52,7 @@ namespace Space4X.Camera
 
         private void HandleMovement(float dt)
         {
+#if ENABLE_INPUT_SYSTEM
             if (Keyboard.current == null) return;
 
             float speed = (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed)
@@ -84,10 +85,12 @@ namespace Space4X.Camera
             worldMove.y += upDown * verticalSpeed * dt;
 
             transform.position += worldMove;
+#endif
         }
 
         private void HandleMouse(float dt)
         {
+#if ENABLE_INPUT_SYSTEM
             if (Mouse.current == null) return;
 
             Vector3 mousePos = Mouse.current.position.ReadValue();
@@ -123,6 +126,7 @@ namespace Space4X.Camera
                 Vector3 pan = (-right * delta.x + -up * delta.y) * panSpeed;
                 transform.position += pan;
             }
+#endif
         }
     }
 }
