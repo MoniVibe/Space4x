@@ -49,6 +49,10 @@ namespace Space4X.Authoring
         [Range(0.4f, 1f)] public float minerRiskSlowdownMultiplier = 0.8f;
         [Range(0.4f, 1f)] public float minerRiskArrivalMultiplier = 0.7f;
 
+        [Header("Brake Lead")]
+        [Tooltip("0 disables early braking.")]
+        [Range(0f, 2f)] public float brakeLeadFactor = 0f;
+
         private void OnValidate()
         {
             deliberateSpeedMultiplier = math.clamp(deliberateSpeedMultiplier, 0.2f, 1f);
@@ -79,6 +83,7 @@ namespace Space4X.Authoring
             minerRiskDeviationMultiplier = math.clamp(minerRiskDeviationMultiplier, 0.8f, 2f);
             minerRiskSlowdownMultiplier = math.clamp(minerRiskSlowdownMultiplier, 0.4f, 1f);
             minerRiskArrivalMultiplier = math.clamp(minerRiskArrivalMultiplier, 0.4f, 1f);
+            brakeLeadFactor = math.clamp(brakeLeadFactor, 0f, 2f);
         }
 
         private sealed class Baker : Baker<Space4XVesselMotionProfileAuthoring>
@@ -115,7 +120,8 @@ namespace Space4X.Authoring
                     MinerRiskSpeedMultiplier = authoring.minerRiskSpeedMultiplier,
                     MinerRiskDeviationMultiplier = authoring.minerRiskDeviationMultiplier,
                     MinerRiskSlowdownMultiplier = authoring.minerRiskSlowdownMultiplier,
-                    MinerRiskArrivalMultiplier = authoring.minerRiskArrivalMultiplier
+                    MinerRiskArrivalMultiplier = authoring.minerRiskArrivalMultiplier,
+                    BrakeLeadFactor = authoring.brakeLeadFactor
                 });
             }
         }

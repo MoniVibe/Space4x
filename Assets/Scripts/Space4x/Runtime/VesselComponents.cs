@@ -206,6 +206,7 @@ namespace Space4X.Runtime
         public float MinerRiskDeviationMultiplier;
         public float MinerRiskSlowdownMultiplier;
         public float MinerRiskArrivalMultiplier;
+        public float BrakeLeadFactor;
 
         public static VesselMotionProfileConfig Default => new VesselMotionProfileConfig
         {
@@ -236,7 +237,8 @@ namespace Space4X.Runtime
             MinerRiskSpeedMultiplier = 1.25f,
             MinerRiskDeviationMultiplier = 1.4f,
             MinerRiskSlowdownMultiplier = 0.8f,
-            MinerRiskArrivalMultiplier = 0.7f
+            MinerRiskArrivalMultiplier = 0.7f,
+            BrakeLeadFactor = 0f
         };
     }
 }

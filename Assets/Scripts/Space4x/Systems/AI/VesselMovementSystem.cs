@@ -746,6 +746,18 @@ namespace Space4X.Systems.AI
                         debugState.AccelClampCount += 1;
                     }
                 }
+                var brakeLeadFactor = MotionConfig.BrakeLeadFactor;
+                if (brakeLeadFactor > 0f && currentSpeedSq > 1e-4f)
+                {
+                    var remainingDistance = math.max(0f, distance - arrivalDistance);
+                    var stopDistance = currentSpeedSq / (2f * deceleration);
+                    var leadDistance = stopDistance * brakeLeadFactor;
+                    if (leadDistance > 0.001f && remainingDistance < leadDistance)
+                    {
+                        var brakeScale = math.saturate(remainingDistance / leadDistance);
+                        desiredSpeed *= brakeScale;
+                    }
+                }
                 var speedRatio = math.saturate(currentSpeed / math.max(0.1f, desiredSpeed));
                 acceleration *= math.lerp(0.35f, 1f, speedRatio);
                 if (overshoot)
