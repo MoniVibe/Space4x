@@ -192,6 +192,7 @@ namespace Space4X.Runtime
         public float ChaoticDeviationMinDistance;
         public float IntelligentTurnMultiplier;
         public float IntelligentSlowdownMultiplier;
+        public float TurnSlowdownFactor;
         public float CapitalShipSpeedMultiplier;
         public float CapitalShipTurnMultiplier;
         public float CapitalShipAccelerationMultiplier;
@@ -223,6 +224,7 @@ namespace Space4X.Runtime
             ChaoticDeviationMinDistance = 6f,
             IntelligentTurnMultiplier = 1.15f,
             IntelligentSlowdownMultiplier = 0.9f,
+            TurnSlowdownFactor = 0f,
             CapitalShipSpeedMultiplier = 0.85f,
             CapitalShipTurnMultiplier = 0.8f,
             CapitalShipAccelerationMultiplier = 0.75f,

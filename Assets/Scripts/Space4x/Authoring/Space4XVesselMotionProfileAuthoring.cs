@@ -29,6 +29,10 @@ namespace Space4X.Authoring
         [Range(0.8f, 1.5f)] public float intelligentTurnMultiplier = 1.15f;
         [Range(0.5f, 1.2f)] public float intelligentSlowdownMultiplier = 0.9f;
 
+        [Header("Turn Behavior")]
+        [Tooltip("0 disables turn-based slowdown.")]
+        [Range(0f, 1f)] public float turnSlowdownFactor = 0f;
+
         [Header("Capital Ship Baseline")]
         [Range(0.3f, 1f)] public float capitalShipSpeedMultiplier = 0.85f;
         [Range(0.3f, 1f)] public float capitalShipTurnMultiplier = 0.8f;
@@ -65,6 +69,7 @@ namespace Space4X.Authoring
             chaoticDeviationMinDistance = math.max(0f, chaoticDeviationMinDistance);
             intelligentTurnMultiplier = math.clamp(intelligentTurnMultiplier, 0.8f, 1.5f);
             intelligentSlowdownMultiplier = math.clamp(intelligentSlowdownMultiplier, 0.5f, 1.2f);
+            turnSlowdownFactor = math.clamp(turnSlowdownFactor, 0f, 1f);
             capitalShipSpeedMultiplier = math.clamp(capitalShipSpeedMultiplier, 0.3f, 1f);
             capitalShipTurnMultiplier = math.clamp(capitalShipTurnMultiplier, 0.3f, 1f);
             capitalShipAccelerationMultiplier = math.clamp(capitalShipAccelerationMultiplier, 0.3f, 1f);
@@ -102,6 +107,7 @@ namespace Space4X.Authoring
                     ChaoticDeviationMinDistance = authoring.chaoticDeviationMinDistance,
                     IntelligentTurnMultiplier = authoring.intelligentTurnMultiplier,
                     IntelligentSlowdownMultiplier = authoring.intelligentSlowdownMultiplier,
+                    TurnSlowdownFactor = authoring.turnSlowdownFactor,
                     CapitalShipSpeedMultiplier = authoring.capitalShipSpeedMultiplier,
                     CapitalShipTurnMultiplier = authoring.capitalShipTurnMultiplier,
                     CapitalShipAccelerationMultiplier = authoring.capitalShipAccelerationMultiplier,

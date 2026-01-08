@@ -728,6 +728,13 @@ namespace Space4X.Systems.AI
                     desiredSpeed *= 0.55f;
                     rotationMultiplier *= 0.7f;
                 }
+                var turnSlowdownFactor = MotionConfig.TurnSlowdownFactor;
+                if (turnSlowdownFactor > 0f)
+                {
+                    var forward = math.forward(transform.Rotation);
+                    var alignment = math.saturate((math.dot(forward, direction) + 1f) * 0.5f);
+                    desiredSpeed *= math.lerp(1f, alignment, turnSlowdownFactor);
+                }
                 if (distance <= arrivalDistance)
                 {
                     desiredSpeed = math.min(desiredSpeed, math.max(0.05f, baseSpeed * 0.2f));
