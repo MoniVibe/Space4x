@@ -76,6 +76,7 @@ namespace Space4X.Runtime
         public uint NaNInfCount;
         public uint SpeedClampCount;
         public uint AccelClampCount;
+        public uint OvershootCount;
         public uint TeleportCount;
         public uint StuckCount;
         public uint StateFlipCount;
