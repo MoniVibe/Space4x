@@ -214,7 +214,8 @@ namespace Space4X.Registry
                             }
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
-                                miningArrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
+                                miningArrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier,
+                                motionConfig.BrakeLeadFactor);
                         }
 
                         movement.ValueRW = new MovementCommand
@@ -304,7 +305,8 @@ namespace Space4X.Registry
                             }
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
-                                arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
+                                arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier,
+                                motionConfig.BrakeLeadFactor);
 
                             if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
                             {
@@ -376,8 +378,9 @@ namespace Space4X.Registry
                                 direction = ApplyDeviation(ref deviationState, entity, patrolBehavior.CurrentWaypoint, direction, deviationStrength, currentTick);
                             }
 
-                            ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
-                                arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier);
+                        ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
+                            arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier,
+                            motionConfig.BrakeLeadFactor);
 
                             if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
                             {
@@ -454,7 +457,8 @@ namespace Space4X.Registry
             float accelerationMultiplier,
             float decelerationMultiplier,
             float turnMultiplier,
-            float slowdownMultiplier)
+            float slowdownMultiplier,
+            float brakeLeadFactor)
         {
             var slowdownDistance = carrierData.SlowdownDistance > 0f
                 ? carrierData.SlowdownDistance
@@ -471,6 +475,16 @@ namespace Space4X.Registry
             if (distance < slowdownDistance)
             {
                 desiredSpeed *= math.saturate(distance / slowdownDistance);
+            }
+            if (brakeLeadFactor > 0f && movement.CurrentSpeed > 0.01f)
+            {
+                var remainingDistance = math.max(0f, distance - arrivalThreshold);
+                var stopDistance = (movement.CurrentSpeed * movement.CurrentSpeed) / (2f * deceleration);
+                var leadDistance = stopDistance * brakeLeadFactor;
+                if (leadDistance > 0.001f && remainingDistance < leadDistance)
+                {
+                    desiredSpeed *= math.saturate(remainingDistance / leadDistance);
+                }
             }
 
             if (movement.CurrentSpeed < desiredSpeed)
