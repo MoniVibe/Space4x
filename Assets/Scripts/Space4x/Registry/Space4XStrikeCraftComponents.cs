@@ -408,6 +408,11 @@ namespace Space4X.Registry
         /// </summary>
         public half AttackSpeedMod;
 
+        /// <summary>
+        /// Multiplier for stopping-distance brake lead (0 disables).
+        /// </summary>
+        public float BrakeLeadFactor;
+
         public static AttackRunConfig ForRole(StrikeCraftRole role)
         {
             return role switch
@@ -422,7 +427,8 @@ namespace Space4X.Registry
                     ReattackEnabled = 1,
                     FormationSpacing = 30f,
                     ApproachSpeedMod = (half)1.3f,
-                    AttackSpeedMod = (half)1.1f
+                    AttackSpeedMod = (half)1.1f,
+                    BrakeLeadFactor = 1.0f
                 },
                 StrikeCraftRole.Bomber => new AttackRunConfig
                 {
@@ -434,7 +440,8 @@ namespace Space4X.Registry
                     ReattackEnabled = 0,
                     FormationSpacing = 50f,
                     ApproachSpeedMod = (half)0.8f,
-                    AttackSpeedMod = (half)0.9f
+                    AttackSpeedMod = (half)0.9f,
+                    BrakeLeadFactor = 1.0f
                 },
                 StrikeCraftRole.Recon => new AttackRunConfig
                 {
@@ -446,7 +453,8 @@ namespace Space4X.Registry
                     ReattackEnabled = 0,
                     FormationSpacing = 100f,
                     ApproachSpeedMod = (half)1.2f,
-                    AttackSpeedMod = (half)1.0f
+                    AttackSpeedMod = (half)1.0f,
+                    BrakeLeadFactor = 1.0f
                 },
                 StrikeCraftRole.Suppression => new AttackRunConfig
                 {
@@ -458,7 +466,8 @@ namespace Space4X.Registry
                     ReattackEnabled = 1,
                     FormationSpacing = 40f,
                     ApproachSpeedMod = (half)1.0f,
-                    AttackSpeedMod = (half)0.8f
+                    AttackSpeedMod = (half)0.8f,
+                    BrakeLeadFactor = 1.0f
                 },
                 _ => new AttackRunConfig
                 {
@@ -470,7 +479,8 @@ namespace Space4X.Registry
                     ReattackEnabled = 1,
                     FormationSpacing = 35f,
                     ApproachSpeedMod = (half)1.0f,
-                    AttackSpeedMod = (half)1.0f
+                    AttackSpeedMod = (half)1.0f,
+                    BrakeLeadFactor = 1.0f
                 }
             };
         }

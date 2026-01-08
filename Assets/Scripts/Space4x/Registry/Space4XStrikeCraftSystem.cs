@@ -416,7 +416,7 @@ namespace Space4X.Registry
                             var desiredVelocity = direction * approachSpeed + pnAccel * deltaTime;
                             var slowdownDistance = math.max(8f, config.ValueRO.AttackRange * 0.2f);
 
-                            ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toTarget, distance, slowdownDistance);
+                            ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toTarget, distance, slowdownDistance, decel, config.ValueRO.BrakeLeadFactor);
                             ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
                         }
                         else
@@ -456,7 +456,7 @@ namespace Space4X.Registry
                             var desiredSpeed = speed;
                             var desiredVelocity = direction * desiredSpeed;
                             var slowdownDistance = 50f;
-                            ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toCarrier, distance, slowdownDistance);
+                            ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toCarrier, distance, slowdownDistance, decel, config.ValueRO.BrakeLeadFactor);
                             ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
                         }
                         else
@@ -562,7 +562,9 @@ namespace Space4X.Registry
             float3 currentVelocity,
             float3 toTarget,
             float distance,
-            float slowdownDistance)
+            float slowdownDistance,
+            float deceleration,
+            float brakeLeadFactor)
         {
             if (slowdownDistance <= 0f || distance <= 0f)
             {
@@ -579,6 +581,15 @@ namespace Space4X.Registry
             if (currentSpeedSq < 1e-4f)
             {
                 return;
+            }
+
+            if (brakeLeadFactor > 0f && deceleration > 0f)
+            {
+                var leadDistance = (currentSpeedSq / (2f * deceleration)) * brakeLeadFactor;
+                if (leadDistance > 0.001f && distance < leadDistance)
+                {
+                    desiredVelocity *= math.saturate(distance / leadDistance);
+                }
             }
 
             var overshoot = math.dot(currentVelocity, toTarget) < 0f;
