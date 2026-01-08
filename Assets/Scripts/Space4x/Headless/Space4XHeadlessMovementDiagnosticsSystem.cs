@@ -657,7 +657,7 @@ namespace Space4X.Headless
             if (hasDebug)
             {
                 var debug = SystemAPI.GetComponentRO<MovementDebugState>(entity).ValueRO;
-                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] Debug lastPos={debug.LastPosition} lastDist={debug.LastDistanceToTarget:F2} lastSpeed={debug.LastSpeed:F2} maxSpeedDelta={debug.MaxSpeedDelta:F2} maxTeleport={debug.MaxTeleportDistance:F2} nanInf={debug.NaNInfCount} speedClamp={debug.SpeedClampCount} accelClamp={debug.AccelClampCount} teleport={debug.TeleportCount} stuck={debug.StuckCount} flips={debug.StateFlipCount} lastProgressTick={debug.LastProgressTick}");
+                UnityDebug.LogError($"[Space4XHeadlessMovementDiag] Debug lastPos={debug.LastPosition} lastDist={debug.LastDistanceToTarget:F2} lastSpeed={debug.LastSpeed:F2} maxSpeedDelta={debug.MaxSpeedDelta:F2} maxTeleport={debug.MaxTeleportDistance:F2} nanInf={debug.NaNInfCount} speedClamp={debug.SpeedClampCount} accelClamp={debug.AccelClampCount} sharpStart={debug.SharpStartCount} overshoot={debug.OvershootCount} teleport={debug.TeleportCount} stuck={debug.StuckCount} flips={debug.StateFlipCount} lastProgressTick={debug.LastProgressTick}");
             }
 
             if (hasMiningState)

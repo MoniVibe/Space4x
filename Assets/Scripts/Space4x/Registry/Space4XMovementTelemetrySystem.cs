@@ -84,6 +84,8 @@ namespace Space4X.Registry
             var nanInf = 0u;
             var speedClamp = 0u;
             var accelClampTotal = 0u;
+            var sharpStart = 0u;
+            var overshoot = 0u;
             var teleport = 0u;
             var stuck = 0u;
             var stateFlips = 0u;
@@ -96,6 +98,8 @@ namespace Space4X.Registry
                 nanInf += stateDebug.NaNInfCount;
                 speedClamp += stateDebug.SpeedClampCount;
                 accelClampTotal += stateDebug.AccelClampCount;
+                sharpStart += stateDebug.SharpStartCount;
+                overshoot += stateDebug.OvershootCount;
                 teleport += stateDebug.TeleportCount;
                 stuck += stateDebug.StuckCount;
                 stateFlips += stateDebug.StateFlipCount;
@@ -119,6 +123,8 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.movement.naninf", nanInf, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.speedClamp", speedClamp, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.accelClamp", accelClampTotal, TelemetryMetricUnit.Count);
+            buffer.AddMetric("space4x.movement.sharpStart", sharpStart, TelemetryMetricUnit.Count);
+            buffer.AddMetric("space4x.movement.overshoot", overshoot, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.teleport", teleport, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.stuck", stuck, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.stateFlips", stateFlips, TelemetryMetricUnit.Count);
