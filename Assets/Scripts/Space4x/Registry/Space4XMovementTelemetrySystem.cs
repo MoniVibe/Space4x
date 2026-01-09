@@ -106,9 +106,11 @@ namespace Space4X.Registry
             }
 
             var movingCount = 0;
+            var totalCount = 0;
             var speedSum = 0f;
             foreach (var movement in SystemAPI.Query<RefRO<VesselMovement>>())
             {
+                totalCount++;
                 speedSum += math.max(0f, movement.ValueRO.CurrentSpeed);
                 if (movement.ValueRO.IsMoving != 0)
                 {
@@ -117,6 +119,7 @@ namespace Space4X.Registry
             }
 
             var avgSpeed = movingCount > 0 ? speedSum / movingCount : 0f;
+            var movingRatio = totalCount > 0 ? (float)movingCount / totalCount : 0f;
 
             buffer.AddMetric("space4x.movement.naninf", nanInf, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.speedClamp", speedClamp, TelemetryMetricUnit.Count);
@@ -128,6 +131,7 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.movement.maxSpeedDelta", maxSpeedDelta, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.movement.maxTeleport", maxTeleport, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.movement.movingCount", movingCount, TelemetryMetricUnit.Count);
+            buffer.AddMetric("space4x.movement.movingRatio", movingRatio, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.movement.avgSpeed", avgSpeed, TelemetryMetricUnit.Custom);
 
             var seconds = math.max(0.0001f, accumulator.SampleSeconds);
