@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Registry;
+using PureDOTS.Runtime.Steering;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
@@ -203,10 +204,9 @@ namespace Space4X.Systems.AI
                     
                     // Apply small random offset based on tactics (lower tactics = more error)
                     var error = (1f - tacticsAccuracy) * 0.5f; // Max 0.5 unit error for low tactics
-                    var hash = (uint)entity.Index ^ (uint)aiState.TargetEntity.Index;
-                    var randomX = (hash % 1000) / 1000f - 0.5f;
-                    var randomZ = ((hash >> 10) % 1000) / 1000f - 0.5f;
-                    var offset = new float3(randomX, 0f, randomZ) * error;
+                    var targetSeed = math.hash(new uint2((uint)aiState.TargetEntity.Index, (uint)aiState.TargetEntity.Version));
+                    SteeringPrimitives.DeterministicOffset2D(in entity, targetSeed, out var offset2);
+                    var offset = new float3(offset2.x, 0f, offset2.y) * error;
                     
                     aiState.TargetPosition = targetPos + offset;
                     return;
@@ -255,8 +255,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
-
 
 
 

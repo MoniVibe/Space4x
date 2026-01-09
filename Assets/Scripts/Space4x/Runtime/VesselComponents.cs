@@ -195,6 +195,7 @@ namespace Space4X.Runtime
         public float AccelSpoolMinMultiplier;
         public float IntelligentTurnMultiplier;
         public float IntelligentSlowdownMultiplier;
+        public float RetrogradeBoost;
         public float CapitalShipSpeedMultiplier;
         public float CapitalShipTurnMultiplier;
         public float CapitalShipAccelerationMultiplier;
@@ -228,6 +229,7 @@ namespace Space4X.Runtime
             AccelSpoolMinMultiplier = 0.2f,
             IntelligentTurnMultiplier = 1.15f,
             IntelligentSlowdownMultiplier = 0.9f,
+            RetrogradeBoost = 0f,
             CapitalShipSpeedMultiplier = 0.85f,
             CapitalShipTurnMultiplier = 0.8f,
             CapitalShipAccelerationMultiplier = 0.75f,

@@ -787,6 +787,11 @@ namespace Space4X.Systems.AI
 
                     if (retrogradeWeight > 0f)
                     {
+                        var retrogradeBoost = MotionConfig.RetrogradeBoost;
+                        if (retrogradeBoost > 0f)
+                        {
+                            retrogradeWeight = math.saturate(retrogradeWeight * (1f + retrogradeBoost));
+                        }
                         var retroDir = math.normalizesafe(-movement.Velocity, direction);
                         var retroVelocity = retroDir * desiredSpeed;
                         desiredVelocity = math.lerp(desiredVelocity, retroVelocity, retrogradeWeight);
