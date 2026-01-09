@@ -25,6 +25,10 @@ namespace Space4X.Authoring
         [Range(0f, 1f)] public float chaoticDeviationStrength = 0.35f;
         [Range(0f, 50f)] public float chaoticDeviationMinDistance = 6f;
 
+        [Header("Movement Start Spool")]
+        [Range(0f, 2f)] public float accelSpoolDurationSec = 0.5f;
+        [Range(0.05f, 1f)] public float accelSpoolMinMultiplier = 0.2f;
+
         [Header("Intelligent")]
         [Range(0.8f, 1.5f)] public float intelligentTurnMultiplier = 1.15f;
         [Range(0.5f, 1.2f)] public float intelligentSlowdownMultiplier = 0.9f;
@@ -67,6 +71,8 @@ namespace Space4X.Authoring
             chaoticSlowdownMultiplier = math.clamp(chaoticSlowdownMultiplier, 0.5f, 1.5f);
             chaoticDeviationStrength = math.clamp(chaoticDeviationStrength, 0f, 1f);
             chaoticDeviationMinDistance = math.max(0f, chaoticDeviationMinDistance);
+            accelSpoolDurationSec = math.max(0f, accelSpoolDurationSec);
+            accelSpoolMinMultiplier = math.clamp(accelSpoolMinMultiplier, 0.05f, 1f);
             intelligentTurnMultiplier = math.clamp(intelligentTurnMultiplier, 0.8f, 1.5f);
             intelligentSlowdownMultiplier = math.clamp(intelligentSlowdownMultiplier, 0.5f, 1.2f);
             retrogradeBoost = math.clamp(retrogradeBoost, 0f, 2f);
@@ -105,6 +111,8 @@ namespace Space4X.Authoring
                     ChaoticSlowdownMultiplier = authoring.chaoticSlowdownMultiplier,
                     ChaoticDeviationStrength = authoring.chaoticDeviationStrength,
                     ChaoticDeviationMinDistance = authoring.chaoticDeviationMinDistance,
+                    AccelSpoolDurationSec = authoring.accelSpoolDurationSec,
+                    AccelSpoolMinMultiplier = authoring.accelSpoolMinMultiplier,
                     IntelligentTurnMultiplier = authoring.intelligentTurnMultiplier,
                     IntelligentSlowdownMultiplier = authoring.intelligentSlowdownMultiplier,
                     RetrogradeBoost = authoring.retrogradeBoost,

@@ -22,6 +22,7 @@ namespace Space4X.Runtime
         public quaternion DesiredRotation;
         public byte IsMoving;
         public uint LastMoveTick;
+        public uint MoveStartTick;
     }
 
     public struct VesselTurnRateState : IComponentData
@@ -190,6 +191,8 @@ namespace Space4X.Runtime
         public float ChaoticSlowdownMultiplier;
         public float ChaoticDeviationStrength;
         public float ChaoticDeviationMinDistance;
+        public float AccelSpoolDurationSec;
+        public float AccelSpoolMinMultiplier;
         public float IntelligentTurnMultiplier;
         public float IntelligentSlowdownMultiplier;
         public float RetrogradeBoost;
@@ -222,6 +225,8 @@ namespace Space4X.Runtime
             ChaoticSlowdownMultiplier = 0.8f,
             ChaoticDeviationStrength = 0.35f,
             ChaoticDeviationMinDistance = 6f,
+            AccelSpoolDurationSec = 0.5f,
+            AccelSpoolMinMultiplier = 0.2f,
             IntelligentTurnMultiplier = 1.15f,
             IntelligentSlowdownMultiplier = 0.9f,
             RetrogradeBoost = 0f,

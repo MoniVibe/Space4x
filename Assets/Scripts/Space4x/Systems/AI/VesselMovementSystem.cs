@@ -554,6 +554,11 @@ namespace Space4X.Systems.AI
                 var currentSpeed = math.length(movement.Velocity);
                 var currentSpeedSq = currentSpeed * currentSpeed;
                 movement.CurrentSpeed = currentSpeed;
+                var startingMove = movement.IsMoving == 0;
+                if (startingMove)
+                {
+                    movement.MoveStartTick = CurrentTick;
+                }
 
                 var stopSpeed = math.max(0.05f, baseSpeed * 0.1f);
                 if (distance <= arrivalDistance && currentSpeed <= stopSpeed)
@@ -738,6 +743,16 @@ namespace Space4X.Systems.AI
                 acceleration = math.max(0.01f, acceleration * accelerationMultiplier);
                 deceleration = math.max(0.01f, deceleration * decelerationMultiplier);
                 var maxAccel = math.max(0.1f, baseSpeed * 6f);
+                if (desiredSpeed > currentSpeed + 0.01f && MotionConfig.AccelSpoolDurationSec > 0f)
+                {
+                    // Ease in acceleration for the first few ticks after movement starts.
+                    var minMultiplier = math.clamp(MotionConfig.AccelSpoolMinMultiplier, 0.05f, 1f);
+                    var spoolSeconds = math.max(1e-4f, MotionConfig.AccelSpoolDurationSec);
+                    var ticksSinceStart = CurrentTick >= movement.MoveStartTick ? CurrentTick - movement.MoveStartTick : 0u;
+                    var spoolT = math.saturate((ticksSinceStart * DeltaTime) / spoolSeconds);
+                    var throttle = math.lerp(minMultiplier, 1f, spoolT);
+                    maxAccel *= throttle;
+                }
                 if (acceleration > maxAccel)
                 {
                     acceleration = maxAccel;
