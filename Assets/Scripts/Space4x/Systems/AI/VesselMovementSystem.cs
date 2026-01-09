@@ -746,7 +746,7 @@ namespace Space4X.Systems.AI
                         debugState.AccelClampCount += 1;
                     }
                 }
-                var brakeLeadFactor = MotionConfig.BrakeLeadFactor;
+                var brakeLeadFactor = MotionConfig.BrakeLeadEnabled != 0 ? MotionConfig.BrakeLeadFactor : 0f;
                 if (brakeLeadFactor > 0f && currentSpeedSq > 1e-4f)
                 {
                     var remainingDistance = math.max(0f, distance - arrivalDistance);

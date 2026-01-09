@@ -50,6 +50,8 @@ namespace Space4X.Authoring
         [Range(0.4f, 1f)] public float minerRiskArrivalMultiplier = 0.7f;
 
         [Header("Brake Lead")]
+        [Tooltip("Enable stopping-distance brake lead scaling.")]
+        public bool brakeLeadEnabled = false;
         [Tooltip("0 disables early braking.")]
         [Range(0f, 2f)] public float brakeLeadFactor = 0f;
 
@@ -121,6 +123,7 @@ namespace Space4X.Authoring
                     MinerRiskDeviationMultiplier = authoring.minerRiskDeviationMultiplier,
                     MinerRiskSlowdownMultiplier = authoring.minerRiskSlowdownMultiplier,
                     MinerRiskArrivalMultiplier = authoring.minerRiskArrivalMultiplier,
+                    BrakeLeadEnabled = authoring.brakeLeadEnabled ? (byte)1 : (byte)0,
                     BrakeLeadFactor = authoring.brakeLeadFactor
                 });
             }

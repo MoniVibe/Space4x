@@ -215,7 +215,7 @@ namespace Space4X.Registry
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
                                 miningArrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier,
-                                motionConfig.BrakeLeadFactor);
+                                motionConfig.BrakeLeadEnabled != 0 ? motionConfig.BrakeLeadFactor : 0f);
                         }
 
                         movement.ValueRW = new MovementCommand
@@ -306,7 +306,7 @@ namespace Space4X.Registry
 
                             ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
                                 arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier,
-                                motionConfig.BrakeLeadFactor);
+                                motionConfig.BrakeLeadEnabled != 0 ? motionConfig.BrakeLeadFactor : 0f);
 
                             if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
                             {
@@ -380,7 +380,7 @@ namespace Space4X.Registry
 
                         ApplyCarrierMotion(ref vesselMovement.ValueRW, ref transform.ValueRW, direction, math.sqrt(distanceSq), carrierData,
                             arrivalThreshold, deltaTime, speedMultiplier, accelerationMultiplier, decelerationMultiplier, turnMultiplier, slowdownMultiplier,
-                            motionConfig.BrakeLeadFactor);
+                            motionConfig.BrakeLeadEnabled != 0 ? motionConfig.BrakeLeadFactor : 0f);
 
                             if (math.distance(position, movementCmd.TargetPosition) > arrivalThreshold * 2f)
                             {
