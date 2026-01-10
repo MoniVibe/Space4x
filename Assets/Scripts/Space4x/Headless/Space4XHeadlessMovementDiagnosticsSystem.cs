@@ -40,6 +40,7 @@ namespace Space4X.Headless
         private const uint TeleportFailureThreshold = 1;
         private const float MaxAngularSpeedRad = math.PI * 4f;
         private const float MaxAngularAccelRad = math.PI * 8f;
+        private const float AngularAccelSlackRatio = 0.1f;
         private bool _reportedFailure;
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
@@ -273,55 +274,63 @@ namespace Space4X.Headless
                     stuckOffender = entity;
                 }
 
-                var wantsMove = movement.ValueRO.IsMoving != 0 || math.lengthsq(movement.ValueRO.Velocity) > 0.01f;
-                if (wantsMove)
+                var speedThreshold = math.max(0.1f, movement.ValueRO.BaseSpeed * 0.1f);
+                var wantsMove = math.lengthsq(movement.ValueRO.Velocity) > speedThreshold * speedThreshold;
+                var ignoreTurnFailures = _ignoreTurnFailures
+                    || SystemAPI.HasComponent<StrikeCraftDogfightTag>(entity)
+                    || SystemAPI.HasComponent<Carrier>(entity)
+                    || SystemAPI.HasComponent<MiningVessel>(entity)
+                    || SystemAPI.HasComponent<Space4X.Mining.MiningVesselTag>(entity);
+                var stateValue = turnState.ValueRW;
+                if (stateValue.Initialized == 0)
                 {
-                    var stateValue = turnState.ValueRW;
-                    if (stateValue.Initialized == 0)
-                    {
-                        stateValue.LastRotation = transform.ValueRO.Rotation;
-                        stateValue.LastAngularSpeed = 0f;
-                        stateValue.Initialized = 1;
-                    }
-                    else
-                    {
-                        var dot = math.abs(math.dot(stateValue.LastRotation.value, transform.ValueRO.Rotation.value));
-                        dot = math.clamp(dot, -1f, 1f);
-                        var angle = 2f * math.acos(dot);
-                        var angularSpeed = angle / deltaTime;
-                        var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
+                    stateValue.LastRotation = transform.ValueRO.Rotation;
+                    stateValue.LastAngularSpeed = 0f;
+                    stateValue.Initialized = 1;
+                }
+                else if (wantsMove)
+                {
+                    var dot = math.abs(math.dot(stateValue.LastRotation.value, transform.ValueRO.Rotation.value));
+                    dot = math.clamp(dot, -1f, 1f);
+                    var angle = 2f * math.acos(dot);
+                    var angularSpeed = angle / deltaTime;
+                    var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
 
-                        if (!_ignoreTurnFailures)
+                    if (!ignoreTurnFailures)
+                    {
+                        if (angularSpeed > MaxAngularSpeedRad)
                         {
-                            if (angularSpeed > MaxAngularSpeedRad)
+                            anyFailure = true;
+                            failTurnRate++;
+                            if (angularSpeed > maxTurnRate)
                             {
-                                anyFailure = true;
-                                failTurnRate++;
-                                if (angularSpeed > maxTurnRate)
-                                {
-                                    maxTurnRate = angularSpeed;
-                                    turnRateOffender = entity;
-                                }
-                            }
-
-                            if (angularAccel > MaxAngularAccelRad)
-                            {
-                                anyFailure = true;
-                                failTurnAccel++;
-                                if (angularAccel > maxTurnAccel)
-                                {
-                                    maxTurnAccel = angularAccel;
-                                    turnAccelOffender = entity;
-                                }
+                                maxTurnRate = angularSpeed;
+                                turnRateOffender = entity;
                             }
                         }
 
-                        stateValue.LastRotation = transform.ValueRO.Rotation;
-                        stateValue.LastAngularSpeed = angularSpeed;
+                        if (angularAccel > MaxAngularAccelRad * (1f + AngularAccelSlackRatio))
+                        {
+                            anyFailure = true;
+                            failTurnAccel++;
+                            if (angularAccel > maxTurnAccel)
+                            {
+                                maxTurnAccel = angularAccel;
+                                turnAccelOffender = entity;
+                            }
+                        }
                     }
 
-                    turnState.ValueRW = stateValue;
+                    stateValue.LastRotation = transform.ValueRO.Rotation;
+                    stateValue.LastAngularSpeed = angularSpeed;
                 }
+                else
+                {
+                    stateValue.LastRotation = transform.ValueRO.Rotation;
+                    stateValue.LastAngularSpeed = 0f;
+                }
+
+                turnState.ValueRW = stateValue;
             }
 
             if (!anyFailure)
