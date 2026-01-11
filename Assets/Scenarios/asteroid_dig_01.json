@@ -1,0 +1,49 @@
+{
+  "seed": 8128,
+  "duration_s": 3045,
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-1",
+      "position": [0, -10, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000}
+        ]
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-1",
+      "position": [0, -5, 0],
+      "carrierId": "carrier-1",
+      "toolKind": "drill",
+      "toolShape": "brush",
+      "toolShapeOverride": true,
+      "toolRadiusOverride": 1.25,
+      "toolStepLengthOverride": 0.9,
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.85,
+      "speed": 5.0,
+      "cargoCapacity": 120.0
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-1",
+      "position": [0, 15, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1200.0,
+      "gatherRatePerWorker": 12.0,
+      "maxSimultaneousWorkers": 1
+    }
+  ],
+  "actions": [],
+  "telemetryExpectations": {
+    "expectMiningYield": true,
+    "expectCarrierPickup": true,
+    "export": {
+      "csv": "Reports/asteroid_dig_01_metrics.csv",
+      "json": "Reports/asteroid_dig_01_metrics.json"
+    }
+  }
+}
