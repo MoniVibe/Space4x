@@ -49,6 +49,16 @@ namespace Space4X.Scenario
                 return;
             }
 
+            if (SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>() || IsSmokeScenario(scenarioInfo))
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                UnityEngine.Debug.Log("[Space4XScenarioAdapter] Adapter disabled for smoke/legacy-disabled scenario.");
+#endif
+                _hasSpawned = true;
+                state.Enabled = false;
+                return;
+            }
+
             var counts = SystemAPI.GetSingletonBuffer<ScenarioEntityCountElement>(true);
             if (counts.Length == 0)
             {
@@ -130,6 +140,13 @@ namespace Space4X.Scenario
 
             _hasSpawned = true;
             state.Enabled = false;
+        }
+
+        private static bool IsSmokeScenario(in ScenarioInfo scenarioInfo)
+        {
+            var scenarioId = scenarioInfo.ScenarioId;
+            return scenarioId.Length > 0 &&
+                   scenarioId.Equals(new FixedString64Bytes("space4x_smoke"));
         }
 
         private static void SpawnCarriers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)

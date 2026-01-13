@@ -465,6 +465,7 @@ namespace Space4x.Scenario
             var flags = SpacePhysicsFlags.IsActive | SpacePhysicsFlags.RaisesCollisionEvents;
             var interactionFlags = PhysicsInteractionFlags.Collidable;
             var colliderSpec = ResolveColliderSpec(renderSemanticKey, clampedRadius, interactionFlags, layer);
+            colliderSpec = EnsureSpecRadius(colliderSpec, clampedRadius);
             var collisionRadius = ResolveSpecRadius(colliderSpec, clampedRadius);
             var colliderData = ResolveSpaceColliderData(colliderSpec, collisionRadius);
 
@@ -546,6 +547,34 @@ namespace Space4x.Scenario
                 PhysicsColliderShape.Capsule => math.max(0.1f, spec.Dimensions.x),
                 _ => math.max(0.1f, spec.Dimensions.x > 0f ? spec.Dimensions.x : fallbackRadius)
             };
+        }
+
+        private static PhysicsColliderSpec EnsureSpecRadius(PhysicsColliderSpec spec, float minRadius)
+        {
+            if (minRadius <= 0f)
+            {
+                return spec;
+            }
+
+            switch (spec.Shape)
+            {
+                case PhysicsColliderShape.Box:
+                {
+                    var diameter = minRadius * 2f;
+                    spec.Dimensions = math.max(spec.Dimensions, new float3(diameter));
+                    break;
+                }
+                case PhysicsColliderShape.Capsule:
+                case PhysicsColliderShape.Sphere:
+                default:
+                    if (spec.Dimensions.x < minRadius || spec.Dimensions.x <= 0f)
+                    {
+                        spec.Dimensions.x = minRadius;
+                    }
+                    break;
+            }
+
+            return spec;
         }
 
         private static SpaceColliderData ResolveSpaceColliderData(in PhysicsColliderSpec spec, float radius)
