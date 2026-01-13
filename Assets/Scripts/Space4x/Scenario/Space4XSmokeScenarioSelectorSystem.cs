@@ -48,6 +48,16 @@ namespace Space4x.Scenario
                 RunTicks = 240
             });
 
+            if (!SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>())
+            {
+                state.EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
+            }
+
+            if (!SystemAPI.HasSingleton<Space4XLegacyPatrolDisabledTag>())
+            {
+                state.EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
+            }
+
             Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{ScenarioIdString}'.");
             _injected = true;
             state.Enabled = false;
@@ -55,4 +65,3 @@ namespace Space4x.Scenario
     }
 }
 #endif
-

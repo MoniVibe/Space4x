@@ -1126,7 +1126,7 @@ namespace Space4X.Systems.AI
 
             private MoveIntentType ResolveIntentType(Entity vesselEntity, VesselAIState aiState)
             {
-                if (aiState.TargetEntity == Entity.Null)
+                if (aiState.TargetEntity == Entity.Null && math.all(aiState.TargetPosition == float3.zero))
                 {
                     return MoveIntentType.None;
                 }

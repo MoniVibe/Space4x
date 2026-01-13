@@ -257,8 +257,9 @@ namespace Space4X.Registry
     /// Disables legacy mining systems when present (used by smoke scenarios).
     /// </summary>
     public struct Space4XLegacyMiningDisabledTag : IComponentData { }
-}
 
+    public struct Space4XLegacyPatrolDisabledTag : IComponentData { }
+}
 
 
 

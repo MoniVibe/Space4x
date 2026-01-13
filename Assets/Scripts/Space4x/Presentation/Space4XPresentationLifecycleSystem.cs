@@ -1,3 +1,4 @@
+using PureDOTS.Environment;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
@@ -159,10 +160,11 @@ namespace Space4X.Presentation
 
             var hasVisualConfig = SystemAPI.TryGetSingleton<Space4XMiningVisualConfig>(out var visualConfig);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var chunkedAsteroids = BuildChunkedAsteroidMap(ref state);
 
             AddCarrierPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
             AddVesselPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
-            AddAsteroidPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
+            AddAsteroidPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick, ref chunkedAsteroids);
             AddIndividualPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
             AddStrikeCraftPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
             AddFleetImpostorPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
@@ -172,6 +174,10 @@ namespace Space4X.Presentation
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+            if (chunkedAsteroids.IsCreated)
+            {
+                chunkedAsteroids.Dispose();
+            }
         }
 
         public void OnDestroy(ref SystemState state)
@@ -306,7 +312,8 @@ namespace Space4X.Presentation
             ref EntityCommandBuffer ecb,
             bool hasVisualConfig,
             in Space4XMiningVisualConfig visualConfig,
-            uint currentTick)
+            uint currentTick,
+            ref NativeParallelHashMap<Entity, byte> chunkedAsteroids)
         {
             foreach (var (asteroid, transform, entity) in SystemAPI
                          .Query<RefRO<Asteroid>, RefRO<LocalTransform>>()
@@ -360,12 +367,46 @@ namespace Space4X.Presentation
                     ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.System });
                 }
 
-                AddCommonRenderComponents(ref state, ref ecb, entity,
-                    Space4XRenderKeys.Asteroid,
-                    cullDistance: 40000f,
-                    cullPriority: 100,
-                    importance: 0.6f);
+                if (!IsChunkMeshReady(entity, ref chunkedAsteroids))
+                {
+                    AddCommonRenderComponents(ref state, ref ecb, entity,
+                        Space4XRenderKeys.Asteroid,
+                        cullDistance: 40000f,
+                        cullPriority: 100,
+                        importance: 0.6f);
+                }
             }
+        }
+
+        private NativeParallelHashMap<Entity, byte> BuildChunkedAsteroidMap(ref SystemState state)
+        {
+            var chunkQuery = SystemAPI.QueryBuilder()
+                .WithAll<TerrainChunk>()
+                .WithAll<Space4XAsteroidChunkMeshReference>()
+                .Build();
+            var count = chunkQuery.CalculateEntityCount();
+            if (count <= 0)
+            {
+                return default;
+            }
+
+            var map = new NativeParallelHashMap<Entity, byte>(count, Allocator.Temp);
+            foreach (var (chunk, _) in SystemAPI.Query<RefRO<TerrainChunk>>()
+                         .WithAll<Space4XAsteroidChunkMeshReference>())
+            {
+                var volume = chunk.ValueRO.VolumeEntity;
+                if (volume != Entity.Null)
+                {
+                    map.TryAdd(volume, 1);
+                }
+            }
+
+            return map;
+        }
+
+        private static bool IsChunkMeshReady(Entity asteroid, ref NativeParallelHashMap<Entity, byte> chunkedAsteroids)
+        {
+            return chunkedAsteroids.IsCreated && chunkedAsteroids.ContainsKey(asteroid);
         }
 
         private void AddIndividualPresentation(

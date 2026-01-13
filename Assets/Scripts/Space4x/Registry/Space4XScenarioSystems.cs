@@ -131,6 +131,11 @@ namespace Space4X.Registry
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (SystemAPI.HasSingleton<Space4XLegacyPatrolDisabledTag>())
+            {
+                return;
+            }
+
             _transformLookup.Update(ref state);
             _miningTargetLookup.Update(ref state);
             _alignmentLookup.Update(ref state);

@@ -8,11 +8,13 @@ using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Interrupts;
+using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Systems;
 using Space4X.Registry;
+using Space4X.Physics;
 using Space4X.Runtime;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
@@ -200,6 +202,11 @@ namespace Space4x.Scenario
             if (!SystemAPI.TryGetSingletonEntity<Space4XLegacyMiningDisabledTag>(out _))
             {
                 EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XLegacyPatrolDisabledTag>(out _))
+            {
+                EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
             }
         }
 
@@ -427,6 +434,58 @@ namespace Space4x.Scenario
             }
         }
 
+        private void AddScenarioPhysics(Entity entity, float radius, Space4XPhysicsLayer layer, float restitution, float linearDamping)
+        {
+            var clampedRadius = math.max(0.1f, radius);
+            var priority = Space4XPhysicsLayers.GetDefaultPriority(layer);
+            var flags = SpacePhysicsFlags.IsActive | SpacePhysicsFlags.RaisesCollisionEvents;
+            var interactionFlags = PhysicsInteractionFlags.Collidable;
+
+            EntityManager.AddComponentData(entity, new SpacePhysicsBody
+            {
+                Layer = layer,
+                Priority = priority,
+                Flags = flags
+            });
+
+            EntityManager.AddComponentData(entity, SpaceColliderData.CreateSphere(clampedRadius));
+            EntityManager.AddComponentData(entity, new SpaceVelocity
+            {
+                Linear = float3.zero,
+                Angular = float3.zero
+            });
+
+            EntityManager.AddComponentData(entity, new RequiresPhysics
+            {
+                Priority = priority,
+                Flags = interactionFlags
+            });
+
+            EntityManager.AddComponentData(entity, new PhysicsInteractionConfig
+            {
+                Mass = 1f,
+                CollisionRadius = clampedRadius,
+                Restitution = math.max(0f, restitution),
+                Friction = 0f,
+                LinearDamping = math.max(0f, linearDamping),
+                AngularDamping = 0f
+            });
+
+            EntityManager.AddComponentData(entity, new PhysicsColliderSpec
+            {
+                Shape = PhysicsColliderShape.Sphere,
+                Dimensions = new float3(clampedRadius, 0f, 0f),
+                Flags = interactionFlags,
+                IsTrigger = 0,
+                UseCustomFilter = 1,
+                CustomFilter = Space4XPhysicsLayers.CreateFilter(layer)
+            });
+
+            EntityManager.AddBuffer<SpaceCollisionEvent>(entity);
+            EntityManager.AddBuffer<PhysicsCollisionEventElement>(entity);
+            EntityManager.AddComponent<NeedsPhysicsSetup>(entity);
+        }
+
         private Entity EnsureScenarioRuntime(uint startTick, uint endTick, float durationSeconds)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XScenarioRuntime>(out var runtimeEntity))
@@ -610,6 +669,9 @@ namespace Space4x.Scenario
             var carrierTurnSpeed = 0.25f;
             var carrierSlowdown = 20f;
             var carrierArrival = 3f;
+            var carrierRadius = 2.6f;
+            var carrierRestitution = 0.08f;
+            var carrierDamping = 0.25f;
             if (_useSmokeMotionTuning)
             {
                 carrierSpeed = 7.2f;
@@ -711,13 +773,15 @@ namespace Space4x.Scenario
 
             EntityManager.AddComponentData(entity, new VesselPhysicalProperties
             {
-                Radius = 2.6f,
+                Radius = carrierRadius,
                 BaseMass = 120f,
                 HullDensity = 1.2f,
                 CargoMassPerUnit = 0.02f,
-                Restitution = 0.08f,
-                TangentialDamping = 0.25f
+                Restitution = carrierRestitution,
+                TangentialDamping = carrierDamping
             });
+
+            AddScenarioPhysics(entity, carrierRadius, Space4XPhysicsLayer.Ship, carrierRestitution, carrierDamping);
 
             EntityManager.AddComponentData(entity, DockingCapacity.MiningCarrier);
             EntityManager.AddBuffer<DockedEntity>(entity);
@@ -951,6 +1015,8 @@ namespace Space4x.Scenario
                 TangentialDamping = 0.3f
             });
 
+            AddScenarioPhysics(entity, 0.6f, Space4XPhysicsLayer.Miner, 0.15f, 0.3f);
+
             EntityManager.AddBuffer<SpawnResourceRequest>(entity);
 
             if (spawn.startDocked && carrierEntity != Entity.Null)
@@ -1032,6 +1098,8 @@ namespace Space4x.Scenario
             {
                 Position = position
             });
+
+            AddScenarioPhysics(entity, volumeConfig.Radius, Space4XPhysicsLayer.Asteroid, 0.05f, 0.1f);
 
             if (!string.IsNullOrEmpty(spawn.entityId))
             {
