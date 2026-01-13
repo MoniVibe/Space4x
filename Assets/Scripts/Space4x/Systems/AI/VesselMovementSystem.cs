@@ -71,6 +71,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<PhysicsCollider> _physicsColliderLookup;
         private ComponentLookup<SpacePhysicsBody> _spacePhysicsBodyLookup;
         private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
+        private EntityQuery _asteroidCollisionQuery;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -121,6 +122,9 @@ namespace Space4X.Systems.AI
             _physicsColliderLookup = state.GetComponentLookup<PhysicsCollider>(true);
             _spacePhysicsBodyLookup = state.GetComponentLookup<SpacePhysicsBody>(true);
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
+            _asteroidCollisionQuery = state.EntityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Space4XAsteroidCenter>(),
+                ComponentType.ReadOnly<Space4XAsteroidVolumeConfig>());
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -260,6 +264,33 @@ namespace Space4X.Systems.AI
                 stanceConfig = stanceConfigSingleton;
             }
 
+            var asteroidCandidates = default(NativeArray<AsteroidCollisionCandidate>);
+            var asteroidCandidateCount = 0;
+            var asteroidCount = _asteroidCollisionQuery.CalculateEntityCount();
+            if (asteroidCount > 0)
+            {
+                asteroidCandidates = new NativeArray<AsteroidCollisionCandidate>(asteroidCount, Allocator.TempJob);
+                var index = 0;
+                foreach (var (center, volume, entity) in SystemAPI
+                             .Query<RefRO<Space4XAsteroidCenter>, RefRO<Space4XAsteroidVolumeConfig>>()
+                             .WithEntityAccess())
+                {
+                    if (index >= asteroidCandidates.Length)
+                    {
+                        break;
+                    }
+
+                    asteroidCandidates[index++] = new AsteroidCollisionCandidate
+                    {
+                        Entity = entity,
+                        Position = center.ValueRO.Position,
+                        Radius = math.max(0.1f, volume.ValueRO.Radius)
+                    };
+                }
+
+                asteroidCandidateCount = index;
+            }
+
             var job = new UpdateVesselMovementJob
             {
                 DeltaTime = deltaTime,
@@ -310,6 +341,9 @@ namespace Space4X.Systems.AI
                 PhysicsColliderLookup = _physicsColliderLookup,
                 SpacePhysicsBodyLookup = _spacePhysicsBodyLookup,
                 ColliderSpecLookup = _colliderSpecLookup,
+                CollisionEventLookup = state.GetBufferLookup<PhysicsCollisionEventElement>(false),
+                AsteroidCandidates = asteroidCandidates,
+                AsteroidCandidateCount = asteroidCandidateCount,
                 HasPhysicsWorld = hasPhysicsWorld,
                 PhysicsWorld = physicsWorld,
                 SweepSkin = 0.05f,
@@ -317,6 +351,11 @@ namespace Space4X.Systems.AI
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
+
+            if (asteroidCandidates.IsCreated)
+            {
+                state.Dependency = asteroidCandidates.Dispose(state.Dependency);
+            }
         }
 
         [BurstCompile]
@@ -371,6 +410,9 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<PhysicsCollider> PhysicsColliderLookup;
             [ReadOnly] public ComponentLookup<SpacePhysicsBody> SpacePhysicsBodyLookup;
             [ReadOnly] public ComponentLookup<PhysicsColliderSpec> ColliderSpecLookup;
+            [NativeDisableParallelForRestriction] public BufferLookup<PhysicsCollisionEventElement> CollisionEventLookup;
+            [ReadOnly] public NativeArray<AsteroidCollisionCandidate> AsteroidCandidates;
+            public int AsteroidCandidateCount;
             [ReadOnly] public PhysicsWorldSingleton PhysicsWorld;
             public bool HasPhysicsWorld;
             public float SweepSkin;
@@ -839,6 +881,8 @@ namespace Space4X.Systems.AI
                         if (sweepResult.HasHit != 0 && blockerEntity == Entity.Null && !isNonBlocking)
                         {
                             blockerEntity = sweepResult.HitEntity;
+                            ApplyCollisionResponse(ref movement, sweepResult.HitNormal, restitution, tangentialDamping);
+                            RegisterCollisionEvent(entity, sweepResult.HitEntity, sweepResult.HitPosition, sweepResult.HitNormal, baseMass, movement.Velocity);
                         }
                     }
                 }
@@ -875,6 +919,11 @@ namespace Space4X.Systems.AI
                         movement.Velocity = velocity;
                         movement.CurrentSpeed = math.length(velocity);
                     }
+                }
+                else if (blockerEntity == Entity.Null && AsteroidCandidateCount > 0)
+                {
+                    ResolveAsteroidPenetration(entity, ref transform, ref movement, vesselRadius, restitution, tangentialDamping,
+                        ref blockerEntity, baseMass);
                 }
 
                 if (math.lengthsq(movement.Velocity) > 0.001f)
@@ -1485,6 +1534,111 @@ namespace Space4X.Systems.AI
 
                 return false;
             }
+
+            private void ResolveAsteroidPenetration(
+                Entity entity,
+                ref LocalTransform transform,
+                ref VesselMovement movement,
+                float vesselRadius,
+                float restitution,
+                float tangentialDamping,
+                ref Entity blockerEntity,
+                float baseMass)
+            {
+                var bestPenetration = 0f;
+                var bestNormal = float3.zero;
+                var bestCenter = float3.zero;
+                var bestEntity = Entity.Null;
+
+                for (var i = 0; i < AsteroidCandidateCount; i++)
+                {
+                    var candidate = AsteroidCandidates[i];
+                    var toVessel = transform.Position - candidate.Position;
+                    var distance = math.length(toVessel);
+                    var surfaceRadius = candidate.Radius + vesselRadius;
+                    var penetration = surfaceRadius - distance;
+                    if (penetration <= 0f)
+                    {
+                        continue;
+                    }
+
+                    if (penetration > bestPenetration)
+                    {
+                        bestPenetration = penetration;
+                        bestNormal = distance > 1e-4f ? toVessel / distance : math.up();
+                        bestCenter = candidate.Position;
+                        bestEntity = candidate.Entity;
+                    }
+                }
+
+                if (bestPenetration <= 0f || bestEntity == Entity.Null)
+                {
+                    return;
+                }
+
+                transform.Position += bestNormal * bestPenetration;
+                ApplyCollisionResponse(ref movement, bestNormal, restitution, tangentialDamping);
+                blockerEntity = bestEntity;
+                RegisterCollisionEvent(entity,
+                    bestEntity,
+                    bestCenter + bestNormal * math.max(0.1f, bestPenetration * 0.5f),
+                    bestNormal,
+                    baseMass,
+                    movement.Velocity);
+            }
+
+            private static void ApplyCollisionResponse(
+                ref VesselMovement movement,
+                float3 normal,
+                float restitution,
+                float tangentialDamping)
+            {
+                var velocity = movement.Velocity;
+                var normalSpeed = math.dot(velocity, normal);
+                if (normalSpeed < 0f)
+                {
+                    velocity -= (1f + restitution) * normalSpeed * normal;
+                }
+
+                var tangent = velocity - math.dot(velocity, normal) * normal;
+                velocity -= tangent * tangentialDamping;
+                movement.Velocity = velocity;
+                movement.CurrentSpeed = math.length(velocity);
+            }
+
+            private void RegisterCollisionEvent(
+                Entity entity,
+                Entity otherEntity,
+                float3 contactPoint,
+                float3 contactNormal,
+                float baseMass,
+                float3 velocity)
+            {
+                if (!CollisionEventLookup.HasBuffer(entity))
+                {
+                    return;
+                }
+
+                var impactSpeed = math.max(0f, -math.dot(velocity, contactNormal));
+                var impulse = impactSpeed * math.max(0.1f, baseMass);
+                var buffer = CollisionEventLookup[entity];
+                buffer.Add(new PhysicsCollisionEventElement
+                {
+                    OtherEntity = otherEntity,
+                    ContactPoint = contactPoint,
+                    ContactNormal = contactNormal,
+                    Impulse = impulse,
+                    Tick = CurrentTick,
+                    EventType = PhysicsCollisionEventType.Collision
+                });
+            }
+        }
+
+        private struct AsteroidCollisionCandidate
+        {
+            public Entity Entity;
+            public float3 Position;
+            public float Radius;
         }
 
         private void EnsureMovementDebugSurfaces(ref SystemState state)
