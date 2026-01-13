@@ -760,6 +760,10 @@ namespace Space4x.Scenario
                 Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
             });
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            if (_useSmokeMotionTuning)
+            {
+                EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
+            }
             EntityManager.AddComponent<CommunicationModuleTag>(entity);
             EntityManager.AddComponentData(entity, MediumContext.Vacuum);
 
@@ -962,6 +966,10 @@ namespace Space4x.Scenario
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            if (_useSmokeMotionTuning)
+            {
+                EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
+            }
             EntityManager.AddComponent<CommunicationModuleTag>(entity);
             EntityManager.AddComponentData(entity, MediumContext.Vacuum);
 
@@ -1146,6 +1154,10 @@ namespace Space4x.Scenario
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
+            if (_useSmokeMotionTuning)
+            {
+                EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
+            }
 
             var resourceId = new FixedString64Bytes(spawn.resourceId ?? "Minerals");
             var resourceType = ParseResourceType(spawn.resourceId ?? "Minerals");
@@ -1306,6 +1318,10 @@ namespace Space4x.Scenario
                 var entity = EntityManager.CreateEntity();
                 var offset = new float3(2f * (i + 1), 0f, 2f * (i + 1));
                 EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
+                if (_useSmokeMotionTuning)
+                {
+                    EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
+                }
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
                 EntityManager.AddComponentData(entity, MediumContext.Vacuum);
                 EntityManager.AddComponentData(entity, hull);
@@ -1529,6 +1545,10 @@ namespace Space4x.Scenario
                 var offset = new float3(3f * (i + 1), 0f, -3f * (i + 1));
                 EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
                 EntityManager.AddComponent<SpatialIndexedTag>(entity);
+                if (_useSmokeMotionTuning)
+                {
+                    EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
+                }
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
                 EntityManager.AddComponentData(entity, MediumContext.Vacuum);
 
