@@ -13,6 +13,7 @@ using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Systems;
+using Space4X.Presentation;
 using Space4X.Registry;
 using Space4X.Physics;
 using Space4X.Runtime;
