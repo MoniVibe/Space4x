@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using PureDOTS.Runtime.Scenarios;
+using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
