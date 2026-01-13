@@ -317,57 +317,60 @@ namespace Space4X.Presentation
         {
             foreach (var (asteroid, transform, entity) in SystemAPI
                          .Query<RefRO<Asteroid>, RefRO<LocalTransform>>()
-                         .WithNone<AsteroidPresentationTag>()
                          .WithEntityAccess())
             {
-                float4 baseColor = default;
-                bool hasBaseColor = false;
+                var hasPresentation = SystemAPI.HasComponent<AsteroidPresentationTag>(entity);
+                if (!hasPresentation)
+                {
+                    float4 baseColor = default;
+                    bool hasBaseColor = false;
 
-                if (SystemAPI.HasComponent<ResourceTypeColor>(entity))
-                {
-                    baseColor = SystemAPI.GetComponentRO<ResourceTypeColor>(entity).ValueRO.Value;
-                    hasBaseColor = true;
-                }
-                else if (hasVisualConfig)
-                {
-                    baseColor = visualConfig.AsteroidColor;
-                    hasBaseColor = true;
-                }
-                else
-                {
-                    baseColor = GetResourceColor(asteroid.ValueRO.ResourceType);
-                    hasBaseColor = true;
+                    if (SystemAPI.HasComponent<ResourceTypeColor>(entity))
+                    {
+                        baseColor = SystemAPI.GetComponentRO<ResourceTypeColor>(entity).ValueRO.Value;
+                        hasBaseColor = true;
+                    }
+                    else if (hasVisualConfig)
+                    {
+                        baseColor = visualConfig.AsteroidColor;
+                        hasBaseColor = true;
+                    }
+                    else
+                    {
+                        baseColor = GetResourceColor(asteroid.ValueRO.ResourceType);
+                        hasBaseColor = true;
+                    }
+
+                    var ratio = asteroid.ValueRO.MaxResourceAmount > 0f
+                        ? asteroid.ValueRO.ResourceAmount / math.max(0.0001f, asteroid.ValueRO.MaxResourceAmount)
+                        : 1f;
+
+                    ecb.AddComponent(entity, new AsteroidPresentationTag());
+                    AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
+                    if (!SystemAPI.HasComponent<ResourceTypeColor>(entity) && hasBaseColor)
+                    {
+                        ecb.AddComponent(entity, new ResourceTypeColor { Value = baseColor });
+                    }
+                    ecb.AddComponent(entity, new AsteroidVisualState
+                    {
+                        State = ratio > 0.1f ? AsteroidVisualStateType.Full : AsteroidVisualStateType.Depleted,
+                        DepletionRatio = 1f - math.saturate(ratio),
+                        StateTimer = 0f
+                    });
+                    if (!SystemAPI.HasComponent<PresentationScaleMultiplier>(entity))
+                    {
+                        ecb.AddComponent(entity, new PresentationScaleMultiplier { Value = 1f });
+                    }
+
+                    baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
+                    AddMaterialColor(ref state, ref ecb, entity, baseColor);
+                    if (!SystemAPI.HasComponent<PresentationLayer>(entity))
+                    {
+                        ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.System });
+                    }
                 }
 
-                var ratio = asteroid.ValueRO.MaxResourceAmount > 0f
-                    ? asteroid.ValueRO.ResourceAmount / math.max(0.0001f, asteroid.ValueRO.MaxResourceAmount)
-                    : 1f;
-
-                ecb.AddComponent(entity, new AsteroidPresentationTag());
-                AddSimPoseSnapshot(ref state, ref ecb, entity, transform.ValueRO, currentTick);
-                if (!SystemAPI.HasComponent<ResourceTypeColor>(entity) && hasBaseColor)
-                {
-                    ecb.AddComponent(entity, new ResourceTypeColor { Value = baseColor });
-                }
-                ecb.AddComponent(entity, new AsteroidVisualState
-                {
-                    State = ratio > 0.1f ? AsteroidVisualStateType.Full : AsteroidVisualStateType.Depleted,
-                    DepletionRatio = 1f - math.saturate(ratio),
-                    StateTimer = 0f
-                });
-                if (!SystemAPI.HasComponent<PresentationScaleMultiplier>(entity))
-                {
-                    ecb.AddComponent(entity, new PresentationScaleMultiplier { Value = 1f });
-                }
-
-                baseColor = ResolveFallbackColor(hasBaseColor, baseColor);
-                AddMaterialColor(ref state, ref ecb, entity, baseColor);
-                if (!SystemAPI.HasComponent<PresentationLayer>(entity))
-                {
-                    ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.System });
-                }
-
-                if (!IsChunkMeshReady(entity, ref chunkedAsteroids))
+                if (!IsChunkMeshReady(entity, ref chunkedAsteroids) && !SystemAPI.HasComponent<RenderKey>(entity))
                 {
                     AddCommonRenderComponents(ref state, ref ecb, entity,
                         Space4XRenderKeys.Asteroid,
