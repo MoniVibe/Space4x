@@ -1743,7 +1743,9 @@ namespace Space4x.Scenario
             {
                 float x = position[0];
                 float z = position[1];
-                float y = position.Length > 2 ? position[2] : ResolveSpawnHeight(x, z);
+                float y = position.Length > 2
+                    ? position[2]
+                    : (_useSmokeMotionTuning ? 0f : ResolveSpawnHeight(x, z));
                 return new float3(x, y, z);
             }
             // Deterministic fallback to keep spawns separated when position data is missing.
@@ -1752,7 +1754,7 @@ namespace Space4x.Scenario
             var radius = 20f + (index % 5) * 5f;
             var xFallback = math.cos(angle) * radius;
             var zFallback = math.sin(angle) * radius;
-            var yFallback = ResolveSpawnHeight(xFallback, zFallback);
+            var yFallback = _useSmokeMotionTuning ? 0f : ResolveSpawnHeight(xFallback, zFallback);
             return new float3(xFallback, yFallback, zFallback);
         }
 
