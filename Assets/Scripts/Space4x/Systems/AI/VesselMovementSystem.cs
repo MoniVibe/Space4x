@@ -1634,7 +1634,7 @@ namespace Space4X.Systems.AI
             }
         }
 
-        private struct AsteroidCollisionCandidate
+        public struct AsteroidCollisionCandidate
         {
             public Entity Entity;
             public float3 Position;
