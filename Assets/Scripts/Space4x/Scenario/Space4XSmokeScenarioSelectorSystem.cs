@@ -51,16 +51,6 @@ namespace Space4x.Scenario
                 RunTicks = 240
             });
 
-            if (!SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>())
-            {
-                state.EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
-            }
-
-            if (!SystemAPI.HasSingleton<Space4XLegacyPatrolDisabledTag>())
-            {
-                state.EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
-            }
-
             Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{ScenarioIdString}'.");
             _injected = true;
             state.Enabled = false;
@@ -68,15 +58,22 @@ namespace Space4x.Scenario
 
         private static void EnsureLegacyDisableTags(EntityManager entityManager)
         {
-            if (!SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>())
+            if (!HasSingleton<Space4XLegacyMiningDisabledTag>(entityManager))
             {
                 entityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
             }
 
-            if (!SystemAPI.HasSingleton<Space4XLegacyPatrolDisabledTag>())
+            if (!HasSingleton<Space4XLegacyPatrolDisabledTag>(entityManager))
             {
                 entityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
             }
+        }
+
+        private static bool HasSingleton<T>(EntityManager entityManager)
+            where T : unmanaged, IComponentData
+        {
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
+            return !query.IsEmptyIgnoreFilter;
         }
     }
 }
