@@ -34,7 +34,7 @@ MonoBehaviour:
     Material: {fileID: 2100000, guid: e36c0b1c5d5d439689dc3a9da7f3dc85, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
-    BoundsExtents: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.6, y: 0.6, z: 0.6}
     PresenterMask: 1
     RenderLayer: 0
   - Name: Projectile
@@ -62,8 +62,8 @@ MonoBehaviour:
     PresenterMask: 1
     RenderLayer: 0
   - Name: StrikeCraft
-    Mesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
-    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    Mesh: {fileID: 4300000, guid: df183b756c0d6f542852af3c753d4e80, type: 3}
+    Material: {fileID: 2100000, guid: 2a93bc95e3e543319122bb964eb5994f, type: 2}
     SubMesh: 0
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.35, y: 0.2, z: 0.6}
@@ -138,39 +138,39 @@ MonoBehaviour:
     ThemeId: 0
     SemanticVariants:
     - SemanticKey: 200
-      Lod0Variant: 13
+      Lod0Variant: 0
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 210
-      Lod0Variant: 14
+      Lod0Variant: 1
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 220
-      Lod0Variant: 3
+      Lod0Variant: 2
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 230
-      Lod0Variant: 4
+      Lod0Variant: 3
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 240
-      Lod0Variant: 5
+      Lod0Variant: 4
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 250
-      Lod0Variant: 6
+      Lod0Variant: 5
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 260
-      Lod0Variant: 15
+      Lod0Variant: 6
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 270
-      Lod0Variant: 8
+      Lod0Variant: 7
       Lod1Variant: -1
       Lod2Variant: -1
     - SemanticKey: 280
-      Lod0Variant: 9
+      Lod0Variant: 8
       Lod1Variant: -1
       Lod2Variant: -1
   FallbackMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}

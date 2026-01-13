@@ -359,6 +359,29 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Spatial query tuning for strike craft target acquisition.
+    /// </summary>
+    public struct StrikeCraftTargetQueryConfig : IComponentData
+    {
+        public float SearchRadius;
+        public int MaxCandidates;
+        public byte UseSpatialGrid;
+        public uint EvaluationCadenceTicks;
+        public int MaxEvaluationsPerTick;
+        public byte StaggerEvaluation;
+
+        public static StrikeCraftTargetQueryConfig Default => new StrikeCraftTargetQueryConfig
+        {
+            SearchRadius = 200f,
+            MaxCandidates = 32,
+            UseSpatialGrid = 1,
+            EvaluationCadenceTicks = 10,
+            MaxEvaluationsPerTick = 4096,
+            StaggerEvaluation = 1
+        };
+    }
+
+    /// <summary>
     /// Configuration for attack run behavior.
     /// </summary>
     public struct AttackRunConfig : IComponentData

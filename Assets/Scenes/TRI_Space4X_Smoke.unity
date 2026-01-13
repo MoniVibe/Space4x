@@ -721,6 +721,14 @@ MonoBehaviour:
     LifetimeOverride: 1.2
     IntensityProperty: _Intensity
     DirectionProperty: _Direction
+  - EffectId: FX.Mining.Sparks
+    Prefab: {fileID: 100000, guid: ed4d7156b7ecb474aa517b8e1ad366ac, type: 3}
+    BindingMode: 0
+    FollowMode: 1
+    FollowOffset: {x: 0, y: 0, z: 0}
+    LifetimeOverride: 1.2
+    IntensityProperty: _Intensity
+    DirectionProperty: _Direction
   - EffectId: FX.Mining.Laser
     Prefab: {fileID: 100000, guid: 45917c7d5543b774894963f1abc77d43, type: 3}
     BindingMode: 0
@@ -936,14 +944,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa01b0f442d34e2fa389303a66acb639, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Lift: 0.35
-  MinScale: 0.35
-  MaxScale: 0.85
-  AmountForMaxScale: 100
-  BoundsExtents: 1.5
+  Lift: 0.2
+  MinScale: 0.18
+  MaxScale: 0.4
+  AmountForMaxScale: 120
+  BoundsExtents: 0.6
   Smoothing: 10
   UseSourceEntityAlignment: 1
-  LocalOffsetWhenAligned: {x: 0, y: 0.35, z: 0}
+  LocalOffsetWhenAligned: {x: 0, y: 0.2, z: 0}
 --- !u!1 &2100000000
 GameObject:
   m_ObjectHideFlags: 0

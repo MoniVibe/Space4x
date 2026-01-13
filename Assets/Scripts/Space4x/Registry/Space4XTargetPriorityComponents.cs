@@ -261,6 +261,52 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Tuning for target priority queries (cadence + candidate caps).
+    /// </summary>
+    public struct TargetPriorityQueryConfig : IComponentData
+    {
+        /// <summary>
+        /// Minimum ticks between evaluations per entity.
+        /// </summary>
+        public uint EvaluationCadenceTicks;
+
+        /// <summary>
+        /// Maximum number of candidates scored per evaluation.
+        /// </summary>
+        public int MaxCandidates;
+
+        /// <summary>
+        /// Hard cap on evaluations per tick.
+        /// </summary>
+        public int MaxEvaluationsPerTick;
+
+        /// <summary>
+        /// Whether to stagger evaluations across ticks.
+        /// </summary>
+        public byte StaggerEvaluation;
+
+        /// <summary>
+        /// Use spatial grid when available.
+        /// </summary>
+        public byte UseSpatialGrid;
+
+        /// <summary>
+        /// Default max range when profile range is unset.
+        /// </summary>
+        public float DefaultSearchRadius;
+
+        public static TargetPriorityQueryConfig Default => new TargetPriorityQueryConfig
+        {
+            EvaluationCadenceTicks = 10,
+            MaxCandidates = 32,
+            MaxEvaluationsPerTick = 4096,
+            StaggerEvaluation = 1,
+            UseSpatialGrid = 1,
+            DefaultSearchRadius = 10000f
+        };
+    }
+
+    /// <summary>
     /// Tracks which entities this entity has damaged.
     /// </summary>
     [InternalBufferCapacity(8)]
@@ -404,4 +450,3 @@ namespace Space4X.Registry
         }
     }
 }
-

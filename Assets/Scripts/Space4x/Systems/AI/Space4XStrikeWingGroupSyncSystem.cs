@@ -253,17 +253,11 @@ namespace Space4X.Systems.AI
 
         private void CleanupOrphanedGroups(NativeParallelHashMap<Entity, byte> leaderSet, ref SystemState state)
         {
-            var groupQuery = SystemAPI.QueryBuilder().WithAll<GroupTag, GroupMeta>().Build();
-            var groups = groupQuery.ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < groups.Length; i++)
+            foreach (var (metaRef, groupEntity) in SystemAPI.Query<RefRO<GroupMeta>>()
+                         .WithAll<GroupTag>()
+                         .WithEntityAccess())
             {
-                var groupEntity = groups[i];
-                if (!state.EntityManager.HasComponent<GroupMeta>(groupEntity))
-                {
-                    continue;
-                }
-
-                var meta = state.EntityManager.GetComponentData<GroupMeta>(groupEntity);
+                var meta = metaRef.ValueRO;
                 if (meta.Kind != GroupKind.StrikeWing)
                 {
                     continue;
@@ -374,8 +368,6 @@ namespace Space4X.Systems.AI
                     state.EntityManager.RemoveComponent<GroupMeta>(groupEntity);
                 }
             }
-
-            groups.Dispose();
         }
 
         private void SyncGroupMembers(

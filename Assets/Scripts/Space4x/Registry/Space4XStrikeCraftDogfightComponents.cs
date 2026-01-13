@@ -33,6 +33,11 @@ namespace Space4X.Registry
         public float MaxTurnRate;
         public float SeparationRadius;
         public float SeparationStrength;
+        public int MaxTargetCandidates;
+        public int MaxNeighborSamples;
+        public uint EvaluationCadenceTicks;
+        public int MaxEvaluationsPerTick;
+        public byte StaggerEvaluation;
         public uint TelemetrySampleTicks;
 
         public static StrikeCraftDogfightConfig Default => new StrikeCraftDogfightConfig
@@ -50,6 +55,11 @@ namespace Space4X.Registry
             MaxTurnRate = 4.5f,
             SeparationRadius = 6f,
             SeparationStrength = 2.5f,
+            MaxTargetCandidates = 24,
+            MaxNeighborSamples = 16,
+            EvaluationCadenceTicks = 10,
+            MaxEvaluationsPerTick = 4096,
+            StaggerEvaluation = 1,
             TelemetrySampleTicks = 30
         };
     }

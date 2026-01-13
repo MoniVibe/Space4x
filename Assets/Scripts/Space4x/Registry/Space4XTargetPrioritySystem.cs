@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Spatial;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -22,7 +23,30 @@ namespace Space4X.Registry
         private EntityQuery _potentialTargetsQuery;
         private ComponentLookup<VesselStanceComponent> _stanceLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
+        private ComponentLookup<HullIntegrity> _hullLookup;
         private uint _lastTick;
+
+        private struct TargetPrioritySpatialFilter : ISpatialQueryFilter
+        {
+            [ReadOnly] public ComponentLookup<HullIntegrity> HullLookup;
+            public Entity Excluded;
+
+            public bool Accept(int descriptorIndex, in SpatialQueryDescriptor descriptor, in SpatialGridEntry entry)
+            {
+                var entity = entry.Entity;
+                if (entity == Entity.Null || entity == Excluded)
+                {
+                    return false;
+                }
+
+                if (!HullLookup.HasComponent(entity))
+                {
+                    return false;
+                }
+
+                return HullLookup[entity].Current > 0f;
+            }
+        }
 
         public void OnCreate(ref SystemState state)
         {
@@ -32,6 +56,7 @@ namespace Space4X.Registry
             _lastTick = 0;
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
+            _hullLookup = state.GetComponentLookup<HullIntegrity>(true);
 
             // Query for potential hostile targets
             _potentialTargetsQuery = state.GetEntityQuery(
@@ -56,6 +81,7 @@ namespace Space4X.Registry
 
             _stanceLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
+            _hullLookup.Update(ref state);
 
             var stanceConfig = Space4XStanceTuningConfig.Default;
             if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
@@ -63,10 +89,45 @@ namespace Space4X.Registry
                 stanceConfig = stanceConfigSingleton;
             }
 
-            // Get all potential targets (simplified - in reality would filter by faction/hostility)
-            var potentialTargets = _potentialTargetsQuery.ToEntityArray(Allocator.Temp);
-            var targetTransforms = _potentialTargetsQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
-            var targetHulls = _potentialTargetsQuery.ToComponentDataArray<HullIntegrity>(Allocator.Temp);
+            var queryConfig = TargetPriorityQueryConfig.Default;
+            if (SystemAPI.TryGetSingleton<TargetPriorityQueryConfig>(out var queryConfigSingleton))
+            {
+                queryConfig = queryConfigSingleton;
+            }
+
+            var evaluationCadence = math.max(1u, queryConfig.EvaluationCadenceTicks);
+            var maxCandidates = math.max(1, queryConfig.MaxCandidates);
+            var maxEvaluationsPerTick = math.max(1, queryConfig.MaxEvaluationsPerTick);
+            var staggerEvaluation = queryConfig.StaggerEvaluation != 0;
+
+            SpatialGridConfig spatialConfig = default;
+            var hasSpatial = queryConfig.UseSpatialGrid != 0 &&
+                             SystemAPI.TryGetSingleton(out spatialConfig) &&
+                             SystemAPI.TryGetSingleton(out SpatialGridState _);
+
+            DynamicBuffer<SpatialGridCellRange> cellRanges = default;
+            DynamicBuffer<SpatialGridEntry> gridEntries = default;
+            if (hasSpatial)
+            {
+                var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
+                cellRanges = SystemAPI.GetBuffer<SpatialGridCellRange>(gridEntity);
+                gridEntries = SystemAPI.GetBuffer<SpatialGridEntry>(gridEntity);
+            }
+
+            NativeArray<Entity> potentialTargets = default;
+            NativeArray<LocalTransform> targetTransforms = default;
+            NativeArray<HullIntegrity> targetHulls = default;
+            if (!hasSpatial)
+            {
+                potentialTargets = _potentialTargetsQuery.ToEntityArray(Allocator.Temp);
+                targetTransforms = _potentialTargetsQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+                targetHulls = _potentialTargetsQuery.ToComponentDataArray<HullIntegrity>(Allocator.Temp);
+            }
+
+            var nearestResults = hasSpatial
+                ? new NativeList<KNearestResult>(maxCandidates, Allocator.Temp)
+                : default;
+            var evaluationsThisTick = 0;
 
             foreach (var (priority, profile, transform, candidates, entity) in
                 SystemAPI.Query<RefRW<TargetPriority>, RefRO<TargetSelectionProfile>, RefRO<LocalTransform>, DynamicBuffer<TargetCandidate>>()
@@ -79,19 +140,34 @@ namespace Space4X.Registry
 
                 // Check if reevaluation is needed (every 10 ticks or forced)
                 bool shouldEvaluate = priority.ValueRO.ForceReevaluate == 1 ||
-                                      currentTick - priority.ValueRO.LastEvaluationTick >= 10;
+                                      currentTick - priority.ValueRO.LastEvaluationTick >= evaluationCadence;
 
                 if (!shouldEvaluate)
                 {
                     continue;
                 }
 
+                if (staggerEvaluation && priority.ValueRO.ForceReevaluate == 0)
+                {
+                    var slot = (uint)(entity.Index % (int)evaluationCadence);
+                    if ((currentTick + slot) % evaluationCadence != 0)
+                    {
+                        continue;
+                    }
+                }
+
+                if (priority.ValueRO.ForceReevaluate == 0 && evaluationsThisTick >= maxEvaluationsPerTick)
+                {
+                    continue;
+                }
+
+                evaluationsThisTick++;
                 candidates.Clear();
 
                 // Score each potential target
                 float maxRange = profile.ValueRO.MaxEngagementRange > 0
                     ? profile.ValueRO.MaxEngagementRange
-                    : 10000f;
+                    : queryConfig.DefaultSearchRadius;
 
                 var stance = VesselStanceMode.Balanced;
                 if (_stanceLookup.HasComponent(entity))
@@ -111,72 +187,182 @@ namespace Space4X.Registry
 
                 float3 myPosition = transform.ValueRO.Position;
 
-                for (int i = 0; i < potentialTargets.Length; i++)
+                if (hasSpatial && maxRange > 0f)
                 {
-                    Entity targetEntity = potentialTargets[i];
-
-                    // Skip self
-                    if (targetEntity == entity)
+                    var filter = new TargetPrioritySpatialFilter
                     {
-                        continue;
-                    }
-
-                    float3 targetPosition = targetTransforms[i].Position;
-                    float distance = math.distance(myPosition, targetPosition);
-
-                    // Skip out of range
-                    if (maxRange > 0f && distance > maxRange)
-                    {
-                        continue;
-                    }
-
-                    var hull = targetHulls[i];
-                    float hullRatio = (float)hull.Current / math.max((float)hull.Max, 0.01f);
-
-                    // Create candidate
-                    var candidate = new TargetCandidate
-                    {
-                        Entity = targetEntity,
-                        Distance = distance,
-                        ThreatLevel = (half)0.5f, // TODO: Get actual threat level
-                        HullRatio = (half)hullRatio,
-                        Value = (half)0.5f, // TODO: Get actual value
-                        IsThreateningAlly = 0 // TODO: Check ally threats
+                        HullLookup = _hullLookup,
+                        Excluded = entity
                     };
 
-                    // Calculate score
-                    candidate.Score = TargetPriorityUtility.CalculateScore(
-                        profile.ValueRO,
-                        candidate,
-                        maxRange
-                    );
+                    SpatialQueryHelper.FindKNearestInRadius(
+                        ref myPosition,
+                        maxRange,
+                        maxCandidates,
+                        spatialConfig,
+                        cellRanges,
+                        gridEntries,
+                        ref nearestResults,
+                        filter);
 
-                    // Apply engagement bonus if this is current target
-                    if (targetEntity == priority.ValueRO.CurrentTarget)
+                    for (int i = 0; i < nearestResults.Length; i++)
                     {
-                        candidate.Score = TargetPriorityUtility.ApplyEngagementBonus(
-                            candidate.Score,
-                            priority.ValueRO.EngagementDuration,
-                            true
+                        var targetEntity = nearestResults[i].Entity;
+                        if (!_hullLookup.HasComponent(targetEntity))
+                        {
+                            continue;
+                        }
+
+                        var hull = _hullLookup[targetEntity];
+                        float hullRatio = (float)hull.Current / math.max((float)hull.Max, 0.01f);
+                        var distance = math.sqrt(nearestResults[i].DistanceSq);
+
+                        var candidate = new TargetCandidate
+                        {
+                            Entity = targetEntity,
+                            Distance = distance,
+                            ThreatLevel = (half)0.5f,
+                            HullRatio = (half)hullRatio,
+                            Value = (half)0.5f,
+                            IsThreateningAlly = 0
+                        };
+
+                        candidate.Score = TargetPriorityUtility.CalculateScore(
+                            profile.ValueRO,
+                            candidate,
+                            maxRange
                         );
-                    }
 
-                    // Skip below threshold
-                    if ((float)candidate.ThreatLevel < (float)profile.ValueRO.MinThreatThreshold)
+                        if (targetEntity == priority.ValueRO.CurrentTarget)
+                        {
+                            candidate.Score = TargetPriorityUtility.ApplyEngagementBonus(
+                                candidate.Score,
+                                priority.ValueRO.EngagementDuration,
+                                true
+                            );
+                        }
+
+                        if ((float)candidate.ThreatLevel < (float)profile.ValueRO.MinThreatThreshold)
+                        {
+                            continue;
+                        }
+
+                        AddCandidate(candidates, candidate, maxCandidates);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < potentialTargets.Length; i++)
                     {
-                        continue;
-                    }
+                        Entity targetEntity = potentialTargets[i];
 
-                    candidates.Add(candidate);
+                        // Skip self
+                        if (targetEntity == entity)
+                        {
+                            continue;
+                        }
+
+                        float3 targetPosition = targetTransforms[i].Position;
+                        float distance = math.distance(myPosition, targetPosition);
+
+                        // Skip out of range
+                        if (maxRange > 0f && distance > maxRange)
+                        {
+                            continue;
+                        }
+
+                        var hull = targetHulls[i];
+                        float hullRatio = (float)hull.Current / math.max((float)hull.Max, 0.01f);
+
+                        var candidate = new TargetCandidate
+                        {
+                            Entity = targetEntity,
+                            Distance = distance,
+                            ThreatLevel = (half)0.5f,
+                            HullRatio = (half)hullRatio,
+                            Value = (half)0.5f,
+                            IsThreateningAlly = 0
+                        };
+
+                        candidate.Score = TargetPriorityUtility.CalculateScore(
+                            profile.ValueRO,
+                            candidate,
+                            maxRange
+                        );
+
+                        if (targetEntity == priority.ValueRO.CurrentTarget)
+                        {
+                            candidate.Score = TargetPriorityUtility.ApplyEngagementBonus(
+                                candidate.Score,
+                                priority.ValueRO.EngagementDuration,
+                                true
+                            );
+                        }
+
+                        if ((float)candidate.ThreatLevel < (float)profile.ValueRO.MinThreatThreshold)
+                        {
+                            continue;
+                        }
+
+                        AddCandidate(candidates, candidate, maxCandidates);
+                    }
                 }
 
                 // Select best target
                 SelectBestTarget(ref priority.ValueRW, candidates, currentTick);
             }
 
-            potentialTargets.Dispose();
-            targetTransforms.Dispose();
-            targetHulls.Dispose();
+            if (potentialTargets.IsCreated)
+            {
+                potentialTargets.Dispose();
+            }
+            if (targetTransforms.IsCreated)
+            {
+                targetTransforms.Dispose();
+            }
+            if (targetHulls.IsCreated)
+            {
+                targetHulls.Dispose();
+            }
+            if (nearestResults.IsCreated)
+            {
+                nearestResults.Dispose();
+            }
+        }
+
+        private static void AddCandidate(
+            DynamicBuffer<TargetCandidate> candidates,
+            in TargetCandidate candidate,
+            int maxCandidates)
+        {
+            if (maxCandidates <= 0)
+            {
+                return;
+            }
+
+            if (candidates.Length < maxCandidates)
+            {
+                candidates.Add(candidate);
+                return;
+            }
+
+            var worstIndex = 0;
+            var worstScore = candidates[0].Score;
+            for (int i = 1; i < candidates.Length; i++)
+            {
+                if (candidates[i].Score < worstScore)
+                {
+                    worstScore = candidates[i].Score;
+                    worstIndex = i;
+                }
+            }
+
+            if (candidate.Score <= worstScore)
+            {
+                return;
+            }
+
+            candidates[worstIndex] = candidate;
         }
 
         private void SelectBestTarget(

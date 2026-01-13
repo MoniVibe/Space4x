@@ -1,6 +1,74 @@
 {
   "seed": 77,
   "duration_s": 150,
+  "dogfightConfig": {
+    "acquireRadius": 120.0,
+    "coneDegrees": 70.0,
+    "navConstantN": 3.0,
+    "breakOffDistance": 14.0,
+    "breakOffTicks": 40,
+    "rejoinRadius": 35.0,
+    "rejoinOffset": [0.0, 0.0, -6.0],
+    "jinkStrength": 0.35
+  },
+  "stanceConfig": {
+    "aggressive": {
+      "avoidanceRadius": 10.0,
+      "avoidanceStrength": 0.6,
+      "speedMultiplier": 1.15,
+      "rotationMultiplier": 1.2,
+      "maintainFormationWhenAttacking": 0.4,
+      "evasionJinkStrength": 0.35,
+      "autoEngageRadius": 140.0,
+      "abortAttackOnDamageThreshold": 0.3,
+      "returnToPatrolAfterCombat": true,
+      "commandOverrideDropsToNeutral": false,
+      "attackMoveBearingWeight": 0.6,
+      "attackMoveDestinationWeight": 0.4
+    },
+    "balanced": {
+      "avoidanceRadius": 14.0,
+      "avoidanceStrength": 0.75,
+      "speedMultiplier": 1.0,
+      "rotationMultiplier": 1.0,
+      "maintainFormationWhenAttacking": 0.6,
+      "evasionJinkStrength": 0.25,
+      "autoEngageRadius": 120.0,
+      "abortAttackOnDamageThreshold": 0.5,
+      "returnToPatrolAfterCombat": true,
+      "commandOverrideDropsToNeutral": true,
+      "attackMoveBearingWeight": 0.5,
+      "attackMoveDestinationWeight": 0.5
+    },
+    "defensive": {
+      "avoidanceRadius": 18.0,
+      "avoidanceStrength": 0.95,
+      "speedMultiplier": 0.85,
+      "rotationMultiplier": 0.9,
+      "maintainFormationWhenAttacking": 0.8,
+      "evasionJinkStrength": 0.45,
+      "autoEngageRadius": 100.0,
+      "abortAttackOnDamageThreshold": 0.65,
+      "returnToPatrolAfterCombat": true,
+      "commandOverrideDropsToNeutral": true,
+      "attackMoveBearingWeight": 0.4,
+      "attackMoveDestinationWeight": 0.6
+    },
+    "evasive": {
+      "avoidanceRadius": 22.0,
+      "avoidanceStrength": 1.2,
+      "speedMultiplier": 0.9,
+      "rotationMultiplier": 1.05,
+      "maintainFormationWhenAttacking": 0.3,
+      "evasionJinkStrength": 0.6,
+      "autoEngageRadius": 85.0,
+      "abortAttackOnDamageThreshold": 0.35,
+      "returnToPatrolAfterCombat": true,
+      "commandOverrideDropsToNeutral": true,
+      "attackMoveBearingWeight": 0.3,
+      "attackMoveDestinationWeight": 0.7
+    }
+  },
   "spawn": [
     {
       "kind": "Carrier",
@@ -20,17 +88,18 @@
           "canIntercept": true,
           "interceptSpeed": 11.0,
           "isHostile": false,
-          "strikeCraftCount": 2,
+          "strikeCraftCount": 3,
           "strikeCraftRole": "Fighter",
-          "escortCount": 1,
-          "escortRelease_s": 40
+          "escortCount": 2,
+          "escortRelease_s": 12,
+          "pilotProfileIds": ["pilot-lawful", "pilot-balanced", "pilot-cautious"]
         }
       }
     },
     {
       "kind": "Carrier",
       "entityId": "friendly-carrier-bravo",
-      "position": [140, -40],
+      "position": [90, -20],
       "components": {
         "ResourceStorage": [
           {"type": "Minerals", "capacity": 10000}
@@ -44,17 +113,18 @@
           "canIntercept": true,
           "interceptSpeed": 10.0,
           "isHostile": false,
-          "strikeCraftCount": 1,
+          "strikeCraftCount": 2,
           "strikeCraftRole": "Fighter",
           "escortCount": 1,
-          "escortRelease_s": 45
+          "escortRelease_s": 10,
+          "pilotProfileIds": ["pilot-balanced", "pilot-lawful"]
         }
       }
     },
     {
       "kind": "Carrier",
       "entityId": "hostile-carrier-delta",
-      "position": [360, 80],
+      "position": [200, 40],
       "components": {
         "ResourceStorage": [
           {"type": "Minerals", "capacity": 9000}
@@ -68,10 +138,11 @@
           "canIntercept": true,
           "interceptSpeed": 12.0,
           "isHostile": true,
-          "strikeCraftCount": 2,
+          "strikeCraftCount": 3,
           "strikeCraftRole": "Interceptor",
-          "escortCount": 1,
-          "escortRelease_s": 50
+          "escortCount": 2,
+          "escortRelease_s": 14,
+          "pilotProfileIds": ["pilot-chaotic", "pilot-fanatic"]
         }
       }
     },
@@ -90,7 +161,8 @@
       "miningEfficiency": 0.85,
       "speed": 10.0,
       "cargoCapacity": 120.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-lawful"
     },
     {
       "kind": "MiningVessel",
@@ -109,7 +181,8 @@
       "miningEfficiency": 0.8,
       "speed": 10.0,
       "cargoCapacity": 100.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-balanced"
     },
     {
       "kind": "MiningVessel",
@@ -128,12 +201,13 @@
       "miningEfficiency": 0.75,
       "speed": 10.0,
       "cargoCapacity": 80.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-cautious"
     },
     {
       "kind": "MiningVessel",
       "entityId": "miner-bravo-1",
-      "position": [140, -40],
+      "position": [90, -20],
       "carrierId": "friendly-carrier-bravo",
       "resourceId": "Minerals",
       "toolKind": "drill",
@@ -146,40 +220,44 @@
       "miningEfficiency": 0.78,
       "speed": 9.5,
       "cargoCapacity": 90.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-balanced"
     },
     {
       "kind": "MiningVessel",
       "entityId": "miner-bravo-2",
-      "position": [140, -40],
+      "position": [90, -20],
       "carrierId": "friendly-carrier-bravo",
       "resourceId": "Minerals",
       "miningEfficiency": 0.8,
       "speed": 9.5,
       "cargoCapacity": 90.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-lawful"
     },
     {
       "kind": "MiningVessel",
       "entityId": "miner-delta-1",
-      "position": [360, 80],
+      "position": [200, 40],
       "carrierId": "hostile-carrier-delta",
       "resourceId": "Minerals",
       "miningEfficiency": 0.8,
       "speed": 10.5,
       "cargoCapacity": 100.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-chaotic"
     },
     {
       "kind": "MiningVessel",
       "entityId": "miner-delta-2",
-      "position": [360, 80],
+      "position": [200, 40],
       "carrierId": "hostile-carrier-delta",
       "resourceId": "Minerals",
       "miningEfficiency": 0.78,
       "speed": 10.5,
       "cargoCapacity": 100.0,
-      "startDocked": true
+      "startDocked": false,
+      "pilotProfileId": "pilot-fanatic"
     },
     {
       "kind": "ResourceDeposit",
@@ -193,7 +271,7 @@
     {
       "kind": "ResourceDeposit",
       "entityId": "deposit-bravo",
-      "position": [200, -30],
+      "position": [130, -15],
       "resourceId": "Minerals",
       "unitsRemaining": 900.0,
       "gatherRatePerWorker": 11.0,
@@ -202,7 +280,7 @@
     {
       "kind": "ResourceDeposit",
       "entityId": "deposit-charlie",
-      "position": [-160, -120],
+      "position": [-80, -60],
       "resourceId": "Minerals",
       "unitsRemaining": 700.0,
       "gatherRatePerWorker": 9.0,
@@ -211,7 +289,7 @@
     {
       "kind": "ResourceDeposit",
       "entityId": "deposit-delta",
-      "position": [280, 110],
+      "position": [170, 60],
       "resourceId": "Minerals",
       "unitsRemaining": 800.0,
       "gatherRatePerWorker": 10.0,
@@ -229,28 +307,28 @@
   ],
   "actions": [
     {
-      "time_s": 20,
+      "time_s": 6,
       "kind": "MoveFleet",
       "fleetId": "FRIENDLY-ALPHA",
       "targetPosition": [80, 20],
       "description": "Alpha patrol shifts toward contested nodes"
     },
     {
-      "time_s": 60,
+      "time_s": 12,
       "kind": "MoveFleet",
       "fleetId": "HOSTILE-DELTA",
       "targetPosition": [220, 40],
       "description": "Hostile carrier pushes into belt"
     },
     {
-      "time_s": 90,
+      "time_s": 18,
       "kind": "TriggerIntercept",
       "requesterFleetId": "FRIENDLY-BRAVO",
       "targetFleetId": "HOSTILE-DELTA",
       "description": "Bravo escorts intercept hostile incursion"
     },
     {
-      "time_s": 110,
+      "time_s": 28,
       "kind": "MoveFleet",
       "fleetId": "FRIENDLY-ALPHA",
       "targetPosition": [140, 0],
@@ -267,8 +345,112 @@
       "csv": "Reports/space4x_smoke_metrics.csv",
       "json": "Reports/space4x_smoke_metrics.json"
     }
-  }
+  },
+  "individuals": [
+    {
+      "id": "pilot-lawful",
+      "law": 0.85,
+      "good": 0.2,
+      "integrity": 0.7,
+      "raceId": 1,
+      "cultureId": 1,
+      "outlooks": [
+        {"outlookId": "Loyalist", "weight": 0.9},
+        {"outlookId": "Opportunist", "weight": 0.2}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.9,
+        "caution": 0.75,
+        "formationAdherence": 0.85,
+        "riskTolerance": 0.25,
+        "aggression": 0.35,
+        "patience": 0.8
+      }
+    },
+    {
+      "id": "pilot-balanced",
+      "law": 0.35,
+      "good": 0.1,
+      "integrity": 0.5,
+      "raceId": 1,
+      "cultureId": 2,
+      "outlooks": [
+        {"outlookId": "Opportunist", "weight": 0.6},
+        {"outlookId": "Loyalist", "weight": 0.3}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.65,
+        "caution": 0.55,
+        "formationAdherence": 0.6,
+        "riskTolerance": 0.5,
+        "aggression": 0.55,
+        "patience": 0.55
+      }
+    },
+    {
+      "id": "pilot-cautious",
+      "law": 0.6,
+      "good": 0.25,
+      "integrity": 0.65,
+      "raceId": 2,
+      "cultureId": 1,
+      "outlooks": [
+        {"outlookId": "Loyalist", "weight": 0.5},
+        {"outlookId": "Opportunist", "weight": 0.3}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.7,
+        "caution": 0.9,
+        "formationAdherence": 0.7,
+        "riskTolerance": 0.2,
+        "aggression": 0.25,
+        "patience": 0.85
+      }
+    },
+    {
+      "id": "pilot-chaotic",
+      "law": -0.7,
+      "good": -0.1,
+      "integrity": 0.3,
+      "raceId": 3,
+      "cultureId": 2,
+      "outlooks": [
+        {"outlookId": "Mutinous", "weight": 0.8},
+        {"outlookId": "Opportunist", "weight": 0.4}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.25,
+        "caution": 0.2,
+        "formationAdherence": 0.3,
+        "riskTolerance": 0.85,
+        "aggression": 0.8,
+        "patience": 0.35
+      }
+    },
+    {
+      "id": "pilot-fanatic",
+      "law": -0.4,
+      "good": -0.6,
+      "integrity": 0.2,
+      "raceId": 4,
+      "cultureId": 3,
+      "outlooks": [
+        {"outlookId": "Fanatic", "weight": 0.95},
+        {"outlookId": "Mutinous", "weight": 0.4}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.3,
+        "caution": 0.3,
+        "formationAdherence": 0.4,
+        "riskTolerance": 0.75,
+        "aggression": 0.9,
+        "patience": 0.25
+      }
+    }
+  ]
 }
-
-
-

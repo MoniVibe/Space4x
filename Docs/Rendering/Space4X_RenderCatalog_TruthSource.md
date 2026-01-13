@@ -50,9 +50,11 @@ Space4XRenderCatalog_v2.asset
 
 ## Scene Wiring
 
-- `space4x/Assets/TRI_Space4X_Smoke.unity`
+- `space4x/Assets/Scenes/TRI_Space4X_Smoke.unity` (canonical)
   - `RenderPresentationCatalogAuthoring` + `RenderPresentationCatalogRuntimeBootstrap`
   - Both reference `Space4XRenderCatalog_v2.asset`
+- `space4x/Assets/Deprecated/DO_NOT_USE__TRI_Space4X_Smoke.unity` (deprecated, do not open)
+  - Legacy scene retained only to avoid accidental confusion.
 - `space4x/Assets/Scenes/Space4X_Bootstrap.unity`
   - `RenderPresentationCatalogAuthoring` referencing `Space4XRenderCatalog_v2.asset`
 
@@ -100,5 +102,4 @@ Current hero mapping (v1):
 - `RenderPresentationCatalog.Blob.IsCreated == true`
 - `RenderPresentationCatalog.RenderMeshArrayEntity` has `RenderMeshArray` shared component
 - Entities with `RenderSemanticKey` + enabled presenters resolve to `MaterialMeshInfo` + `RenderBounds`
-
 

@@ -1,10 +1,13 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Steering;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -17,12 +20,21 @@ namespace Space4X.Systems.AI
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<VesselMovement> _movementLookup;
         private ComponentLookup<HullIntegrity> _hullLookup;
+        private ComponentLookup<StrikeCraftDogfightTag> _dogfightTagLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private EntityQuery _candidateQuery;
         private EntityQuery _neighborQuery;
+        private NativeArray<KNearestResult> _targetResultsScratch;
+        private NativeArray<KNearestResult> _neighborResultsScratch;
+        private NativeArray<KNearestResult> _emptyTargetResults;
+        private NativeArray<KNearestResult> _emptyNeighborResults;
+        private NativeArray<SpatialGridCellRange> _emptyCellRanges;
+        private NativeArray<SpatialGridEntry> _emptyEntries;
+        private NativeList<StrikeCraftTargetCandidate> _fallbackCandidates;
+        private NativeList<float3> _fallbackNeighbors;
 
         public struct StrikeCraftTargetCandidate
         {
@@ -30,6 +42,43 @@ namespace Space4X.Systems.AI
             public float3 Position;
             public float3 Velocity;
             public Entity AffiliationTarget;
+        }
+
+        private struct StrikeCraftTargetFilter : ISpatialQueryFilter
+        {
+            [ReadOnly] public ComponentLookup<HullIntegrity> HullLookup;
+
+            public bool Accept(int descriptorIndex, in SpatialQueryDescriptor descriptor, in SpatialGridEntry entry)
+            {
+                var entity = entry.Entity;
+                if (entity == Entity.Null)
+                {
+                    return false;
+                }
+
+                if (!HullLookup.HasComponent(entity))
+                {
+                    return false;
+                }
+
+                return HullLookup[entity].Current > 0f;
+            }
+        }
+
+        private struct StrikeCraftNeighborFilter : ISpatialQueryFilter
+        {
+            [ReadOnly] public ComponentLookup<StrikeCraftDogfightTag> DogfightLookup;
+
+            public bool Accept(int descriptorIndex, in SpatialQueryDescriptor descriptor, in SpatialGridEntry entry)
+            {
+                var entity = entry.Entity;
+                if (entity == Entity.Null)
+                {
+                    return false;
+                }
+
+                return DogfightLookup.HasComponent(entity);
+            }
         }
 
         public void OnCreate(ref SystemState state)
@@ -41,6 +90,7 @@ namespace Space4X.Systems.AI
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _movementLookup = state.GetComponentLookup<VesselMovement>(true);
             _hullLookup = state.GetComponentLookup<HullIntegrity>(true);
+            _dogfightTagLookup = state.GetComponentLookup<StrikeCraftDogfightTag>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
@@ -51,6 +101,79 @@ namespace Space4X.Systems.AI
             _neighborQuery = state.GetEntityQuery(
                 ComponentType.ReadOnly<LocalTransform>(),
                 ComponentType.ReadOnly<StrikeCraftDogfightTag>());
+
+            if (!_emptyTargetResults.IsCreated)
+            {
+                _emptyTargetResults = new NativeArray<KNearestResult>(1, Allocator.Persistent);
+            }
+
+            if (!_emptyNeighborResults.IsCreated)
+            {
+                _emptyNeighborResults = new NativeArray<KNearestResult>(1, Allocator.Persistent);
+            }
+
+            if (!_fallbackCandidates.IsCreated)
+            {
+                _fallbackCandidates = new NativeList<StrikeCraftTargetCandidate>(0, Allocator.Persistent);
+            }
+
+            if (!_fallbackNeighbors.IsCreated)
+            {
+                _fallbackNeighbors = new NativeList<float3>(0, Allocator.Persistent);
+            }
+
+            if (!_emptyCellRanges.IsCreated)
+            {
+                _emptyCellRanges = new NativeArray<SpatialGridCellRange>(1, Allocator.Persistent);
+            }
+
+            if (!_emptyEntries.IsCreated)
+            {
+                _emptyEntries = new NativeArray<SpatialGridEntry>(1, Allocator.Persistent);
+            }
+        }
+
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_targetResultsScratch.IsCreated)
+            {
+                _targetResultsScratch.Dispose();
+            }
+
+            if (_neighborResultsScratch.IsCreated)
+            {
+                _neighborResultsScratch.Dispose();
+            }
+
+            if (_emptyTargetResults.IsCreated)
+            {
+                _emptyTargetResults.Dispose();
+            }
+
+            if (_emptyNeighborResults.IsCreated)
+            {
+                _emptyNeighborResults.Dispose();
+            }
+
+            if (_fallbackCandidates.IsCreated)
+            {
+                _fallbackCandidates.Dispose();
+            }
+
+            if (_fallbackNeighbors.IsCreated)
+            {
+                _fallbackNeighbors.Dispose();
+            }
+
+            if (_emptyCellRanges.IsCreated)
+            {
+                _emptyCellRanges.Dispose();
+            }
+
+            if (_emptyEntries.IsCreated)
+            {
+                _emptyEntries.Dispose();
+            }
         }
 
         [BurstCompile]
@@ -81,88 +204,96 @@ namespace Space4X.Systems.AI
 
             var targetAcquireRadius = math.max(0f, config.TargetAcquireRadius);
             var targetAcquireRadiusSq = targetAcquireRadius * targetAcquireRadius;
-
-            var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
-            var hasChanges = false;
-
-            using var missingSteering = SystemAPI.QueryBuilder()
-                .WithAll<StrikeCraftDogfightTag>()
-                .WithNone<StrikeCraftDogfightSteering>()
-                .Build()
-                .ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < missingSteering.Length; i++)
+            var maxTargetCandidates = math.max(1, config.MaxTargetCandidates);
+            var maxNeighborSamples = math.max(1, config.MaxNeighborSamples);
+            var evaluationCadenceTicks = math.max(1u, config.EvaluationCadenceTicks);
+            var evaluationStride = 1;
+            if (config.MaxEvaluationsPerTick > 0)
             {
-                ecb.AddComponent(missingSteering[i], new StrikeCraftDogfightSteering());
-                hasChanges = true;
-            }
-
-            using var missingMetrics = SystemAPI.QueryBuilder()
-                .WithAll<StrikeCraftDogfightTag>()
-                .WithNone<StrikeCraftDogfightMetrics>()
-                .Build()
-                .ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < missingMetrics.Length; i++)
-            {
-                ecb.AddComponent(missingMetrics[i], new StrikeCraftDogfightMetrics());
-                hasChanges = true;
-            }
-
-            using var missingSamples = SystemAPI.QueryBuilder()
-                .WithAll<StrikeCraftDogfightTag>()
-                .WithNone<StrikeCraftDogfightSample>()
-                .Build()
-                .ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < missingSamples.Length; i++)
-            {
-                ecb.AddBuffer<StrikeCraftDogfightSample>(missingSamples[i]);
-                hasChanges = true;
-            }
-
-            if (hasChanges)
-            {
-                ecb.Playback(state.EntityManager);
+                var craftCount = _neighborQuery.CalculateEntityCount();
+                evaluationStride = ResolveEvaluationStride(craftCount, config.MaxEvaluationsPerTick);
             }
 
             _transformLookup.Update(ref state);
             _movementLookup.Update(ref state);
             _hullLookup.Update(ref state);
+            _dogfightTagLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _profileLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
             _engagementLookup.Update(ref state);
 
-            var candidateCapacity = math.max(8, _candidateQuery.CalculateEntityCount());
-            var candidates = new NativeList<StrikeCraftTargetCandidate>(candidateCapacity, Allocator.TempJob);
-            foreach (var (transform, hull, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>>()
-                         .WithEntityAccess())
+            var spatialConfig = default(SpatialGridConfig);
+            var hasSpatial = SystemAPI.TryGetSingleton(out spatialConfig) &&
+                             SystemAPI.TryGetSingleton(out SpatialGridState _);
+
+            var cellRanges = _emptyCellRanges;
+            var gridEntries = _emptyEntries;
+            var targetResults = _emptyTargetResults;
+            var neighborResults = _emptyNeighborResults;
+            if (hasSpatial)
             {
-                if (hull.ValueRO.Current <= 0f)
-                {
-                    continue;
-                }
+                var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
+                cellRanges = SystemAPI.GetBuffer<SpatialGridCellRange>(gridEntity).AsNativeArray();
+                gridEntries = SystemAPI.GetBuffer<SpatialGridEntry>(gridEntity).AsNativeArray();
 
-                var velocity = float3.zero;
-                if (_movementLookup.HasComponent(entity))
-                {
-                    velocity = _movementLookup[entity].Velocity;
-                }
-
-                candidates.Add(new StrikeCraftTargetCandidate
-                {
-                    Entity = entity,
-                    Position = transform.ValueRO.Position,
-                    Velocity = velocity,
-                    AffiliationTarget = ResolveAffiliationTarget(entity)
-                });
+                var scratchCount = JobsUtility.MaxJobThreadCount;
+                EnsureScratchCapacity(ref _targetResultsScratch, scratchCount * maxTargetCandidates, ref state);
+                EnsureScratchCapacity(ref _neighborResultsScratch, scratchCount * maxNeighborSamples, ref state);
+                targetResults = _targetResultsScratch;
+                neighborResults = _neighborResultsScratch;
             }
 
-            var neighborCapacity = math.max(4, _neighborQuery.CalculateEntityCount());
-            var neighbors = new NativeList<float3>(neighborCapacity, Allocator.TempJob);
-            foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>()
-                         .WithAll<StrikeCraftDogfightTag>()
-                         .WithEntityAccess())
+            NativeArray<StrikeCraftTargetCandidate> candidates = default;
+            NativeArray<float3> neighbors = default;
+            if (!hasSpatial)
             {
-                neighbors.Add(transform.ValueRO.Position);
+                state.Dependency.Complete();
+
+                var candidateCapacity = math.max(8, _candidateQuery.CalculateEntityCount());
+                if (_fallbackCandidates.Capacity < candidateCapacity)
+                {
+                    _fallbackCandidates.Capacity = candidateCapacity;
+                }
+                _fallbackCandidates.Clear();
+                foreach (var (transform, hull, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>>()
+                             .WithEntityAccess())
+                {
+                    if (hull.ValueRO.Current <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var velocity = float3.zero;
+                    if (_movementLookup.HasComponent(entity))
+                    {
+                        velocity = _movementLookup[entity].Velocity;
+                    }
+
+                    _fallbackCandidates.Add(new StrikeCraftTargetCandidate
+                    {
+                        Entity = entity,
+                        Position = transform.ValueRO.Position,
+                        Velocity = velocity,
+                        AffiliationTarget = ResolveAffiliationTarget(entity)
+                    });
+                }
+
+                var neighborCapacity = math.max(4, _neighborQuery.CalculateEntityCount());
+                if (_fallbackNeighbors.Capacity < neighborCapacity)
+                {
+                    _fallbackNeighbors.Capacity = neighborCapacity;
+                }
+                _fallbackNeighbors.Clear();
+                foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>()
+                             .WithAll<StrikeCraftDogfightTag>()
+                             .WithEntityAccess())
+                {
+                    _fallbackNeighbors.Add(transform.ValueRO.Position);
+                }
+
+                candidates = _fallbackCandidates.AsArray();
+                neighbors = _fallbackNeighbors.AsArray();
             }
 
             var job = new UpdateStrikeCraftDogfightGuidanceJob
@@ -173,20 +304,50 @@ namespace Space4X.Systems.AI
                 StanceConfig = stanceConfig,
                 FireConeCos = math.cos(math.radians(config.FireConeDegrees)),
                 TargetAcquireRadiusSq = targetAcquireRadiusSq,
-                TargetCandidates = candidates.AsArray(),
-                NeighborPositions = neighbors.AsArray(),
+                UseSpatialGrid = (byte)(hasSpatial ? 1 : 0),
+                SpatialConfig = spatialConfig,
+                CellRanges = cellRanges,
+                Entries = gridEntries,
+                TargetResults = targetResults,
+                NeighborResults = neighborResults,
+                MaxTargetCandidates = maxTargetCandidates,
+                MaxNeighborSamples = maxNeighborSamples,
+                EvaluationCadenceTicks = evaluationCadenceTicks,
+                EvaluationStride = evaluationStride,
+                StaggerEvaluation = config.StaggerEvaluation,
+                TargetCandidates = hasSpatial ? _fallbackCandidates.AsArray() : candidates,
+                NeighborPositions = hasSpatial ? _fallbackNeighbors.AsArray() : neighbors,
                 AffiliationLookup = _affiliationLookup,
                 TransformLookup = _transformLookup,
                 MovementLookup = _movementLookup,
                 HullLookup = _hullLookup,
+                DogfightLookup = _dogfightTagLookup,
                 ProfileLookup = _profileLookup,
                 PatrolStanceLookup = _patrolStanceLookup,
                 EngagementLookup = _engagementLookup
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
-            state.Dependency = candidates.Dispose(state.Dependency);
-            state.Dependency = neighbors.Dispose(state.Dependency);
+        }
+
+        private static void EnsureScratchCapacity(
+            ref NativeArray<KNearestResult> scratch,
+            int required,
+            ref SystemState state)
+        {
+            required = math.max(1, required);
+            if (scratch.IsCreated && scratch.Length >= required)
+            {
+                return;
+            }
+
+            state.Dependency.Complete();
+            if (scratch.IsCreated)
+            {
+                scratch.Dispose();
+            }
+
+            scratch = new NativeArray<KNearestResult>(required, Allocator.Persistent);
         }
 
         private Entity ResolveAffiliationTarget(Entity entity)
@@ -249,6 +410,17 @@ namespace Space4X.Systems.AI
             return fallback;
         }
 
+        private static int ResolveEvaluationStride(int totalCount, int maxPerTick)
+        {
+            if (maxPerTick <= 0 || totalCount <= maxPerTick)
+            {
+                return 1;
+            }
+
+            var stride = (totalCount + maxPerTick - 1) / maxPerTick;
+            return math.max(1, stride);
+        }
+
         [BurstCompile]
         [WithAll(typeof(StrikeCraftDogfightTag))]
         public partial struct UpdateStrikeCraftDogfightGuidanceJob : IJobEntity
@@ -259,17 +431,31 @@ namespace Space4X.Systems.AI
             public Space4XStanceTuningConfig StanceConfig;
             public float FireConeCos;
             public float TargetAcquireRadiusSq;
+            public byte UseSpatialGrid;
+            public SpatialGridConfig SpatialConfig;
+            [ReadOnly] public NativeArray<SpatialGridCellRange> CellRanges;
+            [ReadOnly] public NativeArray<SpatialGridEntry> Entries;
+            [NativeDisableParallelForRestriction] public NativeArray<KNearestResult> TargetResults;
+            [NativeDisableParallelForRestriction] public NativeArray<KNearestResult> NeighborResults;
+            public int MaxTargetCandidates;
+            public int MaxNeighborSamples;
+            public uint EvaluationCadenceTicks;
+            public int EvaluationStride;
+            public byte StaggerEvaluation;
             [ReadOnly] public NativeArray<StrikeCraftTargetCandidate> TargetCandidates;
             [ReadOnly] public NativeArray<float3> NeighborPositions;
             [ReadOnly] public BufferLookup<AffiliationTag> AffiliationLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
             [ReadOnly] public ComponentLookup<VesselMovement> MovementLookup;
             [ReadOnly] public ComponentLookup<HullIntegrity> HullLookup;
+            [ReadOnly] public ComponentLookup<StrikeCraftDogfightTag> DogfightLookup;
             [ReadOnly] public ComponentLookup<StrikeCraftProfile> ProfileLookup;
             [ReadOnly] public ComponentLookup<PatrolStance> PatrolStanceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<Space4XEngagement> EngagementLookup;
+            [NativeSetThreadIndex] public int ThreadIndex;
 
             public void Execute(
+                [EntityIndexInQuery] int entityIndex,
                 Entity entity,
                 ref StrikeCraftState state,
                 ref StrikeCraftDogfightSteering steering,
@@ -291,7 +477,7 @@ namespace Space4X.Systems.AI
                 var position = transform.Position;
                 var velocity = movement.Velocity;
                 var previousTarget = state.TargetEntity;
-                if (!TryResolveTarget(entity, craftAffiliation, position, TargetAcquireRadiusSq, TargetCandidates, ref state,
+                if (!TryResolveTarget(entityIndex, entity, craftAffiliation, position, TargetAcquireRadiusSq, ref state,
                         out var targetPosition, out var targetVelocity))
                 {
                     steering.Output = default;
@@ -360,7 +546,7 @@ namespace Space4X.Systems.AI
                     DeltaTime = DeltaTime
                 };
 
-                SteeringPrimitives.Separation(position, NeighborPositions, Config.SeparationRadius, Config.SeparationStrength, out var separation);
+                var separation = ComputeSeparation(entityIndex, entity, position);
                 var jink = ComputeJink(entity, forward, jinkStrength, CurrentTick);
                 var desiredForward = directionToTarget;
                 var desiredAccel = float3.zero;
@@ -518,36 +704,235 @@ namespace Space4X.Systems.AI
                 return math.forward(transform.Rotation);
             }
 
-            private static bool TryResolveTarget(
+            private bool TryResolveTarget(
+                int entityIndex,
                 Entity entity,
                 Entity craftAffiliation,
                 float3 craftPosition,
                 float targetAcquireRadiusSq,
-                NativeArray<StrikeCraftTargetCandidate> candidates,
                 ref StrikeCraftState state,
                 out float3 targetPosition,
                 out float3 targetVelocity)
             {
                 targetPosition = float3.zero;
                 targetVelocity = float3.zero;
-                var hasRadius = targetAcquireRadiusSq > 0f;
 
-                if (state.TargetEntity != Entity.Null &&
-                    TryGetCandidate(state.TargetEntity, craftAffiliation, candidates, out targetPosition, out targetVelocity))
+                if (TryResolveExistingTarget(entity, craftAffiliation, craftPosition, targetAcquireRadiusSq, ref state,
+                        out targetPosition, out targetVelocity))
                 {
-                    if (!hasRadius || math.lengthsq(targetPosition - craftPosition) <= targetAcquireRadiusSq)
-                    {
-                        return true;
-                    }
-
-                    targetPosition = float3.zero;
-                    targetVelocity = float3.zero;
+                    return true;
                 }
 
-                var bestDistanceSq = float.MaxValue;
-                Entity bestTarget = Entity.Null;
-                float3 bestPosition = float3.zero;
-                float3 bestVelocity = float3.zero;
+                if (!ShouldEvaluateTarget(entityIndex))
+                {
+                    state.TargetEntity = Entity.Null;
+                    return false;
+                }
+
+                if (UseSpatialGrid != 0 &&
+                    TryResolveTargetSpatial(entity, craftAffiliation, craftPosition, targetAcquireRadiusSq,
+                        out var spatialTarget, out targetPosition, out targetVelocity))
+                {
+                    state.TargetEntity = spatialTarget;
+                    return true;
+                }
+
+                if (TargetCandidates.Length > 0 &&
+                    TryResolveTargetFallback(entity, craftAffiliation, craftPosition, targetAcquireRadiusSq, TargetCandidates,
+                        out var fallbackTarget, out targetPosition, out targetVelocity))
+                {
+                    state.TargetEntity = fallbackTarget;
+                    return true;
+                }
+
+                state.TargetEntity = Entity.Null;
+                return false;
+            }
+
+            private bool ShouldEvaluateTarget(int entityIndex)
+            {
+                var cadence = EvaluationCadenceTicks;
+                if (cadence > 1)
+                {
+                    var offset = StaggerEvaluation != 0 ? (uint)entityIndex : 0u;
+                    if (((CurrentTick + offset) % cadence) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                if (EvaluationStride > 1)
+                {
+                    var offset = StaggerEvaluation != 0 ? (int)(CurrentTick % (uint)EvaluationStride) : 0;
+                    if (((entityIndex + offset) % EvaluationStride) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            private bool TryResolveExistingTarget(
+                Entity entity,
+                Entity craftAffiliation,
+                float3 craftPosition,
+                float targetAcquireRadiusSq,
+                ref StrikeCraftState state,
+                out float3 targetPosition,
+                out float3 targetVelocity)
+            {
+                targetPosition = float3.zero;
+                targetVelocity = float3.zero;
+
+                var target = state.TargetEntity;
+                if (target == Entity.Null)
+                {
+                    return false;
+                }
+
+                if (!TransformLookup.HasComponent(target) || !HullLookup.HasComponent(target))
+                {
+                    state.TargetEntity = Entity.Null;
+                    return false;
+                }
+
+                if (HullLookup[target].Current <= 0f)
+                {
+                    state.TargetEntity = Entity.Null;
+                    return false;
+                }
+
+                if (craftAffiliation != Entity.Null)
+                {
+                    var targetAffiliation = ResolveAffiliationTarget(target, AffiliationLookup);
+                    if (targetAffiliation == craftAffiliation)
+                    {
+                        state.TargetEntity = Entity.Null;
+                        return false;
+                    }
+                }
+
+                var position = TransformLookup[target].Position;
+                if (targetAcquireRadiusSq > 0f && math.lengthsq(position - craftPosition) > targetAcquireRadiusSq)
+                {
+                    return false;
+                }
+
+                targetPosition = position;
+                targetVelocity = MovementLookup.HasComponent(target) ? MovementLookup[target].Velocity : float3.zero;
+                return true;
+            }
+
+            private bool TryResolveTargetSpatial(
+                Entity entity,
+                Entity craftAffiliation,
+                float3 craftPosition,
+                float targetAcquireRadiusSq,
+                out Entity bestTarget,
+                out float3 bestPosition,
+                out float3 bestVelocity)
+            {
+                bestTarget = Entity.Null;
+                bestPosition = float3.zero;
+                bestVelocity = float3.zero;
+
+                if (MaxTargetCandidates <= 0 || !CellRanges.IsCreated || !Entries.IsCreated || !TargetResults.IsCreated)
+                {
+                    return false;
+                }
+
+                var startIndex = ThreadIndex * MaxTargetCandidates;
+                if (startIndex >= TargetResults.Length)
+                {
+                    return false;
+                }
+
+                var length = math.min(MaxTargetCandidates, TargetResults.Length - startIndex);
+                if (length <= 0)
+                {
+                    return false;
+                }
+
+                var radius = targetAcquireRadiusSq > 0f ? math.sqrt(targetAcquireRadiusSq) : float.MaxValue;
+                var descriptor = new SpatialQueryDescriptor
+                {
+                    Origin = craftPosition,
+                    Radius = radius,
+                    MaxResults = length,
+                    Options = SpatialQueryOptions.RequireDeterministicSorting | SpatialQueryOptions.IgnoreSelf,
+                    Tolerance = 1e-4f,
+                    ExcludedEntity = entity
+                };
+
+                var slice = new NativeSlice<KNearestResult>(TargetResults, startIndex, length);
+                var filter = new StrikeCraftTargetFilter
+                {
+                    HullLookup = HullLookup
+                };
+
+                var count = SpatialQueryHelper.CollectKNearest(0, in descriptor, in SpatialConfig, CellRanges, Entries, slice, in filter);
+                if (count <= 0)
+                {
+                    return false;
+                }
+
+                var bestDistanceSq = targetAcquireRadiusSq > 0f ? targetAcquireRadiusSq : float.MaxValue;
+                for (int i = 0; i < count; i++)
+                {
+                    var candidate = slice[i];
+                    var candidateEntity = candidate.Entity;
+                    if (candidateEntity == Entity.Null || candidateEntity == entity)
+                    {
+                        continue;
+                    }
+
+                    if (craftAffiliation != Entity.Null)
+                    {
+                        var candidateAffiliation = ResolveAffiliationTarget(candidateEntity, AffiliationLookup);
+                        if (candidateAffiliation == craftAffiliation)
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (!TransformLookup.HasComponent(candidateEntity))
+                    {
+                        continue;
+                    }
+
+                    var distanceSq = candidate.DistanceSq;
+                    if (distanceSq > bestDistanceSq)
+                    {
+                        continue;
+                    }
+
+                    bestDistanceSq = distanceSq;
+                    bestTarget = candidateEntity;
+                    bestPosition = TransformLookup[candidateEntity].Position;
+                    bestVelocity = MovementLookup.HasComponent(candidateEntity)
+                        ? MovementLookup[candidateEntity].Velocity
+                        : float3.zero;
+                }
+
+                return bestTarget != Entity.Null;
+            }
+
+            private static bool TryResolveTargetFallback(
+                Entity entity,
+                Entity craftAffiliation,
+                float3 craftPosition,
+                float targetAcquireRadiusSq,
+                NativeArray<StrikeCraftTargetCandidate> candidates,
+                out Entity bestTarget,
+                out float3 bestPosition,
+                out float3 bestVelocity)
+            {
+                bestTarget = Entity.Null;
+                bestPosition = float3.zero;
+                bestVelocity = float3.zero;
+                var hasRadius = targetAcquireRadiusSq > 0f;
+                var bestDistanceSq = hasRadius ? targetAcquireRadiusSq : float.MaxValue;
 
                 for (int i = 0; i < candidates.Length; i++)
                 {
@@ -577,47 +962,96 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                if (bestTarget == Entity.Null)
-                {
-                    state.TargetEntity = Entity.Null;
-                    return false;
-                }
-
-                state.TargetEntity = bestTarget;
-                targetPosition = bestPosition;
-                targetVelocity = bestVelocity;
-                return true;
+                return bestTarget != Entity.Null;
             }
 
-            private static bool TryGetCandidate(
-                Entity targetEntity,
-                Entity craftAffiliation,
-                NativeArray<StrikeCraftTargetCandidate> candidates,
-                out float3 position,
-                out float3 velocity)
+            private float3 ComputeSeparation(int entityIndex, Entity entity, float3 position)
             {
-                position = float3.zero;
-                velocity = float3.zero;
-
-                for (int i = 0; i < candidates.Length; i++)
+                if (Config.SeparationRadius <= 0f || Config.SeparationStrength <= 0f)
                 {
-                    var candidate = candidates[i];
-                    if (candidate.Entity != targetEntity)
+                    return float3.zero;
+                }
+
+                if (UseSpatialGrid == 0)
+                {
+                    SteeringPrimitives.Separation(position, NeighborPositions, Config.SeparationRadius, Config.SeparationStrength,
+                        out var fallback);
+                    return fallback;
+                }
+
+                if (MaxNeighborSamples <= 0 || !CellRanges.IsCreated || !Entries.IsCreated || !NeighborResults.IsCreated)
+                {
+                    return float3.zero;
+                }
+
+                var startIndex = ThreadIndex * MaxNeighborSamples;
+                if (startIndex >= NeighborResults.Length)
+                {
+                    return float3.zero;
+                }
+
+                var length = math.min(MaxNeighborSamples, NeighborResults.Length - startIndex);
+                if (length <= 0)
+                {
+                    return float3.zero;
+                }
+
+                var slice = new NativeSlice<KNearestResult>(NeighborResults, startIndex, length);
+                var descriptor = new SpatialQueryDescriptor
+                {
+                    Origin = position,
+                    Radius = Config.SeparationRadius,
+                    MaxResults = length,
+                    Options = SpatialQueryOptions.RequireDeterministicSorting | SpatialQueryOptions.IgnoreSelf,
+                    Tolerance = 1e-4f,
+                    ExcludedEntity = entity
+                };
+
+                var filter = new StrikeCraftNeighborFilter
+                {
+                    DogfightLookup = DogfightLookup
+                };
+
+                var count = SpatialQueryHelper.CollectKNearest(0, in descriptor, in SpatialConfig, CellRanges, Entries, slice, in filter);
+                if (count <= 0)
+                {
+                    return float3.zero;
+                }
+
+                var separation = float3.zero;
+                var radius = Config.SeparationRadius;
+                var radiusSq = radius * radius;
+                for (int i = 0; i < count; i++)
+                {
+                    var neighborEntity = slice[i].Entity;
+                    if (neighborEntity == Entity.Null || neighborEntity == entity)
                     {
                         continue;
                     }
 
-                    if (craftAffiliation != Entity.Null && candidate.AffiliationTarget == craftAffiliation)
+                    if (!TransformLookup.HasComponent(neighborEntity))
                     {
-                        return false;
+                        continue;
                     }
 
-                    position = candidate.Position;
-                    velocity = candidate.Velocity;
-                    return true;
+                    var offset = position - TransformLookup[neighborEntity].Position;
+                    var distSq = math.lengthsq(offset);
+                    if (distSq < 1e-6f || distSq > radiusSq)
+                    {
+                        continue;
+                    }
+
+                    var dist = math.sqrt(distSq);
+                    var weight = (radius - dist) / radius;
+                    separation += (offset / dist) * weight;
                 }
 
-                return false;
+                if (math.lengthsq(separation) > 1e-6f)
+                {
+                    separation = math.normalizesafe(separation) * Config.SeparationStrength;
+                }
+
+                return separation;
             }
 
             private static Entity ResolveAffiliationTarget(Entity entity, BufferLookup<AffiliationTag> affiliationLookup)

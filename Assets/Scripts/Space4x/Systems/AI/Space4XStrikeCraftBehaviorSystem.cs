@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Formation;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -11,6 +12,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -62,13 +64,38 @@ namespace Space4X.Systems.AI
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private EntityQuery _targetCandidateQuery;
+        private EntityQuery _strikeCraftQuery;
         private FixedString64Bytes _roleCaptain;
+        private NativeArray<KNearestResult> _nearestResultsScratch;
+        private NativeArray<KNearestResult> _emptyResults;
+        private NativeList<StrikeCraftTargetCandidate> _fallbackCandidates;
 
         public struct StrikeCraftTargetCandidate
         {
             public Entity Entity;
             public float3 Position;
             public Entity AffiliationTarget;
+        }
+
+        private struct StrikeCraftTargetFilter : ISpatialQueryFilter
+        {
+            [ReadOnly] public ComponentLookup<HullIntegrity> HullLookup;
+
+            public bool Accept(int descriptorIndex, in SpatialQueryDescriptor descriptor, in SpatialGridEntry entry)
+            {
+                var entity = entry.Entity;
+                if (entity == Entity.Null)
+                {
+                    return false;
+                }
+
+                if (!HullLookup.HasComponent(entity))
+                {
+                    return false;
+                }
+
+                return HullLookup[entity].Current > 0f;
+            }
         }
 
         public void OnCreate(ref SystemState state)
@@ -113,6 +140,10 @@ namespace Space4X.Systems.AI
             _targetCandidateQuery = state.GetEntityQuery(
                 ComponentType.ReadOnly<LocalTransform>(),
                 ComponentType.ReadOnly<HullIntegrity>());
+            _strikeCraftQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<StrikeCraftState>(),
+                ComponentType.ReadOnly<LocalTransform>(),
+                ComponentType.Exclude<StrikeCraftDogfightTag>());
             _roleCaptain = default;
             _roleCaptain.Append('s');
             _roleCaptain.Append('h');
@@ -126,6 +157,34 @@ namespace Space4X.Systems.AI
             _roleCaptain.Append('a');
             _roleCaptain.Append('i');
             _roleCaptain.Append('n');
+
+            if (!_emptyResults.IsCreated)
+            {
+                _emptyResults = new NativeArray<KNearestResult>(1, Allocator.Persistent);
+            }
+
+            if (!_fallbackCandidates.IsCreated)
+            {
+                _fallbackCandidates = new NativeList<StrikeCraftTargetCandidate>(0, Allocator.Persistent);
+            }
+        }
+
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_nearestResultsScratch.IsCreated)
+            {
+                _nearestResultsScratch.Dispose();
+            }
+
+            if (_emptyResults.IsCreated)
+            {
+                _emptyResults.Dispose();
+            }
+
+            if (_fallbackCandidates.IsCreated)
+            {
+                _fallbackCandidates.Dispose();
+            }
         }
 
         public void OnUpdate(ref SystemState state)
@@ -134,46 +193,6 @@ namespace Space4X.Systems.AI
             if (timeState.IsPaused)
             {
                 return;
-            }
-
-            var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
-            var hasStructuralChanges = false;
-
-            using var missingEngagement = SystemAPI.QueryBuilder()
-                .WithAll<StrikeCraftState>()
-                .WithNone<Space4XEngagement>()
-                .Build()
-                .ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < missingEngagement.Length; i++)
-            {
-                ecb.AddComponent(missingEngagement[i], new Space4XEngagement
-                {
-                    PrimaryTarget = Entity.Null,
-                    Phase = EngagementPhase.None,
-                    TargetDistance = 0f,
-                    EngagementDuration = 0,
-                    DamageDealt = 0f,
-                    DamageReceived = 0f,
-                    FormationBonus = (half)0f,
-                    EvasionModifier = (half)0f
-                });
-                hasStructuralChanges = true;
-            }
-
-            using var missingSupply = SystemAPI.QueryBuilder()
-                .WithAll<StrikeCraftState>()
-                .WithNone<SupplyStatus>()
-                .Build()
-                .ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < missingSupply.Length; i++)
-            {
-                ecb.AddComponent(missingSupply[i], SupplyStatus.DefaultStrikeCraft);
-                hasStructuralChanges = true;
-            }
-
-            if (hasStructuralChanges)
-            {
-                ecb.Playback(state.EntityManager);
             }
 
             _alignmentLookup.Update(ref state);
@@ -223,6 +242,21 @@ namespace Space4X.Systems.AI
                 stanceConfig = stanceConfigSingleton;
             }
 
+            var targetQueryConfig = StrikeCraftTargetQueryConfig.Default;
+            if (SystemAPI.TryGetSingleton<StrikeCraftTargetQueryConfig>(out var targetQuerySingleton))
+            {
+                targetQueryConfig = targetQuerySingleton;
+            }
+            var maxCandidates = math.max(1, targetQueryConfig.MaxCandidates);
+            var searchRadius = math.max(0f, targetQueryConfig.SearchRadius);
+            var evaluationCadenceTicks = math.max(1u, targetQueryConfig.EvaluationCadenceTicks);
+            var evaluationStride = 1;
+            if (targetQueryConfig.MaxEvaluationsPerTick > 0)
+            {
+                var craftCount = _strikeCraftQuery.CalculateEntityCount();
+                evaluationStride = ResolveEvaluationStride(craftCount, targetQueryConfig.MaxEvaluationsPerTick);
+            }
+
             var rewindEnabled = true;
             if (SystemAPI.TryGetSingleton<SimulationFeatureFlags>(out var features))
             {
@@ -233,22 +267,53 @@ namespace Space4X.Systems.AI
             var hasCulturePolicy = SystemAPI.TryGetSingletonEntity<CultureDireTacticsPolicyCatalog>(out culturePolicyEntity) &&
                                    _culturePolicyLookup.HasBuffer(culturePolicyEntity);
 
-            var candidateCapacity = math.max(16, _targetCandidateQuery.CalculateEntityCount());
-            var candidates = new NativeList<StrikeCraftTargetCandidate>(candidateCapacity, Allocator.TempJob);
-            foreach (var (transform, hull, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>>().WithEntityAccess())
+            var spatialConfig = default(SpatialGridConfig);
+            var hasSpatial = targetQueryConfig.UseSpatialGrid != 0 &&
+                             SystemAPI.TryGetSingleton(out spatialConfig) &&
+                             SystemAPI.TryGetSingleton(out SpatialGridState _);
+
+            NativeArray<SpatialGridCellRange> cellRanges = default;
+            NativeArray<SpatialGridEntry> gridEntries = default;
+            var nearestResults = _emptyResults;
+            if (hasSpatial)
             {
-                if (hull.ValueRO.Current <= 0f)
+                var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
+                cellRanges = SystemAPI.GetBuffer<SpatialGridCellRange>(gridEntity).AsNativeArray();
+                gridEntries = SystemAPI.GetBuffer<SpatialGridEntry>(gridEntity).AsNativeArray();
+
+                var scratchCount = JobsUtility.MaxJobThreadCount;
+                EnsureScratchCapacity(ref _nearestResultsScratch, scratchCount * maxCandidates, ref state);
+                nearestResults = _nearestResultsScratch;
+            }
+
+            NativeArray<StrikeCraftTargetCandidate> candidates = default;
+            if (!hasSpatial)
+            {
+                state.Dependency.Complete();
+
+                var candidateCapacity = math.max(16, _targetCandidateQuery.CalculateEntityCount());
+                if (_fallbackCandidates.Capacity < candidateCapacity)
                 {
-                    continue;
+                    _fallbackCandidates.Capacity = candidateCapacity;
+                }
+                _fallbackCandidates.Clear();
+                foreach (var (transform, hull, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>>().WithEntityAccess())
+                {
+                    if (hull.ValueRO.Current <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var affiliationTarget = ResolveAffiliationTarget(entity);
+                    _fallbackCandidates.Add(new StrikeCraftTargetCandidate
+                    {
+                        Entity = entity,
+                        Position = transform.ValueRO.Position,
+                        AffiliationTarget = affiliationTarget
+                    });
                 }
 
-                var affiliationTarget = ResolveAffiliationTarget(entity);
-                candidates.Add(new StrikeCraftTargetCandidate
-                {
-                    Entity = entity,
-                    Position = transform.ValueRO.Position,
-                    AffiliationTarget = affiliationTarget
-                });
+                candidates = _fallbackCandidates.AsArray();
             }
 
             var job = new UpdateStrikeCraftBehaviorJob
@@ -290,17 +355,46 @@ namespace Space4X.Systems.AI
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
                 AffiliationLookup = _affiliationLookup,
                 EngagementLookup = _engagementLookup,
-                TargetCandidates = candidates.AsArray(),
+                TargetCandidates = hasSpatial ? _fallbackCandidates.AsArray() : candidates,
                 BehaviorConfig = behaviorConfig,
                 StanceConfig = stanceConfig,
+                EvaluationCadenceTicks = evaluationCadenceTicks,
+                EvaluationStride = evaluationStride,
+                StaggerEvaluation = targetQueryConfig.StaggerEvaluation,
                 RewindEnabled = rewindEnabled,
                 CulturePolicyEntity = culturePolicyEntity,
                 HasCulturePolicy = (byte)(hasCulturePolicy ? 1 : 0),
-                RoleCaptain = _roleCaptain
+                RoleCaptain = _roleCaptain,
+                UseSpatialGrid = (byte)(hasSpatial ? 1 : 0),
+                SpatialConfig = spatialConfig,
+                CellRanges = cellRanges,
+                Entries = gridEntries,
+                NearestResults = nearestResults,
+                MaxCandidates = maxCandidates,
+                SearchRadius = searchRadius
             };
 
             state.Dependency = job.ScheduleParallel(state.Dependency);
-            state.Dependency = candidates.Dispose(state.Dependency);
+        }
+
+        private static void EnsureScratchCapacity(
+            ref NativeArray<KNearestResult> scratch,
+            int required,
+            ref SystemState state)
+        {
+            required = math.max(1, required);
+            if (scratch.IsCreated && scratch.Length >= required)
+            {
+                return;
+            }
+
+            state.Dependency.Complete();
+            if (scratch.IsCreated)
+            {
+                scratch.Dispose();
+            }
+
+            scratch = new NativeArray<KNearestResult>(required, Allocator.Persistent);
         }
 
         private Entity ResolveAffiliationTarget(Entity entity)
@@ -363,6 +457,17 @@ namespace Space4X.Systems.AI
             return fallback;
         }
 
+        private static int ResolveEvaluationStride(int totalCount, int maxPerTick)
+        {
+            if (maxPerTick <= 0 || totalCount <= maxPerTick)
+            {
+                return 1;
+            }
+
+            var stride = (totalCount + maxPerTick - 1) / maxPerTick;
+            return math.max(1, stride);
+        }
+
 
         [BurstCompile]
         [WithNone(typeof(StrikeCraftDogfightTag))]
@@ -408,12 +513,23 @@ namespace Space4X.Systems.AI
             [ReadOnly] public NativeArray<StrikeCraftTargetCandidate> TargetCandidates;
             public StrikeCraftBehaviorProfileConfig BehaviorConfig;
             public Space4XStanceTuningConfig StanceConfig;
+            public uint EvaluationCadenceTicks;
+            public int EvaluationStride;
+            public byte StaggerEvaluation;
             public bool RewindEnabled;
             public Entity CulturePolicyEntity;
             public byte HasCulturePolicy;
             public FixedString64Bytes RoleCaptain;
+            public byte UseSpatialGrid;
+            public SpatialGridConfig SpatialConfig;
+            [ReadOnly] public NativeArray<SpatialGridCellRange> CellRanges;
+            [ReadOnly] public NativeArray<SpatialGridEntry> Entries;
+            [NativeDisableParallelForRestriction] public NativeArray<KNearestResult> NearestResults;
+            public int MaxCandidates;
+            public float SearchRadius;
+            [NativeSetThreadIndex] public int ThreadIndex;
 
-            public void Execute(ref LocalTransform transform, ref StrikeCraftState state, Entity entity)
+            public void Execute([EntityIndexInQuery] int entityIndex, ref LocalTransform transform, ref StrikeCraftState state, Entity entity)
             {
                 if (BehaviorConfig.AllowKamikaze == 0 && state.KamikazeActive == 1)
                 {
@@ -441,7 +557,7 @@ namespace Space4X.Systems.AI
                         if (CurrentTick > state.StateStartTick + 30) // 30 tick form-up time
                         {
                             // Find target before approaching
-                            FindTarget(entity, ref state, transform.Position);
+                            FindTarget(entityIndex, entity, ref state, transform.Position);
                             state.CurrentState = StrikeCraftState.State.Approaching;
                             state.StateStartTick = CurrentTick;
                         }
@@ -451,7 +567,7 @@ namespace Space4X.Systems.AI
                         // Find target if missing
                         if (state.TargetEntity == Entity.Null)
                         {
-                            FindTarget(entity, ref state, transform.Position);
+                            FindTarget(entityIndex, entity, ref state, transform.Position);
                         }
                         
                         // Move toward target
@@ -508,7 +624,7 @@ namespace Space4X.Systems.AI
                 UpdateEngagement(entity, state, transform.Position);
             }
 
-            private void FindTarget(Entity entity, ref StrikeCraftState state, float3 position)
+            private void FindTarget(int entityIndex, Entity entity, ref StrikeCraftState state, float3 position)
             {
                 if (ProfileLookup.HasComponent(entity))
                 {
@@ -525,15 +641,31 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                if (TargetCandidates.Length == 0)
+                if (!ShouldEvaluateTarget(entityIndex))
                 {
                     return;
                 }
 
                 var craftAffiliation = ResolveAffiliationTarget(entity);
+
+                if (UseSpatialGrid != 0)
+                {
+                    if (TryFindTargetSpatial(entity, position, craftAffiliation, out var spatialTarget, out var spatialPos))
+                    {
+                        state.TargetEntity = spatialTarget;
+                        state.TargetPosition = spatialPos;
+                        return;
+                    }
+                }
+
+                if (TargetCandidates.Length == 0)
+                {
+                    return;
+                }
+
                 Entity bestTarget = Entity.Null;
                 float3 bestPosition = float3.zero;
-                float searchRadius = 200f;
+                float searchRadius = SearchRadius > 0f ? SearchRadius : 200f;
                 float searchRadiusSq = searchRadius * searchRadius;
                 float bestDistanceSq = searchRadiusSq;
 
@@ -582,6 +714,122 @@ namespace Space4X.Systems.AI
                     state.TargetEntity = bestTarget;
                     state.TargetPosition = bestPosition;
                 }
+            }
+
+            private bool ShouldEvaluateTarget(int entityIndex)
+            {
+                var cadence = EvaluationCadenceTicks;
+                if (cadence > 1)
+                {
+                    var offset = StaggerEvaluation != 0 ? (uint)entityIndex : 0u;
+                    if (((CurrentTick + offset) % cadence) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                if (EvaluationStride > 1)
+                {
+                    var offset = StaggerEvaluation != 0 ? (int)(CurrentTick % (uint)EvaluationStride) : 0;
+                    if (((entityIndex + offset) % EvaluationStride) != 0)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            private bool TryFindTargetSpatial(
+                Entity entity,
+                float3 position,
+                Entity craftAffiliation,
+                out Entity bestTarget,
+                out float3 bestPosition)
+            {
+                bestTarget = Entity.Null;
+                bestPosition = float3.zero;
+
+                if (MaxCandidates <= 0 || SearchRadius <= 0f)
+                {
+                    return false;
+                }
+
+                if (!CellRanges.IsCreated || !Entries.IsCreated || !NearestResults.IsCreated)
+                {
+                    return false;
+                }
+
+                var startIndex = ThreadIndex * MaxCandidates;
+                if (startIndex >= NearestResults.Length)
+                {
+                    return false;
+                }
+
+                var length = math.min(MaxCandidates, NearestResults.Length - startIndex);
+                if (length <= 0)
+                {
+                    return false;
+                }
+
+                var slice = new NativeSlice<KNearestResult>(NearestResults, startIndex, length);
+                var descriptor = new SpatialQueryDescriptor
+                {
+                    Origin = position,
+                    Radius = SearchRadius,
+                    MaxResults = length,
+                    Options = SpatialQueryOptions.RequireDeterministicSorting | SpatialQueryOptions.IgnoreSelf,
+                    Tolerance = 1e-4f,
+                    ExcludedEntity = entity
+                };
+
+                var filter = new StrikeCraftTargetFilter
+                {
+                    HullLookup = HullLookup
+                };
+
+                var count = SpatialQueryHelper.CollectKNearest(0, in descriptor, in SpatialConfig, CellRanges, Entries, slice, in filter);
+                if (count <= 0)
+                {
+                    return false;
+                }
+
+                var bestDistanceSq = SearchRadius * SearchRadius;
+                for (int i = 0; i < count; i++)
+                {
+                    var candidate = slice[i];
+                    var candidateEntity = candidate.Entity;
+                    if (candidateEntity == Entity.Null || candidateEntity == entity)
+                    {
+                        continue;
+                    }
+
+                    if (craftAffiliation != Entity.Null)
+                    {
+                        var candidateAffiliation = ResolveAffiliationTarget(candidateEntity);
+                        if (candidateAffiliation == craftAffiliation)
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (!TransformLookup.HasComponent(candidateEntity))
+                    {
+                        continue;
+                    }
+
+                    var distanceSq = candidate.DistanceSq;
+                    if (distanceSq > bestDistanceSq)
+                    {
+                        continue;
+                    }
+
+                    bestDistanceSq = distanceSq;
+                    bestTarget = candidateEntity;
+                    bestPosition = TransformLookup[candidateEntity].Position;
+                }
+
+                return bestTarget != Entity.Null;
             }
 
             private Entity ResolveAffiliationTarget(Entity entity)

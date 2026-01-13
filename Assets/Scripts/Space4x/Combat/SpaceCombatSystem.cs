@@ -2,13 +2,16 @@ using PureDOTS.Runtime;
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
-using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Spatial;
+using PureDOTS.Systems.Spatial;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+
+using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Combat
 {
@@ -17,10 +20,39 @@ namespace Space4X.Combat
     /// Handles raycast-based combat between ships.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
+    [UpdateAfter(typeof(SpatialGridBuildSystem))]
     public partial struct SpaceCombatSystem : ISystem
     {
+        // Fallback query (used only if spatial singletons are missing)
         private EntityQuery _enemyQuery;
+
+        // We only need the nearest target today; keep as const so tuning is easy later.
+        private const int kNearestTargets = 1;
+
+        private struct CombatTargetFilter : ISpatialQueryFilter
+        {
+            [ReadOnly] public ComponentLookup<Health> HealthLookup;
+            [ReadOnly] public ComponentLookup<PlatformTag> PlatformLookup;
+            public Entity Excluded;
+
+            public bool Accept(int descriptorIndex, in SpatialQueryDescriptor descriptor, in SpatialGridEntry entry)
+            {
+                var e = entry.Entity;
+                if (e == Entity.Null || e == Excluded)
+                {
+                    return false;
+                }
+
+                if (!PlatformLookup.HasComponent(e) || !HealthLookup.HasComponent(e))
+                {
+                    return false;
+                }
+
+                // Optional: ignore dead targets (cheap + usually desirable).
+                return HealthLookup[e].Current > 0f;
+            }
+        }
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -47,75 +79,145 @@ namespace Space4X.Combat
             }
 
             var currentTime = (float)timeState.WorldSeconds;
-            var ecb = new EntityCommandBuffer(Allocator.TempJob);
 
-            // Query Space4X entities with Health, AttackStats, and PlatformTag
-            foreach (var (health, attackStats, transform, entity) in SystemAPI.Query<
-                    RefRW<Health>,
-                    RefRW<AttackStats>,
-                    RefRO<LocalTransform>>()
-                .WithAll<PlatformTag>()
-                .WithEntityAccess())
+            // Prefer spatial grid (fast). Fall back if spatial config/state not present.
+            var hasSpatial = SystemAPI.TryGetSingleton(out SpatialGridConfig spatialConfig)
+                             && SystemAPI.TryGetSingleton(out SpatialGridState _);
+
+            DynamicBuffer<SpatialGridCellRange> cellRanges = default;
+            DynamicBuffer<SpatialGridEntry> gridEntries = default;
+
+            if (hasSpatial)
             {
-                // Check cooldown
+                var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
+                cellRanges = SystemAPI.GetBuffer<SpatialGridCellRange>(gridEntity);
+                gridEntries = SystemAPI.GetBuffer<SpatialGridEntry>(gridEntity);
+            }
+
+            // Lookups
+            var healthLookup = state.GetComponentLookup<Health>(false);       // RW (we apply damage)
+            var healthLookupRO = state.GetComponentLookup<Health>(true);      // RO (for filter reads)
+            var platformLookup = state.GetComponentLookup<PlatformTag>(true);
+            var defenseLookup = state.GetComponentLookup<DefenseStats>(true);
+
+            healthLookup.Update(ref state);
+            healthLookupRO.Update(ref state);
+            platformLookup.Update(ref state);
+            defenseLookup.Update(ref state);
+
+            // Scratch buffers allocated once per tick (no per-attacker allocs)
+            var nearestResults = new NativeList<KNearestResult>(kNearestTargets, Allocator.Temp);
+
+            // Fallback scratch arrays (built once per tick; still O(N) but avoids per-attacker allocs)
+            NativeArray<Entity> enemyEntities = default;
+            NativeArray<LocalTransform> enemyTransforms = default;
+            if (!hasSpatial)
+            {
+                enemyEntities = _enemyQuery.ToEntityArray(Allocator.Temp);
+                enemyTransforms = _enemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            }
+
+            // Query Space4X entities with AttackStats and PlatformTag
+            foreach (var (attackStats, transform, entity) in SystemAPI.Query<
+                         RefRW<AttackStats>,
+                         RefRO<LocalTransform>>()
+                     .WithAll<PlatformTag>()
+                     .WithEntityAccess())
+            {
                 ref var attackStatsRef = ref attackStats.ValueRW;
+
+                // Check cooldown
                 if (currentTime - attackStatsRef.LastAttackTime < attackStatsRef.AttackCooldown)
                 {
                     continue;
                 }
 
-                // Find nearest enemy within range
-                Entity nearestEnemy = Entity.Null;
-                float nearestDistance = float.MaxValue;
-                float3 enemyPosition = float3.zero;
-
-                var enemyEntities = _enemyQuery.ToEntityArray(Allocator.Temp);
-                var enemyTransforms = _enemyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
-
-                for (int i = 0; i < enemyEntities.Length; i++)
+                if (attackStatsRef.Range <= 0f)
                 {
-                    // Skip self
-                    if (enemyEntities[i] == entity)
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    float distance = math.distance(transform.ValueRO.Position, enemyTransforms[i].Position);
-                    if (distance <= attackStatsRef.Range && distance < nearestDistance)
+                Entity nearestEnemy = Entity.Null;
+
+                if (hasSpatial)
+                {
+                    // Spatial query: nearest target within Range. No global scans.
+                    var pos = transform.ValueRO.Position;
+
+                    var filter = new CombatTargetFilter
                     {
-                        nearestEnemy = enemyEntities[i];
-                        nearestDistance = distance;
-                        enemyPosition = enemyTransforms[i].Position;
+                        HealthLookup = healthLookupRO,
+                        PlatformLookup = platformLookup,
+                        Excluded = entity
+                    };
+
+                    SpatialQueryHelper.FindKNearestInRadius(
+                        ref pos,
+                        radius: attackStatsRef.Range,
+                        k: kNearestTargets,
+                        config: spatialConfig,
+                        ranges: cellRanges,
+                        entries: gridEntries,
+                        results: ref nearestResults,
+                        filter: filter);
+
+                    if (nearestResults.Length > 0)
+                    {
+                        nearestEnemy = nearestResults[0].Entity;
+                    }
+                }
+                else
+                {
+                    // Fallback: scan prebuilt arrays once-per-tick (no per-attacker allocations).
+                    float bestDist = float.MaxValue;
+                    var myPos = transform.ValueRO.Position;
+
+                    for (int i = 0; i < enemyEntities.Length; i++)
+                    {
+                        var candidate = enemyEntities[i];
+                        if (candidate == entity)
+                        {
+                            continue;
+                        }
+
+                        float distance = math.distance(myPos, enemyTransforms[i].Position);
+                        if (distance <= attackStatsRef.Range && distance < bestDist)
+                        {
+                            bestDist = distance;
+                            nearestEnemy = candidate;
+                        }
                     }
                 }
 
-                enemyEntities.Dispose();
-                enemyTransforms.Dispose();
-
-                // Attack if enemy found (simple raycast/hitscan)
-                if (nearestEnemy != Entity.Null && state.EntityManager.Exists(nearestEnemy))
+                // Attack if enemy found
+                if (nearestEnemy != Entity.Null && healthLookup.HasComponent(nearestEnemy))
                 {
-                    // Simple hitscan - for simulation, just apply damage directly
-                    // In full implementation, would use Unity Physics raycast
-                    var enemyHealth = state.EntityManager.GetComponentData<Health>(nearestEnemy);
+                    var enemyHealth = healthLookup[nearestEnemy];
                     float damage = attackStatsRef.Damage;
 
                     // Apply defense if enemy has DefenseStats
-                    if (state.EntityManager.HasComponent<DefenseStats>(nearestEnemy))
+                    if (defenseLookup.HasComponent(nearestEnemy))
                     {
-                        var defense = state.EntityManager.GetComponentData<DefenseStats>(nearestEnemy);
+                        var defense = defenseLookup[nearestEnemy];
                         damage = math.max(0f, damage - defense.Armor);
                     }
 
                     enemyHealth.Current = math.max(0f, enemyHealth.Current - damage);
-                    ecb.SetComponent(nearestEnemy, enemyHealth);
+                    healthLookup[nearestEnemy] = enemyHealth;
 
                     attackStatsRef.LastAttackTime = currentTime;
                 }
             }
 
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
+            if (enemyEntities.IsCreated)
+            {
+                enemyEntities.Dispose();
+            }
+            if (enemyTransforms.IsCreated)
+            {
+                enemyTransforms.Dispose();
+            }
+            nearestResults.Dispose();
         }
     }
 }
