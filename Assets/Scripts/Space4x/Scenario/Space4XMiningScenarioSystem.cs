@@ -208,6 +208,8 @@ namespace Space4x.Scenario
             {
                 EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
             }
+
+            EnsurePhysicsConfigEnabled();
         }
 
         private void ApplyFloatingOriginConfig()
@@ -223,6 +225,27 @@ namespace Space4x.Scenario
                 CooldownTicks = 300,
                 Enabled = 1
             });
+        }
+
+        private void EnsurePhysicsConfigEnabled()
+        {
+            if (!SystemAPI.TryGetSingletonEntity<PhysicsConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(PhysicsConfig), typeof(PhysicsConfigTag));
+            }
+
+            var config = EntityManager.GetComponentData<PhysicsConfig>(configEntity);
+            if (config.ProviderId == PhysicsProviderIds.None)
+            {
+                config.ProviderId = PhysicsProviderIds.Entities;
+            }
+
+            if (config.EnableSpace4XPhysics == 0)
+            {
+                config.EnableSpace4XPhysics = 1;
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
         }
 
         private void ApplySmokeLatchConfig()
