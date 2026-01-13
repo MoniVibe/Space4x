@@ -113,6 +113,7 @@ namespace Space4x.Scenario
                 ApplySmokeMotionProfile();
                 ApplySmokeLatchConfig();
                 ApplyFloatingOriginConfig();
+                ApplySmokePresentationConfig();
             }
             ApplyDogfightConfig(_scenarioData.dogfightConfig);
             ApplyStanceConfig(_scenarioData.stanceConfig);
@@ -211,6 +212,18 @@ namespace Space4x.Scenario
             }
 
             EnsurePhysicsConfigEnabled();
+        }
+
+        private void ApplySmokePresentationConfig()
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XMiningVisualConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XMiningVisualConfig));
+            }
+
+            var config = SystemAPI.GetComponent<Space4XMiningVisualConfig>(configEntity);
+            config.DisableDepthOffset = 1;
+            SystemAPI.SetComponent(configEntity, config);
         }
 
         private void ApplyFloatingOriginConfig()
