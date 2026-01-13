@@ -34,6 +34,8 @@ namespace Space4x.Scenario
                 return;
             }
 
+            EnsureLegacyDisableTags(state.EntityManager);
+
             if (SystemAPI.HasSingleton<ScenarioInfo>())
             {
                 _injected = true;
@@ -62,6 +64,19 @@ namespace Space4x.Scenario
             Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{ScenarioIdString}'.");
             _injected = true;
             state.Enabled = false;
+        }
+
+        private static void EnsureLegacyDisableTags(EntityManager entityManager)
+        {
+            if (!SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>())
+            {
+                entityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
+            }
+
+            if (!SystemAPI.HasSingleton<Space4XLegacyPatrolDisabledTag>())
+            {
+                entityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
+            }
         }
     }
 }
