@@ -57,10 +57,10 @@ namespace Space4X.Presentation
                 return;
             }
 
-            var disableDepthOffset = false;
+            var disableDepthOffset = true;
             if (SystemAPI.TryGetSingleton<Space4XPresentationDebugConfig>(out var debugConfig))
             {
-                disableDepthOffset = debugConfig.DisableDepthBobbing != 0;
+                disableDepthOffset |= debugConfig.DisableDepthBobbing != 0;
             }
             if (SystemAPI.TryGetSingleton<Space4XMiningVisualConfig>(out var visualConfig))
             {
