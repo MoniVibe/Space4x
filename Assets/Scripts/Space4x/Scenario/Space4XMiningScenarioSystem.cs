@@ -457,12 +457,15 @@ namespace Space4x.Scenario
             }
         }
 
-        private void AddScenarioPhysics(Entity entity, float radius, Space4XPhysicsLayer layer, float restitution, float linearDamping)
+        private void AddScenarioPhysics(Entity entity, float radius, Space4XPhysicsLayer layer, float restitution, float linearDamping, int renderSemanticKey = 0)
         {
             var clampedRadius = math.max(0.1f, radius);
             var priority = Space4XPhysicsLayers.GetDefaultPriority(layer);
             var flags = SpacePhysicsFlags.IsActive | SpacePhysicsFlags.RaisesCollisionEvents;
             var interactionFlags = PhysicsInteractionFlags.Collidable;
+            var colliderSpec = ResolveColliderSpec(renderSemanticKey, clampedRadius, interactionFlags, layer);
+            var collisionRadius = ResolveSpecRadius(colliderSpec, clampedRadius);
+            var colliderData = ResolveSpaceColliderData(colliderSpec, collisionRadius);
 
             EntityManager.AddComponentData(entity, new SpacePhysicsBody
             {
@@ -471,7 +474,7 @@ namespace Space4x.Scenario
                 Flags = flags
             });
 
-            EntityManager.AddComponentData(entity, SpaceColliderData.CreateSphere(clampedRadius));
+            EntityManager.AddComponentData(entity, colliderData);
             EntityManager.AddComponentData(entity, new SpaceVelocity
             {
                 Linear = float3.zero,
@@ -487,26 +490,71 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(entity, new PhysicsInteractionConfig
             {
                 Mass = 1f,
-                CollisionRadius = clampedRadius,
+                CollisionRadius = collisionRadius,
                 Restitution = math.max(0f, restitution),
                 Friction = 0f,
                 LinearDamping = math.max(0f, linearDamping),
                 AngularDamping = 0f
             });
 
-            EntityManager.AddComponentData(entity, new PhysicsColliderSpec
-            {
-                Shape = PhysicsColliderShape.Sphere,
-                Dimensions = new float3(clampedRadius, 0f, 0f),
-                Flags = interactionFlags,
-                IsTrigger = 0,
-                UseCustomFilter = 1,
-                CustomFilter = Space4XPhysicsLayers.CreateFilter(layer)
-            });
+            EntityManager.AddComponentData(entity, colliderSpec);
 
             EntityManager.AddBuffer<SpaceCollisionEvent>(entity);
             EntityManager.AddBuffer<PhysicsCollisionEventElement>(entity);
             EntityManager.AddComponent<NeedsPhysicsSetup>(entity);
+        }
+
+        private PhysicsColliderSpec ResolveColliderSpec(int renderSemanticKey, float radius, PhysicsInteractionFlags interactionFlags, Space4XPhysicsLayer layer)
+        {
+            if (renderSemanticKey != 0 &&
+                SystemAPI.TryGetSingleton<PhysicsColliderProfileComponent>(out var profileComponent) &&
+                profileComponent.Profile.IsCreated)
+            {
+                ref var entries = ref profileComponent.Profile.Value.Entries;
+                if (PhysicsColliderProfileHelpers.TryGetSpec(ref entries, (ushort)renderSemanticKey, out var spec))
+                {
+                    if (spec.Flags == 0)
+                    {
+                        spec.Flags = interactionFlags;
+                    }
+                    if (spec.UseCustomFilter == 0)
+                    {
+                        spec.UseCustomFilter = 1;
+                        spec.CustomFilter = Space4XPhysicsLayers.CreateFilter(layer);
+                    }
+                    return spec;
+                }
+            }
+
+            return new PhysicsColliderSpec
+            {
+                Shape = PhysicsColliderShape.Sphere,
+                Dimensions = new float3(radius, 0f, 0f),
+                Flags = interactionFlags,
+                IsTrigger = 0,
+                UseCustomFilter = 1,
+                CustomFilter = Space4XPhysicsLayers.CreateFilter(layer)
+            };
+        }
+
+        private static float ResolveSpecRadius(in PhysicsColliderSpec spec, float fallbackRadius)
+        {
+            return spec.Shape switch
+            {
+                PhysicsColliderShape.Box => math.max(0.1f, math.cmax(spec.Dimensions) * 0.5f),
+                PhysicsColliderShape.Capsule => math.max(0.1f, spec.Dimensions.x),
+                _ => math.max(0.1f, spec.Dimensions.x > 0f ? spec.Dimensions.x : fallbackRadius)
+            };
+        }
+
+        private static SpaceColliderData ResolveSpaceColliderData(in PhysicsColliderSpec spec, float radius)
+        {
+            return spec.Shape switch
+            {
+                PhysicsColliderShape.Box => SpaceColliderData.CreateBox(spec.Dimensions),
+                PhysicsColliderShape.Capsule => SpaceColliderData.CreateCapsule(radius, math.max(radius * 2f, spec.Dimensions.y)),
+                _ => SpaceColliderData.CreateSphere(radius)
+            };
         }
 
         private Entity EnsureScenarioRuntime(uint startTick, uint endTick, float durationSeconds)
@@ -743,18 +791,21 @@ namespace Space4x.Scenario
 
             EnsureCarrierAuthorityAndCrew(entity, law, currentTick);
 
-            EntityManager.AddComponentData(entity, new PatrolBehavior
+            if (!_useSmokeMotionTuning)
             {
-                CurrentWaypoint = float3.zero,
-                WaitTime = 3f,
-                WaitTimer = 0f
-            });
+                EntityManager.AddComponentData(entity, new PatrolBehavior
+                {
+                    CurrentWaypoint = float3.zero,
+                    WaitTime = 3f,
+                    WaitTimer = 0f
+                });
 
-            EntityManager.AddComponentData(entity, new MovementCommand
-            {
-                TargetPosition = float3.zero,
-                ArrivalThreshold = 2f
-            });
+                EntityManager.AddComponentData(entity, new MovementCommand
+                {
+                    TargetPosition = float3.zero,
+                    ArrivalThreshold = 2f
+                });
+            }
 
             EntityManager.AddComponentData(entity, new VesselMovement
             {
@@ -804,7 +855,7 @@ namespace Space4x.Scenario
                 TangentialDamping = carrierDamping
             });
 
-            AddScenarioPhysics(entity, carrierRadius, Space4XPhysicsLayer.Ship, carrierRestitution, carrierDamping);
+            AddScenarioPhysics(entity, carrierRadius, Space4XPhysicsLayer.Ship, carrierRestitution, carrierDamping, Space4XRenderKeys.Carrier);
 
             EntityManager.AddComponentData(entity, DockingCapacity.MiningCarrier);
             EntityManager.AddBuffer<DockedEntity>(entity);
@@ -1038,7 +1089,7 @@ namespace Space4x.Scenario
                 TangentialDamping = 0.3f
             });
 
-            AddScenarioPhysics(entity, 0.6f, Space4XPhysicsLayer.Miner, 0.15f, 0.3f);
+            AddScenarioPhysics(entity, 0.6f, Space4XPhysicsLayer.Miner, 0.15f, 0.3f, Space4XRenderKeys.Miner);
 
             EntityManager.AddBuffer<SpawnResourceRequest>(entity);
 
@@ -1122,7 +1173,7 @@ namespace Space4x.Scenario
                 Position = position
             });
 
-            AddScenarioPhysics(entity, volumeConfig.Radius, Space4XPhysicsLayer.Asteroid, 0.05f, 0.1f);
+            AddScenarioPhysics(entity, volumeConfig.Radius, Space4XPhysicsLayer.Asteroid, 0.05f, 0.1f, Space4XRenderKeys.Asteroid);
 
             if (!string.IsNullOrEmpty(spawn.entityId))
             {
