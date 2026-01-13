@@ -383,6 +383,7 @@ namespace Space4X.Presentation
             var chunkQuery = SystemAPI.QueryBuilder()
                 .WithAll<TerrainChunk>()
                 .WithAll<Space4XAsteroidChunkMeshReference>()
+                .WithAll<Space4XAsteroidChunkMeshState>()
                 .Build();
             var count = chunkQuery.CalculateEntityCount();
             if (count <= 0)
@@ -391,9 +392,14 @@ namespace Space4X.Presentation
             }
 
             var map = new NativeParallelHashMap<Entity, byte>(count, Allocator.Temp);
-            foreach (var (chunk, _) in SystemAPI.Query<RefRO<TerrainChunk>>()
-                         .WithAll<Space4XAsteroidChunkMeshReference>())
+            foreach (var (chunk, meshRef, meshState) in SystemAPI
+                         .Query<RefRO<TerrainChunk>, Space4XAsteroidChunkMeshReference, RefRO<Space4XAsteroidChunkMeshState>>())
             {
+                if (meshRef.Mesh == null || meshState.ValueRO.LastBuiltVersion == 0)
+                {
+                    continue;
+                }
+
                 var volume = chunk.ValueRO.VolumeEntity;
                 if (volume != Entity.Null)
                 {
