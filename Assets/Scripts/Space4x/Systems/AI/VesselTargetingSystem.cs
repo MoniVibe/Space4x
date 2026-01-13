@@ -160,7 +160,7 @@ namespace Space4X.Systems.AI
 
                 if (aiState.TargetEntity == Entity.Null)
                 {
-                    aiState.TargetPosition = float3.zero;
+                    // Preserve explicit position targets; only entity-backed targets need resolution here.
                     return;
                 }
 
@@ -255,7 +255,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
 
 
 
