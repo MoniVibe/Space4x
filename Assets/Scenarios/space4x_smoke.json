@@ -1,6 +1,15 @@
 {
   "seed": 77,
-  "duration_s": 150,
+  "duration_s": 220,
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": true,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true
+  },
   "dogfightConfig": {
     "acquireRadius": 120.0,
     "coneDegrees": 70.0,
@@ -102,7 +111,8 @@
       "position": [90, -20],
       "components": {
         "ResourceStorage": [
-          {"type": "Minerals", "capacity": 10000}
+          {"type": "Minerals", "capacity": 10000},
+          {"type": "RareMetals", "capacity": 5000}
         ],
         "Fleet": {
           "fleetId": "FRIENDLY-BRAVO",
@@ -123,11 +133,170 @@
     },
     {
       "kind": "Carrier",
+      "entityId": "friendly-carrier-charlie",
+      "position": [-80, 40],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 11000},
+          {"type": "RareMetals", "capacity": 5000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-CHARLIE",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.5,
+          "isHostile": false,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Recon",
+          "escortCount": 1,
+          "escortRelease_s": 11,
+          "pilotProfileIds": ["pilot-balanced", "pilot-lawful"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-delta",
+      "position": [-120, -60],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 12000},
+          {"type": "RareMetals", "capacity": 5000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-DELTA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 10,
+          "pilotProfileIds": ["pilot-lawful", "pilot-balanced"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-echo",
+      "position": [40, 110],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 9000},
+          {"type": "RareMetals", "capacity": 7000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-ECHO",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.5,
+          "isHostile": false,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Bomber",
+          "escortCount": 2,
+          "escortRelease_s": 12,
+          "pilotProfileIds": ["pilot-cautious", "pilot-balanced"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "friendly-carrier-foxtrot",
+      "position": [-20, -120],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000},
+          {"type": "RareMetals", "capacity": 5000}
+        ],
+        "Fleet": {
+          "fleetId": "FRIENDLY-FOXTROT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 9.5,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 10,
+          "pilotProfileIds": ["pilot-lawful", "pilot-balanced"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "neutral-carrier-vesta",
+      "position": [150, -140],
+      "disposition": "Trader",
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 8000},
+          {"type": "RareMetals", "capacity": 3000}
+        ],
+        "Fleet": {
+          "fleetId": "NEUTRAL-VESTA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 9.0,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Recon",
+          "escortCount": 0,
+          "escortRelease_s": 0,
+          "pilotProfileIds": ["pilot-balanced"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "neutral-carrier-ursa",
+      "position": [-150, 100],
+      "disposition": "Trader",
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 8000},
+          {"type": "RareMetals", "capacity": 3000}
+        ],
+        "Fleet": {
+          "fleetId": "NEUTRAL-URSA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 9.0,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Recon",
+          "escortCount": 0,
+          "escortRelease_s": 0,
+          "pilotProfileIds": ["pilot-balanced"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
       "entityId": "hostile-carrier-delta",
       "position": [200, 40],
       "components": {
         "ResourceStorage": [
-          {"type": "Minerals", "capacity": 9000}
+          {"type": "Minerals", "capacity": 9000},
+          {"type": "RareMetals", "capacity": 4000}
         ],
         "Fleet": {
           "fleetId": "HOSTILE-DELTA",
@@ -142,6 +311,84 @@
           "strikeCraftRole": "Interceptor",
           "escortCount": 2,
           "escortRelease_s": 14,
+          "pilotProfileIds": ["pilot-chaotic", "pilot-fanatic"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "hostile-carrier-omega",
+      "position": [220, -80],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 9000},
+          {"type": "RareMetals", "capacity": 4000}
+        ],
+        "Fleet": {
+          "fleetId": "HOSTILE-OMEGA",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.5,
+          "isHostile": true,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 2,
+          "escortRelease_s": 14,
+          "pilotProfileIds": ["pilot-chaotic", "pilot-fanatic"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "hostile-carrier-sigma",
+      "position": [160, 120],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000},
+          {"type": "RareMetals", "capacity": 5000}
+        ],
+        "Fleet": {
+          "fleetId": "HOSTILE-SIGMA",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 11.5,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Suppression",
+          "escortCount": 2,
+          "escortRelease_s": 15,
+          "pilotProfileIds": ["pilot-chaotic", "pilot-fanatic"]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "hostile-carrier-rho",
+      "position": [260, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 8500},
+          {"type": "RareMetals", "capacity": 3500}
+        ],
+        "Fleet": {
+          "fleetId": "HOSTILE-RHO",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Bomber",
+          "escortCount": 1,
+          "escortRelease_s": 12,
           "pilotProfileIds": ["pilot-chaotic", "pilot-fanatic"]
         }
       }
@@ -237,6 +484,78 @@
     },
     {
       "kind": "MiningVessel",
+      "entityId": "miner-charlie-1",
+      "position": [-80, 40],
+      "carrierId": "friendly-carrier-charlie",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.82,
+      "speed": 9.8,
+      "cargoCapacity": 95.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-balanced"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-friendly-delta-1",
+      "position": [-120, -60],
+      "carrierId": "friendly-carrier-delta",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 9.6,
+      "cargoCapacity": 90.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-lawful"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-echo-1",
+      "position": [40, 110],
+      "carrierId": "friendly-carrier-echo",
+      "resourceId": "RareMetals",
+      "miningEfficiency": 0.78,
+      "speed": 9.7,
+      "cargoCapacity": 85.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-cautious"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-foxtrot-1",
+      "position": [-20, -120],
+      "carrierId": "friendly-carrier-foxtrot",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 9.4,
+      "cargoCapacity": 90.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-balanced"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-vesta-1",
+      "position": [150, -140],
+      "carrierId": "neutral-carrier-vesta",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.75,
+      "speed": 9.0,
+      "cargoCapacity": 80.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-balanced"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-ursa-1",
+      "position": [-150, 100],
+      "carrierId": "neutral-carrier-ursa",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.75,
+      "speed": 9.0,
+      "cargoCapacity": 80.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-balanced"
+    },
+    {
+      "kind": "MiningVessel",
       "entityId": "miner-delta-1",
       "position": [200, 40],
       "carrierId": "hostile-carrier-delta",
@@ -260,11 +579,47 @@
       "pilotProfileId": "pilot-fanatic"
     },
     {
+      "kind": "MiningVessel",
+      "entityId": "miner-omega-1",
+      "position": [220, -80],
+      "carrierId": "hostile-carrier-omega",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.78,
+      "speed": 10.7,
+      "cargoCapacity": 100.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-chaotic"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-sigma-1",
+      "position": [160, 120],
+      "carrierId": "hostile-carrier-sigma",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.78,
+      "speed": 10.4,
+      "cargoCapacity": 95.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-fanatic"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-rho-1",
+      "position": [260, 0],
+      "carrierId": "hostile-carrier-rho",
+      "resourceId": "RareMetals",
+      "miningEfficiency": 0.76,
+      "speed": 10.2,
+      "cargoCapacity": 90.0,
+      "startDocked": false,
+      "pilotProfileId": "pilot-chaotic"
+    },
+    {
       "kind": "ResourceDeposit",
       "entityId": "deposit-alpha",
       "position": [35, 10],
       "resourceId": "Minerals",
-      "unitsRemaining": 1200.0,
+      "unitsRemaining": 1400.0,
       "gatherRatePerWorker": 12.0,
       "maxSimultaneousWorkers": 5
     },
@@ -273,7 +628,7 @@
       "entityId": "deposit-bravo",
       "position": [130, -15],
       "resourceId": "Minerals",
-      "unitsRemaining": 900.0,
+      "unitsRemaining": 1100.0,
       "gatherRatePerWorker": 11.0,
       "maxSimultaneousWorkers": 4
     },
@@ -282,7 +637,7 @@
       "entityId": "deposit-charlie",
       "position": [-80, -60],
       "resourceId": "Minerals",
-      "unitsRemaining": 700.0,
+      "unitsRemaining": 900.0,
       "gatherRatePerWorker": 9.0,
       "maxSimultaneousWorkers": 3
     },
@@ -291,16 +646,88 @@
       "entityId": "deposit-delta",
       "position": [170, 60],
       "resourceId": "Minerals",
-      "unitsRemaining": 800.0,
+      "unitsRemaining": 1000.0,
       "gatherRatePerWorker": 10.0,
       "maxSimultaneousWorkers": 3
     },
     {
       "kind": "ResourceDeposit",
-      "entityId": "deposit-raremetals",
-      "position": [60, 80],
+      "entityId": "deposit-echo",
+      "position": [-120, 20],
+      "resourceId": "Minerals",
+      "unitsRemaining": 950.0,
+      "gatherRatePerWorker": 9.5,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-foxtrot",
+      "position": [-60, 90],
+      "resourceId": "Minerals",
+      "unitsRemaining": 850.0,
+      "gatherRatePerWorker": 9.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-golf",
+      "position": [60, -100],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 9.5,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-hotel",
+      "position": [200, -40],
+      "resourceId": "Minerals",
+      "unitsRemaining": 950.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-india",
+      "position": [240, 90],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-juliet",
+      "position": [-160, 80],
+      "resourceId": "Minerals",
+      "unitsRemaining": 800.0,
+      "gatherRatePerWorker": 8.5,
+      "maxSimultaneousWorkers": 2
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-rare-core-1",
+      "position": [20, 40],
       "resourceId": "RareMetals",
-      "unitsRemaining": 500.0,
+      "unitsRemaining": 600.0,
+      "gatherRatePerWorker": 8.5,
+      "maxSimultaneousWorkers": 2
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-rare-core-2",
+      "position": [-10, 60],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 550.0,
+      "gatherRatePerWorker": 8.0,
+      "maxSimultaneousWorkers": 2
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-rare-core-3",
+      "position": [40, 70],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 520.0,
       "gatherRatePerWorker": 8.0,
       "maxSimultaneousWorkers": 2
     }
@@ -333,6 +760,34 @@
       "fleetId": "FRIENDLY-ALPHA",
       "targetPosition": [140, 0],
       "description": "Alpha group supports intercept and secures contested deposit"
+    },
+    {
+      "time_s": 20,
+      "kind": "MoveFleet",
+      "fleetId": "HOSTILE-OMEGA",
+      "targetPosition": [150, -60],
+      "description": "Omega raiders swing into the lower belt"
+    },
+    {
+      "time_s": 26,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "FRIENDLY-DELTA",
+      "targetFleetId": "HOSTILE-OMEGA",
+      "description": "Delta patrol responds to raider contact"
+    },
+    {
+      "time_s": 34,
+      "kind": "MoveFleet",
+      "fleetId": "HOSTILE-SIGMA",
+      "targetPosition": [120, 90],
+      "description": "Sigma task force probes the inner belt"
+    },
+    {
+      "time_s": 40,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "FRIENDLY-ECHO",
+      "targetFleetId": "HOSTILE-SIGMA",
+      "description": "Echo bombers engage the probing hostiles"
     }
   ],
   "telemetryExpectations": {

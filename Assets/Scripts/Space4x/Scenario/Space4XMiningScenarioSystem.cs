@@ -45,7 +45,7 @@ namespace Space4x.Scenario
         private bool _hasLoaded;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
-        private bool _useSmokeMotionTuning;
+        private bool _useScenarioMotionTuning;
         private bool _isCollisionScenario;
         private Entity _friendlyAffiliationEntity;
         private Entity _hostileAffiliationEntity;
@@ -78,7 +78,7 @@ namespace Space4x.Scenario
             {
                 if (!hasScenarioInfo)
                 {
-                    // Wait for ScenarioInfo injection (smoke selector/bootstrap).
+                    // Wait for ScenarioInfo injection (scenario selector/bootstrap).
                     return;
                 }
 
@@ -107,13 +107,15 @@ namespace Space4x.Scenario
                 return;
             }
 
-            _useSmokeMotionTuning = IsSmokeScenario(scenarioPath, scenarioInfo);
-            if (_useSmokeMotionTuning)
+            var scenarioConfig = _scenarioData.scenarioConfig;
+            var requestedSpawnLane = ResolveSpawnLane(scenarioConfig?.spawnLane);
+            var activeSpawnLane = EnsureScenarioSpawnLane(requestedSpawnLane);
+            if (activeSpawnLane != requestedSpawnLane)
             {
-                ApplySmokeMotionProfile();
-                ApplySmokeLatchConfig();
-                ApplyFloatingOriginConfig();
+                Debug.LogWarning($"[Space4XMiningScenario] Spawn lane already set to '{activeSpawnLane}'. Scenario requested '{requestedSpawnLane}'. Using '{activeSpawnLane}'.");
             }
+
+            ApplyScenarioConfig(scenarioConfig);
             ApplyDogfightConfig(_scenarioData.dogfightConfig);
             ApplyStanceConfig(_scenarioData.stanceConfig);
 
@@ -129,8 +131,9 @@ namespace Space4x.Scenario
                 EnsureCollisionScenarioTag();
             }
 
+            var allowMiningSpawns = isMiningScenario && activeSpawnLane == Space4XScenarioSpawnLaneKind.MiningJson;
             _spawnedEntities = new Dictionary<string, Entity>();
-            if (isMiningScenario)
+            if (allowMiningSpawns)
             {
                 SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
             }
@@ -141,15 +144,19 @@ namespace Space4x.Scenario
             var safeDurationTicks = durationTicks == 0 ? 1u : durationTicks;
             var endTick = startTick + safeDurationTicks;
             var runtimeEntity = EnsureScenarioRuntime(startTick, endTick, durationSeconds);
-            if (isMiningScenario)
+            if (allowMiningSpawns)
             {
                 ScheduleScenarioActions(runtimeEntity, startTick, fixedDt);
             }
             UpdateScenarioInfoSingleton(scenarioInfo, safeDurationTicks);
 
-            if (isMiningScenario)
+            if (allowMiningSpawns)
             {
                 Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Spawned carriers/miners/asteroids. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
+            }
+            else if (isMiningScenario)
+            {
+                Debug.Log($"[Space4XMiningScenario] Loaded '{scenarioPath}'. Spawn lane '{activeSpawnLane}' skipped mining JSON spawns. Duration={durationSeconds:F1}s ticks={safeDurationTicks} (startTick={startTick}, endTick={endTick}).");
             }
             else
             {
@@ -160,26 +167,98 @@ namespace Space4x.Scenario
             Enabled = false;
         }
 
-        private static bool IsSmokeScenario(string scenarioPath, ScenarioInfo scenarioInfo)
+        private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)
         {
-            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
-            if (!string.IsNullOrWhiteSpace(scenarioName) &&
-                (scenarioName.Equals("space4x_smoke", StringComparison.OrdinalIgnoreCase)
-                 || scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase)))
+            if (scenarioConfig == null)
             {
-                return true;
+                _useScenarioMotionTuning = false;
+                return;
             }
 
-            var scenarioId = scenarioInfo.ScenarioId.ToString();
-            if (scenarioId.Equals("space4x_smoke", StringComparison.OrdinalIgnoreCase))
+            _useScenarioMotionTuning = scenarioConfig.applyMotionTuning;
+
+            if (scenarioConfig.applyMotionProfile)
             {
-                return true;
+                ApplyScenarioMotionProfile();
             }
 
-            return scenarioId.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
+            if (scenarioConfig.applyLatchConfig)
+            {
+                ApplyScenarioLatchConfig();
+            }
+
+            if (scenarioConfig.applyFloatingOrigin)
+            {
+                ApplyFloatingOriginConfig();
+            }
+
+            ApplyLegacyDisableTags(scenarioConfig.disableLegacyMining, scenarioConfig.disableLegacyPatrol);
         }
 
-        private void ApplySmokeMotionProfile()
+        private void ApplyLegacyDisableTags(bool disableMining, bool disablePatrol)
+        {
+            if (disableMining && !SystemAPI.TryGetSingletonEntity<Space4XLegacyMiningDisabledTag>(out _))
+            {
+                EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
+            }
+
+            if (disablePatrol && !SystemAPI.TryGetSingletonEntity<Space4XLegacyPatrolDisabledTag>(out _))
+            {
+                EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
+            }
+        }
+
+        private Space4XScenarioSpawnLaneKind EnsureScenarioSpawnLane(Space4XScenarioSpawnLaneKind desired)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XScenarioSpawnLane>(out var laneEntity))
+            {
+                laneEntity = EntityManager.CreateEntity(typeof(Space4XScenarioSpawnLane));
+                EntityManager.SetComponentData(laneEntity, new Space4XScenarioSpawnLane
+                {
+                    Kind = desired
+                });
+                return desired;
+            }
+
+            var lane = EntityManager.GetComponentData<Space4XScenarioSpawnLane>(laneEntity);
+            if (lane.Kind == Space4XScenarioSpawnLaneKind.None)
+            {
+                lane.Kind = desired;
+                EntityManager.SetComponentData(laneEntity, lane);
+            }
+
+            return lane.Kind;
+        }
+
+        private static Space4XScenarioSpawnLaneKind ResolveSpawnLane(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return Space4XScenarioSpawnLaneKind.MiningJson;
+            }
+
+            var normalized = value.Trim();
+            if (normalized.Equals("counts", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("scenario-runner", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("scenario_runner", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("scenario-runner-counts", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("scenario_runner_counts", StringComparison.OrdinalIgnoreCase))
+            {
+                return Space4XScenarioSpawnLaneKind.ScenarioRunnerCounts;
+            }
+
+            if (normalized.Equals("mining", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("mining-json", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("mining_json", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("json", StringComparison.OrdinalIgnoreCase))
+            {
+                return Space4XScenarioSpawnLaneKind.MiningJson;
+            }
+
+            return Space4XScenarioSpawnLaneKind.MiningJson;
+        }
+
+        private void ApplyScenarioMotionProfile()
         {
             var config = VesselMotionProfileConfig.Default;
             config.CapitalShipSpeedMultiplier = 0.65f;
@@ -199,16 +278,6 @@ namespace Space4x.Scenario
             }
 
             EntityManager.SetComponentData(configEntity, config);
-
-            if (!SystemAPI.TryGetSingletonEntity<Space4XLegacyMiningDisabledTag>(out _))
-            {
-                EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
-            }
-
-            if (!SystemAPI.TryGetSingletonEntity<Space4XLegacyPatrolDisabledTag>(out _))
-            {
-                EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
-            }
 
             EnsurePhysicsConfigEnabled();
         }
@@ -249,7 +318,7 @@ namespace Space4x.Scenario
             EntityManager.SetComponentData(configEntity, config);
         }
 
-        private void ApplySmokeLatchConfig()
+        private void ApplyScenarioLatchConfig()
         {
             var config = Space4XMiningLatchConfig.Default;
             if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var existing))
@@ -257,7 +326,7 @@ namespace Space4x.Scenario
                 config = existing;
             }
 
-            // Smoke runs can stall if latch alignment never resolves; relax alignment for headless stability.
+            // Relax alignment when latch resolution is too strict for scenario timing.
             config.SurfaceEpsilon = math.max(config.SurfaceEpsilon, 3.2f);
             config.AlignDotThreshold = -1f;
 
@@ -760,7 +829,7 @@ namespace Space4x.Scenario
                 Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
             });
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
-            if (_useSmokeMotionTuning)
+            if (_useScenarioMotionTuning)
             {
             }
             EntityManager.AddComponent<CommunicationModuleTag>(entity);
@@ -776,7 +845,7 @@ namespace Space4x.Scenario
             var carrierRadius = 2.6f;
             var carrierRestitution = 0.08f;
             var carrierDamping = 0.25f;
-            if (_useSmokeMotionTuning)
+            if (_useScenarioMotionTuning)
             {
                 carrierSpeed = 7.2f;
                 carrierAcceleration = 0.3f;
@@ -824,7 +893,7 @@ namespace Space4x.Scenario
 
             EnsureCarrierAuthorityAndCrew(entity, law, currentTick);
 
-            if (!_useSmokeMotionTuning)
+            if (!_useScenarioMotionTuning)
             {
                 EntityManager.AddComponentData(entity, new PatrolBehavior
                 {
@@ -965,7 +1034,7 @@ namespace Space4x.Scenario
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
-            if (_useSmokeMotionTuning)
+            if (_useScenarioMotionTuning)
             {
             }
             EntityManager.AddComponent<CommunicationModuleTag>(entity);
@@ -996,7 +1065,7 @@ namespace Space4x.Scenario
             var resourceId = new FixedString64Bytes(spawn.resourceId ?? "Minerals");
             var miningEfficiency = spawn.miningEfficiency > 0f ? spawn.miningEfficiency : 0.8f;
             var speed = spawn.speed > 0f ? spawn.speed : 5f;
-            if (_useSmokeMotionTuning)
+            if (_useScenarioMotionTuning)
             {
                 speed = math.max(1.8f, speed * 0.45f);
             }
@@ -1091,7 +1160,7 @@ namespace Space4x.Scenario
             var minerTurnSpeed = 2.4f;
             var minerSlowdown = 6f;
             var minerArrival = 1.5f;
-            if (_useSmokeMotionTuning)
+            if (_useScenarioMotionTuning)
             {
                 minerAcceleration = math.max(0.6f, speed * 0.6f);
                 minerDeceleration = math.max(0.7f, speed * 0.8f);
@@ -1152,7 +1221,7 @@ namespace Space4x.Scenario
             var entity = EntityManager.CreateEntity();
             EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 1f));
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
-            if (_useSmokeMotionTuning)
+            if (_useScenarioMotionTuning)
             {
             }
 
@@ -1315,7 +1384,7 @@ namespace Space4x.Scenario
                 var entity = EntityManager.CreateEntity();
                 var offset = new float3(2f * (i + 1), 0f, 2f * (i + 1));
                 EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
-                if (_useSmokeMotionTuning)
+                if (_useScenarioMotionTuning)
                 {
                 }
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
@@ -1541,7 +1610,7 @@ namespace Space4x.Scenario
                 var offset = new float3(3f * (i + 1), 0f, -3f * (i + 1));
                 EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
                 EntityManager.AddComponent<SpatialIndexedTag>(entity);
-                if (_useSmokeMotionTuning)
+                if (_useScenarioMotionTuning)
                 {
                 }
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
@@ -2026,12 +2095,25 @@ namespace Space4x.Scenario
     {
         public int seed;
         public float duration_s;
+        public MiningScenarioConfigData scenarioConfig;
         public StrikeCraftDogfightConfigData dogfightConfig;
         public StanceTuningConfigData stanceConfig;
         public List<MiningSpawnDefinition> spawn;
         public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
         public List<IndividualProfileData> individuals;
+    }
+
+    [System.Serializable]
+    public class MiningScenarioConfigData
+    {
+        public string spawnLane;
+        public bool applyMotionTuning;
+        public bool applyMotionProfile;
+        public bool applyLatchConfig;
+        public bool applyFloatingOrigin;
+        public bool disableLegacyMining;
+        public bool disableLegacyPatrol;
     }
 
     [System.Serializable]

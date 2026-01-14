@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using PureDOTS.Runtime.Scenarios;
-using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -34,8 +33,6 @@ namespace Space4x.Scenario
                 return;
             }
 
-            EnsureLegacyDisableTags(state.EntityManager);
-
             if (SystemAPI.HasSingleton<ScenarioInfo>())
             {
                 _injected = true;
@@ -56,25 +53,6 @@ namespace Space4x.Scenario
             state.Enabled = false;
         }
 
-        private static void EnsureLegacyDisableTags(EntityManager entityManager)
-        {
-            if (!HasSingleton<Space4XLegacyMiningDisabledTag>(entityManager))
-            {
-                entityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
-            }
-
-            if (!HasSingleton<Space4XLegacyPatrolDisabledTag>(entityManager))
-            {
-                entityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
-            }
-        }
-
-        private static bool HasSingleton<T>(EntityManager entityManager)
-            where T : unmanaged, IComponentData
-        {
-            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
-            return !query.IsEmptyIgnoreFilter;
-        }
     }
 }
 #endif

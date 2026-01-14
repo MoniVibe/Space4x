@@ -69,6 +69,12 @@ namespace Space4X.Systems.AI
                 }
             }
 
+            // Sort leaders for deterministic processing order
+            leaders.Sort(new EntityComparer());
+
+            // Single ECB for entire update to consolidate sync points
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+
             var defaults = formationConfig.StrikeDefaults;
             for (int i = 0; i < leaders.Length; i++)
             {
@@ -79,10 +85,14 @@ namespace Space4X.Systems.AI
                 }
 
                 EnsureGroupScaffold(leader, wingDecisionConfig.MaxWingSize, defaults, ref state);
-                SyncGroupMembers(ref state, leader, leaderMembers, timeState.Tick);
+                SyncGroupMembers(ref state, leader, leaderMembers, timeState.Tick, ref ecb);
             }
 
-            CleanupOrphanedGroups(leaderSet, ref state);
+            CleanupOrphanedGroups(leaderSet, ref state, ref ecb);
+
+            // Single playback point for entire update
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
 
             leaders.Dispose();
             leaderMembers.Dispose();
@@ -95,9 +105,15 @@ namespace Space4X.Systems.AI
             in WingFormationDefaults defaults,
             ref SystemState state)
         {
+            // GroupTag is now enableable - add if missing, enable if disabled
             if (!state.EntityManager.HasComponent<GroupTag>(leader))
             {
                 state.EntityManager.AddComponent<GroupTag>(leader);
+            }
+            else
+            {
+                // Re-enable if it was disabled (orphaned group being reactivated)
+                state.EntityManager.SetComponentEnabled<GroupTag>(leader, true);
             }
 
             if (!state.EntityManager.HasComponent<GroupMeta>(leader))
@@ -251,7 +267,7 @@ namespace Space4X.Systems.AI
             }
         }
 
-        private void CleanupOrphanedGroups(NativeParallelHashMap<Entity, byte> leaderSet, ref SystemState state)
+        private void CleanupOrphanedGroups(NativeParallelHashMap<Entity, byte> leaderSet, ref SystemState state, ref EntityCommandBuffer ecb)
         {
             foreach (var (metaRef, groupEntity) in SystemAPI.Query<RefRO<GroupMeta>>()
                          .WithAll<GroupTag>()
@@ -333,14 +349,17 @@ namespace Space4X.Systems.AI
                     state.EntityManager.RemoveComponent<EngagementPlannerState>(groupEntity);
                 }
 
+                // Clear buffers instead of removing to avoid archetype changes
                 if (state.EntityManager.HasBuffer<CommsOutboxEntry>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<CommsOutboxEntry>(groupEntity);
+                    var commsBuffer = state.EntityManager.GetBuffer<CommsOutboxEntry>(groupEntity);
+                    commsBuffer.Clear();
                 }
 
                 if (state.EntityManager.HasBuffer<GroupMember>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupMember>(groupEntity);
+                    var memberBuffer = state.EntityManager.GetBuffer<GroupMember>(groupEntity);
+                    memberBuffer.Clear();
                 }
 
                 if (state.EntityManager.HasComponent<SquadTacticOrder>(groupEntity))
@@ -358,11 +377,14 @@ namespace Space4X.Systems.AI
                     state.EntityManager.RemoveComponent<PureDOTS.Runtime.Formation.FormationSlot>(groupEntity);
                 }
 
+                // Disable GroupTag instead of removing to avoid archetype churn
                 if (state.EntityManager.HasComponent<GroupTag>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupTag>(groupEntity);
+                    state.EntityManager.SetComponentEnabled<GroupTag>(groupEntity, false);
                 }
 
+                // Note: GroupMeta removal kept for now (not frequently toggled)
+                // Consider making enableable if group creation/disbanding becomes frequent
                 if (state.EntityManager.HasComponent<GroupMeta>(groupEntity))
                 {
                     state.EntityManager.RemoveComponent<GroupMeta>(groupEntity);
@@ -374,7 +396,8 @@ namespace Space4X.Systems.AI
             ref SystemState state,
             Entity leader,
             NativeParallelMultiHashMap<Entity, Entity> leaderMembers,
-            uint tick)
+            uint tick,
+            ref EntityCommandBuffer ecb)
         {
             var syncState = state.EntityManager.GetComponentData<WingGroupSyncState>(leader);
             var memberCount = 1;
@@ -408,7 +431,6 @@ namespace Space4X.Systems.AI
 
             var membersBuffer = state.EntityManager.GetBuffer<GroupMember>(leader);
             membersBuffer.Clear();
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
             AddMember(ref state, ref ecb, membersBuffer, leader, leader, GroupRole.Leader, tick);
 
             if (leaderMembers.TryGetFirstValue(leader, out member, out iterator))
@@ -432,14 +454,25 @@ namespace Space4X.Systems.AI
             syncState.LastMemberCount = clampedCount;
             syncState.LastMemberHash = memberHash;
             state.EntityManager.SetComponentData(leader, syncState);
-
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
         }
 
         private static uint HashEntity(Entity entity)
         {
             return math.hash(new int2(entity.Index, entity.Version));
+        }
+
+        /// <summary>
+        /// Comparer for deterministic entity ordering (by Index, then Version).
+        /// </summary>
+        private struct EntityComparer : System.Collections.Generic.IComparer<Entity>
+        {
+            public int Compare(Entity x, Entity y)
+            {
+                int indexCompare = x.Index.CompareTo(y.Index);
+                if (indexCompare != 0)
+                    return indexCompare;
+                return x.Version.CompareTo(y.Version);
+            }
         }
 
         private void AddMember(

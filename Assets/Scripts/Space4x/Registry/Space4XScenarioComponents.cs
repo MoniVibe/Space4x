@@ -254,13 +254,27 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Declares which spawn lane is active for the scenario to prevent mixing spawners.
+    /// </summary>
+    public enum Space4XScenarioSpawnLaneKind : byte
+    {
+        None = 0,
+        MiningJson = 1,
+        ScenarioRunnerCounts = 2
+    }
+
+    public struct Space4XScenarioSpawnLane : IComponentData
+    {
+        public Space4XScenarioSpawnLaneKind Kind;
+    }
+
+    /// <summary>
     /// Disables legacy mining systems when present (used by smoke scenarios).
     /// </summary>
     public struct Space4XLegacyMiningDisabledTag : IComponentData { }
 
     public struct Space4XLegacyPatrolDisabledTag : IComponentData { }
 }
-
 
 
 

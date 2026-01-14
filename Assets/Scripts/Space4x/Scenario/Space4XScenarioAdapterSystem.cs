@@ -26,6 +26,7 @@ namespace Space4X.Scenario
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
+    [UpdateAfter(typeof(global::Space4x.Scenario.Space4XMiningScenarioSystem))]
     public partial struct Space4XScenarioAdapterSystem : ISystem
     {
         private bool _hasSpawned;
@@ -49,10 +50,10 @@ namespace Space4X.Scenario
                 return;
             }
 
-            if (SystemAPI.HasSingleton<Space4XLegacyMiningDisabledTag>() || IsSmokeScenario(scenarioInfo))
+            if (!EnsureScenarioRunnerLane(ref state))
             {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                UnityEngine.Debug.Log("[Space4XScenarioAdapter] Adapter disabled for smoke/legacy-disabled scenario.");
+                UnityEngine.Debug.Log("[Space4XScenarioAdapter] Adapter disabled because spawn lane is not ScenarioRunnerCounts.");
 #endif
                 _hasSpawned = true;
                 state.Enabled = false;
@@ -142,11 +143,27 @@ namespace Space4X.Scenario
             state.Enabled = false;
         }
 
-        private static bool IsSmokeScenario(in ScenarioInfo scenarioInfo)
+        private bool EnsureScenarioRunnerLane(ref SystemState state)
         {
-            var scenarioId = scenarioInfo.ScenarioId;
-            return scenarioId.Length > 0 &&
-                   scenarioId.Equals(new FixedString64Bytes("space4x_smoke"));
+            if (!SystemAPI.TryGetSingletonEntity<Space4XScenarioSpawnLane>(out var laneEntity))
+            {
+                laneEntity = state.EntityManager.CreateEntity(typeof(Space4XScenarioSpawnLane));
+                state.EntityManager.SetComponentData(laneEntity, new Space4XScenarioSpawnLane
+                {
+                    Kind = Space4XScenarioSpawnLaneKind.ScenarioRunnerCounts
+                });
+                return true;
+            }
+
+            var lane = state.EntityManager.GetComponentData<Space4XScenarioSpawnLane>(laneEntity);
+            if (lane.Kind == Space4XScenarioSpawnLaneKind.None)
+            {
+                lane.Kind = Space4XScenarioSpawnLaneKind.ScenarioRunnerCounts;
+                state.EntityManager.SetComponentData(laneEntity, lane);
+                return true;
+            }
+
+            return lane.Kind == Space4XScenarioSpawnLaneKind.ScenarioRunnerCounts;
         }
 
         private static void SpawnCarriers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)

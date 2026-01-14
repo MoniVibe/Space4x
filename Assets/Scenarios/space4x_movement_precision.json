@@ -1,6 +1,15 @@
 {
   "seed": 1337,
   "duration_s": 140,
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": true,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true
+  },
   "spawn": [
     {
       "kind": "Carrier",
