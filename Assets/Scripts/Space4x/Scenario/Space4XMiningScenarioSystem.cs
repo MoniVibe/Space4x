@@ -113,7 +113,6 @@ namespace Space4x.Scenario
                 ApplySmokeMotionProfile();
                 ApplySmokeLatchConfig();
                 ApplyFloatingOriginConfig();
-                ApplySmokePresentationConfig();
             }
             ApplyDogfightConfig(_scenarioData.dogfightConfig);
             ApplyStanceConfig(_scenarioData.stanceConfig);
@@ -212,18 +211,6 @@ namespace Space4x.Scenario
             }
 
             EnsurePhysicsConfigEnabled();
-        }
-
-        private void ApplySmokePresentationConfig()
-        {
-            if (!SystemAPI.TryGetSingletonEntity<Space4XMiningVisualConfig>(out var configEntity))
-            {
-                configEntity = EntityManager.CreateEntity(typeof(Space4XMiningVisualConfig));
-            }
-
-            var config = SystemAPI.GetComponent<Space4XMiningVisualConfig>(configEntity);
-            config.DisableDepthOffset = 1;
-            SystemAPI.SetComponent(configEntity, config);
         }
 
         private void ApplyFloatingOriginConfig()
@@ -775,7 +762,6 @@ namespace Space4x.Scenario
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
             if (_useSmokeMotionTuning)
             {
-                EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
             }
             EntityManager.AddComponent<CommunicationModuleTag>(entity);
             EntityManager.AddComponentData(entity, MediumContext.Vacuum);
@@ -981,7 +967,6 @@ namespace Space4x.Scenario
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
             if (_useSmokeMotionTuning)
             {
-                EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
             }
             EntityManager.AddComponent<CommunicationModuleTag>(entity);
             EntityManager.AddComponentData(entity, MediumContext.Vacuum);
@@ -1169,7 +1154,6 @@ namespace Space4x.Scenario
             EntityManager.AddComponent<SpatialIndexedTag>(entity);
             if (_useSmokeMotionTuning)
             {
-                EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
             }
 
             var resourceId = new FixedString64Bytes(spawn.resourceId ?? "Minerals");
@@ -1333,7 +1317,6 @@ namespace Space4x.Scenario
                 EntityManager.AddComponentData(entity, LocalTransform.FromPositionRotationScale(carrierPosition + offset, quaternion.identity, 1f));
                 if (_useSmokeMotionTuning)
                 {
-                    EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
                 }
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
                 EntityManager.AddComponentData(entity, MediumContext.Vacuum);
@@ -1560,7 +1543,6 @@ namespace Space4x.Scenario
                 EntityManager.AddComponent<SpatialIndexedTag>(entity);
                 if (_useSmokeMotionTuning)
                 {
-                    EntityManager.AddComponent<Space4XRogueOrbitTag>(entity);
                 }
                 EntityManager.AddComponent<CommunicationModuleTag>(entity);
                 EntityManager.AddComponentData(entity, MediumContext.Vacuum);
@@ -1778,7 +1760,7 @@ namespace Space4x.Scenario
                 float z = position[1];
                 float y = position.Length > 2
                     ? position[2]
-                    : (_useSmokeMotionTuning ? 0f : ResolveSpawnHeight(x, z));
+                    : ResolveSpawnHeight(x, z);
                 return new float3(x, y, z);
             }
             // Deterministic fallback to keep spawns separated when position data is missing.
@@ -1787,7 +1769,7 @@ namespace Space4x.Scenario
             var radius = 20f + (index % 5) * 5f;
             var xFallback = math.cos(angle) * radius;
             var zFallback = math.sin(angle) * radius;
-            var yFallback = _useSmokeMotionTuning ? 0f : ResolveSpawnHeight(xFallback, zFallback);
+            var yFallback = ResolveSpawnHeight(xFallback, zFallback);
             return new float3(xFallback, yFallback, zFallback);
         }
 

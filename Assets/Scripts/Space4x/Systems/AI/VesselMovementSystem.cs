@@ -122,9 +122,9 @@ namespace Space4X.Systems.AI
             _physicsColliderLookup = state.GetComponentLookup<PhysicsCollider>(true);
             _spacePhysicsBodyLookup = state.GetComponentLookup<SpacePhysicsBody>(true);
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
-            _asteroidCollisionQuery = state.EntityManager.CreateEntityQuery(
-                ComponentType.ReadOnly<Space4XAsteroidCenter>(),
-                ComponentType.ReadOnly<Space4XAsteroidVolumeConfig>());
+            _asteroidCollisionQuery = state.GetEntityQuery(new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<Space4XAsteroidCenter>()
+                .WithAll<Space4XAsteroidVolumeConfig>());
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
