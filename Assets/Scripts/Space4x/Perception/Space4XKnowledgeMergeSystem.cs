@@ -52,12 +52,12 @@ namespace Space4X.Perception
 
             var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
 
-            if (!SystemAPI.HasBuffer<AwarenessSnapshotBuffer>(gridEntity))
+            if (!SystemAPI.HasBuffer<AwarenessCellSnapshotBuffer>(gridEntity))
             {
                 return;
             }
 
-            var snapshots = SystemAPI.GetBuffer<AwarenessSnapshotBuffer>(gridEntity);
+            var snapshots = SystemAPI.GetBuffer<AwarenessCellSnapshotBuffer>(gridEntity);
             if (snapshots.Length == 0)
             {
                 return;

@@ -7,7 +7,7 @@
 ### Catalog Setup
 
 - [ ] `Space4XRenderCatalog_v2.asset` exists and is referenced by scene
-- [ ] Theme 0 maps every semantic key (`Space4XRenderKeys.*`) to a valid variant index
+- [ ] Theme 0 maps every required semantic key (`Space4XRenderKeys.*`) to a **non-zero** variant index (variant 0 is fallback)
 - [ ] Fallback mesh/material are assigned in catalog asset
 - [ ] `RenderPresentationCatalogAuthoring` or `RenderPresentationCatalogRuntimeBootstrap` is present in scene
 - [ ] Catalog version increments when catalog asset changes (automatic via baker/bootstrap)
@@ -27,6 +27,7 @@
 - [ ] `PresentationRewindGuardSystem` disables presentation during catch-up rewinds
 - [ ] Presentation systems read `TimeState.Tick` but do not mutate simulation components
 - [ ] No presentation system writes to simulation archetypes (carriers, vessels, asteroids, etc.)
+- [ ] No depth offsets / smoothing / interpolation hacks are used to “fix” render==sim (truth mode stays exact)
 
 ### Render Key Assignment
 
@@ -34,6 +35,7 @@
 - [ ] `RenderSemanticKey` values match `Space4XRenderKeys` constants (200=Carrier, 210=Miner, etc.)
 - [ ] Entities with `RenderSemanticKey` resolve to `RenderVariantKey` via `ResolveRenderVariantSystem`
 - [ ] `RenderVariantKey` maps to valid variant index (0..catalog.Variants.Length-1)
+- [ ] No dev-only logs from `ResolveRenderVariantSystem` reporting “fell back to Variant 0” for required keys
 
 ### Material/Mesh Assignment
 

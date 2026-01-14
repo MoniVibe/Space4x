@@ -1,4 +1,7 @@
 using PureDOTS.Runtime.ComplexEntities;
+using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Spatial;
+using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -18,34 +21,53 @@ namespace Space4X.Runtime
             var ecb = SystemAPI.GetSingleton<BeginInitializationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
 
-            var currentTick = (uint)SystemAPI.Time.ElapsedTime;
+            var currentTick = SystemAPI.TryGetSingleton<TickTimeState>(out var tickState)
+                ? tickState.Tick
+                : (SystemAPI.TryGetSingleton<TimeState>(out var timeState) ? timeState.Tick : 0u);
 
             // Find carriers that need conversion
-            foreach (var (carrier, entity, transform) in SystemAPI.Query<
+            foreach (var (carrier, transform, entity) in SystemAPI.Query<
                 RefRO<Carrier>,
-                Entity>()
-                .WithAll<LocalTransform>()
+                RefRO<LocalTransform>>()
                 .WithNone<ComplexEntityIdentity>()
                 .WithEntityAccess())
             {
                 // Create complex entity identity
                 var identity = new ComplexEntityIdentity
                 {
-                    StableId = new FixedString64Bytes($"carrier_{carrier.ValueRO.CarrierId}"),
+                    StableId = unchecked((ulong)carrier.ValueRO.CarrierId.GetHashCode()),
                     EntityType = ComplexEntityType.Carrier,
                     CreationTick = currentTick
                 };
 
+                var cell = int3.zero;
+                ushort localX = 0;
+                ushort localY = 0;
+                if (SystemAPI.TryGetSingleton<SpatialGridConfig>(out var gridConfig))
+                {
+                    SpatialHash.Quantize(transform.ValueRO.Position, gridConfig, out cell);
+                    var local = (transform.ValueRO.Position - gridConfig.WorldMin) / math.max(gridConfig.CellSize, 1e-3f);
+                    var frac = local - math.floor(local);
+                    localX = (ushort)math.clamp(frac.x * ushort.MaxValue, 0, ushort.MaxValue);
+                    localY = (ushort)math.clamp(frac.y * ushort.MaxValue, 0, ushort.MaxValue);
+                }
+
                 // Create core axes from carrier data
                 var coreAxes = new ComplexEntityCoreAxes
                 {
-                    Position = transform.Position,
-                    Velocity = float3.zero, // Will be updated by movement systems
-                    Mass = 1000f, // Default mass, can be overridden
-                    Capacity = carrier.ValueRO.TotalCapacity,
-                    CurrentLoad = carrier.ValueRO.CurrentLoad,
-                    Health = 1.0f, // Default health
-                    Flags = 0
+                    Cell = cell,
+                    LocalX = localX,
+                    LocalY = localY,
+                    VelX = 0,
+                    VelY = 0,
+                    HeadingQ = 0,
+                    HealthQ = ushort.MaxValue,
+                    MassQ = 0,
+                    CapacityQ = 0,
+                    LoadQ = 0,
+                    Flags = 0,
+                    CrewCount = 0,
+                    Reserved0 = 0
                 };
 
                 // Add complex entity components
