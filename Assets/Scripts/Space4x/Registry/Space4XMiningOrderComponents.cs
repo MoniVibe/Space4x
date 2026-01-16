@@ -44,6 +44,20 @@ namespace Space4X.Registry
         Docking = 7
     }
 
+    public enum MiningDecisionReason : byte
+    {
+        None = 0,
+        NoTarget = 1,
+        UndockWait = 2,
+        NotInRange = 3,
+        LatchNotReady = 4,
+        Digging = 5,
+        DigZero = 6,
+        ReturnFull = 7,
+        DockingWait = 8,
+        NotAligned = 9
+    }
+
     /// <summary>
     /// Tracks the active mining state and cadence for a miner vessel.
     /// </summary>
@@ -54,6 +68,7 @@ namespace Space4X.Registry
         public float MiningTimer;
         public float TickInterval;
         public float PhaseTimer;
+        public byte InDigRange;
         public float3 DigHeadLocal;
         public float3 DigDirectionLocal;
         public Entity DigVolumeEntity;
@@ -64,6 +79,17 @@ namespace Space4X.Registry
         public byte HasLatchPoint;
         public uint LatchSettleUntilTick;
         public uint LastLatchTelemetryTick;
+    }
+
+    public struct MiningDecisionTrace : IComponentData
+    {
+        public MiningDecisionReason Reason;
+        public Entity Target;
+        public float DistanceToTarget;
+        public float RangeThreshold;
+        public float Standoff;
+        public byte Aligned;
+        public uint Tick;
     }
 
     public struct Space4XMiningLatchConfig : IComponentData
@@ -131,6 +157,36 @@ namespace Space4X.Registry
     internal static class Space4XMiningLatchUtility
     {
         public const int DefaultLatchRegionCount = 12;
+        public const float MinerAsteroidStandoff = 1.1f;
+        public const float DefaultAsteroidStandoff = 5.5f;
+        public const float CarrierAsteroidStandoff = 6.5f;
+        public const float StandoffPadding = 0.25f;
+        public const float MiningRangePadding = 1.0f;
+        public const float MiningEnterSlack = 0.25f;
+        public const float MiningExitSlack = 0.50f;
+        public const float MiningInnerTargetSlack = 0.10f;
+
+        public static float ResolveAsteroidStandoff(bool isMiner, bool isCarrier, float vesselRadius)
+        {
+            var standoff = isMiner ? MinerAsteroidStandoff : DefaultAsteroidStandoff;
+            if (isCarrier)
+            {
+                standoff = CarrierAsteroidStandoff;
+            }
+
+            return math.max(standoff, vesselRadius + StandoffPadding);
+        }
+
+        public static float ResolveMiningRangeThreshold(float surfaceEpsilon)
+        {
+            return math.max(0.05f, surfaceEpsilon) + MiningRangePadding;
+        }
+
+        public static float ResolveMiningApproachStandoff(float surfaceEpsilon)
+        {
+            var rangeThreshold = ResolveMiningRangeThreshold(surfaceEpsilon);
+            return math.max(0.05f, rangeThreshold - MiningInnerTargetSlack);
+        }
 
         public static int ComputeLatchRegion(Entity miner, Entity target, uint targetSeed, int regionCount = DefaultLatchRegionCount)
         {

@@ -8,7 +8,15 @@
     "applyLatchConfig": true,
     "applyFloatingOrigin": true,
     "disableLegacyMining": true,
-    "disableLegacyPatrol": true
+    "disableLegacyPatrol": true,
+    "steeringStabilityBeat": {
+      "fleetId": "NEUTRAL-URSA",
+      "targetPosition": [-400, 260],
+      "startTime_s": 60,
+      "settle_s": 2,
+      "measure_s": 20,
+      "holdCarrierMiningIntent": true
+    }
   },
   "dogfightConfig": {
     "acquireRadius": 120.0,
@@ -408,7 +416,7 @@
       "miningEfficiency": 0.85,
       "speed": 10.0,
       "cargoCapacity": 120.0,
-      "startDocked": false,
+      "startDocked": true,
       "pilotProfileId": "pilot-lawful"
     },
     {
@@ -563,7 +571,7 @@
       "miningEfficiency": 0.8,
       "speed": 10.5,
       "cargoCapacity": 100.0,
-      "startDocked": false,
+      "startDocked": true,
       "pilotProfileId": "pilot-chaotic"
     },
     {
@@ -670,6 +678,15 @@
     },
     {
       "kind": "ResourceDeposit",
+      "entityId": "deposit-alpha-near",
+      "position": [6, -4],
+      "resourceId": "Minerals",
+      "unitsRemaining": 600.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 2
+    },
+    {
+      "kind": "ResourceDeposit",
       "entityId": "deposit-golf",
       "position": [60, -100],
       "resourceId": "Minerals",
@@ -685,6 +702,15 @@
       "unitsRemaining": 950.0,
       "gatherRatePerWorker": 10.0,
       "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-delta-near",
+      "position": [206, 46],
+      "resourceId": "Minerals",
+      "unitsRemaining": 650.0,
+      "gatherRatePerWorker": 10.5,
+      "maxSimultaneousWorkers": 2
     },
     {
       "kind": "ResourceDeposit",
@@ -733,6 +759,20 @@
     }
   ],
   "actions": [
+    {
+      "time_s": 0,
+      "kind": "MoveFleet",
+      "fleetId": "FRIENDLY-ALPHA",
+      "targetPosition": [260, -40],
+      "description": "Undock risk beat: alpha carrier under way during miner launch"
+    },
+    {
+      "time_s": 0,
+      "kind": "MoveFleet",
+      "fleetId": "HOSTILE-DELTA",
+      "targetPosition": [300, 120],
+      "description": "Undock risk beat: hostile carrier under way during miner launch"
+    },
     {
       "time_s": 6,
       "kind": "MoveFleet",
@@ -788,6 +828,13 @@
       "requesterFleetId": "FRIENDLY-ECHO",
       "targetFleetId": "HOSTILE-SIGMA",
       "description": "Echo bombers engage the probing hostiles"
+    },
+    {
+      "time_s": 60,
+      "kind": "MoveFleet",
+      "fleetId": "NEUTRAL-URSA",
+      "targetPosition": [-400, 260],
+      "description": "Steering stability beat: neutral fleet holds a steady heading"
     }
   ],
   "telemetryExpectations": {

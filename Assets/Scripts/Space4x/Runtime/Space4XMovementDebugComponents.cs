@@ -29,14 +29,20 @@ namespace Space4X.Runtime
         NoTarget = 1,
         MiningHold = 2,
         Arrived = 3,
-        Moving = 4
+        Moving = 4,
+        MiningUndockWait = 5,
+        MiningLatchWait = 6,
+        MiningDigging = 7,
+        MiningReturnFull = 8
     }
 
     public enum MoveTraceEventKind : byte
     {
         IntentChanged = 0,
         PlanChanged = 1,
-        DecisionChanged = 2
+        DecisionChanged = 2,
+        SteeringFlip = 3,
+        UndockDecision = 4
     }
 
     public struct MoveIntent : IComponentData

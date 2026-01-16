@@ -3,8 +3,10 @@ using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Space4X.Runtime;
+using Space4x.Scenario;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -28,6 +30,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
+        private ComponentLookup<Space4XFleet> _fleetLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -45,6 +48,7 @@ namespace Space4X.Systems.AI
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
+            _fleetLookup = state.GetComponentLookup<Space4XFleet>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -128,12 +132,33 @@ namespace Space4X.Systems.AI
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
+            _fleetLookup.Update(ref state);
+
+            var beatConfig = default(Space4XSteeringStabilityBeatConfig);
+            var applyBeatHold = false;
+            if (SystemAPI.TryGetSingleton<Space4XSteeringStabilityBeatConfig>(out beatConfig) &&
+                beatConfig.FleetId.Length > 0 &&
+                beatConfig.HoldCarrierMiningIntent != 0)
+            {
+                var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
+                var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
+                var startTick = runtime.StartTick + SecondsToTicks(beatConfig.StartSeconds, fixedDt);
+                var settleTicks = SecondsToTicks(beatConfig.SettleSeconds, fixedDt);
+                var measureTicks = math.max(1u, SecondsToTicks(beatConfig.MeasureSeconds, fixedDt));
+                var endTick = startTick + settleTicks + measureTicks;
+                applyBeatHold = timeState.Tick >= startTick && timeState.Tick <= endTick;
+            }
 
             foreach (var (target, intent, transform, entity) in SystemAPI
                          .Query<RefRO<CarrierMiningTarget>, RefRW<EntityIntent>, RefRO<LocalTransform>>()
                          .WithAll<Carrier>()
                          .WithEntityAccess())
             {
+                if (applyBeatHold && _fleetLookup.HasComponent(entity) && _fleetLookup[entity].FleetId.Equals(beatConfig.FleetId))
+                {
+                    continue;
+                }
+
                 if (target.ValueRO.TargetEntity == Entity.Null)
                 {
                     if (intent.ValueRO.IsValid != 0 && intent.ValueRO.Mode != IntentMode.Idle)
@@ -304,6 +329,12 @@ namespace Space4X.Systems.AI
             }
 
             return Entity.Null;
+        }
+
+        private static uint SecondsToTicks(float seconds, float fixedDt)
+        {
+            var safeDt = math.max(1e-6f, fixedDt);
+            return (uint)math.ceil(math.max(0f, seconds) / safeDt);
         }
     }
 }

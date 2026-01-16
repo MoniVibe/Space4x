@@ -330,6 +330,21 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Tracks undock decision cadence and last evaluated risk inputs.
+    /// </summary>
+    public struct UndockDecisionState : IComponentData
+    {
+        public uint LastDecisionTick;
+        public uint HoldUntilTick;
+        public uint Decisions;
+        public uint UndockCount;
+        public uint WaitCount;
+        public float LastRiskScore;
+        public float LastInheritedSpeed;
+        public byte LastDecision;
+    }
+
+    /// <summary>
     /// Utility functions for docking calculations.
     /// </summary>
     public static class DockingUtility
@@ -383,4 +398,3 @@ namespace Space4X.Registry
         }
     }
 }
-

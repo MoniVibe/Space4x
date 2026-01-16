@@ -10,6 +10,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using UnityEngine.Rendering;
 using PackageManagerPackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace Space4X.Headless.Editor
@@ -21,8 +22,7 @@ namespace Space4X.Headless.Editor
     {
         private static readonly string[] HeadlessScenes =
         {
-            "Assets/Scenes/HeadlessBootstrap.unity",
-            "Assets/Scenes/TRI_Space4X_Smoke.unity"
+            "Assets/Scenes/HeadlessBootstrap.unity"
         };
 
         private const string DefaultOutputFolder = "Builds/Space4X_headless/Linux";
@@ -53,6 +53,7 @@ namespace Space4X.Headless.Editor
             try
             {
                 Directory.CreateDirectory(absoluteOutput);
+                using var renderPipelineOverride = new HeadlessRenderPipelineScope();
                 RunHeadlessPreflight();
                 EnsureLinuxServerSupport();
 
@@ -264,8 +265,49 @@ namespace Space4X.Headless.Editor
 
         private static void RunHeadlessPreflight()
         {
+            ProbeGlobalAssets();
             EnsureResourceTypeCatalogAsset();
             ValidateResourceAssets();
+        }
+
+        private static void ProbeGlobalAssets()
+        {
+            LogAndLoadAsset("ProjectSettings/GraphicsSettings.asset");
+            LogAndLoadAsset("ProjectSettings/QualitySettings.asset");
+            LogAndLoadAsset("ProjectSettings/URPProjectSettings.asset");
+            LogAndLoadAsset("ProjectSettings/ShaderGraphSettings.asset");
+            LogAndLoadAsset("ProjectSettings/Packages/com.unity.dedicated-server/MultiplayerRolesSettings.asset");
+            LogAndLoadAsset("Assets/Settings/UniversalRenderPipelineGlobalSettings.asset");
+            LogAndLoadAsset("Assets/Settings/PC_RPAsset.asset");
+            LogAndLoadAsset("Assets/Settings/PC_Renderer.asset");
+            LogAndLoadAsset("Assets/Settings/DefaultVolumeProfile.asset");
+            LogAndLoadAsset("Assets/Resources/Rendering/ScenarioURP.asset");
+            LogAndLoadAsset("Assets/Resources/Rendering/ScenarioURP_Renderer.asset");
+
+            if (GraphicsSettings.renderPipelineAsset != null)
+            {
+                UnityEngine.Debug.Log($"[Space4XHeadlessBuilder][PPtrProbe] RenderPipelineAsset={GraphicsSettings.renderPipelineAsset.name}");
+            }
+            else
+            {
+                UnityEngine.Debug.Log("[Space4XHeadlessBuilder][PPtrProbe] RenderPipelineAsset=<null>");
+            }
+
+            var defaultPipeline = GraphicsSettings.defaultRenderPipeline;
+            var qualityPipeline = QualitySettings.renderPipeline;
+            UnityEngine.Debug.Log(
+                $"[Space4XHeadlessBuilder][PPtrProbe] DefaultPipeline={(defaultPipeline != null ? defaultPipeline.name : "<null>")} " +
+                $"QualityPipeline={(qualityPipeline != null ? qualityPipeline.name : "<null>")}");
+        }
+
+        private static void LogAndLoadAsset(string assetPath)
+        {
+            UnityEngine.Debug.Log($"[Space4XHeadlessBuilder][PPtrProbe] Load {assetPath}");
+            var asset = AssetDatabase.LoadMainAssetAtPath(assetPath);
+            if (asset == null && File.Exists(Path.Combine(ProjectRoot, assetPath)))
+            {
+                UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder][PPtrProbe] Missing asset at {assetPath}");
+            }
         }
 
         private static void EnsureResourceTypeCatalogAsset()
@@ -564,6 +606,36 @@ namespace Space4X.Headless.Editor
                 {
                     EditorUserBuildSettings.SwitchActiveBuildTarget(_originalGroup, _originalTarget);
                 }
+            }
+        }
+
+        private sealed class HeadlessRenderPipelineScope : IDisposable
+        {
+            private readonly RenderPipelineAsset? _defaultPipeline;
+            private readonly RenderPipelineAsset? _qualityPipeline;
+            private bool _restored;
+
+            public HeadlessRenderPipelineScope()
+            {
+                _defaultPipeline = GraphicsSettings.defaultRenderPipeline;
+                _qualityPipeline = QualitySettings.renderPipeline;
+
+                GraphicsSettings.defaultRenderPipeline = null;
+                QualitySettings.renderPipeline = null;
+                UnityEngine.Debug.Log("[Space4XHeadlessBuilder] Headless render pipeline override: default/quality set to null.");
+            }
+
+            public void Dispose()
+            {
+                if (_restored)
+                {
+                    return;
+                }
+
+                QualitySettings.renderPipeline = _qualityPipeline;
+                GraphicsSettings.defaultRenderPipeline = _defaultPipeline;
+                _restored = true;
+                UnityEngine.Debug.Log("[Space4XHeadlessBuilder] Headless render pipeline override restored.");
             }
         }
     }

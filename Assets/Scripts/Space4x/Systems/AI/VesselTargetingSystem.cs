@@ -82,6 +82,8 @@ namespace Space4X.Systems.AI
             }
 
             var latchRegionCount = latchConfig.RegionCount > 0 ? latchConfig.RegionCount : Space4XMiningLatchUtility.DefaultLatchRegionCount;
+            var surfaceEpsilon = math.max(0.05f, latchConfig.SurfaceEpsilon);
+            var miningApproachStandoff = Space4XMiningLatchUtility.ResolveMiningApproachStandoff(surfaceEpsilon);
 
             // Initialize with empty array to ensure it's always valid (Burst requirement)
             NativeArray<ResourceRegistryEntry> resourceEntries = new NativeArray<ResourceRegistryEntry>(0, Allocator.TempJob);
@@ -120,7 +122,8 @@ namespace Space4X.Systems.AI
                 StatsLookup = _statsLookup,
                 ResourceEntries = resourceEntries,
                 HasResourceEntries = hasResourceEntries,
-                LatchRegionCount = latchRegionCount
+                LatchRegionCount = latchRegionCount,
+                MiningApproachStandoff = miningApproachStandoff
             };
 
             var jobHandle = job.ScheduleParallel(state.Dependency);
@@ -150,6 +153,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;
             public bool HasResourceEntries;
             public int LatchRegionCount;
+            public float MiningApproachStandoff;
 
             public void Execute(ref VesselAIState aiState, Entity entity)
             {
@@ -179,15 +183,18 @@ namespace Space4X.Systems.AI
                         var regionId = Space4XMiningLatchUtility.ComputeLatchRegion(entity, aiState.TargetEntity, volume.Seed, LatchRegionCount);
                         var surfacePoint = Space4XMiningLatchUtility.ComputeSurfaceLatchPoint(targetPos, radius, regionId, volume.Seed);
                         var direction = math.normalizesafe(surfacePoint - targetPos, new float3(0f, 0f, 1f));
-                        var standoff = MiningVesselLookup.HasComponent(entity) ? 1.1f : 5.5f;
+                        var isMiner = MiningVesselLookup.HasComponent(entity);
                         var vesselRadius = PhysicalLookup.HasComponent(entity)
                             ? math.max(0.1f, PhysicalLookup[entity].Radius)
                             : 0.6f;
-                        if (CarrierLookup.HasComponent(entity))
+                        var standoff = Space4XMiningLatchUtility.ResolveAsteroidStandoff(
+                            isMiner,
+                            CarrierLookup.HasComponent(entity),
+                            vesselRadius);
+                        if (isMiner)
                         {
-                            standoff = 6.5f;
+                            standoff = math.max(standoff, MiningApproachStandoff);
                         }
-                        standoff = math.max(standoff, vesselRadius + 0.25f);
                         targetPos = surfacePoint + direction * standoff;
                         hasAsteroidSurfaceTarget = true;
                     }
@@ -224,15 +231,18 @@ namespace Space4X.Systems.AI
                         var radius = math.max(0.5f, volume.Radius);
                         var toSelf = selfTransform.Position - targetPos;
                         var direction = math.normalizesafe(toSelf, new float3(0f, 0f, 1f));
-                        var standoff = MiningVesselLookup.HasComponent(entity) ? 1.1f : 5.5f;
+                        var isMiner = MiningVesselLookup.HasComponent(entity);
                         var vesselRadius = PhysicalLookup.HasComponent(entity)
                             ? math.max(0.1f, PhysicalLookup[entity].Radius)
                             : 0.6f;
-                        if (CarrierLookup.HasComponent(entity))
+                        var standoff = Space4XMiningLatchUtility.ResolveAsteroidStandoff(
+                            isMiner,
+                            CarrierLookup.HasComponent(entity),
+                            vesselRadius);
+                        if (isMiner)
                         {
-                            standoff = 6.5f;
+                            standoff = math.max(standoff, MiningApproachStandoff);
                         }
-                        standoff = math.max(standoff, vesselRadius + 0.25f);
                         targetPos += direction * (radius + standoff);
                         hasAsteroidSurfaceTarget = true;
                     }
@@ -255,9 +265,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
-
-
 
 
 

@@ -193,6 +193,33 @@ namespace Space4x.Scenario
             }
 
             ApplyLegacyDisableTags(scenarioConfig.disableLegacyMining, scenarioConfig.disableLegacyPatrol);
+            ApplySteeringStabilityBeatConfig(scenarioConfig.steeringStabilityBeat);
+        }
+
+        private void ApplySteeringStabilityBeatConfig(SteeringStabilityBeatConfigData beat)
+        {
+            if (beat == null || string.IsNullOrWhiteSpace(beat.fleetId))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XSteeringStabilityBeatConfig>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XSteeringStabilityBeatConfig));
+            }
+
+            var targetPosition = GetPosition(beat.targetPosition);
+            EntityManager.SetComponentData(entity, new Space4XSteeringStabilityBeatConfig
+            {
+                FleetId = new FixedString64Bytes(beat.fleetId),
+                TargetPosition = targetPosition,
+                StartSeconds = math.max(0f, beat.startTime_s),
+                SettleSeconds = math.max(0f, beat.settle_s),
+                MeasureSeconds = math.max(0f, beat.measure_s),
+                HoldCarrierMiningIntent = (byte)(beat.holdCarrierMiningIntent ? 1 : 0),
+                Initialized = 0,
+                Completed = 0
+            });
         }
 
         private void ApplyLegacyDisableTags(bool disableMining, bool disablePatrol)
@@ -1135,6 +1162,14 @@ namespace Space4x.Scenario
                 MiningTimer = 0f,
                 TickInterval = 0.5f,
                 PhaseTimer = 0f
+            });
+
+            EntityManager.AddComponentData(entity, new MiningDecisionTrace
+            {
+                Reason = MiningDecisionReason.None,
+                Target = Entity.Null,
+                DistanceToTarget = 0f,
+                Tick = 0
             });
 
             EntityManager.AddComponentData(entity, new MiningYield
@@ -2114,6 +2149,18 @@ namespace Space4x.Scenario
         public bool applyFloatingOrigin;
         public bool disableLegacyMining;
         public bool disableLegacyPatrol;
+        public SteeringStabilityBeatConfigData steeringStabilityBeat;
+    }
+
+    [System.Serializable]
+    public class SteeringStabilityBeatConfigData
+    {
+        public string fleetId;
+        public float[] targetPosition;
+        public float startTime_s;
+        public float settle_s;
+        public float measure_s;
+        public bool holdCarrierMiningIntent;
     }
 
     [System.Serializable]

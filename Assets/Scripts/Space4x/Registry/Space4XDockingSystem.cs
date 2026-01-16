@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Systems;
 using Space4X.Runtime;
@@ -6,6 +7,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
@@ -164,38 +166,87 @@ namespace Space4X.Registry
     /// <summary>
     /// Handles undocking and updates capacity.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XDockingSystem))]
     public partial struct Space4XUndockingSystem : ISystem
     {
+        private const float RiskHardStop = 0.9f;
+        private const float RiskHysteresis = 0.05f;
+        private const uint DecisionHoldTicks = 20;
+        private const uint RiskBoostTicks = 120;
+        private const float HazardRangeFloor = 12f;
+        private const float HazardRangePadding = 6f;
+        private const float RiskSpeedWeight = 0.7f;
+        private const float RiskHazardWeight = 0.3f;
+        private const byte DecisionWait = 1;
+        private const byte DecisionUndock = 2;
+
         private BufferLookup<DockedEntity> _dockedBufferLookup;
         private ComponentLookup<DockingCapacity> _dockingLookup;
         private ComponentLookup<CommandLoad> _commandLookup;
+        private ComponentLookup<VesselMovement> _movementLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
+        private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private ComponentLookup<ResolvedBehaviorProfile> _profileLookup;
+        private ComponentLookup<MiningState> _miningStateLookup;
+        private ComponentLookup<MiningOrder> _miningOrderLookup;
+        private ComponentLookup<UndockDecisionState> _undockDecisionLookup;
+        private BufferLookup<MoveTraceEvent> _traceLookup;
+        private EntityQuery _missingDecisionQuery;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
 
+            _missingDecisionQuery = state.GetEntityQuery(new EntityQueryDesc
+            {
+                All = new[] { ComponentType.ReadOnly<DockedTag>() },
+                None = new[] { ComponentType.ReadOnly<UndockDecisionState>() }
+            });
+
             _dockedBufferLookup = state.GetBufferLookup<DockedEntity>(false);
             _dockingLookup = state.GetComponentLookup<DockingCapacity>(false);
             _commandLookup = state.GetComponentLookup<CommandLoad>(false);
+            _movementLookup = state.GetComponentLookup<VesselMovement>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _profileLookup = state.GetComponentLookup<ResolvedBehaviorProfile>(true);
+            _miningStateLookup = state.GetComponentLookup<MiningState>(true);
+            _miningOrderLookup = state.GetComponentLookup<MiningOrder>(true);
+            _undockDecisionLookup = state.GetComponentLookup<UndockDecisionState>(false);
+            _traceLookup = state.GetBufferLookup<MoveTraceEvent>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            _dockedBufferLookup.Update(ref state);
-            _dockingLookup.Update(ref state);
-            _commandLookup.Update(ref state);
-
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
             {
                 return;
             }
 
+            if (!_missingDecisionQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<UndockDecisionState>(_missingDecisionQuery);
+            }
+
+            _dockedBufferLookup.Update(ref state);
+            _dockingLookup.Update(ref state);
+            _commandLookup.Update(ref state);
+            _movementLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
+            _pilotLookup.Update(ref state);
+            _profileLookup.Update(ref state);
+            _miningStateLookup.Update(ref state);
+            _miningOrderLookup.Update(ref state);
+            _undockDecisionLookup.Update(ref state);
+            _traceLookup.Update(ref state);
+
+            var tick = timeState.Tick;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             // Process entities that have both DockedTag and are in certain AI states that indicate undocking
@@ -205,11 +256,26 @@ namespace Space4X.Registry
             {
                 var target = aiState.ValueRO.TargetEntity;
                 var hasNonCarrierTarget = target != Entity.Null && target != docked.ValueRO.CarrierEntity;
+                var hasMiningUndock = false;
+                if (_miningStateLookup.HasComponent(entity))
+                {
+                    var mining = _miningStateLookup[entity];
+                    hasMiningUndock = mining.Phase == MiningPhase.Undocking;
+                }
 
                 // Undock when the vessel is acting on a non-carrier target (including cases where it goes
                 // straight into Mining while still physically at the carrier position).
-                if (hasNonCarrierTarget && aiState.ValueRO.CurrentState != VesselAIState.State.Returning)
+                if ((hasNonCarrierTarget || hasMiningUndock) && aiState.ValueRO.CurrentState != VesselAIState.State.Returning)
                 {
+                    if (_undockDecisionLookup.HasComponent(entity))
+                    {
+                        var decisionState = _undockDecisionLookup.GetRefRW(entity);
+                        if (!ShouldUndock(entity, docked.ValueRO, aiState.ValueRO, tick, ref decisionState.ValueRW))
+                        {
+                            continue;
+                        }
+                    }
+
                     // Queue undocking
                     ProcessUndocking(
                         in entity,
@@ -223,6 +289,196 @@ namespace Space4X.Registry
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+        }
+
+        private bool ShouldUndock(
+            Entity vessel,
+            in DockedTag docked,
+            in VesselAIState aiState,
+            uint tick,
+            ref UndockDecisionState decisionState)
+        {
+            if (decisionState.HoldUntilTick > tick)
+            {
+                return false;
+            }
+
+            var profile = ResolveProfile(vessel);
+            var risk = ComputeUndockRisk(vessel, docked, aiState, tick, out var inheritedSpeed);
+            var threshold = ComputeRiskThreshold(profile, decisionState.LastDecision);
+
+            var allow = risk <= threshold && risk < RiskHardStop;
+            decisionState.Decisions++;
+            decisionState.LastDecisionTick = tick;
+            decisionState.LastRiskScore = risk;
+            decisionState.LastInheritedSpeed = inheritedSpeed;
+            decisionState.LastDecision = allow ? DecisionUndock : DecisionWait;
+            decisionState.HoldUntilTick = tick + DecisionHoldTicks;
+            if (allow)
+            {
+                decisionState.UndockCount++;
+            }
+            else
+            {
+                decisionState.WaitCount++;
+            }
+
+            PushDecisionTrace(vessel, tick, docked.CarrierEntity);
+            return allow;
+        }
+
+        private ResolvedBehaviorProfile ResolveProfile(Entity vessel)
+        {
+            var profileEntity = vessel;
+            if (_pilotLookup.HasComponent(vessel))
+            {
+                var pilot = _pilotLookup[vessel].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    profileEntity = pilot;
+                }
+            }
+
+            return _profileLookup.HasComponent(profileEntity)
+                ? _profileLookup[profileEntity]
+                : ResolvedBehaviorProfile.Neutral;
+        }
+
+        private float ComputeUndockRisk(
+            Entity vessel,
+            in DockedTag docked,
+            in VesselAIState aiState,
+            uint tick,
+            out float inheritedSpeed)
+        {
+            inheritedSpeed = 0f;
+            if (docked.CarrierEntity != Entity.Null && _movementLookup.HasComponent(docked.CarrierEntity))
+            {
+                var carrierMovement = _movementLookup[docked.CarrierEntity];
+                inheritedSpeed = math.length(carrierMovement.Velocity);
+                if (carrierMovement.IsMoving != 0)
+                {
+                    var elapsed = carrierMovement.MoveStartTick > 0 ? tick - carrierMovement.MoveStartTick : 0u;
+                    if (elapsed <= RiskBoostTicks)
+                    {
+                        var plannedSpeed = carrierMovement.BaseSpeed;
+                        if (inheritedSpeed < plannedSpeed)
+                        {
+                            inheritedSpeed = plannedSpeed;
+                        }
+                    }
+                }
+            }
+
+            var decel = 0.1f;
+            if (_movementLookup.HasComponent(vessel))
+            {
+                decel = math.max(0.1f, _movementLookup[vessel].Deceleration);
+            }
+
+            var hazardRange = ResolveHazardRange(docked.CarrierEntity);
+            var brakeDistance = inheritedSpeed * inheritedSpeed / (2f * decel);
+            var speedRisk = math.saturate(brakeDistance / math.max(1f, hazardRange));
+            var hazardRisk = ResolveHazardRisk(docked.CarrierEntity, vessel, aiState, hazardRange);
+            return math.saturate(speedRisk * RiskSpeedWeight + hazardRisk * RiskHazardWeight);
+        }
+
+        private float ResolveHazardRange(Entity carrier)
+        {
+            var range = HazardRangeFloor;
+            if (carrier != Entity.Null && _carrierLookup.HasComponent(carrier))
+            {
+                range = math.max(range, _carrierLookup[carrier].ArrivalDistance + HazardRangePadding);
+            }
+
+            return range;
+        }
+
+        private float ResolveHazardRisk(Entity carrier, Entity vessel, in VesselAIState aiState, float hazardRange)
+        {
+            var hazardEntity = ResolveHazardEntity(vessel, aiState);
+            if (hazardEntity == Entity.Null || hazardRange <= 0f)
+            {
+                return 0f;
+            }
+
+            if (!_transformLookup.HasComponent(carrier) || !_transformLookup.HasComponent(hazardEntity))
+            {
+                return 0f;
+            }
+
+            var carrierPos = _transformLookup[carrier].Position;
+            var hazardPos = _transformLookup[hazardEntity].Position;
+            var distance = math.distance(carrierPos, hazardPos);
+            return math.saturate(1f - (distance / hazardRange));
+        }
+
+        private Entity ResolveHazardEntity(Entity vessel, in VesselAIState aiState)
+        {
+            if (_miningStateLookup.HasComponent(vessel))
+            {
+                var mining = _miningStateLookup[vessel];
+                if (mining.ActiveTarget != Entity.Null)
+                {
+                    return mining.ActiveTarget;
+                }
+
+                if (mining.LatchTarget != Entity.Null)
+                {
+                    return mining.LatchTarget;
+                }
+            }
+
+            if (_miningOrderLookup.HasComponent(vessel))
+            {
+                var order = _miningOrderLookup[vessel];
+                if (order.TargetEntity != Entity.Null)
+                {
+                    return order.TargetEntity;
+                }
+
+                if (order.PreferredTarget != Entity.Null)
+                {
+                    return order.PreferredTarget;
+                }
+            }
+
+            return aiState.TargetEntity;
+        }
+
+        private float ComputeRiskThreshold(in ResolvedBehaviorProfile profile, byte lastDecision)
+        {
+            var baseThreshold = math.lerp(0.25f, 0.75f, profile.Chaos01);
+            var riskBias = math.lerp(-0.1f, 0.1f, profile.Risk01);
+            var obedienceBias = math.lerp(0.1f, -0.1f, profile.Obedience01);
+            var threshold = math.saturate(baseThreshold + riskBias + obedienceBias);
+            if (lastDecision == DecisionWait)
+            {
+                threshold = math.max(0f, threshold - RiskHysteresis);
+            }
+
+            return threshold;
+        }
+
+        private void PushDecisionTrace(Entity vessel, uint tick, Entity carrier)
+        {
+            if (!_traceLookup.HasBuffer(vessel))
+            {
+                return;
+            }
+
+            var buffer = _traceLookup[vessel];
+            if (buffer.Length >= MovementDebugState.TraceCapacity)
+            {
+                buffer.RemoveAt(0);
+            }
+
+            buffer.Add(new MoveTraceEvent
+            {
+                Kind = MoveTraceEventKind.UndockDecision,
+                Tick = tick,
+                Target = carrier
+            });
         }
 
         [BurstCompile]

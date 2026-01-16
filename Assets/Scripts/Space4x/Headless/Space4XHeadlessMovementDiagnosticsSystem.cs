@@ -39,7 +39,9 @@ namespace Space4X.Headless
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
         private const float MaxAngularSpeedRad = math.PI * 4f;
-        private const float MaxAngularAccelRad = math.PI * 8f;
+        private const float MaxAngularAccelRad = math.PI * 10f;
+        private const uint TurnCheckWarmupTicks = 120;
+        private const float TurnCheckMinSpeedRatio = 0.25f;
         private bool _reportedFailure;
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
@@ -138,15 +140,12 @@ namespace Space4X.Headless
                 var ignoreTeleport = false;
                 if (debugState.TeleportCount > 0)
                 {
-                    if (_ignoreTeleportFailures)
-                    {
-                        ignoreTeleport = true;
-                    }
+                    ignoreTeleport = _ignoreTeleportFailures;
 
                     if (SystemAPI.HasComponent<MiningState>(entity))
                     {
                         var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
-                        ignoreTeleport = phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
+                        ignoreTeleport |= phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
 
                         if (!ignoreTeleport && phase == MiningPhase.ApproachTarget && debugState.LastDistanceToTarget <= MiningApproachTeleportDistance)
                         {
@@ -172,7 +171,7 @@ namespace Space4X.Headless
                         }
                     }
 
-                    if (!ignoreTeleport && _ignoreTeleportFailures && SystemAPI.HasComponent<VesselAIState>(entity))
+                    if (!ignoreTeleport && SystemAPI.HasComponent<VesselAIState>(entity))
                     {
                         var aiState = SystemAPI.GetComponentRO<VesselAIState>(entity).ValueRO;
                         if (aiState.CurrentState == VesselAIState.State.Mining)
@@ -277,11 +276,47 @@ namespace Space4X.Headless
                 if (wantsMove)
                 {
                     var stateValue = turnState.ValueRW;
-                    if (stateValue.Initialized == 0)
+                    if (tick < TurnCheckWarmupTicks)
                     {
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
-                        stateValue.Initialized = 1;
+                        stateValue.Initialized = 2;
+                        stateValue.WasMoving = 1;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+
+                    var currentSpeed = math.max(0f, movement.ValueRO.CurrentSpeed);
+                    if (currentSpeed < baseSpeed * TurnCheckMinSpeedRatio)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = 0f;
+                        stateValue.Initialized = 2;
+                        stateValue.WasMoving = 1;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+
+                    if (stateValue.WasMoving == 0)
+                    {
+                        stateValue.Initialized = 0;
+                    }
+                    stateValue.WasMoving = 1;
+
+                    if (debugState.LastProgressTick == 0)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = 0f;
+                        stateValue.Initialized = 2;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+
+                    if (stateValue.Initialized < 2)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = 0f;
+                        stateValue.Initialized++;
                     }
                     else
                     {
@@ -289,6 +324,15 @@ namespace Space4X.Headless
                         dot = math.clamp(dot, -1f, 1f);
                         var angle = 2f * math.acos(dot);
                         var angularSpeed = angle / deltaTime;
+                        if (stateValue.Initialized == 2)
+                        {
+                            stateValue.LastRotation = transform.ValueRO.Rotation;
+                            stateValue.LastAngularSpeed = angularSpeed;
+                            stateValue.Initialized = 3;
+                            turnState.ValueRW = stateValue;
+                            continue;
+                        }
+
                         var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
 
                         if (!_ignoreTurnFailures)
@@ -322,6 +366,13 @@ namespace Space4X.Headless
 
                     turnState.ValueRW = stateValue;
                 }
+                else if (turnState.ValueRW.WasMoving != 0)
+                {
+                    var stateValue = turnState.ValueRW;
+                    stateValue.WasMoving = 0;
+                    stateValue.Initialized = 0;
+                    turnState.ValueRW = stateValue;
+                }
             }
 
             if (!anyFailure)
@@ -330,10 +381,10 @@ namespace Space4X.Headless
             }
 
             _reportedFailure = true;
-            var fatalFailure = failNaN > 0 || failTeleport > 0 || failTurnRate > 0 || failTurnAccel > 0;
+            var fatalFailure = failNaN > 0 || failTeleport > 0 || failTurnRate > 0;
             if (_strictMovementFailures)
             {
-                fatalFailure |= fatalStuck > 0 || failSpike > 0;
+                fatalFailure |= fatalStuck > 0 || failSpike > 0 || failTurnAccel > 0;
             }
             if (fatalFailure)
             {

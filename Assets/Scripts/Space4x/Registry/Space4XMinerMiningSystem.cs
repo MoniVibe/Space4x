@@ -35,6 +35,10 @@ namespace Space4X.Registry
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<Space4XMiningToolProfile> _toolProfileLookup;
         private ComponentLookup<Carrier> _carrierLookup;
+        private ComponentLookup<DockedTag> _dockedLookup;
+        private ComponentLookup<DecisionTrace> _decisionTraceLookup;
+        private ComponentLookup<MiningDecisionTrace> _miningDecisionLookup;
+        private ComponentLookup<VesselMovement> _movementLookup;
         private Entity _effectStreamEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
         private static readonly FixedString64Bytes MiningLaserEffectId = CreateMiningLaserEffectId();
@@ -43,6 +47,7 @@ namespace Space4X.Registry
         private const float LatchDuration = 0.9f;
         private const float DetachDuration = 0.8f;
         private const float DockDuration = 1.2f;
+        private const float AlignRelaxSpeed = 0.5f;
 
         private static FixedString64Bytes CreateMiningEffectId()
         {
@@ -135,6 +140,10 @@ namespace Space4X.Registry
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _toolProfileLookup = state.GetComponentLookup<Space4XMiningToolProfile>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _dockedLookup = state.GetComponentLookup<DockedTag>(true);
+            _decisionTraceLookup = state.GetComponentLookup<DecisionTrace>(false);
+            _miningDecisionLookup = state.GetComponentLookup<MiningDecisionTrace>(false);
+            _movementLookup = state.GetComponentLookup<VesselMovement>(true);
 
             EnsureEffectStream(ref state);
         }
@@ -171,6 +180,10 @@ namespace Space4X.Registry
             _latchReservationLookup.Update(ref state);
             _toolProfileLookup.Update(ref state);
             _carrierLookup.Update(ref state);
+            _dockedLookup.Update(ref state);
+            _decisionTraceLookup.Update(ref state);
+            _miningDecisionLookup.Update(ref state);
+            _movementLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
             var actionStreamConfig = default(ProfileActionEventStreamConfig);
@@ -199,6 +212,11 @@ namespace Space4X.Registry
 
             var latchRegionCount = latchConfig.RegionCount > 0 ? latchConfig.RegionCount : Space4XMiningLatchUtility.DefaultLatchRegionCount;
             var surfaceEpsilon = math.max(0.05f, latchConfig.SurfaceEpsilon);
+            var miningApproachStandoff = Space4XMiningLatchUtility.ResolveMiningApproachStandoff(surfaceEpsilon);
+            var miningStandoff = math.max(Space4XMiningLatchUtility.MinerAsteroidStandoff, miningApproachStandoff);
+            var rangeThreshold = Space4XMiningLatchUtility.ResolveMiningRangeThreshold(surfaceEpsilon);
+            var enterRange = rangeThreshold + Space4XMiningLatchUtility.MiningEnterSlack;
+            var exitRange = rangeThreshold + Space4XMiningLatchUtility.MiningExitSlack;
             var alignDotThreshold = math.saturate(latchConfig.AlignDotThreshold);
             var reserveLatchRegions = latchConfig.ReserveRegionWhileApproaching != 0;
             var telemetryStrideTicks = latchConfig.TelemetrySampleEveryTicks > 0 ? latchConfig.TelemetrySampleEveryTicks : 30u;
@@ -277,10 +295,58 @@ namespace Space4X.Registry
                 var latchAligned = true;
                 var hasAsteroidLatch = TryResolveAsteroidLatchMetrics(target, transform.ValueRO.Position, transform.ValueRO.Rotation,
                     miningState.ValueRO, alignDotThreshold, out distanceToSurface, out latchAligned);
+                var approachTargetDistance = float.MaxValue;
+                if (hasAsteroidLatch && _transformLookup.HasComponent(target) && _asteroidVolumeLookup.HasComponent(target))
+                {
+                    var targetTransform = _transformLookup[target];
+                    var volume = _asteroidVolumeLookup[target];
+                    var radius = math.max(0.5f, volume.Radius);
+                    var surfacePoint = miningState.ValueRO.HasLatchPoint != 0 && miningState.ValueRO.LatchTarget == target
+                        ? miningState.ValueRO.LatchSurfacePoint
+                        : targetTransform.Position +
+                          math.normalizesafe(transform.ValueRO.Position - targetTransform.Position, new float3(0f, 0f, 1f)) * radius;
+                    var approachDirection = math.normalizesafe(surfacePoint - targetTransform.Position, new float3(0f, 0f, 1f));
+                    var approachPoint = targetTransform.Position + approachDirection * (radius + miningStandoff);
+                    approachTargetDistance = math.distance(transform.ValueRO.Position, approachPoint);
+                }
+                var inDigRange = false;
+                if (target != Entity.Null && hasAsteroidLatch)
+                {
+                    inDigRange = miningState.ValueRO.InDigRange != 0;
+                    if (!inDigRange && (distanceToSurface <= enterRange ||
+                                        approachTargetDistance <= Space4XMiningLatchUtility.MiningExitSlack))
+                    {
+                        inDigRange = true;
+                    }
+                    else if (inDigRange && distanceToSurface > exitRange)
+                    {
+                        inDigRange = false;
+                    }
+
+                    miningState.ValueRW.InDigRange = (byte)(inDigRange ? 1 : 0);
+                }
+                else if (target != Entity.Null)
+                {
+                    inDigRange = IsTargetInRange(target, transform.ValueRO.Position, rangeThreshold);
+                    miningState.ValueRW.InDigRange = (byte)(inDigRange ? 1 : 0);
+                }
+                else
+                {
+                    miningState.ValueRW.InDigRange = 0;
+                }
+                var alignedForLatch = latchAligned;
+                if (!alignedForLatch && hasAsteroidLatch && distanceToSurface <= rangeThreshold)
+                {
+                    var currentSpeed = _movementLookup.HasComponent(entity) ? _movementLookup[entity].CurrentSpeed : 0f;
+                    if (currentSpeed <= AlignRelaxSpeed)
+                    {
+                        alignedForLatch = true;
+                    }
+                }
                 var latchReady = target != Entity.Null &&
                                  (!hasAsteroidLatch
-                                     ? IsTargetInRange(target, transform.ValueRO.Position, surfaceEpsilon)
-                                     : distanceToSurface <= surfaceEpsilon && latchAligned);
+                                     ? inDigRange
+                                     : inDigRange && alignedForLatch);
 
                 if (hasApproachTelemetry && target != Entity.Null &&
                     currentTick >= miningState.ValueRO.LastLatchTelemetryTick + telemetryStrideTicks)
@@ -328,11 +394,19 @@ namespace Space4X.Registry
                         }
                         else
                         {
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.NoTarget, Entity.Null, 0f, currentTick);
                             ResetDigState(ref miningState.ValueRW);
                         }
                         break;
 
                     case MiningPhase.Undocking:
+                        if (_dockedLookup.HasComponent(entity))
+                        {
+                            UpdateDecisionTrace(entity, DecisionReasonCode.MiningUndockWait, vessel.ValueRO.CarrierEntity, currentTick);
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.UndockWait, vessel.ValueRO.CarrierEntity, 0f, currentTick);
+                            break;
+                        }
+
                         if (AdvancePhaseTimer(ref miningState.ValueRW, deltaTime))
                         {
                             miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
@@ -342,6 +416,7 @@ namespace Space4X.Registry
                     case MiningPhase.ApproachTarget:
                         if (target == Entity.Null)
                         {
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.NoTarget, Entity.Null, 0f, currentTick);
                             miningState.ValueRW.Phase = MiningPhase.Idle;
                             ResetDigState(ref miningState.ValueRW);
                             break;
@@ -352,6 +427,12 @@ namespace Space4X.Registry
                             SetPhase(ref miningState.ValueRW, MiningPhase.Latching, latchDuration);
                             miningState.ValueRW.LatchSettleUntilTick = settleTicks > 0u ? currentTick + settleTicks : 0u;
                         }
+                        else
+                        {
+                            var blockReason = ResolveLatchBlockReason(hasAsteroidLatch, distanceToSurface, rangeThreshold, latchAligned);
+                            UpdateMiningDecisionTrace(entity, blockReason, target, distanceToSurface, currentTick,
+                                rangeThreshold, miningStandoff, latchAligned);
+                        }
                         break;
 
                     case MiningPhase.Latching:
@@ -361,6 +442,9 @@ namespace Space4X.Registry
                         }
                         if (!latchReady)
                         {
+                            UpdateDecisionTrace(entity, DecisionReasonCode.MiningLatchWait, target, currentTick);
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.LatchNotReady, target, distanceToSurface, currentTick,
+                                rangeThreshold, miningStandoff, latchAligned);
                             miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
                             ResetDigState(ref miningState.ValueRW);
                             miningState.ValueRW.LatchSettleUntilTick = 0u;
@@ -400,6 +484,9 @@ namespace Space4X.Registry
                         }
                         if (target == Entity.Null || !latchReady)
                         {
+                            var blockReason = ResolveLatchBlockReason(hasAsteroidLatch, distanceToSurface, rangeThreshold, latchAligned);
+                            UpdateMiningDecisionTrace(entity, blockReason, target, distanceToSurface, currentTick,
+                                rangeThreshold, miningStandoff, latchAligned);
                             miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
                             ResetDigState(ref miningState.ValueRW);
                             miningState.ValueRW.LatchSettleUntilTick = 0u;
@@ -408,6 +495,7 @@ namespace Space4X.Registry
 
                         if (isCargoFull || isAsteroidEmpty)
                         {
+                            UpdateMiningDecisionTrace(entity, isCargoFull ? MiningDecisionReason.ReturnFull : MiningDecisionReason.DigZero, target, distanceToSurface, currentTick);
                             order.ValueRW.Status = MiningOrderStatus.Completed;
                             SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, detachDuration);
                             EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
@@ -448,9 +536,12 @@ namespace Space4X.Registry
                             var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW, order.ValueRO.ResourceId);
                             if (mined <= 0f)
                             {
+                                UpdateMiningDecisionTrace(entity, MiningDecisionReason.DigZero, target, distanceToSurface, currentTick);
                                 break;
                             }
 
+                            UpdateDecisionTrace(entity, DecisionReasonCode.MiningDigging, target, currentTick);
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.Digging, target, distanceToSurface, currentTick);
                             if (miningState.ValueRW.HasDigHead != 0)
                             {
                                 var distance = math.length(digHead);
@@ -499,6 +590,8 @@ namespace Space4X.Registry
 
                             if (vessel.ValueRO.CurrentCargo >= vessel.ValueRO.CargoCapacity * 0.95f)
                             {
+                                UpdateDecisionTrace(entity, DecisionReasonCode.MiningReturnFull, vessel.ValueRO.CarrierEntity, currentTick);
+                                UpdateMiningDecisionTrace(entity, MiningDecisionReason.ReturnFull, vessel.ValueRO.CarrierEntity, 0f, currentTick);
                                 order.ValueRW.Status = MiningOrderStatus.Completed;
                                 SetPhase(ref miningState.ValueRW, MiningPhase.Detaching, detachDuration);
                                 EnsureReturnTarget(ref miningState.ValueRW, vessel.ValueRO.CarrierEntity);
@@ -517,6 +610,7 @@ namespace Space4X.Registry
                     case MiningPhase.ReturnApproach:
                         if (target == Entity.Null)
                         {
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.NoTarget, Entity.Null, 0f, currentTick);
                             miningState.ValueRW.Phase = MiningPhase.Idle;
                             ResetDigState(ref miningState.ValueRW);
                             break;
@@ -525,6 +619,11 @@ namespace Space4X.Registry
                         if (IsTargetInRange(target, transform.ValueRO.Position, surfaceEpsilon))
                         {
                             SetPhase(ref miningState.ValueRW, MiningPhase.Docking, dockDuration);
+                        }
+                        else
+                        {
+                            var distance = ResolveTargetDistance(target, transform.ValueRO.Position);
+                            UpdateMiningDecisionTrace(entity, MiningDecisionReason.DockingWait, target, distance, currentTick);
                         }
                         break;
 
@@ -755,6 +854,7 @@ namespace Space4X.Registry
             miningState.DigDirectionLocal = new float3(0f, 0f, 1f);
             miningState.DigVolumeEntity = Entity.Null;
             miningState.HasDigHead = 0;
+            miningState.InDigRange = 0;
         }
 
         private static void ResetLatchState(ref MiningState miningState)
@@ -765,6 +865,7 @@ namespace Space4X.Registry
             miningState.HasLatchPoint = 0;
             miningState.LatchSettleUntilTick = 0;
             miningState.LastLatchTelemetryTick = 0;
+            miningState.InDigRange = 0;
         }
 
         private void ReleaseLatchReservation(Entity target, Entity miner, bool reserveRegions)
@@ -878,7 +979,7 @@ namespace Space4X.Registry
                 var toSelf = transform.Position - targetTransform.Position;
                 direction = math.normalizesafe(toSelf, new float3(0f, 0f, 1f));
             }
-            var standoff = 1.2f;
+            var standoff = Space4XMiningLatchUtility.MinerAsteroidStandoff;
             var desired = targetTransform.Position + direction * (radius + standoff);
             var followSpeed = math.max(0.01f, deltaTime * 6f);
             transform.Position = math.lerp(transform.Position, desired, math.saturate(followSpeed));
@@ -1361,6 +1462,86 @@ namespace Space4X.Registry
             }
 
             return miner;
+        }
+
+        private void UpdateDecisionTrace(Entity entity, DecisionReasonCode reason, Entity target, uint tick)
+        {
+            if (!_decisionTraceLookup.HasComponent(entity))
+            {
+                return;
+            }
+
+            var trace = _decisionTraceLookup[entity];
+            if (trace.ReasonCode == reason && trace.ChosenTarget == target)
+            {
+                return;
+            }
+
+            trace.ReasonCode = reason;
+            trace.ChosenTarget = target;
+            trace.Score = 1f;
+            trace.BlockerEntity = Entity.Null;
+            trace.SinceTick = tick;
+            _decisionTraceLookup[entity] = trace;
+        }
+
+        private void UpdateMiningDecisionTrace(
+            Entity entity,
+            MiningDecisionReason reason,
+            Entity target,
+            float distance,
+            uint tick,
+            float rangeThreshold = 0f,
+            float standoff = 0f,
+            bool aligned = true)
+        {
+            if (!_miningDecisionLookup.HasComponent(entity))
+            {
+                return;
+            }
+
+            var trace = _miningDecisionLookup[entity];
+            if (trace.Reason == reason && trace.Target == target &&
+                math.abs(trace.DistanceToTarget - distance) < 0.01f &&
+                math.abs(trace.RangeThreshold - rangeThreshold) < 0.01f &&
+                math.abs(trace.Standoff - standoff) < 0.01f &&
+                trace.Aligned == (byte)(aligned ? 1 : 0))
+            {
+                return;
+            }
+
+            trace.Reason = reason;
+            trace.Target = target;
+            trace.DistanceToTarget = distance;
+            trace.RangeThreshold = rangeThreshold;
+            trace.Standoff = standoff;
+            trace.Aligned = (byte)(aligned ? 1 : 0);
+            trace.Tick = tick;
+            _miningDecisionLookup[entity] = trace;
+        }
+
+        private float ResolveTargetDistance(Entity target, float3 position)
+        {
+            if (target == Entity.Null || !_transformLookup.HasComponent(target))
+            {
+                return 0f;
+            }
+
+            return math.distance(position, _transformLookup[target].Position);
+        }
+
+        private static MiningDecisionReason ResolveLatchBlockReason(
+            bool hasAsteroidLatch,
+            float distanceToSurface,
+            float rangeThreshold,
+            bool latchAligned)
+        {
+            if (hasAsteroidLatch && distanceToSurface <= rangeThreshold && !latchAligned)
+            {
+                return MiningDecisionReason.NotAligned;
+            }
+
+            return MiningDecisionReason.NotInRange;
         }
 
         private bool TryResolveController(Entity miner, AgencyDomain domain, out Entity controller)

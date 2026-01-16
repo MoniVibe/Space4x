@@ -72,6 +72,8 @@ namespace Space4X.Registry
             }
 
             var latchRegionCount = latchConfig.RegionCount > 0 ? latchConfig.RegionCount : Space4XMiningLatchUtility.DefaultLatchRegionCount;
+            var surfaceEpsilon = math.max(0.05f, latchConfig.SurfaceEpsilon);
+            var miningApproachStandoff = Space4XMiningLatchUtility.ResolveMiningApproachStandoff(surfaceEpsilon);
             var reserveLatchRegions = latchConfig.ReserveRegionWhileApproaching != 0;
 
             foreach (var (miningState, miningOrder, transform, aiState, entity) in SystemAPI.Query<RefRW<MiningState>, RefRO<MiningOrder>, RefRO<LocalTransform>, RefRW<VesselAIState>>()
@@ -205,11 +207,18 @@ namespace Space4X.Registry
                             }
                         }
                         var direction = math.normalizesafe(latchPoint - targetPos, new float3(0f, 0f, 1f));
-                        var standoff = _miningVesselLookup.HasComponent(entity) ? 1.1f : 5.5f;
+                        var isMiner = _miningVesselLookup.HasComponent(entity);
                         var vesselRadius = _physicalLookup.HasComponent(entity)
                             ? math.max(0.1f, _physicalLookup[entity].Radius)
                             : 0.6f;
-                        standoff = math.max(standoff, vesselRadius + 0.25f);
+                        var standoff = Space4XMiningLatchUtility.ResolveAsteroidStandoff(
+                            isMiner,
+                            false,
+                            vesselRadius);
+                        if (isMiner)
+                        {
+                            standoff = math.max(standoff, miningApproachStandoff);
+                        }
                         targetPos = targetPos + direction * radius + direction * standoff;
                     }
                     else if (miningState.ValueRO.HasLatchPoint != 0)
