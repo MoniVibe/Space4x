@@ -264,6 +264,7 @@ namespace Space4X.Headless
                 "MINING_STALL" => MiningProgress,
                 "COLLISION_PHASING" => CollisionResponse,
                 "SENSORS_BEAT_SKIPPED" => SensorsAcquireDrop,
+                "SENSORS_DROP_NOT_EXERCISED" => SensorsAcquireDrop,
                 "PERCEPTION_STALE" => SensorsAcquireDrop,
                 "CONTACT_GHOST" => SensorsAcquireDrop,
                 "CONTACT_THRASH" => SensorsAcquireDrop,
@@ -652,6 +653,14 @@ namespace Space4X.Headless
                     answer.Status = Space4XQuestionStatus.Unknown;
                     answer.UnknownReason = "coverage_gap";
                     answer.Answer = "sensors beat skipped";
+                    return answer;
+                }
+
+                if (signals.HasBlackCat("SENSORS_DROP_NOT_EXERCISED"))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "coverage_gap";
+                    answer.Answer = "drop window never left sensor range";
                     return answer;
                 }
 

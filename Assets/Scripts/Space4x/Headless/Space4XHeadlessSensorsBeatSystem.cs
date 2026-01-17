@@ -7,6 +7,7 @@ using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 
 namespace Space4X.Headless
@@ -23,6 +24,7 @@ namespace Space4X.Headless
         private ComponentLookup<PerceptionState> _perceptionStateLookup;
         private ComponentLookup<SenseCapability> _senseLookup;
         private BufferLookup<PerceivedEntity> _perceivedLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
 
         private Entity _observer;
         private Entity _target;
@@ -41,6 +43,10 @@ namespace Space4X.Headless
         private uint _staleSamples;
         private uint _maxTicksSinceUpdate;
         private uint _expectedUpdateTicks;
+        private uint _dropDistanceSamples;
+        private float _dropMaxDistance;
+        private float _dropMinDistance;
+        private float _observerRange;
         private byte _lastDetected;
         private byte _hasLastDetected;
         private byte _initialized;
@@ -62,6 +68,7 @@ namespace Space4X.Headless
             _perceptionStateLookup = state.GetComponentLookup<PerceptionState>(true);
             _senseLookup = state.GetComponentLookup<SenseCapability>(true);
             _perceivedLookup = state.GetBufferLookup<PerceivedEntity>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -75,6 +82,7 @@ namespace Space4X.Headless
             _perceptionStateLookup.Update(ref state);
             _senseLookup.Update(ref state);
             _perceivedLookup.Update(ref state);
+            _transformLookup.Update(ref state);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
@@ -98,6 +106,7 @@ namespace Space4X.Headless
                 _dropEndTick = config.DropEndTick;
                 _measureStartTick = ResolveMeasureStart(_acquireStartTick, _dropStartTick);
                 _measureEndTick = ResolveMeasureEnd(_acquireEndTick, _dropEndTick);
+                _observerRange = config.ObserverRange > 0f ? config.ObserverRange : 350f;
                 _initialized = 1;
             }
 
@@ -202,6 +211,23 @@ namespace Space4X.Headless
                 {
                     _dropDetected++;
                 }
+
+                if (_transformLookup.HasComponent(observer) && _transformLookup.HasComponent(target))
+                {
+                    var observerPos = _transformLookup[observer].Position;
+                    var targetPos = _transformLookup[target].Position;
+                    var distance = math.distance(observerPos, targetPos);
+                    _dropDistanceSamples++;
+                    if (distance > _dropMaxDistance)
+                    {
+                        _dropMaxDistance = distance;
+                    }
+
+                    if (distance < _dropMinDistance)
+                    {
+                        _dropMinDistance = distance;
+                    }
+                }
             }
         }
 
@@ -220,6 +246,10 @@ namespace Space4X.Headless
 
             var acquireRatio = _acquireSamples > 0 ? (float)_acquireDetected / _acquireSamples : 0f;
             var dropRatio = _dropSamples > 0 ? (float)_dropDetected / _dropSamples : 0f;
+            var dropMaxDistance = _dropDistanceSamples > 0 ? _dropMaxDistance : 0f;
+            var dropMinDistance = _dropDistanceSamples > 0 && _dropMinDistance < float.MaxValue ? _dropMinDistance : 0f;
+            var dropHasRange = _dropDistanceSamples > 0 && _observerRange > 0f;
+            var dropOpportunity = dropHasRange && dropMaxDistance > _observerRange * 1.02f;
 
             if (_staleSamples > 0 || acquireRatio < MinAcquireDetectedRatio)
             {
@@ -228,7 +258,14 @@ namespace Space4X.Headless
 
             if (dropRatio > MaxDropDetectedRatio)
             {
-                AppendGhostBlackCat(ref state, dropRatio);
+                if (dropOpportunity)
+                {
+                    AppendGhostBlackCat(ref state, dropRatio);
+                }
+                else
+                {
+                    AppendDropCoverageBlackCat(ref state, dropRatio, dropMaxDistance);
+                }
             }
 
             if (_toggleCount > MaxToggleCount)
@@ -248,6 +285,8 @@ namespace Space4X.Headless
 
             var acquireRatio = _acquireSamples > 0 ? (float)_acquireDetected / _acquireSamples : 0f;
             var dropRatio = _dropSamples > 0 ? (float)_dropDetected / _dropSamples : 0f;
+            var dropMaxDistance = _dropDistanceSamples > 0 ? _dropMaxDistance : 0f;
+            var dropMinDistance = _dropDistanceSamples > 0 && _dropMinDistance < float.MaxValue ? _dropMinDistance : 0f;
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.sample_count"), _sampleCount);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.acquire_samples"), _acquireSamples);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.acquire_detected"), _acquireDetected);
@@ -259,6 +298,9 @@ namespace Space4X.Headless
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.stale_samples"), _staleSamples);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.max_ticks_since_update"), _maxTicksSinceUpdate);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.expected_update_ticks"), _expectedUpdateTicks);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.drop_max_distance"), dropMaxDistance);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.drop_min_distance"), dropMinDistance);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.sensor.observer_range"), _observerRange);
         }
 
         private uint ResolveExpectedUpdateTicks(Entity observer, float fixedDt)
@@ -388,6 +430,28 @@ namespace Space4X.Headless
             });
         }
 
+        private void AppendDropCoverageBlackCat(ref SystemState state, float dropRatio, float dropMaxDistance)
+        {
+            if (!Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorBlackCat
+            {
+                Id = new FixedString64Bytes("SENSORS_DROP_NOT_EXERCISED"),
+                Primary = _observer,
+                Secondary = _target,
+                StartTick = _dropStartTick,
+                EndTick = _dropEndTick,
+                MetricA = _dropDetected,
+                MetricB = _dropSamples,
+                MetricC = dropRatio,
+                MetricD = dropMaxDistance,
+                Classification = 0
+            });
+        }
+
         private void AppendThrashBlackCat(ref SystemState state)
         {
             if (!Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var buffer))
@@ -421,6 +485,9 @@ namespace Space4X.Headless
             _staleSamples = 0;
             _maxTicksSinceUpdate = 0;
             _expectedUpdateTicks = 0;
+            _dropDistanceSamples = 0;
+            _dropMaxDistance = 0f;
+            _dropMinDistance = float.MaxValue;
             _lastDetected = 0;
             _hasLastDetected = 0;
         }

@@ -249,6 +249,13 @@ namespace Space4X.Headless
                 AppendFloat(ref innerFirst, sb, "drop_detected_ratio", cat.MetricC);
                 AppendFloat(ref innerFirst, sb, "toggle_count", cat.MetricD);
             }
+            else if (cat.Id.Equals(new FixedString64Bytes("SENSORS_DROP_NOT_EXERCISED")))
+            {
+                AppendFloat(ref innerFirst, sb, "drop_detected", cat.MetricA);
+                AppendFloat(ref innerFirst, sb, "drop_samples", cat.MetricB);
+                AppendFloat(ref innerFirst, sb, "drop_detected_ratio", cat.MetricC);
+                AppendFloat(ref innerFirst, sb, "drop_max_distance", cat.MetricD);
+            }
             else if (cat.Id.Equals(new FixedString64Bytes("CONTACT_THRASH")))
             {
                 AppendFloat(ref innerFirst, sb, "toggle_count", cat.MetricA);
@@ -709,6 +716,11 @@ namespace Space4X.Headless
             if (cat.Id.Equals(new FixedString64Bytes("CONTACT_GHOST")))
             {
                 return "ghost_detected";
+            }
+
+            if (cat.Id.Equals(new FixedString64Bytes("SENSORS_DROP_NOT_EXERCISED")))
+            {
+                return "drop_not_exercised";
             }
 
             if (cat.Id.Equals(new FixedString64Bytes("CONTACT_THRASH")))
