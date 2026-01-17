@@ -1,6 +1,6 @@
 {
   "seed": 11,
-  "duration_s": 80,
+  "duration_s": 120,
   "proofs": {
     "mining": false
   },
@@ -72,15 +72,22 @@
       "time_s": 0,
       "kind": "MoveFleet",
       "fleetId": "UNDOCK-ALPHA",
-      "targetPosition": [220, 0],
-      "description": "Undock micro: carrier accelerates for higher inherited speed"
+      "targetPosition": [90, 0],
+      "description": "Undock micro: carrier accelerates for inherited speed"
     },
     {
-      "time_s": 18,
+      "time_s": 10,
       "kind": "MoveFleet",
       "fleetId": "UNDOCK-ALPHA",
-      "targetPosition": [40, 0],
-      "description": "Undock micro: carrier slows to allow lawful undock"
+      "targetPosition": [0, 0],
+      "description": "Undock micro: carrier decelerates to create low-risk window"
+    },
+    {
+      "time_s": 30,
+      "kind": "MoveFleet",
+      "fleetId": "UNDOCK-ALPHA",
+      "targetPosition": [0, 0],
+      "description": "Undock micro: hold position for lawful undock"
     }
   ],
   "individuals": [

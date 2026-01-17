@@ -420,6 +420,7 @@ namespace Space4X.Headless
         private sealed class UndockRiskQuestion : IHeadlessQuestion
         {
             private const float RiskGapMin = 0.00005f;
+            private const float RiskEnforceMin = 0.01f;
             private const float RiskHardStop = 0.9f;
 
             public string Id => Space4XHeadlessQuestionIds.UndockRisk;
@@ -454,7 +455,8 @@ namespace Space4X.Headless
                 answer.Metrics["lawful_wait_only"] = lawfulWaitOnly;
                 answer.Metrics["chaotic_wait_only"] = chaoticWaitOnly;
 
-                if (signals.HasBlackCat("UNDOCK_BEAT_SKIPPED") || lawfulCount <= 0f || chaoticCount <= 0f)
+                var hasLawfulSignal = lawfulCount > 0f || lawfulWaitOnly > 0f;
+                if (signals.HasBlackCat("UNDOCK_BEAT_SKIPPED") || !hasLawfulSignal || chaoticCount <= 0f || maxRisk < RiskEnforceMin)
                 {
                     answer.Status = Space4XQuestionStatus.Unknown;
                     answer.UnknownReason = "insufficient_samples";
@@ -465,10 +467,18 @@ namespace Space4X.Headless
                 var riskGapOk = chaoticAvgRisk >= lawfulAvgRisk + RiskGapMin;
                 var waitOk = lawfulWaitAvg >= chaoticWaitAvg;
                 var hardStopOk = maxRisk < RiskHardStop;
-                var pass = riskGapOk && waitOk && hardStopOk;
+                var lawfulWaitOnlySeparation = lawfulCount <= 0f && lawfulWaitOnly > 0f;
+                var pass = hardStopOk && (lawfulWaitOnlySeparation || (riskGapOk && waitOk));
 
                 answer.Status = pass ? Space4XQuestionStatus.Pass : Space4XQuestionStatus.Fail;
-                answer.Answer = $"lawful_count={lawfulCount:0} chaotic_count={chaoticCount:0} max_risk={maxRisk:0.##}";
+                if (lawfulWaitOnlySeparation)
+                {
+                    answer.Answer = $"lawful_wait_only={lawfulWaitOnly:0} chaotic_count={chaoticCount:0} max_risk={maxRisk:0.##}";
+                }
+                else
+                {
+                    answer.Answer = $"lawful_count={lawfulCount:0} chaotic_count={chaoticCount:0} max_risk={maxRisk:0.##}";
+                }
                 return answer;
             }
         }
