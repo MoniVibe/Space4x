@@ -545,7 +545,8 @@ namespace Space4X.Headless
                     Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
                 };
 
-                answer.Metrics["collision_events"] = stats.CollisionEventCount;
+                var eventCount = signals.GetMetricOrDefault("space4x.collision.event_count", stats.CollisionEventCount);
+                answer.Metrics["collision_events"] = eventCount;
                 answer.Metrics["collision_probes"] = stats.CollisionProbeCount;
                 answer.Metrics["phasing_count"] = signals.CountBlackCats("COLLISION_PHASING");
 
@@ -556,7 +557,7 @@ namespace Space4X.Headless
                     return answer;
                 }
 
-                if (stats.CollisionEventCount == 0)
+                if (eventCount <= 0f)
                 {
                     answer.Status = Space4XQuestionStatus.Unknown;
                     answer.UnknownReason = "no_collision_events";
@@ -565,7 +566,7 @@ namespace Space4X.Headless
                 }
 
                 answer.Status = Space4XQuestionStatus.Pass;
-                answer.Answer = $"collision_events={stats.CollisionEventCount}";
+                answer.Answer = $"collision_events={eventCount:0}";
                 return answer;
             }
         }

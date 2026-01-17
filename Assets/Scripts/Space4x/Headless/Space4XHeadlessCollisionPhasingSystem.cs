@@ -29,6 +29,7 @@ namespace Space4X.Headless
         private ComponentLookup<DockedTag> _dockedLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private byte _done;
+        private uint _collisionEventCount;
 
         public void OnCreate(ref SystemState state)
         {
@@ -40,6 +41,7 @@ namespace Space4X.Headless
 
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            state.RequireForUpdate<Space4XScenarioRuntime>();
 
             _missingProbeQuery = state.GetEntityQuery(new EntityQueryDesc
             {
@@ -85,6 +87,7 @@ namespace Space4X.Headless
             }
 
             var tick = timeState.Tick;
+            AccumulateCollisionEvents(ref state);
 
             foreach (var (miningState, transform, collider, probe, entity) in SystemAPI
                          .Query<RefRO<MiningState>, RefRO<LocalTransform>, RefRO<SpaceColliderData>, RefRW<Space4XCollisionProbeState>>()
@@ -162,6 +165,13 @@ namespace Space4X.Headless
 
                 probe.ValueRW = probeState;
             }
+
+            var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
+            if (tick >= runtime.EndTick)
+            {
+                EmitCollisionSummary(ref state);
+                _done = 1;
+            }
         }
 
         private uint ResolveLastCollisionTick(Entity entity, Entity target, uint fallback)
@@ -231,6 +241,66 @@ namespace Space4X.Headless
             probe.OverlapStartTick = 0;
             probe.LastCollisionTick = 0;
             probe.Reported = 0;
+        }
+
+        private void AccumulateCollisionEvents(ref SystemState state)
+        {
+            using var query = SystemAPI.QueryBuilder()
+                .WithAll<PhysicsCollisionEventElement>()
+                .Build();
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var count = 0u;
+            foreach (var buffer in SystemAPI.Query<DynamicBuffer<PhysicsCollisionEventElement>>())
+            {
+                if (buffer.Length > 0)
+                {
+                    count += (uint)buffer.Length;
+                }
+            }
+
+            if (count > 0)
+            {
+                _collisionEventCount += count;
+            }
+        }
+
+        private void EmitCollisionSummary(ref SystemState state)
+        {
+            if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.collision.event_count"), _collisionEventCount);
+        }
+
+        private static void AddOrUpdateMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                metric.Value = value;
+                buffer[i] = metric;
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorMetric
+            {
+                Key = key,
+                Value = value
+            });
         }
     }
 
