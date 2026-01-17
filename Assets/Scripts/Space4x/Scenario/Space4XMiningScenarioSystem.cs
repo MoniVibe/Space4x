@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using PureDOTS.Environment;
+using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
@@ -196,7 +197,9 @@ namespace Space4x.Scenario
             ApplyLegacyDisableTags(scenarioConfig.disableLegacyMining, scenarioConfig.disableLegacyPatrol);
             ApplySteeringStabilityBeatConfig(scenarioConfig.steeringStabilityBeat);
             ApplySensorsBeatConfig(scenarioConfig.sensorsBeat);
+            ApplyCommsBeatConfig(scenarioConfig.commsBeat);
             ApplyHeadlessQuestionPackConfig(scenarioConfig.headlessQuestions);
+            ApplyScenarioStateOverrides(scenarioConfig);
         }
 
         private void ApplySteeringStabilityBeatConfig(SteeringStabilityBeatConfigData beat)
@@ -260,6 +263,45 @@ namespace Space4x.Scenario
             });
         }
 
+        private void ApplyCommsBeatConfig(CommsBeatConfigData beat)
+        {
+            if (beat == null ||
+                string.IsNullOrWhiteSpace(beat.senderCarrierId) ||
+                string.IsNullOrWhiteSpace(beat.receiverCarrierId))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XCommsBeatConfig>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XCommsBeatConfig));
+            }
+
+            var transport = beat.transportMask != 0
+                ? (PerceptionChannel)beat.transportMask
+                : PerceptionChannel.EM;
+
+            EntityManager.SetComponentData(entity, new Space4XCommsBeatConfig
+            {
+                SenderCarrierId = new FixedString64Bytes(beat.senderCarrierId),
+                ReceiverCarrierId = new FixedString64Bytes(beat.receiverCarrierId),
+                PayloadId = string.IsNullOrWhiteSpace(beat.payloadId)
+                    ? default
+                    : new FixedString64Bytes(beat.payloadId),
+                TransportMask = transport,
+                StartSeconds = math.max(0f, beat.start_s),
+                DurationSeconds = math.max(0.1f, beat.duration_s),
+                SendIntervalSeconds = math.max(0.05f, beat.interval_s),
+                RequireAck = (byte)(beat.requireAck ? 1 : 0),
+                CommsEnsured = 0,
+                Initialized = 0,
+                Completed = 0,
+                StartTick = 0u,
+                EndTick = 0u,
+                SendIntervalTicks = 0u
+            });
+        }
+
         private void ApplyHeadlessQuestionPackConfig(List<HeadlessQuestionConfigData> questions)
         {
             if (questions == null || questions.Count == 0)
@@ -307,6 +349,35 @@ namespace Space4x.Scenario
             {
                 EntityManager.CreateEntity(typeof(Space4XLegacyPatrolDisabledTag));
             }
+        }
+
+        private void ApplyScenarioStateOverrides(MiningScenarioConfigData scenarioConfig)
+        {
+            if (scenarioConfig == null || !scenarioConfig.enableEconomy)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<ScenarioState>(out var scenarioEntity))
+            {
+                scenarioEntity = EntityManager.CreateEntity(typeof(ScenarioState));
+                EntityManager.SetComponentData(scenarioEntity, new ScenarioState
+                {
+                    Current = ScenarioKind.AllSystemsShowcase,
+                    IsInitialized = true,
+                    BootPhase = ScenarioBootPhase.Done,
+                    EnableGodgame = true,
+                    EnableSpace4x = true,
+                    EnableEconomy = true
+                });
+                return;
+            }
+
+            var scenario = EntityManager.GetComponentData<ScenarioState>(scenarioEntity);
+            scenario.EnableEconomy = true;
+            scenario.EnableSpace4x = true;
+            scenario.IsInitialized = true;
+            EntityManager.SetComponentData(scenarioEntity, scenario);
         }
 
         private Space4XScenarioSpawnLaneKind EnsureScenarioSpawnLane(Space4XScenarioSpawnLaneKind desired)
@@ -2223,8 +2294,10 @@ namespace Space4x.Scenario
         public bool applyFloatingOrigin;
         public bool disableLegacyMining;
         public bool disableLegacyPatrol;
+        public bool enableEconomy;
         public SteeringStabilityBeatConfigData steeringStabilityBeat;
         public SensorsBeatConfigData sensorsBeat;
+        public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
     }
 
@@ -2251,6 +2324,19 @@ namespace Space4x.Scenario
         public float observerRange;
         public float observerUpdateInterval;
         public int observerMaxTrackedTargets;
+    }
+
+    [System.Serializable]
+    public class CommsBeatConfigData
+    {
+        public string senderCarrierId;
+        public string receiverCarrierId;
+        public string payloadId;
+        public float start_s;
+        public float duration_s;
+        public float interval_s;
+        public int transportMask;
+        public bool requireAck;
     }
 
     [System.Serializable]

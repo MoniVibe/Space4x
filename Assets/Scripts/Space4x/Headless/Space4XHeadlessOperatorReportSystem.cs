@@ -118,7 +118,8 @@ namespace Space4X.Headless
                     var key = keys[i];
                     if (!key.StartsWith("space4x.steer.", StringComparison.OrdinalIgnoreCase) &&
                         !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase))
+                        !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase) &&
+                        !key.StartsWith("space4x.comms.", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -541,6 +542,9 @@ namespace Space4X.Headless
             sb.Append(']');
         }
 
+
+
+
         private static void AppendTraceEvents(ref bool first, StringBuilder sb, EntityManager entityManager, Entity entity)
         {
             if (entity == Entity.Null || !entityManager.HasBuffer<MoveTraceEvent>(entity))
@@ -710,6 +714,18 @@ namespace Space4X.Headless
             if (cat.Id.Equals(new FixedString64Bytes("CONTACT_THRASH")))
             {
                 return "contact_thrash";
+            }
+
+            if (cat.Id.Equals(new FixedString64Bytes("COMMS_BEAT_SKIPPED")))
+            {
+                return cat.Classification switch
+                {
+                    1 => "sender_missing",
+                    2 => "receiver_missing",
+                    3 => "no_messages_sent",
+                    4 => "no_messages_emitted",
+                    _ => "skipped"
+                };
             }
 
             if (cat.Id.Equals(new FixedString64Bytes("UNDOCK_BEAT_SKIPPED")))

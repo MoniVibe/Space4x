@@ -63,6 +63,26 @@ namespace Space4X.Headless
             return TryGetMetric(key, out var value) ? value : fallback;
         }
 
+        public bool TryGetMetricKeySuffix(string prefix, out string suffix)
+        {
+            suffix = null;
+            if (_metrics == null || string.IsNullOrWhiteSpace(prefix))
+            {
+                return false;
+            }
+
+            foreach (var key in _metrics.Keys)
+            {
+                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    suffix = key.Substring(prefix.Length);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool HasBlackCat(string id)
         {
             return CountBlackCats(id) > 0;
@@ -125,6 +145,7 @@ namespace Space4X.Headless
         public int CollisionProbeCount;
         public byte HasSteeringBeatConfig;
         public byte HasSensorsBeatConfig;
+        public byte HasCommsBeatConfig;
         public uint SteeringStartTick;
         public uint SteeringEndTick;
 
@@ -137,6 +158,7 @@ namespace Space4X.Headless
             (stats.MiningYieldNonZeroCount, stats.MiningYieldTotal) = MeasureMiningYield(entityManager);
             (stats.HasSteeringBeatConfig, stats.SteeringStartTick, stats.SteeringEndTick) = ResolveSteeringWindow(entityManager);
             stats.HasSensorsBeatConfig = ResolveBeatPresence<Space4XSensorsBeatConfig>(entityManager);
+            stats.HasCommsBeatConfig = ResolveBeatPresence<Space4XCommsBeatConfig>(entityManager);
             return stats;
         }
 
@@ -227,6 +249,7 @@ namespace Space4X.Headless
         public const string MiningProgress = "space4x.q.mining.progress";
         public const string CollisionResponse = "space4x.q.collision.response_present";
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
+        public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -244,6 +267,7 @@ namespace Space4X.Headless
                 "PERCEPTION_STALE" => SensorsAcquireDrop,
                 "CONTACT_GHOST" => SensorsAcquireDrop,
                 "CONTACT_THRASH" => SensorsAcquireDrop,
+                "COMMS_BEAT_SKIPPED" => CommsDelivery,
                 _ => Unknown
             };
         }
@@ -257,7 +281,8 @@ namespace Space4X.Headless
             new UndockRiskQuestion(),
             new MiningProgressQuestion(),
             new CollisionResponseQuestion(),
-            new SensorsAcquireDropQuestion()
+            new SensorsAcquireDropQuestion(),
+            new CommsDeliveryQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -641,6 +666,75 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"acquire_ratio={acquireRatio:0.##} drop_ratio={dropRatio:0.##} toggles={toggleCount:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CommsDeliveryQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CommsDelivery;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var sent = signals.GetMetricOrDefault("space4x.comms.sent");
+                var emitted = signals.GetMetricOrDefault("space4x.comms.emitted");
+                var received = signals.GetMetricOrDefault("space4x.comms.received");
+                var deliveryRatio = signals.GetMetricOrDefault("space4x.comms.delivery_ratio");
+                var emitRatio = signals.GetMetricOrDefault("space4x.comms.emit_ratio");
+                var firstLatency = signals.GetMetricOrDefault("space4x.comms.first_latency_ticks");
+                var maxInbox = signals.GetMetricOrDefault("space4x.comms.max_inbox_depth");
+                var maxOutbox = signals.GetMetricOrDefault("space4x.comms.max_outbox_depth");
+
+                answer.Metrics["sent"] = sent;
+                answer.Metrics["emitted"] = emitted;
+                answer.Metrics["received"] = received;
+                answer.Metrics["delivery_ratio"] = deliveryRatio;
+                answer.Metrics["emit_ratio"] = emitRatio;
+                answer.Metrics["first_latency_ticks"] = firstLatency;
+                answer.Metrics["max_inbox_depth"] = maxInbox;
+                answer.Metrics["max_outbox_depth"] = maxOutbox;
+
+                if (stats.HasCommsBeatConfig == 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "beat_absent";
+                    answer.Answer = "comms beat not configured";
+                    return answer;
+                }
+
+                if (signals.HasBlackCat("COMMS_BEAT_SKIPPED"))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "coverage_gap";
+                    answer.Answer = "comms beat skipped";
+                    return answer;
+                }
+
+                if (sent <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_messages_sent";
+                    answer.Answer = "no comms requests sent";
+                    return answer;
+                }
+
+                if (received <= 0f || deliveryRatio < 0.8f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"sent={sent:0} received={received:0} delivery_ratio={deliveryRatio:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"sent={sent:0} received={received:0} delivery_ratio={deliveryRatio:0.##}";
                 return answer;
             }
         }
