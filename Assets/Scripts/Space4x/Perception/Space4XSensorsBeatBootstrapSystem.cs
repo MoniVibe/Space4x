@@ -99,7 +99,7 @@ namespace Space4X.Perception
             SystemAPI.SetSingleton(config);
         }
 
-        private static Entity ResolveCarrier(FixedString64Bytes carrierId, ref SystemState state)
+        private Entity ResolveCarrier(FixedString64Bytes carrierId, ref SystemState state)
         {
             if (carrierId.IsEmpty)
             {
