@@ -4,6 +4,18 @@
   "proofs": {
     "mining": false
   },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": false,
+    "applyLatchConfig": true,
+    "applyFloatingOrigin": false,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      { "id": "space4x.q.collision.response_present", "required": true }
+    ]
+  },
   "spawn": [
     {
       "kind": "Carrier",
@@ -16,6 +28,17 @@
           "shipCount": 1
         }
       }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "collision-miner-alpha",
+      "position": [0, 0],
+      "carrierId": "collision-carrier-alpha",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 8.5,
+      "cargoCapacity": 60.0,
+      "startDocked": false
     },
     {
       "kind": "ResourceDeposit",

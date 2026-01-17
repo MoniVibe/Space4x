@@ -1,0 +1,130 @@
+{
+  "seed": 11,
+  "duration_s": 80,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": false,
+    "applyLatchConfig": true,
+    "applyFloatingOrigin": false,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      { "id": "space4x.q.undock.risk_separation", "required": true }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "undock-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 8000},
+          {"type": "RareMetals", "capacity": 2000}
+        ],
+        "Fleet": {
+          "fleetId": "UNDOCK-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "undock-miner-lawful",
+      "position": [0, 0],
+      "carrierId": "undock-carrier-alpha",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 9.5,
+      "cargoCapacity": 90.0,
+      "startDocked": true,
+      "pilotProfileId": "pilot-lawful"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "undock-miner-chaotic",
+      "position": [0, 0],
+      "carrierId": "undock-carrier-alpha",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 9.5,
+      "cargoCapacity": 90.0,
+      "startDocked": true,
+      "pilotProfileId": "pilot-chaotic"
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "undock-deposit-1",
+      "position": [120, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 300.0,
+      "gatherRatePerWorker": 6.0,
+      "maxSimultaneousWorkers": 2
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 0,
+      "kind": "MoveFleet",
+      "fleetId": "UNDOCK-ALPHA",
+      "targetPosition": [220, 0],
+      "description": "Undock micro: carrier accelerates for higher inherited speed"
+    },
+    {
+      "time_s": 18,
+      "kind": "MoveFleet",
+      "fleetId": "UNDOCK-ALPHA",
+      "targetPosition": [40, 0],
+      "description": "Undock micro: carrier slows to allow lawful undock"
+    }
+  ],
+  "individuals": [
+    {
+      "id": "pilot-lawful",
+      "law": 0.85,
+      "good": 0.2,
+      "integrity": 0.7,
+      "raceId": 1,
+      "cultureId": 1,
+      "outlooks": [
+        {"outlookId": "Loyalist", "weight": 0.9},
+        {"outlookId": "Opportunist", "weight": 0.2}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.9,
+        "caution": 0.75,
+        "formationAdherence": 0.85,
+        "riskTolerance": 0.25,
+        "aggression": 0.35,
+        "patience": 0.8
+      }
+    },
+    {
+      "id": "pilot-chaotic",
+      "law": -0.7,
+      "good": -0.1,
+      "integrity": 0.3,
+      "raceId": 3,
+      "cultureId": 2,
+      "outlooks": [
+        {"outlookId": "Mutinous", "weight": 0.8},
+        {"outlookId": "Opportunist", "weight": 0.4}
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.25,
+        "caution": 0.2,
+        "formationAdherence": 0.3,
+        "riskTolerance": 0.85,
+        "aggression": 0.8,
+        "patience": 0.35
+      }
+    }
+  ]
+}
