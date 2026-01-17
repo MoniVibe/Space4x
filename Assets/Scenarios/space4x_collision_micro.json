@@ -10,7 +10,7 @@
     "applyMotionProfile": false,
     "applyLatchConfig": true,
     "applyFloatingOrigin": false,
-    "disableLegacyMining": true,
+    "disableLegacyMining": false,
     "disableLegacyPatrol": true,
     "headlessQuestions": [
       { "id": "space4x.q.collision.response_present", "required": true }
