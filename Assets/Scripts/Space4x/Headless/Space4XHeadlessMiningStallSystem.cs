@@ -160,6 +160,8 @@ namespace Space4X.Headless
                         probeState.DecisionDistance = decisionTrace.DistanceToTarget;
                         probeState.DecisionRangeThreshold = decisionTrace.RangeThreshold;
                         probeState.DecisionStandoff = decisionTrace.Standoff;
+                        probeState.DecisionArrivalDistance = decisionTrace.ArrivalDistance;
+                        probeState.DecisionApproachDistance = decisionTrace.ApproachDistance;
                         probeState.DecisionAligned = decisionTrace.Aligned;
                         probeState.DecisionTick = decisionTrace.Tick;
                     }
@@ -290,6 +292,8 @@ namespace Space4X.Headless
         public float DecisionDistance;
         public float DecisionRangeThreshold;
         public float DecisionStandoff;
+        public float DecisionArrivalDistance;
+        public float DecisionApproachDistance;
         public byte DecisionAligned;
         public uint DecisionTick;
     }

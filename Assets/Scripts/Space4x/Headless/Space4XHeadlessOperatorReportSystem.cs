@@ -259,6 +259,8 @@ namespace Space4X.Headless
                     trace.DistanceToTarget = stall.DecisionDistance;
                     trace.RangeThreshold = stall.DecisionRangeThreshold;
                     trace.Standoff = stall.DecisionStandoff;
+                    trace.ArrivalDistance = stall.DecisionArrivalDistance;
+                    trace.ApproachDistance = stall.DecisionApproachDistance;
                     trace.Aligned = stall.DecisionAligned;
                     trace.Tick = stall.DecisionTick;
                     hasTrace = true;
@@ -282,6 +284,8 @@ namespace Space4X.Headless
             AppendFloat(ref innerFirst, sb, "distance", trace.DistanceToTarget);
             AppendFloat(ref innerFirst, sb, "range_threshold", trace.RangeThreshold);
             AppendFloat(ref innerFirst, sb, "standoff", trace.Standoff);
+            AppendFloat(ref innerFirst, sb, "arrival_distance", trace.ArrivalDistance);
+            AppendFloat(ref innerFirst, sb, "approach_distance", trace.ApproachDistance);
             AppendFloat(ref innerFirst, sb, "aligned", trace.Aligned);
             AppendEntity(ref innerFirst, sb, "target", trace.Target);
             AppendUInt(ref innerFirst, sb, "tick", trace.Tick);

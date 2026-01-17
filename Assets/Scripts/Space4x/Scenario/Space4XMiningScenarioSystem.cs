@@ -1194,14 +1194,14 @@ namespace Space4x.Scenario
             var minerDeceleration = math.max(1f, speed * 1.1f);
             var minerTurnSpeed = 2.4f;
             var minerSlowdown = 6f;
-            var minerArrival = 1.5f;
+            var minerArrival = 0.6f;
             if (_useScenarioMotionTuning)
             {
                 minerAcceleration = math.max(0.6f, speed * 0.6f);
                 minerDeceleration = math.max(0.7f, speed * 0.8f);
                 minerTurnSpeed = 1.2f;
                 minerSlowdown = 10f;
-                minerArrival = 1.8f;
+                minerArrival = 0.8f;
             }
 
             EntityManager.AddComponentData(entity, new VesselMovement

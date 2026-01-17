@@ -26,6 +26,7 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
         private ComponentLookup<MiningVessel> _miningVesselLookup;
         private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
+        private ComponentLookup<VesselMovement> _movementLookup;
         private ComponentLookup<MiningState> _miningStateLookup;
         private BufferLookup<Space4XMiningLatchReservation> _latchReservationLookup;
 
@@ -38,6 +39,7 @@ namespace Space4X.Registry
             _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             _miningVesselLookup = state.GetComponentLookup<MiningVessel>(true);
             _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
+            _movementLookup = state.GetComponentLookup<VesselMovement>(true);
             _miningStateLookup = state.GetComponentLookup<MiningState>(true);
             _latchReservationLookup = state.GetBufferLookup<Space4XMiningLatchReservation>();
         }
@@ -62,6 +64,7 @@ namespace Space4X.Registry
             _asteroidVolumeLookup.Update(ref state);
             _miningVesselLookup.Update(ref state);
             _physicalLookup.Update(ref state);
+            _movementLookup.Update(ref state);
             _miningStateLookup.Update(ref state);
             _latchReservationLookup.Update(ref state);
 
@@ -218,6 +221,14 @@ namespace Space4X.Registry
                         if (isMiner)
                         {
                             standoff = math.max(standoff, miningApproachStandoff);
+                        }
+                        if (_movementLookup.HasComponent(entity))
+                        {
+                            var arrivalDistance = _movementLookup[entity].ArrivalDistance;
+                            if (arrivalDistance > 0f)
+                            {
+                                standoff = math.max(0.1f, standoff - arrivalDistance);
+                            }
                         }
                         targetPos = targetPos + direction * radius + direction * standoff;
                     }

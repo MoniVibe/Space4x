@@ -88,6 +88,8 @@ namespace Space4X.Registry
         public float DistanceToTarget;
         public float RangeThreshold;
         public float Standoff;
+        public float ArrivalDistance;
+        public float ApproachDistance;
         public byte Aligned;
         public uint Tick;
     }
@@ -161,9 +163,9 @@ namespace Space4X.Registry
         public const float DefaultAsteroidStandoff = 5.5f;
         public const float CarrierAsteroidStandoff = 6.5f;
         public const float StandoffPadding = 0.25f;
-        public const float MiningRangePadding = 1.0f;
-        public const float MiningEnterSlack = 0.25f;
-        public const float MiningExitSlack = 0.50f;
+        public const float MiningRangePadding = 1.4f;
+        public const float MiningEnterSlack = 0.50f;
+        public const float MiningExitSlack = 0.90f;
         public const float MiningInnerTargetSlack = 0.10f;
 
         public static float ResolveAsteroidStandoff(bool isMiner, bool isCarrier, float vesselRadius)

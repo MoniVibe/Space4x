@@ -25,6 +25,8 @@ namespace Space4X.Headless
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<SpaceColliderData> _colliderLookup;
         private BufferLookup<SpaceCollisionEvent> _collisionLookup;
+        private ComponentLookup<DockedTag> _dockedLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
         private byte _done;
 
         public void OnCreate(ref SystemState state)
@@ -47,6 +49,8 @@ namespace Space4X.Headless
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _colliderLookup = state.GetComponentLookup<SpaceColliderData>(true);
             _collisionLookup = state.GetBufferLookup<SpaceCollisionEvent>(true);
+            _dockedLookup = state.GetComponentLookup<DockedTag>(true);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -64,6 +68,8 @@ namespace Space4X.Headless
             _transformLookup.Update(ref state);
             _colliderLookup.Update(ref state);
             _collisionLookup.Update(ref state);
+            _dockedLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
@@ -85,6 +91,22 @@ namespace Space4X.Headless
             {
                 var target = miningState.ValueRO.ActiveTarget;
                 if (target == Entity.Null)
+                {
+                    ResetProbe(ref probe.ValueRW);
+                    continue;
+                }
+
+                var phase = miningState.ValueRO.Phase;
+                var isMiningPhase = phase == MiningPhase.ApproachTarget ||
+                                    phase == MiningPhase.Latching ||
+                                    phase == MiningPhase.Mining;
+                if (!isMiningPhase || _dockedLookup.HasComponent(entity))
+                {
+                    ResetProbe(ref probe.ValueRW);
+                    continue;
+                }
+
+                if (_carrierLookup.HasComponent(target))
                 {
                     ResetProbe(ref probe.ValueRW);
                     continue;
