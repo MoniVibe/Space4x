@@ -46,7 +46,7 @@
     "balanced": {
       "avoidanceRadius": 14.0,
       "avoidanceStrength": 0.75,
-      "speedMultiplier": 1.0,
+      "speedMultiplier": 1.5,
       "rotationMultiplier": 1.0,
       "maintainFormationWhenAttacking": 0.6,
       "evasionJinkStrength": 0.25,
