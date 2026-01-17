@@ -12,8 +12,8 @@
     "steeringStabilityBeat": {
       "fleetId": "NEUTRAL-URSA",
       "targetPosition": [-400, 260],
-      "startTime_s": 60,
-      "settle_s": 2,
+      "startTime_s": 40,
+      "settle_s": 12,
       "measure_s": 20,
       "holdCarrierMiningIntent": true
     }
@@ -830,7 +830,7 @@
       "description": "Echo bombers engage the probing hostiles"
     },
     {
-      "time_s": 50,
+      "time_s": 40,
       "kind": "MoveFleet",
       "fleetId": "NEUTRAL-URSA",
       "targetPosition": [-400, 260],

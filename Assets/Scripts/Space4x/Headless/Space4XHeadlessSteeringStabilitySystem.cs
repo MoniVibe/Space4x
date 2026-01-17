@@ -24,6 +24,8 @@ namespace Space4X.Headless
         private const float HeadingErrorThresholdDeg = 2f;
         private const float YawRateThresholdDeg = 1f;
         private const float SteeringFlipThresholdPer10s = 1f;
+        private const uint MinEligibleSamples = 200;
+        private const float MinSpeedGateCoverage = 0.2f;
         private const float TargetPositionEpsilon = 0.25f;
 
         private ComponentLookup<LocalTransform> _transformLookup;
@@ -339,6 +341,7 @@ namespace Space4X.Headless
             var retargetsPer10s = retargets / math.max(1f, measureSeconds / 10f);
             var oscillationCause = ClassifyOscillation(flipsPer10s, retargets);
             var avgSpeed = _sampleCount > 0 ? _speedSum / _sampleCount : 0f;
+            var speedGateCoverage = _sampleCount > 0 ? (float)_eligibleSampleCount / _sampleCount : 0f;
 
             if (_sampleCount == 0)
             {
@@ -347,6 +350,10 @@ namespace Space4X.Headless
             else if (_eligibleSampleCount == 0)
             {
                 AppendSteeringLowSpeedBlackCat(ref state, config, avgSpeed);
+            }
+            else if (_eligibleSampleCount < MinEligibleSamples || speedGateCoverage < MinSpeedGateCoverage)
+            {
+                AppendSteeringWeakSignalBlackCat(ref state, config, speedGateCoverage);
             }
 
             var fail = _maxHeadingErrorDeg > HeadingErrorThresholdDeg ||
@@ -710,6 +717,28 @@ namespace Space4X.Headless
                 MetricB = avgSpeed,
                 MetricC = _lastSpeedGateThreshold,
                 MetricD = _speedGateSampleCount,
+                Classification = 1
+            });
+        }
+
+        private void AppendSteeringWeakSignalBlackCat(ref SystemState state, in Space4XSteeringStabilityBeatConfig config, float speedGateCoverage)
+        {
+            if (!Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorBlackCat
+            {
+                Id = new FixedString64Bytes("STEERING_BEAT_WEAK_SIGNAL"),
+                Primary = _shipEntity,
+                Secondary = _helmsmanEntity,
+                StartTick = _measureStartTick,
+                EndTick = _measureEndTick,
+                MetricA = _sampleCount,
+                MetricB = _eligibleSampleCount,
+                MetricC = speedGateCoverage,
+                MetricD = _maxSpeed,
                 Classification = 1
             });
         }
