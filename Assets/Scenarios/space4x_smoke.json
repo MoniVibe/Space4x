@@ -19,10 +19,7 @@
     },
     "headlessQuestions": [
       { "id": "space4x.q.steering.stable_when_target_stable", "required": true },
-      { "id": "space4x.q.mining.progress", "required": true },
-      { "id": "space4x.q.undock.risk_separation", "required": false },
-      { "id": "space4x.q.collision.response_present", "required": false },
-      { "id": "space4x.q.sensors.acquire_drop", "required": false }
+      { "id": "space4x.q.mining.progress", "required": true }
     ]
   },
   "dogfightConfig": {
