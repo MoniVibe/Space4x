@@ -1,0 +1,72 @@
+{
+  "seed": 911,
+  "duration_s": 30,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "commsBeat": {
+      "senderCarrierId": "comms-carrier-alpha",
+      "receiverCarrierId": "comms-carrier-bravo",
+      "payloadId": "comms_micro_blocked",
+      "start_s": 4,
+      "duration_s": 20,
+      "interval_s": 2,
+      "transportMask": 64,
+      "requireAck": false
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.comms.delivery_blocked",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "comms-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "COMMS-OBS",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "comms-carrier-bravo",
+      "position": [200, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "COMMS-TGT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ]
+}

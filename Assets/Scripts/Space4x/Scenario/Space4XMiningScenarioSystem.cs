@@ -12,6 +12,7 @@ using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Systems;
+using Space4X.Headless;
 using Space4X.Registry;
 using Space4X.Runtime;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
@@ -104,6 +105,8 @@ namespace Space4x.Scenario
                 return;
             }
 
+            ApplyScenarioConfig(_scenarioData.scenarioConfig);
+
             _useSmokeMotionTuning = IsSmokeScenario(scenarioPath, scenarioInfo);
             if (_useSmokeMotionTuning)
             {
@@ -155,6 +158,125 @@ namespace Space4x.Scenario
 
             _hasLoaded = true;
             Enabled = false;
+        }
+
+        private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)
+        {
+            if (scenarioConfig == null)
+            {
+                return;
+            }
+
+            ApplySensorsBeatConfig(scenarioConfig.sensorsBeat);
+            ApplyCommsBeatConfig(scenarioConfig.commsBeat);
+            ApplyHeadlessQuestionPackConfig(scenarioConfig.headlessQuestions);
+        }
+
+        private void ApplySensorsBeatConfig(SensorsBeatConfigData beat)
+        {
+            if (beat == null ||
+                string.IsNullOrWhiteSpace(beat.observerCarrierId) ||
+                string.IsNullOrWhiteSpace(beat.targetCarrierId))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XSensorsBeatConfig>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XSensorsBeatConfig));
+            }
+
+            EntityManager.SetComponentData(entity, new Space4XSensorsBeatConfig
+            {
+                ObserverCarrierId = new FixedString64Bytes(beat.observerCarrierId),
+                TargetCarrierId = new FixedString64Bytes(beat.targetCarrierId),
+                AcquireStartSeconds = math.max(0f, beat.acquireStart_s),
+                AcquireDurationSeconds = math.max(0f, beat.acquireDuration_s),
+                DropStartSeconds = math.max(0f, beat.dropStart_s),
+                DropDurationSeconds = math.max(0f, beat.dropDuration_s),
+                ObserverRange = math.max(0f, beat.observerRange),
+                ObserverUpdateInterval = math.max(0f, beat.observerUpdateInterval),
+                ObserverMaxTrackedTargets = (byte)math.clamp(beat.observerMaxTrackedTargets > 0 ? beat.observerMaxTrackedTargets : 12, 1, 255),
+                SensorsEnsured = 0,
+                Initialized = 0,
+                Completed = 0,
+                AcquireStartTick = 0u,
+                AcquireEndTick = 0u,
+                DropStartTick = 0u,
+                DropEndTick = 0u
+            });
+        }
+
+        private void ApplyCommsBeatConfig(CommsBeatConfigData beat)
+        {
+            if (beat == null ||
+                string.IsNullOrWhiteSpace(beat.senderCarrierId) ||
+                string.IsNullOrWhiteSpace(beat.receiverCarrierId))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XCommsBeatConfig>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XCommsBeatConfig));
+            }
+
+            var transport = beat.transportMask != 0
+                ? (PerceptionChannel)beat.transportMask
+                : PerceptionChannel.EM;
+
+            EntityManager.SetComponentData(entity, new Space4XCommsBeatConfig
+            {
+                SenderCarrierId = new FixedString64Bytes(beat.senderCarrierId),
+                ReceiverCarrierId = new FixedString64Bytes(beat.receiverCarrierId),
+                PayloadId = string.IsNullOrWhiteSpace(beat.payloadId)
+                    ? default
+                    : new FixedString64Bytes(beat.payloadId),
+                TransportMask = transport,
+                StartSeconds = math.max(0f, beat.start_s),
+                DurationSeconds = math.max(0.1f, beat.duration_s),
+                SendIntervalSeconds = math.max(0.05f, beat.interval_s),
+                RequireAck = (byte)(beat.requireAck ? 1 : 0),
+                CommsEnsured = 0,
+                Initialized = 0,
+                Completed = 0,
+                StartTick = 0u,
+                EndTick = 0u,
+                SendIntervalTicks = 0u
+            });
+        }
+
+        private void ApplyHeadlessQuestionPackConfig(List<HeadlessQuestionConfigData> questions)
+        {
+            if (questions == null || questions.Count == 0)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XHeadlessQuestionPackTag>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XHeadlessQuestionPackTag));
+            }
+
+            var buffer = EntityManager.HasBuffer<Space4XHeadlessQuestionPackItem>(entity)
+                ? EntityManager.GetBuffer<Space4XHeadlessQuestionPackItem>(entity)
+                : EntityManager.AddBuffer<Space4XHeadlessQuestionPackItem>(entity);
+
+            buffer.Clear();
+            for (var i = 0; i < questions.Count; i++)
+            {
+                var question = questions[i];
+                if (question == null || string.IsNullOrWhiteSpace(question.id))
+                {
+                    continue;
+                }
+
+                buffer.Add(new Space4XHeadlessQuestionPackItem
+                {
+                    Id = new FixedString64Bytes(question.id),
+                    Required = (byte)(question.required ? 1 : 0)
+                });
+            }
         }
 
         private static bool IsSmokeScenario(string scenarioPath, ScenarioInfo scenarioInfo)
@@ -1837,12 +1959,55 @@ namespace Space4x.Scenario
     {
         public int seed;
         public float duration_s;
+        public MiningScenarioConfigData scenarioConfig;
         public StrikeCraftDogfightConfigData dogfightConfig;
         public StanceTuningConfigData stanceConfig;
         public List<MiningSpawnDefinition> spawn;
         public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
         public List<IndividualProfileData> individuals;
+    }
+
+    [System.Serializable]
+    public class MiningScenarioConfigData
+    {
+        public SensorsBeatConfigData sensorsBeat;
+        public CommsBeatConfigData commsBeat;
+        public List<HeadlessQuestionConfigData> headlessQuestions;
+    }
+
+    [System.Serializable]
+    public class SensorsBeatConfigData
+    {
+        public string observerCarrierId;
+        public string targetCarrierId;
+        public float acquireStart_s;
+        public float acquireDuration_s;
+        public float dropStart_s;
+        public float dropDuration_s;
+        public float observerRange;
+        public float observerUpdateInterval;
+        public int observerMaxTrackedTargets;
+    }
+
+    [System.Serializable]
+    public class CommsBeatConfigData
+    {
+        public string senderCarrierId;
+        public string receiverCarrierId;
+        public string payloadId;
+        public float start_s;
+        public float duration_s;
+        public float interval_s;
+        public int transportMask;
+        public bool requireAck;
+    }
+
+    [System.Serializable]
+    public class HeadlessQuestionConfigData
+    {
+        public string id;
+        public bool required;
     }
 
     [System.Serializable]
