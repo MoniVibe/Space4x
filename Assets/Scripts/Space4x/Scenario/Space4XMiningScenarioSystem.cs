@@ -13,6 +13,7 @@ using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Systems;
+using Space4X.Headless;
 using Space4X.Presentation;
 using Space4X.Registry;
 using Space4X.Physics;
@@ -195,6 +196,7 @@ namespace Space4x.Scenario
             ApplyLegacyDisableTags(scenarioConfig.disableLegacyMining, scenarioConfig.disableLegacyPatrol);
             ApplySteeringStabilityBeatConfig(scenarioConfig.steeringStabilityBeat);
             ApplySensorsBeatConfig(scenarioConfig.sensorsBeat);
+            ApplyHeadlessQuestionPackConfig(scenarioConfig.headlessQuestions);
         }
 
         private void ApplySteeringStabilityBeatConfig(SteeringStabilityBeatConfigData beat)
@@ -256,6 +258,42 @@ namespace Space4x.Scenario
                 DropStartTick = 0u,
                 DropEndTick = 0u
             });
+        }
+
+        private void ApplyHeadlessQuestionPackConfig(List<HeadlessQuestionConfigData> questions)
+        {
+            if (questions == null || questions.Count == 0)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XHeadlessQuestionPackTag>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XHeadlessQuestionPackTag));
+            }
+
+            if (!EntityManager.HasBuffer<Space4XHeadlessQuestionPackItem>(entity))
+            {
+                EntityManager.AddBuffer<Space4XHeadlessQuestionPackItem>(entity);
+            }
+
+            var buffer = EntityManager.GetBuffer<Space4XHeadlessQuestionPackItem>(entity);
+            buffer.Clear();
+
+            for (var i = 0; i < questions.Count; i++)
+            {
+                var item = questions[i];
+                if (item == null || string.IsNullOrWhiteSpace(item.id))
+                {
+                    continue;
+                }
+
+                buffer.Add(new Space4XHeadlessQuestionPackItem
+                {
+                    Id = new FixedString64Bytes(item.id),
+                    Required = (byte)(item.required ? 1 : 0)
+                });
+            }
         }
 
         private void ApplyLegacyDisableTags(bool disableMining, bool disablePatrol)
@@ -2187,6 +2225,7 @@ namespace Space4x.Scenario
         public bool disableLegacyPatrol;
         public SteeringStabilityBeatConfigData steeringStabilityBeat;
         public SensorsBeatConfigData sensorsBeat;
+        public List<HeadlessQuestionConfigData> headlessQuestions;
     }
 
     [System.Serializable]
@@ -2212,6 +2251,13 @@ namespace Space4x.Scenario
         public float observerRange;
         public float observerUpdateInterval;
         public int observerMaxTrackedTargets;
+    }
+
+    [System.Serializable]
+    public class HeadlessQuestionConfigData
+    {
+        public string id;
+        public bool required;
     }
 
     [System.Serializable]

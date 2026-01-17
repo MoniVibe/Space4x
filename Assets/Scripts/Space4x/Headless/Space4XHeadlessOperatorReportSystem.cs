@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using PureDOTS.Runtime.Components;
@@ -80,32 +81,41 @@ namespace Space4X.Headless
                 seed = info.Seed;
             }
 
-            var sb = new StringBuilder(2048);
+            var metrics = CollectOperatorMetrics(state.EntityManager);
+            var blackCatList = CopyBlackCats(blackCats);
+            var signals = new Space4XOperatorSignals(metrics, blackCatList);
+            var runtimeStats = Space4XOperatorRuntimeStats.Collect(state.EntityManager);
+            var questionPack = CollectQuestionPack(state.EntityManager);
+            var questions = Space4XHeadlessQuestionRegistry.BuildQuestions(signals, runtimeStats, runtime, questionPack);
+
+            var sb = new StringBuilder(4096);
             var first = true;
             sb.Append('{');
             AppendString(ref first, sb, "scenarioId", scenarioId);
             AppendUInt(ref first, sb, "seed", seed);
             AppendUInt(ref first, sb, "startTick", runtime.StartTick);
             AppendUInt(ref first, sb, "endTick", runtime.EndTick);
-            AppendSummary(ref first, sb, state.EntityManager);
-            AppendBlackCats(ref first, sb, state.EntityManager, blackCats);
+            AppendSummary(ref first, sb, metrics);
+            AppendQuestions(ref first, sb, questions);
+            AppendBlackCats(ref first, sb, state.EntityManager, blackCatList);
             sb.Append('}');
 
             File.WriteAllText(outputPath, sb.ToString(), Encoding.ASCII);
         }
 
-        private static void AppendSummary(ref bool first, StringBuilder sb, EntityManager entityManager)
+        private static void AppendSummary(ref bool first, StringBuilder sb, Dictionary<string, float> metrics)
         {
             AppendSeparator(ref first, sb);
             sb.Append("\"summary\":{");
 
             var innerFirst = true;
-            if (TryGetOperatorMetrics(entityManager, out var operatorMetrics) && operatorMetrics.Length > 0)
+            if (metrics != null && metrics.Count > 0)
             {
-                for (var i = 0; i < operatorMetrics.Length; i++)
+                var keys = new List<string>(metrics.Keys);
+                keys.Sort(StringComparer.OrdinalIgnoreCase);
+                for (var i = 0; i < keys.Count; i++)
                 {
-                    var metric = operatorMetrics[i];
-                    var key = metric.Key.ToString();
+                    var key = keys[i];
                     if (!key.StartsWith("space4x.steer.", StringComparison.OrdinalIgnoreCase) &&
                         !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase) &&
                         !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase))
@@ -113,56 +123,80 @@ namespace Space4X.Headless
                         continue;
                     }
 
-                    AppendFloat(ref innerFirst, sb, key, metric.Value);
-                }
-            }
-            else if (TryGetTelemetryMetrics(entityManager, out var telemetryMetrics))
-            {
-                for (var i = 0; i < telemetryMetrics.Length; i++)
-                {
-                    var metric = telemetryMetrics[i];
-                    var key = metric.Key.ToString();
-                    if (!key.StartsWith("space4x.steer.", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    AppendFloat(ref innerFirst, sb, key, metric.Value);
+                    AppendFloat(ref innerFirst, sb, key, metrics[key]);
                 }
             }
 
             sb.Append('}');
+        }
+
+        private static void AppendQuestions(ref bool first, StringBuilder sb, List<Space4XQuestionAnswer> questions)
+        {
+            AppendSeparator(ref first, sb);
+            sb.Append("\"questions\":[");
+
+            var innerFirst = true;
+            if (questions != null)
+            {
+                for (var i = 0; i < questions.Count; i++)
+                {
+                    var question = questions[i];
+                    AppendSeparator(ref innerFirst, sb);
+                    sb.Append('{');
+                    var qFirst = true;
+                    AppendString(ref qFirst, sb, "id", question.Id ?? string.Empty);
+                    AppendString(ref qFirst, sb, "status", ResolveQuestionStatus(question.Status));
+                    AppendBool(ref qFirst, sb, "required", question.Required);
+                    if (question.Status == Space4XQuestionStatus.Unknown)
+                    {
+                        AppendString(ref qFirst, sb, "unknown_reason", question.UnknownReason ?? string.Empty);
+                    }
+                    AppendString(ref qFirst, sb, "answer", question.Answer ?? string.Empty);
+                    AppendWindow(ref qFirst, sb, question.StartTick, question.EndTick);
+                    AppendQuestionMetrics(ref qFirst, sb, question.Metrics);
+                    if (question.Status != Space4XQuestionStatus.Pass)
+                    {
+                        AppendQuestionEvidence(ref qFirst, sb, question.Evidence);
+                    }
+                    sb.Append('}');
+                }
+            }
+
+            sb.Append(']');
         }
 
         private static void AppendBlackCats(
             ref bool first,
             StringBuilder sb,
             EntityManager entityManager,
-            DynamicBuffer<Space4XOperatorBlackCat> blackCats)
+            List<Space4XOperatorBlackCat> blackCats)
         {
             AppendSeparator(ref first, sb);
             sb.Append("\"blackCats\":[");
 
             var innerFirst = true;
-            for (var i = 0; i < blackCats.Length; i++)
+            if (blackCats != null)
             {
-                var cat = blackCats[i];
-                AppendSeparator(ref innerFirst, sb);
-                sb.Append('{');
-                var catFirst = true;
-                AppendString(ref catFirst, sb, "id", cat.Id.ToString());
-                AppendEntity(ref catFirst, sb, "primary", cat.Primary);
-                AppendEntity(ref catFirst, sb, "secondary", cat.Secondary);
-                AppendUInt(ref catFirst, sb, "startTick", cat.StartTick);
-                AppendUInt(ref catFirst, sb, "endTick", cat.EndTick);
-                AppendString(ref catFirst, sb, "classification", ResolveClassification(cat));
-                AppendMetrics(ref catFirst, sb, cat);
-                AppendDecisionTrace(ref catFirst, sb, entityManager, cat.Primary);
-                AppendMiningTrace(ref catFirst, sb, entityManager, cat.Primary);
-                AppendTraceTail(ref catFirst, sb, entityManager, cat.Primary, cat.Secondary);
-                sb.Append('}');
+                for (var i = 0; i < blackCats.Count; i++)
+                {
+                    var cat = blackCats[i];
+                    AppendSeparator(ref innerFirst, sb);
+                    sb.Append('{');
+                    var catFirst = true;
+                    var questionId = Space4XHeadlessQuestionIds.ResolveQuestionIdForBlackCatId(cat.Id.ToString());
+                    AppendString(ref catFirst, sb, "id", cat.Id.ToString());
+                    AppendString(ref catFirst, sb, "questionId", questionId);
+                    AppendEntity(ref catFirst, sb, "primary", cat.Primary);
+                    AppendEntity(ref catFirst, sb, "secondary", cat.Secondary);
+                    AppendUInt(ref catFirst, sb, "startTick", cat.StartTick);
+                    AppendUInt(ref catFirst, sb, "endTick", cat.EndTick);
+                    AppendString(ref catFirst, sb, "classification", ResolveClassification(cat));
+                    AppendMetrics(ref catFirst, sb, cat);
+                    AppendDecisionTrace(ref catFirst, sb, entityManager, cat.Primary);
+                    AppendMiningTrace(ref catFirst, sb, entityManager, cat.Primary);
+                    AppendTraceTail(ref catFirst, sb, entityManager, cat.Primary, cat.Secondary);
+                    sb.Append('}');
+                }
             }
 
             sb.Append(']');
@@ -249,6 +283,179 @@ namespace Space4X.Headless
             }
 
             sb.Append('}');
+        }
+
+        private static void AppendWindow(ref bool first, StringBuilder sb, uint startTick, uint endTick)
+        {
+            AppendSeparator(ref first, sb);
+            sb.Append("\"window\":{");
+            var innerFirst = true;
+            AppendUInt(ref innerFirst, sb, "startTick", startTick);
+            AppendUInt(ref innerFirst, sb, "endTick", endTick);
+            sb.Append('}');
+        }
+
+        private static void AppendQuestionMetrics(ref bool first, StringBuilder sb, Dictionary<string, float> metrics)
+        {
+            if (metrics == null || metrics.Count == 0)
+            {
+                return;
+            }
+
+            AppendSeparator(ref first, sb);
+            sb.Append("\"metrics\":{");
+            var innerFirst = true;
+            var keys = new List<string>(metrics.Keys);
+            keys.Sort(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < keys.Count; i++)
+            {
+                var key = keys[i];
+                AppendFloat(ref innerFirst, sb, key, metrics[key]);
+            }
+            sb.Append('}');
+        }
+
+        private static void AppendQuestionEvidence(ref bool first, StringBuilder sb, List<Space4XQuestionEvidence> evidence)
+        {
+            if (evidence == null || evidence.Count == 0)
+            {
+                return;
+            }
+
+            evidence.Sort(CompareEvidence);
+            AppendSeparator(ref first, sb);
+            sb.Append("\"evidence\":[");
+            var innerFirst = true;
+            for (var i = 0; i < evidence.Count; i++)
+            {
+                var entry = evidence[i];
+                AppendSeparator(ref innerFirst, sb);
+                sb.Append('{');
+                var evtFirst = true;
+                AppendString(ref evtFirst, sb, "blackCatId", entry.BlackCatId ?? string.Empty);
+                AppendEntity(ref evtFirst, sb, "primary", entry.Primary);
+                AppendEntity(ref evtFirst, sb, "secondary", entry.Secondary);
+                sb.Append('}');
+            }
+            sb.Append(']');
+        }
+
+        private static int CompareEvidence(Space4XQuestionEvidence left, Space4XQuestionEvidence right)
+        {
+            var leftPrimary = left?.Primary.Index ?? -1;
+            var rightPrimary = right?.Primary.Index ?? -1;
+            var cmp = leftPrimary.CompareTo(rightPrimary);
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+
+            var leftSecondary = left?.Secondary.Index ?? -1;
+            var rightSecondary = right?.Secondary.Index ?? -1;
+            cmp = leftSecondary.CompareTo(rightSecondary);
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+
+            return string.CompareOrdinal(left?.BlackCatId, right?.BlackCatId);
+        }
+
+        private static string ResolveQuestionStatus(Space4XQuestionStatus status)
+        {
+            return status switch
+            {
+                Space4XQuestionStatus.Pass => "pass",
+                Space4XQuestionStatus.Fail => "fail",
+                Space4XQuestionStatus.Unknown => "unknown",
+                _ => "unknown"
+            };
+        }
+
+        private static Dictionary<string, float> CollectOperatorMetrics(EntityManager entityManager)
+        {
+            var metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            if (TryGetOperatorMetrics(entityManager, out var operatorMetrics) && operatorMetrics.Length > 0)
+            {
+                for (var i = 0; i < operatorMetrics.Length; i++)
+                {
+                    var metric = operatorMetrics[i];
+                    var key = metric.Key.ToString();
+                    if (!metrics.ContainsKey(key))
+                    {
+                        metrics.Add(key, metric.Value);
+                    }
+                    else
+                    {
+                        metrics[key] = metric.Value;
+                    }
+                }
+            }
+            else if (TryGetTelemetryMetrics(entityManager, out var telemetryMetrics))
+            {
+                for (var i = 0; i < telemetryMetrics.Length; i++)
+                {
+                    var metric = telemetryMetrics[i];
+                    var key = metric.Key.ToString();
+                    if (!metrics.ContainsKey(key))
+                    {
+                        metrics.Add(key, metric.Value);
+                    }
+                    else
+                    {
+                        metrics[key] = metric.Value;
+                    }
+                }
+            }
+
+            return metrics;
+        }
+
+        private static List<Space4XOperatorBlackCat> CopyBlackCats(DynamicBuffer<Space4XOperatorBlackCat> blackCats)
+        {
+            var list = new List<Space4XOperatorBlackCat>(blackCats.Length);
+            for (var i = 0; i < blackCats.Length; i++)
+            {
+                list.Add(blackCats[i]);
+            }
+
+            return list;
+        }
+
+        private static Dictionary<string, bool> CollectQuestionPack(EntityManager entityManager)
+        {
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XHeadlessQuestionPackTag>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return null;
+            }
+
+            var entity = query.GetSingletonEntity();
+            if (!entityManager.HasBuffer<Space4XHeadlessQuestionPackItem>(entity))
+            {
+                return null;
+            }
+
+            var buffer = entityManager.GetBuffer<Space4XHeadlessQuestionPackItem>(entity);
+            if (buffer.Length == 0)
+            {
+                return null;
+            }
+
+            var pack = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var item = buffer[i];
+                var id = item.Id.ToString();
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    continue;
+                }
+
+                pack[id] = item.Required != 0;
+            }
+
+            return pack;
         }
 
         private static void AppendDecisionTrace(ref bool first, StringBuilder sb, EntityManager entityManager, Entity entity)
@@ -613,6 +820,12 @@ namespace Space4X.Headless
         {
             AppendSeparator(ref first, sb);
             sb.Append('"').Append(key).Append("\":").Append(value);
+        }
+
+        private static void AppendBool(ref bool first, StringBuilder sb, string key, bool value)
+        {
+            AppendSeparator(ref first, sb);
+            sb.Append('"').Append(key).Append("\":").Append(value ? "true" : "false");
         }
 
         private static void AppendFloat(ref bool first, StringBuilder sb, string key, float value)
