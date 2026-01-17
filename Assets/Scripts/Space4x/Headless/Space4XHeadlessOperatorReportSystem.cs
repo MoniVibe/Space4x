@@ -723,10 +723,6 @@ namespace Space4X.Headless
                 DecisionReasonCode.MiningHold => "mining_hold",
                 DecisionReasonCode.Arrived => "arrived",
                 DecisionReasonCode.Moving => "moving",
-                DecisionReasonCode.MiningUndockWait => "mining_undock_wait",
-                DecisionReasonCode.MiningLatchWait => "mining_latch_wait",
-                DecisionReasonCode.MiningDigging => "mining_digging",
-                DecisionReasonCode.MiningReturnFull => "mining_return_full",
                 _ => "none"
             };
         }
@@ -738,8 +734,6 @@ namespace Space4X.Headless
                 MoveTraceEventKind.IntentChanged => "intent_changed",
                 MoveTraceEventKind.PlanChanged => "plan_changed",
                 MoveTraceEventKind.DecisionChanged => "decision_changed",
-                MoveTraceEventKind.SteeringFlip => "steering_flip",
-                MoveTraceEventKind.UndockDecision => "undock_decision",
                 _ => "unknown"
             };
         }

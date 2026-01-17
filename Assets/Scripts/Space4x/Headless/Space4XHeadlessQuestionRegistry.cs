@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using PureDOTS.Runtime.Physics;
-using Space4X.Registry;
 using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
@@ -138,95 +136,15 @@ namespace Space4X.Headless
 
     internal struct Space4XOperatorRuntimeStats
     {
-        public int MiningEntityCount;
-        public int MiningYieldNonZeroCount;
-        public float MiningYieldTotal;
-        public int CollisionEventCount;
-        public int CollisionProbeCount;
-        public byte HasSteeringBeatConfig;
         public byte HasSensorsBeatConfig;
         public byte HasCommsBeatConfig;
-        public uint SteeringStartTick;
-        public uint SteeringEndTick;
 
         public static Space4XOperatorRuntimeStats Collect(EntityManager entityManager)
         {
             var stats = new Space4XOperatorRuntimeStats();
-            stats.MiningEntityCount = CountEntities(entityManager, ComponentType.ReadOnly<MiningState>());
-            stats.CollisionProbeCount = CountEntities(entityManager, ComponentType.ReadOnly<Space4XCollisionProbeState>());
-            stats.CollisionEventCount = CountCollisionEvents(entityManager);
-            (stats.MiningYieldNonZeroCount, stats.MiningYieldTotal) = MeasureMiningYield(entityManager);
-            (stats.HasSteeringBeatConfig, stats.SteeringStartTick, stats.SteeringEndTick) = ResolveSteeringWindow(entityManager);
             stats.HasSensorsBeatConfig = ResolveBeatPresence<Space4XSensorsBeatConfig>(entityManager);
             stats.HasCommsBeatConfig = ResolveBeatPresence<Space4XCommsBeatConfig>(entityManager);
             return stats;
-        }
-
-        private static int CountEntities(EntityManager entityManager, ComponentType type)
-        {
-            using var query = entityManager.CreateEntityQuery(type);
-            return query.CalculateEntityCount();
-        }
-
-        private static int CountCollisionEvents(EntityManager entityManager)
-        {
-            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<PhysicsCollisionEventElement>());
-            if (query.IsEmptyIgnoreFilter)
-            {
-                return 0;
-            }
-
-            var count = 0;
-            using var chunks = query.ToArchetypeChunkArray(Allocator.Temp);
-            var typeHandle = entityManager.GetBufferTypeHandle<PhysicsCollisionEventElement>(true);
-            for (var i = 0; i < chunks.Length; i++)
-            {
-                var bufferAccessor = chunks[i].GetBufferAccessor(typeHandle);
-                for (var j = 0; j < bufferAccessor.Length; j++)
-                {
-                    count += bufferAccessor[j].Length;
-                }
-            }
-
-            return count;
-        }
-
-        private static (int nonZeroCount, float total) MeasureMiningYield(EntityManager entityManager)
-        {
-            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<MiningYield>());
-            if (query.IsEmptyIgnoreFilter)
-            {
-                return (0, 0f);
-            }
-
-            using var yields = query.ToComponentDataArray<MiningYield>(Allocator.Temp);
-            var nonZero = 0;
-            var total = 0f;
-            for (var i = 0; i < yields.Length; i++)
-            {
-                var amount = yields[i].PendingAmount;
-                total += amount;
-                if (amount > 0f)
-                {
-                    nonZero++;
-                }
-            }
-
-            return (nonZero, total);
-        }
-
-        private static (byte hasConfig, uint startTick, uint endTick) ResolveSteeringWindow(EntityManager entityManager)
-        {
-            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XSteeringStabilityBeatConfig>());
-            if (query.IsEmptyIgnoreFilter)
-            {
-                return (0, 0u, 0u);
-            }
-
-            var config = query.GetSingleton<Space4XSteeringStabilityBeatConfig>();
-            var startTick = config.StartTick + config.SettleTicks;
-            var endTick = startTick + config.MeasureTicks;
-            return (1, startTick, endTick);
         }
 
         private static byte ResolveBeatPresence<T>(EntityManager entityManager) where T : unmanaged, IComponentData
@@ -244,10 +162,6 @@ namespace Space4X.Headless
 
     internal static class Space4XHeadlessQuestionIds
     {
-        public const string SteeringStable = "space4x.q.steering.stable_when_target_stable";
-        public const string UndockRisk = "space4x.q.undock.risk_separation";
-        public const string MiningProgress = "space4x.q.mining.progress";
-        public const string CollisionResponse = "space4x.q.collision.response_present";
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
@@ -257,13 +171,6 @@ namespace Space4X.Headless
         {
             return blackCatId switch
             {
-                "HEADING_OSCILLATION" => SteeringStable,
-                "STEERING_BEAT_SKIPPED" => SteeringStable,
-                "STEERING_BEAT_LOW_SPEED" => SteeringStable,
-                "STEERING_WEAK_SIGNAL" => SteeringStable,
-                "UNDOCK_BEAT_SKIPPED" => UndockRisk,
-                "MINING_STALL" => MiningProgress,
-                "COLLISION_PHASING" => CollisionResponse,
                 "SENSORS_BEAT_SKIPPED" => SensorsAcquireDrop,
                 "SENSORS_DROP_NOT_EXERCISED" => SensorsAcquireDrop,
                 "PERCEPTION_STALE" => SensorsAcquireDrop,
@@ -279,10 +186,6 @@ namespace Space4X.Headless
     {
         private static readonly IHeadlessQuestion[] Questions =
         {
-            new SteeringStableQuestion(),
-            new UndockRiskQuestion(),
-            new MiningProgressQuestion(),
-            new CollisionResponseQuestion(),
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion()
@@ -380,240 +283,6 @@ namespace Space4X.Headless
 
             answers.Sort((left, right) => string.CompareOrdinal(left?.Id, right?.Id));
             return answers;
-        }
-
-        private sealed class SteeringStableQuestion : IHeadlessQuestion
-        {
-            private const float HeadingErrorMax = 2f;
-            private const float YawRateMax = 1f;
-            private const float FlipsPer10sMax = 1f;
-
-            public string Id => Space4XHeadlessQuestionIds.SteeringStable;
-
-            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
-            {
-                var answer = new Space4XQuestionAnswer
-                {
-                    Id = Id,
-                    StartTick = stats.HasSteeringBeatConfig != 0 ? stats.SteeringStartTick : runtime.StartTick,
-                    EndTick = stats.HasSteeringBeatConfig != 0 ? stats.SteeringEndTick : runtime.EndTick,
-                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
-                };
-
-                var hasSamples = signals.TryGetMetric("space4x.steer.sample_count", out var sampleCount);
-                var eligibleSamples = signals.GetMetricOrDefault("space4x.steer.eligible_samples");
-                var speedGateCoverage = signals.GetMetricOrDefault("space4x.steer.speed_gate_coverage");
-                var headingError = signals.GetMetricOrDefault("space4x.steer.heading_error_max_deg");
-                var yawRate = signals.GetMetricOrDefault("space4x.steer.yaw_rate_max_deg_s");
-                var flips = signals.GetMetricOrDefault("space4x.steer.sign_flips_per_10s");
-                var retargets = signals.GetMetricOrDefault("space4x.steer.retarget_count");
-
-                answer.Metrics["sample_count"] = sampleCount;
-                answer.Metrics["eligible_samples"] = eligibleSamples;
-                answer.Metrics["speed_gate_coverage"] = speedGateCoverage;
-                answer.Metrics["heading_error_max_deg"] = headingError;
-                answer.Metrics["yaw_rate_max_deg_s"] = yawRate;
-                answer.Metrics["sign_flips_per_10s"] = flips;
-                answer.Metrics["retarget_count"] = retargets;
-
-                if (stats.HasSteeringBeatConfig == 0 || !hasSamples || sampleCount <= 0f)
-                {
-                    answer.Status = Space4XQuestionStatus.Unknown;
-                    answer.UnknownReason = stats.HasSteeringBeatConfig == 0 ? "beat_absent" : "no_samples";
-                    answer.Answer = "no steering samples";
-                    return answer;
-                }
-
-                if (signals.HasBlackCat("STEERING_BEAT_SKIPPED") ||
-                    signals.HasBlackCat("STEERING_BEAT_LOW_SPEED") ||
-                    signals.HasBlackCat("STEERING_WEAK_SIGNAL"))
-                {
-                    answer.Status = Space4XQuestionStatus.Unknown;
-                    answer.UnknownReason = "coverage_gap";
-                    answer.Answer = "coverage gap during stability window";
-                    return answer;
-                }
-
-                var pass = headingError <= HeadingErrorMax &&
-                           yawRate <= YawRateMax &&
-                           flips <= FlipsPer10sMax &&
-                           retargets <= 0f;
-
-                answer.Status = pass ? Space4XQuestionStatus.Pass : Space4XQuestionStatus.Fail;
-                answer.Answer = $"heading_error_max={headingError:0.##} yaw_rate_max={yawRate:0.##} flips_per_10s={flips:0.##} retargets={retargets:0}";
-                return answer;
-            }
-        }
-
-        private sealed class UndockRiskQuestion : IHeadlessQuestion
-        {
-            private const float RiskGapMin = 0.00005f;
-            private const float RiskEnforceMin = 0.01f;
-            private const float RiskHardStop = 0.9f;
-
-            public string Id => Space4XHeadlessQuestionIds.UndockRisk;
-
-            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
-            {
-                var answer = new Space4XQuestionAnswer
-                {
-                    Id = Id,
-                    StartTick = runtime.StartTick,
-                    EndTick = runtime.EndTick,
-                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
-                };
-
-                var lawfulCount = signals.GetMetricOrDefault("space4x.undock.lawful.count");
-                var chaoticCount = signals.GetMetricOrDefault("space4x.undock.chaotic.count");
-                var maxRisk = signals.GetMetricOrDefault("space4x.undock.max_risk");
-                var lawfulAvgRisk = signals.GetMetricOrDefault("space4x.undock.lawful.avg_risk");
-                var chaoticAvgRisk = signals.GetMetricOrDefault("space4x.undock.chaotic.avg_risk");
-                var lawfulWaitAvg = signals.GetMetricOrDefault("space4x.undock.lawful.wait_avg");
-                var chaoticWaitAvg = signals.GetMetricOrDefault("space4x.undock.chaotic.wait_avg");
-                var lawfulWaitOnly = signals.GetMetricOrDefault("space4x.undock.lawful.wait_only");
-                var chaoticWaitOnly = signals.GetMetricOrDefault("space4x.undock.chaotic.wait_only");
-
-                answer.Metrics["lawful_count"] = lawfulCount;
-                answer.Metrics["chaotic_count"] = chaoticCount;
-                answer.Metrics["max_risk"] = maxRisk;
-                answer.Metrics["lawful_avg_risk"] = lawfulAvgRisk;
-                answer.Metrics["chaotic_avg_risk"] = chaoticAvgRisk;
-                answer.Metrics["lawful_wait_avg"] = lawfulWaitAvg;
-                answer.Metrics["chaotic_wait_avg"] = chaoticWaitAvg;
-                answer.Metrics["lawful_wait_only"] = lawfulWaitOnly;
-                answer.Metrics["chaotic_wait_only"] = chaoticWaitOnly;
-
-                var hasLawfulSignal = lawfulCount > 0f || lawfulWaitOnly > 0f;
-                if (signals.HasBlackCat("UNDOCK_BEAT_SKIPPED") || !hasLawfulSignal || chaoticCount <= 0f || maxRisk < RiskEnforceMin)
-                {
-                    answer.Status = Space4XQuestionStatus.Unknown;
-                    answer.UnknownReason = "insufficient_samples";
-                    answer.Answer = "undock samples missing for lawful/chaotic";
-                    return answer;
-                }
-
-                var riskGapOk = chaoticAvgRisk >= lawfulAvgRisk + RiskGapMin;
-                var waitOk = lawfulWaitAvg >= chaoticWaitAvg;
-                var hardStopOk = maxRisk < RiskHardStop;
-                var lawfulWaitOnlySeparation = lawfulCount <= 0f && lawfulWaitOnly > 0f;
-                var pass = hardStopOk && (lawfulWaitOnlySeparation || (riskGapOk && waitOk));
-
-                answer.Status = pass ? Space4XQuestionStatus.Pass : Space4XQuestionStatus.Fail;
-                if (lawfulWaitOnlySeparation)
-                {
-                    answer.Answer = $"lawful_wait_only={lawfulWaitOnly:0} chaotic_count={chaoticCount:0} max_risk={maxRisk:0.##}";
-                }
-                else
-                {
-                    answer.Answer = $"lawful_count={lawfulCount:0} chaotic_count={chaoticCount:0} max_risk={maxRisk:0.##}";
-                }
-                return answer;
-            }
-        }
-
-        private sealed class MiningProgressQuestion : IHeadlessQuestion
-        {
-            public string Id => Space4XHeadlessQuestionIds.MiningProgress;
-
-            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
-            {
-                var answer = new Space4XQuestionAnswer
-                {
-                    Id = Id,
-                    StartTick = runtime.StartTick,
-                    EndTick = runtime.EndTick,
-                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
-                };
-
-                answer.Metrics["miners"] = stats.MiningEntityCount;
-                answer.Metrics["yield_nonzero"] = stats.MiningYieldNonZeroCount;
-                answer.Metrics["yield_total"] = stats.MiningYieldTotal;
-                answer.Metrics["stall_count"] = signals.CountBlackCats("MINING_STALL");
-
-                if (stats.MiningEntityCount == 0)
-                {
-                    answer.Status = Space4XQuestionStatus.Unknown;
-                    answer.UnknownReason = "no_miners";
-                    answer.Answer = "no mining entities present";
-                    return answer;
-                }
-
-                if (signals.HasBlackCat("MINING_STALL"))
-                {
-                    answer.Status = Space4XQuestionStatus.Fail;
-                    answer.Answer = "mining stalled during active phase";
-                    return answer;
-                }
-
-                if (stats.MiningYieldNonZeroCount == 0)
-                {
-                    answer.Status = Space4XQuestionStatus.Unknown;
-                    answer.UnknownReason = "yield_not_observed";
-                    answer.Answer = "no mining yield observed";
-                    return answer;
-                }
-
-                answer.Status = Space4XQuestionStatus.Pass;
-                answer.Answer = $"miners={stats.MiningEntityCount} yield_total={stats.MiningYieldTotal:0.##}";
-                return answer;
-            }
-        }
-
-        private sealed class CollisionResponseQuestion : IHeadlessQuestion
-        {
-            public string Id => Space4XHeadlessQuestionIds.CollisionResponse;
-
-            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
-            {
-                var answer = new Space4XQuestionAnswer
-                {
-                    Id = Id,
-                    StartTick = runtime.StartTick,
-                    EndTick = runtime.EndTick,
-                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
-                };
-
-                var eventCount = signals.GetMetricOrDefault("space4x.collision.event_count", stats.CollisionEventCount);
-                answer.Metrics["collision_events"] = eventCount;
-                answer.Metrics["collision_probes"] = stats.CollisionProbeCount;
-                answer.Metrics["phasing_count"] = signals.CountBlackCats("COLLISION_PHASING");
-                answer.Metrics["collision_proof_pass"] = signals.GetMetricOrDefault("space4x.collision.proof_pass");
-                answer.Metrics["collision_proof_fail"] = signals.GetMetricOrDefault("space4x.collision.proof_fail");
-                answer.Metrics["collision_proof_reason"] = signals.GetMetricOrDefault("space4x.collision.proof_reason");
-
-                if (signals.HasBlackCat("COLLISION_PHASING"))
-                {
-                    answer.Status = Space4XQuestionStatus.Fail;
-                    answer.Answer = "overlap persisted without collision response";
-                    return answer;
-                }
-
-                if (answer.Metrics["collision_proof_pass"] > 0.5f)
-                {
-                    answer.Status = Space4XQuestionStatus.Pass;
-                    answer.Answer = "collision proof passed";
-                    return answer;
-                }
-
-                if (answer.Metrics["collision_proof_fail"] > 0.5f)
-                {
-                    answer.Status = Space4XQuestionStatus.Fail;
-                    answer.Answer = "collision proof failed";
-                    return answer;
-                }
-
-                if (eventCount <= 0f)
-                {
-                    answer.Status = Space4XQuestionStatus.Unknown;
-                    answer.UnknownReason = "no_collision_events";
-                    answer.Answer = "no collision events observed";
-                    return answer;
-                }
-
-                answer.Status = Space4XQuestionStatus.Pass;
-                answer.Answer = $"collision_events={eventCount:0}";
-                return answer;
-            }
         }
 
         private sealed class SensorsAcquireDropQuestion : IHeadlessQuestion
