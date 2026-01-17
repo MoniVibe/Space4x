@@ -14,7 +14,7 @@
       "targetPosition": [-400, 260],
       "startTime_s": 40,
       "settle_s": 12,
-      "measure_s": 20,
+      "measure_s": 25,
       "holdCarrierMiningIntent": true
     }
   },
