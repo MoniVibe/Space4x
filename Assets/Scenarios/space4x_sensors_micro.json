@@ -19,7 +19,7 @@
       "acquireDuration_s": 16,
       "dropStart_s": 60,
       "dropDuration_s": 20,
-      "observerRange": 350,
+      "observerRange": 300,
       "observerUpdateInterval": 0.25,
       "observerMaxTrackedTargets": 12
     },
