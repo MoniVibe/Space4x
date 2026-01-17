@@ -4,7 +4,7 @@
   "scenarioConfig": {
     "spawnLane": "mining-json",
     "applyMotionTuning": true,
-    "applyMotionProfile": true,
+    "applyMotionProfile": false,
     "applyLatchConfig": true,
     "applyFloatingOrigin": true,
     "disableLegacyMining": true,
