@@ -18,7 +18,6 @@ using SystemEnvironment = System.Environment;
 namespace Space4X.Headless
 {
     [UpdateInGroup(typeof(Unity.Entities.LateSimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XHeadlessUndockRiskGateSystem))]
     public partial struct Space4XHeadlessOperatorReportSystem : ISystem
     {
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
@@ -194,7 +193,6 @@ namespace Space4X.Headless
                     AppendString(ref catFirst, sb, "classification", ResolveClassification(cat));
                     AppendMetrics(ref catFirst, sb, cat);
                     AppendDecisionTrace(ref catFirst, sb, entityManager, cat.Primary);
-                    AppendMiningTrace(ref catFirst, sb, entityManager, cat.Primary);
                     AppendTraceTail(ref catFirst, sb, entityManager, cat.Primary, cat.Secondary);
                     sb.Append('}');
                 }
@@ -485,58 +483,6 @@ namespace Space4X.Headless
             sb.Append('}');
         }
 
-        private static void AppendMiningTrace(ref bool first, StringBuilder sb, EntityManager entityManager, Entity entity)
-        {
-            if (entity == Entity.Null)
-            {
-                return;
-            }
-
-            var hasTrace = false;
-            var trace = default(MiningDecisionTrace);
-            if (entityManager.HasComponent<Space4XMiningStallState>(entity))
-            {
-                var stall = entityManager.GetComponentData<Space4XMiningStallState>(entity);
-                if (stall.DecisionTick > 0)
-                {
-                    trace.Reason = stall.DecisionReason;
-                    trace.Target = stall.DecisionTarget;
-                    trace.DistanceToTarget = stall.DecisionDistance;
-                    trace.RangeThreshold = stall.DecisionRangeThreshold;
-                    trace.Standoff = stall.DecisionStandoff;
-                    trace.ArrivalDistance = stall.DecisionArrivalDistance;
-                    trace.ApproachDistance = stall.DecisionApproachDistance;
-                    trace.Aligned = stall.DecisionAligned;
-                    trace.Tick = stall.DecisionTick;
-                    hasTrace = true;
-                }
-            }
-
-            if (!hasTrace)
-            {
-                if (!entityManager.HasComponent<MiningDecisionTrace>(entity))
-                {
-                    return;
-                }
-
-                trace = entityManager.GetComponentData<MiningDecisionTrace>(entity);
-            }
-
-            AppendSeparator(ref first, sb);
-            sb.Append("\"miningDecision\":{");
-            var innerFirst = true;
-            AppendString(ref innerFirst, sb, "reason", ResolveMiningDecisionReason(trace.Reason));
-            AppendFloat(ref innerFirst, sb, "distance", trace.DistanceToTarget);
-            AppendFloat(ref innerFirst, sb, "range_threshold", trace.RangeThreshold);
-            AppendFloat(ref innerFirst, sb, "standoff", trace.Standoff);
-            AppendFloat(ref innerFirst, sb, "arrival_distance", trace.ArrivalDistance);
-            AppendFloat(ref innerFirst, sb, "approach_distance", trace.ApproachDistance);
-            AppendFloat(ref innerFirst, sb, "aligned", trace.Aligned);
-            AppendEntity(ref innerFirst, sb, "target", trace.Target);
-            AppendUInt(ref innerFirst, sb, "tick", trace.Tick);
-            sb.Append('}');
-        }
-
         private static void AppendTraceTail(ref bool first, StringBuilder sb, EntityManager entityManager, Entity primary, Entity secondary)
         {
             AppendSeparator(ref first, sb);
@@ -781,23 +727,6 @@ namespace Space4X.Headless
                 DecisionReasonCode.MiningLatchWait => "mining_latch_wait",
                 DecisionReasonCode.MiningDigging => "mining_digging",
                 DecisionReasonCode.MiningReturnFull => "mining_return_full",
-                _ => "none"
-            };
-        }
-
-        private static string ResolveMiningDecisionReason(MiningDecisionReason reason)
-        {
-            return reason switch
-            {
-                MiningDecisionReason.NoTarget => "no_target",
-                MiningDecisionReason.UndockWait => "undock_wait",
-                MiningDecisionReason.NotInRange => "not_in_range",
-                MiningDecisionReason.LatchNotReady => "latch_not_ready",
-                MiningDecisionReason.Digging => "digging",
-                MiningDecisionReason.DigZero => "dig_zero",
-                MiningDecisionReason.ReturnFull => "return_full",
-                MiningDecisionReason.DockingWait => "docking_wait",
-                MiningDecisionReason.NotAligned => "not_aligned",
                 _ => "none"
             };
         }
