@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
@@ -116,7 +117,42 @@ namespace Space4X.Headless
             }
 
             _scenarioResolved = true;
-            _skipScenario = scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase);
+            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _skipScenario = true;
+                return;
+            }
+
+            _skipScenario = ScenarioDisablesMiningProof(scenarioPath);
+        }
+
+        private static bool ScenarioDisablesMiningProof(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath) || !File.Exists(scenarioPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                const int maxChars = 16384;
+                using var stream = File.OpenRead(scenarioPath);
+                using var reader = new StreamReader(stream);
+                var buffer = new char[maxChars];
+                var read = reader.Read(buffer, 0, buffer.Length);
+                if (read <= 0)
+                {
+                    return false;
+                }
+
+                var head = new string(buffer, 0, read);
+                return Regex.IsMatch(head, "\"proofs\"\\s*:\\s*\\{[^}]*\"mining\"\\s*:\\s*false",
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void WriteFailureSummary(uint tick)
