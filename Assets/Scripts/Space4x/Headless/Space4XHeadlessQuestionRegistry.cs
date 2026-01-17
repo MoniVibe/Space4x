@@ -549,11 +549,28 @@ namespace Space4X.Headless
                 answer.Metrics["collision_events"] = eventCount;
                 answer.Metrics["collision_probes"] = stats.CollisionProbeCount;
                 answer.Metrics["phasing_count"] = signals.CountBlackCats("COLLISION_PHASING");
+                answer.Metrics["collision_proof_pass"] = signals.GetMetricOrDefault("space4x.collision.proof_pass");
+                answer.Metrics["collision_proof_fail"] = signals.GetMetricOrDefault("space4x.collision.proof_fail");
+                answer.Metrics["collision_proof_reason"] = signals.GetMetricOrDefault("space4x.collision.proof_reason");
 
                 if (signals.HasBlackCat("COLLISION_PHASING"))
                 {
                     answer.Status = Space4XQuestionStatus.Fail;
                     answer.Answer = "overlap persisted without collision response";
+                    return answer;
+                }
+
+                if (answer.Metrics["collision_proof_pass"] > 0.5f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = "collision proof passed";
+                    return answer;
+                }
+
+                if (answer.Metrics["collision_proof_fail"] > 0.5f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "collision proof failed";
                     return answer;
                 }
 

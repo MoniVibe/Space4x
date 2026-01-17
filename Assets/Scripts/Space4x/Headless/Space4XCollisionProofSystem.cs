@@ -243,6 +243,7 @@ namespace Space4X.Headless
             _done = 1;
             UnityDebug.Log($"[Space4XCollisionProof] PASS tick={tick} carriers={(hasCarrier ? 1 : 0)} asteroids={(hasAsteroid ? 1 : 0)} eps={PenetrationEpsilon:F2}");
             LogBankResult(ref state, true, "pass", tick);
+            EmitCollisionProofMetrics(ref state, pass: true, reasonCode: 0);
             ExitIfRequested(ref state, tick, 0);
         }
 
@@ -251,6 +252,7 @@ namespace Space4X.Headless
             _done = 1;
             UnityDebug.LogError($"[Space4XCollisionProof] FAIL tick={tick} reason={reason} carrier={carrierPos} asteroid={asteroidPos} eps={PenetrationEpsilon:F2}");
             LogBankResult(ref state, false, reason, tick);
+            EmitCollisionProofMetrics(ref state, pass: false, reasonCode: ResolveReasonCode(reason));
             ExitIfRequested(ref state, tick, 4);
         }
 
@@ -321,6 +323,58 @@ namespace Space4X.Headless
             scenarioTick = SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenario)
                 ? scenario.Tick
                 : 0u;
+        }
+
+        private static void EmitCollisionProofMetrics(ref SystemState state, bool pass, int reasonCode)
+        {
+            if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.collision.proof_pass"), pass ? 1f : 0f);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.collision.proof_fail"), pass ? 0f : 1f);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.collision.proof_reason"), reasonCode);
+        }
+
+        private static int ResolveReasonCode(string reason)
+        {
+            if (string.Equals(reason, "penetration", StringComparison.OrdinalIgnoreCase))
+            {
+                return 1;
+            }
+
+            if (string.Equals(reason, "missing", StringComparison.OrdinalIgnoreCase))
+            {
+                return 2;
+            }
+
+            return 0;
+        }
+
+        private static void AddOrUpdateMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                metric.Value = value;
+                buffer[i] = metric;
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorMetric
+            {
+                Key = key,
+                Value = value
+            });
         }
     }
 }
