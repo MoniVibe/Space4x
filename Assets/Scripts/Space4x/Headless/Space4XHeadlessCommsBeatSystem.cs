@@ -256,6 +256,10 @@ namespace Space4X.Headless
         {
             SnapshotStream(ref state);
             SnapshotDiagnostics(ref state);
+            if (_receivedCount == 0 && _diagTargetedDelivered > 0 && _sentCount > 0)
+            {
+                _receivedCount = (uint)math.min(_diagTargetedDelivered, _sentCount);
+            }
             var hasBlackCats = Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var blackCats);
 
             var classification = (byte)0;
