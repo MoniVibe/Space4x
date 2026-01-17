@@ -194,6 +194,7 @@ namespace Space4x.Scenario
 
             ApplyLegacyDisableTags(scenarioConfig.disableLegacyMining, scenarioConfig.disableLegacyPatrol);
             ApplySteeringStabilityBeatConfig(scenarioConfig.steeringStabilityBeat);
+            ApplySensorsBeatConfig(scenarioConfig.sensorsBeat);
         }
 
         private void ApplySteeringStabilityBeatConfig(SteeringStabilityBeatConfigData beat)
@@ -219,6 +220,41 @@ namespace Space4x.Scenario
                 HoldCarrierMiningIntent = (byte)(beat.holdCarrierMiningIntent ? 1 : 0),
                 Initialized = 0,
                 Completed = 0
+            });
+        }
+
+        private void ApplySensorsBeatConfig(SensorsBeatConfigData beat)
+        {
+            if (beat == null ||
+                string.IsNullOrWhiteSpace(beat.observerCarrierId) ||
+                string.IsNullOrWhiteSpace(beat.targetCarrierId))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XSensorsBeatConfig>(out var entity))
+            {
+                entity = EntityManager.CreateEntity(typeof(Space4XSensorsBeatConfig));
+            }
+
+            EntityManager.SetComponentData(entity, new Space4XSensorsBeatConfig
+            {
+                ObserverCarrierId = new FixedString64Bytes(beat.observerCarrierId),
+                TargetCarrierId = new FixedString64Bytes(beat.targetCarrierId),
+                AcquireStartSeconds = math.max(0f, beat.acquireStart_s),
+                AcquireDurationSeconds = math.max(0f, beat.acquireDuration_s),
+                DropStartSeconds = math.max(0f, beat.dropStart_s),
+                DropDurationSeconds = math.max(0f, beat.dropDuration_s),
+                ObserverRange = math.max(0f, beat.observerRange),
+                ObserverUpdateInterval = math.max(0f, beat.observerUpdateInterval),
+                ObserverMaxTrackedTargets = (byte)math.clamp(beat.observerMaxTrackedTargets > 0 ? beat.observerMaxTrackedTargets : 12, 1, 255),
+                SensorsEnsured = 0,
+                Initialized = 0,
+                Completed = 0,
+                AcquireStartTick = 0u,
+                AcquireEndTick = 0u,
+                DropStartTick = 0u,
+                DropEndTick = 0u
             });
         }
 
@@ -2150,6 +2186,7 @@ namespace Space4x.Scenario
         public bool disableLegacyMining;
         public bool disableLegacyPatrol;
         public SteeringStabilityBeatConfigData steeringStabilityBeat;
+        public SensorsBeatConfigData sensorsBeat;
     }
 
     [System.Serializable]
@@ -2161,6 +2198,20 @@ namespace Space4x.Scenario
         public float settle_s;
         public float measure_s;
         public bool holdCarrierMiningIntent;
+    }
+
+    [System.Serializable]
+    public class SensorsBeatConfigData
+    {
+        public string observerCarrierId;
+        public string targetCarrierId;
+        public float acquireStart_s;
+        public float acquireDuration_s;
+        public float dropStart_s;
+        public float dropDuration_s;
+        public float observerRange;
+        public float observerUpdateInterval;
+        public int observerMaxTrackedTargets;
     }
 
     [System.Serializable]

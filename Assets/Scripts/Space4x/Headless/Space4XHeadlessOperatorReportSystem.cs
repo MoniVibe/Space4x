@@ -107,7 +107,8 @@ namespace Space4X.Headless
                     var metric = operatorMetrics[i];
                     var key = metric.Key.ToString();
                     if (!key.StartsWith("space4x.steer.", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase))
+                        !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase) &&
+                        !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -122,7 +123,8 @@ namespace Space4X.Headless
                     var metric = telemetryMetrics[i];
                     var key = metric.Key.ToString();
                     if (!key.StartsWith("space4x.steer.", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase))
+                        !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase) &&
+                        !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -190,6 +192,34 @@ namespace Space4X.Headless
                 AppendFloat(ref innerFirst, sb, "avg_speed", cat.MetricB);
                 AppendFloat(ref innerFirst, sb, "speed_gate_threshold", cat.MetricC);
                 AppendFloat(ref innerFirst, sb, "speed_gate_samples", cat.MetricD);
+            }
+            else if (cat.Id.Equals(new FixedString64Bytes("SENSORS_BEAT_SKIPPED")))
+            {
+                AppendFloat(ref innerFirst, sb, "sample_count", cat.MetricA);
+                AppendFloat(ref innerFirst, sb, "acquire_samples", cat.MetricB);
+                AppendFloat(ref innerFirst, sb, "drop_samples", cat.MetricC);
+                AppendFloat(ref innerFirst, sb, "reason_code", cat.MetricD);
+            }
+            else if (cat.Id.Equals(new FixedString64Bytes("PERCEPTION_STALE")))
+            {
+                AppendFloat(ref innerFirst, sb, "stale_samples", cat.MetricA);
+                AppendFloat(ref innerFirst, sb, "max_ticks_since_update", cat.MetricB);
+                AppendFloat(ref innerFirst, sb, "expected_update_ticks", cat.MetricC);
+                AppendFloat(ref innerFirst, sb, "acquire_detected_ratio", cat.MetricD);
+            }
+            else if (cat.Id.Equals(new FixedString64Bytes("CONTACT_GHOST")))
+            {
+                AppendFloat(ref innerFirst, sb, "drop_detected", cat.MetricA);
+                AppendFloat(ref innerFirst, sb, "drop_samples", cat.MetricB);
+                AppendFloat(ref innerFirst, sb, "drop_detected_ratio", cat.MetricC);
+                AppendFloat(ref innerFirst, sb, "toggle_count", cat.MetricD);
+            }
+            else if (cat.Id.Equals(new FixedString64Bytes("CONTACT_THRASH")))
+            {
+                AppendFloat(ref innerFirst, sb, "toggle_count", cat.MetricA);
+                AppendFloat(ref innerFirst, sb, "acquire_detected", cat.MetricB);
+                AppendFloat(ref innerFirst, sb, "drop_detected", cat.MetricC);
+                AppendFloat(ref innerFirst, sb, "sample_count", cat.MetricD);
             }
             else if (cat.Id.Equals(new FixedString64Bytes("UNDOCK_BEAT_SKIPPED")))
             {
@@ -445,6 +475,34 @@ namespace Space4X.Headless
             if (cat.Id.Equals(new FixedString64Bytes("STEERING_BEAT_LOW_SPEED")))
             {
                 return "predicate_not_applicable";
+            }
+
+            if (cat.Id.Equals(new FixedString64Bytes("SENSORS_BEAT_SKIPPED")))
+            {
+                return cat.Classification switch
+                {
+                    1 => "observer_missing",
+                    2 => "target_missing",
+                    3 => "sense_missing",
+                    4 => "perceived_buffer_missing",
+                    5 => "no_samples",
+                    _ => "skipped"
+                };
+            }
+
+            if (cat.Id.Equals(new FixedString64Bytes("PERCEPTION_STALE")))
+            {
+                return cat.Classification == 1 ? "update_lag" : "acquire_miss";
+            }
+
+            if (cat.Id.Equals(new FixedString64Bytes("CONTACT_GHOST")))
+            {
+                return "ghost_detected";
+            }
+
+            if (cat.Id.Equals(new FixedString64Bytes("CONTACT_THRASH")))
+            {
+                return "contact_thrash";
             }
 
             if (cat.Id.Equals(new FixedString64Bytes("UNDOCK_BEAT_SKIPPED")))
