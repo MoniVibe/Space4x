@@ -54,6 +54,7 @@ namespace Space4X.Headless
         private uint _eligibleSampleCount;
         private uint _speedGateSampleCount;
         private float _speedSum;
+        private float _maxSpeed;
         private float _lastSpeedGateThreshold;
         private uint _measureStartTick;
         private uint _measureEndTick;
@@ -237,6 +238,7 @@ namespace Space4X.Headless
             if (_movementLookup.HasComponent(ship))
             {
                 _speedSum += _movementLookup[ship].CurrentSpeed;
+                _maxSpeed = math.max(_maxSpeed, _movementLookup[ship].CurrentSpeed);
             }
             if (speedEligible)
             {
@@ -386,6 +388,7 @@ namespace Space4X.Headless
                 return;
             }
 
+            var speedGateCoverage = _sampleCount > 0 ? (float)_eligibleSampleCount / _sampleCount : 0f;
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.heading_error_max_deg"), _maxHeadingErrorDeg);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.yaw_rate_max_deg_s"), _maxYawRateDeg);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.sign_flips_per_10s"), flipsPer10s);
@@ -396,7 +399,9 @@ namespace Space4X.Headless
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.eligible_samples"), _eligibleSampleCount);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.speed_gate_samples"), _speedGateSampleCount);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.speed_gate_threshold"), _lastSpeedGateThreshold);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.speed_gate_coverage"), speedGateCoverage);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.avg_speed"), avgSpeed);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.steer.max_speed"), _maxSpeed);
         }
 
         private void EmitTelemetrySummary(
@@ -412,6 +417,7 @@ namespace Space4X.Headless
                 return;
             }
 
+            var speedGateCoverage = _sampleCount > 0 ? (float)_eligibleSampleCount / _sampleCount : 0f;
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
             buffer.AddMetric("space4x.steer.heading_error_max_deg", _maxHeadingErrorDeg, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.steer.yaw_rate_max_deg_s", _maxYawRateDeg, TelemetryMetricUnit.Custom);
@@ -423,7 +429,9 @@ namespace Space4X.Headless
             buffer.AddMetric("space4x.steer.eligible_samples", _eligibleSampleCount, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.steer.speed_gate_samples", _speedGateSampleCount, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.steer.speed_gate_threshold", _lastSpeedGateThreshold, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.steer.speed_gate_coverage", speedGateCoverage, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.steer.avg_speed", avgSpeed, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.steer.max_speed", _maxSpeed, TelemetryMetricUnit.Custom);
         }
 
         private static void AddOrUpdateMetric(
@@ -597,6 +605,7 @@ namespace Space4X.Headless
             _eligibleSampleCount = 0;
             _speedGateSampleCount = 0;
             _speedSum = 0f;
+            _maxSpeed = 0f;
             _lastSpeedGateThreshold = 0f;
             _hasLastHeading = 0;
             _hasLastSteeringSign = 0;

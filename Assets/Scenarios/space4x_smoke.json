@@ -830,11 +830,11 @@
       "description": "Echo bombers engage the probing hostiles"
     },
     {
-      "time_s": 60,
+      "time_s": 50,
       "kind": "MoveFleet",
       "fleetId": "NEUTRAL-URSA",
       "targetPosition": [-400, 260],
-      "description": "Steering stability beat: neutral fleet holds a steady heading"
+      "description": "Steering stability beat: neutral fleet starts steady cruise before measurement"
     }
   ],
   "telemetryExpectations": {
