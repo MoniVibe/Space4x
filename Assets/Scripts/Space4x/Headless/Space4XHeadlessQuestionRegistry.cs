@@ -250,6 +250,7 @@ namespace Space4X.Headless
         public const string CollisionResponse = "space4x.q.collision.response_present";
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
+        public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -283,7 +284,8 @@ namespace Space4X.Headless
             new MiningProgressQuestion(),
             new CollisionResponseQuestion(),
             new SensorsAcquireDropQuestion(),
-            new CommsDeliveryQuestion()
+            new CommsDeliveryQuestion(),
+            new CommsDeliveryBlockedQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -744,6 +746,76 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"sent={sent:0} received={received:0} delivery_ratio={deliveryRatio:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CommsDeliveryBlockedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CommsDeliveryBlocked;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var sent = signals.GetMetricOrDefault("space4x.comms.sent");
+                var emitted = signals.GetMetricOrDefault("space4x.comms.emitted");
+                var received = signals.GetMetricOrDefault("space4x.comms.received");
+                var blockedReason = signals.GetMetricOrDefault("space4x.comms.blocked_reason");
+                var wrongTransport = signals.GetMetricOrDefault("space4x.comms.diag.targeted_wrong_transport");
+
+                answer.Metrics["sent"] = sent;
+                answer.Metrics["emitted"] = emitted;
+                answer.Metrics["received"] = received;
+                answer.Metrics["blocked_reason"] = blockedReason;
+                answer.Metrics["wrong_transport"] = wrongTransport;
+
+                if (stats.HasCommsBeatConfig == 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "beat_absent";
+                    answer.Answer = "comms beat not configured";
+                    return answer;
+                }
+
+                if (signals.HasBlackCat("COMMS_BEAT_SKIPPED"))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "coverage_gap";
+                    answer.Answer = "comms beat skipped";
+                    return answer;
+                }
+
+                if (sent <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_messages_sent";
+                    answer.Answer = "no comms requests sent";
+                    return answer;
+                }
+
+                if (received > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"delivery_succeeded sent={sent:0} received={received:0}";
+                    return answer;
+                }
+
+                if (blockedReason <= 0f || blockedReason >= 7f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"delivery_not_blocked sent={sent:0} emitted={emitted:0} reason={blockedReason:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"blocked_reason={blockedReason:0} sent={sent:0} emitted={emitted:0}";
                 return answer;
             }
         }

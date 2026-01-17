@@ -23,6 +23,7 @@ namespace Space4X.Headless
         private const float OverlapRatio = 0.95f;
         private const float MinSeparationEpsilon = 0.05f;
 
+        private EntityQuery _collisionEventQuery;
         private EntityQuery _missingProbeQuery;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<SpaceColliderData> _colliderLookup;
@@ -44,6 +45,7 @@ namespace Space4X.Headless
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<Space4XScenarioRuntime>();
 
+            _collisionEventQuery = state.GetEntityQuery(ComponentType.ReadOnly<PhysicsCollisionEventElement>());
             _missingProbeQuery = state.GetEntityQuery(new EntityQueryDesc
             {
                 All = new[] { ComponentType.ReadOnly<MiningState>() },
@@ -246,10 +248,7 @@ namespace Space4X.Headless
 
         private void AccumulateCollisionEvents(ref SystemState state)
         {
-            using var query = SystemAPI.QueryBuilder()
-                .WithAll<PhysicsCollisionEventElement>()
-                .Build();
-            if (query.IsEmptyIgnoreFilter)
+            if (_collisionEventQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }

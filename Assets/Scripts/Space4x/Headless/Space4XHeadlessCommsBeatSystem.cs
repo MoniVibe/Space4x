@@ -19,6 +19,14 @@ namespace Space4X.Headless
     [UpdateAfter(typeof(PureDOTS.Systems.Comms.CommsTargetedMediumDeliverySystem))]
     public partial struct Space4XHeadlessCommsBeatSystem : ISystem
     {
+        private const byte BlockedReasonNone = 0;
+        private const byte BlockedReasonWrongTransport = 1;
+        private const byte BlockedReasonMissingConfig = 2;
+        private const byte BlockedReasonReceiverDisabled = 3;
+        private const byte BlockedReasonMissingInterrupt = 4;
+        private const byte BlockedReasonMissingSignal = 5;
+        private const byte BlockedReasonExpired = 6;
+        private const byte BlockedReasonNoEmission = 7;
         private Entity _sender;
         private Entity _receiver;
         private uint _startTick;
@@ -58,6 +66,7 @@ namespace Space4X.Headless
         private uint _diagTargetedMissingSignal;
         private uint _diagTargetedDuplicate;
         private uint _diagTargetedDelivered;
+        private byte _blockedReason;
 
         private ComponentLookup<Carrier> _carrierLookup;
         private BufferLookup<CommsMessage> _messageLookup;
@@ -260,6 +269,40 @@ namespace Space4X.Headless
             {
                 _receivedCount = (uint)math.min(_diagTargetedDelivered, _sentCount);
             }
+
+            _blockedReason = BlockedReasonNone;
+            if (_sentCount > 0 && _receivedCount == 0)
+            {
+                if (_diagTargetedWrongTransport > 0)
+                {
+                    _blockedReason = BlockedReasonWrongTransport;
+                }
+                else if (_diagTargetedMissingConfig > 0)
+                {
+                    _blockedReason = BlockedReasonMissingConfig;
+                }
+                else if (_diagTargetedReceiverDisabled > 0)
+                {
+                    _blockedReason = BlockedReasonReceiverDisabled;
+                }
+                else if (_diagTargetedMissingInterrupt > 0)
+                {
+                    _blockedReason = BlockedReasonMissingInterrupt;
+                }
+                else if (_diagTargetedMissingSignal > 0)
+                {
+                    _blockedReason = BlockedReasonMissingSignal;
+                }
+                else if (_diagTargetedExpired > 0)
+                {
+                    _blockedReason = BlockedReasonExpired;
+                }
+                else if (_emittedCount == 0)
+                {
+                    _blockedReason = BlockedReasonNoEmission;
+                }
+            }
+
             var hasBlackCats = Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var blackCats);
 
             var classification = (byte)0;
@@ -350,6 +393,7 @@ namespace Space4X.Headless
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.comms.diag.targeted_missing_signal"), _diagTargetedMissingSignal);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.comms.diag.targeted_duplicate"), _diagTargetedDuplicate);
             AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.comms.diag.targeted_delivered"), _diagTargetedDelivered);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.comms.blocked_reason"), _blockedReason);
         }
 
         private static void InitializeConfig(ref Space4XCommsBeatConfig config, uint startTick, float fixedDt)
