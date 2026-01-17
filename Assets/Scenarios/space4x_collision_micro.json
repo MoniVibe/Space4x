@@ -16,6 +16,12 @@
       { "id": "space4x.q.collision.response_present", "required": true }
     ]
   },
+  "stanceConfig": {
+    "balanced": {
+      "avoidanceRadius": 0.0,
+      "avoidanceStrength": 0.0
+    }
+  },
   "spawn": [
     {
       "kind": "Carrier",
