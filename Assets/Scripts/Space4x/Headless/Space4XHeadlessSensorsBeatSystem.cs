@@ -455,7 +455,7 @@ namespace Space4X.Headless
             return math.max(acquireEnd, dropEnd);
         }
 
-        private static Entity ResolveCarrier(FixedString64Bytes carrierId, ref SystemState state)
+        private Entity ResolveCarrier(FixedString64Bytes carrierId, ref SystemState state)
         {
             if (carrierId.IsEmpty)
             {
