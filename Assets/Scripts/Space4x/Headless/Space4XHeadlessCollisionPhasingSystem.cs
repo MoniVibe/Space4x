@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Time;
 using Space4X.Physics;
 using Space4X.Registry;
@@ -24,7 +25,7 @@ namespace Space4X.Headless
         private EntityQuery _missingProbeQuery;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<SpaceColliderData> _colliderLookup;
-        private BufferLookup<SpaceCollisionEvent> _collisionLookup;
+        private BufferLookup<PhysicsCollisionEventElement> _collisionLookup;
         private ComponentLookup<DockedTag> _dockedLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private byte _done;
@@ -48,7 +49,7 @@ namespace Space4X.Headless
 
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _colliderLookup = state.GetComponentLookup<SpaceColliderData>(true);
-            _collisionLookup = state.GetBufferLookup<SpaceCollisionEvent>(true);
+            _collisionLookup = state.GetBufferLookup<PhysicsCollisionEventElement>(true);
             _dockedLookup = state.GetComponentLookup<DockedTag>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
         }
@@ -180,7 +181,7 @@ namespace Space4X.Headless
                     continue;
                 }
 
-                if (evt.EventType == CollisionEventType.TriggerEnter || evt.EventType == CollisionEventType.TriggerExit)
+                if (evt.EventType == PhysicsCollisionEventType.TriggerEnter || evt.EventType == PhysicsCollisionEventType.TriggerExit)
                 {
                     continue;
                 }

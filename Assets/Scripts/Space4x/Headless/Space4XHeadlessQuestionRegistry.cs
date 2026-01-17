@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Space4X.Physics;
+using PureDOTS.Runtime.Physics;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Space4x.Scenario;
@@ -148,7 +148,7 @@ namespace Space4X.Headless
 
         private static int CountCollisionEvents(EntityManager entityManager)
         {
-            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<SpaceCollisionEvent>());
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<PhysicsCollisionEventElement>());
             if (query.IsEmptyIgnoreFilter)
             {
                 return 0;
@@ -156,7 +156,7 @@ namespace Space4X.Headless
 
             var count = 0;
             using var chunks = query.ToArchetypeChunkArray(Allocator.Temp);
-            var typeHandle = entityManager.GetBufferTypeHandle<SpaceCollisionEvent>(true);
+            var typeHandle = entityManager.GetBufferTypeHandle<PhysicsCollisionEventElement>(true);
             for (var i = 0; i < chunks.Length; i++)
             {
                 var bufferAccessor = chunks[i].GetBufferAccessor(typeHandle);
