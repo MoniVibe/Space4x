@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.AI;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Perception;
 using Space4X.Registry;
