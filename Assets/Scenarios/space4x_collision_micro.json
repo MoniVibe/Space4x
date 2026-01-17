@@ -61,8 +61,8 @@
       "time_s": 1,
       "kind": "MoveFleet",
       "fleetId": "COLLISION-ALPHA",
-      "targetPosition": [0, 0],
-      "description": "Carrier approaches asteroid for collision proof"
+      "targetPosition": [40, 0],
+      "description": "Carrier crosses asteroid for collision proof"
     }
   ]
 }
