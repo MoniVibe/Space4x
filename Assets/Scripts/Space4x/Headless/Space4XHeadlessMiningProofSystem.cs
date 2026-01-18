@@ -298,6 +298,7 @@ namespace Space4X.Headless
                 _rewindPass = 1;
                 _rewindObserved = oreDelta;
                 UnityDebug.Log($"[Space4XHeadlessMiningProof] PASS tick={timeState.Tick} gather={gatherCommands} pickup={pickupCommands} oreInHold={oreInHold:F2} oreDelta={oreDelta:F2} cargoSum={cargoSum:F2} vessels={vesselCount} returning={returningCount} mining={miningCount} spawns={spawnCount}");
+                EmitOperatorSummary(ref state, gatherCommands, pickupCommands, oreDelta, cargoDelta, (float)(SystemAPI.Time.ElapsedTime - _startElapsedTime), true);
                 ResolveTickInfo(ref state, timeState.Tick, out var tickTime, out var scenarioTick);
                 LogBankResult(ResolveBankTestId(), true, string.Empty, tickTime, scenarioTick);
                 TelemetryLoopProofUtility.Emit(state.EntityManager, timeState.Tick, TelemetryLoopIds.Extract, true, oreDelta, ExpectedDelta, DefaultTimeoutTicks, step: StepGatherDropoff);
@@ -334,6 +335,7 @@ namespace Space4X.Headless
                     oreDelta,
                     cargoDelta,
                     elapsedSeconds);
+                EmitOperatorSummary(ref state, gatherCommands, pickupCommands, oreDelta, cargoDelta, (float)elapsedSeconds, false);
                 Space4XHeadlessDiagnostics.ReportInvariant(
                     "INV-MINING-PROOF",
                     failMessage,
@@ -553,6 +555,53 @@ namespace Space4X.Headless
             }
 
             return (gather, pickup, (uint)buffer.Length);
+        }
+
+        private static void EmitOperatorSummary(
+            ref SystemState state,
+            uint gatherCommands,
+            uint pickupCommands,
+            float oreDelta,
+            float cargoDelta,
+            float elapsedSeconds,
+            bool pass)
+        {
+            if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.mining.gather_commands"), gatherCommands);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.mining.pickup_commands"), pickupCommands);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.mining.ore_delta"), oreDelta);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.mining.cargo_delta"), cargoDelta);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.mining.elapsed_s"), elapsedSeconds);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.mining.pass"), pass ? 1f : 0f);
+        }
+
+        private static void AddOrUpdateMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                metric.Value = value;
+                buffer[i] = metric;
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorMetric
+            {
+                Key = key,
+                Value = value
+            });
         }
 
     }
