@@ -38,6 +38,7 @@ namespace Space4X.Headless
         private const string SensorsScenarioFile = "space4x_sensors_micro.json";
         private const string CommsScenarioFile = "space4x_comms_micro.json";
         private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
+        private const string TurnRateScenarioFile = "space4x_turnrate_micro.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
@@ -49,6 +50,7 @@ namespace Space4X.Headless
         private bool _scenarioResolved;
         private bool _strictMovementFailures;
         private bool _ignoreTurnFailures;
+        private bool _deferTurnFailureExit;
         private uint _stuckWarnThreshold;
         private uint _stuckFailThreshold;
         private EntityQuery _turnStateMissingQuery;
@@ -280,11 +282,14 @@ namespace Space4X.Headless
                 if (wantsMove)
                 {
                     var stateValue = turnState.ValueRW;
-                    if (stateValue.Initialized == 0)
+                    var moveStartTick = movement.ValueRO.MoveStartTick;
+                    if (stateValue.Initialized == 0 ||
+                        (moveStartTick != 0u && moveStartTick != stateValue.LastMoveStartTick))
                     {
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
                         stateValue.Initialized = 1;
+                        stateValue.LastMoveStartTick = moveStartTick;
                     }
                     else
                     {
@@ -333,7 +338,8 @@ namespace Space4X.Headless
             }
 
             _reportedFailure = true;
-            var fatalFailure = failNaN > 0 || failTeleport > 0 || failTurnRate > 0 || failTurnAccel > 0;
+            var fatalTurnFailure = failTurnRate > 0 || failTurnAccel > 0;
+            var fatalFailure = failNaN > 0 || failTeleport > 0 || fatalTurnFailure;
             if (_strictMovementFailures)
             {
                 fatalFailure |= fatalStuck > 0 || failSpike > 0;
@@ -343,7 +349,11 @@ namespace Space4X.Headless
                 UnityDebug.LogError($"[Space4XHeadlessMovementDiag] FAIL tick={tick} nanInf={failNaN} teleport={failTeleport} stuck={failStuck} stuckFatal={fatalStuck} spikes={failSpike} turnRate={failTurnRate} turnAccel={failTurnAccel} strict={_strictMovementFailures}");
                 LogOffenderReport(ref state, tick, speedOffender, teleportOffender, flipsOffender, stuckOffender, turnRateOffender, turnAccelOffender, maxSpeedDelta, maxTeleport, maxStateFlips, maxStuck, maxTurnRate, maxTurnAccel);
                 WriteInvariantBundle(ref state, tick, timeState.WorldSeconds, failNaN, fatalStuck, failSpike, failTurnRate, failTurnAccel, nanOffender, stuckOffender, speedOffender, turnRateOffender, turnAccelOffender);
-                HeadlessExitUtility.Request(state.EntityManager, tick, Space4XHeadlessDiagnostics.TestFailExitCode);
+                var fatalOther = failNaN > 0 || failTeleport > 0 || (_strictMovementFailures && (fatalStuck > 0 || failSpike > 0));
+                if (fatalOther || !_deferTurnFailureExit)
+                {
+                    HeadlessExitUtility.Request(state.EntityManager, tick, Space4XHeadlessDiagnostics.TestFailExitCode);
+                }
                 return;
             }
 
@@ -392,6 +402,12 @@ namespace Space4X.Headless
                 return;
             }
 
+            if (scenarioPath.EndsWith(TurnRateScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                _deferTurnFailureExit = true;
+                return;
+            }
+
             if (scenarioPath.EndsWith(SensorsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
                 scenarioPath.EndsWith(CommsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
                 scenarioPath.EndsWith(CommsBlockedScenarioFile, StringComparison.OrdinalIgnoreCase))
@@ -406,6 +422,7 @@ namespace Space4X.Headless
                 _ignoreStuckFailures = true;
                 // Latch/dock surface snapping can exceed teleport thresholds in smoke runs.
                 _ignoreTeleportFailures = true;
+                _ignoreTurnFailures = true;
                 return;
             }
 

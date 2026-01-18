@@ -165,6 +165,7 @@ namespace Space4X.Headless
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
+        public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -188,7 +189,8 @@ namespace Space4X.Headless
         {
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
-            new CommsDeliveryBlockedQuestion()
+            new CommsDeliveryBlockedQuestion(),
+            new MovementTurnRateBoundsQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -485,6 +487,44 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"blocked_reason={blockedReason:0} sent={sent:0} emitted={emitted:0}";
+                return answer;
+            }
+        }
+
+        private sealed class MovementTurnRateBoundsQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.MovementTurnRateBounds;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!Space4XHeadlessDiagnostics.Enabled)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "diagnostics_disabled";
+                    answer.Answer = "headless diagnostics disabled";
+                    return answer;
+                }
+
+                var hasFailures = Space4XHeadlessDiagnostics.HasInvariantFailures;
+                answer.Metrics["has_invariant_failures"] = hasFailures ? 1f : 0f;
+
+                if (hasFailures)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "movement invariant failures detected";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = "no movement invariants";
                 return answer;
             }
         }

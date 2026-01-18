@@ -1,0 +1,66 @@
+{
+  "seed": 771,
+  "duration_s": 40,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.movement.turnrate_bounds",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "turnrate-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "TURN-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2,
+      "kind": "MoveFleet",
+      "fleetId": "TURN-ALPHA",
+      "targetPosition": [120, 0],
+      "description": "Cruise east"
+    },
+    {
+      "time_s": 12,
+      "kind": "MoveFleet",
+      "fleetId": "TURN-ALPHA",
+      "targetPosition": [0, 120],
+      "description": "Turn north"
+    },
+    {
+      "time_s": 22,
+      "kind": "MoveFleet",
+      "fleetId": "TURN-ALPHA",
+      "targetPosition": [-120, 0],
+      "description": "Turn west"
+    }
+  ]
+}
