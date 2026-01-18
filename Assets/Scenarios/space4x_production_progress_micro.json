@@ -1,0 +1,59 @@
+{
+  "seed": 1201,
+  "duration_s": 90,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.production.chain_progress",
+        "required": true
+      },
+      {
+        "id": "space4x.q.production.stall_classified",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "prod-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "PROD-CARRIER",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "prod-miner-alpha",
+      "position": [12, 0],
+      "carrierId": "prod-carrier-alpha",
+      "resourceId": "Minerals",
+      "miningEfficiency": 1.0,
+      "speed": 8.0,
+      "cargoCapacity": 40.0
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "prod-asteroid-alpha",
+      "position": [60, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 200.0,
+      "gatherRatePerWorker": 6.0,
+      "maxSimultaneousWorkers": 1
+    }
+  ]
+}

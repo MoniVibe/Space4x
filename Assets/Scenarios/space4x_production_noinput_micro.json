@@ -1,0 +1,46 @@
+{
+  "seed": 1207,
+  "duration_s": 60,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.production.stall_classified",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "prod-carrier-noinput",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "PROD-NOINPUT",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "prod-miner-noinput",
+      "position": [12, 0],
+      "carrierId": "prod-carrier-noinput",
+      "resourceId": "Minerals",
+      "miningEfficiency": 1.0,
+      "speed": 8.0,
+      "cargoCapacity": 40.0
+    }
+  ]
+}
