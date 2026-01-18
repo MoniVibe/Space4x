@@ -406,6 +406,8 @@ namespace Space4X.Headless
                 _ignoreStuckFailures = true;
                 // Latch/dock surface snapping can exceed teleport thresholds in smoke runs.
                 _ignoreTeleportFailures = true;
+                // Keep strict turn gating in the dedicated turnrate micro, not smoke.
+                _ignoreTurnFailures = true;
                 return;
             }
 
