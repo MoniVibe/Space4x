@@ -1,0 +1,36 @@
+{
+  "seed": 1313,
+  "duration_s": 40,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.ledger.delta_expected",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "ledger-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "LEDGER-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    }
+  ]
+}
