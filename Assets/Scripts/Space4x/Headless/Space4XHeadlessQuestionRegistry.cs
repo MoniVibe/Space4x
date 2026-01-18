@@ -195,6 +195,8 @@ namespace Space4X.Headless
     {
         public const string QuestionsEmitted = "space4x.q.meta.questions_emitted";
         public const string BlackCatsMapped = "space4x.q.meta.blackcats_mapped";
+        public const string ProductionChainProgress = "space4x.q.production.chain_progress";
+        public const string ProductionStallClassified = "space4x.q.production.stall_classified";
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
@@ -221,6 +223,8 @@ namespace Space4X.Headless
         {
             new QuestionsEmittedQuestion(),
             new BlackCatsMappedQuestion(),
+            new ProductionChainProgressQuestion(),
+            new ProductionStallClassifiedQuestion(),
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion()
@@ -452,6 +456,104 @@ namespace Space4X.Headless
                 answer.Answer = $"mapped={mappedCount} evidence={mappedWithEvidence}";
                 return answer;
             }
+        }
+
+        private sealed class ProductionChainProgressQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ProductionChainProgress;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.production.chain_progress_count", out var progressCount))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "chain_progress_count missing";
+                    return answer;
+                }
+
+                var progressDelta = signals.GetMetricOrDefault("space4x.production.chain_progress_delta");
+                answer.Metrics["chain_progress_count"] = progressCount;
+                answer.Metrics["chain_progress_delta"] = progressDelta;
+
+                if (progressCount > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"progress_count={progressCount:0} delta={progressDelta:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"progress_count={progressCount:0} delta={progressDelta:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class ProductionStallClassifiedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ProductionStallClassified;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.production.stall_reason", out var reason) ||
+                    !signals.TryGetMetric("space4x.production.expected_stall_reason", out var expected))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "stall metrics missing";
+                    return answer;
+                }
+
+                answer.Metrics["stall_reason"] = reason;
+                answer.Metrics["expected_stall_reason"] = expected;
+
+                if ((int)reason == 3)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "stall_unknown";
+                    answer.Answer = $"stall_reason={ResolveProductionStallReason(reason)}";
+                    return answer;
+                }
+
+                if ((int)reason == (int)expected)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"stall_reason={ResolveProductionStallReason(reason)} expected={ResolveProductionStallReason(expected)}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"stall_reason={ResolveProductionStallReason(reason)} expected={ResolveProductionStallReason(expected)}";
+                return answer;
+            }
+        }
+
+        private static string ResolveProductionStallReason(float value)
+        {
+            return (int)value switch
+            {
+                0 => "None",
+                1 => "NoInput",
+                2 => "NoStorage",
+                3 => "Unknown",
+                _ => "Unknown"
+            };
         }
 
         private sealed class CommsDeliveryQuestion : IHeadlessQuestion

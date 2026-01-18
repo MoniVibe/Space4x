@@ -1,0 +1,61 @@
+{
+  "seed": 1213,
+  "duration_s": 60,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.production.stall_classified",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "prod-carrier-nostorage",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {
+            "type": "Minerals",
+            "capacity": 0.0
+          }
+        ],
+        "Fleet": {
+          "fleetId": "PROD-NOSTORAGE",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "prod-miner-nostorage",
+      "position": [12, 0],
+      "carrierId": "prod-carrier-nostorage",
+      "resourceId": "Minerals",
+      "miningEfficiency": 1.0,
+      "speed": 8.0,
+      "cargoCapacity": 40.0
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "prod-asteroid-nostorage",
+      "position": [60, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 200.0,
+      "gatherRatePerWorker": 6.0,
+      "maxSimultaneousWorkers": 1
+    }
+  ]
+}
