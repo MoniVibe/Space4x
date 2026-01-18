@@ -614,7 +614,8 @@ namespace Space4X.Systems.AI
                 accelerationMultiplier *= math.lerp(1.1f, 0.85f, patience);
                 decelerationMultiplier *= math.lerp(0.95f, 1.15f, patience);
 
-                if (CarrierLookup.HasComponent(entity))
+                var isCarrier = CarrierLookup.HasComponent(entity);
+                if (isCarrier)
                 {
                     speedMultiplier *= MotionConfig.CapitalShipSpeedMultiplier;
                     rotationMultiplier *= MotionConfig.CapitalShipTurnMultiplier;
@@ -905,6 +906,10 @@ namespace Space4X.Systems.AI
                         var dt = math.max(DeltaTime, 1e-4f);
                         var maxAngularSpeed = math.PI * 4f;
                         var maxAngularAccel = math.PI * 8f;
+                        if (isCarrier)
+                        {
+                            maxAngularAccel *= MotionConfig.CapitalShipTurnMultiplier;
+                        }
                         var desiredAngularSpeed = math.min(maxAngularSpeed, angle * turnSpeed * rotationMultiplier);
                         desiredAngularSpeed = math.min(desiredAngularSpeed, angle / dt);
                         var maxDeltaSpeed = maxAngularAccel * dt;
