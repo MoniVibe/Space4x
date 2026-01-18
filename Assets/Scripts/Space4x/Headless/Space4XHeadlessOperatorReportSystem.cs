@@ -18,6 +18,7 @@ using SystemEnvironment = System.Environment;
 namespace Space4X.Headless
 {
     [UpdateInGroup(typeof(Unity.Entities.LateSimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XHeadlessReportSystem))]
     public partial struct Space4XHeadlessOperatorReportSystem : ISystem
     {
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
@@ -58,11 +59,6 @@ namespace Space4X.Headless
 
         private static void WriteReport(ref SystemState state, in Space4XScenarioRuntime runtime)
         {
-            if (!Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var blackCats))
-            {
-                return;
-            }
-
             var outputDir = ResolveOutputDirectory(state.EntityManager);
             if (string.IsNullOrWhiteSpace(outputDir))
             {
@@ -81,7 +77,11 @@ namespace Space4X.Headless
             }
 
             var metrics = CollectOperatorMetrics(state.EntityManager);
-            var blackCatList = CopyBlackCats(blackCats);
+            var blackCatList = new List<Space4XOperatorBlackCat>();
+            if (Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var blackCats))
+            {
+                blackCatList = CopyBlackCats(blackCats);
+            }
             var signals = new Space4XOperatorSignals(metrics, blackCatList);
             var runtimeStats = Space4XOperatorRuntimeStats.Collect(state.EntityManager);
             var questionPack = CollectQuestionPack(state.EntityManager);

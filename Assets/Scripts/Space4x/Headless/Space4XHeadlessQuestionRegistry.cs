@@ -105,6 +105,37 @@ namespace Space4X.Headless
             return count;
         }
 
+        public int GetBlackCatCount()
+        {
+            return _blackCats?.Count ?? 0;
+        }
+
+        public void CountMappedBlackCats(out int mappedCount, out int mappedWithEvidence)
+        {
+            mappedCount = 0;
+            mappedWithEvidence = 0;
+            if (_blackCats == null || _blackCats.Count == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < _blackCats.Count; i++)
+            {
+                var cat = _blackCats[i];
+                var mapped = Space4XHeadlessQuestionIds.ResolveQuestionIdForBlackCatId(cat.Id.ToString());
+                if (string.Equals(mapped, Space4XHeadlessQuestionIds.Unknown, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                mappedCount++;
+                if (cat.Primary != Entity.Null || cat.Secondary != Entity.Null)
+                {
+                    mappedWithEvidence++;
+                }
+            }
+        }
+
         public List<Space4XQuestionEvidence> CollectEvidence(string questionId)
         {
             var evidence = new List<Space4XQuestionEvidence>();
@@ -162,6 +193,8 @@ namespace Space4X.Headless
 
     internal static class Space4XHeadlessQuestionIds
     {
+        public const string QuestionsEmitted = "space4x.q.meta.questions_emitted";
+        public const string BlackCatsMapped = "space4x.q.meta.blackcats_mapped";
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
@@ -186,6 +219,8 @@ namespace Space4X.Headless
     {
         private static readonly IHeadlessQuestion[] Questions =
         {
+            new QuestionsEmittedQuestion(),
+            new BlackCatsMappedQuestion(),
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion()
@@ -346,6 +381,75 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"acquire_ratio={acquireRatio:0.##} drop_ratio={dropRatio:0.##} toggles={toggleCount:0}";
+                return answer;
+            }
+        }
+
+        private sealed class QuestionsEmittedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.QuestionsEmitted;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                answer.Metrics["blackcats_total"] = signals.GetBlackCatCount();
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = "operator questions emitted";
+                return answer;
+            }
+        }
+
+        private sealed class BlackCatsMappedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.BlackCatsMapped;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var total = signals.GetBlackCatCount();
+                signals.CountMappedBlackCats(out var mappedCount, out var mappedWithEvidence);
+
+                answer.Metrics["blackcats_total"] = total;
+                answer.Metrics["blackcats_mapped"] = mappedCount;
+                answer.Metrics["blackcats_mapped_with_evidence"] = mappedWithEvidence;
+
+                if (total == 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = "no blackcats emitted";
+                    return answer;
+                }
+
+                if (mappedCount == 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no mapped question ids for blackcats";
+                    return answer;
+                }
+
+                if (mappedWithEvidence == 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "mapped blackcats missing evidence entities";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"mapped={mappedCount} evidence={mappedWithEvidence}";
                 return answer;
             }
         }

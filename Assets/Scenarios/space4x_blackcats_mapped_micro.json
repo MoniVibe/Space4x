@@ -1,0 +1,73 @@
+{
+  "seed": 1009,
+  "duration_s": 60,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "sensorsBeat": {
+      "observerCarrierId": "blackcat-carrier-alpha",
+      "targetCarrierId": "blackcat-carrier-bravo",
+      "acquireStart_s": 4,
+      "acquireDuration_s": 12,
+      "dropStart_s": 30,
+      "dropDuration_s": 20,
+      "observerRange": 300,
+      "observerUpdateInterval": 0.25,
+      "observerMaxTrackedTargets": 12
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.meta.blackcats_mapped",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "blackcat-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "BLACKCAT-OBS",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "blackcat-carrier-bravo",
+      "position": [200, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "BLACKCAT-TGT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ]
+}
