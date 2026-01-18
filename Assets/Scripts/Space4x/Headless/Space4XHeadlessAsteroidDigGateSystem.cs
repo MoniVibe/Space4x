@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Time;
 using Space4x.Scenario;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
@@ -20,7 +21,7 @@ namespace Space4X.Headless
         private const string SummaryFileName = "asteroid_dig_gate_summary.json";
 
         private byte _done;
-        private string _summaryPath;
+        private FixedString512Bytes _summaryPath;
 
         public void OnCreate(ref SystemState state)
         {
@@ -40,7 +41,7 @@ namespace Space4X.Headless
                 sessionDir = DefaultSessionDir;
             }
 
-            _summaryPath = Path.Combine(Path.GetFullPath(sessionDir), SummaryFileName);
+            _summaryPath = new FixedString512Bytes(Path.Combine(Path.GetFullPath(sessionDir), SummaryFileName));
         }
 
         public void OnUpdate(ref SystemState state)
@@ -85,14 +86,15 @@ namespace Space4X.Headless
 
         private void WriteFailureSummary(uint tick)
         {
-            if (string.IsNullOrWhiteSpace(_summaryPath))
+            if (_summaryPath.Length == 0)
             {
                 return;
             }
 
             try
             {
-                var dir = Path.GetDirectoryName(_summaryPath);
+                var summaryPath = _summaryPath.ToString();
+                var dir = Path.GetDirectoryName(summaryPath);
                 if (!string.IsNullOrWhiteSpace(dir))
                 {
                     Directory.CreateDirectory(dir);
@@ -100,7 +102,7 @@ namespace Space4X.Headless
 
                 var json = "{\"status\":\"FAIL\",\"reason\":\"NO_TERRAIN_DIG\",\"tick\":" +
                            tick.ToString(CultureInfo.InvariantCulture) + "}";
-                File.WriteAllText(_summaryPath, json);
+                File.WriteAllText(summaryPath, json);
             }
             catch
             {
