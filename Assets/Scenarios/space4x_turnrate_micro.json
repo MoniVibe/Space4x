@@ -1,0 +1,66 @@
+{
+  "seed": 1101,
+  "duration_s": 40,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.movement.turnrate_bounds",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "turnrate-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "TURN-FLEET",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2,
+      "kind": "MoveFleet",
+      "fleetId": "TURN-FLEET",
+      "targetPosition": [600, 0],
+      "description": "Accelerate forward"
+    },
+    {
+      "time_s": 12,
+      "kind": "MoveFleet",
+      "fleetId": "TURN-FLEET",
+      "targetPosition": [600, 600],
+      "description": "Execute 90-degree turn"
+    },
+    {
+      "time_s": 22,
+      "kind": "MoveFleet",
+      "fleetId": "TURN-FLEET",
+      "targetPosition": [0, 600],
+      "description": "Reverse turn"
+    }
+  ]
+}

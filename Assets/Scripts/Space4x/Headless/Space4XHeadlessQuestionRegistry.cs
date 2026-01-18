@@ -165,6 +165,7 @@ namespace Space4X.Headless
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
+        public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -188,7 +189,8 @@ namespace Space4X.Headless
         {
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
-            new CommsDeliveryBlockedQuestion()
+            new CommsDeliveryBlockedQuestion(),
+            new MovementTurnRateBoundsQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -485,6 +487,53 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"blocked_reason={blockedReason:0} sent={sent:0} emitted={emitted:0}";
+                return answer;
+            }
+        }
+
+        private sealed class MovementTurnRateBoundsQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.MovementTurnRateBounds;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var sampleCount = signals.GetMetricOrDefault("space4x.movement.turn_sample_count");
+                var turnRateFails = signals.GetMetricOrDefault("space4x.movement.turn_rate_failures");
+                var turnAccelFails = signals.GetMetricOrDefault("space4x.movement.turn_accel_failures");
+                var turnRateMax = signals.GetMetricOrDefault("space4x.movement.turn_rate_max");
+                var turnAccelMax = signals.GetMetricOrDefault("space4x.movement.turn_accel_max");
+
+                answer.Metrics["turn_sample_count"] = sampleCount;
+                answer.Metrics["turn_rate_failures"] = turnRateFails;
+                answer.Metrics["turn_accel_failures"] = turnAccelFails;
+                answer.Metrics["turn_rate_max"] = turnRateMax;
+                answer.Metrics["turn_accel_max"] = turnAccelMax;
+
+                if (sampleCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_samples";
+                    answer.Answer = "no turn samples recorded";
+                    return answer;
+                }
+
+                if (turnRateFails > 0f || turnAccelFails > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"turn_rate_failures={turnRateFails:0} turn_accel_failures={turnAccelFails:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"turn_rate_max={turnRateMax:0.##} turn_accel_max={turnAccelMax:0.##}";
                 return answer;
             }
         }

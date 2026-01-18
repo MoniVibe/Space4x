@@ -555,7 +555,7 @@ namespace Space4X.Systems.AI
                 var currentSpeedSq = currentSpeed * currentSpeed;
                 movement.CurrentSpeed = currentSpeed;
                 var startingMove = movement.IsMoving == 0;
-                if (startingMove)
+                if (startingMove || movement.MoveStartTick == 0)
                 {
                     movement.MoveStartTick = CurrentTick;
                 }
@@ -687,7 +687,13 @@ namespace Space4X.Systems.AI
                     };
 
                     speedMultiplier *= phaseSpeedMultiplier;
-                    rotationMultiplier *= math.lerp(1f, phaseSpeedMultiplier, 0.5f);
+                    var turnPhaseMultiplier = math.lerp(1f, phaseSpeedMultiplier, 0.5f);
+                    if (phase == MiningPhase.Undocking)
+                    {
+                        // Slow turn-in during undock to avoid angular accel spikes on low-speed drift.
+                        turnPhaseMultiplier *= math.max(0.1f, phaseSpeedMultiplier * phaseSpeedMultiplier);
+                    }
+                    rotationMultiplier *= turnPhaseMultiplier;
 
                     if ((phase == MiningPhase.Latching || phase == MiningPhase.Mining) && miningState.LatchSettleUntilTick > CurrentTick)
                     {
