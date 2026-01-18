@@ -1,0 +1,18 @@
+{
+  "scenarioId": "space4x.production.noinput_micro",
+  "seed": 4202,
+  "runTicks": 1800,
+  "enableEconomy": true,
+  "entityCounts": [
+    {
+      "registryId": "space4x.refinery",
+      "count": 1
+    }
+  ],
+  "headlessQuestions": [
+    {
+      "id": "space4x.q.production.stall_classified",
+      "required": true
+    }
+  ]
+}

@@ -157,6 +157,7 @@ namespace Space4X.Headless
     internal interface IHeadlessQuestion
     {
         string Id { get; }
+        bool IsDefault { get; }
         Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime);
     }
 
@@ -165,6 +166,8 @@ namespace Space4X.Headless
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
+        public const string ProductionChainProgress = "space4x.q.production.chain_progress";
+        public const string ProductionStallClassified = "space4x.q.production.stall_classified";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -188,7 +191,9 @@ namespace Space4X.Headless
         {
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
-            new CommsDeliveryBlockedQuestion()
+            new CommsDeliveryBlockedQuestion(),
+            new ProductionChainProgressQuestion(),
+            new ProductionStallClassifiedQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -221,7 +226,7 @@ namespace Space4X.Headless
                 for (var i = 0; i < Questions.Length; i++)
                 {
                     var question = Questions[i];
-                    if (question == null)
+                    if (question == null || !question.IsDefault)
                     {
                         continue;
                     }
@@ -288,6 +293,7 @@ namespace Space4X.Headless
         private sealed class SensorsAcquireDropQuestion : IHeadlessQuestion
         {
             public string Id => Space4XHeadlessQuestionIds.SensorsAcquireDrop;
+            public bool IsDefault => true;
 
             public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
             {
@@ -353,6 +359,7 @@ namespace Space4X.Headless
         private sealed class CommsDeliveryQuestion : IHeadlessQuestion
         {
             public string Id => Space4XHeadlessQuestionIds.CommsDelivery;
+            public bool IsDefault => true;
 
             public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
             {
@@ -422,6 +429,7 @@ namespace Space4X.Headless
         private sealed class CommsDeliveryBlockedQuestion : IHeadlessQuestion
         {
             public string Id => Space4XHeadlessQuestionIds.CommsDeliveryBlocked;
+            public bool IsDefault => true;
 
             public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
             {
@@ -485,6 +493,121 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"blocked_reason={blockedReason:0} sent={sent:0} emitted={emitted:0}";
+                return answer;
+            }
+        }
+
+        private sealed class ProductionChainProgressQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ProductionChainProgress;
+            public bool IsDefault => false;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var facilityCount = signals.GetMetricOrDefault("space4x.production.facility_count");
+                var jobCount = signals.GetMetricOrDefault("space4x.production.job_count");
+                var needRequests = signals.GetMetricOrDefault("space4x.production.need_request_count");
+                var outputIronIngot = signals.GetMetricOrDefault("space4x.production.output_iron_ingot");
+                var inputIronOre = signals.GetMetricOrDefault("space4x.production.input_iron_ore");
+
+                answer.Metrics["facility_count"] = facilityCount;
+                answer.Metrics["job_count"] = jobCount;
+                answer.Metrics["need_request_count"] = needRequests;
+                answer.Metrics["output_iron_ingot"] = outputIronIngot;
+                answer.Metrics["input_iron_ore"] = inputIronOre;
+
+                if (facilityCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "beat_absent";
+                    answer.Answer = "no processing facilities present";
+                    return answer;
+                }
+
+                if (outputIronIngot > 0.001f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"output_iron_ingot={outputIronIngot:0.##}";
+                    return answer;
+                }
+
+                if (needRequests > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"missing_inputs requests={needRequests:0}";
+                    return answer;
+                }
+
+                if (jobCount > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "jobs_in_progress";
+                    answer.Answer = $"jobs_in_progress={jobCount:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = "no output and no active jobs";
+                return answer;
+            }
+        }
+
+        private sealed class ProductionStallClassifiedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ProductionStallClassified;
+            public bool IsDefault => false;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var facilityCount = signals.GetMetricOrDefault("space4x.production.facility_count");
+                var needRequests = signals.GetMetricOrDefault("space4x.production.need_request_count");
+                var outputIronIngot = signals.GetMetricOrDefault("space4x.production.output_iron_ingot");
+
+                answer.Metrics["facility_count"] = facilityCount;
+                answer.Metrics["need_request_count"] = needRequests;
+                answer.Metrics["output_iron_ingot"] = outputIronIngot;
+
+                if (facilityCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "beat_absent";
+                    answer.Answer = "no processing facilities present";
+                    return answer;
+                }
+
+                if (needRequests > 0f && outputIronIngot <= 0.001f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"stall_missing_inputs requests={needRequests:0}";
+                    return answer;
+                }
+
+                if (outputIronIngot > 0.001f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "progressed";
+                    answer.Answer = $"output_iron_ingot={outputIronIngot:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = "no stall evidence";
                 return answer;
             }
         }

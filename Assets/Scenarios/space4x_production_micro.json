@@ -1,0 +1,18 @@
+{
+  "scenarioId": "space4x.production.micro",
+  "seed": 4201,
+  "runTicks": 1800,
+  "enableEconomy": true,
+  "entityCounts": [
+    {
+      "registryId": "registry.refinery.seeded",
+      "count": 1
+    }
+  ],
+  "headlessQuestions": [
+    {
+      "id": "space4x.q.production.chain_progress",
+      "required": true
+    }
+  ]
+}

@@ -81,6 +81,8 @@ namespace Space4X.Scenario
             var factorySubstring = new FixedString64Bytes("factory");
             var refineryExact = new FixedString64Bytes("space4x.refinery");
             var factoryExact = new FixedString64Bytes("space4x.factory");
+            var refinerySeededExact = new FixedString64Bytes("registry.refinery.seeded");
+            var refinerySeededSubstring = new FixedString64Bytes("refinery.seeded");
             var haulerSubstring = new FixedString64Bytes("hauler");
             var haulerExact = new FixedString64Bytes("registry.hauler");
 
@@ -114,10 +116,14 @@ namespace Space4X.Scenario
                 {
                     SpawnStations(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
                 }
+                else if (registryId.Equals(refinerySeededExact) || registryId.IndexOf(refinerySeededSubstring) >= 0)
+                {
+                    SpawnProcessingFacilities(ref state, ecb, spawnCenter, spawnRadius, count, ref random, seedInputs: true);
+                }
                 else if (registryId.Equals(refineryExact) || registryId.Equals(factoryExact) ||
                          registryId.IndexOf(refinerySubstring) >= 0 || registryId.IndexOf(factorySubstring) >= 0)
                 {
-                    SpawnProcessingFacilities(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnProcessingFacilities(ref state, ecb, spawnCenter, spawnRadius, count, ref random, seedInputs: false);
                 }
                 else if (registryId.Equals(haulerExact) || registryId.IndexOf(haulerSubstring) >= 0)
                 {
@@ -484,12 +490,13 @@ namespace Space4X.Scenario
             }
         }
 
-        private static void SpawnProcessingFacilities(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnProcessingFacilities(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random, bool seedInputs)
         {
             var inputId = new FixedString64Bytes("iron_ore");
             var outputId = new FixedString64Bytes("iron_ingot");
             var recipeId = new FixedString32Bytes("refine_iron_ingot");
             var storehouseLabel = new FixedString64Bytes("Refinery");
+            const float initialOre = 40f;
 
             for (int i = 0; i < count; i++)
             {
@@ -538,16 +545,28 @@ namespace Space4X.Scenario
                     OutputRate = 18f,
                     Label = storehouseLabel
                 });
+                var totalStored = seedInputs ? initialOre : 0f;
                 ecb.AddComponent(facility, new StorehouseInventory
                 {
-                    TotalStored = 0f,
+                    TotalStored = totalStored,
                     TotalCapacity = 400f,
                     ItemTypeCount = capacityBuffer.Length,
                     IsShredding = 0,
                     LastUpdateTick = 0
                 });
 
-                ecb.AddBuffer<StorehouseInventoryItem>(facility);
+                var items = ecb.AddBuffer<StorehouseInventoryItem>(facility);
+                if (seedInputs)
+                {
+                    items.Add(new StorehouseInventoryItem
+                    {
+                        ResourceTypeId = inputId,
+                        Amount = initialOre,
+                        Reserved = 0f,
+                        TierId = (byte)ResourceQualityTier.Unknown,
+                        AverageQuality = 0
+                    });
+                }
                 ecb.AddBuffer<StorehouseReservationItem>(facility);
                 ecb.AddComponent(facility, new StorehouseJobReservation
                 {
