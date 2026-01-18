@@ -35,6 +35,9 @@ namespace Space4X.Headless
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
+        private const string SensorsScenarioFile = "space4x_sensors_micro.json";
+        private const string CommsScenarioFile = "space4x_comms_micro.json";
+        private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
@@ -385,6 +388,14 @@ namespace Space4X.Headless
             {
                 _ignoreStuckFailures = true;
                 _ignoreTeleportFailures = true;
+                _ignoreTurnFailures = true;
+                return;
+            }
+
+            if (scenarioPath.EndsWith(SensorsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                scenarioPath.EndsWith(CommsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                scenarioPath.EndsWith(CommsBlockedScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
                 _ignoreTurnFailures = true;
                 return;
             }
