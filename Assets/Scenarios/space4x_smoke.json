@@ -1,6 +1,9 @@
 {
   "seed": 77,
   "duration_s": 150,
+  "proofs": {
+    "mining": false
+  },
   "spawn": [
     {
       "kind": "Carrier",
@@ -269,6 +272,5 @@
     }
   }
 }
-
 
 
