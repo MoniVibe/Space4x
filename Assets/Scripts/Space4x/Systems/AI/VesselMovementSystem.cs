@@ -555,7 +555,7 @@ namespace Space4X.Systems.AI
                 var currentSpeedSq = currentSpeed * currentSpeed;
                 movement.CurrentSpeed = currentSpeed;
                 var startingMove = movement.IsMoving == 0;
-                if (startingMove)
+                if (startingMove || movement.MoveStartTick == 0)
                 {
                     movement.MoveStartTick = CurrentTick;
                 }
@@ -614,7 +614,8 @@ namespace Space4X.Systems.AI
                 accelerationMultiplier *= math.lerp(1.1f, 0.85f, patience);
                 decelerationMultiplier *= math.lerp(0.95f, 1.15f, patience);
 
-                if (CarrierLookup.HasComponent(entity))
+                var isCarrier = CarrierLookup.HasComponent(entity);
+                if (isCarrier)
                 {
                     speedMultiplier *= MotionConfig.CapitalShipSpeedMultiplier;
                     rotationMultiplier *= MotionConfig.CapitalShipTurnMultiplier;
@@ -687,7 +688,13 @@ namespace Space4X.Systems.AI
                     };
 
                     speedMultiplier *= phaseSpeedMultiplier;
-                    rotationMultiplier *= math.lerp(1f, phaseSpeedMultiplier, 0.5f);
+                    var turnPhaseMultiplier = math.lerp(1f, phaseSpeedMultiplier, 0.5f);
+                    if (phase == MiningPhase.Undocking)
+                    {
+                        // Slow turn-in during undock to avoid angular accel spikes on low-speed drift.
+                        turnPhaseMultiplier *= math.max(0.1f, phaseSpeedMultiplier * phaseSpeedMultiplier);
+                    }
+                    rotationMultiplier *= turnPhaseMultiplier;
 
                     if ((phase == MiningPhase.Latching || phase == MiningPhase.Mining) && miningState.LatchSettleUntilTick > CurrentTick)
                     {
@@ -899,6 +906,10 @@ namespace Space4X.Systems.AI
                         var dt = math.max(DeltaTime, 1e-4f);
                         var maxAngularSpeed = math.PI * 4f;
                         var maxAngularAccel = math.PI * 8f;
+                        if (isCarrier)
+                        {
+                            maxAngularAccel *= MotionConfig.CapitalShipTurnMultiplier;
+                        }
                         var desiredAngularSpeed = math.min(maxAngularSpeed, angle * turnSpeed * rotationMultiplier);
                         desiredAngularSpeed = math.min(desiredAngularSpeed, angle / dt);
                         var maxDeltaSpeed = maxAngularAccel * dt;
