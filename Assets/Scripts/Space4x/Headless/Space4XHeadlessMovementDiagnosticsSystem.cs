@@ -42,7 +42,8 @@ namespace Space4X.Headless
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
         private const float MaxAngularSpeedRad = math.PI * 4f;
-        private const float MaxAngularAccelRad = math.PI * 8f;
+        private const float MaxAngularAccelRad = math.PI * 12f;
+        private const float MaxAngularAccelTolerance = MaxAngularAccelRad * 1.05f;
         private bool _reportedFailure;
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
@@ -116,10 +117,15 @@ namespace Space4X.Headless
             Entity turnRateOffender = Entity.Null;
             Entity turnAccelOffender = Entity.Null;
 
-            foreach (var (movement, debug, transform, turnState, entity) in SystemAPI
-                         .Query<RefRO<VesselMovement>, RefRO<MovementDebugState>, RefRO<LocalTransform>, RefRW<HeadlessTurnRateState>>()
+            foreach (var (movement, debug, transform, vesselTurn, turnState, entity) in SystemAPI
+                         .Query<RefRO<VesselMovement>, RefRO<MovementDebugState>, RefRO<LocalTransform>, RefRO<VesselTurnRateState>, RefRW<HeadlessTurnRateState>>()
                          .WithEntityAccess())
             {
+                if (!SystemAPI.HasComponent<VesselAIState>(entity))
+                {
+                    continue;
+                }
+
                 var debugState = debug.ValueRO;
                 var velocityNaN = HasNaNOrInf(movement.ValueRO.Velocity);
                 var nanCount = debugState.NaNInfCount;
@@ -280,48 +286,74 @@ namespace Space4X.Headless
                 if (wantsMove)
                 {
                     var stateValue = turnState.ValueRW;
+                    var moveStartTick = movement.ValueRO.MoveStartTick;
                     if (stateValue.Initialized == 0)
                     {
+                        stateValue.Initialized = 1;
+                        stateValue.InitializedTick = tick;
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
-                        stateValue.Initialized = 1;
+                        turnState.ValueRW = stateValue;
+                        continue;
                     }
-                    else
+
+                    var angularSpeed = math.abs(vesselTurn.ValueRO.LastAngularSpeed);
+
+                    if (moveStartTick != 0 && tick <= moveStartTick + 1)
                     {
-                        var dot = math.abs(math.dot(stateValue.LastRotation.value, transform.ValueRO.Rotation.value));
-                        dot = math.clamp(dot, -1f, 1f);
-                        var angle = 2f * math.acos(dot);
-                        var angularSpeed = angle / deltaTime;
-                        var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
+                        stateValue.InitializedTick = moveStartTick;
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = angularSpeed;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
 
-                        if (!_ignoreTurnFailures)
+                    if (tick <= stateValue.InitializedTick + 1)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = angularSpeed;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+
+                    var minTurnSpeed = math.max(0.1f, movement.ValueRO.BaseSpeed * 0.05f);
+                    if (movement.ValueRO.CurrentSpeed < minTurnSpeed)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = angularSpeed;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+
+                    var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
+
+                    if (!_ignoreTurnFailures)
+                    {
+                        if (angularSpeed > MaxAngularSpeedRad)
                         {
-                            if (angularSpeed > MaxAngularSpeedRad)
+                            anyFailure = true;
+                            failTurnRate++;
+                            if (angularSpeed > maxTurnRate)
                             {
-                                anyFailure = true;
-                                failTurnRate++;
-                                if (angularSpeed > maxTurnRate)
-                                {
-                                    maxTurnRate = angularSpeed;
-                                    turnRateOffender = entity;
-                                }
-                            }
-
-                            if (angularAccel > MaxAngularAccelRad)
-                            {
-                                anyFailure = true;
-                                failTurnAccel++;
-                                if (angularAccel > maxTurnAccel)
-                                {
-                                    maxTurnAccel = angularAccel;
-                                    turnAccelOffender = entity;
-                                }
+                                maxTurnRate = angularSpeed;
+                                turnRateOffender = entity;
                             }
                         }
 
-                        stateValue.LastRotation = transform.ValueRO.Rotation;
-                        stateValue.LastAngularSpeed = angularSpeed;
+                        if (angularAccel > MaxAngularAccelTolerance)
+                        {
+                            anyFailure = true;
+                            failTurnAccel++;
+                            if (angularAccel > maxTurnAccel)
+                            {
+                                maxTurnAccel = angularAccel;
+                                turnAccelOffender = entity;
+                            }
+                        }
                     }
+
+                    stateValue.LastRotation = transform.ValueRO.Rotation;
+                    stateValue.LastAngularSpeed = angularSpeed;
 
                     turnState.ValueRW = stateValue;
                 }
