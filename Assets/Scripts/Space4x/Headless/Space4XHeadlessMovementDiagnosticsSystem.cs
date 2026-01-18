@@ -45,7 +45,7 @@ namespace Space4X.Headless
         private const uint TeleportFailureThreshold = 1;
         private const float MaxAngularSpeedRad = math.PI * 4f;
         private const float MaxAngularAccelRad = math.PI * 8f;
-        private const float TurnSpeedMin = 0.5f;
+        private const float TurnSpeedMin = 0.35f;
         private bool _reportedFailure;
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
@@ -299,8 +299,12 @@ namespace Space4X.Headless
                     }
                 }
 
-                var speedSq = math.lengthsq(movement.ValueRO.Velocity);
-                var wantsMove = speedSq > (TurnSpeedMin * TurnSpeedMin);
+                var speed = movement.ValueRO.CurrentSpeed;
+                if (speed <= 0f)
+                {
+                    speed = math.length(movement.ValueRO.Velocity);
+                }
+                var wantsMove = movement.ValueRO.IsMoving != 0 && speed >= TurnSpeedMin;
                 if (wantsMove)
                 {
                     var stateValue = turnState.ValueRW;
