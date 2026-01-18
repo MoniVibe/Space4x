@@ -4,6 +4,7 @@ using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Space4X.Headless
 {
@@ -195,6 +196,11 @@ namespace Space4X.Headless
     {
         public const string QuestionsEmitted = "space4x.q.meta.questions_emitted";
         public const string BlackCatsMapped = "space4x.q.meta.blackcats_mapped";
+        public const string OrdersCommandConsumed = "space4x.q.orders.command_consumed";
+        public const string OrdersStateTransition = "space4x.q.orders.state_transition";
+        public const string OrdersRejectReason = "space4x.q.orders.reject_reason";
+        public const string LedgerDeltaExpected = "space4x.q.ledger.delta_expected";
+        public const string DiscoveryEventFired = "space4x.q.discovery.event_fired";
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
@@ -221,6 +227,11 @@ namespace Space4X.Headless
         {
             new QuestionsEmittedQuestion(),
             new BlackCatsMappedQuestion(),
+            new OrdersCommandConsumedQuestion(),
+            new OrdersStateTransitionQuestion(),
+            new OrdersRejectReasonQuestion(),
+            new LedgerDeltaExpectedQuestion(),
+            new DiscoveryEventFiredQuestion(),
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion()
@@ -452,6 +463,211 @@ namespace Space4X.Headless
                 answer.Answer = $"mapped={mappedCount} evidence={mappedWithEvidence}";
                 return answer;
             }
+        }
+
+        private sealed class OrdersCommandConsumedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.OrdersCommandConsumed;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.orders.command_consumed", out var consumed))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "command_consumed missing";
+                    return answer;
+                }
+
+                answer.Metrics["command_consumed"] = consumed;
+                if (consumed > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = "command consumed";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = "command not consumed";
+                return answer;
+            }
+        }
+
+        private sealed class OrdersStateTransitionQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.OrdersStateTransition;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.orders.state_transition_count", out var transitions))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "state_transition_count missing";
+                    return answer;
+                }
+
+                answer.Metrics["state_transition_count"] = transitions;
+                if (transitions > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"state_transitions={transitions:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = "no state transition observed";
+                return answer;
+            }
+        }
+
+        private sealed class OrdersRejectReasonQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.OrdersRejectReason;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.orders.reject_reason", out var reason) ||
+                    !signals.TryGetMetric("space4x.orders.expected_reject_reason", out var expected))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "reject metrics missing";
+                    return answer;
+                }
+
+                answer.Metrics["reject_reason"] = reason;
+                answer.Metrics["expected_reject_reason"] = expected;
+                if ((int)reason == (int)expected)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"reject_reason={ResolveOrderRejectReason(reason)} expected={ResolveOrderRejectReason(expected)}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"reject_reason={ResolveOrderRejectReason(reason)} expected={ResolveOrderRejectReason(expected)}";
+                return answer;
+            }
+        }
+
+        private sealed class LedgerDeltaExpectedQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.LedgerDeltaExpected;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.ledger.delta_expected", out var expected) ||
+                    !signals.TryGetMetric("space4x.ledger.delta_actual", out var actual))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "ledger delta metrics missing";
+                    return answer;
+                }
+
+                answer.Metrics["delta_expected"] = expected;
+                answer.Metrics["delta_actual"] = actual;
+
+                if (expected <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "expected_missing";
+                    answer.Answer = "expected delta <= 0";
+                    return answer;
+                }
+
+                if (math.abs(actual - expected) < 0.001f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"delta_expected={expected:0.##} delta_actual={actual:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"delta_expected={expected:0.##} delta_actual={actual:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class DiscoveryEventFiredQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.DiscoveryEventFired;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.discovery.event_fired", out var fired))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "metric_missing";
+                    answer.Answer = "event_fired missing";
+                    return answer;
+                }
+
+                answer.Metrics["event_fired"] = fired;
+                if (fired > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = "discovery event fired";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = "discovery event missing";
+                return answer;
+            }
+        }
+
+        private static string ResolveOrderRejectReason(float value)
+        {
+            return (int)value switch
+            {
+                0 => "None",
+                1 => "InvalidTarget",
+                2 => "OutOfRange",
+                3 => "NoRoute",
+                _ => "Unknown"
+            };
         }
 
         private sealed class CommsDeliveryQuestion : IHeadlessQuestion

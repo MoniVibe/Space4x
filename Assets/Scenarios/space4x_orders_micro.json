@@ -1,0 +1,40 @@
+{
+  "seed": 1301,
+  "duration_s": 45,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.orders.command_consumed",
+        "required": true
+      },
+      {
+        "id": "space4x.q.orders.state_transition",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "orders-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "ORDERS-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    }
+  ]
+}

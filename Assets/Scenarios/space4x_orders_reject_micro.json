@@ -1,0 +1,36 @@
+{
+  "seed": 1307,
+  "duration_s": 45,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.orders.reject_reason",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "orders-carrier-reject",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "ORDERS-REJECT",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    }
+  ]
+}
