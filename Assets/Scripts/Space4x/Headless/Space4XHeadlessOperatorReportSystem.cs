@@ -18,6 +18,7 @@ using SystemEnvironment = System.Environment;
 namespace Space4X.Headless
 {
     [UpdateInGroup(typeof(Unity.Entities.LateSimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XHeadlessReportSystem))]
     public partial struct Space4XHeadlessOperatorReportSystem : ISystem
     {
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
