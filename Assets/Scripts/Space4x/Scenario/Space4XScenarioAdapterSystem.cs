@@ -13,6 +13,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
@@ -56,6 +57,8 @@ namespace Space4X.Scenario
                 state.Enabled = false;
                 return;
             }
+
+            EnsureResourceCatalogs(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var random = new Unity.Mathematics.Random(scenarioInfo.Seed);
@@ -136,6 +139,165 @@ namespace Space4X.Scenario
 
             _hasSpawned = true;
             state.Enabled = false;
+        }
+
+        private static void EnsureResourceCatalogs(ref SystemState state)
+        {
+            var entityManager = state.EntityManager;
+            using var typeQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<ResourceTypeIndex>());
+            var typeEntity = Entity.Null;
+            var shouldCreateTypeIndex = typeQuery.IsEmptyIgnoreFilter;
+            if (!shouldCreateTypeIndex)
+            {
+                typeEntity = typeQuery.GetSingletonEntity();
+                var existing = entityManager.GetComponentData<ResourceTypeIndex>(typeEntity);
+                shouldCreateTypeIndex = !HasResourceType(existing.Catalog, new FixedString64Bytes("iron_ore")) ||
+                                        !HasResourceType(existing.Catalog, new FixedString64Bytes("iron_ingot"));
+            }
+
+            if (shouldCreateTypeIndex)
+            {
+                var builder = new BlobBuilder(Allocator.Temp);
+                ref var root = ref builder.ConstructRoot<ResourceTypeIndexBlob>();
+
+                const int resourceCount = 16;
+                var ids = builder.Allocate(ref root.Ids, resourceCount);
+                var displayNames = builder.Allocate(ref root.DisplayNames, resourceCount);
+                var colors = builder.Allocate(ref root.Colors, resourceCount);
+
+                var resources = new[]
+                {
+                    StandardResources.IronOre,
+                    StandardResources.TitaniumOre,
+                    StandardResources.Biomass,
+                    StandardResources.HydrocarbonIce,
+                    StandardResources.RareEarths,
+                    StandardResources.Carbon,
+                    StandardResources.IronIngot,
+                    StandardResources.TitaniumIngots,
+                    StandardResources.Nutrients,
+                    StandardResources.RefinedFuels,
+                    StandardResources.Conductors,
+                    StandardResources.Steel,
+                    StandardResources.Polymers,
+                    StandardResources.Biopolymers,
+                    StandardResources.Plasteel,
+                    StandardResources.QuantumCores
+                };
+
+                var color = new Color32(180, 180, 180, 255);
+                for (var i = 0; i < resourceCount; i++)
+                {
+                    ids[i] = new FixedString64Bytes(resources[i].Id);
+                    builder.AllocateString(ref displayNames[i], resources[i].Name.ToString());
+                    colors[i] = color;
+                }
+
+                var blobAsset = builder.CreateBlobAssetReference<ResourceTypeIndexBlob>(Allocator.Persistent);
+                builder.Dispose();
+
+                if (typeEntity == Entity.Null)
+                {
+                    typeEntity = entityManager.CreateEntity(typeof(ResourceTypeIndex));
+                }
+
+                entityManager.SetComponentData(typeEntity, new ResourceTypeIndex
+                {
+                    Catalog = blobAsset
+                });
+            }
+
+            using var chainQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<ResourceChainCatalog>());
+            var chainEntity = Entity.Null;
+            var shouldCreateChain = chainQuery.IsEmptyIgnoreFilter;
+            if (!shouldCreateChain)
+            {
+                chainEntity = chainQuery.GetSingletonEntity();
+                var existing = entityManager.GetComponentData<ResourceChainCatalog>(chainEntity);
+                shouldCreateChain = !HasRecipe(existing.BlobReference, new FixedString32Bytes("refine_iron_ingot"));
+            }
+
+            if (shouldCreateChain)
+            {
+                var builder = new BlobBuilder(Allocator.Temp);
+                ref var root = ref builder.ConstructRoot<ResourceChainCatalogBlob>();
+
+                const int resourceCount = 16;
+                const int recipeCount = 11;
+                var resources = builder.Allocate(ref root.Resources, resourceCount);
+                var recipes = builder.Allocate(ref root.Recipes, recipeCount);
+
+                resources[0] = StandardResources.IronOre;
+                resources[1] = StandardResources.TitaniumOre;
+                resources[2] = StandardResources.Biomass;
+                resources[3] = StandardResources.HydrocarbonIce;
+                resources[4] = StandardResources.RareEarths;
+                resources[5] = StandardResources.Carbon;
+                resources[6] = StandardResources.IronIngot;
+                resources[7] = StandardResources.TitaniumIngots;
+                resources[8] = StandardResources.Nutrients;
+                resources[9] = StandardResources.RefinedFuels;
+                resources[10] = StandardResources.Conductors;
+                resources[11] = StandardResources.Steel;
+                resources[12] = StandardResources.Polymers;
+                resources[13] = StandardResources.Biopolymers;
+                resources[14] = StandardResources.Plasteel;
+                resources[15] = StandardResources.QuantumCores;
+
+                recipes[0] = StandardRecipes.RefineIronIngot;
+                recipes[1] = StandardRecipes.RefineTitanium;
+                recipes[2] = StandardRecipes.ProcessBiomass;
+                recipes[3] = StandardRecipes.RefineHydrocarbons;
+                recipes[4] = StandardRecipes.ExtractConductors;
+                recipes[5] = StandardRecipes.SmeltSteel;
+                recipes[6] = StandardRecipes.SynthesizePolymers;
+                recipes[7] = StandardRecipes.CreateBiopolymers;
+                recipes[8] = StandardRecipes.ForgePlasteel;
+                recipes[9] = StandardRecipes.AssembleQuantumCores;
+                recipes[10] = StandardRecipes.CreateCompositeAlloys;
+
+                var blobAsset = builder.CreateBlobAssetReference<ResourceChainCatalogBlob>(Allocator.Persistent);
+                builder.Dispose();
+
+                if (chainEntity == Entity.Null)
+                {
+                    chainEntity = entityManager.CreateEntity(typeof(ResourceChainCatalog));
+                }
+
+                entityManager.SetComponentData(chainEntity, new ResourceChainCatalog
+                {
+                    BlobReference = blobAsset
+                });
+            }
+        }
+
+        private static bool HasResourceType(BlobAssetReference<ResourceTypeIndexBlob> catalog, FixedString64Bytes id)
+        {
+            if (!catalog.IsCreated)
+            {
+                return false;
+            }
+
+            return catalog.Value.LookupIndex(id) >= 0;
+        }
+
+        private static bool HasRecipe(BlobAssetReference<ResourceChainCatalogBlob> catalog, FixedString32Bytes id)
+        {
+            if (!catalog.IsCreated)
+            {
+                return false;
+            }
+
+            ref var root = ref catalog.Value;
+            for (var i = 0; i < root.Recipes.Length; i++)
+            {
+                if (root.Recipes[i].Id.Equals(id))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void SpawnCarriers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
@@ -513,6 +675,7 @@ namespace Space4X.Scenario
                 ecb.AddComponent<SpatialIndexedTag>(facility);
                 ecb.AddComponent<RewindableTag>(facility);
                 ecb.AddComponent(facility, ProcessingFacility.Tier1);
+                ecb.AddComponent(facility, new ProductionDiagnostics());
 
                 var queueBuffer = ecb.AddBuffer<ProcessingQueueEntry>(facility);
                 queueBuffer.Add(new ProcessingQueueEntry

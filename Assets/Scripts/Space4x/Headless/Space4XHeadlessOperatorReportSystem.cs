@@ -35,7 +35,7 @@ namespace Space4X.Headless
             }
 
             state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<Space4XScenarioRuntime>();
+            state.RequireForUpdate<ScenarioInfo>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -46,8 +46,26 @@ namespace Space4X.Headless
             }
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
-            var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
-            if (timeState.Tick < runtime.EndTick)
+            var currentTick = timeState.Tick;
+            if (SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenarioTick) && scenarioTick.Tick > 0)
+            {
+                currentTick = scenarioTick.Tick;
+            }
+
+            Space4XScenarioRuntime runtime;
+            if (!SystemAPI.TryGetSingleton(out runtime))
+            {
+                var info = SystemAPI.GetSingleton<ScenarioInfo>();
+                var runTicks = info.RunTicks < 0 ? 0u : (uint)info.RunTicks;
+                runtime = new Space4XScenarioRuntime
+                {
+                    StartTick = 0u,
+                    EndTick = runTicks,
+                    DurationSeconds = math.max(0f, timeState.FixedDeltaTime * runTicks)
+                };
+            }
+
+            if (currentTick < runtime.EndTick)
             {
                 return;
             }

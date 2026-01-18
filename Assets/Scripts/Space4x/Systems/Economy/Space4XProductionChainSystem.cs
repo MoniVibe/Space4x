@@ -2,6 +2,7 @@ using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Resource;
 using PureDOTS.Runtime.Resources;
+using PureDOTS.Runtime.Scenarios;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
@@ -16,6 +17,7 @@ namespace Space4X.Systems.Economy
     {
         private ComponentLookup<ProcessingJob> _jobLookup;
         private BufferLookup<NeedRequest> _needRequestLookup;
+        private ComponentLookup<ProductionDiagnostics> _productionDiagnosticsLookup;
         private Entity _requestIdGeneratorEntity;
         private EntityQuery _requestIdGeneratorQuery;
 
@@ -30,6 +32,7 @@ namespace Space4X.Systems.Economy
 
             _jobLookup = state.GetComponentLookup<ProcessingJob>(false);
             _needRequestLookup = state.GetBufferLookup<NeedRequest>(false);
+            _productionDiagnosticsLookup = state.GetComponentLookup<ProductionDiagnostics>(false);
             _requestIdGeneratorQuery = SystemAPI.QueryBuilder()
                 .WithAll<ResourceRequestIdGenerator>()
                 .Build();
@@ -79,9 +82,13 @@ namespace Space4X.Systems.Economy
 
             _jobLookup.Update(ref state);
             _needRequestLookup.Update(ref state);
+            _productionDiagnosticsLookup.Update(ref state);
 
-            var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
-                .CreateCommandBuffer(state.WorldUnmanaged);
+            var useImmediateEcb = SystemAPI.HasSingleton<ScenarioRunnerTick>();
+            var ecb = useImmediateEcb
+                ? new EntityCommandBuffer(Allocator.Temp)
+                : SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+                    .CreateCommandBuffer(state.WorldUnmanaged);
 
             foreach (var (facility, inventoryRW, items, capacities, reservations, queue, entity)
                      in SystemAPI.Query<RefRO<ProcessingFacility>, RefRW<StorehouseInventory>,
@@ -89,6 +96,13 @@ namespace Space4X.Systems.Economy
                          DynamicBuffer<StorehouseReservationItem>, DynamicBuffer<ProcessingQueueEntry>>()
                          .WithEntityAccess())
             {
+                var trackDiagnostics = _productionDiagnosticsLookup.HasComponent(entity);
+                RefRW<ProductionDiagnostics> diagRef = default;
+                if (trackDiagnostics)
+                {
+                    diagRef = _productionDiagnosticsLookup.GetRefRW(entity);
+                }
+
                 if (facility.ValueRO.IsActive == 0)
                 {
                     continue;
@@ -99,8 +113,16 @@ namespace Space4X.Systems.Economy
                 if (_jobLookup.HasComponent(entity))
                 {
                     var job = _jobLookup[entity];
+                    if (trackDiagnostics)
+                    {
+                        diagRef.ValueRW.JobUpdateTicks++;
+                    }
                     if (!TryGetRecipe(job.RecipeId, ref catalog, out ResourceRecipe activeRecipe))
                     {
+                        if (trackDiagnostics)
+                        {
+                            diagRef.ValueRW.ActiveJobMissingRecipe++;
+                        }
                         ecb.RemoveComponent<ProcessingJob>(entity);
                         continue;
                     }
@@ -119,11 +141,16 @@ namespace Space4X.Systems.Economy
                         resourceTypeIndex.Catalog,
                         ref ecb,
                         ref nextRequestId,
-                        ref _needRequestLookup);
+                        ref _needRequestLookup,
+                        ref _productionDiagnosticsLookup);
 
                     if (_jobLookup.HasComponent(entity))
                     {
                         _jobLookup[entity] = job;
+                    }
+                    else if (trackDiagnostics)
+                    {
+                        diagRef.ValueRW.JobsCompleted++;
                     }
 
                     continue;
@@ -134,19 +161,35 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
-                if (!TryPickQueueEntry(queue, ref catalog, facility.ValueRO.Tier, out int entryIndex, out ResourceRecipe queuedRecipe))
+                if (!TryPickQueueEntry(queue, ref catalog, facility.ValueRO.Tier, out int entryIndex, out ResourceRecipe queuedRecipe,
+                        out int removedInvalidBatch, out int removedMissingRecipe))
                 {
+                    if (trackDiagnostics)
+                    {
+                        diagRef.ValueRW.QueueRemovedInvalidBatch += removedInvalidBatch;
+                        diagRef.ValueRW.QueueRemovedMissingRecipe += removedMissingRecipe;
+                    }
                     continue;
+                }
+
+                if (trackDiagnostics)
+                {
+                    diagRef.ValueRW.QueueRemovedInvalidBatch += removedInvalidBatch;
+                    diagRef.ValueRW.QueueRemovedMissingRecipe += removedMissingRecipe;
                 }
 
                 if (!HasOutputCapacity(in queuedRecipe, capacities, reservations, items, resourceTypeIndex.Catalog))
                 {
+                    if (trackDiagnostics)
+                    {
+                        diagRef.ValueRW.OutputCapacityBlocked++;
+                    }
                     continue;
                 }
 
                 if (!HasInputs(in queuedRecipe, items, out float missingPrimary, out float missingSecondary))
                 {
-                    EmitNeedRequests(
+                    var addedRequests = EmitNeedRequests(
                         entity,
                         tickTime.Tick,
                         ref ecb,
@@ -156,12 +199,17 @@ namespace Space4X.Systems.Economy
                         queue[entryIndex].Priority,
                         ref nextRequestId,
                         ref _needRequestLookup);
+                    if (trackDiagnostics)
+                    {
+                        diagRef.ValueRW.InputsMissing++;
+                        diagRef.ValueRW.NeedRequestsEmitted += addedRequests;
+                    }
                     continue;
                 }
 
                 if (!ConsumeInputs(in queuedRecipe, ref inventoryRW.ValueRW, items, resourceTypeIndex.Catalog))
                 {
-                    EmitNeedRequests(
+                    var addedRequests = EmitNeedRequests(
                         entity,
                         tickTime.Tick,
                         ref ecb,
@@ -171,6 +219,11 @@ namespace Space4X.Systems.Economy
                         queue[entryIndex].Priority,
                         ref nextRequestId,
                         ref _needRequestLookup);
+                    if (trackDiagnostics)
+                    {
+                        diagRef.ValueRW.InputsConsumeFailed++;
+                        diagRef.ValueRW.NeedRequestsEmitted += addedRequests;
+                    }
                     continue;
                 }
 
@@ -188,7 +241,17 @@ namespace Space4X.Systems.Economy
                 };
 
                 ecb.AddComponent(entity, jobComponent);
+                if (trackDiagnostics)
+                {
+                    diagRef.ValueRW.JobsStarted++;
+                }
                 queue.RemoveAt(entryIndex);
+            }
+
+            if (useImmediateEcb)
+            {
+                ecb.Playback(state.EntityManager);
+                ecb.Dispose();
             }
 
             generator.NextRequestId = nextRequestId;
@@ -209,7 +272,8 @@ namespace Space4X.Systems.Economy
             BlobAssetReference<ResourceTypeIndexBlob> catalog,
             ref EntityCommandBuffer ecb,
             ref uint nextRequestId,
-            ref BufferLookup<NeedRequest> needRequestLookup)
+            ref BufferLookup<NeedRequest> needRequestLookup,
+            ref ComponentLookup<ProductionDiagnostics> productionDiagnosticsLookup)
         {
             var duration = GetBatchDuration(in recipe, speedMultiplier);
             if (job.RemainingTime > 0f)
@@ -225,11 +289,27 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
+            if (productionDiagnosticsLookup.HasComponent(facilityEntity))
+            {
+                productionDiagnosticsLookup.GetRefRW(facilityEntity).ValueRW.JobDepositAttempts++;
+            }
+
             if (!TryDepositOutputs(in recipe, ref inventory, items, capacities, reservations, catalog))
             {
+                if (productionDiagnosticsLookup.HasComponent(facilityEntity))
+                {
+                    productionDiagnosticsLookup.GetRefRW(facilityEntity).ValueRW.OutputDepositFailed++;
+                }
                 job.RemainingTime = 0f;
                 job.Progress = (half)1f;
                 return;
+            }
+
+            if (productionDiagnosticsLookup.HasComponent(facilityEntity))
+            {
+                var diagRef = productionDiagnosticsLookup.GetRefRW(facilityEntity);
+                diagRef.ValueRW.OutputDepositSuccess++;
+                diagRef.ValueRW.JobsCompleted++;
             }
 
             job.BatchesCompleted++;
@@ -241,6 +321,10 @@ namespace Space4X.Systems.Economy
 
             if (!HasOutputCapacity(in recipe, capacities, reservations, items, catalog))
             {
+                if (productionDiagnosticsLookup.HasComponent(facilityEntity))
+                {
+                    productionDiagnosticsLookup.GetRefRW(facilityEntity).ValueRW.OutputCapacityBlocked++;
+                }
                 job.RemainingTime = 0f;
                 job.Progress = (half)0f;
                 return;
@@ -248,7 +332,7 @@ namespace Space4X.Systems.Economy
 
             if (!HasInputs(in recipe, items, out float missingPrimary, out float missingSecondary))
             {
-                EmitNeedRequests(
+                var addedRequests = EmitNeedRequests(
                     facilityEntity,
                     currentTick,
                     ref ecb,
@@ -258,6 +342,12 @@ namespace Space4X.Systems.Economy
                     128,
                     ref nextRequestId,
                     ref needRequestLookup);
+                if (productionDiagnosticsLookup.HasComponent(facilityEntity))
+                {
+                    var diagRef = productionDiagnosticsLookup.GetRefRW(facilityEntity);
+                    diagRef.ValueRW.InputsMissing++;
+                    diagRef.ValueRW.NeedRequestsEmitted += addedRequests;
+                }
                 job.RemainingTime = 0f;
                 job.Progress = (half)0f;
                 return;
@@ -265,6 +355,10 @@ namespace Space4X.Systems.Economy
 
             if (!ConsumeInputs(in recipe, ref inventory, items, catalog))
             {
+                if (productionDiagnosticsLookup.HasComponent(facilityEntity))
+                {
+                    productionDiagnosticsLookup.GetRefRW(facilityEntity).ValueRW.InputsConsumeFailed++;
+                }
                 job.RemainingTime = 0f;
                 job.Progress = (half)0f;
                 return;
@@ -306,6 +400,61 @@ namespace Space4X.Systems.Economy
                 if (!TryGetRecipe(entry.RecipeId, ref catalog, out ResourceRecipe candidate))
                 {
                     queue.RemoveAt(i);
+                    i--;
+                    continue;
+                }
+
+                if (facilityTier < candidate.MinFacilityTier)
+                {
+                    continue;
+                }
+
+                if (entryIndex == -1 ||
+                    entry.Priority < bestPriority ||
+                    (entry.Priority == bestPriority && (entry.QueuedTick < bestTick ||
+                                                        (entry.QueuedTick == bestTick && i < entryIndex))))
+                {
+                    entryIndex = i;
+                    bestPriority = entry.Priority;
+                    bestTick = entry.QueuedTick;
+                    recipe = candidate;
+                }
+            }
+
+            return entryIndex >= 0;
+        }
+
+        private static bool TryPickQueueEntry(
+            DynamicBuffer<ProcessingQueueEntry> queue,
+            ref ResourceChainCatalogBlob catalog,
+            byte facilityTier,
+            out int entryIndex,
+            out ResourceRecipe recipe,
+            out int removedInvalidBatch,
+            out int removedMissingRecipe)
+        {
+            removedInvalidBatch = 0;
+            removedMissingRecipe = 0;
+            entryIndex = -1;
+            recipe = default;
+
+            byte bestPriority = byte.MaxValue;
+            uint bestTick = uint.MaxValue;
+            for (int i = 0; i < queue.Length; i++)
+            {
+                var entry = queue[i];
+                if (entry.BatchCount <= 0)
+                {
+                    queue.RemoveAt(i);
+                    removedInvalidBatch++;
+                    i--;
+                    continue;
+                }
+
+                if (!TryGetRecipe(entry.RecipeId, ref catalog, out ResourceRecipe candidate))
+                {
+                    queue.RemoveAt(i);
+                    removedMissingRecipe++;
                     i--;
                     continue;
                 }
@@ -502,7 +651,7 @@ namespace Space4X.Systems.Economy
             return true;
         }
 
-        private static void EmitNeedRequests(
+        private static int EmitNeedRequests(
             Entity facilityEntity,
             uint currentTick,
             ref EntityCommandBuffer ecb,
@@ -513,6 +662,7 @@ namespace Space4X.Systems.Economy
             ref uint nextRequestId,
             ref BufferLookup<NeedRequest> needRequestLookup)
         {
+            var addedRequests = 0;
             DynamicBuffer<NeedRequest> requests;
             if (needRequestLookup.HasBuffer(facilityEntity))
             {
@@ -541,6 +691,7 @@ namespace Space4X.Systems.Economy
                     OrderEntity = Entity.Null,
                     FailureReason = RequestFailureReason.None
                 });
+                addedRequests++;
             }
 
             if (recipe.HasSecondaryInput != 0 &&
@@ -560,7 +711,10 @@ namespace Space4X.Systems.Economy
                     OrderEntity = Entity.Null,
                     FailureReason = RequestFailureReason.None
                 });
+                addedRequests++;
             }
+
+            return addedRequests;
         }
 
         private static bool HasActiveNeedRequest(

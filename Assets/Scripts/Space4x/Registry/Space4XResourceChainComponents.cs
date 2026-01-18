@@ -380,6 +380,26 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Diagnostics counters for production chain decisions.
+    /// </summary>
+    public struct ProductionDiagnostics : IComponentData
+    {
+        public int QueueRemovedInvalidBatch;
+        public int QueueRemovedMissingRecipe;
+        public int ActiveJobMissingRecipe;
+        public int JobsStarted;
+        public int JobsCompleted;
+        public int JobUpdateTicks;
+        public int JobDepositAttempts;
+        public int OutputDepositSuccess;
+        public int OutputCapacityBlocked;
+        public int InputsMissing;
+        public int InputsConsumeFailed;
+        public int OutputDepositFailed;
+        public int NeedRequestsEmitted;
+    }
+
+    /// <summary>
     /// Standard resource definitions.
     /// </summary>
     public static class StandardResources
