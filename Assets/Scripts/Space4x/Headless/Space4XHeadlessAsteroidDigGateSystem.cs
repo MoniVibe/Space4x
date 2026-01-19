@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.IO;
 using PureDOTS.Environment;
@@ -15,6 +16,7 @@ namespace Space4X.Headless
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial class Space4XHeadlessAsteroidDigGateSystem : SystemBase
     {
+        private const string EnableEnv = "SPACE4X_DIG_GATE_ENABLE";
         private const string SessionDirEnv = "SPACE4X_DIG_GATE_SESSION_DIR";
         private const string DefaultSessionDir = @"C:\polish\queue\reports\session_20260108_workblock";
         private const string SummaryFileName = "asteroid_dig_gate_summary.json";
@@ -28,6 +30,13 @@ namespace Space4X.Headless
         protected override void OnCreate()
         {
             if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                Enabled = false;
+                return;
+            }
+
+            var enableValue = System.Environment.GetEnvironmentVariable(EnableEnv);
+            if (!string.Equals(enableValue, "1", StringComparison.OrdinalIgnoreCase))
             {
                 Enabled = false;
                 return;
