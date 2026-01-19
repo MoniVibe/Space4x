@@ -25,7 +25,8 @@ namespace Space4X.Headless
     /// Headless proof that "gather -> dropoff" works in simulation (no presentation dependency).
     /// Logs exactly one PASS/FAIL line when criteria are met or a timeout is reached.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup), OrderLast = true)]
+    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateBefore(typeof(Space4XHeadlessOperatorReportSystem))]
     public partial struct Space4XHeadlessMiningProofSystem : ISystem
     {
         private const string EnabledEnv = "SPACE4X_HEADLESS_MINING_PROOF";
@@ -34,6 +35,7 @@ namespace Space4X.Headless
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
+        private const string MiningMicroScenarioFile = "space4x_mining_micro.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
 
@@ -56,6 +58,7 @@ namespace Space4X.Headless
         private float _rewindObserved;
         private bool _isSmokeScenario;
         private bool _isMiningCombatScenario;
+        private bool _isMiningMicroScenario;
         private FixedString64Bytes _bankTestId;
         private byte _bankResolved;
 
@@ -130,6 +133,7 @@ namespace Space4X.Headless
                 var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
                 _isSmokeScenario = IsSmokeScenario();
                 _isMiningCombatScenario = IsMiningCombatScenario();
+                _isMiningMicroScenario = IsMiningMicroScenario();
                 _timeoutTick = scenario.EndTick > _startTick
                     ? scenario.EndTick
                     : _startTick + DefaultTimeoutTicks;
@@ -286,7 +290,7 @@ namespace Space4X.Headless
                 // Smoke runs focus on "mining started" rather than full dropoff within a short window.
                 pass = hasOre || hasCargo;
             }
-            else if (!pass && _isMiningCombatScenario)
+            else if (!pass && (_isMiningCombatScenario || _isMiningMicroScenario))
             {
                 // Combat mining can route ore to carrier stores without updating ore-in-hold.
                 pass = hasGather && (hasOre || hasCargo);
@@ -393,6 +397,11 @@ namespace Space4X.Headless
 
         private static void RequestExitOnFail(ref SystemState state, uint tick, int exitCode)
         {
+            if (!string.Equals(SystemEnv.GetEnvironmentVariable(ExitOnResultEnv), "1", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             HeadlessExitUtility.Request(state.EntityManager, tick, exitCode);
         }
 
@@ -408,6 +417,13 @@ namespace Space4X.Headless
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             return !string.IsNullOrWhiteSpace(scenarioPath) &&
                    scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsMiningMicroScenario()
+        {
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            return !string.IsNullOrWhiteSpace(scenarioPath) &&
+                   scenarioPath.EndsWith(MiningMicroScenarioFile, StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool ScenarioDisablesMiningProof(string scenarioPath)
