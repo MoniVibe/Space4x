@@ -1,14 +1,17 @@
 #if UNITY_EDITOR
 #nullable enable
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using PureDOTS.Authoring;
 using PureDOTS.Runtime.Scenarios;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityEditorInternal;
 using UnityEngine;
 using PackageManagerPackageInfo = UnityEditor.PackageManager.PackageInfo;
 
@@ -30,6 +33,10 @@ namespace Space4X.Headless.Editor
         private const string BuildFailureFileName = "Space4X_HeadlessBuildFailure.log";
         private const string EditorLogSnapshotFileName = "Space4X_HeadlessEditor.log";
         private const int EditorLogSnapshotBytes = 2 * 1024 * 1024;
+        private const string VisualScriptingDisableEnv = "SPACE4X_HEADLESS_DISABLE_VISUAL_SCRIPTING";
+        private const string VisualScriptingEnableEnv = "SPACE4X_HEADLESS_ENABLE_VISUAL_SCRIPTING";
+        private const string EntitiesGraphicsRootsDisableEnv = "SPACE4X_HEADLESS_DISABLE_ENTITIES_GRAPHICS_ROOTS";
+        private const string EntitiesGraphicsRootsEnableEnv = "SPACE4X_HEADLESS_ENABLE_ENTITIES_GRAPHICS_ROOTS";
 
         [MenuItem("Space4X/Build/Headless/Linux Server")]
         public static void BuildFromMenu() => BuildLinuxHeadless();
@@ -58,6 +65,8 @@ namespace Space4X.Headless.Editor
 
                 using var targetScope = new BuildTargetScope(BuildTarget.StandaloneLinux64, BuildTargetGroup.Standalone);
                 using var buildSettingsSceneScope = new BuildSettingsSceneScope(HeadlessScenes);
+                using var visualScriptingScope = VisualScriptingUsageScope.TryDisable(ShouldDisableVisualScripting());
+                using var entitiesGraphicsScope = EntitiesGraphicsRootsScope.TryDisable(ShouldDisableEntitiesGraphicsRoots());
 
                 var buildPlayerOptions = new BuildPlayerOptions
                 {
@@ -266,6 +275,46 @@ namespace Space4X.Headless.Editor
         {
             EnsureResourceTypeCatalogAsset();
             ValidateResourceAssets();
+        }
+
+        private static bool ShouldDisableVisualScripting()
+        {
+            if (ReadEnvBool(VisualScriptingEnableEnv, false))
+            {
+                return false;
+            }
+
+            return ReadEnvBool(VisualScriptingDisableEnv, InternalEditorUtility.inBatchMode);
+        }
+
+        private static bool ShouldDisableEntitiesGraphicsRoots()
+        {
+            if (ReadEnvBool(EntitiesGraphicsRootsEnableEnv, false))
+            {
+                return false;
+            }
+
+            return ReadEnvBool(EntitiesGraphicsRootsDisableEnv, InternalEditorUtility.inBatchMode);
+        }
+
+        private static bool ReadEnvBool(string name, bool defaultValue)
+        {
+            var raw = System.Environment.GetEnvironmentVariable(name);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return defaultValue;
+            }
+
+            if (raw.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                raw.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+                raw.Equals("no", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return raw.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                   raw.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   raw.Equals("yes", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void EnsureResourceTypeCatalogAsset()
@@ -563,6 +612,166 @@ namespace Space4X.Headless.Editor
                 if (_shouldRevert)
                 {
                     EditorUserBuildSettings.SwitchActiveBuildTarget(_originalGroup, _originalTarget);
+                }
+            }
+        }
+
+        private sealed class VisualScriptingUsageScope : IDisposable
+        {
+            private readonly PropertyInfo? _property;
+            private readonly bool _previousValue;
+            private readonly bool _shouldRestore;
+
+            private VisualScriptingUsageScope(PropertyInfo? property, bool previousValue, bool shouldRestore)
+            {
+                _property = property;
+                _previousValue = previousValue;
+                _shouldRestore = shouldRestore;
+            }
+
+            public static VisualScriptingUsageScope TryDisable(bool disable)
+            {
+                if (!disable)
+                {
+                    return new VisualScriptingUsageScope(null, false, false);
+                }
+
+                try
+                {
+                    var type = Type.GetType("Unity.VisualScripting.VSUsageUtility, Unity.VisualScripting.Core.Editor");
+                    if (type == null)
+                    {
+                        UnityEngine.Debug.LogWarning("[Space4XHeadlessBuilder] Visual Scripting usage helper not found; proceeding with default behavior.");
+                        return new VisualScriptingUsageScope(null, false, false);
+                    }
+
+                    var property = type.GetProperty("isVisualScriptingUsed", BindingFlags.Public | BindingFlags.Static);
+                    if (property == null || !property.CanRead || !property.CanWrite)
+                    {
+                        UnityEngine.Debug.LogWarning("[Space4XHeadlessBuilder] Visual Scripting usage property unavailable; proceeding with default behavior.");
+                        return new VisualScriptingUsageScope(null, false, false);
+                    }
+
+                    var previous = (bool)property.GetValue(null);
+                    if (!previous)
+                    {
+                        return new VisualScriptingUsageScope(property, previous, false);
+                    }
+
+                    property.SetValue(null, false);
+                    UnityEngine.Debug.Log("[Space4XHeadlessBuilder] Visual Scripting prebuild disabled for headless build.");
+                    return new VisualScriptingUsageScope(property, previous, true);
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Visual Scripting disable failed: {ex.Message}");
+                    return new VisualScriptingUsageScope(null, false, false);
+                }
+            }
+
+            public void Dispose()
+            {
+                if (!_shouldRestore || _property == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _property.SetValue(null, _previousValue);
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Visual Scripting restore failed: {ex.Message}");
+                }
+            }
+        }
+
+        private sealed class EntitiesGraphicsRootsScope : IDisposable
+        {
+            private readonly IList? _handlers;
+            private readonly object[]? _original;
+            private readonly bool _shouldRestore;
+
+            private EntitiesGraphicsRootsScope(IList? handlers, object[]? original, bool shouldRestore)
+            {
+                _handlers = handlers;
+                _original = original;
+                _shouldRestore = shouldRestore;
+            }
+
+            public static EntitiesGraphicsRootsScope TryDisable(bool disable)
+            {
+                if (!disable)
+                {
+                    return new EntitiesGraphicsRootsScope(null, null, false);
+                }
+
+                try
+                {
+                    var type = Type.GetType("Unity.Entities.UnityObjectRefUtility, Unity.Entities");
+                    if (type == null)
+                    {
+                        UnityEngine.Debug.LogWarning("[Space4XHeadlessBuilder] Entities asset GC helper not found; proceeding with default behavior.");
+                        return new EntitiesGraphicsRootsScope(null, null, false);
+                    }
+
+                    var field = type.GetField("s_AdditionalRootsHandlerDelegates", BindingFlags.NonPublic | BindingFlags.Static);
+                    if (field == null || field.GetValue(null) is not IList handlers)
+                    {
+                        UnityEngine.Debug.LogWarning("[Space4XHeadlessBuilder] Entities asset GC roots list unavailable; proceeding with default behavior.");
+                        return new EntitiesGraphicsRootsScope(null, null, false);
+                    }
+
+                    var original = new object[handlers.Count];
+                    handlers.CopyTo(original, 0);
+
+                    var removed = 0;
+                    for (var i = handlers.Count - 1; i >= 0; i--)
+                    {
+                        if (handlers[i] is Delegate handler)
+                        {
+                            var declaringType = handler.Method.DeclaringType;
+                            if (declaringType != null && declaringType.FullName == "Unity.Rendering.EntitiesGraphicsSystemUtility")
+                            {
+                                handlers.RemoveAt(i);
+                                removed++;
+                            }
+                        }
+                    }
+
+                    if (removed > 0)
+                    {
+                        UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Disabled {removed} Entities Graphics asset GC root handler(s) for headless build.");
+                    }
+
+                    return new EntitiesGraphicsRootsScope(handlers, original, removed > 0);
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Entities Graphics roots disable failed: {ex.Message}");
+                    return new EntitiesGraphicsRootsScope(null, null, false);
+                }
+            }
+
+            public void Dispose()
+            {
+                if (!_shouldRestore || _handlers == null || _original == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _handlers.Clear();
+                    foreach (var handler in _original)
+                    {
+                        _handlers.Add(handler);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Entities Graphics roots restore failed: {ex.Message}");
                 }
             }
         }
