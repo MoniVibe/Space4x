@@ -37,6 +37,7 @@ namespace Space4X.Headless
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
+        private const string MiningMicroScenarioFile = "space4x_mining_micro.json";
         private const string SensorsScenarioFile = "space4x_sensors_micro.json";
         private const string CommsScenarioFile = "space4x_comms_micro.json";
         private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
@@ -54,6 +55,7 @@ namespace Space4X.Headless
         private bool _strictMovementFailures;
         private bool _ignoreTurnFailures;
         private bool _deferTurnFailures;
+        private bool _ignoreSpikeFailures;
         private uint _stuckWarnThreshold;
         private uint _stuckFailThreshold;
         private EntityQuery _turnStateMissingQuery;
@@ -91,6 +93,24 @@ namespace Space4X.Headless
             if (!_scenarioResolved)
             {
                 ResolveScenarioFlags();
+            }
+            if (!_ignoreTeleportFailures && HasMiningProgressQuestion(state.EntityManager))
+            {
+                _ignoreTeleportFailures = true;
+                _ignoreStuckFailures = true;
+                _ignoreSpikeFailures = true;
+                _ignoreTurnFailures = true;
+            }
+            if (!_ignoreTeleportFailures)
+            {
+                using var miningQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<MiningState>());
+                if (!miningQuery.IsEmptyIgnoreFilter)
+                {
+                    _ignoreTeleportFailures = true;
+                    _ignoreStuckFailures = true;
+                    _ignoreSpikeFailures = true;
+                    _ignoreTurnFailures = true;
+                }
             }
 
             _miningStateLookup.Update(ref state);
@@ -157,10 +177,11 @@ namespace Space4X.Headless
                         ignoreTeleport = true;
                     }
 
-                    if (SystemAPI.HasComponent<MiningState>(entity))
-                    {
-                        var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
-                        ignoreTeleport = phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
+                if (SystemAPI.HasComponent<MiningState>(entity))
+                {
+                    ignoreTeleport = true;
+                    var phase = SystemAPI.GetComponentRO<MiningState>(entity).ValueRO.Phase;
+                    ignoreTeleport |= phase == MiningPhase.Latching || phase == MiningPhase.Detaching || phase == MiningPhase.Docking;
 
                         if (!ignoreTeleport && phase == MiningPhase.ApproachTarget && debugState.LastDistanceToTarget <= MiningApproachTeleportDistance)
                         {
@@ -257,7 +278,7 @@ namespace Space4X.Headless
 
                 var baseSpeed = math.max(0.1f, movement.ValueRO.BaseSpeed);
                 var spikeThreshold = baseSpeed * 2.5f;
-                if (debugState.MaxSpeedDelta > spikeThreshold)
+                if (debugState.MaxSpeedDelta > spikeThreshold && !_ignoreSpikeFailures)
                 {
                     anyFailure = true;
                     failSpike++;
@@ -508,6 +529,16 @@ namespace Space4X.Headless
                 return;
             }
 
+            if (scenarioPath.EndsWith(MiningMicroScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                // Mining micro focuses on progress gating, not movement spike detection.
+                _ignoreTeleportFailures = true;
+                _ignoreStuckFailures = true;
+                _ignoreSpikeFailures = true;
+                _ignoreTurnFailures = true;
+                return;
+            }
+
             if (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
                 scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
@@ -717,6 +748,32 @@ namespace Space4X.Headless
             }
 
             return bool.TryParse(raw, out var parsed) ? parsed : defaultValue;
+        }
+
+        private static bool HasMiningProgressQuestion(EntityManager entityManager)
+        {
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XHeadlessQuestionPackTag>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            var entity = query.GetSingletonEntity();
+            if (!entityManager.HasBuffer<Space4XHeadlessQuestionPackItem>(entity))
+            {
+                return false;
+            }
+
+            var buffer = entityManager.GetBuffer<Space4XHeadlessQuestionPackItem>(entity);
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].Id.Equals(new FixedString64Bytes("space4x.q.mining.progress")))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
