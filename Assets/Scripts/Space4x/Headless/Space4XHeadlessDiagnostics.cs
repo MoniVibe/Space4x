@@ -33,7 +33,9 @@ namespace Space4X.Headless
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string TelemetryEnableEnv = "PUREDOTS_TELEMETRY_ENABLE";
         private const string TelemetryMaxBytesEnv = "PUREDOTS_TELEMETRY_MAX_BYTES";
+        private const string PerfTelemetryPathEnv = "PUREDOTS_PERF_TELEMETRY_PATH";
         private const ulong DefaultTelemetryMaxBytes = 25 * 1024 * 1024;
+        private const string PerfTelemetryFileName = "perf_telemetry.ndjson";
 
         private static readonly string[] BuildIdEnvKeys = { "TRI_BUILD_ID", "BUILD_ID", "HEADLESS_BUILD_ID" };
         private static readonly string[] CommitEnvKeys = { "TRI_BUILD_COMMIT", "BUILD_COMMIT", "GIT_COMMIT", "GIT_SHA" };
@@ -132,6 +134,11 @@ namespace Space4X.Headless
             if (string.IsNullOrWhiteSpace(SystemEnv.GetEnvironmentVariable(TelemetryMaxBytesEnv)))
             {
                 SystemEnv.SetEnvironmentVariable(TelemetryMaxBytesEnv, DefaultTelemetryMaxBytes.ToString(CultureInfo.InvariantCulture));
+            }
+            if (string.IsNullOrWhiteSpace(SystemEnv.GetEnvironmentVariable(PerfTelemetryPathEnv)))
+            {
+                var perfPath = ResolvePathWithinOutDir(outDirValue, null, PerfTelemetryFileName);
+                SystemEnv.SetEnvironmentVariable(PerfTelemetryPathEnv, perfPath);
             }
 
             Enabled = true;
