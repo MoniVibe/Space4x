@@ -62,6 +62,13 @@ namespace Space4x.Scenario
             }
 
             var scenarioPath = ResolveScenarioPath(out var scenarioInfo, out var hasScenarioInfo);
+            if (hasScenarioInfo && IsPerfGateScenarioId(scenarioInfo.ScenarioId.ToString()))
+            {
+                Debug.Log("[Space4XMiningScenario] Perf gate scenario detected; skipping mining scenario loader.");
+                _hasLoaded = true;
+                Enabled = false;
+                return;
+            }
             if (!string.IsNullOrWhiteSpace(scenarioPath))
             {
                 scenarioPath = Path.GetFullPath(scenarioPath);
@@ -691,6 +698,17 @@ namespace Space4x.Scenario
             }
 
             return trimmedId;
+        }
+
+        private static bool IsPerfGateScenarioId(string scenarioId)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                return false;
+            }
+
+            return scenarioId.Contains("perf_gate", StringComparison.OrdinalIgnoreCase)
+                || scenarioId.Contains("perfgate", StringComparison.OrdinalIgnoreCase);
         }
 
         private void SpawnEntities(uint currentTick, float fixedDt)
