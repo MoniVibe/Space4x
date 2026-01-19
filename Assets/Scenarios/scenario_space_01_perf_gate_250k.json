@@ -14,19 +14,3 @@
   ],
   "docs": "TODO: warmup_ticks and measure_ticks are not supported by ScenarioRunner yet."
 }
-{
-  "scenarioId": "scenario.space4x.perfgate.250k",
-  "description": "Space4X perf gate scale scenario (count-driven spawns, 250k target).",
-  "seed": 424242,
-  "runTicks": 600,
-  "enableEconomy": false,
-  "entityCounts": [
-    { "registryId": "space4x.carrier", "count": 5000, "description": "Carriers" },
-    { "registryId": "space4x.mining_vessel", "count": 225000, "description": "Mining vessels" },
-    { "registryId": "space4x.asteroid", "count": 20000, "description": "Asteroids" }
-  ],
-  "inputCommands": [
-    { "tick": 0, "commandId": "time.play", "payload": "" }
-  ],
-  "docs": "TODO: warmup_ticks and measure_ticks are not supported by ScenarioRunner yet."
-}

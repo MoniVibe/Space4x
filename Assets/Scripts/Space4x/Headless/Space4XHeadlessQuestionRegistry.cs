@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PureDOTS.Runtime.Telemetry;
 using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
@@ -138,12 +139,27 @@ namespace Space4X.Headless
     {
         public byte HasSensorsBeatConfig;
         public byte HasCommsBeatConfig;
+        public byte HasPerformanceBudgetStatus;
+        public byte HasPerformanceBudgetFailure;
+        public FixedString64Bytes PerformanceBudgetMetric;
+        public float PerformanceBudgetObserved;
+        public float PerformanceBudgetLimit;
+        public uint PerformanceBudgetTick;
 
         public static Space4XOperatorRuntimeStats Collect(EntityManager entityManager)
         {
             var stats = new Space4XOperatorRuntimeStats();
             stats.HasSensorsBeatConfig = ResolveBeatPresence<Space4XSensorsBeatConfig>(entityManager);
             stats.HasCommsBeatConfig = ResolveBeatPresence<Space4XCommsBeatConfig>(entityManager);
+            if (TryGetPerformanceBudgetStatus(entityManager, out var budgetStatus))
+            {
+                stats.HasPerformanceBudgetStatus = 1;
+                stats.HasPerformanceBudgetFailure = budgetStatus.HasFailure;
+                stats.PerformanceBudgetMetric = budgetStatus.Metric;
+                stats.PerformanceBudgetObserved = budgetStatus.ObservedValue;
+                stats.PerformanceBudgetLimit = budgetStatus.BudgetValue;
+                stats.PerformanceBudgetTick = budgetStatus.Tick;
+            }
             return stats;
         }
 
@@ -151,6 +167,19 @@ namespace Space4X.Headless
         {
             using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
             return query.IsEmptyIgnoreFilter ? (byte)0 : (byte)1;
+        }
+
+        private static bool TryGetPerformanceBudgetStatus(EntityManager entityManager, out PerformanceBudgetStatus status)
+        {
+            status = default;
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<PerformanceBudgetStatus>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            status = query.GetSingleton<PerformanceBudgetStatus>();
+            return true;
         }
     }
 
@@ -167,6 +196,9 @@ namespace Space4X.Headless
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
         public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
         public const string MiningProgress = "space4x.q.mining.progress";
+        public const string PerfSummary = "space4x.q.perf.summary";
+        public const string PerfBudget = "space4x.q.perf.budget";
+        public const string CollisionPhasing = "space4x.q.collision.phasing";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -179,6 +211,7 @@ namespace Space4X.Headless
                 "CONTACT_GHOST" => SensorsAcquireDrop,
                 "CONTACT_THRASH" => SensorsAcquireDrop,
                 "COMMS_BEAT_SKIPPED" => CommsDelivery,
+                "COLLISION_PHASING" => CollisionPhasing,
                 "MINING_STALL" => MiningProgress,
                 _ => Unknown
             };
@@ -193,7 +226,10 @@ namespace Space4X.Headless
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion(),
             new MovementTurnRateBoundsQuestion(),
-            new MiningProgressQuestion()
+            new MiningProgressQuestion(),
+            new PerfSummaryQuestion(),
+            new PerfBudgetQuestion(),
+            new CollisionPhasingQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -588,6 +624,173 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Fail;
                 answer.Answer = $"gather={gatherCommands:0} ore_delta={oreDelta:0.##} cargo_delta={cargoDelta:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class PerfSummaryQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.PerfSummary;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasP95 = signals.TryGetMetric("perf.fixed_step.ms.p95", out var tickP95);
+                var hasReserved = signals.TryGetMetric("perf.memory.reserved.bytes.peak", out var reservedPeak);
+                var hasStructural = signals.TryGetMetric("perf.structural.delta.p95", out var structuralP95);
+
+                if (signals.TryGetMetric("perf.fixed_step.ms.p50", out var tickP50))
+                {
+                    answer.Metrics["fixed_step_ms_p50"] = tickP50;
+                }
+                if (hasP95)
+                {
+                    answer.Metrics["fixed_step_ms_p95"] = tickP95;
+                }
+                if (signals.TryGetMetric("perf.fixed_step.ms.p99", out var tickP99))
+                {
+                    answer.Metrics["fixed_step_ms_p99"] = tickP99;
+                }
+                if (signals.TryGetMetric("perf.fixed_step.ms.max", out var tickMax))
+                {
+                    answer.Metrics["fixed_step_ms_max"] = tickMax;
+                }
+                if (hasStructural)
+                {
+                    answer.Metrics["structural_delta_p95"] = structuralP95;
+                }
+                if (hasReserved)
+                {
+                    answer.Metrics["reserved_bytes_peak"] = reservedPeak;
+                }
+                if (signals.TryGetMetric("perf.samples.tick_count", out var tickSamples))
+                {
+                    answer.Metrics["tick_samples"] = tickSamples;
+                    if (tickSamples < 5f)
+                    {
+                        answer.Status = Space4XQuestionStatus.Unknown;
+                        answer.UnknownReason = "insufficient_samples";
+                        answer.Answer = "perf samples insufficient";
+                        return answer;
+                    }
+                }
+                if (signals.TryGetMetric("perf.samples.structural_count", out var structuralSamples))
+                {
+                    answer.Metrics["structural_samples"] = structuralSamples;
+                }
+
+                if (!hasP95 || !hasReserved || !hasStructural)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "perf_metrics_missing";
+                    answer.Answer = "perf summary metrics unavailable";
+                    return answer;
+                }
+
+                if (float.IsNaN(tickP95) || float.IsNaN(reservedPeak) || float.IsNaN(structuralP95))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "invalid_metrics";
+                    answer.Answer = "perf summary metrics invalid";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"p95_ms={tickP95:0.##} reserved_peak_bytes={reservedPeak:0} structural_p95={structuralP95:0}";
+                return answer;
+            }
+        }
+
+        private sealed class PerfBudgetQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.PerfBudget;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (stats.HasPerformanceBudgetStatus == 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "budget_status_missing";
+                    answer.Answer = "performance budget status unavailable";
+                    return answer;
+                }
+
+                answer.Metrics["observed"] = stats.PerformanceBudgetObserved;
+                answer.Metrics["budget"] = stats.PerformanceBudgetLimit;
+                answer.Metrics["tick"] = stats.PerformanceBudgetTick;
+
+                if (stats.HasPerformanceBudgetFailure != 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    var metric = stats.PerformanceBudgetMetric.ToString();
+                    answer.Answer = $"budget_fail metric={metric} observed={stats.PerformanceBudgetObserved:0.##} budget={stats.PerformanceBudgetLimit:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = "budget_ok";
+                return answer;
+            }
+        }
+
+        private sealed class CollisionPhasingQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CollisionPhasing;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var phasingCount = signals.CountBlackCats("COLLISION_PHASING");
+                answer.Metrics["phasing_count"] = phasingCount;
+
+                if (!signals.TryGetMetric("space4x.collision.event_count", out var eventCount))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_collision_metrics";
+                    answer.Answer = "collision event metrics missing";
+                    return answer;
+                }
+
+                answer.Metrics["event_count"] = eventCount;
+                if (eventCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_collision_events";
+                    answer.Answer = "no collision events observed";
+                    return answer;
+                }
+
+                if (phasingCount > 0)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"phasing_detected count={phasingCount}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"event_count={eventCount:0}";
                 return answer;
             }
         }
