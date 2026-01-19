@@ -34,6 +34,7 @@ namespace Space4X.Headless
         private const string StuckWarnThresholdEnv = "SPACE4X_HEADLESS_STUCK_WARN_THRESHOLD";
         private const string StuckFailThresholdEnv = "SPACE4X_HEADLESS_STUCK_FAIL_THRESHOLD";
         private const string MovementStrictEnv = "SPACE4X_HEADLESS_MOVEMENT_STRICT";
+        private const string MovementDiagEnv = "SPACE4X_HEADLESS_MOVEMENT_DIAG";
         private const string IgnoreTurnFailuresEnv = "SPACE4X_HEADLESS_IGNORE_TURN";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
@@ -66,6 +67,13 @@ namespace Space4X.Headless
         public void OnCreate(ref SystemState state)
         {
             if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            var diagEnabled = SystemEnv.GetEnvironmentVariable(MovementDiagEnv);
+            if (string.Equals(diagEnabled, "0", StringComparison.OrdinalIgnoreCase))
             {
                 state.Enabled = false;
                 return;
