@@ -4,6 +4,9 @@
   "seed": 424242,
   "runTicks": 600,
   "enableEconomy": false,
+  "proofs": {
+    "mining": false
+  },
   "entityCounts": [
     { "registryId": "space4x.carrier", "count": 5000, "description": "Carriers" },
     { "registryId": "space4x.mining_vessel", "count": 225000, "description": "Mining vessels" },
