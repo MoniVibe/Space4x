@@ -15,6 +15,8 @@ namespace Space4X.Headless
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string ReportPathEnv = "SPACE4X_SCENARIO_REPORT_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
+        private const string PerfGateSpawnBatchEnv = "SPACE4X_PERF_GATE_SPAWN_BATCH";
+        private const string PerfGateLightweightEnv = "SPACE4X_PERF_GATE_LIGHTWEIGHT";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string TelemetryEnableEnv = "PUREDOTS_TELEMETRY_ENABLE";
@@ -111,6 +113,11 @@ namespace Space4X.Headless
                     SetEnvIfUnset("SPACE4X_HEADLESS_MINING_PROOF", "0");
                     SetEnvIfUnset("SPACE4X_HEADLESS_MOVEMENT_DIAG", "0");
                     SetEnvIfUnset("SPACE4X_RESOURCE_REGISTRY_POPULATION", "0");
+                    SetEnvIfUnset(PerfGateSpawnBatchEnv, "10000");
+                    if (IsLargePerfGateScenario(scenarioPath))
+                    {
+                        SetEnvIfUnset(PerfGateLightweightEnv, "1");
+                    }
                     SetEnvIfUnset(ExitPolicyEnv, "never");
                     UnityDebug.Log("PERF_GATE_MODE:1");
                 }
@@ -205,6 +212,18 @@ namespace Space4X.Headless
 
             return scenarioPath.Contains("perf_gate", StringComparison.OrdinalIgnoreCase)
                 || scenarioPath.Contains("perfgate", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsLargePerfGateScenario(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            return scenarioPath.Contains("perf_gate_250k", StringComparison.OrdinalIgnoreCase)
+                || scenarioPath.Contains("perf_gate_500k", StringComparison.OrdinalIgnoreCase)
+                || scenarioPath.Contains("perf_gate_1m", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool LooksLikeSpace4XMiningScenarioJson(string scenarioPath)

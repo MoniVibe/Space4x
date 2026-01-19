@@ -1,3 +1,4 @@
+using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.History;
 using PureDOTS.Runtime.Logistics.Components;
@@ -6,6 +7,7 @@ using PureDOTS.Runtime.Resources;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Systems;
+using Space4X.Headless;
 using Space4X.Mining;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -16,6 +18,7 @@ using Unity.Transforms;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
+using SystemEnv = System.Environment;
 
 namespace Space4X.Scenario
 {
@@ -28,7 +31,22 @@ namespace Space4X.Scenario
     [UpdateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
     public partial struct Space4XScenarioAdapterSystem : ISystem
     {
+        private const string PerfGateModeEnv = "PERF_GATE_MODE";
+        private const string PerfGateSpawnBatchEnv = "SPACE4X_PERF_GATE_SPAWN_BATCH";
+        private const string PerfGateLightweightEnv = "SPACE4X_PERF_GATE_LIGHTWEIGHT";
+        private const int DefaultSpawnBatch = 10000;
+
         private bool _hasSpawned;
+        private bool _initialized;
+        private bool _useBatching;
+        private bool _lightweightSpawn;
+        private int _batchSize;
+        private int _entryIndex;
+        private int _entrySpawned;
+        private int _lastProgressEntry;
+        private int _lastProgressSpawned;
+        private Unity.Mathematics.Random _random;
+        private bool _randomReady;
 
         public void OnCreate(ref SystemState state)
         {
@@ -57,8 +75,8 @@ namespace Space4X.Scenario
                 return;
             }
 
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
-            var random = new Unity.Mathematics.Random(scenarioInfo.Seed);
+            EnsureRandom(scenarioInfo.Seed);
+
             var spawnCenter = float3.zero;
             const float spawnRadius = 50f;
 
@@ -84,59 +102,216 @@ namespace Space4X.Scenario
             var haulerSubstring = new FixedString64Bytes("hauler");
             var haulerExact = new FixedString64Bytes("registry.hauler");
 
-            for (int i = 0; i < counts.Length; i++)
+            if (!_initialized)
             {
-                var entry = counts[i];
+                _useBatching = IsPerfGateModeActive(scenarioInfo.ScenarioId);
+                _batchSize = ResolveSpawnBatchSize(_useBatching);
+                _lightweightSpawn = _useBatching && IsEnvTruthy(PerfGateLightweightEnv);
+                _initialized = true;
+
+                ReportSpawnProgress(ref state, "spawn", "start");
+                if (_useBatching)
+                {
+                    UnityEngine.Debug.Log($"[Space4XScenarioAdapter] Perf gate spawn batching enabled (batch={_batchSize}, lightweight={(_lightweightSpawn ? "1" : "0")}).");
+                }
+            }
+
+            void SpawnEntry(ScenarioEntityCountElement entry, int spawnCount, int startIndex, bool lightweight, EntityCommandBuffer buffer)
+            {
                 var registryId = entry.RegistryId;
-                var count = entry.Count;
 
                 // Map registry IDs to entity archetypes using FixedString matching
                 // Phase 0: Hardcoded mappings (will be replaced with registry system in Phase 0.5)
                 if (registryId.Equals(carrierExact) || registryId.IndexOf(carrierSubstring) >= 0)
                 {
-                    SpawnCarriers(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnCarriers(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, lightweight, ref _random);
                 }
                 else if (registryId.Equals(minerExact) || registryId.Equals(miningVesselExact) ||
                          registryId.IndexOf(minerSubstring) >= 0 || registryId.IndexOf(miningVesselSubstring) >= 0)
                 {
-                    SpawnMiners(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnMiners(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, lightweight, ref _random);
                 }
                 else if (registryId.Equals(asteroidExact) || registryId.IndexOf(asteroidSubstring) >= 0)
                 {
-                    SpawnAsteroids(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnAsteroids(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
                 }
                 else if (registryId.Equals(oreSupplyExact) || registryId.IndexOf(oreSupplySubstring) >= 0)
                 {
-                    SpawnIronOreSupplyStations(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnIronOreSupplyStations(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
                 }
                 else if (registryId.Equals(storehouseExact) || registryId.Equals(stationExact) ||
                          registryId.IndexOf(storehouseSubstring) >= 0 || registryId.IndexOf(stationSubstring) >= 0)
                 {
-                    SpawnStations(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnStations(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
                 }
                 else if (registryId.Equals(refineryExact) || registryId.Equals(factoryExact) ||
                          registryId.IndexOf(refinerySubstring) >= 0 || registryId.IndexOf(factorySubstring) >= 0)
                 {
-                    SpawnProcessingFacilities(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnProcessingFacilities(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
                 }
                 else if (registryId.Equals(haulerExact) || registryId.IndexOf(haulerSubstring) >= 0)
                 {
-                    SpawnHaulers(ref state, ecb, spawnCenter, spawnRadius, count, ref random);
+                    SpawnHaulers(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
                 }
             }
 
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
+            if (!_useBatching || _batchSize <= 0)
+            {
+                var ecb = new EntityCommandBuffer(Allocator.Temp);
+                for (int i = 0; i < counts.Length; i++)
+                {
+                    var entry = counts[i];
+                    SpawnEntry(entry, entry.Count, 0, false, ecb);
+                }
 
-            _hasSpawned = true;
-            state.Enabled = false;
+                ecb.Playback(state.EntityManager);
+                ecb.Dispose();
+
+                _hasSpawned = true;
+                state.Enabled = false;
+                ReportSpawnProgress(ref state, "spawn", "complete");
+                return;
+            }
+
+            var spawnBudget = _batchSize;
+            var batchBuffer = new EntityCommandBuffer(Allocator.Temp);
+
+            while (spawnBudget > 0 && _entryIndex < counts.Length)
+            {
+                var entry = counts[_entryIndex];
+                var remaining = entry.Count - _entrySpawned;
+                if (remaining <= 0)
+                {
+                    _entryIndex++;
+                    _entrySpawned = 0;
+                    continue;
+                }
+
+                var spawnNow = math.min(remaining, spawnBudget);
+                SpawnEntry(entry, spawnNow, _entrySpawned, _lightweightSpawn, batchBuffer);
+                _entrySpawned += spawnNow;
+                spawnBudget -= spawnNow;
+
+                if (_entrySpawned >= entry.Count)
+                {
+                    _entryIndex++;
+                    _entrySpawned = 0;
+                }
+            }
+
+            batchBuffer.Playback(state.EntityManager);
+            batchBuffer.Dispose();
+
+            if (_entryIndex != _lastProgressEntry || _entrySpawned != _lastProgressSpawned)
+            {
+                ReportSpawnProgress(ref state, "spawn", $"batch_{_entryIndex}_{_entrySpawned}");
+                _lastProgressEntry = _entryIndex;
+                _lastProgressSpawned = _entrySpawned;
+            }
+
+            if (_entryIndex >= counts.Length)
+            {
+                _hasSpawned = true;
+                state.Enabled = false;
+                ReportSpawnProgress(ref state, "spawn", "complete");
+            }
         }
 
-        private static void SpawnCarriers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private void EnsureRandom(uint seed)
         {
-            for (int i = 0; i < count; i++)
+            if (_randomReady)
             {
-                var angle = (float)i / count * math.PI * 2f;
+                return;
+            }
+
+            var resolvedSeed = seed == 0 ? 1u : seed;
+            _random = new Unity.Mathematics.Random(resolvedSeed);
+            _randomReady = true;
+        }
+
+        private static bool IsPerfGateModeActive(FixedString64Bytes scenarioId)
+        {
+            if (IsEnvTruthy(PerfGateModeEnv))
+            {
+                return true;
+            }
+
+            if (scenarioId.IsEmpty)
+            {
+                return false;
+            }
+
+            var scenario = scenarioId.ToString();
+            return scenario.IndexOf("perf_gate", StringComparison.OrdinalIgnoreCase) >= 0
+                || scenario.IndexOf("perfgate", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsEnvTruthy(string key)
+        {
+            var value = SystemEnv.GetEnvironmentVariable(key);
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int ResolveSpawnBatchSize(bool perfGate)
+        {
+            if (!perfGate)
+            {
+                return 0;
+            }
+
+            var value = SystemEnv.GetEnvironmentVariable(PerfGateSpawnBatchEnv);
+            if (int.TryParse(value, out var parsed))
+            {
+                return parsed > 0 ? parsed : 0;
+            }
+
+            return DefaultSpawnBatch;
+        }
+
+        private static uint ResolveProgressTick(ref SystemState state)
+        {
+            var scenarioQuery = state.GetEntityQuery(ComponentType.ReadOnly<ScenarioRunnerTick>());
+            if (scenarioQuery.TryGetSingleton(out ScenarioRunnerTick scenarioTick))
+            {
+                return scenarioTick.Tick;
+            }
+
+            var timeQuery = state.GetEntityQuery(ComponentType.ReadOnly<TimeState>());
+            if (timeQuery.TryGetSingleton(out TimeState timeState))
+            {
+                return timeState.Tick;
+            }
+
+            return 0u;
+        }
+
+        private static void ReportSpawnProgress(ref SystemState state, string phase, string checkpoint)
+        {
+            if (!Space4XHeadlessDiagnostics.Enabled)
+            {
+                return;
+            }
+
+            var tick = ResolveProgressTick(ref state);
+            Space4XHeadlessDiagnostics.UpdateProgress(phase, checkpoint, tick);
+        }
+
+        private static void SpawnCarriers(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            bool lightweight,
+            ref Unity.Mathematics.Random random)
+        {
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                var angle = totalCount > 0 ? (float)i / totalCount * math.PI * 2f : 0f;
                 var distance = random.NextFloat(radius * 0.3f, radius * 0.7f);
                 var position = center + new float3(
                     math.cos(angle) * distance,
@@ -146,10 +321,13 @@ namespace Space4X.Scenario
 
                 var carrier = ecb.CreateEntity();
                 ecb.AddComponent(carrier, LocalTransform.FromPositionRotationScale(position, quaternion.identity, 10f));
-                ecb.AddComponent(carrier, new PostTransformMatrix
+                if (!lightweight)
                 {
-                    Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
-                });
+                    ecb.AddComponent(carrier, new PostTransformMatrix
+                    {
+                        Value = float4x4.Scale(new float3(0.6f, 0.4f, 6f))
+                    });
+                }
 
                 var carrierId = new FixedString64Bytes();
                 carrierId.Append("carrier_");
@@ -179,41 +357,54 @@ namespace Space4X.Scenario
                     PatrolRadius = 50f
                 });
 
-                ecb.AddComponent(carrier, new VesselAIState
+                if (!lightweight)
                 {
-                    CurrentState = VesselAIState.State.Idle,
-                    CurrentGoal = VesselAIState.Goal.Patrol,
-                    TargetEntity = Entity.Null,
-                    TargetPosition = position
-                });
+                    ecb.AddComponent(carrier, new VesselAIState
+                    {
+                        CurrentState = VesselAIState.State.Idle,
+                        CurrentGoal = VesselAIState.Goal.Patrol,
+                        TargetEntity = Entity.Null,
+                        TargetPosition = position
+                    });
 
-                ecb.AddComponent(carrier, new VesselMovement
-                {
-                    Velocity = float3.zero,
-                    BaseSpeed = 5f,
-                    CurrentSpeed = 0f,
-                    Acceleration = 0.6f,
-                    Deceleration = 0.8f,
-                    TurnSpeed = 0.35f,
-                    SlowdownDistance = 18f,
-                    ArrivalDistance = 3f,
-                    DesiredRotation = quaternion.identity,
-                    IsMoving = 0
-                });
+                    ecb.AddComponent(carrier, new VesselMovement
+                    {
+                        Velocity = float3.zero,
+                        BaseSpeed = 5f,
+                        CurrentSpeed = 0f,
+                        Acceleration = 0.6f,
+                        Deceleration = 0.8f,
+                        TurnSpeed = 0.35f,
+                        SlowdownDistance = 18f,
+                        ArrivalDistance = 3f,
+                        DesiredRotation = quaternion.identity,
+                        IsMoving = 0
+                    });
 
-                ecb.AddComponent(carrier, new DockingCapacity
-                {
-                    MaxSmallCraft = 24,
-                    CurrentSmallCraft = 0
-                });
+                    ecb.AddComponent(carrier, new DockingCapacity
+                    {
+                        MaxSmallCraft = 24,
+                        CurrentSmallCraft = 0
+                    });
 
-                ecb.AddBuffer<ResourceStorage>(carrier);
+                    ecb.AddBuffer<ResourceStorage>(carrier);
+                }
             }
         }
 
-        private static void SpawnMiners(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnMiners(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            bool lightweight,
+            ref Unity.Mathematics.Random random)
         {
-            for (int i = 0; i < count; i++)
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
             {
                 var angle = random.NextFloat(0f, math.PI * 2f);
                 var distance = random.NextFloat(radius * 0.5f, radius);
@@ -251,42 +442,54 @@ namespace Space4X.Scenario
                     CargoResourceType = ResourceType.Minerals
                 });
 
-                ecb.AddComponent(miner, new MiningState
+                if (!lightweight)
                 {
-                    Phase = Space4X.Registry.MiningPhase.Idle,
-                    ActiveTarget = Entity.Null,
-                    MiningTimer = 0f,
-                    TickInterval = 0.1f,
-                    PhaseTimer = 0f
-                });
+                    ecb.AddComponent(miner, new MiningState
+                    {
+                        Phase = Space4X.Registry.MiningPhase.Idle,
+                        ActiveTarget = Entity.Null,
+                        MiningTimer = 0f,
+                        TickInterval = 0.1f,
+                        PhaseTimer = 0f
+                    });
 
-                ecb.AddComponent(miner, new VesselAIState
-                {
-                    CurrentState = VesselAIState.State.Idle,
-                    CurrentGoal = VesselAIState.Goal.Mining,
-                    TargetEntity = Entity.Null,
-                    TargetPosition = position
-                });
+                    ecb.AddComponent(miner, new VesselAIState
+                    {
+                        CurrentState = VesselAIState.State.Idle,
+                        CurrentGoal = VesselAIState.Goal.Mining,
+                        TargetEntity = Entity.Null,
+                        TargetPosition = position
+                    });
 
-                ecb.AddComponent(miner, new VesselMovement
-                {
-                    Velocity = float3.zero,
-                    BaseSpeed = 10f,
-                    CurrentSpeed = 0f,
-                    Acceleration = 6f,
-                    Deceleration = 8f,
-                    TurnSpeed = 2.5f,
-                    SlowdownDistance = 6f,
-                    ArrivalDistance = 1.5f,
-                    DesiredRotation = quaternion.identity,
-                    IsMoving = 0
-                });
+                    ecb.AddComponent(miner, new VesselMovement
+                    {
+                        Velocity = float3.zero,
+                        BaseSpeed = 10f,
+                        CurrentSpeed = 0f,
+                        Acceleration = 6f,
+                        Deceleration = 8f,
+                        TurnSpeed = 2.5f,
+                        SlowdownDistance = 6f,
+                        ArrivalDistance = 1.5f,
+                        DesiredRotation = quaternion.identity,
+                        IsMoving = 0
+                    });
+                }
             }
         }
 
-        private static void SpawnAsteroids(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnAsteroids(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            ref Unity.Mathematics.Random random)
         {
-            for (int i = 0; i < count; i++)
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
             {
                 var angle = random.NextFloat(0f, math.PI * 2f);
                 var distance = random.NextFloat(radius, radius * 1.5f);
@@ -354,14 +557,23 @@ namespace Space4X.Scenario
             }
         }
 
-        private static void SpawnStations(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnStations(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            ref Unity.Mathematics.Random random)
         {
             var resourceIdMinerals = new FixedString64Bytes("minerals");
             var storehouseLabel = new FixedString64Bytes("Station");
             
-            for (int i = 0; i < count; i++)
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
             {
-                var angle = (float)i / count * math.PI * 2f;
+                var angle = totalCount > 0 ? (float)i / totalCount * math.PI * 2f : 0f;
                 var distance = random.NextFloat(radius * 0.2f, radius * 0.5f);
                 var position = center + new float3(
                     math.cos(angle) * distance,
@@ -412,16 +624,25 @@ namespace Space4X.Scenario
             }
         }
 
-        private static void SpawnIronOreSupplyStations(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnIronOreSupplyStations(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            ref Unity.Mathematics.Random random)
         {
             var resourceIdOre = new FixedString64Bytes("iron_ore");
             var storehouseLabel = new FixedString64Bytes("Ore Supply");
             const float initialOre = 80f;
             const float maxCapacity = 200f;
 
-            for (int i = 0; i < count; i++)
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
             {
-                var angle = (float)i / count * math.PI * 2f;
+                var angle = totalCount > 0 ? (float)i / totalCount * math.PI * 2f : 0f;
                 var distance = random.NextFloat(radius * 0.2f, radius * 0.6f);
                 var position = center + new float3(
                     math.cos(angle) * distance,
@@ -484,16 +705,25 @@ namespace Space4X.Scenario
             }
         }
 
-        private static void SpawnProcessingFacilities(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnProcessingFacilities(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            ref Unity.Mathematics.Random random)
         {
             var inputId = new FixedString64Bytes("iron_ore");
             var outputId = new FixedString64Bytes("iron_ingot");
             var recipeId = new FixedString32Bytes("refine_iron_ingot");
             var storehouseLabel = new FixedString64Bytes("Refinery");
 
-            for (int i = 0; i < count; i++)
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
             {
-                var angle = (float)i / count * math.PI * 2f;
+                var angle = totalCount > 0 ? (float)i / totalCount * math.PI * 2f : 0f;
                 var distance = random.NextFloat(radius * 0.15f, radius * 0.4f);
                 var position = center + new float3(
                     math.cos(angle) * distance,
@@ -557,11 +787,20 @@ namespace Space4X.Scenario
             }
         }
 
-        private static void SpawnHaulers(ref SystemState state, EntityCommandBuffer ecb, float3 center, float radius, int count, ref Unity.Mathematics.Random random)
+        private static void SpawnHaulers(
+            ref SystemState state,
+            EntityCommandBuffer ecb,
+            float3 center,
+            float radius,
+            int count,
+            int totalCount,
+            int startIndex,
+            ref Unity.Mathematics.Random random)
         {
-            for (int i = 0; i < count; i++)
+            var endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
             {
-                var angle = (float)i / count * math.PI * 2f;
+                var angle = totalCount > 0 ? (float)i / totalCount * math.PI * 2f : 0f;
                 var distance = random.NextFloat(radius * 0.2f, radius * 0.6f);
                 var position = center + new float3(
                     math.cos(angle) * distance,
