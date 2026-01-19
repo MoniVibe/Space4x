@@ -107,6 +107,7 @@ namespace Space4X.Headless
                     SetEnvIfUnset("PUREDOTS_HEADLESS_TIME_PROOF", "0");
                     SetEnvIfUnset("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
                     SetEnvIfUnset(ExitPolicyEnv, "never");
+                    UnityDebug.Log("PERF_GATE_MODE:1");
                 }
 
                 LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
@@ -188,8 +189,8 @@ namespace Space4X.Headless
                 return false;
             }
 
-            var fileName = Path.GetFileName(scenarioPath);
-            return fileName.Contains("perf_gate", StringComparison.OrdinalIgnoreCase);
+            return scenarioPath.Contains("perf_gate", StringComparison.OrdinalIgnoreCase)
+                || scenarioPath.Contains("perfgate", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool LooksLikeSpace4XMiningScenarioJson(string scenarioPath)
