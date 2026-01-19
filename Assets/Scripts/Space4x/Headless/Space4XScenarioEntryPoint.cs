@@ -16,9 +16,12 @@ namespace Space4X.Headless
         private const string ReportPathEnv = "SPACE4X_SCENARIO_REPORT_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
+        private const string PerfTelemetryPathEnv = "PUREDOTS_PERF_TELEMETRY_PATH";
+        private const string ExitPolicyEnv = "PUREDOTS_EXIT_POLICY";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
         private static bool s_executed;
         private static bool s_loggedTelemetry;
+        private static bool s_loggedPerfTelemetry;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         static void LoadPresentationSceneIfRequested()
@@ -96,7 +99,15 @@ namespace Space4X.Headless
                     return;
                 }
 
+                if (IsPerfGateScenario(scenarioPath))
+                {
+                    SetEnvIfUnset("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+                    SetEnvIfUnset("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+                    SetEnvIfUnset(ExitPolicyEnv, "never");
+                }
+
                 LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
+                LogPerfTelemetryOutOnce(SystemEnv.GetEnvironmentVariable(PerfTelemetryPathEnv) ?? "(unset)");
                 var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
                 var exitCode = 0;
@@ -154,6 +165,28 @@ namespace Space4X.Headless
 
             s_loggedTelemetry = true;
             UnityDebug.Log($"TELEMETRY_OUT:{telemetryPath}");
+        }
+
+        private static void LogPerfTelemetryOutOnce(string telemetryPath)
+        {
+            if (s_loggedPerfTelemetry)
+            {
+                return;
+            }
+
+            s_loggedPerfTelemetry = true;
+            UnityDebug.Log($"PERF_TELEMETRY_OUT:{telemetryPath}");
+        }
+
+        private static bool IsPerfGateScenario(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            var fileName = Path.GetFileName(scenarioPath);
+            return fileName.Contains("perf_gate", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool LooksLikeSpace4XMiningScenarioJson(string scenarioPath)
