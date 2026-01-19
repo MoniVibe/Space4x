@@ -166,6 +166,7 @@ namespace Space4X.Headless
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
         public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
+        public const string MiningProgress = "space4x.q.mining.progress";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -178,6 +179,7 @@ namespace Space4X.Headless
                 "CONTACT_GHOST" => SensorsAcquireDrop,
                 "CONTACT_THRASH" => SensorsAcquireDrop,
                 "COMMS_BEAT_SKIPPED" => CommsDelivery,
+                "MINING_STALL" => MiningProgress,
                 _ => Unknown
             };
         }
@@ -190,7 +192,8 @@ namespace Space4X.Headless
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion(),
-            new MovementTurnRateBoundsQuestion()
+            new MovementTurnRateBoundsQuestion(),
+            new MiningProgressQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -494,7 +497,6 @@ namespace Space4X.Headless
         private sealed class MovementTurnRateBoundsQuestion : IHeadlessQuestion
         {
             public string Id => Space4XHeadlessQuestionIds.MovementTurnRateBounds;
-
             public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
             {
                 var answer = new Space4XQuestionAnswer
@@ -534,6 +536,58 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"turn_rate_max={turnRateMax:0.##} turn_accel_max={turnAccelMax:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class MiningProgressQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.MiningProgress;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.mining.gather_commands", out var gatherCommands))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_mining_metrics";
+                    answer.Answer = "mining metrics unavailable";
+                    return answer;
+                }
+
+                var oreDelta = signals.GetMetricOrDefault("space4x.mining.ore_delta");
+                var cargoDelta = signals.GetMetricOrDefault("space4x.mining.cargo_delta");
+                var passMetric = signals.GetMetricOrDefault("space4x.mining.pass");
+
+                answer.Metrics["gather_commands"] = gatherCommands;
+                answer.Metrics["ore_delta"] = oreDelta;
+                answer.Metrics["cargo_delta"] = cargoDelta;
+                answer.Metrics["pass"] = passMetric;
+
+                if (signals.HasBlackCat("MINING_STALL"))
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "mining stalled";
+                    return answer;
+                }
+
+                var hasYield = oreDelta > 0.01f || cargoDelta > 0.01f;
+                if (gatherCommands > 0f && (hasYield || passMetric > 0.5f))
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"gather={gatherCommands:0} ore_delta={oreDelta:0.##} cargo_delta={cargoDelta:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"gather={gatherCommands:0} ore_delta={oreDelta:0.##} cargo_delta={cargoDelta:0.##}";
                 return answer;
             }
         }
