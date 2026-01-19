@@ -63,7 +63,7 @@ namespace Space4X.Headless
             _initialized = 1;
         }
 
-        private static uint ResolveStartTick()
+        private uint ResolveStartTick()
         {
             if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTime))
             {
@@ -83,7 +83,7 @@ namespace Space4X.Headless
             return 0u;
         }
 
-        private static float ResolveFixedDelta()
+        private float ResolveFixedDelta()
         {
             if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTime))
             {
