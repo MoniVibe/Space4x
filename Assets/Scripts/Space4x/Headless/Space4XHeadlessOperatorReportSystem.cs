@@ -48,7 +48,14 @@ namespace Space4X.Headless
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
-            if (timeState.Tick < runtime.EndTick)
+            var hasEndTick = runtime.EndTick > 0;
+            var shouldWrite = hasEndTick && timeState.Tick >= runtime.EndTick;
+            if (!shouldWrite && SystemAPI.TryGetSingleton(out HeadlessExitRequest _))
+            {
+                shouldWrite = true;
+            }
+
+            if (!shouldWrite)
             {
                 return;
             }

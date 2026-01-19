@@ -117,6 +117,13 @@ namespace Space4X.Headless
             {
                 EmitSummary(ref state);
                 _done = 1;
+                return;
+            }
+
+            if (SystemAPI.TryGetSingleton(out HeadlessExitRequest _))
+            {
+                EmitSummary(ref state);
+                _done = 1;
             }
         }
 
