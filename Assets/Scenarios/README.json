@@ -1,3 +1,8 @@
 {
-  "note": "intended for PerfGate SAFE nightly (100k) and WILD nightly (1M)"
+  "perfGate": {
+    "SAFE": "100k",
+    "RAMP": "250k/500k",
+    "WILD": "1m-lite",
+    "experimental": "full 1m heavy remains experimental until memory is tamed"
+  }
 }
