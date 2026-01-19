@@ -16,6 +16,8 @@ namespace Space4X.Headless
         private const string ReportPathEnv = "SPACE4X_SCENARIO_REPORT_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
+        private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
+        private const string TelemetryEnableEnv = "PUREDOTS_TELEMETRY_ENABLE";
         private const string PerfTelemetryPathEnv = "PUREDOTS_PERF_TELEMETRY_PATH";
         private const string ExitPolicyEnv = "PUREDOTS_EXIT_POLICY";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
@@ -132,6 +134,8 @@ namespace Space4X.Headless
                     Space4XHeadlessDiagnostics.WriteScenarioRunnerInvariants(result, exitCode);
                     Space4XHeadlessDiagnostics.ShutdownWriter();
                 }
+
+                ClearTelemetryEnvForExit();
                 Quit(exitCode);
             }
             catch (Exception ex)
@@ -180,6 +184,13 @@ namespace Space4X.Headless
 
             s_loggedPerfTelemetry = true;
             UnityDebug.Log($"PERF_TELEMETRY_OUT:{telemetryPath}");
+        }
+
+        private static void ClearTelemetryEnvForExit()
+        {
+            SystemEnv.SetEnvironmentVariable(TelemetryPathEnv, string.Empty);
+            SystemEnv.SetEnvironmentVariable(PerfTelemetryPathEnv, string.Empty);
+            SystemEnv.SetEnvironmentVariable(TelemetryEnableEnv, "0");
         }
 
         private static bool IsPerfGateScenario(string scenarioPath)
