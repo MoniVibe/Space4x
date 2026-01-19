@@ -805,8 +805,8 @@ namespace Space4X.Systems.AI
                     var spoolSeconds = math.max(1e-4f, MotionConfig.AccelSpoolDurationSec);
                     var ticksSinceStart = CurrentTick >= movement.MoveStartTick ? CurrentTick - movement.MoveStartTick : 0u;
                     var spoolT = math.saturate((ticksSinceStart * DeltaTime) / spoolSeconds);
-                    var throttle = math.lerp(minMultiplier, 1f, spoolT);
-                    maxAccel *= throttle;
+                    var spoolThrottle = math.lerp(minMultiplier, 1f, spoolT);
+                    maxAccel *= spoolThrottle;
                 }
                 if (acceleration > maxAccel)
                 {
