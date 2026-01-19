@@ -69,14 +69,14 @@ namespace Space4X.Headless
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
             {
-                _lastTickTime = Time.realtimeSinceStartupAsDouble;
+                _lastTickTime = Time.realtimeSinceStartup;
                 return;
             }
 
             var rewindState = SystemAPI.GetSingleton<RewindState>();
             if (rewindState.Mode != RewindMode.Record)
             {
-                _lastTickTime = Time.realtimeSinceStartupAsDouble;
+                _lastTickTime = Time.realtimeSinceStartup;
                 return;
             }
 
@@ -89,7 +89,7 @@ namespace Space4X.Headless
                 _sampleInterval = math.max(1u, totalTicks > 0 ? totalTicks / MaxSamples : 1u);
             }
 
-            var now = Time.realtimeSinceStartupAsDouble;
+            var now = Time.realtimeSinceStartup;
             if (_initialized == 0)
             {
                 _lastTickTime = now;
