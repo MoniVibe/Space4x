@@ -35,6 +35,26 @@ namespace Space4X.Scenario
         private const string PerfGateSpawnBatchEnv = "SPACE4X_PERF_GATE_SPAWN_BATCH";
         private const string PerfGateLightweightEnv = "SPACE4X_PERF_GATE_LIGHTWEIGHT";
         private const int DefaultSpawnBatch = 10000;
+        private static readonly FixedString64Bytes CarrierSubstring = new FixedString64Bytes("carrier");
+        private static readonly FixedString64Bytes CarrierExact = new FixedString64Bytes("space4x.carrier");
+        private static readonly FixedString64Bytes MinerExact = new FixedString64Bytes("space4x.miner");
+        private static readonly FixedString64Bytes MiningVesselExact = new FixedString64Bytes("space4x.mining_vessel");
+        private static readonly FixedString64Bytes MinerSubstring = new FixedString64Bytes("miner");
+        private static readonly FixedString64Bytes MiningVesselSubstring = new FixedString64Bytes("mining_vessel");
+        private static readonly FixedString64Bytes AsteroidExact = new FixedString64Bytes("space4x.asteroid");
+        private static readonly FixedString64Bytes AsteroidSubstring = new FixedString64Bytes("asteroid");
+        private static readonly FixedString64Bytes OreSupplyExact = new FixedString64Bytes("registry.storehouse.iron_ore_supply");
+        private static readonly FixedString64Bytes OreSupplySubstring = new FixedString64Bytes("iron_ore_supply");
+        private static readonly FixedString64Bytes StorehouseExact = new FixedString64Bytes("space4x.storehouse");
+        private static readonly FixedString64Bytes StorehouseSubstring = new FixedString64Bytes("storehouse");
+        private static readonly FixedString64Bytes StationExact = new FixedString64Bytes("space4x.station");
+        private static readonly FixedString64Bytes StationSubstring = new FixedString64Bytes("station");
+        private static readonly FixedString64Bytes RefineryExact = new FixedString64Bytes("space4x.refinery");
+        private static readonly FixedString64Bytes RefinerySubstring = new FixedString64Bytes("refinery");
+        private static readonly FixedString64Bytes FactoryExact = new FixedString64Bytes("space4x.factory");
+        private static readonly FixedString64Bytes FactorySubstring = new FixedString64Bytes("factory");
+        private static readonly FixedString64Bytes HaulerSubstring = new FixedString64Bytes("hauler");
+        private static readonly FixedString64Bytes HaulerExact = new FixedString64Bytes("registry.hauler");
 
         private bool _hasSpawned;
         private bool _initialized;
@@ -80,28 +100,6 @@ namespace Space4X.Scenario
             var spawnCenter = float3.zero;
             const float spawnRadius = 50f;
 
-            // Burst-safe FixedString matching (no ToString/Contains in Burst)
-            var carrierSubstring = new FixedString64Bytes("carrier");
-            var carrierExact = new FixedString64Bytes("space4x.carrier");
-            var minerSubstring = new FixedString64Bytes("miner");
-            var miningVesselSubstring = new FixedString64Bytes("mining_vessel");
-            var minerExact = new FixedString64Bytes("space4x.miner");
-            var miningVesselExact = new FixedString64Bytes("space4x.mining_vessel");
-            var asteroidSubstring = new FixedString64Bytes("asteroid");
-            var asteroidExact = new FixedString64Bytes("space4x.asteroid");
-            var storehouseSubstring = new FixedString64Bytes("storehouse");
-            var stationSubstring = new FixedString64Bytes("station");
-            var storehouseExact = new FixedString64Bytes("space4x.storehouse");
-            var stationExact = new FixedString64Bytes("space4x.station");
-            var oreSupplySubstring = new FixedString64Bytes("iron_ore_supply");
-            var oreSupplyExact = new FixedString64Bytes("registry.storehouse.iron_ore_supply");
-            var refinerySubstring = new FixedString64Bytes("refinery");
-            var factorySubstring = new FixedString64Bytes("factory");
-            var refineryExact = new FixedString64Bytes("space4x.refinery");
-            var factoryExact = new FixedString64Bytes("space4x.factory");
-            var haulerSubstring = new FixedString64Bytes("hauler");
-            var haulerExact = new FixedString64Bytes("registry.hauler");
-
             if (!_initialized)
             {
                 _useBatching = IsPerfGateModeActive(scenarioInfo.ScenarioId);
@@ -116,52 +114,13 @@ namespace Space4X.Scenario
                 }
             }
 
-            void SpawnEntry(ScenarioEntityCountElement entry, int spawnCount, int startIndex, bool lightweight, EntityCommandBuffer buffer)
-            {
-                var registryId = entry.RegistryId;
-
-                // Map registry IDs to entity archetypes using FixedString matching
-                // Phase 0: Hardcoded mappings (will be replaced with registry system in Phase 0.5)
-                if (registryId.Equals(carrierExact) || registryId.IndexOf(carrierSubstring) >= 0)
-                {
-                    SpawnCarriers(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, lightweight, ref _random);
-                }
-                else if (registryId.Equals(minerExact) || registryId.Equals(miningVesselExact) ||
-                         registryId.IndexOf(minerSubstring) >= 0 || registryId.IndexOf(miningVesselSubstring) >= 0)
-                {
-                    SpawnMiners(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, lightweight, ref _random);
-                }
-                else if (registryId.Equals(asteroidExact) || registryId.IndexOf(asteroidSubstring) >= 0)
-                {
-                    SpawnAsteroids(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
-                }
-                else if (registryId.Equals(oreSupplyExact) || registryId.IndexOf(oreSupplySubstring) >= 0)
-                {
-                    SpawnIronOreSupplyStations(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
-                }
-                else if (registryId.Equals(storehouseExact) || registryId.Equals(stationExact) ||
-                         registryId.IndexOf(storehouseSubstring) >= 0 || registryId.IndexOf(stationSubstring) >= 0)
-                {
-                    SpawnStations(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
-                }
-                else if (registryId.Equals(refineryExact) || registryId.Equals(factoryExact) ||
-                         registryId.IndexOf(refinerySubstring) >= 0 || registryId.IndexOf(factorySubstring) >= 0)
-                {
-                    SpawnProcessingFacilities(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
-                }
-                else if (registryId.Equals(haulerExact) || registryId.IndexOf(haulerSubstring) >= 0)
-                {
-                    SpawnHaulers(ref state, buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
-                }
-            }
-
             if (!_useBatching || _batchSize <= 0)
             {
                 var ecb = new EntityCommandBuffer(Allocator.Temp);
                 for (int i = 0; i < counts.Length; i++)
                 {
                     var entry = counts[i];
-                    SpawnEntry(entry, entry.Count, 0, false, ecb);
+                    SpawnEntry(ecb, spawnCenter, spawnRadius, entry, entry.Count, 0, false);
                 }
 
                 ecb.Playback(state.EntityManager);
@@ -188,7 +147,7 @@ namespace Space4X.Scenario
                 }
 
                 var spawnNow = math.min(remaining, spawnBudget);
-                SpawnEntry(entry, spawnNow, _entrySpawned, _lightweightSpawn, batchBuffer);
+                SpawnEntry(batchBuffer, spawnCenter, spawnRadius, entry, spawnNow, _entrySpawned, _lightweightSpawn);
                 _entrySpawned += spawnNow;
                 spawnBudget -= spawnNow;
 
@@ -297,8 +256,52 @@ namespace Space4X.Scenario
             Space4XHeadlessDiagnostics.UpdateProgress(phase, checkpoint, tick);
         }
 
+        private void SpawnEntry(
+            EntityCommandBuffer buffer,
+            float3 spawnCenter,
+            float spawnRadius,
+            ScenarioEntityCountElement entry,
+            int spawnCount,
+            int startIndex,
+            bool lightweight)
+        {
+            var registryId = entry.RegistryId;
+
+            // Map registry IDs to entity archetypes using FixedString matching.
+            if (registryId.Equals(CarrierExact) || registryId.IndexOf(CarrierSubstring) >= 0)
+            {
+                SpawnCarriers(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, lightweight, ref _random);
+            }
+            else if (registryId.Equals(MinerExact) || registryId.Equals(MiningVesselExact) ||
+                     registryId.IndexOf(MinerSubstring) >= 0 || registryId.IndexOf(MiningVesselSubstring) >= 0)
+            {
+                SpawnMiners(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, lightweight, ref _random);
+            }
+            else if (registryId.Equals(AsteroidExact) || registryId.IndexOf(AsteroidSubstring) >= 0)
+            {
+                SpawnAsteroids(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
+            }
+            else if (registryId.Equals(OreSupplyExact) || registryId.IndexOf(OreSupplySubstring) >= 0)
+            {
+                SpawnIronOreSupplyStations(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
+            }
+            else if (registryId.Equals(StorehouseExact) || registryId.Equals(StationExact) ||
+                     registryId.IndexOf(StorehouseSubstring) >= 0 || registryId.IndexOf(StationSubstring) >= 0)
+            {
+                SpawnStations(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
+            }
+            else if (registryId.Equals(RefineryExact) || registryId.Equals(FactoryExact) ||
+                     registryId.IndexOf(RefinerySubstring) >= 0 || registryId.IndexOf(FactorySubstring) >= 0)
+            {
+                SpawnProcessingFacilities(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
+            }
+            else if (registryId.Equals(HaulerExact) || registryId.IndexOf(HaulerSubstring) >= 0)
+            {
+                SpawnHaulers(buffer, spawnCenter, spawnRadius, spawnCount, entry.Count, startIndex, ref _random);
+            }
+        }
+
         private static void SpawnCarriers(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
@@ -393,7 +396,6 @@ namespace Space4X.Scenario
         }
 
         private static void SpawnMiners(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
@@ -479,7 +481,6 @@ namespace Space4X.Scenario
         }
 
         private static void SpawnAsteroids(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
@@ -558,7 +559,6 @@ namespace Space4X.Scenario
         }
 
         private static void SpawnStations(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
@@ -625,7 +625,6 @@ namespace Space4X.Scenario
         }
 
         private static void SpawnIronOreSupplyStations(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
@@ -706,7 +705,6 @@ namespace Space4X.Scenario
         }
 
         private static void SpawnProcessingFacilities(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
@@ -788,7 +786,6 @@ namespace Space4X.Scenario
         }
 
         private static void SpawnHaulers(
-            ref SystemState state,
             EntityCommandBuffer ecb,
             float3 center,
             float radius,
