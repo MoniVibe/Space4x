@@ -108,6 +108,8 @@ namespace Space4X.Headless
                 {
                     SetEnvIfUnset("PUREDOTS_HEADLESS_TIME_PROOF", "0");
                     SetEnvIfUnset("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+                    SetEnvIfUnset("SPACE4X_HEADLESS_MINING_PROOF", "0");
+                    SetEnvIfUnset("SPACE4X_HEADLESS_MOVEMENT_DIAG", "0");
                     SetEnvIfUnset(ExitPolicyEnv, "never");
                     UnityDebug.Log("PERF_GATE_MODE:1");
                 }
