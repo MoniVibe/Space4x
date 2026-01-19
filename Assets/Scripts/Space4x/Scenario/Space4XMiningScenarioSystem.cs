@@ -36,11 +36,14 @@ namespace Space4x.Scenario
     public partial class Space4XMiningScenarioSystem : SystemBase
     {
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string PerfGateModeEnv = "PERF_GATE_MODE";
+        private const string ExitPolicyEnv = "PUREDOTS_EXIT_POLICY";
         private const string JsonExtension = ".json";
         private const float DefaultSpawnVerticalRange = 60f;
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private bool _hasLoaded;
+        private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
         private bool _useSmokeMotionTuning;
@@ -84,6 +87,18 @@ namespace Space4x.Scenario
                 if (string.IsNullOrWhiteSpace(scenarioIdForWarning))
                 {
                     scenarioIdForWarning = "unknown";
+                }
+
+                if (IsPerfGateModeActive(scenarioIdForWarning))
+                {
+                    if (!_loggedPerfGateMissingScenario)
+                    {
+                        Debug.LogWarning($"[Space4XMiningScenario] No mining scenario resolved for ScenarioId='{scenarioIdForWarning}' (perf gate mode active; mining scenario disabled).");
+                        _loggedPerfGateMissingScenario = true;
+                    }
+
+                    Enabled = false;
+                    return;
                 }
 
                 Debug.LogWarning($"[Space4XMiningScenario] No scenario path resolved for ScenarioId='{scenarioIdForWarning}'.");
@@ -673,8 +688,47 @@ namespace Space4x.Scenario
                 }
             }
 
+            if (IsPerfGateModeActive(scenarioId))
+            {
+                return null;
+            }
+
             Debug.LogWarning($"[Space4XMiningScenario] Unable to locate scenario '{scenarioId}' (normalized '{normalizedScenarioId}'). Checked: {string.Join(", ", possiblePaths)}");
             return null;
+        }
+
+        private static bool IsPerfGateModeActive(string scenarioId)
+        {
+            if (IsEnvTruthy(PerfGateModeEnv))
+            {
+                return true;
+            }
+
+            var exitPolicy = SystemEnv.GetEnvironmentVariable(ExitPolicyEnv);
+            if (string.Equals(exitPolicy, "never", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return IsPerfGateScenarioId(scenarioId);
+        }
+
+        private static bool IsEnvTruthy(string key)
+        {
+            var value = SystemEnv.GetEnvironmentVariable(key);
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsPerfGateScenarioId(string scenarioId)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                return false;
+            }
+
+            return scenarioId.Contains("perf_gate", StringComparison.OrdinalIgnoreCase)
+                || scenarioId.Contains("perfgate", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizeScenarioId(string scenarioId)
