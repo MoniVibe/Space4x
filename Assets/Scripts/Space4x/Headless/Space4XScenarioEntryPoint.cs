@@ -17,6 +17,7 @@ namespace Space4X.Headless
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
         private const string PerfGateSpawnBatchEnv = "SPACE4X_PERF_GATE_SPAWN_BATCH";
         private const string PerfGateLightweightEnv = "SPACE4X_PERF_GATE_LIGHTWEIGHT";
+        private const string PerfGateRunTicksEnv = "SPACE4X_PERF_GATE_RUN_TICKS";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string TelemetryEnableEnv = "PUREDOTS_TELEMETRY_ENABLE";
@@ -106,7 +107,8 @@ namespace Space4X.Headless
                     return;
                 }
 
-                if (IsPerfGateScenario(scenarioPath))
+                var isPerfGate = IsPerfGateScenario(scenarioPath);
+                if (isPerfGate)
                 {
                     SetEnvIfUnset("PUREDOTS_HEADLESS_TIME_PROOF", "0");
                     SetEnvIfUnset("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
@@ -124,7 +126,9 @@ namespace Space4X.Headless
 
                 LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
                 LogPerfTelemetryOutOnce(SystemEnv.GetEnvironmentVariable(PerfTelemetryPathEnv) ?? "(unset)");
-                var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
+                var result = isPerfGate
+                    ? RunPerfGateScenario(scenarioPath, reportPath)
+                    : ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
                 var exitCode = 0;
                 var invariantFail = ScenarioExitUtility.ShouldExitNonZero(result, out _);
@@ -212,6 +216,32 @@ namespace Space4X.Headless
 
             return scenarioPath.Contains("perf_gate", StringComparison.OrdinalIgnoreCase)
                 || scenarioPath.Contains("perfgate", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static ScenarioRunResult RunPerfGateScenario(string scenarioPath, string reportPath)
+        {
+            var overrideTicks = ResolvePerfGateRunTicks();
+            if (overrideTicks <= 0)
+            {
+                return ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
+            }
+
+            var json = File.ReadAllText(scenarioPath);
+            if (!ScenarioRunner.TryParse(json, out var data, out var parseError))
+            {
+                throw new InvalidOperationException($"Scenario parse failed: {parseError}");
+            }
+
+            var originalTicks = data.runTicks;
+            data.runTicks = Math.Max(1, overrideTicks);
+            UnityDebug.Log($"[ScenarioEntryPoint] Perf gate runTicks override: {originalTicks} -> {data.runTicks}");
+            return ScenarioRunnerExecutor.Run(data, scenarioPath, reportPath);
+        }
+
+        private static int ResolvePerfGateRunTicks()
+        {
+            var value = SystemEnv.GetEnvironmentVariable(PerfGateRunTicksEnv);
+            return int.TryParse(value, out var parsed) && parsed > 0 ? parsed : 0;
         }
 
         private static bool IsLargePerfGateScenario(string scenarioPath)
