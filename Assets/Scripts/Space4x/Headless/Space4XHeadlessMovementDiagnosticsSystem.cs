@@ -34,6 +34,7 @@ namespace Space4X.Headless
         private const string StuckWarnThresholdEnv = "SPACE4X_HEADLESS_STUCK_WARN_THRESHOLD";
         private const string StuckFailThresholdEnv = "SPACE4X_HEADLESS_STUCK_FAIL_THRESHOLD";
         private const string MovementStrictEnv = "SPACE4X_HEADLESS_MOVEMENT_STRICT";
+        private const string IgnoreTurnFailuresEnv = "SPACE4X_HEADLESS_IGNORE_TURN";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
@@ -363,8 +364,17 @@ namespace Space4X.Headless
                     {
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
-                        stateValue.LastMoveStartTick = moveStartTick;
+                        stateValue.LastMoveStartTick = moveStartTick > 0 ? moveStartTick : tick;
                         stateValue.Initialized = 1;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+                    if (tick <= stateValue.LastMoveStartTick + TurnWarmupTicks)
+                    {
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = 0f;
+                        turnState.ValueRW = stateValue;
+                        continue;
                     }
                     else
                     {
@@ -507,6 +517,10 @@ namespace Space4X.Headless
             }
 
             _scenarioResolved = true;
+            if (ReadBoolEnv(IgnoreTurnFailuresEnv, false))
+            {
+                _ignoreTurnFailures = true;
+            }
             if (!string.IsNullOrWhiteSpace(scenarioPath) &&
                 scenarioPath.EndsWith(CollisionScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
