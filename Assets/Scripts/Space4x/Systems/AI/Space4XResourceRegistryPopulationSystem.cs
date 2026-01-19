@@ -20,6 +20,7 @@ namespace Space4X.Systems.AI
     [UpdateAfter(typeof(PureDOTS.Systems.ResourceRegistrySystem))]
     public partial struct Space4XResourceRegistryPopulationSystem : ISystem
     {
+        private const string RegistryPopulationEnv = "SPACE4X_RESOURCE_REGISTRY_POPULATION";
         private EntityQuery _asteroidQuery;
         private EntityQuery _registryQuery;
         private static readonly FixedString64Bytes ResourceIdMinerals = "space4x.resource.minerals";
@@ -33,6 +34,13 @@ namespace Space4X.Systems.AI
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            var enableValue = System.Environment.GetEnvironmentVariable(RegistryPopulationEnv);
+            if (string.Equals(enableValue, "0", System.StringComparison.OrdinalIgnoreCase))
+            {
+                state.Enabled = false;
+                return;
+            }
+
             _asteroidQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4X.Registry.Asteroid, LocalTransform, Space4X.Registry.ResourceSourceState, Space4X.Registry.ResourceTypeId>()
                 .Build();
