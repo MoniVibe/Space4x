@@ -90,7 +90,7 @@ namespace Tri.BuildTools
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[HeadlessLinuxBuild] Build failed: {ex.Message}");
+                UnityEngine.Debug.LogError($"[HeadlessLinuxBuild] Build failed: {ex}");
                 outcome = BuildOutcome.Create(
                     args,
                     "Failed",

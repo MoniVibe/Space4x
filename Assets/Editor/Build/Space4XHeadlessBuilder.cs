@@ -29,7 +29,7 @@ namespace Space4X.Headless.Editor
         private const string BuildReportFileName = "Space4X_HeadlessBuildReport.log";
         private const string BuildFailureFileName = "Space4X_HeadlessBuildFailure.log";
         private const string EditorLogSnapshotFileName = "Space4X_HeadlessEditor.log";
-        private const int EditorLogSnapshotBytes = 2 * 1024 * 1024;
+        private const int EditorLogSnapshotBytes = 32 * 1024 * 1024;
 
         [MenuItem("Space4X/Build/Headless/Linux Server")]
         public static void BuildFromMenu() => BuildLinuxHeadless();
@@ -46,6 +46,7 @@ namespace Space4X.Headless.Editor
             UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] START BUILD {DateTime.UtcNow:O}");
             UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Output path: {absoluteOutput}");
             UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Working directory: {Directory.GetCurrentDirectory()}");
+            ForceFullStackTraces();
 
             BuildReport? report = null;
             string editorLogSnapshotPath = string.Empty;
@@ -318,11 +319,7 @@ namespace Space4X.Headless.Editor
                     continue;
                 }
 
-                var asset = AssetDatabase.LoadMainAssetAtPath(resourcePath);
-                if (asset == null)
-                {
-                    throw new BuildFailedException($"Asset in Resources references type compiled out by define constraints: {resourcePath}");
-                }
+                EnsureNonPrefabResourceValid(resourcePath);
             }
         }
 
@@ -342,6 +339,41 @@ namespace Space4X.Headless.Editor
             }
         }
 
+        private static void EnsureNonPrefabResourceValid(string assetPath)
+        {
+            var assets = AssetDatabase.LoadAllAssetsAtPath(assetPath);
+            if (assets == null || assets.Length == 0)
+            {
+                throw new BuildFailedException($"Asset in Resources references type compiled out by define constraints: {assetPath}");
+            }
+
+            foreach (var asset in assets)
+            {
+                if (asset == null)
+                {
+                    throw new BuildFailedException($"Resources asset has null sub-asset: {assetPath}");
+                }
+
+                EnsureScriptReference(assetPath, asset);
+            }
+        }
+
+        private static void EnsureScriptReference(string assetPath, UnityEngine.Object asset)
+        {
+            if (asset is not ScriptableObject && asset is not MonoBehaviour)
+            {
+                return;
+            }
+
+            var serialized = new SerializedObject(asset);
+            var scriptProp = serialized.FindProperty("m_Script");
+            if (scriptProp != null && scriptProp.objectReferenceValue == null)
+            {
+                var assetName = string.IsNullOrWhiteSpace(asset.name) ? "<unnamed>" : asset.name;
+                throw new BuildFailedException($"Resources asset has missing script reference: {assetPath} ({assetName})");
+            }
+        }
+
         private static IEnumerable<string> EnumerateResourceAssetPaths()
         {
             foreach (var path in AssetDatabase.GetAllAssetPaths())
@@ -358,6 +390,13 @@ namespace Space4X.Headless.Editor
 
                 yield return path;
             }
+        }
+
+        private static void ForceFullStackTraces()
+        {
+            Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.Full);
+            Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.Full);
+            Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
         }
 
         private static bool TryHandleLegacyResourceAsset(string assetPath)
