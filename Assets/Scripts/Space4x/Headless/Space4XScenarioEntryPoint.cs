@@ -15,7 +15,12 @@ namespace Space4X.Headless
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string ReportPathEnv = "SPACE4X_SCENARIO_REPORT_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
+        private const string PerfGateSpawnBatchEnv = "SPACE4X_PERF_GATE_SPAWN_BATCH";
+        private const string PerfGateLightweightEnv = "SPACE4X_PERF_GATE_LIGHTWEIGHT";
+        private const string PerfGateRunTicksEnv = "SPACE4X_PERF_GATE_RUN_TICKS";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
+        private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
+        private const string TelemetryEnableEnv = "PUREDOTS_TELEMETRY_ENABLE";
         private const string PerfTelemetryPathEnv = "PUREDOTS_PERF_TELEMETRY_PATH";
         private const string ExitPolicyEnv = "PUREDOTS_EXIT_POLICY";
         private const string PresentationSceneName = "TRI_Space4X_Smoke";
@@ -102,17 +107,28 @@ namespace Space4X.Headless
                     return;
                 }
 
-                if (IsPerfGateScenario(scenarioPath))
+                var isPerfGate = IsPerfGateScenario(scenarioPath);
+                if (isPerfGate)
                 {
                     SetEnvIfUnset("PUREDOTS_HEADLESS_TIME_PROOF", "0");
                     SetEnvIfUnset("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+                    SetEnvIfUnset("SPACE4X_HEADLESS_MINING_PROOF", "0");
+                    SetEnvIfUnset("SPACE4X_HEADLESS_MOVEMENT_DIAG", "0");
+                    SetEnvIfUnset("SPACE4X_RESOURCE_REGISTRY_POPULATION", "0");
+                    SetEnvIfUnset(PerfGateSpawnBatchEnv, "10000");
+                    if (IsLargePerfGateScenario(scenarioPath))
+                    {
+                        SetEnvIfUnset(PerfGateLightweightEnv, "1");
+                    }
                     SetEnvIfUnset(ExitPolicyEnv, "never");
                     UnityDebug.Log("PERF_GATE_MODE:1");
                 }
 
                 LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
                 LogPerfTelemetryOutOnce(SystemEnv.GetEnvironmentVariable(PerfTelemetryPathEnv) ?? "(unset)");
-                var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
+                var result = isPerfGate
+                    ? RunPerfGateScenario(scenarioPath, reportPath)
+                    : ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
                 var exitCode = 0;
                 var invariantFail = ScenarioExitUtility.ShouldExitNonZero(result, out _);
@@ -132,6 +148,8 @@ namespace Space4X.Headless
                     Space4XHeadlessDiagnostics.WriteScenarioRunnerInvariants(result, exitCode);
                     Space4XHeadlessDiagnostics.ShutdownWriter();
                 }
+
+                ClearTelemetryEnvForExit();
                 Quit(exitCode);
             }
             catch (Exception ex)
@@ -182,6 +200,13 @@ namespace Space4X.Headless
             UnityDebug.Log($"PERF_TELEMETRY_OUT:{telemetryPath}");
         }
 
+        private static void ClearTelemetryEnvForExit()
+        {
+            SystemEnv.SetEnvironmentVariable(TelemetryPathEnv, string.Empty);
+            SystemEnv.SetEnvironmentVariable(PerfTelemetryPathEnv, string.Empty);
+            SystemEnv.SetEnvironmentVariable(TelemetryEnableEnv, "0");
+        }
+
         private static bool IsPerfGateScenario(string scenarioPath)
         {
             if (string.IsNullOrWhiteSpace(scenarioPath))
@@ -191,6 +216,44 @@ namespace Space4X.Headless
 
             return scenarioPath.Contains("perf_gate", StringComparison.OrdinalIgnoreCase)
                 || scenarioPath.Contains("perfgate", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static ScenarioRunResult RunPerfGateScenario(string scenarioPath, string reportPath)
+        {
+            var overrideTicks = ResolvePerfGateRunTicks();
+            if (overrideTicks <= 0)
+            {
+                return ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
+            }
+
+            var json = File.ReadAllText(scenarioPath);
+            if (!ScenarioRunner.TryParse(json, out var data, out var parseError))
+            {
+                throw new InvalidOperationException($"Scenario parse failed: {parseError}");
+            }
+
+            var originalTicks = data.runTicks;
+            data.runTicks = Math.Max(1, overrideTicks);
+            UnityDebug.Log($"[ScenarioEntryPoint] Perf gate runTicks override: {originalTicks} -> {data.runTicks}");
+            return ScenarioRunnerExecutor.Run(data, scenarioPath, reportPath);
+        }
+
+        private static int ResolvePerfGateRunTicks()
+        {
+            var value = SystemEnv.GetEnvironmentVariable(PerfGateRunTicksEnv);
+            return int.TryParse(value, out var parsed) && parsed > 0 ? parsed : 0;
+        }
+
+        private static bool IsLargePerfGateScenario(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            return scenarioPath.Contains("perf_gate_250k", StringComparison.OrdinalIgnoreCase)
+                || scenarioPath.Contains("perf_gate_500k", StringComparison.OrdinalIgnoreCase)
+                || scenarioPath.Contains("perf_gate_1m", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool LooksLikeSpace4XMiningScenarioJson(string scenarioPath)

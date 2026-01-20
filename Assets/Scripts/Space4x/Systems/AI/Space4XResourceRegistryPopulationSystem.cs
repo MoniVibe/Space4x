@@ -15,17 +15,23 @@ namespace Space4X.Systems.AI
     /// Populates the ResourceRegistryEntry buffer with asteroid entities so they can be found by vessel AI systems.
     /// Runs reactively to handle both initial asteroids and dynamically spawned ones (e.g., from Scenario Runner).
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup), OrderLast = true)]
     [UpdateAfter(typeof(PureDOTS.Systems.ResourceRegistrySystem))]
     public partial struct Space4XResourceRegistryPopulationSystem : ISystem
     {
+        private const string RegistryPopulationEnv = "SPACE4X_RESOURCE_REGISTRY_POPULATION";
         private EntityQuery _asteroidQuery;
         private EntityQuery _registryQuery;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            var enableValue = System.Environment.GetEnvironmentVariable(RegistryPopulationEnv);
+            if (string.Equals(enableValue, "0", System.StringComparison.OrdinalIgnoreCase))
+            {
+                state.Enabled = false;
+                return;
+            }
+
             _asteroidQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4X.Registry.Asteroid, LocalTransform, Space4X.Registry.ResourceSourceState, Space4X.Registry.ResourceTypeId>()
                 .Build();
