@@ -7,6 +7,7 @@ using System.Text;
 using PureDOTS.Authoring;
 using PureDOTS.Runtime.Scenarios;
 using System.Reflection;
+using System.Collections;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEditor;
@@ -282,6 +283,24 @@ namespace Space4X.Headless.Editor
             if (World.DefaultGameObjectInjectionWorld == null)
             {
                 DefaultWorldInitialization.Initialize("HeadlessPreflight", false);
+            }
+
+            var rootsField = typeof(Unity.Entities.UnityObjectRefUtility)
+                .GetField("s_AdditionalRootsHandlerDelegates", BindingFlags.NonPublic | BindingFlags.Static);
+            if (rootsField != null)
+            {
+                var handlers = rootsField.GetValue(null) as IList;
+                if (handlers != null)
+                {
+                    for (var i = handlers.Count - 1; i >= 0; i--)
+                    {
+                        if (handlers[i] is Delegate handler &&
+                            handler.Method?.DeclaringType?.FullName == "Unity.Rendering.EntitiesGraphicsSystemUtility")
+                        {
+                            handlers.RemoveAt(i);
+                        }
+                    }
+                }
             }
 
             var field = typeof(Unity.Rendering.EntitiesGraphicsSystem)
