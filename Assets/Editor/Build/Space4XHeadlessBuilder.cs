@@ -6,6 +6,8 @@ using System.IO;
 using System.Text;
 using PureDOTS.Authoring;
 using PureDOTS.Runtime.Scenarios;
+using System.Reflection;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEditor;
 using UnityEditor.Build;
@@ -277,12 +279,23 @@ namespace Space4X.Headless.Editor
                 return;
             }
 
+            var field = typeof(Unity.Rendering.EntitiesGraphicsSystem)
+                .GetField("m_RegisteredAssets", BindingFlags.NonPublic | BindingFlags.Instance);
             foreach (var world in World.All)
             {
                 var system = world.GetExistingSystemManaged<Unity.Rendering.EntitiesGraphicsSystem>();
                 if (system != null)
                 {
-                    world.DestroySystemManaged(system);
+                    system.Enabled = false;
+                    if (field != null)
+                    {
+                        var value = (NativeHashSet<int>)field.GetValue(system);
+                        if (!value.IsCreated)
+                        {
+                            value = new NativeHashSet<int>(0, Allocator.Persistent);
+                            field.SetValue(system, value);
+                        }
+                    }
                 }
             }
 
