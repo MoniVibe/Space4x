@@ -1,0 +1,2 @@
+Use disposable worktrees for pipeline jobs.
+If Unity import corruption happens: rename Library/Temp/Obj/Logs and reopen.
