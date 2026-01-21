@@ -22,6 +22,12 @@ namespace Space4X.Diagnostics
 
         public void OnUpdate(ref SystemState state)
         {
+            if (Application.isBatchMode)
+            {
+                state.Enabled = false;
+                return;
+            }
+
             if (!RuntimeMode.IsRenderingEnabled)
             {
                 state.Enabled = false;
