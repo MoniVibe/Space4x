@@ -279,6 +279,11 @@ namespace Space4X.Headless.Editor
                 return;
             }
 
+            if (World.DefaultGameObjectInjectionWorld == null)
+            {
+                DefaultWorldInitialization.Initialize("HeadlessPreflight", false);
+            }
+
             var field = typeof(Unity.Rendering.EntitiesGraphicsSystem)
                 .GetField("m_RegisteredAssets", BindingFlags.NonPublic | BindingFlags.Instance);
             foreach (var world in World.All)
