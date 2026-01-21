@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using PureDOTS.Runtime.Scenarios;
 using UnityEngine;
@@ -111,6 +111,7 @@ namespace Space4X.Headless
                 }
 
                 LogTelemetryOutOnce(SystemEnv.GetEnvironmentVariable("PUREDOTS_TELEMETRY_PATH") ?? "(unset)");
+                UnityDebug.Log($"[BuildStamp] {DateTime.UtcNow:O}");
                 LogPerfTelemetryOutOnce(SystemEnv.GetEnvironmentVariable(PerfTelemetryPathEnv) ?? "(unset)");
                 var result = ScenarioRunnerExecutor.RunFromFile(scenarioPath, reportPath);
                 UnityDebug.Log($"[ScenarioEntryPoint] Scenario '{scenarioPath}' completed. ticks={result.RunTicks} snapshots={result.SnapshotLogCount}");
@@ -408,3 +409,4 @@ namespace Space4X.Headless
         private static void Quit(int exitCode) => Application.Quit(exitCode);
     }
 }
+
