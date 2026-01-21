@@ -286,19 +286,22 @@ namespace Space4X.Headless.Editor
                 DefaultWorldInitialization.Initialize("HeadlessPreflight", false);
             }
 
-            var rootsField = typeof(Unity.Entities.UnityObjectRefUtility)
-                .GetField("s_AdditionalRootsHandlerDelegates", BindingFlags.NonPublic | BindingFlags.Static);
-            if (rootsField != null)
+            var rootsType = Type.GetType("Unity.Entities.UnityObjectRefUtility, Unity.Entities");
+            if (rootsType != null)
             {
-                var handlers = rootsField.GetValue(null) as IList;
-                if (handlers != null)
+                var rootsField = rootsType.GetField("s_AdditionalRootsHandlerDelegates", BindingFlags.NonPublic | BindingFlags.Static);
+                if (rootsField != null)
                 {
-                    for (var i = handlers.Count - 1; i >= 0; i--)
+                    var handlers = rootsField.GetValue(null) as IList;
+                    if (handlers != null)
                     {
-                        if (handlers[i] is Delegate handler &&
-                            handler.Method?.DeclaringType?.FullName == "Unity.Rendering.EntitiesGraphicsSystemUtility")
+                        for (var i = handlers.Count - 1; i >= 0; i--)
                         {
-                            handlers.RemoveAt(i);
+                            if (handlers[i] is Delegate handler &&
+                                handler.Method?.DeclaringType?.FullName == "Unity.Rendering.EntitiesGraphicsSystemUtility")
+                            {
+                                handlers.RemoveAt(i);
+                            }
                         }
                     }
                 }
