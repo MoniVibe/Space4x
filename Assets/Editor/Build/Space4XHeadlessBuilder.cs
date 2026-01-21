@@ -73,7 +73,7 @@ namespace Space4X.Headless.Editor
                     target = BuildTarget.StandaloneLinux64,
                     targetGroup = BuildTargetGroup.Standalone,
                     subtarget = (int)StandaloneBuildSubtarget.Server,
-                    options = BuildOptions.StrictMode | BuildOptions.EnableHeadlessMode | BuildOptions.DetailedBuildReport
+                    options = BuildOptions.EnableHeadlessMode | BuildOptions.DetailedBuildReport
                 };
 
                 report = BuildPipeline.BuildPlayer(buildPlayerOptions);
