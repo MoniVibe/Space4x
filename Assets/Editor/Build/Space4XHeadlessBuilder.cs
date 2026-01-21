@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using PureDOTS.Authoring;
 using PureDOTS.Runtime.Scenarios;
+using Unity.Entities;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -264,8 +265,28 @@ namespace Space4X.Headless.Editor
 
         private static void RunHeadlessPreflight()
         {
+            DisableEntitiesGraphicsForHeadless();
             EnsureResourceTypeCatalogAsset();
             ValidateResourceAssets();
+        }
+
+        private static void DisableEntitiesGraphicsForHeadless()
+        {
+            if (!InternalEditorUtility.inBatchMode)
+            {
+                return;
+            }
+
+            foreach (var world in World.All)
+            {
+                var system = world.GetExistingSystemManaged<Unity.Rendering.EntitiesGraphicsSystem>();
+                if (system != null)
+                {
+                    world.DestroySystemManaged(system);
+                }
+            }
+
+            UnityEngine.Debug.Log("[Space4XHeadlessBuilder] Disabled Entities Graphics systems for batchmode build.");
         }
 
         private static void EnsureResourceTypeCatalogAsset()
