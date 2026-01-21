@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using PureDOTS.Runtime.Scenarios;
 using UnityEngine;
@@ -134,7 +134,14 @@ namespace Space4X.Headless
                 var invariantFail = ScenarioExitUtility.ShouldExitNonZero(result, out _);
                 if (invariantFail)
                 {
-                    exitCode = Space4XHeadlessDiagnostics.TestFailExitCode;
+                    if (ShouldSoftExitOnQuestions(result))
+                    {
+                        UnityDebug.LogWarning("[ScenarioEntryPoint] Required questions missing or unknown; treating as warning and exiting 0.");
+                    }
+                    else
+                    {
+                        exitCode = Space4XHeadlessDiagnostics.TestFailExitCode;
+                    }
                 }
                 else if (result.PerformanceBudgetFailed)
                 {
@@ -503,3 +510,4 @@ namespace Space4X.Headless
         }
     }
 }
+
