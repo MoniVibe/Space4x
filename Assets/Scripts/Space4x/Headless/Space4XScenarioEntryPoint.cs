@@ -18,6 +18,7 @@ namespace Space4X.Headless
         private const string PerfGateSpawnBatchEnv = "SPACE4X_PERF_GATE_SPAWN_BATCH";
         private const string PerfGateLightweightEnv = "SPACE4X_PERF_GATE_LIGHTWEIGHT";
         private const string PerfGateRunTicksEnv = "SPACE4X_PERF_GATE_RUN_TICKS";
+        private const string SoftExitOnQuestionsEnv = "SPACE4X_SOFT_EXIT_ON_QUESTIONS";
         private const string HeadlessPresentationEnv = "PUREDOTS_HEADLESS_PRESENTATION";
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string TelemetryEnableEnv = "PUREDOTS_TELEMETRY_ENABLE";
@@ -134,7 +135,7 @@ namespace Space4X.Headless
                 var invariantFail = ScenarioExitUtility.ShouldExitNonZero(result, out _);
                 if (invariantFail)
                 {
-                    if (ShouldSoftExitOnQuestions(result))
+                    if (ShouldSoftExitOnQuestions())
                     {
                         UnityDebug.LogWarning("[ScenarioEntryPoint] Required questions missing or unknown; treating as warning and exiting 0.");
                     }
@@ -289,6 +290,17 @@ namespace Space4X.Headless
             {
                 SystemEnv.SetEnvironmentVariable(key, value);
             }
+        }
+
+        private static bool ShouldSoftExitOnQuestions()
+        {
+            var overrideValue = SystemEnv.GetEnvironmentVariable(SoftExitOnQuestionsEnv);
+            if (!string.IsNullOrWhiteSpace(overrideValue))
+            {
+                return IsTruthy(overrideValue);
+            }
+
+            return Application.isBatchMode && PureDOTS.Runtime.Core.RuntimeMode.IsHeadless;
         }
 
         private static bool IsTruthy(string value)
@@ -510,4 +522,3 @@ namespace Space4X.Headless
         }
     }
 }
-
