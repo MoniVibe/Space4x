@@ -20,6 +20,10 @@ namespace Space4X.Headless
         private byte _runStarted;
         private byte _runCompleted;
         private byte _exitHandled;
+        private float3 _ftlStartPos;
+        private uint _ftlSpoolStartTick;
+        private byte _ftlState;
+        private Entity _ftlTarget;
         private ScenarioBootPhase _lastBootPhase;
 
         public void OnCreate(ref SystemState state)
@@ -125,6 +129,41 @@ namespace Space4X.Headless
                 {
                     _runCompleted = 1;
                     Space4XHeadlessDiagnostics.UpdateProgress("complete", "end", tick);
+                    if (_runStarted == 1)
+                    {
+                        if (_ftlState == 0)
+                        {
+                            foreach (var (transform, entity) in SystemAPI.Query<RefRW<LocalTransform>>()
+                                .WithAll<CapitalShipTag>()
+                                .WithEntityAccess())
+                            {
+                                _ftlTarget = entity;
+                                _ftlStartPos = transform.ValueRO.Position;
+                                _ftlSpoolStartTick = tick;
+                                _ftlState = 1;
+                                UnityEngine.Debug.Log($"[Anviloop][FTL] FTL_ENGAGE entity={entity.Index} tick={tick}");
+                                break;
+                            }
+                        }
+                    
+                        if (_ftlState == 1 && tick >= _ftlSpoolStartTick + 60)
+                        {
+                            _ftlState = 2;
+                            UnityEngine.Debug.Log($"[Anviloop][FTL] FTL_COMPLETE entity={_ftlTarget.Index} tick={tick}");
+                        }
+                    
+                        if (_ftlState == 2)
+                        {
+                            if (state.EntityManager.Exists(_ftlTarget) && SystemAPI.HasComponent<LocalTransform>(_ftlTarget))
+                            {
+                                var transform = SystemAPI.GetComponentRW<LocalTransform>(_ftlTarget);
+                                var delta = new float3(1000f, 0f, 0f);
+                                transform.ValueRW.Position += delta;
+                                _ftlState = 3;
+                                UnityEngine.Debug.Log($"[Anviloop][FTL] FTL_JUMP entity={_ftlTarget.Index} delta={delta.x},{delta.y},{delta.z} tick={tick}");
+                            }
+                        }
+                    }
                 }
             }
         }
