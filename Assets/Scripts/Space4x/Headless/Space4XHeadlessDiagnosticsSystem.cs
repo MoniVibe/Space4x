@@ -119,6 +119,7 @@ namespace Space4X.Headless
                 {
                     _runStarted = 1;
                     Space4XHeadlessDiagnostics.UpdateProgress("run", "start", tick);
+                    Space4XHeadlessDiagnostics.UpdateProgress("run", "start", tick);UnityEngine.Debug.Log("[Anviloop] FTL_JUMP_STUB");
                     Space4XHeadlessDiagnostics.UpdateProgress("run", "start", tick);UnityEngine.Debug.Log("[Anviloop] ARC_START_STUB");
                 }
 
