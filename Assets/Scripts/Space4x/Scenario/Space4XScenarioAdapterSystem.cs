@@ -13,6 +13,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using Space4XMiningScenarioSystem = Space4x.Scenario.Space4XMiningScenarioSystem;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
