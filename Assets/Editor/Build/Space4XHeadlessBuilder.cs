@@ -14,6 +14,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditorInternal;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using PackageManagerPackageInfo = UnityEditor.PackageManager.PackageInfo;
 
@@ -269,9 +270,56 @@ namespace Space4X.Headless.Editor
 
         private static void RunHeadlessPreflight()
         {
+            StripMissingScriptsFromBuildContent();
             DisableEntitiesGraphicsForHeadless();
             EnsureResourceTypeCatalogAsset();
             ValidateResourceAssets();
+        }
+
+        private static void StripMissingScriptsFromBuildContent()
+        {
+            var removedTotal = 0;
+
+            foreach (var scenePath in HeadlessScenes)
+            {
+                var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                var sceneRemoved = 0;
+                foreach (var root in scene.GetRootGameObjects())
+                {
+                    sceneRemoved += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
+                }
+
+                if (sceneRemoved > 0)
+                {
+                    removedTotal += sceneRemoved;
+                    EditorSceneManager.SaveScene(scene);
+                }
+            }
+
+            var prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+            foreach (var guid in prefabGuids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var prefabRoot = PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    var removed = GameObjectUtility.RemoveMonoBehavioursWithMissingScript(prefabRoot);
+                    if (removed > 0)
+                    {
+                        removedTotal += removed;
+                        PrefabUtility.SaveAsPrefabAsset(prefabRoot, path);
+                    }
+                }
+                finally
+                {
+                    PrefabUtility.UnloadPrefabContents(prefabRoot);
+                }
+            }
+
+            if (removedTotal > 0)
+            {
+                UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Removed {removedTotal} missing scripts from build scenes/prefabs.");
+            }
         }
 
         private static void DisableEntitiesGraphicsForHeadless()
