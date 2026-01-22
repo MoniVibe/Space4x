@@ -7,7 +7,6 @@ using UnityEngine;
 namespace Space4x.Scenario
 {
     [UpdateInGroup(typeof(InitializationSystemGroup))]
-    [UpdateBefore(typeof(Space4XMiningScenarioSystem))]
     internal partial struct Space4XSmokeScenarioSelectorSystem : ISystem
     {
         private const string ScenarioIdString = "space4x_smoke";
@@ -55,4 +54,3 @@ namespace Space4x.Scenario
     }
 }
 #endif
-
