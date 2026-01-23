@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Performance;
 using PureDOTS.Runtime.Telemetry;
+using PureDOTS.Systems;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
