@@ -5,7 +5,7 @@ using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
-using Space4X.Scenario;
+using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
