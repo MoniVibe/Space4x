@@ -59,8 +59,8 @@ namespace Space4X.Headless
             }
 
             var enabled = SystemEnv.GetEnvironmentVariable(EnabledEnv);
-            if (!string.Equals(enabled, "1", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(enabled, "0", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase))
             {
                 state.Enabled = false;
                 return;
@@ -366,8 +366,8 @@ namespace Space4X.Headless
 
             _bankResolved = 1;
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            if (!string.IsNullOrWhiteSpace(scenarioPath)
-                && !scenarioPath.EndsWith(ScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(scenarioPath)
+                || !scenarioPath.EndsWith(ScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
                 _enabled = 0;
                 return false;
