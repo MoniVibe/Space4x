@@ -1,0 +1,15 @@
+{
+  "templateId": "entity.baseline.v0",
+  "statsPreset": "baseline",
+  "skills": {
+    "command": 60,
+    "tactics": 60,
+    "logistics": 60,
+    "diplomacy": 55,
+    "engineering": 55,
+    "resolve": 60
+  },
+  "behaviorProfileId": "baseline",
+  "anatomyPreset": "baseline",
+  "conditions": []
+}

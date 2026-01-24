@@ -1,0 +1,26 @@
+{
+  "seed": 1101,
+  "duration_s": 60,
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.crew.sensors_selection",
+        "required": false
+      }
+    ],
+    "crewTemplates": [
+      {
+        "carrierId": "carrier-1",
+        "crewTemplateId": "crew.sensors.v0"
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-1",
+      "position": [0, 0]
+    }
+  ],
+  "actions": []
+}

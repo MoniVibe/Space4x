@@ -71,3 +71,7 @@
 *.ogg binary
 *.ttf binary
 *.otf binary
+
+# Headless manifest/lock deterministic line endings
+Packages/manifest.headless.json text eol=lf
+Packages/packages-lock.headless.json text eol=lf

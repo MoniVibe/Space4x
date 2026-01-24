@@ -1,0 +1,13 @@
+{
+  "templateId": "crew.sensors.v0",
+  "namedCrew": [
+    { "name": "FILLER-01", "seatRole": "ship.captain", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-02", "seatRole": "ship.xo", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-03", "seatRole": "ship.shipmaster", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-04", "seatRole": "ship.fleet_admiral", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-05", "seatRole": "ship.navigation_officer", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-06", "seatRole": "ship.weapons_officer", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "SENS-BASELINE", "seatRole": "ship.sensors_officer", "statsPreset": "rookie", "entityTemplateId": "entity.baseline.v0" },
+    { "name": "SENS-INJURED", "seatRole": "ship.sensors_officer", "statsPreset": "rookie", "entityTemplateId": "entity.one_eye_missing.v0" }
+  ]
+}

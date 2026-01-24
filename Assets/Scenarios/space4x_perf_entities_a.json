@@ -1,0 +1,40 @@
+{
+    "seed":  1337,
+    "duration_s":  80,
+    "proofs":  {
+                   "mining":  false
+               },
+    "scenarioConfig":  {
+                           "headlessQuestions":  [
+
+                                                 ]
+                       },
+    "spawn":  [
+                  {
+                      "kind":  "Carrier",
+                      "entityId":  "perf-entity-carrier",
+                      "position":  [
+                                       -50,
+                                       0
+                                   ],
+                      "components":  {
+                                         "Fleet":  {
+                                                       "fleetId":  "PERF-ENTITY",
+                                                       "posture":  "Patrol",
+                                                       "shipCount":  1
+                                                   },
+                                         "Combat":  {
+                                                        "canIntercept":  false,
+                                                        "interceptSpeed":  8,
+                                                        "isHostile":  false,
+                                                        "strikeCraftCount":  10000,
+                                                        "strikeCraftRole":  "Recon",
+                                                        "escortCount":  0
+                                                    }
+                                     }
+                  }
+              ],
+    "actions":  [
+
+                ]
+}

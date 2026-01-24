@@ -1,0 +1,73 @@
+{
+  "seed": 1207,
+  "duration_s": 45,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.movement.turnrate_bounds",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "arc-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "ARC-FLEET",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2,
+      "kind": "MoveFleet",
+      "fleetId": "ARC-FLEET",
+      "targetPosition": [400, 0],
+      "description": "Establish forward motion"
+    },
+    {
+      "time_s": 12,
+      "kind": "MoveFleet",
+      "fleetId": "ARC-FLEET",
+      "targetPosition": [520, 220],
+      "description": "Begin arc turn"
+    },
+    {
+      "time_s": 22,
+      "kind": "MoveFleet",
+      "fleetId": "ARC-FLEET",
+      "targetPosition": [360, 420],
+      "description": "Arc apex"
+    },
+    {
+      "time_s": 32,
+      "kind": "MoveFleet",
+      "fleetId": "ARC-FLEET",
+      "targetPosition": [120, 520],
+      "description": "Exit arc"
+    }
+  ]
+}

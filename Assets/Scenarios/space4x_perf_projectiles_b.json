@@ -1,0 +1,96 @@
+{
+    "seed":  1337,
+    "duration_s":  80,
+    "proofs":  {
+                   "mining":  false
+               },
+    "scenarioConfig":  {
+                           "headlessQuestions":  [
+
+                                                 ]
+                       },
+    "spawn":  [
+                  {
+                      "kind":  "Carrier",
+                      "entityId":  "proj-carrier-alpha",
+                      "position":  [
+                                       0,
+                                       0
+                                   ],
+                      "components":  {
+                                         "Fleet":  {
+                                                       "fleetId":  "PROJ-ALPHA",
+                                                       "posture":  "Engaging",
+                                                       "shipCount":  1
+                                                   },
+                                         "Combat":  {
+                                                        "canIntercept":  true,
+                                                        "interceptSpeed":  12,
+                                                        "isHostile":  false,
+                                                        "strikeCraftCount":  8000,
+                                                        "strikeCraftRole":  "Interceptor",
+                                                        "escortCount":  0
+                                                    }
+                                     }
+                  },
+                  {
+                      "kind":  "Carrier",
+                      "entityId":  "proj-carrier-bravo",
+                      "position":  [
+                                       250,
+                                       0
+                                   ],
+                      "components":  {
+                                         "Fleet":  {
+                                                       "fleetId":  "PROJ-BRAVO",
+                                                       "posture":  "Engaging",
+                                                       "shipCount":  1
+                                                   },
+                                         "Combat":  {
+                                                        "canIntercept":  true,
+                                                        "interceptSpeed":  12,
+                                                        "isHostile":  true,
+                                                        "strikeCraftCount":  8000,
+                                                        "strikeCraftRole":  "Interceptor",
+                                                        "escortCount":  0
+                                                    }
+                                     }
+                  }
+              ],
+    "actions":  [
+                    {
+                        "fleetId":  "PROJ-ALPHA",
+                        "description":  "Close distance",
+                        "kind":  "MoveFleet",
+                        "targetPosition":  [
+                                               120,
+                                               0
+                                           ],
+                        "time_s":  4
+                    },
+                    {
+                        "fleetId":  "PROJ-BRAVO",
+                        "description":  "Close distance",
+                        "kind":  "MoveFleet",
+                        "targetPosition":  [
+                                               140,
+                                               0
+                                           ],
+                        "time_s":  4
+                    },
+                    {
+                        "requesterFleetId":  "PROJ-ALPHA",
+                        "description":  "Start intercept",
+                        "kind":  "TriggerIntercept",
+                        "targetFleetId":  "PROJ-BRAVO",
+                        "time_s":  6
+                    },
+                    {
+                        "requesterFleetId":  "PROJ-ALPHA",
+                        "description":  "Repeat intercept",
+                        "kind":  "TriggerIntercept",
+                        "targetFleetId":  "PROJ-BRAVO",
+                        "time_s":  26
+                    }
+                ]
+}

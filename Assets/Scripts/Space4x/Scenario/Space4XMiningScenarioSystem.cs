@@ -11,10 +11,13 @@ using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Individual;
 using PureDOTS.Systems;
 using Space4X.Headless;
 using Space4X.Registry;
 using Space4X.Runtime;
+using AlignmentTriplet = Space4X.Registry.AlignmentTriplet;
+using IndividualStats = Space4X.Registry.IndividualStats;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
@@ -46,6 +49,8 @@ namespace Space4x.Scenario
         private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
+        private string _scenarioPath;
+        private string _templateRoot;
         private bool _useSmokeMotionTuning;
         private bool _isCollisionScenario;
         private Entity _friendlyAffiliationEntity;
@@ -110,6 +115,9 @@ namespace Space4x.Scenario
                 scenarioInfo = EnsureScenarioInfoFromPath(scenarioPath);
                 hasScenarioInfo = true;
             }
+
+            _scenarioPath = scenarioPath;
+            _templateRoot = ResolveTemplateRoot(scenarioPath);
 
             var jsonText = File.ReadAllText(scenarioPath);
             _scenarioData = JsonUtility.FromJson<MiningScenarioJson>(jsonText);
@@ -833,6 +841,7 @@ namespace Space4x.Scenario
             }
 
             EnsureCarrierAuthorityAndCrew(entity, law, currentTick);
+            ApplyCrewTemplate(entity, carrierId.ToString(), law, currentTick);
 
             EntityManager.AddComponentData(entity, new PatrolBehavior
             {
@@ -1696,6 +1705,551 @@ namespace Space4x.Scenario
             }
         }
 
+        private void ApplyCrewTemplate(Entity carrierEntity, string carrierId, float lawfulness, uint currentTick)
+        {
+            if (_scenarioData?.scenarioConfig?.crewTemplates == null ||
+                string.IsNullOrWhiteSpace(carrierId))
+            {
+                return;
+            }
+
+            CrewTemplateConfigData template = null;
+            for (int i = 0; i < _scenarioData.scenarioConfig.crewTemplates.Count; i++)
+            {
+                var candidate = _scenarioData.scenarioConfig.crewTemplates[i];
+                if (candidate == null || string.IsNullOrWhiteSpace(candidate.carrierId))
+                {
+                    continue;
+                }
+
+                if (string.Equals(candidate.carrierId, carrierId, StringComparison.OrdinalIgnoreCase))
+                {
+                    template = candidate;
+                    break;
+                }
+            }
+
+            var resolvedMembers = ResolveCrewTemplateMembers(template);
+            if (resolvedMembers == null || resolvedMembers.Count == 0)
+            {
+                return;
+            }
+
+            var config = StrikeCraftPilotProfileConfig.Default;
+            if (SystemAPI.TryGetSingleton<StrikeCraftPilotProfileConfig>(out var configSingleton))
+            {
+                config = configSingleton;
+            }
+
+            var crewBuffer = EntityManager.HasBuffer<PlatformCrewMember>(carrierEntity)
+                ? EntityManager.GetBuffer<PlatformCrewMember>(carrierEntity)
+                : EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
+            crewBuffer.Clear();
+
+            for (int i = 0; i < resolvedMembers.Count; i++)
+            {
+                var member = ResolveCrewMemberTemplate(resolvedMembers[i]);
+                if (member == null)
+                {
+                    continue;
+                }
+
+                ResolveCrewPreset(member.statsPreset, member.skills, out var stats, out var disposition);
+                var crewEntity = CreateCrewEntity(lawfulness, config, stats, disposition);
+                EnsureCrewEntityId(crewEntity, member.name);
+                EnsureCrewAnatomyPreset(crewEntity, member.anatomyPreset, member.conditions);
+                EnsureCrewLodTier(crewEntity, (byte)Space4X.Runtime.Space4XEntityLodTierKind.Lod0);
+                crewBuffer.Add(new PlatformCrewMember
+                {
+                    CrewEntity = crewEntity,
+                    RoleId = ResolveSeatRoleId(member.seatRole)
+                });
+            }
+        }
+
+        private static void ResolveCrewPreset(string statsPreset, SkillSetData skillsOverride, out IndividualStats stats, out BehaviorDisposition disposition)
+        {
+            ResolveCrewPreset(statsPreset, out stats, out disposition);
+            if (skillsOverride == null)
+            {
+                return;
+            }
+
+            stats.Command = (half)skillsOverride.command;
+            stats.Tactics = (half)skillsOverride.tactics;
+            stats.Logistics = (half)skillsOverride.logistics;
+            stats.Diplomacy = (half)skillsOverride.diplomacy;
+            stats.Engineering = (half)skillsOverride.engineering;
+            stats.Resolve = (half)skillsOverride.resolve;
+        }
+
+        private static void ResolveCrewPreset(string statsPreset, out IndividualStats stats, out BehaviorDisposition disposition)
+        {
+            var preset = statsPreset?.Trim().ToLowerInvariant();
+            if (preset == "elite")
+            {
+                stats = new IndividualStats
+                {
+                    Command = (half)90,
+                    Tactics = (half)80,
+                    Logistics = (half)70,
+                    Diplomacy = (half)70,
+                    Engineering = (half)65,
+                    Resolve = (half)90
+                };
+                disposition = BehaviorDisposition.FromValues(0.85f, 0.6f, 0.8f, 0.35f, 0.5f, 0.75f);
+                return;
+            }
+
+            if (preset == "rookie")
+            {
+                stats = new IndividualStats
+                {
+                    Command = (half)45,
+                    Tactics = (half)40,
+                    Logistics = (half)45,
+                    Diplomacy = (half)40,
+                    Engineering = (half)40,
+                    Resolve = (half)40
+                };
+                disposition = BehaviorDisposition.FromValues(0.55f, 0.55f, 0.5f, 0.6f, 0.25f, 0.5f);
+                return;
+            }
+
+            stats = new IndividualStats
+            {
+                Command = (half)65,
+                Tactics = (half)60,
+                Logistics = (half)60,
+                Diplomacy = (half)55,
+                Engineering = (half)50,
+                Resolve = (half)60
+            };
+            disposition = BehaviorDisposition.FromValues(0.7f, 0.6f, 0.65f, 0.45f, 0.4f, 0.6f);
+        }
+
+        private static int ResolveSeatRoleId(string seatRole)
+        {
+            return 0;
+        }
+
+        private void EnsureCrewAnatomyPreset(Entity crewEntity, string anatomyPreset, List<string> conditions)
+        {
+            if (!EntityManager.HasComponent<SimIndividualTag>(crewEntity))
+            {
+                EntityManager.AddComponent<SimIndividualTag>(crewEntity);
+            }
+
+            if (!EntityManager.HasComponent<DerivedCapacities>(crewEntity))
+            {
+                EntityManager.AddComponentData(crewEntity, new DerivedCapacities
+                {
+                    Sight = 1f,
+                    Manipulation = 1f,
+                    Consciousness = 1f,
+                    ReactionTime = 1f,
+                    Boarding = 1f
+                });
+            }
+
+            if (!EntityManager.HasBuffer<AnatomyPart>(crewEntity))
+            {
+                var parts = EntityManager.AddBuffer<AnatomyPart>(crewEntity);
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.Head, ParentIndex = -1, Coverage = 1f, Tags = AnatomyPartTags.Internal });
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.EyeLeft, ParentIndex = 0, Coverage = 0.5f, Tags = AnatomyPartTags.Sensory });
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.EyeRight, ParentIndex = 0, Coverage = 0.5f, Tags = AnatomyPartTags.Sensory });
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.Brain, ParentIndex = 0, Coverage = 1f, Tags = AnatomyPartTags.Internal | AnatomyPartTags.Vital });
+            }
+
+            var preset = anatomyPreset?.Trim().ToLowerInvariant();
+            if (conditions != null && conditions.Count > 0)
+            {
+                for (int i = 0; i < conditions.Count; i++)
+                {
+                    var condition = conditions[i];
+                    if (string.Equals(condition, "one_eye_missing", StringComparison.OrdinalIgnoreCase))
+                    {
+                        preset = "one_eye_missing";
+                        break;
+                    }
+                }
+            }
+            if (string.IsNullOrWhiteSpace(preset))
+            {
+                return;
+            }
+
+            var capacities = EntityManager.HasComponent<DerivedCapacities>(crewEntity)
+                ? EntityManager.GetComponentData<DerivedCapacities>(crewEntity)
+                : new DerivedCapacities
+                {
+                    Sight = 1f,
+                    Manipulation = 1f,
+                    Consciousness = 1f,
+                    ReactionTime = 1f,
+                    Boarding = 1f
+                };
+
+            var conditions = EntityManager.HasBuffer<Condition>(crewEntity)
+                ? EntityManager.GetBuffer<Condition>(crewEntity)
+                : EntityManager.AddBuffer<Condition>(crewEntity);
+            conditions.Clear();
+
+            if (preset == "one_eye_missing")
+            {
+                conditions.Add(new Condition
+                {
+                    TargetPartId = AnatomyPartIds.EyeLeft,
+                    Severity = 1f,
+                    StageId = 1,
+                    Flags = ConditionFlags.Missing | ConditionFlags.OneEyeMissing
+                });
+
+                capacities.Sight = math.max(0.6f, capacities.Sight * 0.75f);
+                capacities.Boarding = math.max(0.4f, capacities.Boarding * 0.6f);
+            }
+
+            EntityManager.SetComponentData(crewEntity, capacities);
+        }
+
+        private void EnsureCrewEntityId(Entity crewEntity, string name)
+        {
+            var idValue = string.IsNullOrWhiteSpace(name)
+                ? $"crew-{crewEntity.Index}"
+                : name.Trim();
+            var fixedId = new FixedString64Bytes(idValue);
+            if (EntityManager.HasComponent<Space4XEntityId>(crewEntity))
+            {
+                EntityManager.SetComponentData(crewEntity, new Space4XEntityId { Id = fixedId });
+            }
+            else
+            {
+                EntityManager.AddComponentData(crewEntity, new Space4XEntityId { Id = fixedId });
+            }
+        }
+
+        private void EnsureCrewLodTier(Entity crewEntity, byte tier)
+        {
+            if (EntityManager.HasComponent<Space4XEntityLodTier>(crewEntity))
+            {
+                EntityManager.SetComponentData(crewEntity, new Space4XEntityLodTier { Tier = tier });
+            }
+            else
+            {
+                EntityManager.AddComponentData(crewEntity, new Space4XEntityLodTier { Tier = tier });
+            }
+        }
+
+        private string ResolveCrewTemplateId(CrewTemplateConfigData template)
+        {
+            if (template == null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(template.crewTemplateId))
+            {
+                return template.crewTemplateId;
+            }
+
+            return template.templateId;
+        }
+
+        private List<NamedCrewMemberData> ResolveCrewTemplateMembers(CrewTemplateConfigData template)
+        {
+            var members = new List<NamedCrewMemberData>();
+            var templateId = ResolveCrewTemplateId(template);
+            if (!string.IsNullOrWhiteSpace(templateId))
+            {
+                var fileTemplate = LoadCrewTemplateFile(templateId);
+                if (fileTemplate != null && fileTemplate.namedCrew != null)
+                {
+                    for (int i = 0; i < fileTemplate.namedCrew.Count; i++)
+                    {
+                        var clone = CloneNamedCrewMember(fileTemplate.namedCrew[i]);
+                        if (clone != null)
+                        {
+                            members.Add(clone);
+                        }
+                    }
+                }
+            }
+
+            if (template?.overrides != null && template.overrides.Count > 0)
+            {
+                ApplyCrewOverrides(members, template.overrides);
+            }
+
+            if (template?.namedCrew != null)
+            {
+                for (int i = 0; i < template.namedCrew.Count; i++)
+                {
+                    var clone = CloneNamedCrewMember(template.namedCrew[i]);
+                    if (clone != null)
+                    {
+                        members.Add(clone);
+                    }
+                }
+            }
+
+            return members;
+        }
+
+        private NamedCrewMemberData ResolveCrewMemberTemplate(NamedCrewMemberData member)
+        {
+            if (member == null)
+            {
+                return null;
+            }
+
+            var resolved = CloneNamedCrewMember(member);
+            if (resolved == null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(resolved.entityTemplateId))
+            {
+                var entityTemplate = LoadEntityTemplateFile(resolved.entityTemplateId);
+                if (entityTemplate != null)
+                {
+                    ApplyEntityTemplate(resolved, entityTemplate);
+                }
+            }
+
+            return resolved;
+        }
+
+        private void ApplyEntityTemplate(NamedCrewMemberData member, EntityTemplateFileData template)
+        {
+            if (member == null || template == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(member.statsPreset) && !string.IsNullOrWhiteSpace(template.statsPreset))
+            {
+                member.statsPreset = template.statsPreset;
+            }
+
+            if (member.skills == null && template.skills != null)
+            {
+                member.skills = CloneSkillSet(template.skills);
+            }
+
+            if (string.IsNullOrWhiteSpace(member.behaviorProfileId) && !string.IsNullOrWhiteSpace(template.behaviorProfileId))
+            {
+                member.behaviorProfileId = template.behaviorProfileId;
+            }
+
+            if (string.IsNullOrWhiteSpace(member.anatomyPreset) && !string.IsNullOrWhiteSpace(template.anatomyPreset))
+            {
+                member.anatomyPreset = template.anatomyPreset;
+            }
+
+            if ((member.conditions == null || member.conditions.Count == 0) &&
+                template.conditions != null && template.conditions.Count > 0)
+            {
+                member.conditions = new List<string>(template.conditions);
+            }
+        }
+
+        private void ApplyCrewOverrides(List<NamedCrewMemberData> members, List<NamedCrewMemberData> overrides)
+        {
+            if (members == null || overrides == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < overrides.Count; i++)
+            {
+                var candidate = overrides[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                NamedCrewMemberData target = null;
+                if (!string.IsNullOrWhiteSpace(candidate.name))
+                {
+                    for (int j = 0; j < members.Count; j++)
+                    {
+                        var member = members[j];
+                        if (member != null &&
+                            string.Equals(member.name, candidate.name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            target = member;
+                            break;
+                        }
+                    }
+                }
+
+                if (target == null)
+                {
+                    members.Add(CloneNamedCrewMember(candidate));
+                    continue;
+                }
+
+                ApplyCrewOverride(target, candidate);
+            }
+        }
+
+        private void ApplyCrewOverride(NamedCrewMemberData target, NamedCrewMemberData overrideData)
+        {
+            if (target == null || overrideData == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.seatRole))
+            {
+                target.seatRole = overrideData.seatRole;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.statsPreset))
+            {
+                target.statsPreset = overrideData.statsPreset;
+            }
+
+            if (overrideData.skills != null)
+            {
+                target.skills = CloneSkillSet(overrideData.skills);
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.behaviorProfileId))
+            {
+                target.behaviorProfileId = overrideData.behaviorProfileId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.anatomyPreset))
+            {
+                target.anatomyPreset = overrideData.anatomyPreset;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.entityTemplateId))
+            {
+                target.entityTemplateId = overrideData.entityTemplateId;
+            }
+
+            if (overrideData.conditions != null && overrideData.conditions.Count > 0)
+            {
+                target.conditions = new List<string>(overrideData.conditions);
+            }
+        }
+
+        private NamedCrewMemberData CloneNamedCrewMember(NamedCrewMemberData source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return new NamedCrewMemberData
+            {
+                name = source.name,
+                seatRole = source.seatRole,
+                statsPreset = source.statsPreset,
+                skills = CloneSkillSet(source.skills),
+                behaviorProfileId = source.behaviorProfileId,
+                anatomyPreset = source.anatomyPreset,
+                entityTemplateId = source.entityTemplateId,
+                conditions = source.conditions != null ? new List<string>(source.conditions) : null
+            };
+        }
+
+        private SkillSetData CloneSkillSet(SkillSetData source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return new SkillSetData
+            {
+                command = source.command,
+                tactics = source.tactics,
+                logistics = source.logistics,
+                diplomacy = source.diplomacy,
+                engineering = source.engineering,
+                resolve = source.resolve
+            };
+        }
+
+        private CrewTemplateFileData LoadCrewTemplateFile(string templateId)
+        {
+            var path = ResolveTemplatePath(templateId);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Crew template missing: {templateId} ({path})");
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<CrewTemplateFileData>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Failed to parse crew template {templateId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private EntityTemplateFileData LoadEntityTemplateFile(string templateId)
+        {
+            var path = ResolveTemplatePath(templateId);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Entity template missing: {templateId} ({path})");
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<EntityTemplateFileData>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Failed to parse entity template {templateId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string ResolveTemplateRoot(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return null;
+            }
+
+            var scenarioDir = Path.GetDirectoryName(scenarioPath);
+            if (string.IsNullOrWhiteSpace(scenarioDir))
+            {
+                return null;
+            }
+
+            return Path.Combine(scenarioDir, "Templates");
+        }
+
+        private string ResolveTemplatePath(string templateId)
+        {
+            if (string.IsNullOrWhiteSpace(templateId))
+            {
+                return null;
+            }
+
+            var root = _templateRoot;
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return null;
+            }
+
+            var fileName = templateId.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? templateId
+                : $"{templateId}.json";
+            return Path.Combine(root, fileName);
+        }
+
         private Entity CreateCrewEntity(
             float lawfulness,
             in StrikeCraftPilotProfileConfig config,
@@ -1706,6 +2260,15 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(crew, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
             EntityManager.AddComponentData(crew, stats);
             EntityManager.AddComponentData(crew, disposition);
+            EntityManager.AddComponentData(crew, new CrewSkill
+            {
+                Value = ((float)stats.Command
+                         + (float)stats.Tactics
+                         + (float)stats.Logistics
+                         + (float)stats.Diplomacy
+                         + (float)stats.Engineering
+                         + (float)stats.Resolve) / 6f
+            });
 
             var outlookId = ResolveOutlookId(config, lawfulness);
             EntityManager.AddBuffer<OutlookEntry>(crew);
@@ -2028,6 +2591,7 @@ namespace Space4x.Scenario
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
+        public List<CrewTemplateConfigData> crewTemplates;
     }
 
     [System.Serializable]
@@ -2062,6 +2626,73 @@ namespace Space4x.Scenario
     {
         public string id;
         public bool required;
+    }
+
+    [System.Serializable]
+    public class CrewTemplateConfigData
+    {
+        public string carrierId;
+        public string crewTemplateId;
+        public string templateId;
+        public List<NamedCrewMemberData> overrides;
+        public List<NamedCrewMemberData> namedCrew;
+    }
+
+    [System.Serializable]
+    public class NamedCrewMemberData
+    {
+        public string name;
+        public string seatRole;
+        public string statsPreset;
+        public SkillSetData skills;
+        public string behaviorProfileId;
+        public string anatomyPreset;
+        public string entityTemplateId;
+        public List<string> conditions;
+    }
+
+    [System.Serializable]
+    public class SkillSetData
+    {
+        public float command;
+        public float tactics;
+        public float logistics;
+        public float diplomacy;
+        public float engineering;
+        public float resolve;
+    }
+
+    [System.Serializable]
+    public class EntityTemplateFileData
+    {
+        public string templateId;
+        public string statsPreset;
+        public SkillSetData skills;
+        public string behaviorProfileId;
+        public string anatomyPreset;
+        public List<string> conditions;
+    }
+
+    [System.Serializable]
+    public class CrewTemplateFileData
+    {
+        public string templateId;
+        public List<NamedCrewMemberData> namedCrew;
+    }
+
+    [System.Serializable]
+    public class ShipTemplateFileData
+    {
+        public string templateId;
+        public string governanceMode;
+        public List<StationRequirementData> stationRequirements;
+    }
+
+    [System.Serializable]
+    public class StationRequirementData
+    {
+        public string seatRole;
+        public int minCount;
     }
 
     [System.Serializable]

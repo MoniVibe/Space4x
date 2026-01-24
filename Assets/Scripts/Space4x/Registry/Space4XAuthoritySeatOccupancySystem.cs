@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Social;
+using PureDOTS.Runtime.Individual;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -42,6 +43,7 @@ namespace Space4X.Registry
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private ComponentLookup<CustodyState> _custodyLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
+        private ComponentLookup<DerivedCapacities> _capacityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -54,6 +56,7 @@ namespace Space4X.Registry
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _custodyLookup = state.GetComponentLookup<CustodyState>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _capacityLookup = state.GetComponentLookup<DerivedCapacities>(true);
 
             _roleCaptain = BuildRoleCaptain();
             _roleXo = BuildRoleXo();
@@ -87,6 +90,7 @@ namespace Space4X.Registry
             _seatOccupantLookup.Update(ref state);
             _custodyLookup.Update(ref state);
             _statsLookup.Update(ref state);
+            _capacityLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -205,6 +209,12 @@ namespace Space4X.Registry
                 if (_statsLookup.HasComponent(candidate))
                 {
                     score = ScoreCandidate(roleId, _statsLookup[candidate]);
+                }
+
+                if (score > 0f && roleId.Equals(_roleSensorsOfficer) && _capacityLookup.HasComponent(candidate))
+                {
+                    var sight = _capacityLookup[candidate].Sight;
+                    score *= math.clamp(sight, 0.5f, 1.5f);
                 }
 
                 if (score > bestScore || (math.abs(score - bestScore) < 0.0001f && candidate.Index < chosen.Index))

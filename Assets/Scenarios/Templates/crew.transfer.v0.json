@@ -1,0 +1,9 @@
+{
+  "templateId": "crew.transfer.v0",
+  "namedCrew": [
+    { "name": "FILLER-01", "seatRole": "ship.captain", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-02", "seatRole": "ship.xo", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "FILLER-03", "seatRole": "ship.shipmaster", "statsPreset": "elite", "anatomyPreset": "baseline" },
+    { "name": "TRANSFER-01", "seatRole": "ship.sensors_officer", "statsPreset": "rookie", "entityTemplateId": "entity.baseline.v0" }
+  ]
+}
