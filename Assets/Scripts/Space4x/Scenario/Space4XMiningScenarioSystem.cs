@@ -1841,6 +1841,17 @@ namespace Space4x.Scenario
                 return;
             }
 
+            var capacities = EntityManager.HasComponent<DerivedCapacities>(crewEntity)
+                ? EntityManager.GetComponentData<DerivedCapacities>(crewEntity)
+                : new DerivedCapacities
+                {
+                    Sight = 1f,
+                    Manipulation = 1f,
+                    Consciousness = 1f,
+                    ReactionTime = 1f,
+                    Boarding = 1f
+                };
+
             var conditions = EntityManager.HasBuffer<Condition>(crewEntity)
                 ? EntityManager.GetBuffer<Condition>(crewEntity)
                 : EntityManager.AddBuffer<Condition>(crewEntity);
@@ -1855,7 +1866,12 @@ namespace Space4x.Scenario
                     StageId = 1,
                     Flags = ConditionFlags.Missing | ConditionFlags.OneEyeMissing
                 });
+
+                capacities.Sight = math.max(0.6f, capacities.Sight * 0.75f);
+                capacities.Boarding = math.max(0.4f, capacities.Boarding * 0.6f);
             }
+
+            EntityManager.SetComponentData(crewEntity, capacities);
         }
 
         private Entity CreateCrewEntity(
