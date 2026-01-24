@@ -1756,7 +1756,9 @@ namespace Space4x.Scenario
 
                 ResolveCrewPreset(member.statsPreset, member.skills, out var stats, out var disposition);
                 var crewEntity = CreateCrewEntity(lawfulness, config, stats, disposition);
+                EnsureCrewEntityId(crewEntity, member.name);
                 EnsureCrewAnatomyPreset(crewEntity, member.anatomyPreset, member.conditions);
+                EnsureCrewLodTier(crewEntity, (byte)Space4X.Runtime.Space4XEntityLodTierKind.Lod0);
                 crewBuffer.Add(new PlatformCrewMember
                 {
                     CrewEntity = crewEntity,
@@ -1908,6 +1910,34 @@ namespace Space4x.Scenario
             }
 
             EntityManager.SetComponentData(crewEntity, capacities);
+        }
+
+        private void EnsureCrewEntityId(Entity crewEntity, string name)
+        {
+            var idValue = string.IsNullOrWhiteSpace(name)
+                ? $"crew-{crewEntity.Index}"
+                : name.Trim();
+            var fixedId = new FixedString64Bytes(idValue);
+            if (EntityManager.HasComponent<Space4XEntityId>(crewEntity))
+            {
+                EntityManager.SetComponentData(crewEntity, new Space4XEntityId { Id = fixedId });
+            }
+            else
+            {
+                EntityManager.AddComponentData(crewEntity, new Space4XEntityId { Id = fixedId });
+            }
+        }
+
+        private void EnsureCrewLodTier(Entity crewEntity, byte tier)
+        {
+            if (EntityManager.HasComponent<Space4XEntityLodTier>(crewEntity))
+            {
+                EntityManager.SetComponentData(crewEntity, new Space4XEntityLodTier { Tier = tier });
+            }
+            else
+            {
+                EntityManager.AddComponentData(crewEntity, new Space4XEntityLodTier { Tier = tier });
+            }
         }
 
         private string ResolveCrewTemplateId(CrewTemplateConfigData template)

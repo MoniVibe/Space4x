@@ -1,0 +1,31 @@
+{
+  "seed": 1101,
+  "duration_s": 60,
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.crew.transfer",
+        "required": false
+      }
+    ],
+    "crewTemplates": [
+      {
+        "carrierId": "crew-carrier-a",
+        "crewTemplateId": "crew.transfer.v0"
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "crew-carrier-a",
+      "position": [0, 0]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "crew-carrier-b",
+      "position": [60, 0]
+    }
+  ],
+  "actions": []
+}
