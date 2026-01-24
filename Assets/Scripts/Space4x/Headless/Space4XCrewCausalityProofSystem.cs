@@ -56,6 +56,10 @@ namespace Space4X.Headless
         private uint _injuredDetectTick;
         private byte _healthyDetected;
         private byte _injuredDetected;
+        private uint _healthySeatTick;
+        private uint _injuredSeatTick;
+        private byte _healthySeatAssigned;
+        private byte _injuredSeatAssigned;
 
         public void OnCreate(ref SystemState state)
         {
@@ -107,10 +111,6 @@ namespace Space4X.Headless
             }
 
             var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
-            if (timeState.Tick < scenario.EndTick)
-            {
-                return;
-            }
 
             _carrierLookup.Update(ref state);
             _seatLookup.Update(ref state);
@@ -144,6 +144,24 @@ namespace Space4X.Headless
                 }
             }
 
+            if (_healthySeatAssigned == 0 &&
+                TryResolveSensorsOccupant(ref state, HealthyCarrierId, out _, out _, out _))
+            {
+                _healthySeatAssigned = 1;
+                _healthySeatTick = timeState.Tick;
+            }
+
+            if (_injuredSeatAssigned == 0 &&
+                TryResolveSensorsOccupant(ref state, InjuredCarrierId, out _, out _, out _))
+            {
+                _injuredSeatAssigned = 1;
+                _injuredSeatTick = timeState.Tick;
+            }
+
+            if (timeState.Tick < scenario.EndTick)
+            {
+                return;
+            }
             if (!TryResolveSensorsOccupant(ref state, HealthyCarrierId, out var healthyCrew, out var healthyStats, out var healthyCaps))
             {
                 Fail(ref state, timeState.Tick, "missing_healthy_sensors");
@@ -166,11 +184,11 @@ namespace Space4X.Headless
             var fixedDt = timeState.FixedDeltaTime;
             var healthyEmergent = _healthyDetected != 0
                 ? math.max(0f, (_healthyDetectTick - startTick) * fixedDt)
-                : -1f;
+                : (_healthySeatAssigned != 0 ? math.max(0f, (_healthySeatTick - startTick) * fixedDt) : -1f);
             var injuredEmergent = _injuredDetected != 0
                 ? math.max(0f, (_injuredDetectTick - startTick) * fixedDt)
-                : -1f;
-            var emergentDelta = (_healthyDetected != 0 && _injuredDetected != 0)
+                : (_injuredSeatAssigned != 0 ? math.max(0f, (_injuredSeatTick - startTick) * fixedDt) : -1f);
+            var emergentDelta = (healthyEmergent >= 0f && injuredEmergent >= 0f)
                 ? injuredEmergent - healthyEmergent
                 : -1f;
 
