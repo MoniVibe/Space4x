@@ -193,6 +193,10 @@ namespace Space4x.Scenario
             ApplySensorsBeatConfig(scenarioConfig.sensorsBeat);
             ApplyCommsBeatConfig(scenarioConfig.commsBeat);
             ApplyHeadlessQuestionPackConfig(scenarioConfig.headlessQuestions);
+            if (scenarioConfig.applyFloatingOrigin)
+            {
+                ApplyFloatingOriginConfig();
+            }
         }
 
         private void ApplySensorsBeatConfig(SensorsBeatConfigData beat)
@@ -757,6 +761,23 @@ namespace Space4x.Scenario
 
         private void SpawnEntities(uint currentTick, float fixedDt)
         {
+            var spawnCount = _scenarioData?.spawn?.Count ?? 0;
+            var carrierCount = 0;
+            if (spawnCount > 0)
+            {
+                for (int i = 0; i < spawnCount; i++)
+                {
+                    var spawn = _scenarioData.spawn[i];
+                    if (spawn != null && string.Equals(spawn.kind, "Carrier", StringComparison.OrdinalIgnoreCase))
+                    {
+                        carrierCount++;
+                    }
+                }
+            }
+
+            var spawnLane = _scenarioData?.scenarioConfig?.spawnLane;
+            Debug.Log($"SCENARIO_SPAWN lane={spawnLane ?? "unknown"} spawns={spawnCount} carriers_spawned={carrierCount}");
+
             foreach (var spawn in _scenarioData.spawn)
             {
                 switch (spawn.kind)
@@ -2588,6 +2609,10 @@ namespace Space4x.Scenario
     [System.Serializable]
     public class MiningScenarioConfigData
     {
+        public string spawnLane;
+        public bool disableLegacyMining;
+        public bool disableLegacyPatrol;
+        public bool applyFloatingOrigin;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
