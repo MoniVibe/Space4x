@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Core;
-using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using Space4X.Registry;
 using Space4X.Runtime;

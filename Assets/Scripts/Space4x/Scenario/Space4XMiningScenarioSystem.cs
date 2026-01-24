@@ -1890,14 +1890,14 @@ namespace Space4x.Scenario
                     Boarding = 1f
                 };
 
-            var conditions = EntityManager.HasBuffer<Condition>(crewEntity)
+            var conditionBuffer = EntityManager.HasBuffer<Condition>(crewEntity)
                 ? EntityManager.GetBuffer<Condition>(crewEntity)
                 : EntityManager.AddBuffer<Condition>(crewEntity);
-            conditions.Clear();
+            conditionBuffer.Clear();
 
             if (preset == "one_eye_missing")
             {
-                conditions.Add(new Condition
+                conditionBuffer.Add(new Condition
                 {
                     TargetPartId = AnatomyPartIds.EyeLeft,
                     Severity = 1f,
