@@ -1,0 +1,10 @@
+{
+  "templateId": "ship.capitalship.v0",
+  "governanceMode": "crewed",
+  "stationRequirements": [
+    { "seatRole": "ship.captain", "minCount": 1 },
+    { "seatRole": "ship.navigation_officer", "minCount": 1 },
+    { "seatRole": "ship.weapons_officer", "minCount": 1 },
+    { "seatRole": "ship.sensors_officer", "minCount": 1 }
+  ]
+}

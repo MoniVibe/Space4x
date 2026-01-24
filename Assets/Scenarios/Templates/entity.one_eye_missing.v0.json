@@ -1,0 +1,15 @@
+{
+  "templateId": "entity.one_eye_missing.v0",
+  "statsPreset": "baseline",
+  "skills": {
+    "command": 60,
+    "tactics": 60,
+    "logistics": 60,
+    "diplomacy": 55,
+    "engineering": 55,
+    "resolve": 60
+  },
+  "behaviorProfileId": "baseline",
+  "anatomyPreset": "one_eye_missing",
+  "conditions": ["one_eye_missing"]
+}

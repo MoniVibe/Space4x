@@ -49,6 +49,8 @@ namespace Space4x.Scenario
         private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
+        private string _scenarioPath;
+        private string _templateRoot;
         private bool _useSmokeMotionTuning;
         private bool _isCollisionScenario;
         private Entity _friendlyAffiliationEntity;
@@ -113,6 +115,9 @@ namespace Space4x.Scenario
                 scenarioInfo = EnsureScenarioInfoFromPath(scenarioPath);
                 hasScenarioInfo = true;
             }
+
+            _scenarioPath = scenarioPath;
+            _templateRoot = ResolveTemplateRoot(scenarioPath);
 
             var jsonText = File.ReadAllText(scenarioPath);
             _scenarioData = JsonUtility.FromJson<MiningScenarioJson>(jsonText);
@@ -1724,7 +1729,8 @@ namespace Space4x.Scenario
                 }
             }
 
-            if (template == null || template.namedCrew == null || template.namedCrew.Count == 0)
+            var resolvedMembers = ResolveCrewTemplateMembers(template);
+            if (resolvedMembers == null || resolvedMembers.Count == 0)
             {
                 return;
             }
@@ -1740,23 +1746,39 @@ namespace Space4x.Scenario
                 : EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
             crewBuffer.Clear();
 
-            for (int i = 0; i < template.namedCrew.Count; i++)
+            for (int i = 0; i < resolvedMembers.Count; i++)
             {
-                var member = template.namedCrew[i];
+                var member = ResolveCrewMemberTemplate(resolvedMembers[i]);
                 if (member == null)
                 {
                     continue;
                 }
 
-                ResolveCrewPreset(member.statsPreset, out var stats, out var disposition);
+                ResolveCrewPreset(member.statsPreset, member.skills, out var stats, out var disposition);
                 var crewEntity = CreateCrewEntity(lawfulness, config, stats, disposition);
-                EnsureCrewAnatomyPreset(crewEntity, member.anatomyPreset);
+                EnsureCrewAnatomyPreset(crewEntity, member.anatomyPreset, member.conditions);
                 crewBuffer.Add(new PlatformCrewMember
                 {
                     CrewEntity = crewEntity,
                     RoleId = ResolveSeatRoleId(member.seatRole)
                 });
             }
+        }
+
+        private static void ResolveCrewPreset(string statsPreset, SkillSetData skillsOverride, out IndividualStats stats, out BehaviorDisposition disposition)
+        {
+            ResolveCrewPreset(statsPreset, out stats, out disposition);
+            if (skillsOverride == null)
+            {
+                return;
+            }
+
+            stats.Command = (half)skillsOverride.command;
+            stats.Tactics = (half)skillsOverride.tactics;
+            stats.Logistics = (half)skillsOverride.logistics;
+            stats.Diplomacy = (half)skillsOverride.diplomacy;
+            stats.Engineering = (half)skillsOverride.engineering;
+            stats.Resolve = (half)skillsOverride.resolve;
         }
 
         private static void ResolveCrewPreset(string statsPreset, out IndividualStats stats, out BehaviorDisposition disposition)
@@ -1809,7 +1831,7 @@ namespace Space4x.Scenario
             return 0;
         }
 
-        private void EnsureCrewAnatomyPreset(Entity crewEntity, string anatomyPreset)
+        private void EnsureCrewAnatomyPreset(Entity crewEntity, string anatomyPreset, List<string> conditions)
         {
             if (!EntityManager.HasComponent<SimIndividualTag>(crewEntity))
             {
@@ -1838,6 +1860,18 @@ namespace Space4x.Scenario
             }
 
             var preset = anatomyPreset?.Trim().ToLowerInvariant();
+            if (conditions != null && conditions.Count > 0)
+            {
+                for (int i = 0; i < conditions.Count; i++)
+                {
+                    var condition = conditions[i];
+                    if (string.Equals(condition, "one_eye_missing", StringComparison.OrdinalIgnoreCase))
+                    {
+                        preset = "one_eye_missing";
+                        break;
+                    }
+                }
+            }
             if (string.IsNullOrWhiteSpace(preset))
             {
                 return;
@@ -1874,6 +1908,316 @@ namespace Space4x.Scenario
             }
 
             EntityManager.SetComponentData(crewEntity, capacities);
+        }
+
+        private string ResolveCrewTemplateId(CrewTemplateConfigData template)
+        {
+            if (template == null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(template.crewTemplateId))
+            {
+                return template.crewTemplateId;
+            }
+
+            return template.templateId;
+        }
+
+        private List<NamedCrewMemberData> ResolveCrewTemplateMembers(CrewTemplateConfigData template)
+        {
+            var members = new List<NamedCrewMemberData>();
+            var templateId = ResolveCrewTemplateId(template);
+            if (!string.IsNullOrWhiteSpace(templateId))
+            {
+                var fileTemplate = LoadCrewTemplateFile(templateId);
+                if (fileTemplate != null && fileTemplate.namedCrew != null)
+                {
+                    for (int i = 0; i < fileTemplate.namedCrew.Count; i++)
+                    {
+                        var clone = CloneNamedCrewMember(fileTemplate.namedCrew[i]);
+                        if (clone != null)
+                        {
+                            members.Add(clone);
+                        }
+                    }
+                }
+            }
+
+            if (template?.overrides != null && template.overrides.Count > 0)
+            {
+                ApplyCrewOverrides(members, template.overrides);
+            }
+
+            if (template?.namedCrew != null)
+            {
+                for (int i = 0; i < template.namedCrew.Count; i++)
+                {
+                    var clone = CloneNamedCrewMember(template.namedCrew[i]);
+                    if (clone != null)
+                    {
+                        members.Add(clone);
+                    }
+                }
+            }
+
+            return members;
+        }
+
+        private NamedCrewMemberData ResolveCrewMemberTemplate(NamedCrewMemberData member)
+        {
+            if (member == null)
+            {
+                return null;
+            }
+
+            var resolved = CloneNamedCrewMember(member);
+            if (resolved == null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(resolved.entityTemplateId))
+            {
+                var entityTemplate = LoadEntityTemplateFile(resolved.entityTemplateId);
+                if (entityTemplate != null)
+                {
+                    ApplyEntityTemplate(resolved, entityTemplate);
+                }
+            }
+
+            return resolved;
+        }
+
+        private void ApplyEntityTemplate(NamedCrewMemberData member, EntityTemplateFileData template)
+        {
+            if (member == null || template == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(member.statsPreset) && !string.IsNullOrWhiteSpace(template.statsPreset))
+            {
+                member.statsPreset = template.statsPreset;
+            }
+
+            if (member.skills == null && template.skills != null)
+            {
+                member.skills = CloneSkillSet(template.skills);
+            }
+
+            if (string.IsNullOrWhiteSpace(member.behaviorProfileId) && !string.IsNullOrWhiteSpace(template.behaviorProfileId))
+            {
+                member.behaviorProfileId = template.behaviorProfileId;
+            }
+
+            if (string.IsNullOrWhiteSpace(member.anatomyPreset) && !string.IsNullOrWhiteSpace(template.anatomyPreset))
+            {
+                member.anatomyPreset = template.anatomyPreset;
+            }
+
+            if ((member.conditions == null || member.conditions.Count == 0) &&
+                template.conditions != null && template.conditions.Count > 0)
+            {
+                member.conditions = new List<string>(template.conditions);
+            }
+        }
+
+        private void ApplyCrewOverrides(List<NamedCrewMemberData> members, List<NamedCrewMemberData> overrides)
+        {
+            if (members == null || overrides == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < overrides.Count; i++)
+            {
+                var candidate = overrides[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                NamedCrewMemberData target = null;
+                if (!string.IsNullOrWhiteSpace(candidate.name))
+                {
+                    for (int j = 0; j < members.Count; j++)
+                    {
+                        var member = members[j];
+                        if (member != null &&
+                            string.Equals(member.name, candidate.name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            target = member;
+                            break;
+                        }
+                    }
+                }
+
+                if (target == null)
+                {
+                    members.Add(CloneNamedCrewMember(candidate));
+                    continue;
+                }
+
+                ApplyCrewOverride(target, candidate);
+            }
+        }
+
+        private void ApplyCrewOverride(NamedCrewMemberData target, NamedCrewMemberData overrideData)
+        {
+            if (target == null || overrideData == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.seatRole))
+            {
+                target.seatRole = overrideData.seatRole;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.statsPreset))
+            {
+                target.statsPreset = overrideData.statsPreset;
+            }
+
+            if (overrideData.skills != null)
+            {
+                target.skills = CloneSkillSet(overrideData.skills);
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.behaviorProfileId))
+            {
+                target.behaviorProfileId = overrideData.behaviorProfileId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.anatomyPreset))
+            {
+                target.anatomyPreset = overrideData.anatomyPreset;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideData.entityTemplateId))
+            {
+                target.entityTemplateId = overrideData.entityTemplateId;
+            }
+
+            if (overrideData.conditions != null && overrideData.conditions.Count > 0)
+            {
+                target.conditions = new List<string>(overrideData.conditions);
+            }
+        }
+
+        private NamedCrewMemberData CloneNamedCrewMember(NamedCrewMemberData source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return new NamedCrewMemberData
+            {
+                name = source.name,
+                seatRole = source.seatRole,
+                statsPreset = source.statsPreset,
+                skills = CloneSkillSet(source.skills),
+                behaviorProfileId = source.behaviorProfileId,
+                anatomyPreset = source.anatomyPreset,
+                entityTemplateId = source.entityTemplateId,
+                conditions = source.conditions != null ? new List<string>(source.conditions) : null
+            };
+        }
+
+        private SkillSetData CloneSkillSet(SkillSetData source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return new SkillSetData
+            {
+                command = source.command,
+                tactics = source.tactics,
+                logistics = source.logistics,
+                diplomacy = source.diplomacy,
+                engineering = source.engineering,
+                resolve = source.resolve
+            };
+        }
+
+        private CrewTemplateFileData LoadCrewTemplateFile(string templateId)
+        {
+            var path = ResolveTemplatePath(templateId);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Crew template missing: {templateId} ({path})");
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<CrewTemplateFileData>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Failed to parse crew template {templateId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private EntityTemplateFileData LoadEntityTemplateFile(string templateId)
+        {
+            var path = ResolveTemplatePath(templateId);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Entity template missing: {templateId} ({path})");
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<EntityTemplateFileData>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Failed to parse entity template {templateId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string ResolveTemplateRoot(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return null;
+            }
+
+            var scenarioDir = Path.GetDirectoryName(scenarioPath);
+            if (string.IsNullOrWhiteSpace(scenarioDir))
+            {
+                return null;
+            }
+
+            return Path.Combine(scenarioDir, "Templates");
+        }
+
+        private string ResolveTemplatePath(string templateId)
+        {
+            if (string.IsNullOrWhiteSpace(templateId))
+            {
+                return null;
+            }
+
+            var root = _templateRoot;
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return null;
+            }
+
+            var fileName = templateId.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? templateId
+                : $"{templateId}.json";
+            return Path.Combine(root, fileName);
         }
 
         private Entity CreateCrewEntity(
@@ -2258,7 +2602,9 @@ namespace Space4x.Scenario
     public class CrewTemplateConfigData
     {
         public string carrierId;
+        public string crewTemplateId;
         public string templateId;
+        public List<NamedCrewMemberData> overrides;
         public List<NamedCrewMemberData> namedCrew;
     }
 
@@ -2268,7 +2614,55 @@ namespace Space4x.Scenario
         public string name;
         public string seatRole;
         public string statsPreset;
+        public SkillSetData skills;
+        public string behaviorProfileId;
         public string anatomyPreset;
+        public string entityTemplateId;
+        public List<string> conditions;
+    }
+
+    [System.Serializable]
+    public class SkillSetData
+    {
+        public float command;
+        public float tactics;
+        public float logistics;
+        public float diplomacy;
+        public float engineering;
+        public float resolve;
+    }
+
+    [System.Serializable]
+    public class EntityTemplateFileData
+    {
+        public string templateId;
+        public string statsPreset;
+        public SkillSetData skills;
+        public string behaviorProfileId;
+        public string anatomyPreset;
+        public List<string> conditions;
+    }
+
+    [System.Serializable]
+    public class CrewTemplateFileData
+    {
+        public string templateId;
+        public List<NamedCrewMemberData> namedCrew;
+    }
+
+    [System.Serializable]
+    public class ShipTemplateFileData
+    {
+        public string templateId;
+        public string governanceMode;
+        public List<StationRequirementData> stationRequirements;
+    }
+
+    [System.Serializable]
+    public class StationRequirementData
+    {
+        public string seatRole;
+        public int minCount;
     }
 
     [System.Serializable]
