@@ -396,5 +396,23 @@ namespace Space4X.Headless
             id.Append('r');
             return id;
         }
+
+        private Entity ResolveCarrier(FixedString64Bytes carrierId, ref SystemState state)
+        {
+            if (carrierId.IsEmpty)
+            {
+                return Entity.Null;
+            }
+
+            foreach (var (carrier, entity) in SystemAPI.Query<RefRO<Carrier>>().WithEntityAccess())
+            {
+                if (carrier.ValueRO.CarrierId.Equals(carrierId))
+                {
+                    return entity;
+                }
+            }
+
+            return Entity.Null;
+        }
     }
 }
