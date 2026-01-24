@@ -1,0 +1,35 @@
+{
+  "seed": 1101,
+  "duration_s": 60,
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.crew.sensors_causality",
+        "required": false
+      }
+    ],
+    "crewTemplates": [
+      {
+        "carrierId": "crew-carrier-healthy",
+        "crewTemplateId": "crew.sensors.baseline.v0"
+      },
+      {
+        "carrierId": "crew-carrier-injured",
+        "crewTemplateId": "crew.sensors.injured.v0"
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "crew-carrier-healthy",
+      "position": [0, 0]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "crew-carrier-injured",
+      "position": [80, 0]
+    }
+  ],
+  "actions": []
+}
