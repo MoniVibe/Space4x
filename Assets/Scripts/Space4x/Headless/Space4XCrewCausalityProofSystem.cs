@@ -23,7 +23,7 @@ namespace Space4X.Headless
     /// Headless proof that an injured sensors officer produces a worse sensors outcome.
     /// Logs exactly one BANK PASS/FAIL line when the scenario ends.
     /// </summary>
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.Telemetry.TelemetryExportSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XCrewCausalityProofSystem : ISystem
@@ -108,16 +108,8 @@ namespace Space4X.Headless
             }
 
             var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
-            if (timeState.Tick < scenario.EndTick)
-            {
-                return;
-            }
 
             _carrierLookup.Update(ref state);
-            _seatLookup.Update(ref state);
-            _seatOccupantLookup.Update(ref state);
-            _statsLookup.Update(ref state);
-            _capacityLookup.Update(ref state);
             _perceivedLookup.Update(ref state);
 
             if (_healthyCarrierEntity == Entity.Null || !_carrierLookup.HasComponent(_healthyCarrierEntity))
@@ -144,6 +136,26 @@ namespace Space4X.Headless
                     _injuredDetectTick = timeState.Tick;
                 }
             }
+
+            if (_telemetryLogged == 0 && _healthyDetected != 0 && _injuredDetected != 0)
+            {
+                var startTick = scenario.StartTick;
+                var fixedDt = timeState.FixedDeltaTime;
+                var healthyEmergent = math.max(0f, (_healthyDetectTick - startTick) * fixedDt);
+                var injuredEmergent = math.max(0f, (_injuredDetectTick - startTick) * fixedDt);
+                var emergentDelta = injuredEmergent - healthyEmergent;
+                TryEmitTelemetry(ref state, -1f, -1f, -1f, healthyEmergent, injuredEmergent, emergentDelta);
+            }
+
+            if (timeState.Tick < scenario.EndTick)
+            {
+                return;
+            }
+
+            _seatLookup.Update(ref state);
+            _seatOccupantLookup.Update(ref state);
+            _statsLookup.Update(ref state);
+            _capacityLookup.Update(ref state);
 
             if (!TryResolveSensorsOccupant(ref state, HealthyCarrierId, out var healthyCrew, out var healthyStats, out var healthyCaps))
             {
