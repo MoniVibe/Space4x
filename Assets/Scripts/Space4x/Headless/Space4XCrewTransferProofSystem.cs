@@ -28,8 +28,6 @@ namespace Space4X.Headless
     {
         private const string EnabledEnv = "SPACE4X_HEADLESS_CREW_TRANSFER_PROOF";
         private const string ExitOnResultEnv = "SPACE4X_HEADLESS_CREW_TRANSFER_PROOF_EXIT";
-        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
-        private const string ScenarioFile = "space4x_crew_transfer_micro.json";
         private static readonly FixedString64Bytes TestId = new FixedString64Bytes("S3.SPACE4X_CREW_ENTITY_TRANSFER_MICRO");
         private static readonly FixedString64Bytes CarrierA = new FixedString64Bytes("crew-carrier-a");
         private static readonly FixedString64Bytes CarrierB = new FixedString64Bytes("crew-carrier-b");
@@ -59,8 +57,7 @@ namespace Space4X.Headless
             }
 
             var enabled = SystemEnv.GetEnvironmentVariable(EnabledEnv);
-            if (string.Equals(enabled, "0", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(enabled, "1", StringComparison.OrdinalIgnoreCase))
             {
                 state.Enabled = false;
                 return;
@@ -423,14 +420,6 @@ namespace Space4X.Headless
             }
 
             _bankResolved = 1;
-            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            if (string.IsNullOrWhiteSpace(scenarioPath)
-                || !scenarioPath.EndsWith(ScenarioFile, StringComparison.OrdinalIgnoreCase))
-            {
-                _enabled = 0;
-                return false;
-            }
-
             _bankTestId = TestId;
             return true;
         }
