@@ -33,6 +33,13 @@ namespace Space4X.Headless
                 return;
             }
 
+            var miningProof = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF");
+            if (string.Equals(miningProof, "0", StringComparison.OrdinalIgnoreCase))
+            {
+                Enabled = false;
+                return;
+            }
+
             RequireForUpdate<TimeState>();
             RequireForUpdate<Space4XScenarioRuntime>();
             RequireForUpdate<TerrainModificationQueue>();
