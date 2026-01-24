@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Individual;
+using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
@@ -45,6 +46,14 @@ namespace Space4X.Headless
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<DerivedCapacities> _capacityLookup;
+        private BufferLookup<PerceivedEntity> _perceivedLookup;
+
+        private Entity _healthyCarrierEntity;
+        private Entity _injuredCarrierEntity;
+        private uint _healthyDetectTick;
+        private uint _injuredDetectTick;
+        private byte _healthyDetected;
+        private byte _injuredDetected;
 
         public void OnCreate(ref SystemState state)
         {
@@ -69,6 +78,7 @@ namespace Space4X.Headless
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _capacityLookup = state.GetComponentLookup<DerivedCapacities>(true);
+            _perceivedLookup = state.GetBufferLookup<PerceivedEntity>(true);
 
             state.RequireForUpdate<Space4XScenarioRuntime>();
             state.RequireForUpdate<TimeState>();
@@ -104,6 +114,32 @@ namespace Space4X.Headless
             _seatOccupantLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _capacityLookup.Update(ref state);
+            _perceivedLookup.Update(ref state);
+
+            if (_healthyCarrierEntity == Entity.Null || !_carrierLookup.HasComponent(_healthyCarrierEntity))
+            {
+                _healthyCarrierEntity = ResolveCarrier(HealthyCarrierId, ref state);
+            }
+
+            if (_injuredCarrierEntity == Entity.Null || !_carrierLookup.HasComponent(_injuredCarrierEntity))
+            {
+                _injuredCarrierEntity = ResolveCarrier(InjuredCarrierId, ref state);
+            }
+
+            if (_healthyCarrierEntity != Entity.Null && _injuredCarrierEntity != Entity.Null)
+            {
+                if (_healthyDetected == 0 && IsTargetDetected(_healthyCarrierEntity, _injuredCarrierEntity))
+                {
+                    _healthyDetected = 1;
+                    _healthyDetectTick = timeState.Tick;
+                }
+
+                if (_injuredDetected == 0 && IsTargetDetected(_injuredCarrierEntity, _healthyCarrierEntity))
+                {
+                    _injuredDetected = 1;
+                    _injuredDetectTick = timeState.Tick;
+                }
+            }
 
             if (!TryResolveSensorsOccupant(ref state, HealthyCarrierId, out var healthyCrew, out var healthyStats, out var healthyCaps))
             {
@@ -123,7 +159,30 @@ namespace Space4X.Headless
             var injuredAcquire = ComputeAcquireTimeSeconds(injuredScore);
             var delta = injuredAcquire - healthyAcquire;
 
-            EmitMetrics(ref state, healthyCrew, injuredCrew, healthyScore, injuredScore, healthyAcquire, injuredAcquire, delta);
+            var startTick = scenario.StartTick;
+            var fixedDt = timeState.FixedDeltaTime;
+            var healthyEmergent = _healthyDetected != 0
+                ? math.max(0f, (_healthyDetectTick - startTick) * fixedDt)
+                : -1f;
+            var injuredEmergent = _injuredDetected != 0
+                ? math.max(0f, (_injuredDetectTick - startTick) * fixedDt)
+                : -1f;
+            var emergentDelta = (_healthyDetected != 0 && _injuredDetected != 0)
+                ? injuredEmergent - healthyEmergent
+                : -1f;
+
+            EmitMetrics(
+                ref state,
+                healthyCrew,
+                injuredCrew,
+                healthyScore,
+                injuredScore,
+                healthyAcquire,
+                injuredAcquire,
+                delta,
+                healthyEmergent,
+                injuredEmergent,
+                emergentDelta);
 
             if (injuredAcquire <= healthyAcquire)
             {
@@ -201,6 +260,25 @@ namespace Space4X.Headless
             return math.max(0.1f, baseScore * sight * reaction);
         }
 
+        private bool IsTargetDetected(Entity observer, Entity target)
+        {
+            if (!_perceivedLookup.HasBuffer(observer))
+            {
+                return false;
+            }
+
+            var perceived = _perceivedLookup[observer];
+            for (int i = 0; i < perceived.Length; i++)
+            {
+                if (perceived[i].TargetEntity == target)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static float ComputeAcquireTimeSeconds(float crewScore)
         {
             return BaseAcquireSeconds / math.max(0.1f, crewScore);
@@ -214,7 +292,10 @@ namespace Space4X.Headless
             float injuredScore,
             float healthyAcquire,
             float injuredAcquire,
-            float delta)
+            float delta,
+            float healthyEmergent,
+            float injuredEmergent,
+            float emergentDelta)
         {
             if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
             {
@@ -226,6 +307,9 @@ namespace Space4X.Headless
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.healthy"), Value = healthyAcquire });
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.injured"), Value = injuredAcquire });
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.delta"), Value = delta });
+            buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.emergent.healthy"), Value = healthyEmergent });
+            buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.emergent.injured"), Value = injuredEmergent });
+            buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.emergent.delta"), Value = emergentDelta });
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.crew.healthy_entity"), Value = healthyCrew.Index });
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.crew.injured_entity"), Value = injuredCrew.Index });
         }
