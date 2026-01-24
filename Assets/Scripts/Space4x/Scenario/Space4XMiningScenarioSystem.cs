@@ -11,6 +11,7 @@ using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Individual;
 using PureDOTS.Systems;
 using Space4X.Headless;
 using Space4X.Registry;
@@ -1747,6 +1748,7 @@ namespace Space4x.Scenario
 
                 ResolveCrewPreset(member.statsPreset, out var stats, out var disposition);
                 var crewEntity = CreateCrewEntity(lawfulness, config, stats, disposition);
+                EnsureCrewAnatomyPreset(crewEntity, member.anatomyPreset);
                 crewBuffer.Add(new PlatformCrewMember
                 {
                     CrewEntity = crewEntity,
@@ -1803,6 +1805,57 @@ namespace Space4x.Scenario
         private static int ResolveSeatRoleId(string seatRole)
         {
             return 0;
+        }
+
+        private void EnsureCrewAnatomyPreset(Entity crewEntity, string anatomyPreset)
+        {
+            if (!EntityManager.HasComponent<SimIndividualTag>(crewEntity))
+            {
+                EntityManager.AddComponent<SimIndividualTag>(crewEntity);
+            }
+
+            if (!EntityManager.HasComponent<DerivedCapacities>(crewEntity))
+            {
+                EntityManager.AddComponentData(crewEntity, new DerivedCapacities
+                {
+                    Sight = 1f,
+                    Manipulation = 1f,
+                    Consciousness = 1f,
+                    ReactionTime = 1f,
+                    Boarding = 1f
+                });
+            }
+
+            if (!EntityManager.HasBuffer<AnatomyPart>(crewEntity))
+            {
+                var parts = EntityManager.AddBuffer<AnatomyPart>(crewEntity);
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.Head, ParentIndex = -1, Coverage = 1f, Tags = AnatomyPartTags.Internal });
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.EyeLeft, ParentIndex = 0, Coverage = 0.5f, Tags = AnatomyPartTags.Sensory });
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.EyeRight, ParentIndex = 0, Coverage = 0.5f, Tags = AnatomyPartTags.Sensory });
+                parts.Add(new AnatomyPart { PartId = AnatomyPartIds.Brain, ParentIndex = 0, Coverage = 1f, Tags = AnatomyPartTags.Internal | AnatomyPartTags.Vital });
+            }
+
+            var preset = anatomyPreset?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(preset))
+            {
+                return;
+            }
+
+            var conditions = EntityManager.HasBuffer<Condition>(crewEntity)
+                ? EntityManager.GetBuffer<Condition>(crewEntity)
+                : EntityManager.AddBuffer<Condition>(crewEntity);
+            conditions.Clear();
+
+            if (preset == "one_eye_missing")
+            {
+                conditions.Add(new Condition
+                {
+                    TargetPartId = AnatomyPartIds.EyeLeft,
+                    Severity = 1f,
+                    StageId = 1,
+                    Flags = ConditionFlags.Missing | ConditionFlags.OneEyeMissing
+                });
+            }
         }
 
         private Entity CreateCrewEntity(
