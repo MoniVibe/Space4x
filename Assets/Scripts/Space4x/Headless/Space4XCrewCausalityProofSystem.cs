@@ -57,7 +57,8 @@ namespace Space4X.Headless
             }
 
             var enabled = SystemEnv.GetEnvironmentVariable(EnabledEnv);
-            if (string.Equals(enabled, "0", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(enabled, "1", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
             {
                 state.Enabled = false;
                 return;
@@ -261,21 +262,17 @@ namespace Space4X.Headless
                 return !_bankTestId.IsEmpty;
             }
 
+            _bankResolved = 1;
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            if (string.IsNullOrWhiteSpace(scenarioPath))
+            if (!string.IsNullOrWhiteSpace(scenarioPath)
+                && !scenarioPath.EndsWith(ScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
+                _enabled = 0;
                 return false;
             }
 
-            _bankResolved = 1;
-            if (scenarioPath.EndsWith(ScenarioFile, StringComparison.OrdinalIgnoreCase))
-            {
-                _bankTestId = TestId;
-                return true;
-            }
-
-            _enabled = 0;
-            return false;
+            _bankTestId = TestId;
+            return true;
         }
 
         private void LogBankResult(ref SystemState state, bool pass, string reason, uint tick)
