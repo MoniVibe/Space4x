@@ -16,6 +16,7 @@ using PureDOTS.Systems;
 using Space4X.Headless;
 using Space4X.Registry;
 using Space4X.Runtime;
+using IndividualStats = PureDOTS.Runtime.Individual.IndividualStats;
 using ResourceSourceState = Space4X.Registry.ResourceSourceState;
 using ResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using ResourceTypeId = Space4X.Registry.ResourceTypeId;
