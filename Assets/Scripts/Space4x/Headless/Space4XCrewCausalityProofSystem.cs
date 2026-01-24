@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Space4x.Scenario;
@@ -38,6 +39,7 @@ namespace Space4X.Headless
         private byte _done;
         private byte _bankLogged;
         private byte _aliveLogged;
+        private byte _telemetryLogged;
         private FixedString64Bytes _bankTestId;
         private FixedString64Bytes _roleSensorsOfficer;
 
@@ -82,6 +84,7 @@ namespace Space4X.Headless
 
             state.RequireForUpdate<Space4XScenarioRuntime>();
             state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<TelemetryStream>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -183,6 +186,7 @@ namespace Space4X.Headless
                 healthyEmergent,
                 injuredEmergent,
                 emergentDelta);
+            TryEmitTelemetry(ref state, healthyAcquire, injuredAcquire, delta, healthyEmergent, injuredEmergent, emergentDelta);
 
             if (injuredAcquire <= healthyAcquire)
             {
@@ -312,6 +316,58 @@ namespace Space4X.Headless
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.acquire_time_s.emergent.delta"), Value = emergentDelta });
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.crew.healthy_entity"), Value = healthyCrew.Index });
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.crew.injured_entity"), Value = injuredCrew.Index });
+        }
+
+        private void TryEmitTelemetry(
+            ref SystemState state,
+            float healthyAcquire,
+            float injuredAcquire,
+            float delta,
+            float healthyEmergent,
+            float injuredEmergent,
+            float emergentDelta)
+        {
+            if (_telemetryLogged != 0)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var config) ||
+                config.Enabled == 0 ||
+                (config.Flags & TelemetryExportFlags.IncludeTelemetryMetrics) == 0)
+            {
+                return;
+            }
+
+            if (!TryGetTelemetryMetricBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            buffer.AddMetric("space4x.sensors.acquire_time_s.healthy", healthyAcquire, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.sensors.acquire_time_s.injured", injuredAcquire, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.sensors.acquire_time_s.delta", delta, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.sensors.acquire_time_s.emergent.healthy", healthyEmergent, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.sensors.acquire_time_s.emergent.injured", injuredEmergent, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.sensors.acquire_time_s.emergent.delta", emergentDelta, TelemetryMetricUnit.Custom);
+            _telemetryLogged = 1;
+        }
+
+        private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
+        {
+            buffer = default;
+            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            {
+                return false;
+            }
+
+            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            {
+                return false;
+            }
+
+            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryRef.Stream);
+            return true;
         }
 
         private void Pass(ref SystemState state, uint tick)
