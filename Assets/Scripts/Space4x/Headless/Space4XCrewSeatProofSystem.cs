@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Individual;
+using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Space4x.Scenario;
