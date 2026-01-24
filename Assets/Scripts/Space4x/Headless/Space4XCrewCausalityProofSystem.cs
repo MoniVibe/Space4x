@@ -13,6 +13,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
 using SystemEnv = System.Environment;
+using IndividualStats = Space4X.Registry.IndividualStats;
 
 namespace Space4X.Headless
 {
