@@ -27,8 +27,6 @@ namespace Space4X.Headless
     {
         private const string EnabledEnv = "SPACE4X_HEADLESS_CREW_CAUSALITY_PROOF";
         private const string ExitOnResultEnv = "SPACE4X_HEADLESS_CREW_CAUSALITY_PROOF_EXIT";
-        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
-        private const string ScenarioFile = "space4x_crew_sensors_causality_micro.json";
         private const float BaseAcquireSeconds = 12f;
         private const float MinDeltaSeconds = 1.5f;
         private static readonly FixedString64Bytes TestId = new FixedString64Bytes("S2.SPACE4X_CREW_SENSORS_CAUSALITY_MICRO");
@@ -37,8 +35,8 @@ namespace Space4X.Headless
 
         private byte _enabled;
         private byte _done;
-        private byte _bankResolved;
         private byte _bankLogged;
+        private byte _aliveLogged;
         private FixedString64Bytes _bankTestId;
         private FixedString64Bytes _roleSensorsOfficer;
 
@@ -57,14 +55,14 @@ namespace Space4X.Headless
             }
 
             var enabled = SystemEnv.GetEnvironmentVariable(EnabledEnv);
-            if (string.Equals(enabled, "0", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(enabled, "1", StringComparison.OrdinalIgnoreCase))
             {
                 state.Enabled = false;
                 return;
             }
 
             _enabled = 1;
+            _bankTestId = TestId;
             _roleSensorsOfficer = BuildRoleSensorsOfficer();
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
@@ -83,15 +81,16 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (!ResolveBankTestId())
-            {
-                return;
-            }
-
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
             {
                 return;
+            }
+
+            if (_aliveLogged == 0)
+            {
+                _aliveLogged = 1;
+                UnityDebug.Log("S2 proof system active");
             }
 
             var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
@@ -253,26 +252,6 @@ namespace Space4X.Headless
             }
 
             HeadlessExitUtility.Request(state.EntityManager, tick, exitCode);
-        }
-
-        private bool ResolveBankTestId()
-        {
-            if (_bankResolved != 0)
-            {
-                return !_bankTestId.IsEmpty;
-            }
-
-            _bankResolved = 1;
-            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            if (string.IsNullOrWhiteSpace(scenarioPath)
-                || !scenarioPath.EndsWith(ScenarioFile, StringComparison.OrdinalIgnoreCase))
-            {
-                _enabled = 0;
-                return false;
-            }
-
-            _bankTestId = TestId;
-            return true;
         }
 
         private void LogBankResult(ref SystemState state, bool pass, string reason, uint tick)
