@@ -833,6 +833,7 @@ namespace Space4x.Scenario
             }
 
             EnsureCarrierAuthorityAndCrew(entity, law, currentTick);
+            ApplyCrewTemplate(entity, carrierId.ToString(), law, currentTick);
 
             EntityManager.AddComponentData(entity, new PatrolBehavior
             {
@@ -1696,6 +1697,114 @@ namespace Space4x.Scenario
             }
         }
 
+        private void ApplyCrewTemplate(Entity carrierEntity, string carrierId, float lawfulness, uint currentTick)
+        {
+            if (_scenarioData?.scenarioConfig?.crewTemplates == null ||
+                string.IsNullOrWhiteSpace(carrierId))
+            {
+                return;
+            }
+
+            CrewTemplateConfigData template = null;
+            for (int i = 0; i < _scenarioData.scenarioConfig.crewTemplates.Count; i++)
+            {
+                var candidate = _scenarioData.scenarioConfig.crewTemplates[i];
+                if (candidate == null || string.IsNullOrWhiteSpace(candidate.carrierId))
+                {
+                    continue;
+                }
+
+                if (string.Equals(candidate.carrierId, carrierId, StringComparison.OrdinalIgnoreCase))
+                {
+                    template = candidate;
+                    break;
+                }
+            }
+
+            if (template == null || template.namedCrew == null || template.namedCrew.Count == 0)
+            {
+                return;
+            }
+
+            var config = StrikeCraftPilotProfileConfig.Default;
+            if (SystemAPI.TryGetSingleton<StrikeCraftPilotProfileConfig>(out var configSingleton))
+            {
+                config = configSingleton;
+            }
+
+            var crewBuffer = EntityManager.HasBuffer<PlatformCrewMember>(carrierEntity)
+                ? EntityManager.GetBuffer<PlatformCrewMember>(carrierEntity)
+                : EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
+            crewBuffer.Clear();
+
+            for (int i = 0; i < template.namedCrew.Count; i++)
+            {
+                var member = template.namedCrew[i];
+                if (member == null)
+                {
+                    continue;
+                }
+
+                ResolveCrewPreset(member.statsPreset, out var stats, out var disposition);
+                var crewEntity = CreateCrewEntity(lawfulness, config, stats, disposition);
+                crewBuffer.Add(new PlatformCrewMember
+                {
+                    CrewEntity = crewEntity,
+                    RoleId = ResolveSeatRoleId(member.seatRole)
+                });
+            }
+        }
+
+        private static void ResolveCrewPreset(string statsPreset, out IndividualStats stats, out BehaviorDisposition disposition)
+        {
+            var preset = statsPreset?.Trim().ToLowerInvariant();
+            if (preset == "elite")
+            {
+                stats = new IndividualStats
+                {
+                    Command = (half)90,
+                    Tactics = (half)80,
+                    Logistics = (half)70,
+                    Diplomacy = (half)70,
+                    Engineering = (half)65,
+                    Resolve = (half)90
+                };
+                disposition = BehaviorDisposition.FromValues(0.85f, 0.6f, 0.8f, 0.35f, 0.5f, 0.75f);
+                return;
+            }
+
+            if (preset == "rookie")
+            {
+                stats = new IndividualStats
+                {
+                    Command = (half)45,
+                    Tactics = (half)40,
+                    Logistics = (half)45,
+                    Diplomacy = (half)40,
+                    Engineering = (half)40,
+                    Resolve = (half)40
+                };
+                disposition = BehaviorDisposition.FromValues(0.55f, 0.55f, 0.5f, 0.6f, 0.25f, 0.5f);
+                return;
+            }
+
+            stats = new IndividualStats
+            {
+                Command = (half)65,
+                Tactics = (half)60,
+                Logistics = (half)60,
+                Diplomacy = (half)55,
+                Engineering = (half)50,
+                Resolve = (half)60
+            };
+            disposition = BehaviorDisposition.FromValues(0.7f, 0.6f, 0.65f, 0.45f, 0.4f, 0.6f);
+        }
+
+        private static int ResolveSeatRoleId(string seatRole)
+        {
+            return 0;
+        }
+
         private Entity CreateCrewEntity(
             float lawfulness,
             in StrikeCraftPilotProfileConfig config,
@@ -2028,6 +2137,7 @@ namespace Space4x.Scenario
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
+        public List<CrewTemplateConfigData> crewTemplates;
     }
 
     [System.Serializable]
@@ -2062,6 +2172,23 @@ namespace Space4x.Scenario
     {
         public string id;
         public bool required;
+    }
+
+    [System.Serializable]
+    public class CrewTemplateConfigData
+    {
+        public string carrierId;
+        public string templateId;
+        public List<NamedCrewMemberData> namedCrew;
+    }
+
+    [System.Serializable]
+    public class NamedCrewMemberData
+    {
+        public string name;
+        public string seatRole;
+        public string statsPreset;
+        public string anatomyPreset;
     }
 
     [System.Serializable]
