@@ -24,6 +24,7 @@ namespace Space4X.Headless
     /// Logs exactly one BANK PASS/FAIL line when the scenario ends.
     /// </summary>
     [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateBefore(typeof(PureDOTS.Systems.Telemetry.TelemetryExportSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XCrewCausalityProofSystem : ISystem
     {
