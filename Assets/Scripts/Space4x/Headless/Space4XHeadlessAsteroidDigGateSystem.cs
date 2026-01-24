@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.IO;
 using PureDOTS.Environment;
@@ -18,6 +19,9 @@ namespace Space4X.Headless
         private const string SessionDirEnv = "SPACE4X_DIG_GATE_SESSION_DIR";
         private const string DefaultSessionDir = @"C:\polish\queue\reports\session_20260108_workblock";
         private const string SummaryFileName = "asteroid_dig_gate_summary.json";
+        private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
+        private const string ScenarioSourcePathEnv = "SPACE4X_SCENARIO_SOURCE_PATH";
+        private const string FtlMicroScenarioFile = "space4x_ftl_micro.json";
 
         private byte _done;
         private string _summaryPath;
@@ -36,6 +40,18 @@ namespace Space4X.Headless
             RequireForUpdate<TimeState>();
             RequireForUpdate<Space4XScenarioRuntime>();
             RequireForUpdate<TerrainModificationQueue>();
+
+            var scenarioPath = System.Environment.GetEnvironmentVariable(ScenarioSourcePathEnv);
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                scenarioPath = System.Environment.GetEnvironmentVariable(ScenarioPathEnv);
+            }
+            if (!string.IsNullOrWhiteSpace(scenarioPath) &&
+                scenarioPath.EndsWith(FtlMicroScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                Enabled = false;
+                return;
+            }
 
             var sessionDir = System.Environment.GetEnvironmentVariable(SessionDirEnv);
             if (string.IsNullOrWhiteSpace(sessionDir))

@@ -42,6 +42,7 @@ namespace Space4X.Headless
         private const string CommsScenarioFile = "space4x_comms_micro.json";
         private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
         private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
+        private const string FtlMicroScenarioFile = "space4x_ftl_micro.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
@@ -505,6 +506,14 @@ namespace Space4X.Headless
             if (scenarioPath.EndsWith(TurnrateScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
                 _deferTurnFailures = true;
+                return;
+            }
+
+            if (scenarioPath.EndsWith(FtlMicroScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                // FTL micro relies on a deliberate teleport; suppress teleport failures.
+                _ignoreTeleportFailures = true;
+                _ignoreTurnFailures = true;
                 return;
             }
 
