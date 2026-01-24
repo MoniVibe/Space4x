@@ -1868,6 +1868,15 @@ namespace Space4x.Scenario
             EntityManager.AddComponentData(crew, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
             EntityManager.AddComponentData(crew, stats);
             EntityManager.AddComponentData(crew, disposition);
+            EntityManager.AddComponentData(crew, new CrewSkill
+            {
+                Value = ((float)stats.Command
+                         + (float)stats.Tactics
+                         + (float)stats.Logistics
+                         + (float)stats.Diplomacy
+                         + (float)stats.Engineering
+                         + (float)stats.Resolve) / 6f
+            });
 
             var outlookId = ResolveOutlookId(config, lawfulness);
             EntityManager.AddBuffer<OutlookEntry>(crew);
