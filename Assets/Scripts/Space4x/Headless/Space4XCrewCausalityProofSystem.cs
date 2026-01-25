@@ -336,31 +336,42 @@ namespace Space4X.Headless
             buffer.Add(new Space4XOperatorMetric { Key = new FixedString64Bytes("space4x.sensors.crew.injured_entity"), Value = injuredCrew.Index });
         }
 
-        private void TryEmitTelemetry(
-            ref SystemState state,
-            float healthyAcquire,
-            float injuredAcquire,
-            float delta,
-            float healthyEmergent,
-            float injuredEmergent,
-            float emergentDelta)
-        {
-            if (_telemetryLogged != 0)
-            {
-                return;
-            }
+          private void TryEmitTelemetry(
+              ref SystemState state,
+              float healthyAcquire,
+              float injuredAcquire,
+              float delta,
+              float healthyEmergent,
+              float injuredEmergent,
+              float emergentDelta)
+          {
+              if (_telemetryLogged != 0)
+              {
+                  return;
+              }
 
-            if (!SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var config) ||
-                config.Enabled == 0 ||
-                (config.Flags & TelemetryExportFlags.IncludeTelemetryMetrics) == 0)
-            {
-                return;
-            }
+              if (!SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var config))
+              {
+                  UnityDebug.Log("[S2] telemetry emit skipped: no TelemetryExportConfig");
+                  return;
+              }
 
-            if (!TryGetTelemetryMetricBuffer(ref state, out var buffer))
-            {
-                return;
-            }
+              if (config.Enabled == 0)
+              {
+                  UnityDebug.Log("[S2] telemetry emit skipped: telemetry disabled");
+                  return;
+              }
+
+              if ((config.Flags & TelemetryExportFlags.IncludeTelemetryMetrics) == 0)
+              {
+                  UnityDebug.Log("[S2] telemetry emit skipped: metrics flag off");
+                  return;
+              }
+
+              if (!TryGetTelemetryMetricBuffer(ref state, out var buffer))
+              {
+                  return;
+              }
 
             buffer.AddMetric("space4x.sensors.acquire_time_s.healthy", healthyAcquire, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.sensors.acquire_time_s.injured", injuredAcquire, TelemetryMetricUnit.Custom);
@@ -372,13 +383,14 @@ namespace Space4X.Headless
             _telemetryLogged = 1;
         }
 
-        private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
-        {
-            buffer = default;
-            if (!SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity))
-            {
-                return false;
-            }
+          private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
+          {
+              buffer = default;
+              if (!SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity))
+              {
+                  UnityDebug.Log("[S2] telemetry emit skipped: no TelemetryStream entity");
+                  return false;
+              }
 
             if (!state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
             {
