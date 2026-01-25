@@ -387,26 +387,17 @@ namespace Space4X.Headless
         private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
         {
             buffer = default;
-            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
-            {
-                TelemetryStreamUtility.EnsureEventStream(state.EntityManager);
-                if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out telemetryRef))
-                {
-                    return false;
-                }
-            }
-
-            if (telemetryRef.Stream == Entity.Null)
+            if (!SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity))
             {
                 return false;
             }
 
-            if (!state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            if (!state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
             {
-                state.EntityManager.AddBuffer<TelemetryMetric>(telemetryRef.Stream);
+                state.EntityManager.AddBuffer<TelemetryMetric>(telemetryEntity);
             }
 
-            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryRef.Stream);
+            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
             return true;
         }
 
