@@ -376,7 +376,11 @@ namespace Space4X.Headless
             buffer = default;
             if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
             {
-                return false;
+                TelemetryStreamUtility.EnsureEventStream(state.EntityManager);
+                if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out telemetryRef))
+                {
+                    return false;
+                }
             }
 
             if (telemetryRef.Stream == Entity.Null)
