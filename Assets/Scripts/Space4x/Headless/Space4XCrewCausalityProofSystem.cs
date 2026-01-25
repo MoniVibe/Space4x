@@ -368,6 +368,7 @@ namespace Space4X.Headless
             buffer.AddMetric("space4x.sensors.acquire_time_s.emergent.healthy", healthyEmergent, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.sensors.acquire_time_s.emergent.injured", injuredEmergent, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.sensors.acquire_time_s.emergent.delta", emergentDelta, TelemetryMetricUnit.Custom);
+            UnityDebug.Log("[S2] telemetry metrics emitted");
             _telemetryLogged = 1;
         }
 
