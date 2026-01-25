@@ -392,9 +392,14 @@ namespace Space4X.Headless
                 return false;
             }
 
-            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            if (telemetryRef.Stream == Entity.Null)
             {
                 return false;
+            }
+
+            if (!state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            {
+                state.EntityManager.AddBuffer<TelemetryMetric>(telemetryRef.Stream);
             }
 
             buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryRef.Stream);
