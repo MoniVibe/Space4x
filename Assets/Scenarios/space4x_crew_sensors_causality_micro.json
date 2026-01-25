@@ -12,6 +12,17 @@
     "disableLegacyMining": true,
     "disableLegacyPatrol": true,
     "applyFloatingOrigin": true,
+    "sensorsBeat": {
+      "observerCarrierId": "crew-carrier-healthy",
+      "targetCarrierId": "crew-carrier-injured",
+      "acquireStart_s": 1,
+      "acquireDuration_s": 20,
+      "dropStart_s": 25,
+      "dropDuration_s": 10,
+      "observerRange": 500,
+      "observerUpdateInterval": 0.25,
+      "observerMaxTrackedTargets": 8
+    },
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.sensors_causality",
