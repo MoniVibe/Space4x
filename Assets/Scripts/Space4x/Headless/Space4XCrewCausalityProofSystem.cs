@@ -163,17 +163,17 @@ namespace Space4X.Headless
             }
 
             if (_healthyDetected == 0 && _healthySeatAssigned != 0 &&
-                TryResolveSensorsOccupant(ref state, HealthyCarrierId, out _, out var healthyStats, out var healthyCaps))
+                TryResolveSensorsOccupant(ref state, HealthyCarrierId, out _, out var healthyStatsNow, out var healthyCapsNow))
             {
-                var score = ComputeCrewScore(in healthyStats, in healthyCaps);
+                var score = ComputeCrewScore(in healthyStatsNow, in healthyCapsNow);
                 var acquireSeconds = ComputeAcquireTimeSeconds(score);
                 AdvanceAcquireProgress(ref _healthyAcquireProgress, acquireSeconds, timeState.FixedDeltaTime, timeState.Tick, ref _healthyDetected, ref _healthyDetectTick);
             }
 
             if (_injuredDetected == 0 && _injuredSeatAssigned != 0 &&
-                TryResolveSensorsOccupant(ref state, InjuredCarrierId, out _, out var injuredStats, out var injuredCaps))
+                TryResolveSensorsOccupant(ref state, InjuredCarrierId, out _, out var injuredStatsNow, out var injuredCapsNow))
             {
-                var score = ComputeCrewScore(in injuredStats, in injuredCaps);
+                var score = ComputeCrewScore(in injuredStatsNow, in injuredCapsNow);
                 var acquireSeconds = ComputeAcquireTimeSeconds(score);
                 AdvanceAcquireProgress(ref _injuredAcquireProgress, acquireSeconds, timeState.FixedDeltaTime, timeState.Tick, ref _injuredDetected, ref _injuredDetectTick);
             }
