@@ -61,6 +61,13 @@ SourceAssetDB/
 *.mmdb
 *.mmdb.meta
 
+## Generated artifacts
+Assets/Unity.VisualScripting.Generated/
+Assets/Resources/PerformanceTestRunInfo.json
+Assets/Resources/PerformanceTestRunInfo.json.meta
+Assets/Resources/PerformanceTestRunSettings.json
+Assets/Resources/PerformanceTestRunSettings.json.meta
+
 ## Backup directories
 Library_backup_*/
 Temp_backup_*/
