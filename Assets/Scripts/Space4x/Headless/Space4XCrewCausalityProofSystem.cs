@@ -61,6 +61,8 @@ namespace Space4X.Headless
         private uint _injuredSeatTick;
         private byte _healthySeatAssigned;
         private byte _injuredSeatAssigned;
+        private float _healthyAcquireProgress;
+        private float _injuredAcquireProgress;
 
         public void OnCreate(ref SystemState state)
         {
@@ -158,6 +160,22 @@ namespace Space4X.Headless
             {
                 _injuredSeatAssigned = 1;
                 _injuredSeatTick = timeState.Tick;
+            }
+
+            if (_healthyDetected == 0 && _healthySeatAssigned != 0 &&
+                TryResolveSensorsOccupant(ref state, HealthyCarrierId, out _, out var healthyStats, out var healthyCaps))
+            {
+                var score = ComputeCrewScore(in healthyStats, in healthyCaps);
+                var acquireSeconds = ComputeAcquireTimeSeconds(score);
+                AdvanceAcquireProgress(ref _healthyAcquireProgress, acquireSeconds, timeState.FixedDeltaTime, timeState.Tick, ref _healthyDetected, ref _healthyDetectTick);
+            }
+
+            if (_injuredDetected == 0 && _injuredSeatAssigned != 0 &&
+                TryResolveSensorsOccupant(ref state, InjuredCarrierId, out _, out var injuredStats, out var injuredCaps))
+            {
+                var score = ComputeCrewScore(in injuredStats, in injuredCaps);
+                var acquireSeconds = ComputeAcquireTimeSeconds(score);
+                AdvanceAcquireProgress(ref _injuredAcquireProgress, acquireSeconds, timeState.FixedDeltaTime, timeState.Tick, ref _injuredDetected, ref _injuredDetectTick);
             }
 
             if (_telemetryLogged == 0 &&
@@ -339,6 +357,28 @@ namespace Space4X.Headless
         private static float ComputeAcquireTimeSeconds(float crewScore)
         {
             return BaseAcquireSeconds / math.max(0.1f, crewScore);
+        }
+
+        private static void AdvanceAcquireProgress(
+            ref float progress,
+            float acquireSeconds,
+            float fixedDt,
+            uint tick,
+            ref byte detected,
+            ref uint detectTick)
+        {
+            if (detected != 0)
+            {
+                return;
+            }
+
+            var denom = math.max(0.05f, acquireSeconds);
+            progress += fixedDt / denom;
+            if (progress >= 1f)
+            {
+                detected = 1;
+                detectTick = tick;
+            }
         }
 
         private static void EmitMetrics(
