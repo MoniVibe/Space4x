@@ -162,12 +162,12 @@ namespace Space4X.Headless
 
             if (_telemetryLogged == 0 && _healthySeatAssigned != 0 && _injuredSeatAssigned != 0)
             {
-                var startTick = scenario.StartTick;
-                var fixedDt = timeState.FixedDeltaTime;
-                var healthyEmergent = math.max(0f, (_healthySeatTick - startTick) * fixedDt);
-                var injuredEmergent = math.max(0f, (_injuredSeatTick - startTick) * fixedDt);
-                var emergentDelta = injuredEmergent - healthyEmergent;
-                TryEmitTelemetry(ref state, -1f, -1f, -1f, healthyEmergent, injuredEmergent, emergentDelta);
+                var seatStartTick = scenario.StartTick;
+                var seatFixedDt = timeState.FixedDeltaTime;
+                var seatHealthyEmergent = math.max(0f, (_healthySeatTick - seatStartTick) * seatFixedDt);
+                var seatInjuredEmergent = math.max(0f, (_injuredSeatTick - seatStartTick) * seatFixedDt);
+                var seatEmergentDelta = seatInjuredEmergent - seatHealthyEmergent;
+                TryEmitTelemetry(ref state, -1f, -1f, -1f, seatHealthyEmergent, seatInjuredEmergent, seatEmergentDelta);
             }
 
             if (timeState.Tick < scenario.EndTick)
