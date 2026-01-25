@@ -160,6 +160,38 @@ namespace Space4X.Headless
                 _injuredSeatTick = timeState.Tick;
             }
 
+            if (_telemetryLogged == 0 &&
+                _healthySeatAssigned != 0 &&
+                _injuredSeatAssigned != 0 &&
+                TryResolveSensorsOccupant(ref state, HealthyCarrierId, out _, out var earlyHealthyStats, out var earlyHealthyCaps) &&
+                TryResolveSensorsOccupant(ref state, InjuredCarrierId, out _, out var earlyInjuredStats, out var earlyInjuredCaps))
+            {
+                var earlyHealthyScore = ComputeCrewScore(in earlyHealthyStats, in earlyHealthyCaps);
+                var earlyInjuredScore = ComputeCrewScore(in earlyInjuredStats, in earlyInjuredCaps);
+                var earlyHealthyAcquire = ComputeAcquireTimeSeconds(earlyHealthyScore);
+                var earlyInjuredAcquire = ComputeAcquireTimeSeconds(earlyInjuredScore);
+                var earlyDelta = earlyInjuredAcquire - earlyHealthyAcquire;
+
+                var earlyStartTick = scenario.StartTick;
+                var earlyFixedDt = timeState.FixedDeltaTime;
+                var earlyHealthyEmergent = _healthyDetected != 0
+                    ? math.max(0f, (_healthyDetectTick - earlyStartTick) * earlyFixedDt)
+                    : math.max(0f, (_healthySeatTick - earlyStartTick) * earlyFixedDt);
+                var earlyInjuredEmergent = _injuredDetected != 0
+                    ? math.max(0f, (_injuredDetectTick - earlyStartTick) * earlyFixedDt)
+                    : math.max(0f, (_injuredSeatTick - earlyStartTick) * earlyFixedDt);
+                var earlyEmergentDelta = earlyInjuredEmergent - earlyHealthyEmergent;
+
+                TryEmitTelemetry(
+                    ref state,
+                    earlyHealthyAcquire,
+                    earlyInjuredAcquire,
+                    earlyDelta,
+                    earlyHealthyEmergent,
+                    earlyInjuredEmergent,
+                    earlyEmergentDelta);
+            }
+
             if (timeState.Tick < scenario.EndTick)
             {
                 return;
