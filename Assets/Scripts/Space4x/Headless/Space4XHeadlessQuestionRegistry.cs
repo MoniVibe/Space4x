@@ -166,6 +166,7 @@ namespace Space4X.Headless
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
         public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
+        public const string CombatFire = "space4x.q.combat.fire";
         public const string MiningProgress = "space4x.q.mining.progress";
         public const string Unknown = "space4x.q.unknown";
 
@@ -193,6 +194,7 @@ namespace Space4X.Headless
             new CommsDeliveryQuestion(),
             new CommsDeliveryBlockedQuestion(),
             new MovementTurnRateBoundsQuestion(),
+            new CombatFireQuestion(),
             new MiningProgressQuestion()
         };
 
@@ -536,6 +538,49 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"turn_rate_max={turnRateMax:0.##} turn_accel_max={turnAccelMax:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatFireQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatFire;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasIntercepts = signals.TryGetMetric("space4x.intercept.attempts", out var interceptAttempts);
+                var damagedCount = signals.GetMetricOrDefault("space4x.hull.damaged");
+                var criticalCount = signals.GetMetricOrDefault("space4x.hull.critical");
+
+                answer.Metrics["intercept_attempts"] = interceptAttempts;
+                answer.Metrics["hull_damaged"] = damagedCount;
+                answer.Metrics["hull_critical"] = criticalCount;
+
+                if (!hasIntercepts && damagedCount <= 0f && criticalCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                if (interceptAttempts <= 0f && damagedCount <= 0f && criticalCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_combat_signal";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"intercepts={interceptAttempts:0} damaged={damagedCount:0} critical={criticalCount:0}";
                 return answer;
             }
         }

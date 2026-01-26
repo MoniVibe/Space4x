@@ -21,11 +21,11 @@ MonoBehaviour:
     defaultStrideSeconds: 5
     criticalStrideSeconds: 1
     lowVisibilityStrideSeconds: 30
-    defaultHorizonSeconds: 60
-    midHorizonSeconds: 300
-    extendedHorizonSeconds: 600
-    checkpointIntervalSeconds: 20
-    eventLogRetentionSeconds: 30
+    defaultHorizonSeconds: 10
+    midHorizonSeconds: 10
+    extendedHorizonSeconds: 10
+    checkpointIntervalSeconds: 10
+    eventLogRetentionSeconds: 10
     memoryBudgetMegabytes: 1024
     defaultTicksPerSecond: 90
     minTicksPerSecond: 60
