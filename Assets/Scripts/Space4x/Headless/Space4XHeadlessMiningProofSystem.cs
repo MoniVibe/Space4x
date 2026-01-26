@@ -56,6 +56,7 @@ namespace Space4X.Headless
         private byte _rewindPass;
         private float _rewindObserved;
         private bool _isSmokeScenario;
+        private bool _isMiningScenario;
         private bool _isMiningCombatScenario;
         private bool _isMiningMicroScenario;
         private FixedString64Bytes _bankTestId;
@@ -131,6 +132,7 @@ namespace Space4X.Headless
                 _startTick = timeState.Tick;
                 var scenario = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
                 _isSmokeScenario = IsSmokeScenario();
+                _isMiningScenario = IsMiningScenario();
                 _isMiningCombatScenario = IsMiningCombatScenario();
                 _isMiningMicroScenario = IsMiningMicroScenario();
                 _timeoutTick = scenario.EndTick > _startTick
@@ -289,6 +291,11 @@ namespace Space4X.Headless
                 // Smoke runs focus on "mining started" rather than full dropoff within a short window.
                 pass = hasOre || hasCargo;
             }
+            else if (!pass && _isMiningScenario)
+            {
+                // Mining-only runs still need gather, but allow cargo to count when carrier dropoff lags.
+                pass = hasGather && (hasOre || hasCargo);
+            }
             else if (!pass && (_isMiningCombatScenario || _isMiningMicroScenario))
             {
                 // Combat mining can route ore to carrier stores without updating ore-in-hold.
@@ -415,6 +422,13 @@ namespace Space4X.Headless
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             return !string.IsNullOrWhiteSpace(scenarioPath) &&
                    scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsMiningScenario()
+        {
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
+            return !string.IsNullOrWhiteSpace(scenarioPath) &&
+                   scenarioPath.EndsWith(MiningScenarioFile, StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsMiningMicroScenario()

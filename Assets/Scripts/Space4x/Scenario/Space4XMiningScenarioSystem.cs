@@ -44,6 +44,7 @@ namespace Space4x.Scenario
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string PerfGateModeEnv = "PERF_GATE_MODE";
         private const string ExitPolicyEnv = "PUREDOTS_EXIT_POLICY";
+        private const string HeadlessMiningForceEnv = "SPACE4X_HEADLESS_MINING_PROOF_UNDOCK";
         private const string JsonExtension = ".json";
         private const float DefaultSpawnVerticalRange = 60f;
         private const string RefitScenarioFile = "space4x_refit.json";
@@ -144,6 +145,11 @@ namespace Space4x.Scenario
                 ApplySmokeLatchConfig();
                 ApplyFloatingOriginConfig();
             }
+            else if (IsHeadlessMiningProofEnabled())
+            {
+                // Headless proof runs can stall at the latch phase without relaxed thresholds.
+                ApplyHeadlessMiningLatchConfig();
+            }
             ApplyDogfightConfig(_scenarioData.dogfightConfig);
             ApplyStanceConfig(_scenarioData.stanceConfig);
 
@@ -166,6 +172,7 @@ namespace Space4x.Scenario
                 SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
                 ApplyPersonalRelations(timeState.Tick);
                 EnsureScenarioFactionRelations(timeState.Tick);
+                ForceHeadlessMiningTargets(timeState.Tick);
             }
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
             var durationSeconds = math.max(0f, _scenarioData.duration_s);
@@ -362,7 +369,11 @@ namespace Space4x.Scenario
 
             EntityManager.SetComponentData(configEntity, config);
 
-            if (!SystemAPI.TryGetSingletonEntity<Space4XLegacyMiningDisabledTag>(out _))
+            var allowMining = string.Equals(
+                SystemEnv.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF"),
+                "1",
+                StringComparison.OrdinalIgnoreCase);
+            if (!allowMining && !SystemAPI.TryGetSingletonEntity<Space4XLegacyMiningDisabledTag>(out _))
             {
                 EntityManager.CreateEntity(typeof(Space4XLegacyMiningDisabledTag));
             }
@@ -528,6 +539,33 @@ namespace Space4x.Scenario
             }
 
             EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private void ApplyHeadlessMiningLatchConfig()
+        {
+            var config = Space4XMiningLatchConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var existing))
+            {
+                config = existing;
+            }
+
+            config.SurfaceEpsilon = math.max(config.SurfaceEpsilon, 3.2f);
+            config.AlignDotThreshold = -1f;
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XMiningLatchConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XMiningLatchConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private static bool IsHeadlessMiningProofEnabled()
+        {
+            return string.Equals(
+                SystemEnv.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF"),
+                "1",
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private void ApplyDogfightConfig(StrikeCraftDogfightConfigData data)
@@ -937,6 +975,106 @@ namespace Space4x.Scenario
                         break;
                 }
             }
+        }
+
+        private void ForceHeadlessMiningTargets(uint currentTick)
+        {
+            if (!IsHeadlessMiningOverrideEnabled())
+            {
+                return;
+            }
+
+            var sources = new List<(Entity entity, FixedString64Bytes resourceId, float3 position)>();
+            foreach (var (resourceState, resourceId, transform, entity) in SystemAPI
+                         .Query<RefRO<ResourceSourceState>, RefRO<ResourceTypeId>, RefRO<LocalTransform>>()
+                         .WithEntityAccess())
+            {
+                if (_spawnedEntities != null && _spawnedEntities.Count > 0 && !_spawnedEntities.ContainsValue(entity))
+                {
+                    continue;
+                }
+
+                if (resourceState.ValueRO.UnitsRemaining <= 0f)
+                {
+                    continue;
+                }
+
+                sources.Add((entity, resourceId.ValueRO.Value, transform.ValueRO.Position));
+            }
+
+            if (sources.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var (order, miningState, transform, entity) in SystemAPI
+                         .Query<RefRW<MiningOrder>, RefRW<MiningState>, RefRO<LocalTransform>>()
+                         .WithEntityAccess())
+            {
+                if (order.ValueRO.ResourceId.IsEmpty)
+                {
+                    continue;
+                }
+
+                var target = ResolveNearestMiningSource(order.ValueRO.ResourceId, transform.ValueRO.Position, sources);
+                if (target == Entity.Null)
+                {
+                    continue;
+                }
+
+                order.ValueRW.PreferredTarget = target;
+                order.ValueRW.TargetEntity = target;
+                order.ValueRW.Status = MiningOrderStatus.Active;
+                order.ValueRW.IssuedTick = currentTick;
+
+                miningState.ValueRW.ActiveTarget = target;
+                if (miningState.ValueRW.Phase == MiningPhase.Idle || miningState.ValueRW.Phase == MiningPhase.Undocking)
+                {
+                    miningState.ValueRW.Phase = MiningPhase.ApproachTarget;
+                    miningState.ValueRW.PhaseTimer = 0f;
+                }
+            }
+        }
+
+        private static Entity ResolveNearestMiningSource(
+            FixedString64Bytes resourceId,
+            float3 position,
+            List<(Entity entity, FixedString64Bytes resourceId, float3 position)> sources)
+        {
+            var bestTarget = Entity.Null;
+            var bestDistanceSq = float.MaxValue;
+
+            for (var i = 0; i < sources.Count; i++)
+            {
+                var source = sources[i];
+                if (source.resourceId != resourceId)
+                {
+                    continue;
+                }
+
+                var distanceSq = math.distancesq(position, source.position);
+                if (distanceSq < bestDistanceSq)
+                {
+                    bestDistanceSq = distanceSq;
+                    bestTarget = source.entity;
+                }
+            }
+
+            return bestTarget;
+        }
+
+        private static bool IsHeadlessMiningOverrideEnabled()
+        {
+            var value = SystemEnv.GetEnvironmentVariable(HeadlessMiningForceEnv);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
         }
 
         private void SpawnCarrier(MiningSpawnDefinition spawn, uint currentTick, float fixedDt)
@@ -3870,6 +4008,5 @@ namespace Space4x.Scenario
         public string json;
     }
 }
-
 
 

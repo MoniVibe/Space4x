@@ -1,0 +1,46 @@
+{
+  "seed": 1101,
+  "duration_s": 45,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "ftl-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "FTL-FLEET",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2,
+      "kind": "MoveFleet",
+      "fleetId": "FTL-FLEET",
+      "targetPosition": [600, 0],
+      "description": "FTL intent to jump to a far target"
+    }
+  ]
+}

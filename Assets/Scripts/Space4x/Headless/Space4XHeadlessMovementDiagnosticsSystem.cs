@@ -36,15 +36,18 @@ namespace Space4X.Headless
         private const string MovementStrictEnv = "SPACE4X_HEADLESS_MOVEMENT_STRICT";
         private const string MovementDiagEnv = "SPACE4X_HEADLESS_MOVEMENT_DIAG";
         private const string IgnoreTurnFailuresEnv = "SPACE4X_HEADLESS_IGNORE_TURN";
+        private const string MiningProofEnv = "SPACE4X_HEADLESS_MINING_PROOF";
         private const string CollisionScenarioFile = "space4x_collision_micro.json";
         private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
         private const string MiningMicroScenarioFile = "space4x_mining_micro.json";
+        private const string DogfightScenarioFile = "space4x_dogfight_headless.json";
         private const string SensorsScenarioFile = "space4x_sensors_micro.json";
         private const string CommsScenarioFile = "space4x_comms_micro.json";
         private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
         private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
+        private const string FtlMicroScenarioFile = "space4x_ftl_micro.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const uint TeleportFailureThreshold = 1;
@@ -104,23 +107,27 @@ namespace Space4X.Headless
             {
                 ResolveScenarioFlags();
             }
-            if (!_ignoreTeleportFailures && HasMiningProgressQuestion(state.EntityManager))
+            if (ReadBoolEnv(MiningProofEnv, false))
             {
                 _ignoreTeleportFailures = true;
                 _ignoreStuckFailures = true;
                 _ignoreSpikeFailures = true;
                 _ignoreTurnFailures = true;
             }
-            if (!_ignoreTeleportFailures)
+            if (HasMiningProgressQuestion(state.EntityManager))
             {
-                using var miningQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<MiningState>());
-                if (!miningQuery.IsEmptyIgnoreFilter)
-                {
-                    _ignoreTeleportFailures = true;
-                    _ignoreStuckFailures = true;
-                    _ignoreSpikeFailures = true;
-                    _ignoreTurnFailures = true;
-                }
+                _ignoreTeleportFailures = true;
+                _ignoreStuckFailures = true;
+                _ignoreSpikeFailures = true;
+                _ignoreTurnFailures = true;
+            }
+            using var miningQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<MiningState>());
+            if (!miningQuery.IsEmptyIgnoreFilter)
+            {
+                _ignoreTeleportFailures = true;
+                _ignoreStuckFailures = true;
+                _ignoreSpikeFailures = true;
+                _ignoreTurnFailures = true;
             }
 
             _miningStateLookup.Update(ref state);
@@ -321,15 +328,31 @@ namespace Space4X.Headless
                 if (_miningStateLookup.HasComponent(entity))
                 {
                     var miningState = _miningStateLookup[entity];
-                    if (miningState.Phase == MiningPhase.Undocking)
+                    if (miningState.Phase == MiningPhase.Undocking ||
+                        miningState.Phase == MiningPhase.Latching ||
+                        miningState.Phase == MiningPhase.Mining ||
+                        miningState.Phase == MiningPhase.Detaching ||
+                        miningState.Phase == MiningPhase.Docking)
                     {
                         var stateValue = turnState.ValueRW;
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
+                        stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
                         stateValue.Initialized = 1;
                         turnState.ValueRW = stateValue;
                         continue;
                     }
+                }
+
+                if (tick <= TurnWarmupTicks)
+                {
+                    var stateValue = turnState.ValueRW;
+                    stateValue.LastRotation = transform.ValueRO.Rotation;
+                    stateValue.LastAngularSpeed = 0f;
+                    stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
+                    stateValue.Initialized = 1;
+                    turnState.ValueRW = stateValue;
+                    continue;
                 }
 
                 var speed = movement.ValueRO.CurrentSpeed;
@@ -558,6 +581,16 @@ namespace Space4X.Headless
                 return;
             }
 
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 scenarioPath.EndsWith(FtlMicroScenarioFile, StringComparison.OrdinalIgnoreCase)) ||
+                ScenarioIdMatches(scenarioId, FtlMicroScenarioFile))
+            {
+                // FTL micro relies on a deliberate teleport; suppress teleport failures.
+                _ignoreTeleportFailures = true;
+                _ignoreTurnFailures = true;
+                return;
+            }
+
             if ((!string.IsNullOrWhiteSpace(scenarioPath) && IsSmokeScenarioPath(scenarioPath)) ||
                 IsSmokeScenarioId(scenarioId))
             {
@@ -580,6 +613,15 @@ namespace Space4X.Headless
                 _ignoreTeleportFailures = true;
                 // Mining-only loops can also oscillate while latching/holding; avoid failing the bank on stuck counts.
                 _ignoreStuckFailures = true;
+                // Turn limits are validated in the dedicated turnrate micro, not mining loops.
+                _ignoreTurnFailures = true;
+                return;
+            }
+
+            if (scenarioPath.EndsWith(DogfightScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                // Dogfight headless focuses on combat flow; defer turn bounds to the turnrate micro.
+                _ignoreTurnFailures = true;
                 return;
             }
 

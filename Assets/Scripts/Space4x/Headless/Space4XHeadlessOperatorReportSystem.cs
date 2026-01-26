@@ -14,6 +14,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 using SystemEnvironment = System.Environment;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Headless
 {
@@ -24,7 +25,15 @@ namespace Space4X.Headless
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string Space4xScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string ReportFileName = "operator_report.json";
+        private const string SensorsScenarioFile = "space4x_sensors_micro.json";
+        private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
+        private const string DogfightScenarioFile = "space4x_dogfight_headless.json";
+        private const string CommsScenarioFile = "space4x_comms_micro.json";
         private const int TraceEventLimit = 8;
+        private static readonly FixedString64Bytes SensorsBankId = new FixedString64Bytes("S0.SPACE4X_SENSORS_CONTACTS_MICRO");
+        private static readonly FixedString64Bytes NavBankId = new FixedString64Bytes("S0.SPACE4X_NAV_REACH_TARGET_MICRO");
+        private static readonly FixedString64Bytes CombatBankId = new FixedString64Bytes("S0.SPACE4X_COMBAT_FIRE_MICRO");
+        private static readonly FixedString64Bytes CommsBankId = new FixedString64Bytes("S1.SPACE4X_COMMS_COHESION");
         private byte _done;
 
         public void OnCreate(ref SystemState state)
@@ -60,17 +69,43 @@ namespace Space4X.Headless
                 return;
             }
 
-            WriteReport(ref state, runtime);
+            var tickTime = timeState.Tick;
+            if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState))
+            {
+                tickTime = tickTimeState.Tick;
+            }
+            var scenarioTick = SystemAPI.TryGetSingleton<ScenarioRunnerTick>(out var scenario)
+                ? scenario.Tick
+                : 0u;
+
+            var metrics = CollectOperatorMetrics(state.EntityManager);
+            List<Space4XOperatorBlackCat> blackCatList;
+            if (Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var blackCats))
+            {
+                blackCatList = CopyBlackCats(blackCats);
+            }
+            else
+            {
+                blackCatList = new List<Space4XOperatorBlackCat>();
+            }
+
+            var signals = new Space4XOperatorSignals(metrics, blackCatList);
+            var runtimeStats = Space4XOperatorRuntimeStats.Collect(state.EntityManager);
+            var questionPack = CollectQuestionPack(state.EntityManager);
+            var questions = Space4XHeadlessQuestionRegistry.BuildQuestions(signals, runtimeStats, runtime, questionPack);
+
+            WriteReport(ref state, runtime, metrics, blackCatList, questions);
+            EmitQuestionBank(questions, tickTime, scenarioTick);
             _done = 1;
         }
 
-        private static void WriteReport(ref SystemState state, in Space4XScenarioRuntime runtime)
+        private static void WriteReport(
+            ref SystemState state,
+            in Space4XScenarioRuntime runtime,
+            Dictionary<string, float> metrics,
+            List<Space4XOperatorBlackCat> blackCatList,
+            List<Space4XQuestionAnswer> questions)
         {
-            if (!Space4XOperatorReportUtility.TryGetBlackCatBuffer(ref state, out var blackCats))
-            {
-                return;
-            }
-
             var outputDir = ResolveOutputDirectory(state.EntityManager);
             if (string.IsNullOrWhiteSpace(outputDir))
             {
@@ -88,13 +123,6 @@ namespace Space4X.Headless
                 seed = info.Seed;
             }
 
-            var metrics = CollectOperatorMetrics(state.EntityManager);
-            var blackCatList = CopyBlackCats(blackCats);
-            var signals = new Space4XOperatorSignals(metrics, blackCatList);
-            var runtimeStats = Space4XOperatorRuntimeStats.Collect(state.EntityManager);
-            var questionPack = CollectQuestionPack(state.EntityManager);
-            var questions = Space4XHeadlessQuestionRegistry.BuildQuestions(signals, runtimeStats, runtime, questionPack);
-
             var sb = new StringBuilder(4096);
             var first = true;
             sb.Append('{');
@@ -108,6 +136,80 @@ namespace Space4X.Headless
             sb.Append('}');
 
             File.WriteAllText(outputPath, sb.ToString(), Encoding.ASCII);
+        }
+
+        private static void EmitQuestionBank(List<Space4XQuestionAnswer> questions, uint tickTime, uint scenarioTick)
+        {
+            if (questions == null || questions.Count == 0)
+            {
+                return;
+            }
+
+            var scenarioPath = SystemEnvironment.GetEnvironmentVariable(Space4xScenarioPathEnv);
+            if (!TryResolveQuestionBankId(scenarioPath, out var testId))
+            {
+                return;
+            }
+
+            var pass = true;
+            var reason = string.Empty;
+            for (var i = 0; i < questions.Count; i++)
+            {
+                var question = questions[i];
+                if (!question.Required || question.Status == Space4XQuestionStatus.Pass)
+                {
+                    continue;
+                }
+
+                pass = false;
+                var status = question.Status == Space4XQuestionStatus.Unknown ? "unknown" : "fail";
+                reason = $"question_{question.Id}_{status}";
+                break;
+            }
+
+            var delta = (int)tickTime - (int)scenarioTick;
+            if (pass)
+            {
+                UnityDebug.Log($"BANK:{testId}:PASS tickTime={tickTime} scenarioTick={scenarioTick} delta={delta}");
+                return;
+            }
+
+            UnityDebug.Log($"BANK:{testId}:FAIL reason={reason} tickTime={tickTime} scenarioTick={scenarioTick} delta={delta}");
+        }
+
+        private static bool TryResolveQuestionBankId(string scenarioPath, out FixedString64Bytes testId)
+        {
+            testId = default;
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            if (scenarioPath.EndsWith(SensorsScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                testId = SensorsBankId;
+                return true;
+            }
+
+            if (scenarioPath.EndsWith(TurnrateScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                testId = NavBankId;
+                return true;
+            }
+
+            if (scenarioPath.EndsWith(DogfightScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                testId = CombatBankId;
+                return true;
+            }
+
+            if (scenarioPath.EndsWith(CommsScenarioFile, StringComparison.OrdinalIgnoreCase))
+            {
+                testId = CommsBankId;
+                return true;
+            }
+
+            return false;
         }
 
         private static void AppendSummary(ref bool first, StringBuilder sb, Dictionary<string, float> metrics)
@@ -405,7 +507,7 @@ namespace Space4X.Headless
                     }
                 }
             }
-            else if (TryGetTelemetryMetrics(entityManager, out var telemetryMetrics))
+            if (TryGetTelemetryMetrics(entityManager, out var telemetryMetrics))
             {
                 for (var i = 0; i < telemetryMetrics.Length; i++)
                 {
@@ -414,10 +516,6 @@ namespace Space4X.Headless
                     if (!metrics.ContainsKey(key))
                     {
                         metrics.Add(key, metric.Value);
-                    }
-                    else
-                    {
-                        metrics[key] = metric.Value;
                     }
                 }
             }
