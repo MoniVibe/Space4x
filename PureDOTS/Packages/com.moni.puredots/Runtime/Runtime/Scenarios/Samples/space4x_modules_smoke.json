@@ -1,0 +1,29 @@
+{
+  "scenarioId": "scenario.space4x.modules.smoke",
+  "seed": 410,
+  "runTicks": 420,
+  "entityCounts": [],
+  "inputCommands": [
+    {
+      "tick": 120,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 150,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 240,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 260,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "Module pipeline smoke: CarrierModuleScenarioBootstrapSystem seeds a carrier with three modules (engine, shield, mining) so stat aggregation, degradation, repair queue, and refit hooks run without prefabs. Pauses resume twice to exercise repair/refit at different ticks."
+}

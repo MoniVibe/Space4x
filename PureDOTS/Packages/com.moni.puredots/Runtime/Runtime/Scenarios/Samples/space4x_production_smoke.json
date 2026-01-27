@@ -1,0 +1,27 @@
+{
+  "scenarioId": "scenario.space4x.production.smoke",
+  "seed": 9101,
+  "runTicks": 600,
+  "entityCounts": [
+    {
+      "registryId": "registry.storehouse.iron_ore_supply",
+      "count": 1
+    },
+    {
+      "registryId": "registry.refinery",
+      "count": 1
+    },
+    {
+      "registryId": "registry.hauler",
+      "count": 1
+    }
+  ],
+  "assertions": [
+    {
+      "metricId": "deliveries.count",
+      "op": 5,
+      "expectedValue": 1.0,
+      "description": "At least one delivery reaches the refinery."
+    }
+  ]
+}

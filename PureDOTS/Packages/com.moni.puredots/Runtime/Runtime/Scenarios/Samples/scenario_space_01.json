@@ -1,0 +1,69 @@
+{
+  "scenarioId": "scenario.space4x.01",
+  "description": "Space4X scenario showcasing carriers, crafts, asteroids, and fleet aggregates with LOD/aggregate infrastructure.",
+  "seed": 4242,
+  "runTicks": 600,
+  "performanceTargets": {
+    "maxTickTimeMs": 33.33,
+    "maxMemoryMB": 1024,
+    "targetFPS": 30
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.carrier",
+      "count": 8,
+      "description": "Carrier ships with LOD components"
+    },
+    {
+      "registryId": "registry.craft",
+      "count": 25,
+      "description": "Strike craft with LOD components"
+    },
+    {
+      "registryId": "registry.asteroid",
+      "count": 12,
+      "description": "Asteroids with resource nodes and LOD components"
+    },
+    {
+      "registryId": "registry.fleet",
+      "count": 2,
+      "description": "Fleet aggregates with summary components"
+    },
+    {
+      "registryId": "registry.projectile",
+      "count": 50,
+      "description": "Projectiles using spatial grid (UsesSpatialGrid)"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 100,
+      "commandId": "metrics.sample",
+      "payload": "space_warmup"
+    },
+    {
+      "tick": 300,
+      "commandId": "metrics.sample",
+      "payload": "space_mid"
+    },
+    {
+      "tick": 599,
+      "commandId": "metrics.sample",
+      "payload": "space_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 10,
+    "logInterval": 50,
+    "collectSystemTimings": true,
+    "collectMemoryStats": true,
+    "enableLODDebug": true,
+    "enableAggregateDebug": true
+  },
+  "docs": "This scenario demonstrates Space4X entities with LOD, aggregate, and physics infrastructure. Carriers and crafts are assigned to fleet aggregates. Asteroids use LOD for distance culling. Projectiles use spatial grid for interactions."
+}

@@ -1,0 +1,41 @@
+{
+  "scenarioId": "villagers_jobs_1k",
+  "seed": 42,
+  "runTicks": 3600,
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 1000
+    },
+    {
+      "registryId": "registry.resource",
+      "count": 60
+    },
+    {
+      "registryId": "registry.construction",
+      "count": 6
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 3
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 1800,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 1801,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ]
+}
+

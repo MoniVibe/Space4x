@@ -42,7 +42,8 @@ namespace PureDOTS.Runtime.AI
                 return true;
             }
 
-            if (!state.EntityManager.TryGetSingleton<TimeState>(out var timeState))
+            var query = state.GetEntityQuery(ComponentType.ReadOnly<TimeState>());
+            if (!query.TryGetSingleton(out TimeState timeState))
             {
                 return true;
             }

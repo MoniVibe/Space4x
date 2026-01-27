@@ -1,0 +1,77 @@
+{
+  "scenarioId": "scale_stress_100k",
+  "description": "Stress scale test with 100k entities. Target: < 33ms per tick (30 FPS equivalent).",
+  "seed": 54321,
+  "runTicks": 2000,
+  "performanceTargets": {
+    "maxTickTimeMs": 33.33,
+    "maxMemoryMB": 2048,
+    "targetFPS": 30
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 50000,
+      "description": "Godgame villager stress workload"
+    },
+    {
+      "registryId": "registry.resource",
+      "count": 20000,
+      "description": "Resource chunks"
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 5000,
+      "description": "Storehouses"
+    },
+    {
+      "registryId": "registry.construction",
+      "count": 2000,
+      "description": "Construction sites"
+    },
+    {
+      "registryId": "registry.projectile",
+      "count": 10000,
+      "description": "Space4X projectiles"
+    },
+    {
+      "registryId": "registry.carrier",
+      "count": 5000,
+      "description": "Space4X carriers/fleets"
+    },
+    {
+      "registryId": "registry.aggregate",
+      "count": 8000,
+      "description": "Bands/villages/fleets aggregates"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 200,
+      "commandId": "metrics.sample",
+      "payload": "stress_warmup"
+    },
+    {
+      "tick": 1000,
+      "commandId": "metrics.sample",
+      "payload": "stress_mid"
+    },
+    {
+      "tick": 1999,
+      "commandId": "metrics.sample",
+      "payload": "stress_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 20,
+    "logInterval": 200,
+    "collectSystemTimings": true,
+    "collectMemoryStats": true
+  }
+}
+

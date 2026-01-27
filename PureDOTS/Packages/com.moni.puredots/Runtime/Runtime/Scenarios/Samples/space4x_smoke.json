@@ -1,0 +1,28 @@
+{
+  "scenarioId": "scenario.space4x.smoke",
+  "seed": 77,
+  "runTicks": 240,
+  "entityCounts": [
+    {
+      "registryId": "registry.spawner.miner",
+      "count": 2
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 1
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 40,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 80,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "See Projects/<game>/README_TIME_INTEGRATION.md for wiring spawns."
+}

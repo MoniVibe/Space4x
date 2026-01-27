@@ -1,0 +1,18 @@
+{
+  "scenarioId": "scenario.time.rewind_short",
+  "seed": 13,
+  "runTicks": 360,
+  "entityCounts": [],
+  "inputCommands": [
+    { "tick": 30, "commandId": "time.pause", "payload": "" },
+    { "tick": 60, "commandId": "time.play", "payload": "" },
+    { "tick": 90, "commandId": "time.setspeed", "payload": "2.0" },
+    { "tick": 120, "commandId": "time.setspeed", "payload": "1.0" },
+    { "tick": 150, "commandId": "time.rewind", "payload": "80" },
+    { "tick": 210, "commandId": "time.stoprewind", "payload": "" },
+    { "tick": 240, "commandId": "time.step", "payload": "2" }
+  ],
+  "telemetry": {
+    "loops": ["time", "rewind"]
+  }
+}

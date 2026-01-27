@@ -1,0 +1,21 @@
+{
+    "name": "PureDOTS.Input",
+    "rootNamespace": "PureDOTS.Input",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.Entities",
+        "Unity.Mathematics",
+        "Unity.Collections",
+        "PureDOTS.Runtime",
+        "PureDOTS.Camera"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

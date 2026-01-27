@@ -1,0 +1,45 @@
+{
+  "scenarioId": "modularity_blank_entities",
+  "description": "Demonstrates blank-by-default entities that opt into modules via single tags (needs/relations/profile/agency).",
+  "seed": 1337,
+  "runTicks": 300,
+  "entityCounts": [
+    {
+      "registryId": "registry.blank",
+      "count": 10,
+      "description": "Blank entities with only LocalTransform."
+    },
+    {
+      "registryId": "registry.blank_needs",
+      "count": 10,
+      "description": "Blank entities that opt into Needs module via NeedsModuleTag."
+    },
+    {
+      "registryId": "registry.blank_relations",
+      "count": 10,
+      "description": "Blank entities that opt into Relations module via RelationsModuleTag."
+    },
+    {
+      "registryId": "registry.blank_profile",
+      "count": 10,
+      "description": "Blank entities that opt into Profile module via ProfileModuleTag."
+    },
+    {
+      "registryId": "registry.blank_agency",
+      "count": 10,
+      "description": "Blank entities that opt into Agency module via AgencyModuleTag."
+    },
+    {
+      "registryId": "registry.blank_all",
+      "count": 10,
+      "description": "Blank entities that opt into Needs + Relations + Profile + Agency modules."
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ]
+}

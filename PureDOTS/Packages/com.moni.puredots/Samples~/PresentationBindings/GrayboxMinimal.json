@@ -1,0 +1,13 @@
+{
+  "name": "GrayboxMinimal",
+  "effects": [
+    { "id": 1, "kind": "Vfx", "style": "fx.ring.minimal", "palette": 0, "size": 1.0, "speed": 1.0, "lifetime": "Timed", "durationSeconds": 0.85, "attach": "World" },
+    { "id": 1001, "kind": "Particle", "style": "fx.miracle.ping", "palette": 2, "size": 1.1, "speed": 1.1, "lifetime": "Timed", "durationSeconds": 1.4, "attach": "World" },
+    { "id": 2001, "kind": "Ui", "style": "ui.banner.pulse", "palette": 4, "size": 1.0, "speed": 0.7, "lifetime": "Timed", "durationSeconds": 2.25, "attach": "World" },
+    { "id": 3001, "kind": "Sfx", "style": "sfx.chime.minimal", "palette": 1, "size": 1.0, "speed": 1.0, "lifetime": "Timed", "durationSeconds": 0.8, "attach": "World" }
+  ],
+  "companions": [
+    { "id": 7, "kind": "Mesh", "style": "comp.capsule.basic", "palette": 1, "size": 1.0, "speed": 1.0, "attach": "FollowTarget" },
+    { "id": 101, "kind": "Mesh", "style": "comp.banner.basic", "palette": 3, "size": 1.2, "speed": 1.0, "attach": "FollowTarget" }
+  ]
+}

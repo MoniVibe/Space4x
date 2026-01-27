@@ -1,0 +1,57 @@
+{
+  "scenarioId": "godgame.stats.seeding",
+  "seed": 54321,
+  "runTicks": 600,
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 3
+    }
+  ],
+  "entities": [
+    {
+      "entityId": "villager_01",
+      "archetype": "Godgame.Villager",
+      "food": 100,
+      "rest": 85,
+      "sleep": 90,
+      "generalHealth": 95,
+      "health": 95.0,
+      "maxHealth": 100.0,
+      "energy": 85.0,
+      "mood": 75.0,
+      "attackDamage": 10.0,
+      "attackSpeed": 1.5
+    },
+    {
+      "entityId": "villager_02",
+      "archetype": "Godgame.Villager",
+      "food": 80,
+      "rest": 70,
+      "sleep": 75,
+      "generalHealth": 85,
+      "health": 85.0,
+      "maxHealth": 100.0,
+      "energy": 70.0,
+      "mood": 60.0,
+      "attackDamage": 8.0,
+      "attackSpeed": 1.2
+    },
+    {
+      "entityId": "villager_03",
+      "archetype": "Godgame.Villager",
+      "food": 95,
+      "rest": 100,
+      "sleep": 100,
+      "generalHealth": 100,
+      "health": 100.0,
+      "maxHealth": 100.0,
+      "energy": 100.0,
+      "mood": 90.0,
+      "attackDamage": 12.0,
+      "attackSpeed": 2.0
+    }
+  ],
+  "inputCommands": []
+}
+

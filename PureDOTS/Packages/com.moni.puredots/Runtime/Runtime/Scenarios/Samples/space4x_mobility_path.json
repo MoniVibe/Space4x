@@ -1,0 +1,28 @@
+{
+  "scenarioId": "scenario.space4x.mobility.path",
+  "seed": 104,
+  "runTicks": 360,
+  "entityCounts": [
+    {
+      "registryId": "registry.spawner.miner",
+      "count": 2
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 1
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 45,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 60,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "Mobility path sample: wire waypoints/highways in scene, attach MobilityPathRequest to an agent, observe HUD mobility counters + interception events."
+}

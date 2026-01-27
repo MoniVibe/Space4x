@@ -1,0 +1,53 @@
+{
+  "scenarioId": "scenario.puredots.slingshot_launch",
+  "seed": 12345,
+  "runTicks": 300,
+  "entityCounts": [
+    {
+      "registryId": "registry.launcher",
+      "count": 1
+    },
+    {
+      "registryId": "registry.projectile",
+      "count": 3
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 10,
+      "commandId": "launch.queue",
+      "payload": "0,1,10,0,5"
+    },
+    {
+      "tick": 60,
+      "commandId": "launch.queue",
+      "payload": "0,2,15,5,3"
+    },
+    {
+      "tick": 120,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 150,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 180,
+      "commandId": "launch.queue",
+      "payload": "0,3,20,0,8"
+    },
+    {
+      "tick": 240,
+      "commandId": "time.rewind",
+      "payload": "100"
+    }
+  ],
+  "docs": "Slingshot/launch mechanic scenario. Tests: 1) Basic launch queue at tick 10, 2) Second launch at tick 60, 3) Time pause/resume, 4) Third launch after resume, 5) Rewind to verify determinism. Payload format: launcherIdx,projectileIdx,velocityX,velocityY,velocityZ"
+}
+
+
+
+
+

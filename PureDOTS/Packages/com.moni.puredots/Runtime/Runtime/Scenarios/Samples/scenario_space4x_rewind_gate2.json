@@ -1,0 +1,55 @@
+{
+  "scenarioId": "scenario.space4x.rewind_gate2",
+  "seed": 9102,
+  "runTicks": 600,
+  "entityCounts": [
+    {
+      "registryId": "space4x.carrier",
+      "count": 1
+    },
+    {
+      "registryId": "space4x.miner",
+      "count": 4
+    },
+    {
+      "registryId": "space4x.asteroid",
+      "count": 6
+    },
+    {
+      "registryId": "space4x.station",
+      "count": 1
+    }
+  ],
+  "assertions": [
+    {
+      "metricId": "gate2.space4x.actions.hand",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Hand pickup + throw executed."
+    },
+    {
+      "metricId": "gate2.space4x.actions.delivery",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Delivery executed."
+    },
+    {
+      "metricId": "gate2.space4x.entities.match",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Entity counts match after rewind."
+    },
+    {
+      "metricId": "gate2.space4x.totals.match",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Totals match after rewind."
+    },
+    {
+      "metricId": "gate2.space4x.rewind.match",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Rewind gate passes."
+    }
+  ]
+}

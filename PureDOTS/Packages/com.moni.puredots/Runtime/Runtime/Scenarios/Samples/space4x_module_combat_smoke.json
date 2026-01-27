@@ -1,0 +1,15 @@
+{
+  "scenarioId": "scenario.space4x.module.combat.smoke",
+  "seed": 12345,
+  "runTicks": 600,
+  "entityCounts": [],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "Module combat smoke test: ModuleCombatScenarioBootstrapSystem spawns two carriers with modules (weapon + engine) positioned 50 units apart. Verifies that destroying engine modules disables movement, destroying weapon modules disables firing, and module targeting works correctly. Combat engagement is handled by game-specific systems (e.g., Space4XCombatInitiationSystem)."
+}
+

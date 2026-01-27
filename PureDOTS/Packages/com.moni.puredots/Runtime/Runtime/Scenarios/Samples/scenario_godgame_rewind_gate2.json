@@ -1,0 +1,51 @@
+{
+  "scenarioId": "scenario.godgame.rewind_gate2",
+  "seed": 9103,
+  "runTicks": 600,
+  "entityCounts": [
+    {
+      "registryId": "godgame.villager",
+      "count": 6
+    },
+    {
+      "registryId": "godgame.storehouse",
+      "count": 1
+    },
+    {
+      "registryId": "godgame.resource_node",
+      "count": 4
+    }
+  ],
+  "assertions": [
+    {
+      "metricId": "gate2.godgame.actions.hand",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Hand pickup + throw executed."
+    },
+    {
+      "metricId": "gate2.godgame.actions.delivery",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Delivery executed."
+    },
+    {
+      "metricId": "gate2.godgame.entities.match",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Entity counts match after rewind."
+    },
+    {
+      "metricId": "gate2.godgame.totals.match",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Totals match after rewind."
+    },
+    {
+      "metricId": "gate2.godgame.rewind.match",
+      "op": 0,
+      "expectedValue": 1.0,
+      "description": "Rewind gate passes."
+    }
+  ]
+}

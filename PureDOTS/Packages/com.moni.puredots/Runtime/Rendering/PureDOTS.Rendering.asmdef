@@ -1,0 +1,25 @@
+{
+    "name": "PureDOTS.Rendering",
+    "rootNamespace": "PureDOTS.Rendering",
+    "references": [
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Mathematics",
+        "Unity.Mathematics.Extensions",
+        "Unity.Transforms",
+        "Unity.Entities.Graphics",
+        "Unity.Rendering",
+        "Unity.Rendering.Entities",
+        "PureDOTS.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

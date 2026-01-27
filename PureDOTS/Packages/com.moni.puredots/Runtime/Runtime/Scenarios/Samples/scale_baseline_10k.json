@@ -1,0 +1,72 @@
+{
+  "scenarioId": "scale_baseline_10k",
+  "description": "Baseline scale test with 10k entities. Target: < 16ms per tick (60 FPS equivalent).",
+  "seed": 12345,
+  "runTicks": 1000,
+  "performanceTargets": {
+    "maxTickTimeMs": 16.67,
+    "maxMemoryMB": 512,
+    "targetFPS": 60
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 5000,
+      "description": "Godgame villager workload"
+    },
+    {
+      "registryId": "registry.resource",
+      "count": 2000,
+      "description": "Resource chunks"
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 1000,
+      "description": "Storehouses"
+    },
+    {
+      "registryId": "registry.construction",
+      "count": 500,
+      "description": "Construction sites"
+    },
+    {
+      "registryId": "registry.projectile",
+      "count": 1000,
+      "description": "Space4X projectiles"
+    },
+    {
+      "registryId": "registry.carrier",
+      "count": 500,
+      "description": "Space4X carriers/fleets"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 100,
+      "commandId": "metrics.sample",
+      "payload": "baseline_warmup"
+    },
+    {
+      "tick": 500,
+      "commandId": "metrics.sample",
+      "payload": "baseline_mid"
+    },
+    {
+      "tick": 999,
+      "commandId": "metrics.sample",
+      "payload": "baseline_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 10,
+    "logInterval": 100,
+    "collectSystemTimings": true,
+    "collectMemoryStats": true
+  }
+}
+

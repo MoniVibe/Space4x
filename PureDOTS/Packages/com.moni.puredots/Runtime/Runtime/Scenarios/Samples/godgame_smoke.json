@@ -1,0 +1,33 @@
+{
+  "scenarioId": "scenario.godgame.smoke",
+  "seed": 42,
+  "runTicks": 180,
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 6
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 1
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 30,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 60,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 120,
+      "commandId": "time.rewind",
+      "payload": "90"
+    }
+  ],
+  "docs": "See Projects/<game>/README_TIME_INTEGRATION.md for wiring spawns."
+}

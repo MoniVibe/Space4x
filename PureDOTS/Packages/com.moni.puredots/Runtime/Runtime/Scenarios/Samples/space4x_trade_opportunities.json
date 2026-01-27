@@ -1,0 +1,28 @@
+{
+  "scenarioId": "scenario.space4x.trade.opportunities",
+  "seed": 307,
+  "runTicks": 360,
+  "entityCounts": [
+    {
+      "registryId": "registry.storehouse",
+      "count": 3
+    },
+    {
+      "registryId": "registry.spawner.miner",
+      "count": 1
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 120,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 140,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "Trade opportunities sample: populate storehouses with differing batch fills/prices, then observe TradeOpportunitySystem surfacing spreads in HUD/telemetry."
+}

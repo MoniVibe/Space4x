@@ -1,0 +1,68 @@
+{
+  "scenarioId": "scale_mini_aggregate",
+  "description": "Mini aggregate sanity check scenario. Spawns 5 aggregate entities (villages/fleets) with 200 member entities to validate aggregate rendering systems.",
+  "seed": 54321,
+  "runTicks": 1000,
+  "performanceTargets": {
+    "maxTickTimeMs": 16.67,
+    "maxMemoryMB": 256,
+    "targetFPS": 60
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.aggregate",
+      "count": 5,
+      "description": "Aggregate entities (villages/fleets) with: AggregateTag, AggregateState, AggregateRenderSummary, AggregateRenderConfig, DynamicBuffer<AggregateMemberElement>"
+    },
+    {
+      "registryId": "registry.aggregate_member",
+      "count": 200,
+      "description": "Member entities with: AggregateMembership, LocalTransform, health/strength values. Should be distributed across aggregates (40 members each)"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 100,
+      "commandId": "aggregate.config",
+      "payload": "{\"aggregationInterval\": 20, \"aggregateRenderDistance\": 50}"
+    },
+    {
+      "tick": 200,
+      "commandId": "aggregate.add_member",
+      "payload": "{\"aggregateIndex\": 0, \"memberCount\": 10}"
+    },
+    {
+      "tick": 400,
+      "commandId": "aggregate.remove_member",
+      "payload": "{\"aggregateIndex\": 1, \"memberCount\": 5}"
+    },
+    {
+      "tick": 500,
+      "commandId": "metrics.sample",
+      "payload": "aggregate_mid"
+    },
+    {
+      "tick": 999,
+      "commandId": "metrics.sample",
+      "payload": "aggregate_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 20,
+    "logInterval": 100,
+    "collectSystemTimings": true,
+    "collectMemoryStats": true,
+    "enableAggregateDebug": true
+  },
+  "validationChecks": {
+    "expectedAggregateCount": 5,
+    "expectedMembersPerAggregate": [30, 50],
+    "expectedUpdateInterval": 20,
+    "minMemberCount": 30
+  }
+}

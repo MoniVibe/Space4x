@@ -1,0 +1,13 @@
+{
+  "name": "GrayboxFancy",
+  "effects": [
+    { "id": 1, "kind": "Vfx", "style": "fx.ring.fancy", "palette": 5, "size": 1.2, "speed": 1.3, "lifetime": "Timed", "durationSeconds": 1.1, "attach": "World" },
+    { "id": 1001, "kind": "Particle", "style": "fx.miracle.ping.fancy", "palette": 6, "size": 1.4, "speed": 1.25, "lifetime": "Timed", "durationSeconds": 1.6, "attach": "World" },
+    { "id": 2001, "kind": "Ui", "style": "ui.banner.glow", "palette": 5, "size": 1.05, "speed": 0.85, "lifetime": "Timed", "durationSeconds": 2.5, "attach": "World" },
+    { "id": 3001, "kind": "Sfx", "style": "sfx.chime.fancy", "palette": 4, "size": 1.0, "speed": 1.0, "lifetime": "Timed", "durationSeconds": 0.9, "attach": "World" }
+  ],
+  "companions": [
+    { "id": 7, "kind": "Mesh", "style": "comp.capsule.halo", "palette": 6, "size": 1.1, "speed": 1.1, "attach": "FollowTarget" },
+    { "id": 101, "kind": "Mesh", "style": "comp.banner.glow", "palette": 5, "size": 1.35, "speed": 1.0, "attach": "FollowTarget" }
+  ]
+}

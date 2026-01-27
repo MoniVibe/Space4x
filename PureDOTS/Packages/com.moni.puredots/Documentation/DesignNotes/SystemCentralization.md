@@ -1,0 +1,55 @@
+# System Centralization Targets
+
+- Registries: keep new ability/creature/resource/villager catalogs in `PureDOTS.Systems` so both games share hydration, tagging, and sync flows; expose game-specific adapters via bridge systems.
+- Input actions: extend `PureDOTS.Runtime.Input` for device abstraction, buffering, and context routing; feed divine-hand, fleet, or raid commands through the shared input queue to preserve replay determinism.
+- AI job boards: plug new behaviors (raiders, pilgrims, fleet crews) into `AISystemGroup` and `VillagerJobSystems` queues instead of bespoke FSMs; reuse utility scoring and assignment policies.
+- Resource/logistics loops: route fresh economic mechanics (trade, plunder, tribute) through `ResourceSystems`, `StorehouseRegistrySystem`, and `LogisticsRequestRegistrySystem` so requests/deposits stay consistent.
+- Rewind/history: register state-mutating systems with `HistorySystemGroup` and `Rewind*Systems` to ensure births, raids, and miracle effects rewind alongside existing registries.
+- Presentation/pooling: hook VFX, proxies, and scene-level prefabs into `PoolingCoordinatorSystem` and `SceneSpawnSystem` to keep pooling and LOD policies centralized.
+- Economy/trade: host market pricing, trade routes, and supply/demand signals in a shared service so villagers, logistics, and fleets reference one source.
+- Narrative/quest: maintain storyline state, faction mood, and scripted events centrally, emitting objectives to each project via adapters.
+- Diplomacy/faction: track inter-faction relations, treaties, and hostility modifiers; feed AI behaviour and encounter generators from the shared state.
+- Knowledge/discovery: capture explored regions, unlocked techs, and lore entries to drive fog-of-war and unlockables consistently across games.
+- Weather/climate: manage seasonal cycles and environmental modifiers in one service so vegetation, resources, and villager needs stay synchronized.
+- Telemetry/analytics: aggregate runtime counters (spawn rates, job queues, throughput) with configurable sampling for HUD overlays and profiling harnesses.
+- Tech/culture progression: steward research queues, cultural drift, knowledge unlocks, and signature tech modifiers so advancement logic remains data-driven and shared.
+- Population genetics & traits: centralize species/race traits, demographic distributions, and inheritance rules to inform villager stats, job suitability, and cultural drift.
+- Military & conflict tracking: maintain faction force strength, readiness states, and campaign objectives; synchronize with diplomacy service for consistent war/peace handling.
+- Elite governance: track noble houses, succession, political marriages, and power consolidation so governance AI references a single state and hooks into diplomacy/economy services.
+- Marriage & lineage: manage relationship graphs, dowries, and inheritance effects; feed population traits and elite governance services with consistent lineage data.
+- Education pipeline: centralize schooling, apprenticeships, and knowledge advancement to drive tech progression and villager trait growth across both projects.
+- Registries: each service (tech, culture, elites, marriage, education) should expose DOTS registries (`TechRegistry`, `CultureRegistry`, etc.) using the shared deterministic builder contract so both games query a unified view.
+- Authoring: back services with ScriptableObject profiles/bakers (e.g., `TechTreeProfile`, `CultureDefinition` bakers) that feed registry hydration at conversion time.
+- Behavior trees: extend shared AI modules with service-aware nodes (e.g., marriage proposal evaluation, education assignment) so villager/elite behaviors consume the centralized data.
+- Data-oriented practices: follow the shared `DataOrientedPractices.md` checklist (SoA/AoSoA splits, hot/cold archetypes, Burst jobs) when implementing services to preserve determinism and scaling.
+- Command brokers: extend shared input/command routing with service brokers (fleet directives, diplomacy actions) so gameplay commands queue through deterministic buffers before systems consume them.
+- Service schedulers: run long-lived background processes (tech research ticks, education progression) via centralized scheduler systems that align updates across services.
+- Event brokers: publish cross-domain events (diplomacy shifts, telemetry alerts) through shared buffers so analytics, narrative, and AI consumers subscribe without polling disparate systems.
+- Event system: follow `EventSystemConcepts.md` for deterministic event buffers, transition graphs, and Burst-friendly subscription patterns across services.
+- State machines: adopt the shared `StateMachineFramework.md` for data-driven, authorable state machines powering divine hand, miracles, tech, elite governance, and other service transitions.
+- Narrative situations: use `NarrativeSituations.md` to model branching narrative threads that interact with diplomacy, elites, education, and telemetry services.
+- Production chains: follow `ProductionChains.md` to define extraction→processing→manufacturing flows shared by both games, aligning registries, logistics, and economy services.
+- Scheduler & queueing: consult `SchedulerAndQueueing.md` for shared task queues, cadence configuration, and deterministic processing of long-running actions across services.
+- Resource authoring & consumption: use `ResourceAuthoringAndConsumption.md` for catalog baking, consumption profiles, registries, and upkeep flows.
+- Crafting quality: align with `CraftingQualitySystem.md` for recipe difficulty, material purity, crafter skill, and enhancement-driven item outcomes.
+- Skill progression: reference `SkillProgressionSystem.md` for xp axes, skill catalogs, and task-driven mastery curves shared across services.
+- Navigation: use `UniversalNavigationSystem.md` for weighted pathfinding across terrain and space, integrating danger fields, traversal modes, and deterministic query APIs.
+- Spatial brushes & selection: follow `SpatialBrushAndSelection.md` for deterministic area selection, brush painting, and command dispatch used by terraforming, miracles, and logistics tools.
+- Perception & visibility: reference `PerceptionSystem.md` for shared fog-of-war, sensor ranges, and visibility modifiers across climates, buffs, and space nebulae.
+- Environmental effects: consult `EnvironmentalEffects.md` for fog, storms, tornadoes, nebulae, and other phenomena tied into climate, navigation, and perception systems.
+- Industrial sectors: use `IndustrialSectorSystem.md` to aggregate facility performance, manage disparity, and drive management AI across settlements.
+- Metric engine: follow `MetricEngine.md` for event-driven aggregation, metric registry, cadenced rollups, and analytics integration.
+- Buffs & debuffs: use `BuffSystem.md` for shared status effect definitions, stacking rules, triggers, and VFX integration.
+- Presentation bridges: reference `PresentationGuidelines.md` for hot/cold archetypes, companion sync, UI, audio, and rewind-safe presentation workflows.
+- VFX pooling: follow `VFXPoolingPlan.md` to centralize spawn/recycle flows and keep visual feedback performant across systems.
+- Mobile settlements: use `MobileSettlementSystem.md` to manage ship-based villages, nomadic colonies, captain behavior, and splinter group colonization.
+- Economy: consult `EconomySystem.md` for currency, markets, trade routes, fiscal policy, credit, and economic events shared across games.
+- Factions & guilds: align organizations with `FactionAndGuildSystem.md`, covering diplomacy, guild collaboration, bands/armies, and fleet structures.
+- Sociopolitical dynamics: use `SociopoliticalDynamics.md` for tracking raids, blockades, cultural drift, collective memories, and long-running situations.
+- Elite crises: reference `EliteCrisisSystem.md` for assassination fallout, marriages, betrayals, total war escalation, and rebellion triggers.
+- Scenario narratives: follow `ScenarioNarratives.md` for elite-driven interventions, ritual choices, branching outcomes, and reward hooks.
+- Quests & adventures: use `QuestAndAdventureSystem.md` to manage entity-driven quests, party formation, travel logistics, and workforce accounting.
+- Heritage & knowledge: reference `HeritageAndKnowledgeSystem.md` for racial/cultural trait inheritance, knowledge transmission, and ability unlocks.
+- Martial masteries: centralize stance registries, guild governance, and hybrid synthesis flows via `MartialMasterySystem.md` so combat buffs, sociopolitical services, and narrative hooks stay consistent across games.
+- Honor hierarchies: coordinate cultural honor accumulation, shared alignment matrices, and rank-driven provisioning within the martial mastery service to keep glory multipliers and officer equipment tiers deterministic.
+- Ability auto-cast: manage shared trigger evaluation, cooldown handling, and adapter bridges via `AbilityAutoCastSystem.md` so both games reuse deterministic spell/ability automation.

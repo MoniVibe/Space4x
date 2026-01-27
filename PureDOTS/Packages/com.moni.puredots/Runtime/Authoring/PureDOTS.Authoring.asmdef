@@ -1,0 +1,29 @@
+{
+    "name": "PureDOTS.Authoring",
+    "rootNamespace": "PureDOTS.Authoring",
+    "references": [
+        "PureDOTS.Config",
+        "PureDOTS.Rendering",
+        "PureDOTS.Input",
+        "PureDOTS.Runtime",
+        "PureDOTS.Systems",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Entities.Graphics",
+        "Unity.Entities.Hybrid",
+        "Unity.Mathematics",
+        "Unity.Rendering",
+        "Unity.Rendering.Entities",
+        "Unity.Rendering.Universal",
+        "Unity.Scenes",
+        "Unity.Transforms"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

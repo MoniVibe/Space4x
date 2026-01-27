@@ -1,0 +1,34 @@
+{
+  "name": "com.moni.puredots",
+  "displayName": "Pure DOTS Core Framework",
+  "version": "0.1.0",
+  "unity": "2022.3",
+  "description": "Environmental daemon providing deterministic DOTS framework infrastructure. Provides time management, rewind systems, registry infrastructure, spatial partitioning, and authoring tools for Unity game projects.",
+  "keywords": ["dots", "ecs", "framework", "deterministic", "simulation"],
+  "author": {
+    "name": "Moni",
+    "email": ""
+  },
+  "license": "See LICENSE file",
+  "dependencies": {
+    "com.unity.entities": "1.4.2",
+    "com.unity.entities.graphics": "1.4.15",
+    "com.unity.burst": "1.8.24",
+    "com.unity.collections": "2.6.2",
+    "com.unity.jobs": "0.70.0-preview.7",
+    "com.unity.mathematics": "1.3.2",
+    "com.unity.inputsystem": "1.7.0",
+    "com.unity.physics": "1.0.16"
+  },
+  "samples": [
+    {
+      "displayName": "Presentation Bindings",
+      "description": "GrayboxMinimal and GrayboxFancy presentation binding samples with palette/style/lifetime metadata and runtime toggle.",
+      "path": "Samples~/PresentationBindings"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}

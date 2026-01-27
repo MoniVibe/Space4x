@@ -1,0 +1,72 @@
+{
+  "scenarioId": "space4x.stats.seeding",
+  "seed": 12345,
+  "runTicks": 600,
+  "entityCounts": [
+    {
+      "registryId": "registry.captain",
+      "count": 2
+    }
+  ],
+  "entities": [
+    {
+      "entityId": "captain_01",
+      "archetype": "Space4X.Captain",
+      "command": 75,
+      "tactics": 60,
+      "logistics": 50,
+      "diplomacy": 80,
+      "engineering": 45,
+      "resolve": 70,
+      "physique": 6.5,
+      "finesse": 7.0,
+      "will": 5.5,
+      "physiqueInclination": 7,
+      "finesseInclination": 8,
+      "willInclination": 5,
+      "generalXP": 150.0,
+      "expertise": [
+        {
+          "type": "CarrierCommand",
+          "tier": 5
+        },
+        {
+          "type": "Logistics",
+          "tier": 3
+        }
+      ],
+      "traits": [
+        "ReactorWhisperer",
+        "TacticalSavant"
+      ]
+    },
+    {
+      "entityId": "captain_02",
+      "archetype": "Space4X.Captain",
+      "command": 65,
+      "tactics": 80,
+      "logistics": 40,
+      "diplomacy": 50,
+      "engineering": 70,
+      "resolve": 75,
+      "physique": 5.0,
+      "finesse": 8.5,
+      "will": 7.0,
+      "physiqueInclination": 4,
+      "finesseInclination": 9,
+      "willInclination": 7,
+      "generalXP": 200.0,
+      "expertise": [
+        {
+          "type": "Espionage",
+          "tier": 4
+        }
+      ],
+      "traits": [
+        "StrikeWingMentor"
+      ]
+    }
+  ],
+  "inputCommands": []
+}
+

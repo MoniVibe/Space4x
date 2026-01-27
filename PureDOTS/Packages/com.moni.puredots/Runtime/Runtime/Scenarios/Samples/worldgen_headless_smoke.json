@@ -1,0 +1,28 @@
+{
+  "scenarioId": "scenario.worldgen.headless_smoke",
+  "seed": 12345,
+  "runTicks": 1,
+  "worldgen": {
+    "worldSeed": 12345,
+    "climateBytesPath": "StreamingAssets/Worldgen/test_climate_64x64.bytes",
+    "biomeTableBytesPath": "StreamingAssets/Worldgen/biomes_default.bytes",
+    "reportPath": "reports/worldgen_headless_smoke.json",
+    "options": {
+      "enableBiomeDerive": 1,
+      "enableResources": 1,
+      "enableSettlements": 1,
+      "enableFloraFauna": 0,
+      "enableElevationGen": 0
+    },
+    "assert": {
+      "minVillageCount": 1,
+      "minFoodNodes": 10,
+      "minWoodNodes": 10,
+      "minStoneNodes": 10,
+      "minBootstrapCoverageQ": 1000,
+      "expectedOutputHash64Lo": 0,
+      "expectedOutputHash64Hi": 0
+    }
+  },
+  "docs": "WorldGen headless smoke: the worldgen block is consumed by game-layer loaders; ScenarioRunner ignores it."
+}

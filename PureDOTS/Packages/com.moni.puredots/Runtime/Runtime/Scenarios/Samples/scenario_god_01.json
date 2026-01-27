@@ -1,0 +1,64 @@
+{
+  "scenarioId": "scenario.godgame.01",
+  "description": "Godgame scenario showcasing villagers, resource chunks, and village aggregates with LOD/aggregate infrastructure.",
+  "seed": 7777,
+  "runTicks": 600,
+  "performanceTargets": {
+    "maxTickTimeMs": 33.33,
+    "maxMemoryMB": 1024,
+    "targetFPS": 30
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 75,
+      "description": "Villagers with LOD components and village membership"
+    },
+    {
+      "registryId": "registry.resource",
+      "count": 30,
+      "description": "Resource chunks with LOD components and ballistic motion support"
+    },
+    {
+      "registryId": "registry.village",
+      "count": 3,
+      "description": "Village aggregates with summary components"
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 5,
+      "description": "Storehouses with LOD components"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 100,
+      "commandId": "metrics.sample",
+      "payload": "god_warmup"
+    },
+    {
+      "tick": 300,
+      "commandId": "metrics.sample",
+      "payload": "god_mid"
+    },
+    {
+      "tick": 599,
+      "commandId": "metrics.sample",
+      "payload": "god_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 10,
+    "logInterval": 50,
+    "collectSystemTimings": true,
+    "collectMemoryStats": true,
+    "enableLODDebug": true,
+    "enableAggregateDebug": true
+  },
+  "docs": "This scenario demonstrates Godgame entities with LOD, aggregate, and physics infrastructure. Villagers are assigned to village aggregates. Resource chunks support ballistic motion for thrown objects. All entities use spatial grid for interactions (UsesSpatialGrid)."
+}

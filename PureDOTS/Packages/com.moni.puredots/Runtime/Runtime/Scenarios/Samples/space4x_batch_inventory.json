@@ -1,0 +1,28 @@
+{
+  "scenarioId": "scenario.space4x.inventory.batch",
+  "seed": 205,
+  "runTicks": 420,
+  "entityCounts": [
+    {
+      "registryId": "registry.storehouse",
+      "count": 2
+    },
+    {
+      "registryId": "registry.spawner.miner",
+      "count": 1
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 90,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 110,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "Batch inventory sample: attach BatchInventory + BatchPricing to storehouses; villager withdraws will mirror to batch requests. HUD/telemetry show batch counts, spoilage, and price multipliers."
+}

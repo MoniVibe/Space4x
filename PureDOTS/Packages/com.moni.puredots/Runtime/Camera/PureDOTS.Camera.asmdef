@@ -1,0 +1,23 @@
+{
+    "name": "PureDOTS.Camera",
+    "rootNamespace": "PureDOTS.Runtime.Camera",
+    "references": [
+        "Unity.Entities",
+        "Unity.Mathematics",
+        "Unity.Burst",
+        "Unity.Transforms",
+        "Unity.InputSystem",
+        "Unity.Collections",
+        "PureDOTS.Runtime",
+        "PureDOTS.Config"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,28 @@
+{
+  "scenarioId": "scenario.space4x.alignment",
+  "seed": 301,
+  "runTicks": 300,
+  "entityCounts": [
+    {
+      "registryId": "registry.spawner.miner",
+      "count": 1
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 1
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 120,
+      "commandId": "time.pause",
+      "payload": ""
+    },
+    {
+      "tick": 150,
+      "commandId": "time.play",
+      "payload": ""
+    }
+  ],
+  "docs": "Alignment/compliance sample: populate CrewAlignmentSample on crew entities and DoctrineRef/DoctrineCatalog in scene; HUD shows compliance counts and suspicion deltas."
+}

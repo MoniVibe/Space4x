@@ -1,0 +1,62 @@
+{
+  "scenarioId": "scale_mini_lod",
+  "description": "Mini LOD sanity check scenario. Spawns 2,000 test entities with RenderLODData, RenderCullable, and RenderSampleIndex to validate LOD and density systems.",
+  "seed": 12345,
+  "runTicks": 500,
+  "performanceTargets": {
+    "maxTickTimeMs": 16.67,
+    "maxMemoryMB": 128,
+    "targetFPS": 60
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.test_entity",
+      "count": 2000,
+      "description": "Test entities with LOD components. These should be spawned with: RenderLODData, RenderCullable, RenderSampleIndex, LocalTransform"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 50,
+      "commandId": "lod.config",
+      "payload": "{\"lod1Distance\": 30, \"lod2Distance\": 60, \"lod3Distance\": 120}"
+    },
+    {
+      "tick": 100,
+      "commandId": "density.set",
+      "payload": "{\"currentDensity\": 5}"
+    },
+    {
+      "tick": 200,
+      "commandId": "density.set",
+      "payload": "{\"currentDensity\": 10}"
+    },
+    {
+      "tick": 300,
+      "commandId": "metrics.sample",
+      "payload": "lod_mid"
+    },
+    {
+      "tick": 499,
+      "commandId": "metrics.sample",
+      "payload": "lod_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 10,
+    "logInterval": 50,
+    "collectSystemTimings": true,
+    "collectMemoryStats": false,
+    "enableLODDebug": true
+  },
+  "validationChecks": {
+    "expectedLODLevels": [0, 1, 2, 3],
+    "expectedDensityRange": [1, 10],
+    "minEntitiesPerLOD": 100
+  }
+}

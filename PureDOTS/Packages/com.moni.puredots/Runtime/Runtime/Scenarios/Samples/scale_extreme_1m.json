@@ -1,0 +1,78 @@
+{
+  "scenarioId": "scale_extreme_1m",
+  "description": "Extreme scale test with 1M+ entities. Target: < 100ms per tick (10 FPS, acceptable for headless).",
+  "seed": 99999,
+  "runTicks": 5000,
+  "performanceTargets": {
+    "maxTickTimeMs": 100.0,
+    "maxMemoryMB": 4096,
+    "targetFPS": 10
+  },
+  "entityCounts": [
+    {
+      "registryId": "registry.villager",
+      "count": 500000,
+      "description": "Godgame villager extreme workload"
+    },
+    {
+      "registryId": "registry.resource",
+      "count": 200000,
+      "description": "Resource chunks"
+    },
+    {
+      "registryId": "registry.storehouse",
+      "count": 50000,
+      "description": "Storehouses"
+    },
+    {
+      "registryId": "registry.construction",
+      "count": 20000,
+      "description": "Construction sites"
+    },
+    {
+      "registryId": "registry.projectile",
+      "count": 100000,
+      "description": "Space4X projectiles"
+    },
+    {
+      "registryId": "registry.carrier",
+      "count": 50000,
+      "description": "Space4X carriers/fleets"
+    },
+    {
+      "registryId": "registry.aggregate",
+      "count": 80000,
+      "description": "Bands/villages/fleets aggregates"
+    }
+  ],
+  "inputCommands": [
+    {
+      "tick": 0,
+      "commandId": "time.play",
+      "payload": ""
+    },
+    {
+      "tick": 500,
+      "commandId": "metrics.sample",
+      "payload": "extreme_warmup"
+    },
+    {
+      "tick": 2500,
+      "commandId": "metrics.sample",
+      "payload": "extreme_mid"
+    },
+    {
+      "tick": 4999,
+      "commandId": "metrics.sample",
+      "payload": "extreme_end"
+    }
+  ],
+  "metricsConfig": {
+    "sampleInterval": 50,
+    "logInterval": 500,
+    "collectSystemTimings": true,
+    "collectMemoryStats": true,
+    "enableDensityScaling": true
+  }
+}
+

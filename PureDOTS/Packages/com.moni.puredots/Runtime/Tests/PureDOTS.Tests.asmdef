@@ -1,0 +1,32 @@
+{
+    "name": "PureDOTS.Tests",
+    "rootNamespace": "PureDOTS.Tests",
+    "references": [
+        "PureDOTS.Systems",
+        "PureDOTS.Runtime",
+        "PureDOTS.Core",
+        "PureDOTS.Config",
+        "PureDOTS.Input",
+        "Unity.Entities",
+        "Unity.Mathematics",
+        "Unity.Transforms",
+        "Unity.Collections",
+        "Unity.Burst"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

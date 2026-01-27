@@ -1,0 +1,33 @@
+{
+    "name": "PureDOTS.Editor",
+    "rootNamespace": "PureDOTS.Editor",
+    "references": [
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Scenes",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Transforms",
+        "Unity.InputSystem",
+        "Unity.VisualEffectGraph.Runtime",
+        "Unity.VisualEffectGraph.Editor",
+        "UnityEditor",
+        "UnityEditor.UI",
+        "PureDOTS.Runtime",
+        "PureDOTS.Systems",
+        "PureDOTS.Runtime.Demo",
+        "PureDOTS.Authoring",
+        "PureDOTS.Camera"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
