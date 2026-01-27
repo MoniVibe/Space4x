@@ -602,6 +602,11 @@ namespace Space4X.Registry
         public float Boarding;
     }
 
+    public struct CrewSkill : IComponentData
+    {
+        public float Value;
+    }
+
     public enum AnatomyPartIds : ushort
     {
         Head = 1,
