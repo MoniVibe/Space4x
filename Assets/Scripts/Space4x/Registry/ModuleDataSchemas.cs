@@ -592,6 +592,15 @@ namespace Space4X.Registry
         public half Resolve;
     }
 
+    public struct DerivedCapacities : IComponentData
+    {
+        public float Sight;
+        public float Manipulation;
+        public float Consciousness;
+        public float ReactionTime;
+        public float Boarding;
+    }
+
     public struct PhysiqueFinesseWill : IComponentData
     {
         public half Physique;
