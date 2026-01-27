@@ -42,7 +42,7 @@ namespace PureDOTS.Runtime.AI
                 return true;
             }
 
-            if (!SystemAPI.TryGetSingleton<TimeState>(out var timeState))
+            if (!state.EntityManager.TryGetSingleton<TimeState>(out var timeState))
             {
                 return true;
             }
