@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -599,6 +600,49 @@ namespace Space4X.Registry
         public float Consciousness;
         public float ReactionTime;
         public float Boarding;
+    }
+
+    public enum AnatomyPartIds : ushort
+    {
+        Head = 1,
+        EyeLeft = 2,
+        EyeRight = 3,
+        Brain = 4
+    }
+
+    [Flags]
+    public enum AnatomyPartTags : ushort
+    {
+        None = 0,
+        Internal = 1 << 0,
+        Sensory = 1 << 1,
+        Vital = 1 << 2
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct AnatomyPart : IBufferElementData
+    {
+        public AnatomyPartIds PartId;
+        public int ParentIndex;
+        public float Coverage;
+        public AnatomyPartTags Tags;
+    }
+
+    [Flags]
+    public enum ConditionFlags : ushort
+    {
+        None = 0,
+        Missing = 1 << 0,
+        OneEyeMissing = 1 << 1
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct Condition : IBufferElementData
+    {
+        public AnatomyPartIds TargetPartId;
+        public float Severity;
+        public byte StageId;
+        public ConditionFlags Flags;
     }
 
     public struct PhysiqueFinesseWill : IComponentData
