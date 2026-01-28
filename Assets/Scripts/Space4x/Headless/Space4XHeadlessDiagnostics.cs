@@ -20,6 +20,7 @@ namespace Space4X.Headless
 {
     internal static class Space4XHeadlessDiagnostics
     {
+        // buildbox-ref-proof: marker for remote iteration validation.
         public const int TestFailExitCode = 10;
         private const int ProgressQueueLimit = 32;
         private const int DefaultFlushTimeoutMs = 750;
