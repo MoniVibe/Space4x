@@ -28,6 +28,7 @@ namespace Space4X.Headless
         private static bool s_executed;
         private static bool s_loggedTelemetry;
         private static bool s_loggedPerfTelemetry;
+        private static bool s_loggedBuildStamp;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         static void LoadPresentationSceneIfRequested()
@@ -67,6 +68,7 @@ namespace Space4X.Headless
                 return;
 
             s_executed = true;
+            LogBuildStampOnce();
             UnityDebug.Log($"SCENARIO_ARG:{scenarioArg}");
             var scenarioPath = ResolveScenarioArgToFilePath(scenarioArg);
             var scenarioFound = !string.IsNullOrWhiteSpace(scenarioPath) && File.Exists(scenarioPath);
@@ -195,6 +197,23 @@ namespace Space4X.Headless
 
             s_loggedTelemetry = true;
             UnityDebug.Log($"TELEMETRY_OUT:{telemetryPath}");
+        }
+
+        private static void LogBuildStampOnce()
+        {
+            if (s_loggedBuildStamp)
+            {
+                return;
+            }
+
+            s_loggedBuildStamp = true;
+            var commit = SystemEnv.GetEnvironmentVariable("GIT_COMMIT")
+                ?? SystemEnv.GetEnvironmentVariable("GITHUB_SHA")
+                ?? "(unset)";
+            var branch = SystemEnv.GetEnvironmentVariable("GIT_BRANCH")
+                ?? SystemEnv.GetEnvironmentVariable("GITHUB_REF_NAME")
+                ?? "(unset)";
+            UnityDebug.Log($"[BuildStamp] version={Application.version} unity={Application.unityVersion} build_guid={Application.buildGUID} commit={commit} branch={branch}");
         }
 
         private static void LogPerfTelemetryOutOnce(string telemetryPath)
