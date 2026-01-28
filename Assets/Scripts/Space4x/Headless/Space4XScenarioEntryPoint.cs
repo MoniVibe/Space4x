@@ -405,6 +405,17 @@ namespace Space4X.Headless
             return !string.IsNullOrWhiteSpace(scenarioId);
         }
 
-        private static void Quit(int exitCode) => Application.Quit(exitCode);
+        private static void Quit(int exitCode)
+        {
+            if (exitCode != 0)
+            {
+                UnityDebug.LogError($"[ScenarioEntryPoint] Quit exit_code={exitCode}\n{SystemEnv.StackTrace}");
+            }
+            else
+            {
+                UnityDebug.Log($"[ScenarioEntryPoint] Quit exit_code={exitCode}");
+            }
+            Application.Quit(exitCode);
+        }
     }
 }
