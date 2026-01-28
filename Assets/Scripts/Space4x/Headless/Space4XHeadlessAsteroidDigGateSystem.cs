@@ -90,7 +90,7 @@ namespace Space4X.Headless
                 return;
             }
 
-            Debug.LogError(
+            UnityEngine.Debug.LogError(
                 $"[Space4XHeadlessAsteroidDigGate] FAIL no terrain dig by tick={timeState.Tick}; " +
                 $"requesting exit {Space4XHeadlessDiagnostics.TestFailExitCode}");
             WriteFailureSummary(timeState.Tick);
