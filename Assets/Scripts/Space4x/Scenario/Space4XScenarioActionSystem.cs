@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
 using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Physics;
+using PureDOTS.Runtime.Scenarios;
 using Space4X.Registry;
 using Space4X.Presentation;
 using Space4X.Runtime;
