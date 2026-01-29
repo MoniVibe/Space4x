@@ -10,6 +10,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Space4x.Scenario
 {
@@ -330,6 +331,7 @@ namespace Space4x.Scenario
             {
                 scenario.EnableEconomy = true;
                 state.EntityManager.SetComponentData(scenarioEntity, scenario);
+                Debug.Log("[Space4XScenario] Economy enabled for production loop v0.");
             }
         }
 
@@ -360,6 +362,7 @@ namespace Space4x.Scenario
                 Throughput = 0f,
                 LastUpdateTick = tick
             });
+            Debug.Log($"[Space4XScenario] Created production business id={action.BusinessId} type={(BusinessType)action.BusinessType} capacity={capacity}.");
 
             var inventoryEntity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(inventoryEntity, new Inventory
@@ -415,6 +418,7 @@ namespace Space4x.Scenario
                 var item = items[i];
                 item.Quantity += action.Quantity;
                 items[i] = item;
+                Debug.Log($"[Space4XScenario] Added item id={action.ItemId} qty={action.Quantity} to business={action.BusinessId}.");
                 return;
             }
 
@@ -426,6 +430,7 @@ namespace Space4x.Scenario
                 Durability = 1f,
                 CreatedTick = tick
             });
+            Debug.Log($"[Space4XScenario] Added item id={action.ItemId} qty={action.Quantity} to business={action.BusinessId}.");
         }
 
         private void ProcessProdRequest(ref SystemState state, in Space4XScenarioAction action)
@@ -456,6 +461,7 @@ namespace Space4x.Scenario
             {
                 state.EntityManager.AddComponentData(business, request);
             }
+            Debug.Log($"[Space4XScenario] Requested production recipe id={action.RecipeId} for business={action.BusinessId}.");
         }
 
         private void EnsureEconomyEnabled(ref SystemState state)
