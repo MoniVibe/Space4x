@@ -365,6 +365,12 @@ namespace Space4x.Scenario
             });
             Debug.Log($"[Space4XScenario] Created production business id={action.BusinessId} type={(BusinessType)action.BusinessType} capacity={capacity}.");
 
+            var worker = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(business, new Space4XScenarioBusinessWorker
+            {
+                Worker = worker
+            });
+
             var inventoryEntity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(inventoryEntity, new Inventory
             {
@@ -451,7 +457,7 @@ namespace Space4x.Scenario
             var request = new ProductionJobRequest
             {
                 RecipeId = action.RecipeId,
-                Worker = Entity.Null
+                Worker = ResolveWorker(ref state, business)
             };
 
             if (state.EntityManager.HasComponent<ProductionJobRequest>(business))
@@ -493,6 +499,20 @@ namespace Space4x.Scenario
 
             entity = Entity.Null;
             return false;
+        }
+
+        private Entity ResolveWorker(ref SystemState state, Entity business)
+        {
+            if (business != Entity.Null && state.EntityManager.HasComponent<Space4XScenarioBusinessWorker>(business))
+            {
+                var worker = state.EntityManager.GetComponentData<Space4XScenarioBusinessWorker>(business).Worker;
+                if (worker != Entity.Null)
+                {
+                    return worker;
+                }
+            }
+
+            return Entity.Null;
         }
 
         private bool TryResolveFleetEntity(ref SystemState state, FixedString64Bytes fleetId, out Entity entity)

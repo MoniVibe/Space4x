@@ -43,4 +43,9 @@ namespace Space4x.Scenario
     {
         public FixedString64Bytes Value;
     }
+
+    public struct Space4XScenarioBusinessWorker : IComponentData
+    {
+        public Entity Worker;
+    }
 }
