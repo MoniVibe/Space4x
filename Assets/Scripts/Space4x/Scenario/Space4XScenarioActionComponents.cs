@@ -7,7 +7,11 @@ namespace Space4x.Scenario
     public enum Space4XScenarioActionKind : byte
     {
         MoveFleet = 0,
-        TriggerIntercept = 1
+        TriggerIntercept = 1,
+        EconomyEnable = 2,
+        ProdCreateBusiness = 3,
+        ProdAddItem = 4,
+        ProdRequest = 5
     }
 
     public struct Space4XScenarioAction : IBufferElementData
@@ -17,6 +21,12 @@ namespace Space4x.Scenario
         public FixedString64Bytes FleetId;
         public FixedString64Bytes TargetFleetId;
         public float3 TargetPosition;
+        public FixedString64Bytes BusinessId;
+        public FixedString64Bytes ItemId;
+        public FixedString64Bytes RecipeId;
+        public float Quantity;
+        public float Capacity;
+        public byte BusinessType;
         public byte Executed;
     }
 
@@ -27,5 +37,10 @@ namespace Space4x.Scenario
     {
         public FixedString64Bytes FleetId;
         public uint CreatedTick;
+    }
+
+    public struct Space4XScenarioBusinessId : IComponentData
+    {
+        public FixedString64Bytes Value;
     }
 }

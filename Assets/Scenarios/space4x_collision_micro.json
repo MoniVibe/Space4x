@@ -29,6 +29,38 @@
   ],
   "actions": [
     {
+      "time_s": 0,
+      "kind": "EconomyEnable",
+      "description": "Enable economy systems for production loop v0"
+    },
+    {
+      "time_s": 0.1,
+      "kind": "ProdCreateBusiness",
+      "businessId": "smelter-alpha",
+      "businessType": "Blacksmith",
+      "capacity": 500
+    },
+    {
+      "time_s": 0.2,
+      "kind": "ProdAddItem",
+      "businessId": "smelter-alpha",
+      "itemId": "iron_ore",
+      "quantity": 120
+    },
+    {
+      "time_s": 0.2,
+      "kind": "ProdAddItem",
+      "businessId": "smelter-alpha",
+      "itemId": "wood",
+      "quantity": 5
+    },
+    {
+      "time_s": 0.5,
+      "kind": "ProdRequest",
+      "businessId": "smelter-alpha",
+      "recipeId": "iron_ore_to_ingot"
+    },
+    {
       "time_s": 1,
       "kind": "MoveFleet",
       "fleetId": "COLLISION-ALPHA",

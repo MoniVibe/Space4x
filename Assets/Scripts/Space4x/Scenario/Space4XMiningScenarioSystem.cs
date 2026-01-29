@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Profile;
@@ -1278,6 +1279,12 @@ namespace Space4x.Scenario
                     FleetId = new FixedString64Bytes(action.fleetId ?? action.requesterFleetId ?? string.Empty),
                     TargetFleetId = new FixedString64Bytes(action.targetFleetId ?? string.Empty),
                     TargetPosition = targetPosition,
+                    BusinessId = new FixedString64Bytes(action.businessId ?? string.Empty),
+                    ItemId = new FixedString64Bytes(action.itemId ?? string.Empty),
+                    RecipeId = new FixedString64Bytes(action.recipeId ?? string.Empty),
+                    Quantity = action.quantity,
+                    Capacity = action.capacity,
+                    BusinessType = (byte)ParseBusinessType(action.businessType),
                     Executed = 0
                 });
             }
@@ -2379,8 +2386,41 @@ namespace Space4x.Scenario
             return kind switch
             {
                 "TriggerIntercept" => Space4XScenarioActionKind.TriggerIntercept,
+                "EconomyEnable" => Space4XScenarioActionKind.EconomyEnable,
+                "ProdCreateBusiness" => Space4XScenarioActionKind.ProdCreateBusiness,
+                "ProdAddItem" => Space4XScenarioActionKind.ProdAddItem,
+                "ProdRequest" => Space4XScenarioActionKind.ProdRequest,
                 _ => Space4XScenarioActionKind.MoveFleet
             };
+        }
+
+        private static BusinessType ParseBusinessType(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return BusinessType.Blacksmith;
+            }
+
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "sawmill":
+                    return BusinessType.Sawmill;
+                case "quarry":
+                    return BusinessType.Quarry;
+                case "mill":
+                    return BusinessType.Mill;
+                case "herbalist":
+                    return BusinessType.Herbalist;
+                case "wainwright":
+                    return BusinessType.Wainwright;
+                case "builder":
+                    return BusinessType.Builder;
+                case "alchemist":
+                    return BusinessType.Alchemist;
+                case "blacksmith":
+                default:
+                    return BusinessType.Blacksmith;
+            }
         }
 
         private ResourceType ParseResourceType(string type)
@@ -2769,6 +2809,12 @@ namespace Space4x.Scenario
         public string requesterFleetId;
         public string targetFleetId;
         public string description;
+        public string businessId;
+        public string businessType;
+        public string itemId;
+        public string recipeId;
+        public float quantity;
+        public float capacity;
     }
 
     [System.Serializable]

@@ -1,4 +1,6 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Economy.Production;
+using PureDOTS.Runtime.Economy.Resources;
 using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Physics;
 using Space4X.Registry;
@@ -80,6 +82,18 @@ namespace Space4x.Scenario
                             break;
                         case Space4XScenarioActionKind.TriggerIntercept:
                             ProcessTriggerIntercept(ref state, action, tick);
+                            break;
+                        case Space4XScenarioActionKind.EconomyEnable:
+                            ProcessEconomyEnable(ref state);
+                            break;
+                        case Space4XScenarioActionKind.ProdCreateBusiness:
+                            ProcessProdCreateBusiness(ref state, action, tick);
+                            break;
+                        case Space4XScenarioActionKind.ProdAddItem:
+                            ProcessProdAddItem(ref state, action, tick);
+                            break;
+                        case Space4XScenarioActionKind.ProdRequest:
+                            ProcessProdRequest(ref state, action);
                             break;
                     }
 
@@ -302,6 +316,176 @@ namespace Space4x.Scenario
                 RequestTick = tick,
                 RequireRendezvous = 0
             });
+        }
+
+        private void ProcessEconomyEnable(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<ScenarioState>(out var scenarioEntity))
+            {
+                return;
+            }
+
+            var scenario = state.EntityManager.GetComponentData<ScenarioState>(scenarioEntity);
+            if (!scenario.EnableEconomy)
+            {
+                scenario.EnableEconomy = true;
+                state.EntityManager.SetComponentData(scenarioEntity, scenario);
+            }
+        }
+
+        private void ProcessProdCreateBusiness(ref SystemState state, in Space4XScenarioAction action, uint tick)
+        {
+            if (action.BusinessId.IsEmpty)
+            {
+                return;
+            }
+
+            EnsureEconomyEnabled(ref state);
+
+            if (TryResolveBusiness(ref state, action.BusinessId, out _))
+            {
+                return;
+            }
+
+            var capacity = action.Capacity > 0f ? action.Capacity : 1000f;
+            var business = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(business, new Space4XScenarioBusinessId
+            {
+                Value = action.BusinessId
+            });
+            state.EntityManager.AddComponentData(business, new BusinessProduction
+            {
+                Type = (BusinessType)action.BusinessType,
+                Capacity = capacity,
+                Throughput = 0f,
+                LastUpdateTick = tick
+            });
+
+            var inventoryEntity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(inventoryEntity, new Inventory
+            {
+                MaxMass = capacity,
+                MaxVolume = 0f,
+                CurrentMass = 0f,
+                CurrentVolume = 0f,
+                LastUpdateTick = tick
+            });
+            state.EntityManager.AddBuffer<InventoryItem>(inventoryEntity);
+
+            state.EntityManager.AddComponentData(business, new BusinessInventory
+            {
+                InventoryEntity = inventoryEntity
+            });
+            state.EntityManager.AddBuffer<ProductionJob>(business);
+        }
+
+        private void ProcessProdAddItem(ref SystemState state, in Space4XScenarioAction action, uint tick)
+        {
+            if (action.BusinessId.IsEmpty || action.ItemId.IsEmpty || action.Quantity <= 0f)
+            {
+                return;
+            }
+
+            EnsureEconomyEnabled(ref state);
+
+            if (!TryResolveBusiness(ref state, action.BusinessId, out var business))
+            {
+                return;
+            }
+
+            if (!state.EntityManager.HasComponent<BusinessInventory>(business))
+            {
+                return;
+            }
+
+            var inventoryEntity = state.EntityManager.GetComponentData<BusinessInventory>(business).InventoryEntity;
+            if (inventoryEntity == Entity.Null || !state.EntityManager.HasBuffer<InventoryItem>(inventoryEntity))
+            {
+                return;
+            }
+
+            var items = state.EntityManager.GetBuffer<InventoryItem>(inventoryEntity);
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (!items[i].ItemId.Equals(action.ItemId))
+                {
+                    continue;
+                }
+
+                var item = items[i];
+                item.Quantity += action.Quantity;
+                items[i] = item;
+                return;
+            }
+
+            items.Add(new InventoryItem
+            {
+                ItemId = action.ItemId,
+                Quantity = action.Quantity,
+                Quality = 1f,
+                Durability = 1f,
+                CreatedTick = tick
+            });
+        }
+
+        private void ProcessProdRequest(ref SystemState state, in Space4XScenarioAction action)
+        {
+            if (action.BusinessId.IsEmpty || action.RecipeId.IsEmpty)
+            {
+                return;
+            }
+
+            EnsureEconomyEnabled(ref state);
+
+            if (!TryResolveBusiness(ref state, action.BusinessId, out var business))
+            {
+                return;
+            }
+
+            var request = new ProductionJobRequest
+            {
+                RecipeId = action.RecipeId,
+                Worker = Entity.Null
+            };
+
+            if (state.EntityManager.HasComponent<ProductionJobRequest>(business))
+            {
+                state.EntityManager.SetComponentData(business, request);
+            }
+            else
+            {
+                state.EntityManager.AddComponentData(business, request);
+            }
+        }
+
+        private void EnsureEconomyEnabled(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<ScenarioState>(out var scenarioEntity))
+            {
+                return;
+            }
+
+            var scenario = state.EntityManager.GetComponentData<ScenarioState>(scenarioEntity);
+            if (!scenario.EnableEconomy)
+            {
+                scenario.EnableEconomy = true;
+                state.EntityManager.SetComponentData(scenarioEntity, scenario);
+            }
+        }
+
+        private bool TryResolveBusiness(ref SystemState state, FixedString64Bytes businessId, out Entity entity)
+        {
+            foreach (var (id, businessEntity) in SystemAPI.Query<RefRO<Space4XScenarioBusinessId>>().WithEntityAccess())
+            {
+                if (id.ValueRO.Value.Equals(businessId))
+                {
+                    entity = businessEntity;
+                    return true;
+                }
+            }
+
+            entity = Entity.Null;
+            return false;
         }
 
         private bool TryResolveFleetEntity(ref SystemState state, FixedString64Bytes fleetId, out Entity entity)
