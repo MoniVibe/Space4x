@@ -272,6 +272,7 @@ namespace Space4X.Headless.Editor
             DisableEntitiesGraphicsForHeadless();
             EnsureResourceTypeCatalogAsset();
             ValidateResourceAssets();
+            ScanForMissingScripts();
         }
 
         private static void DisableEntitiesGraphicsForHeadless()
@@ -386,6 +387,49 @@ namespace Space4X.Headless.Editor
                     throw new BuildFailedException($"Asset in Resources references type compiled out by define constraints: {resourcePath}");
                 }
             }
+        }
+
+        private static void ScanForMissingScripts()
+        {
+            var missing = new List<string>();
+
+            foreach (var guid in AssetDatabase.FindAssets("t:Prefab"))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(prefab) > 0)
+                {
+                    missing.Add(path);
+                }
+            }
+
+            foreach (var guid in AssetDatabase.FindAssets("t:ScriptableObject"))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var scriptable = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (scriptable == null)
+                {
+                    missing.Add(path);
+                }
+            }
+
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing scripts detected ({missing.Count}).");
+            for (var i = 0; i < missing.Count; i++)
+            {
+                UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script asset: {missing[i]}");
+            }
+
+            throw new BuildFailedException("Missing scripts detected. See log for asset paths.");
         }
 
         private static void EnsurePrefabHasNoMissingScripts(string prefabPath)
