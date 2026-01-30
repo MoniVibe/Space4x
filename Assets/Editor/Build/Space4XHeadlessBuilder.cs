@@ -538,15 +538,21 @@ namespace Space4X.Headless.Editor
             }
 
             var outputDir = s_PreflightLogDirectory;
+            string? logPath = null;
             if (!string.IsNullOrWhiteSpace(outputDir))
             {
                 outputDir = Path.Combine(outputDir, "build");
+                logPath = Path.Combine(outputDir, "Space4X_HeadlessPPtrCastScan.log");
             }
 
             var issues = Space4X.Editor.Diagnostics.Space4XPPtrCastScanner.RunHeadlessScan(outputDir);
             if (issues > 0)
             {
-                throw new BuildFailedException($"PPtr cast issues detected ({issues}). See Space4X_HeadlessPPtrCastScan.log for asset paths.");
+                if (!string.IsNullOrWhiteSpace(logPath))
+                {
+                    UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] PPtr cast scan log: {logPath}");
+                }
+                throw new BuildFailedException($"PPtr cast issues detected ({issues}). See {logPath ?? "Space4X_HeadlessPPtrCastScan.log"} for asset paths.");
             }
         }
 

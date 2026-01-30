@@ -29,9 +29,9 @@ namespace Space4X.Editor.Diagnostics
             RunScan(exitWhenBatch: false, logDirectory: null);
         }
 
-        public static int RunHeadlessScan(string logDirectory)
+        public static int RunHeadlessScan(string logDirectory, bool exitWhenBatch = false)
         {
-            return RunScan(exitWhenBatch: true, logDirectory: logDirectory);
+            return RunScan(exitWhenBatch: exitWhenBatch, logDirectory: logDirectory);
         }
 
         private static int RunScan(bool exitWhenBatch, string logDirectory)
