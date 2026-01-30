@@ -454,12 +454,14 @@ namespace Space4X.Headless.Editor
                 }
             }
 
+            var previewCount = Math.Min(20, missing.Count);
+            var preview = string.Join("; ", missing.GetRange(0, previewCount));
             if (!string.IsNullOrEmpty(logPath))
             {
-                throw new BuildFailedException($"Missing scripts detected. See {logPath} for asset paths.");
+                throw new BuildFailedException($"Missing scripts detected ({missing.Count}). See {logPath} for asset paths. Preview: {preview}");
             }
 
-            throw new BuildFailedException("Missing scripts detected. See log for asset paths.");
+            throw new BuildFailedException($"Missing scripts detected ({missing.Count}). Preview: {preview}");
         }
 
         private static void EnsurePrefabHasNoMissingScripts(string prefabPath)
