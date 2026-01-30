@@ -57,7 +57,9 @@ namespace Space4X.Runtime
             ingotOutputs.Add(new RecipeOutputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_ingot"),
-                Quantity = 75f
+                Quantity = 75f,
+                OutputTags = ItemTags.None,
+                UseTagOutput = 0
             });
             recipeData.Add((new ProductionRecipeBlob
             {
@@ -94,7 +96,9 @@ namespace Space4X.Runtime
             partsOutputs.Add(new RecipeOutputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_parts"),
-                Quantity = 2f
+                Quantity = 2f,
+                OutputTags = ItemTags.None,
+                UseTagOutput = 0
             });
             recipeData.Add((new ProductionRecipeBlob
             {
@@ -131,7 +135,9 @@ namespace Space4X.Runtime
             alloyOutputs.Add(new RecipeOutputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_alloy"),
-                Quantity = 40f
+                Quantity = 40f,
+                OutputTags = ItemTags.None,
+                UseTagOutput = 0
             });
             recipeData.Add((new ProductionRecipeBlob
             {
