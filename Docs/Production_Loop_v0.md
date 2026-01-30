@@ -7,5 +7,6 @@
 - **Recipes**: module parts, refit kits, ship parts (small list only for v0).
 - **Stockpile**: carrier cargo or station storage as `ResourceStockpileRef`.
 - **Telemetry**: slot utilization + throughput; use for headless validation.
+- **Inputs**: allow tag-based “any fuel/any food” inputs so multiple resource types can satisfy recipes.
 
 Suggested next docs: `C:/Dev/unity_clean/puredots/Docs/Production_Loop_v0.md`.

@@ -1,7 +1,8 @@
+using PureDOTS.Runtime.Economy.Production;
+using PureDOTS.Runtime.Economy.Resources;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using PureDOTS.Runtime.Economy.Production;
 
 namespace Space4X.Runtime
 {
@@ -48,7 +49,9 @@ namespace Space4X.Runtime
                 ItemId = new FixedString64Bytes("space4x_ore"),
                 Quantity = 100f,
                 MinPurity = 0f,
-                MinQuality = 0f
+                MinQuality = 0f,
+                RequiredTags = ItemTags.None,
+                UseTagMatch = 0
             });
             var ingotOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
             ingotOutputs.Add(new RecipeOutputBlob
@@ -74,14 +77,18 @@ namespace Space4X.Runtime
                 ItemId = new FixedString64Bytes("space4x_ingot"),
                 Quantity = 10f,
                 MinPurity = 0f,
-                MinQuality = 0f
+                MinQuality = 0f,
+                RequiredTags = ItemTags.None,
+                UseTagMatch = 0
             });
             partsInputs.Add(new RecipeInputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_supplies"),
                 Quantity = 5f,
                 MinPurity = 0f,
-                MinQuality = 0f
+                MinQuality = 0f,
+                RequiredTags = ItemTags.None,
+                UseTagMatch = 0
             });
             var partsOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
             partsOutputs.Add(new RecipeOutputBlob
@@ -107,14 +114,18 @@ namespace Space4X.Runtime
                 ItemId = new FixedString64Bytes("space4x_ore"),
                 Quantity = 80f,
                 MinPurity = 0f,
-                MinQuality = 0f
+                MinQuality = 0f,
+                RequiredTags = ItemTags.None,
+                UseTagMatch = 0
             });
             alloyInputs.Add(new RecipeInputBlob
             {
-                ItemId = new FixedString64Bytes("space4x_fuel"),
+                ItemId = default,
                 Quantity = 10f,
                 MinPurity = 0f,
-                MinQuality = 0f
+                MinQuality = 0f,
+                RequiredTags = ItemTags.Fuel,
+                UseTagMatch = 1
             });
             var alloyOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
             alloyOutputs.Add(new RecipeOutputBlob
