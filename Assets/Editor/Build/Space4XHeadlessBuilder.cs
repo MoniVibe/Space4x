@@ -550,59 +550,6 @@ namespace Space4X.Headless.Editor
             return hasCritical;
         }
 
-
-                if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(prefab) > 0)
-                {
-                    missing.Add(path);
-                }
-            }
-
-            foreach (var guid in AssetDatabase.FindAssets("t:ScriptableObject"))
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-                var scriptable = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
-                if (scriptable == null)
-                {
-                    missing.Add(path);
-                }
-            }
-
-            if (missing.Count == 0)
-            {
-                return;
-            }
-
-            UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing scripts detected ({missing.Count}).");
-            for (var i = 0; i < missing.Count; i++)
-            {
-                UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script asset: {missing[i]}");
-            }
-
-            string logPath = string.Empty;
-            if (!string.IsNullOrWhiteSpace(s_PreflightLogDirectory))
-            {
-                try
-                {
-                    logPath = Path.Combine(s_PreflightLogDirectory, MissingScriptsFileName);
-                    File.WriteAllLines(logPath, missing);
-                    UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script list written to {logPath}");
-                }
-                catch (Exception ex)
-                {
-                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Failed to write missing script list: {ex.Message}");
-                }
-            }
-
-            var previewCount = Math.Min(20, missing.Count);
-            var preview = string.Join("; ", missing.GetRange(0, previewCount));
-            if (!string.IsNullOrEmpty(logPath))
-            {
-                throw new BuildFailedException($"Missing scripts detected ({missing.Count}). See {logPath} for asset paths. Preview: {preview}");
-            }
-
-            throw new BuildFailedException($"Missing scripts detected ({missing.Count}). Preview: {preview}");
-        }
-
         private static void EnsurePrefabHasNoMissingScripts(string prefabPath)
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
