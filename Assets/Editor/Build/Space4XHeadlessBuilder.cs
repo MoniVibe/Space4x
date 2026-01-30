@@ -34,7 +34,9 @@ namespace Space4X.Headless.Editor
         private const string BuildReportFileName = "Space4X_HeadlessBuildReport.log";
         private const string BuildFailureFileName = "Space4X_HeadlessBuildFailure.log";
         private const string EditorLogSnapshotFileName = "Space4X_HeadlessEditor.log";
+        private const string MissingScriptsFileName = "Space4X_HeadlessMissingScripts.log";
         private const int EditorLogSnapshotBytes = 2 * 1024 * 1024;
+        private static string s_PreflightLogDirectory = string.Empty;
 
         [MenuItem("Space4X/Build/Headless/Linux Server")]
         public static void BuildFromMenu() => BuildLinuxHeadless();
@@ -58,7 +60,7 @@ namespace Space4X.Headless.Editor
             try
             {
                 Directory.CreateDirectory(absoluteOutput);
-                RunHeadlessPreflight();
+                RunHeadlessPreflight(absoluteOutput);
                 EnsureLinuxServerSupport();
 
                 using var targetScope = new BuildTargetScope(BuildTarget.StandaloneLinux64, BuildTargetGroup.Standalone);
@@ -267,12 +269,20 @@ namespace Space4X.Headless.Editor
             return false;
         }
 
-        private static void RunHeadlessPreflight()
+        private static void RunHeadlessPreflight(string outputDirectory)
         {
-            DisableEntitiesGraphicsForHeadless();
-            EnsureResourceTypeCatalogAsset();
-            ValidateResourceAssets();
-            ScanForMissingScripts();
+            s_PreflightLogDirectory = outputDirectory;
+            try
+            {
+                DisableEntitiesGraphicsForHeadless();
+                EnsureResourceTypeCatalogAsset();
+                ValidateResourceAssets();
+                ScanForMissingScripts();
+            }
+            finally
+            {
+                s_PreflightLogDirectory = string.Empty;
+            }
         }
 
         private static void DisableEntitiesGraphicsForHeadless()
@@ -427,6 +437,26 @@ namespace Space4X.Headless.Editor
             for (var i = 0; i < missing.Count; i++)
             {
                 UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script asset: {missing[i]}");
+            }
+
+            string logPath = string.Empty;
+            if (!string.IsNullOrWhiteSpace(s_PreflightLogDirectory))
+            {
+                try
+                {
+                    logPath = Path.Combine(s_PreflightLogDirectory, MissingScriptsFileName);
+                    File.WriteAllLines(logPath, missing);
+                    UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script list written to {logPath}");
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Failed to write missing script list: {ex.Message}");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(logPath))
+            {
+                throw new BuildFailedException($"Missing scripts detected. See {logPath} for asset paths.");
             }
 
             throw new BuildFailedException("Missing scripts detected. See log for asset paths.");
