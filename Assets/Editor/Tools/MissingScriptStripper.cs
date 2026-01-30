@@ -55,7 +55,7 @@ namespace Space4X.EditorTools
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"[MissingScriptStripper] Removed {removedCount} missing scripts. Report: {reportPath}");
+            UnityEngine.Debug.Log($"[MissingScriptStripper] Removed {removedCount} missing scripts. Report: {reportPath}");
         }
     }
 }
