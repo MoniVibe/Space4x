@@ -539,7 +539,7 @@ namespace Space4X.Headless.Editor
 
         private static bool ShouldFailOnMissingScripts(bool hasCritical)
         {
-            var flag = Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_STRICT_MISSING_SCRIPTS");
+            var flag = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_STRICT_MISSING_SCRIPTS");
             if (!string.IsNullOrWhiteSpace(flag))
             {
                 return flag.Equals("1", StringComparison.OrdinalIgnoreCase) ||
