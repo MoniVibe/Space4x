@@ -279,6 +279,7 @@ namespace Space4X.Headless.Editor
                 EnsureResourceTypeCatalogAsset();
                 ValidateResourceAssets();
                 ScanForMissingScripts();
+                ScanForPPtrCastIssues();
             }
             finally
             {
@@ -523,6 +524,30 @@ namespace Space4X.Headless.Editor
             }
 
             throw new BuildFailedException($"Missing scripts detected ({missing.Count}). Preview: {preview}");
+        }
+
+        private static void ScanForPPtrCastIssues()
+        {
+            var flag = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_PPTR_SCAN");
+            if (!string.IsNullOrWhiteSpace(flag) &&
+                (flag.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                 flag.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+                 flag.Equals("no", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            var outputDir = s_PreflightLogDirectory;
+            if (!string.IsNullOrWhiteSpace(outputDir))
+            {
+                outputDir = Path.Combine(outputDir, "build");
+            }
+
+            var issues = Space4X.Editor.Diagnostics.Space4XPPtrCastScanner.RunHeadlessScan(outputDir);
+            if (issues > 0)
+            {
+                throw new BuildFailedException($"PPtr cast issues detected ({issues}). See Space4X_HeadlessPPtrCastScan.log for asset paths.");
+            }
         }
 
         private static bool IsSkippablePath(string path)
