@@ -222,7 +222,14 @@ namespace Space4X.Runtime
 
             if (s_CatalogBlob.IsCreated)
             {
-                s_CatalogBlob.Dispose();
+                try
+                {
+                    s_CatalogBlob.Dispose();
+                }
+                catch (InvalidOperationException)
+                {
+                    // Domain unload can invalidate blob references; safe to swallow on shutdown.
+                }
                 s_CatalogBlob = default;
             }
         }
