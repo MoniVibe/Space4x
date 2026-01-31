@@ -27,8 +27,7 @@ namespace Space4X.Headless.Editor
     {
         private static readonly string[] HeadlessScenes =
         {
-            "Assets/Scenes/HeadlessBootstrap.unity",
-            "Assets/Scenes/TRI_Space4X_Smoke.unity"
+            "Assets/Scenes/HeadlessBootstrap.unity"
         };
 
         private const string DefaultOutputFolder = "Builds/Space4X_headless/Linux";
