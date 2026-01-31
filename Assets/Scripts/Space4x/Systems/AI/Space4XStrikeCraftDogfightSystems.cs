@@ -930,6 +930,7 @@ namespace Space4X.Systems.AI
                 DynamicBuffer<SubsystemHealth> subsystems,
                 DynamicBuffer<SubsystemDisabled> disabledSubsystems)
             {
+                var wasMoving = movement.IsMoving;
                 var engineScale = Space4XSubsystemUtility.ResolveEngineScale(subsystems, disabledSubsystems);
                 var accel = steering.Output.DesiredAccel;
                 if (!math.all(math.isfinite(accel)))
@@ -955,6 +956,10 @@ namespace Space4X.Systems.AI
                 }
 
                 movement.IsMoving = movement.CurrentSpeed > 0.01f ? (byte)1 : (byte)0;
+                if ((wasMoving == 0 || movement.MoveStartTick == 0) && movement.IsMoving != 0)
+                {
+                    movement.MoveStartTick = CurrentTick;
+                }
                 movement.LastMoveTick = CurrentTick;
             }
 
