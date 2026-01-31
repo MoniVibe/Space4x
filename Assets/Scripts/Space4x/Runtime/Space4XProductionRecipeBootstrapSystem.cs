@@ -1,6 +1,4 @@
 using PureDOTS.Runtime.Economy.Production;
-using PureDOTS.Runtime.Economy.Resources;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using System;
@@ -49,17 +47,13 @@ namespace Space4X.Runtime
                 ItemId = new FixedString64Bytes("space4x_ore"),
                 Quantity = 100f,
                 MinPurity = 0f,
-                MinQuality = 0f,
-                RequiredTags = ItemTags.None,
-                UseTagMatch = 0
+                MinQuality = 0f
             });
             var ingotOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
             ingotOutputs.Add(new RecipeOutputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_ingot"),
-                Quantity = 75f,
-                OutputTags = ItemTags.None,
-                UseTagOutput = 0
+                Quantity = 75f
             });
             recipeData.Add((new ProductionRecipeBlob
             {
@@ -79,26 +73,20 @@ namespace Space4X.Runtime
                 ItemId = new FixedString64Bytes("space4x_ingot"),
                 Quantity = 10f,
                 MinPurity = 0f,
-                MinQuality = 0f,
-                RequiredTags = ItemTags.None,
-                UseTagMatch = 0
+                MinQuality = 0f
             });
             partsInputs.Add(new RecipeInputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_supplies"),
                 Quantity = 5f,
                 MinPurity = 0f,
-                MinQuality = 0f,
-                RequiredTags = ItemTags.None,
-                UseTagMatch = 0
+                MinQuality = 0f
             });
             var partsOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
             partsOutputs.Add(new RecipeOutputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_parts"),
-                Quantity = 2f,
-                OutputTags = ItemTags.None,
-                UseTagOutput = 0
+                Quantity = 2f
             });
             recipeData.Add((new ProductionRecipeBlob
             {
@@ -111,33 +99,27 @@ namespace Space4X.Runtime
                 LaborCost = 1.0f
             }, partsInputs, partsOutputs));
 
-            // Ore + Fuel -> Alloy
+            // Ore + Supplies -> Alloy
             var alloyInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
             alloyInputs.Add(new RecipeInputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_ore"),
                 Quantity = 80f,
                 MinPurity = 0f,
-                MinQuality = 0f,
-                RequiredTags = ItemTags.None,
-                UseTagMatch = 0
+                MinQuality = 0f
             });
             alloyInputs.Add(new RecipeInputBlob
             {
-                ItemId = default,
+                ItemId = new FixedString64Bytes("space4x_supplies"),
                 Quantity = 10f,
                 MinPurity = 0f,
-                MinQuality = 0f,
-                RequiredTags = ItemTags.Fuel,
-                UseTagMatch = 1
+                MinQuality = 0f
             });
             var alloyOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
             alloyOutputs.Add(new RecipeOutputBlob
             {
                 ItemId = new FixedString64Bytes("space4x_alloy"),
-                Quantity = 40f,
-                OutputTags = ItemTags.None,
-                UseTagOutput = 0
+                Quantity = 40f
             });
             recipeData.Add((new ProductionRecipeBlob
             {
