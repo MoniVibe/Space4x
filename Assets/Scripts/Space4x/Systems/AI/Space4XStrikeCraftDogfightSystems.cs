@@ -19,6 +19,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<HullIntegrity> _hullLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
+        private ComponentLookup<StrikeCraftExperience> _experienceLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private EntityQuery _candidateQuery;
@@ -43,6 +44,7 @@ namespace Space4X.Systems.AI
             _hullLookup = state.GetComponentLookup<HullIntegrity>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
+            _experienceLookup = state.GetComponentLookup<StrikeCraftExperience>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(false);
             _candidateQuery = state.GetEntityQuery(
@@ -128,6 +130,7 @@ namespace Space4X.Systems.AI
             _hullLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _profileLookup.Update(ref state);
+            _experienceLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
             _engagementLookup.Update(ref state);
 
@@ -171,7 +174,6 @@ namespace Space4X.Systems.AI
                 DeltaTime = timeState.FixedDeltaTime,
                 Config = config,
                 StanceConfig = stanceConfig,
-                FireConeCos = math.cos(math.radians(config.FireConeDegrees)),
                 TargetAcquireRadiusSq = targetAcquireRadiusSq,
                 TargetCandidates = candidates.AsArray(),
                 NeighborPositions = neighbors.AsArray(),
@@ -180,6 +182,7 @@ namespace Space4X.Systems.AI
                 MovementLookup = _movementLookup,
                 HullLookup = _hullLookup,
                 ProfileLookup = _profileLookup,
+                ExperienceLookup = _experienceLookup,
                 PatrolStanceLookup = _patrolStanceLookup,
                 EngagementLookup = _engagementLookup
             };
@@ -257,7 +260,6 @@ namespace Space4X.Systems.AI
             public float DeltaTime;
             public StrikeCraftDogfightConfig Config;
             public Space4XStanceTuningConfig StanceConfig;
-            public float FireConeCos;
             public float TargetAcquireRadiusSq;
             [ReadOnly] public NativeArray<StrikeCraftTargetCandidate> TargetCandidates;
             [ReadOnly] public NativeArray<float3> NeighborPositions;
@@ -266,6 +268,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<VesselMovement> MovementLookup;
             [ReadOnly] public ComponentLookup<HullIntegrity> HullLookup;
             [ReadOnly] public ComponentLookup<StrikeCraftProfile> ProfileLookup;
+            [ReadOnly] public ComponentLookup<StrikeCraftExperience> ExperienceLookup;
             [ReadOnly] public ComponentLookup<PatrolStance> PatrolStanceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<Space4XEngagement> EngagementLookup;
 
@@ -312,14 +315,66 @@ namespace Space4X.Systems.AI
 
                 var stance = ResolveStance(entity);
                 var tuning = StanceConfig.Resolve(stance);
-                var jinkStrength = math.max(0f, Config.JinkStrength + tuning.EvasionJinkStrength);
+
+                var experience01 = math.saturate(state.Experience);
+                var traits = StrikeCraftTraits.None;
+                if (ExperienceLookup.HasComponent(entity))
+                {
+                    var experience = ExperienceLookup[entity];
+                    traits = experience.Traits;
+                    experience01 = math.max(experience01, math.saturate(experience.Level / 5f));
+                }
+
+                var reaction = math.lerp(0.55f, 0.95f, experience01);
+                var speedScale = math.lerp(1.1f, 0.95f, experience01);
+                var jinkScale = math.lerp(1.25f, 0.8f, experience01);
+                var separationScale = math.lerp(0.6f, 1.1f, experience01);
+                var fireConeScale = math.lerp(1.25f, 0.8f, experience01);
+                var breakOffScale = math.lerp(1.2f, 0.9f, experience01);
+
+                if ((traits & StrikeCraftTraits.QuickReaction) != 0)
+                {
+                    reaction = math.min(1f, reaction + 0.1f);
+                }
+                if ((traits & StrikeCraftTraits.EvasiveManeuvers) != 0)
+                {
+                    jinkScale *= 1.15f;
+                }
+                if ((traits & StrikeCraftTraits.FormationDiscipline) != 0)
+                {
+                    separationScale *= 1.2f;
+                }
+                if ((traits & StrikeCraftTraits.PrecisionStrike) != 0)
+                {
+                    fireConeScale *= 0.9f;
+                }
+                if ((traits & StrikeCraftTraits.AceStatus) != 0)
+                {
+                    reaction = math.min(1f, reaction + 0.12f);
+                    jinkScale *= 0.9f;
+                    separationScale *= 1.1f;
+                    fireConeScale *= 0.85f;
+                }
+
+                jinkScale = math.clamp(jinkScale, 0.5f, 1.6f);
+                separationScale = math.clamp(separationScale, 0.5f, 1.5f);
+
+                var fireConeDegrees = math.max(5f, Config.FireConeDegrees * fireConeScale);
+                var fireConeCos = math.cos(math.radians(fireConeDegrees));
+                var breakOffDistance = math.max(5f, Config.BreakOffDistance * breakOffScale);
+                var breakOffTicks = Config.BreakOffTicks > 0
+                    ? (uint)math.max(10f, math.round((float)Config.BreakOffTicks * breakOffScale))
+                    : 0u;
+
+                var maxLateralAccel = math.max(0.1f, Config.MaxLateralAccel) * math.lerp(0.75f, 1.05f, experience01);
+                var jinkStrength = math.max(0f, Config.JinkStrength + tuning.EvasionJinkStrength) * jinkScale;
 
                 var forward = ResolveForward(transform, movement);
                 var toTarget = targetPosition - position;
                 var distance = math.length(toTarget);
                 var directionToTarget = distance > 1e-4f ? toTarget / distance : forward;
                 var coneDot = math.dot(forward, directionToTarget);
-                var inCone = coneDot >= FireConeCos;
+                var inCone = coneDot >= fireConeCos;
                 var maxRange = ResolveMaxWeaponRange(entity, weapons, subsystems, disabledSubsystems);
                 var inRange = maxRange > 0f && distance <= maxRange;
 
@@ -355,12 +410,13 @@ namespace Space4X.Systems.AI
                     Position = position,
                     Velocity = velocity,
                     Forward = forward,
-                    MaxSpeed = movement.BaseSpeed * Config.ApproachMaxSpeedMultiplier,
-                    MaxAccel = math.max(0.1f, Config.MaxLateralAccel),
+                    MaxSpeed = movement.BaseSpeed * Config.ApproachMaxSpeedMultiplier * speedScale,
+                    MaxAccel = maxLateralAccel,
                     DeltaTime = DeltaTime
                 };
 
-                SteeringPrimitives.Separation(position, NeighborPositions, Config.SeparationRadius, Config.SeparationStrength, out var separation);
+                SteeringPrimitives.Separation(position, NeighborPositions, Config.SeparationRadius, Config.SeparationStrength * separationScale,
+                    out var separation);
                 var jink = ComputeJink(entity, forward, jinkStrength, CurrentTick);
                 var desiredForward = directionToTarget;
                 var desiredAccel = float3.zero;
@@ -381,7 +437,7 @@ namespace Space4X.Systems.AI
                         SteeringPrimitives.PN_Accel(in position, in velocity, in targetPosition, in targetVelocity, Config.NavConstantN,
                             out var pnAccel);
                         desiredAccel = seekAccel + pnAccel + separation + jink;
-                        desiredAccel = LimitAccel(desiredAccel, Config.MaxLateralAccel);
+                        desiredAccel = LimitAccel(desiredAccel, maxLateralAccel);
 
                         if (inCone && inRange)
                         {
@@ -396,13 +452,13 @@ namespace Space4X.Systems.AI
                     {
                         desiredForward = directionToTarget;
                         desiredAccel = separation + jink;
-                        desiredAccel = LimitAccel(desiredAccel, Config.MaxLateralAccel * 0.5f);
+                        desiredAccel = LimitAccel(desiredAccel, maxLateralAccel * 0.5f);
 
                         if (!inCone || !inRange)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.Approach, CurrentTick);
                         }
-                        else if (distance <= Config.BreakOffDistance)
+                        else if (distance <= breakOffDistance)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.BreakOff, CurrentTick);
                         }
@@ -422,10 +478,10 @@ namespace Space4X.Systems.AI
 
                         lateral = math.normalizesafe(lateral) * jinkStrength;
                         desiredAccel = evadeAccel + lateral + separation;
-                        desiredAccel = LimitAccel(desiredAccel, Config.MaxLateralAccel);
+                        desiredAccel = LimitAccel(desiredAccel, maxLateralAccel);
 
-                        if (CurrentTick - state.DogfightPhaseStartTick >= Config.BreakOffTicks ||
-                            distance > Config.BreakOffDistance * 2f)
+                        if (CurrentTick - state.DogfightPhaseStartTick >= breakOffTicks ||
+                            distance > breakOffDistance * 2f)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.Rejoin, CurrentTick);
                         }
@@ -447,7 +503,7 @@ namespace Space4X.Systems.AI
                             desiredForward = math.normalizesafe(rejoinTarget - position, leaderForward);
                             SteeringPrimitives.OffsetPursuit(ref context, in leaderPosition, in leaderVelocity, in offset, out var pursuitAccel);
                             desiredAccel = pursuitAccel + separation;
-                            desiredAccel = LimitAccel(desiredAccel, Config.MaxLateralAccel);
+                            desiredAccel = LimitAccel(desiredAccel, maxLateralAccel);
 
                             if (math.distance(transform.Position, rejoinTarget) <= Config.RejoinRadius)
                             {
@@ -464,6 +520,8 @@ namespace Space4X.Systems.AI
                         break;
                     }
                 }
+
+                desiredForward = math.normalizesafe(math.lerp(forward, desiredForward, reaction), forward);
 
                 steering.Output = new SteeringOutput
                 {
