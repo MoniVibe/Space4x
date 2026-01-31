@@ -1,6 +1,6 @@
 {
   "seed": 77,
-  "duration_s": 150,
+  "duration_s": 75,
   "proofs": {
     "mining": false
   },
@@ -232,28 +232,28 @@
   ],
   "actions": [
     {
-      "time_s": 20,
+      "time_s": 15,
       "kind": "MoveFleet",
       "fleetId": "FRIENDLY-ALPHA",
       "targetPosition": [80, 20],
       "description": "Alpha patrol shifts toward contested nodes"
     },
     {
-      "time_s": 60,
+      "time_s": 40,
       "kind": "MoveFleet",
       "fleetId": "HOSTILE-DELTA",
       "targetPosition": [220, 40],
       "description": "Hostile carrier pushes into belt"
     },
     {
-      "time_s": 90,
+      "time_s": 55,
       "kind": "TriggerIntercept",
       "requesterFleetId": "FRIENDLY-BRAVO",
       "targetFleetId": "HOSTILE-DELTA",
       "description": "Bravo escorts intercept hostile incursion"
     },
     {
-      "time_s": 110,
+      "time_s": 65,
       "kind": "MoveFleet",
       "fleetId": "FRIENDLY-ALPHA",
       "targetPosition": [140, 0],
@@ -272,5 +272,4 @@
     }
   }
 }
-
 
