@@ -120,6 +120,17 @@ namespace Space4X.Systems.AI
                 hasChanges = true;
             }
 
+            using var missingTurnRate = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftDogfightTag>()
+                .WithNone<VesselTurnRateState>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < missingTurnRate.Length; i++)
+            {
+                ecb.AddComponent(missingTurnRate[i], new VesselTurnRateState());
+                hasChanges = true;
+            }
+
             if (hasChanges)
             {
                 ecb.Playback(state.EntityManager);
@@ -926,6 +937,7 @@ namespace Space4X.Systems.AI
             public void Execute(
                 ref LocalTransform transform,
                 ref VesselMovement movement,
+                ref VesselTurnRateState turnRateState,
                 in StrikeCraftDogfightSteering steering,
                 DynamicBuffer<SubsystemHealth> subsystems,
                 DynamicBuffer<SubsystemDisabled> disabledSubsystems)
@@ -950,9 +962,34 @@ namespace Space4X.Systems.AI
                 if (math.lengthsq(desiredForward) > 0.0001f)
                 {
                     var desiredRotation = quaternion.LookRotationSafe(math.normalizesafe(desiredForward), math.up());
-                    var turnSpeed = movement.TurnSpeed > 0f ? movement.TurnSpeed : Config.MaxTurnRate;
-                    turnSpeed *= engineScale;
-                    transform.Rotation = math.slerp(transform.Rotation, desiredRotation, DeltaTime * turnSpeed);
+                    var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : Config.MaxTurnRate) * engineScale;
+                    var dt = math.max(DeltaTime, 1e-4f);
+                    var forward = math.forward(transform.Rotation);
+                    var angle = math.acos(math.clamp(math.dot(forward, math.forward(desiredRotation)), -1f, 1f));
+                    const float headingDeadbandRadians = 0.026f;
+                    if (angle > headingDeadbandRadians)
+                    {
+                        var maxAngularSpeed = math.PI * 4f;
+                        var maxAngularAccel = math.PI * 8f;
+                        var desiredAngularSpeed = math.min(maxAngularSpeed, angle * turnSpeed);
+                        desiredAngularSpeed = math.min(desiredAngularSpeed, angle / dt);
+                        var maxDeltaSpeed = maxAngularAccel * dt;
+                        var angularSpeed = math.clamp(desiredAngularSpeed,
+                            turnRateState.LastAngularSpeed - maxDeltaSpeed,
+                            turnRateState.LastAngularSpeed + maxDeltaSpeed);
+                        var stepAngle = angularSpeed * dt;
+                        var stepT = stepAngle >= angle ? 1f : math.saturate(stepAngle / angle);
+                        transform.Rotation = math.slerp(transform.Rotation, desiredRotation, stepT);
+                        turnRateState.LastAngularSpeed = angularSpeed;
+                    }
+                    else
+                    {
+                        turnRateState.LastAngularSpeed = 0f;
+                    }
+                }
+                else
+                {
+                    turnRateState.LastAngularSpeed = 0f;
                 }
 
                 movement.IsMoving = movement.CurrentSpeed > 0.01f ? (byte)1 : (byte)0;
