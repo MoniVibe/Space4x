@@ -16,7 +16,6 @@ namespace Space4X.Runtime
     {
         private static BlobAssetReference<ProductionRecipeCatalogBlob> s_CatalogBlob;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             EnsureCatalog(ref state);
