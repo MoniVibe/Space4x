@@ -16,6 +16,7 @@ namespace Space4X.Combat
     /// Space combat system for Space4X carriers/strike craft.
     /// Handles raycast-based combat between ships.
     /// </summary>
+    [DisableAutoCreation]
     [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct SpaceCombatSystem : ISystem
