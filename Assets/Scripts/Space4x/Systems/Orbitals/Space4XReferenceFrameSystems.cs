@@ -709,11 +709,6 @@ namespace Space4X.Systems.Orbitals
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
 
-            UpdateMetrics(ref state, processedCount);
-        }
-
-        private static void UpdateMetrics(ref SystemState state, int processedCount)
-        {
             if (!SystemAPI.TryGetSingletonEntity<Space4XFrameTransitionMetrics>(out var entity))
             {
                 entity = state.EntityManager.CreateEntity(typeof(Space4XFrameTransitionMetrics));
