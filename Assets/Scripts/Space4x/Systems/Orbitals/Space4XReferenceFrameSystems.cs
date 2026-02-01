@@ -709,13 +709,13 @@ namespace Space4X.Systems.Orbitals
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
 
-            if (!SystemAPI.TryGetSingletonEntity<Space4XFrameTransitionMetrics>(out var entity))
+            if (!SystemAPI.TryGetSingletonEntity<Space4XFrameTransitionMetrics>(out var metricsEntity))
             {
-                entity = state.EntityManager.CreateEntity(typeof(Space4XFrameTransitionMetrics));
+                metricsEntity = state.EntityManager.CreateEntity(typeof(Space4XFrameTransitionMetrics));
             }
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
-            state.EntityManager.SetComponentData(entity, new Space4XFrameTransitionMetrics
+            state.EntityManager.SetComponentData(metricsEntity, new Space4XFrameTransitionMetrics
             {
                 Tick = timeState.Tick,
                 ProcessedCount = processedCount
