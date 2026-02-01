@@ -1,4 +1,5 @@
 {
+  "scenarioId": "scenario_space_01_scale_10k",
   "seed": 12345,
   "duration_s": 300,
   "spawn": [
@@ -23,4 +24,3 @@
     "description": "10k entity scale test (100 carriers, 5000 crafts, 500 asteroids)"
   }
 }
-

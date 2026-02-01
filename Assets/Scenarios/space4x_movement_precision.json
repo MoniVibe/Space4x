@@ -1,6 +1,10 @@
 {
+  "scenarioId": "space4x_movement_precision",
   "seed": 1337,
   "duration_s": 140,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "spawn": [
     {
       "kind": "Carrier",

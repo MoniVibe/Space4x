@@ -1,6 +1,10 @@
 {
+  "scenarioId": "space4x_mining",
   "seed": 42,
   "duration_s": 120,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "spawn": [
     {
       "kind": "Carrier",

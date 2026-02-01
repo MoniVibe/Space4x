@@ -1,6 +1,10 @@
 {
+  "scenarioId": "space4x_smoke",
   "seed": 77,
   "duration_s": 75,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "proofs": {
     "mining": false
   },
@@ -272,4 +276,3 @@
     }
   }
 }
-

@@ -1,7 +1,9 @@
 {
+  "scenarioId": "space4x_crew_sensors_micro",
   "seed": 1101,
   "duration_s": 60,
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.sensors_selection",

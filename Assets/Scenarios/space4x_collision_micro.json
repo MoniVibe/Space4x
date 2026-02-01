@@ -1,6 +1,10 @@
 {
+  "scenarioId": "space4x_collision_micro",
   "seed": 7,
   "duration_s": 30,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "proofs": {
     "mining": false
   },

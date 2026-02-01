@@ -1,6 +1,10 @@
 {
+  "scenarioId": "space4x_combat_micro",
   "seed": 1337,
   "duration_s": 10,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "dogfightConfig": {
     "acquireRadius": 250.0,
     "coneDegrees": 45.0,

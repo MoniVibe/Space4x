@@ -1,7 +1,9 @@
 {
+  "scenarioId": "space4x_mining_micro",
   "seed": 42,
   "duration_s": 120,
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
     "applyReferenceFrames": true,
     "headlessQuestions": [
       {

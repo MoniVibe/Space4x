@@ -1,4 +1,5 @@
 {
+    "scenarioId":  "space4x_perf_path_a",
     "seed":  1337,
     "duration_s":  80,
     "proofs":  {

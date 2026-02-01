@@ -1,10 +1,12 @@
 {
+  "scenarioId": "space4x_comms_blocked_micro",
   "seed": 911,
   "duration_s": 30,
   "proofs": {
     "mining": false
   },
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
     "spawnLane": "mining-json",
     "applyMotionTuning": true,
     "applyMotionProfile": true,
