@@ -144,7 +144,7 @@ namespace Space4X.Authoring
                             math.clamp(data.riskTolerance, 0f, 1f),
                             math.clamp(data.aggression, 0f, 1f),
                             math.clamp(data.patience, 0f, 1f)),
-                        Stats = new IndividualStats
+                        Stats = new Space4X.Registry.IndividualStats
                         {
                             Command = (half)math.clamp(data.command, 0f, 100f),
                             Tactics = (half)math.clamp(data.tactics, 0f, 100f),
