@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Space4X.Runtime;
 
 namespace Space4X.Registry
 {
