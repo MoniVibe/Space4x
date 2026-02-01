@@ -247,9 +247,13 @@ namespace Space4X.Systems.Modules
                 {
                     var profile = EngineProfile.Default;
                     profile.VectoringMode = EngineVectoringMode.Vectored;
-                    if (hasEngineCatalog && TryGetEngineSpec(engineCatalog.Catalog.Value.Modules, moduleType.ValueRO.Value, out var engineSpec))
+                    if (hasEngineCatalog)
                     {
-                        ApplyEngineSpec(ref profile, engineSpec);
+                        ref var engineModules = ref engineCatalog.Catalog.Value.Modules;
+                        if (TryGetEngineSpec(ref engineModules, moduleType.ValueRO.Value, out var engineSpec))
+                        {
+                            ApplyEngineSpec(ref profile, engineSpec);
+                        }
                     }
                     ecb.AddComponent(entity, profile);
                 }
@@ -313,7 +317,7 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetEngineSpec(in BlobArray<EngineModuleSpec> modules, in FixedString64Bytes moduleId, out EngineModuleSpec spec)
+        private static bool TryGetEngineSpec(ref BlobArray<EngineModuleSpec> modules, in FixedString64Bytes moduleId, out EngineModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -384,7 +388,7 @@ namespace Space4X.Systems.Modules
             return tier > 0f ? tier : 0.5f;
         }
 
-        private static bool TryGetBridgeSpec(in BlobArray<BridgeModuleSpec> modules, in FixedString64Bytes moduleId, out BridgeModuleSpec spec)
+        private static bool TryGetBridgeSpec(ref BlobArray<BridgeModuleSpec> modules, in FixedString64Bytes moduleId, out BridgeModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -399,7 +403,7 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetCockpitSpec(in BlobArray<CockpitModuleSpec> modules, in FixedString64Bytes moduleId, out CockpitModuleSpec spec)
+        private static bool TryGetCockpitSpec(ref BlobArray<CockpitModuleSpec> modules, in FixedString64Bytes moduleId, out CockpitModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -414,7 +418,7 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetAmmoSpec(in BlobArray<AmmoModuleSpec> modules, in FixedString64Bytes moduleId, out AmmoModuleSpec spec)
+        private static bool TryGetAmmoSpec(ref BlobArray<AmmoModuleSpec> modules, in FixedString64Bytes moduleId, out AmmoModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -429,31 +433,43 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static float ResolveBridgeTechLevel(in FixedString64Bytes moduleId, float qualityInput, float tierInput, bool hasCatalog, in BridgeModuleCatalogSingleton catalog)
+        private static float ResolveBridgeTechLevel(in FixedString64Bytes moduleId, float qualityInput, float tierInput, bool hasCatalog, BridgeModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetBridgeSpec(catalog.Catalog.Value.Modules, moduleId, out var spec) && spec.TechLevel > 0f)
+            if (hasCatalog)
             {
-                return math.saturate(spec.TechLevel);
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetBridgeSpec(ref modules, moduleId, out var spec) && spec.TechLevel > 0f)
+                {
+                    return math.saturate(spec.TechLevel);
+                }
             }
 
             return math.clamp(0.35f + tierInput * 0.5f + qualityInput * 0.15f, 0f, 1f);
         }
 
-        private static float ResolveCockpitCohesion(in FixedString64Bytes moduleId, float qualityInput, float tierInput, bool hasCatalog, in CockpitModuleCatalogSingleton catalog)
+        private static float ResolveCockpitCohesion(in FixedString64Bytes moduleId, float qualityInput, float tierInput, bool hasCatalog, CockpitModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetCockpitSpec(catalog.Catalog.Value.Modules, moduleId, out var spec) && spec.NavigationCohesion > 0f)
+            if (hasCatalog)
             {
-                return math.saturate(spec.NavigationCohesion);
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetCockpitSpec(ref modules, moduleId, out var spec) && spec.NavigationCohesion > 0f)
+                {
+                    return math.saturate(spec.NavigationCohesion);
+                }
             }
 
             return math.clamp(0.4f + qualityInput * 0.4f + tierInput * 0.2f, 0f, 1f);
         }
 
-        private static float ResolveAmmoCapacity(in FixedString64Bytes moduleId, MountSize size, bool hasCatalog, in AmmoModuleCatalogSingleton catalog)
+        private static float ResolveAmmoCapacity(in FixedString64Bytes moduleId, MountSize size, bool hasCatalog, AmmoModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetAmmoSpec(catalog.Catalog.Value.Modules, moduleId, out var spec) && spec.AmmoCapacity > 0f)
+            if (hasCatalog)
             {
-                return math.max(0f, spec.AmmoCapacity);
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetAmmoSpec(ref modules, moduleId, out var spec) && spec.AmmoCapacity > 0f)
+                {
+                    return math.max(0f, spec.AmmoCapacity);
+                }
             }
 
             return ResolveDefaultAmmoCapacity(size);
@@ -470,7 +486,7 @@ namespace Space4X.Systems.Modules
             };
         }
 
-        private static bool TryGetShieldSpec(in BlobArray<ShieldModuleSpec> modules, in FixedString64Bytes moduleId, out ShieldModuleSpec spec)
+        private static bool TryGetShieldSpec(ref BlobArray<ShieldModuleSpec> modules, in FixedString64Bytes moduleId, out ShieldModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -485,7 +501,7 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetArmorSpec(in BlobArray<ArmorModuleSpec> modules, in FixedString64Bytes moduleId, out ArmorModuleSpec spec)
+        private static bool TryGetArmorSpec(ref BlobArray<ArmorModuleSpec> modules, in FixedString64Bytes moduleId, out ArmorModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -500,7 +516,7 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetSensorSpec(in BlobArray<SensorModuleSpec> modules, in FixedString64Bytes moduleId, out SensorModuleSpec spec)
+        private static bool TryGetSensorSpec(ref BlobArray<SensorModuleSpec> modules, in FixedString64Bytes moduleId, out SensorModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -515,7 +531,7 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetWeaponSpec(in BlobArray<WeaponModuleSpec> modules, in FixedString64Bytes moduleId, out WeaponModuleSpec spec)
+        private static bool TryGetWeaponSpec(ref BlobArray<WeaponModuleSpec> modules, in FixedString64Bytes moduleId, out WeaponModuleSpec spec)
         {
             spec = default;
             for (int i = 0; i < modules.Length; i++)
@@ -536,20 +552,24 @@ namespace Space4X.Systems.Modules
             float qualityInput,
             float tierInput,
             bool hasCatalog,
-            in ShieldModuleCatalogSingleton catalog)
+            ShieldModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetShieldSpec(catalog.Catalog.Value.Modules, moduleId, out var spec))
+            if (hasCatalog)
             {
-                return new ShieldModuleProfile
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetShieldSpec(ref modules, moduleId, out var spec))
                 {
-                    Capacity = math.max(0f, spec.Capacity),
-                    RechargePerSecond = math.max(0f, spec.RechargePerSecond),
-                    RegenDelaySeconds = math.max(0f, spec.RegenDelaySeconds),
-                    ArcDegrees = math.clamp(spec.ArcDegrees, 0f, 360f),
-                    KineticResist = math.saturate(spec.KineticResist),
-                    EnergyResist = math.saturate(spec.EnergyResist),
-                    ExplosiveResist = math.saturate(spec.ExplosiveResist)
-                };
+                    return new ShieldModuleProfile
+                    {
+                        Capacity = math.max(0f, spec.Capacity),
+                        RechargePerSecond = math.max(0f, spec.RechargePerSecond),
+                        RegenDelaySeconds = math.max(0f, spec.RegenDelaySeconds),
+                        ArcDegrees = math.clamp(spec.ArcDegrees, 0f, 360f),
+                        KineticResist = math.saturate(spec.KineticResist),
+                        EnergyResist = math.saturate(spec.EnergyResist),
+                        ExplosiveResist = math.saturate(spec.ExplosiveResist)
+                    };
+                }
             }
 
             var baseCap = size switch
@@ -582,19 +602,23 @@ namespace Space4X.Systems.Modules
             float qualityInput,
             float tierInput,
             bool hasCatalog,
-            in ArmorModuleCatalogSingleton catalog)
+            ArmorModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetArmorSpec(catalog.Catalog.Value.Modules, moduleId, out var spec))
+            if (hasCatalog)
             {
-                return new ArmorModuleProfile
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetArmorSpec(ref modules, moduleId, out var spec))
                 {
-                    HullBonus = math.max(0f, spec.HullBonus),
-                    DamageReduction = math.saturate(spec.DamageReduction),
-                    KineticResist = math.saturate(spec.KineticResist),
-                    EnergyResist = math.saturate(spec.EnergyResist),
-                    ExplosiveResist = math.saturate(spec.ExplosiveResist),
-                    RepairRateMultiplier = math.max(0f, spec.RepairRateMultiplier)
-                };
+                    return new ArmorModuleProfile
+                    {
+                        HullBonus = math.max(0f, spec.HullBonus),
+                        DamageReduction = math.saturate(spec.DamageReduction),
+                        KineticResist = math.saturate(spec.KineticResist),
+                        EnergyResist = math.saturate(spec.EnergyResist),
+                        ExplosiveResist = math.saturate(spec.ExplosiveResist),
+                        RepairRateMultiplier = math.max(0f, spec.RepairRateMultiplier)
+                    };
+                }
             }
 
             var baseThickness = size switch
@@ -623,18 +647,22 @@ namespace Space4X.Systems.Modules
             float qualityInput,
             float tierInput,
             bool hasCatalog,
-            in SensorModuleCatalogSingleton catalog)
+            SensorModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetSensorSpec(catalog.Catalog.Value.Modules, moduleId, out var spec))
+            if (hasCatalog)
             {
-                return new SensorModuleProfile
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetSensorSpec(ref modules, moduleId, out var spec))
                 {
-                    Range = math.max(0f, spec.Range),
-                    RefreshSeconds = math.max(0.02f, spec.RefreshSeconds),
-                    Resolution = math.saturate(spec.Resolution),
-                    JamResistance = math.saturate(spec.JamResistance),
-                    PassiveSignature = math.saturate(spec.PassiveSignature)
-                };
+                    return new SensorModuleProfile
+                    {
+                        Range = math.max(0f, spec.Range),
+                        RefreshSeconds = math.max(0.02f, spec.RefreshSeconds),
+                        Resolution = math.saturate(spec.Resolution),
+                        JamResistance = math.saturate(spec.JamResistance),
+                        PassiveSignature = math.saturate(spec.PassiveSignature)
+                    };
+                }
             }
 
             var baseRange = size switch
@@ -664,18 +692,22 @@ namespace Space4X.Systems.Modules
             float qualityInput,
             float tierInput,
             bool hasCatalog,
-            in WeaponModuleCatalogSingleton catalog)
+            WeaponModuleCatalogSingleton catalog)
         {
-            if (hasCatalog && TryGetWeaponSpec(catalog.Catalog.Value.Modules, moduleId, out var spec))
+            if (hasCatalog)
             {
-                return new WeaponModuleProfile
+                ref var modules = ref catalog.Catalog.Value.Modules;
+                if (TryGetWeaponSpec(ref modules, moduleId, out var spec))
                 {
-                    WeaponId = spec.WeaponId,
-                    FireArcDegrees = math.max(0f, spec.FireArcDegrees),
-                    FireArcOffsetDeg = spec.FireArcOffsetDeg,
-                    AccuracyBonus = spec.AccuracyBonus,
-                    TrackingBonus = spec.TrackingBonus
-                };
+                    return new WeaponModuleProfile
+                    {
+                        WeaponId = spec.WeaponId,
+                        FireArcDegrees = math.max(0f, spec.FireArcDegrees),
+                        FireArcOffsetDeg = spec.FireArcOffsetDeg,
+                        AccuracyBonus = spec.AccuracyBonus,
+                        TrackingBonus = spec.TrackingBonus
+                    };
+                }
             }
 
             var arc = moduleClass switch
