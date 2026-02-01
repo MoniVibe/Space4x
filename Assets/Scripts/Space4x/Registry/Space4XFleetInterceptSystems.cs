@@ -116,6 +116,7 @@ namespace Space4X.Registry
         private ComponentLookup<FleetMovementBroadcast> _broadcastLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
+        private ComponentLookup<CrewTransferMission> _missionLookup;
 
         private const float DefaultDetectionRadius = 250f;
         private const float DefaultDetectionRadiusSq = DefaultDetectionRadius * DefaultDetectionRadius;
@@ -125,6 +126,7 @@ namespace Space4X.Registry
             _broadcastLookup = state.GetComponentLookup<FleetMovementBroadcast>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _missionLookup = state.GetComponentLookup<CrewTransferMission>(true);
 
             state.RequireForUpdate<Space4XFleetInterceptQueue>();
             state.RequireForUpdate<TimeState>();
@@ -148,12 +150,18 @@ namespace Space4X.Registry
             _broadcastLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _statsLookup.Update(ref state);
+            _missionLookup.Update(ref state);
 
             var queueEntity = SystemAPI.GetSingletonEntity<Space4XFleetInterceptQueue>();
             var requests = state.EntityManager.GetBuffer<InterceptRequest>(queueEntity);
 
             foreach (var (capability, requesterEntity) in SystemAPI.Query<RefRO<InterceptCapability>>().WithEntityAccess())
             {
+                if (_missionLookup.HasComponent(requesterEntity))
+                {
+                    continue;
+                }
+
                 if (!_transformLookup.HasComponent(requesterEntity))
                 {
                     continue;

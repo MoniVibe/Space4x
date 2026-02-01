@@ -154,26 +154,39 @@ namespace Space4X.Registry
     [UpdateBefore(typeof(Space4XWeaponSystem))]
     public partial struct Space4XFocusCombatIntegrationSystem : ISystem
     {
+        private ComponentLookup<Space4XFocusModifiers> _focusLookup;
+        private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<Space4XFocusModifiers>();
             state.RequireForUpdate<WeaponMount>();
+            _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
+            _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _focusLookup.Update(ref state);
+            _pilotLookup.Update(ref state);
+            _strikePilotLookup.Update(ref state);
+
             // Apply weapons officer focus to weapon mounts
-            foreach (var (modifiers, weapons, engagement) in
-                SystemAPI.Query<RefRO<Space4XFocusModifiers>, DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>>())
+            foreach (var (weapons, engagement, entity) in
+                SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>>().WithEntityAccess())
             {
+                if (!TryResolveModifiers(entity, out var modifiers))
+                {
+                    continue;
+                }
+
                 var weaponBuffer = weapons;
 
-                // Apply accuracy and rate of fire bonuses from focus
-                float accuracyBonus = (float)modifiers.ValueRO.AccuracyBonus;
-                float rofMultiplier = (float)modifiers.ValueRO.RateOfFireMultiplier;
-                float coolingMult = (float)modifiers.ValueRO.CoolingEfficiency;
+                // Apply cooling efficiency bonus from focus
+                float coolingMult = (float)modifiers.CoolingEfficiency;
 
                 for (int i = 0; i < weaponBuffer.Length; i++)
                 {
@@ -190,8 +203,50 @@ namespace Space4X.Registry
                 }
 
                 // Apply evasion bonus from tactical focus
-                engagement.ValueRW.EvasionModifier = (half)((float)engagement.ValueRO.EvasionModifier + (float)modifiers.ValueRO.EvasionBonus);
+                engagement.ValueRW.EvasionModifier = (half)((float)engagement.ValueRO.EvasionModifier + (float)modifiers.EvasionBonus);
             }
+        }
+
+        private bool TryResolveModifiers(Entity shipEntity, out Space4XFocusModifiers modifiers)
+        {
+            if (_focusLookup.HasComponent(shipEntity))
+            {
+                modifiers = _focusLookup[shipEntity];
+                return true;
+            }
+
+            var pilot = ResolvePilot(shipEntity);
+            if (pilot != Entity.Null && _focusLookup.HasComponent(pilot))
+            {
+                modifiers = _focusLookup[pilot];
+                return true;
+            }
+
+            modifiers = default;
+            return false;
+        }
+
+        private Entity ResolvePilot(Entity shipEntity)
+        {
+            if (_pilotLookup.HasComponent(shipEntity))
+            {
+                var pilot = _pilotLookup[shipEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            if (_strikePilotLookup.HasComponent(shipEntity))
+            {
+                var pilot = _strikePilotLookup[shipEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            return Entity.Null;
         }
     }
 
@@ -461,4 +516,3 @@ namespace Space4X.Registry
         }
     }
 }
-

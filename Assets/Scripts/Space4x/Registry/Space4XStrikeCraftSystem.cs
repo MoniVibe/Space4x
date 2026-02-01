@@ -319,6 +319,8 @@ namespace Space4X.Registry
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
         private ComponentLookup<StrikeCraftKinematics> _kinematicsLookup;
         private ComponentLookup<VesselMovement> _vesselMovementLookup;
+        private BufferLookup<SubsystemHealth> _subsystemLookup;
+        private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private uint _lastTick;
         private const float PnNavConstant = 3.5f;
 
@@ -331,6 +333,8 @@ namespace Space4X.Registry
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
             _kinematicsLookup = state.GetComponentLookup<StrikeCraftKinematics>(true);
             _vesselMovementLookup = state.GetComponentLookup<VesselMovement>(true);
+            _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
+            _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
         }
 
         [BurstCompile]
@@ -361,13 +365,16 @@ namespace Space4X.Registry
             _alignmentLookup.Update(ref state);
             _kinematicsLookup.Update(ref state);
             _vesselMovementLookup.Update(ref state);
+            _subsystemLookup.Update(ref state);
+            _subsystemDisabledLookup.Update(ref state);
 
             foreach (var (craftState, config, transform, kinematics, entity) in
                 SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>, RefRW<StrikeCraftKinematics>>()
                     .WithNone<StrikeCraftDogfightTag>()
                     .WithEntityAccess())
             {
-                float speed = 50f; // Base speed
+                var baseSpeed = ResolveBaseSpeed(entity);
+                var speed = baseSpeed * ResolveRoleSpeed(craftState.ValueRO.Role);
                 var chaos = 0.5f;
                 if (_alignmentLookup.HasComponent(entity))
                 {
@@ -384,8 +391,8 @@ namespace Space4X.Registry
                 }
 
                 var velocity = kinematics.ValueRO.Velocity;
-                var accel = speed * 1.8f;
-                var decel = speed * 2.4f;
+                var accel = math.max(1f, speed * 1.8f);
+                var decel = math.max(1f, speed * 2.4f);
 
                 switch (craftState.ValueRO.Phase)
                 {
@@ -498,7 +505,7 @@ namespace Space4X.Registry
                             {
                                 var targetPosition = carrierTransform.Position + orbitOffset;
                                 var toTarget = targetPosition - transform.ValueRO.Position;
-                                var patrolSpeed = speed * 0.45f;
+                            var patrolSpeed = speed * 0.45f;
                                 if (math.lengthsq(toTarget) > 0.01f)
                                 {
                                     var direction = math.normalizesafe(toTarget);
@@ -516,6 +523,49 @@ namespace Space4X.Registry
 
                 kinematics.ValueRW.Velocity = velocity;
             }
+        }
+
+        private static float ResolveRoleSpeed(StrikeCraftRole role)
+        {
+            return role switch
+            {
+                StrikeCraftRole.Interceptor => 1.1f,
+                StrikeCraftRole.Bomber => 0.85f,
+                StrikeCraftRole.Suppression => 0.9f,
+                StrikeCraftRole.Recon => 1.05f,
+                StrikeCraftRole.EWar => 1.0f,
+                _ => 1f
+            };
+        }
+
+        private float ResolveBaseSpeed(Entity entity)
+        {
+            var baseSpeed = 50f;
+            if (_vesselMovementLookup.HasComponent(entity))
+            {
+                var movement = _vesselMovementLookup[entity];
+                if (movement.BaseSpeed > 0f)
+                {
+                    baseSpeed = movement.BaseSpeed;
+                }
+            }
+
+            var engineScale = 1f;
+            if (_subsystemLookup.HasBuffer(entity))
+            {
+                var subsystems = _subsystemLookup[entity];
+                if (_subsystemDisabledLookup.HasBuffer(entity))
+                {
+                    var disabled = _subsystemDisabledLookup[entity];
+                    engineScale = Space4XSubsystemUtility.ResolveEngineScale(subsystems, disabled);
+                }
+                else if (Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, SubsystemType.Engines))
+                {
+                    engineScale = Space4XSubsystemUtility.EngineDisabledScale;
+                }
+            }
+
+            return math.max(0.1f, baseSpeed * engineScale);
         }
 
         private static float3 ResolveTargetVelocity(

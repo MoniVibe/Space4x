@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Modules;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -32,6 +33,46 @@ namespace Space4X.Registry
                 CreateDefaultTuning(ref state);
             }
 
+            if (!SystemAPI.TryGetSingletonEntity<EngineModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultEngineModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<ShieldModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultShieldModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<SensorModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultSensorModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<ArmorModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultArmorModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<WeaponModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultWeaponModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<BridgeModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultBridgeModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<CockpitModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultCockpitModuleCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<AmmoModuleCatalogSingleton>(out _))
+            {
+                CreateDefaultAmmoModuleCatalog(ref state);
+            }
+
             state.Enabled = false;
         }
 
@@ -63,13 +104,85 @@ namespace Space4X.Registry
                     tuningRef.ValueRW.Tuning = default;
                 }
             }
+
+            foreach (var engineCatalogRef in SystemAPI.Query<RefRW<EngineModuleCatalogSingleton>>())
+            {
+                if (engineCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    engineCatalogRef.ValueRO.Catalog.Dispose();
+                    engineCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var shieldCatalogRef in SystemAPI.Query<RefRW<ShieldModuleCatalogSingleton>>())
+            {
+                if (shieldCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    shieldCatalogRef.ValueRO.Catalog.Dispose();
+                    shieldCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var sensorCatalogRef in SystemAPI.Query<RefRW<SensorModuleCatalogSingleton>>())
+            {
+                if (sensorCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    sensorCatalogRef.ValueRO.Catalog.Dispose();
+                    sensorCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var armorCatalogRef in SystemAPI.Query<RefRW<ArmorModuleCatalogSingleton>>())
+            {
+                if (armorCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    armorCatalogRef.ValueRO.Catalog.Dispose();
+                    armorCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var weaponCatalogRef in SystemAPI.Query<RefRW<WeaponModuleCatalogSingleton>>())
+            {
+                if (weaponCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    weaponCatalogRef.ValueRO.Catalog.Dispose();
+                    weaponCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var bridgeCatalogRef in SystemAPI.Query<RefRW<BridgeModuleCatalogSingleton>>())
+            {
+                if (bridgeCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    bridgeCatalogRef.ValueRO.Catalog.Dispose();
+                    bridgeCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var cockpitCatalogRef in SystemAPI.Query<RefRW<CockpitModuleCatalogSingleton>>())
+            {
+                if (cockpitCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    cockpitCatalogRef.ValueRO.Catalog.Dispose();
+                    cockpitCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var ammoCatalogRef in SystemAPI.Query<RefRW<AmmoModuleCatalogSingleton>>())
+            {
+                if (ammoCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    ammoCatalogRef.ValueRO.Catalog.Dispose();
+                    ammoCatalogRef.ValueRW.Catalog = default;
+                }
+            }
         }
 
         private void CreateDefaultModuleCatalog(ref SystemState state)
         {
             using var builder = new BlobBuilder(Allocator.Temp);
             ref var catalogBlob = ref builder.ConstructRoot<ModuleCatalogBlob>();
-            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 14);
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 17);
 
             moduleArray[0] = new ModuleSpec { Id = new FixedString64Bytes("reactor-mk1"), Class = ModuleClass.Reactor, RequiredMount = MountType.Core, RequiredSize = MountSize.S, MassTons = 40f, PowerDrawMW = -120f, OffenseRating = 0, DefenseRating = 0, UtilityRating = 2, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("") };
             moduleArray[1] = new ModuleSpec { Id = new FixedString64Bytes("engine-mk1"), Class = ModuleClass.Engine, RequiredMount = MountType.Engine, RequiredSize = MountSize.S, MassTons = 20f, PowerDrawMW = 30f, OffenseRating = 0, DefenseRating = 0, UtilityRating = 2, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("") };
@@ -85,6 +198,9 @@ namespace Space4X.Registry
             moduleArray[11] = new ModuleSpec { Id = new FixedString64Bytes("engine-mk2"), Class = ModuleClass.Engine, RequiredMount = MountType.Engine, RequiredSize = MountSize.M, MassTons = 32f, PowerDrawMW = 50f, OffenseRating = 0, DefenseRating = 0, UtilityRating = 3, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("") };
             moduleArray[12] = new ModuleSpec { Id = new FixedString64Bytes("missile-m-1"), Class = ModuleClass.Missile, RequiredMount = MountType.Weapon, RequiredSize = MountSize.M, MassTons = 16f, PowerDrawMW = 20f, OffenseRating = 7, DefenseRating = 0, UtilityRating = 0, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("") };
             moduleArray[13] = new ModuleSpec { Id = new FixedString64Bytes("shield-m-1"), Class = ModuleClass.Shield, RequiredMount = MountType.Defense, RequiredSize = MountSize.M, MassTons = 22f, PowerDrawMW = 50f, OffenseRating = 0, DefenseRating = 6, UtilityRating = 0, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("") };
+            moduleArray[14] = new ModuleSpec { Id = new FixedString64Bytes("bridge-mk1"), Class = ModuleClass.Bridge, RequiredMount = MountType.Utility, RequiredSize = MountSize.S, MassTons = 12f, PowerDrawMW = 10f, OffenseRating = 0, DefenseRating = 0, UtilityRating = 4, DefaultEfficiency = 1f, Function = ModuleFunction.Command, FunctionCapacity = 1f, FunctionDescription = new FixedString64Bytes("Bridge command deck") };
+            moduleArray[15] = new ModuleSpec { Id = new FixedString64Bytes("cockpit-mk1"), Class = ModuleClass.Cockpit, RequiredMount = MountType.Utility, RequiredSize = MountSize.S, MassTons = 6f, PowerDrawMW = 6f, OffenseRating = 0, DefenseRating = 0, UtilityRating = 2, DefaultEfficiency = 1f, Function = ModuleFunction.Command, FunctionCapacity = 1f, FunctionDescription = new FixedString64Bytes("Pilot cockpit") };
+            moduleArray[16] = new ModuleSpec { Id = new FixedString64Bytes("ammo-bay-s-1"), Class = ModuleClass.Ammunition, RequiredMount = MountType.Utility, RequiredSize = MountSize.S, MassTons = 12f, PowerDrawMW = 2f, OffenseRating = 0, DefenseRating = 1, UtilityRating = 1, DefaultEfficiency = 1f, Function = ModuleFunction.None, FunctionCapacity = 0f, FunctionDescription = new FixedString64Bytes("Ammo bay") };
 
             var blobAsset = builder.CreateBlobAssetReference<ModuleCatalogBlob>(Allocator.Persistent);
 
@@ -169,6 +285,234 @@ namespace Space4X.Registry
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new RefitRepairTuningSingleton { Tuning = blobAsset });
         }
+
+        private void CreateDefaultEngineModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<EngineModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 2);
+
+            moduleArray[0] = new EngineModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("engine-mk1"),
+                EngineClass = EngineClass.Civilian,
+                FuelType = EngineFuelType.Chemical,
+                IntakeType = EngineIntakeType.None,
+                VectoringMode = EngineVectoringMode.Vectored,
+                TechLevel = 0f,
+                Quality = 0f,
+                ThrustScalar = 0f,
+                TurnScalar = 0f,
+                ResponseRating = 0f,
+                EfficiencyRating = 0f,
+                BoostRating = 0f,
+                VectoringRating = 0f
+            };
+
+            moduleArray[1] = new EngineModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("engine-mk2"),
+                EngineClass = EngineClass.Military,
+                FuelType = EngineFuelType.Fusion,
+                IntakeType = EngineIntakeType.ReactorFeed,
+                VectoringMode = EngineVectoringMode.Vectored,
+                TechLevel = 0f,
+                Quality = 0f,
+                ThrustScalar = 0f,
+                TurnScalar = 0f,
+                ResponseRating = 0f,
+                EfficiencyRating = 0f,
+                BoostRating = 0f,
+                VectoringRating = 0f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<EngineModuleCatalogBlob>(Allocator.Persistent);
+
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new EngineModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultShieldModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<ShieldModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 2);
+
+            moduleArray[0] = new ShieldModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("shield-s-1"),
+                Capacity = 220f,
+                RechargePerSecond = 6f,
+                RegenDelaySeconds = 3f,
+                ArcDegrees = 360f,
+                KineticResist = 1f,
+                EnergyResist = 1f,
+                ExplosiveResist = 1f
+            };
+
+            moduleArray[1] = new ShieldModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("shield-m-1"),
+                Capacity = 520f,
+                RechargePerSecond = 12f,
+                RegenDelaySeconds = 3.5f,
+                ArcDegrees = 360f,
+                KineticResist = 1f,
+                EnergyResist = 1f,
+                ExplosiveResist = 1f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<ShieldModuleCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new ShieldModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultSensorModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<SensorModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 1);
+
+            moduleArray[0] = new SensorModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("scanner-s-1"),
+                Range = 420f,
+                RefreshSeconds = 0.25f,
+                Resolution = 0.7f,
+                JamResistance = 0.35f,
+                PassiveSignature = 0.2f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<SensorModuleCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new SensorModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultArmorModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<ArmorModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 1);
+
+            moduleArray[0] = new ArmorModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("armor-s-1"),
+                HullBonus = 22f,
+                DamageReduction = 0.25f,
+                KineticResist = 1f,
+                EnergyResist = 1f,
+                ExplosiveResist = 1f,
+                RepairRateMultiplier = 1f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<ArmorModuleCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new ArmorModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultWeaponModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<WeaponModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 4);
+
+            moduleArray[0] = new WeaponModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("laser-s-1"),
+                WeaponId = new FixedString64Bytes("laser-s-1"),
+                FireArcDegrees = 180f,
+                FireArcOffsetDeg = 0f,
+                AccuracyBonus = 0f,
+                TrackingBonus = 0.05f
+            };
+
+            moduleArray[1] = new WeaponModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("pd-s-1"),
+                WeaponId = new FixedString64Bytes("pd-s-1"),
+                FireArcDegrees = 240f,
+                FireArcOffsetDeg = 0f,
+                AccuracyBonus = 0.05f,
+                TrackingBonus = 0.15f
+            };
+
+            moduleArray[2] = new WeaponModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("missile-s-1"),
+                WeaponId = new FixedString64Bytes("missile-s-1"),
+                FireArcDegrees = 140f,
+                FireArcOffsetDeg = 0f,
+                AccuracyBonus = 0f,
+                TrackingBonus = 0.05f
+            };
+
+            moduleArray[3] = new WeaponModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("missile-m-1"),
+                WeaponId = new FixedString64Bytes("missile-m-1"),
+                FireArcDegrees = 140f,
+                FireArcOffsetDeg = 0f,
+                AccuracyBonus = 0f,
+                TrackingBonus = 0.05f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<WeaponModuleCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new WeaponModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultBridgeModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<BridgeModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 1);
+
+            moduleArray[0] = new BridgeModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("bridge-mk1"),
+                TechLevel = 0f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<BridgeModuleCatalogBlob>(Allocator.Persistent);
+
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new BridgeModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultCockpitModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<CockpitModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 1);
+
+            moduleArray[0] = new CockpitModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("cockpit-mk1"),
+                NavigationCohesion = 0f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<CockpitModuleCatalogBlob>(Allocator.Persistent);
+
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new CockpitModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultAmmoModuleCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<AmmoModuleCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 1);
+
+            moduleArray[0] = new AmmoModuleSpec
+            {
+                ModuleId = new FixedString64Bytes("ammo-bay-s-1"),
+                AmmoCapacity = 0f
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<AmmoModuleCatalogBlob>(Allocator.Persistent);
+
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new AmmoModuleCatalogSingleton { Catalog = blobAsset });
+        }
     }
 }
-

@@ -48,12 +48,15 @@ namespace Space4X.Systems.AI
         private ComponentLookup<MiningState> _miningStateLookup;
         private ComponentLookup<ModuleStatAggregate> _moduleAggregateLookup;
         private ComponentLookup<ModuleCapabilityOutput> _moduleCapabilityLookup;
+        private ComponentLookup<EnginePerformanceOutput> _engineOutputLookup;
         private BufferLookup<ShipPowerConsumer> _shipPowerConsumerLookup;
         private ComponentLookup<PowerConsumer> _powerConsumerLookup;
         private ComponentLookup<PowerEffectiveness> _powerEffectivenessLookup;
         private ComponentLookup<VesselQuality> _qualityLookup;
         private ComponentLookup<VesselMobilityProfile> _mobilityProfileLookup;
         private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
+        private ComponentLookup<NavigationCohesion> _navigationLookup;
+        private ComponentLookup<Space4XFocusModifiers> _focusModifiersLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
@@ -98,12 +101,15 @@ namespace Space4X.Systems.AI
             _miningStateLookup = state.GetComponentLookup<MiningState>(true);
             _moduleAggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
             _moduleCapabilityLookup = state.GetComponentLookup<ModuleCapabilityOutput>(true);
+            _engineOutputLookup = state.GetComponentLookup<EnginePerformanceOutput>(true);
             _shipPowerConsumerLookup = state.GetBufferLookup<ShipPowerConsumer>(true);
             _powerConsumerLookup = state.GetComponentLookup<PowerConsumer>(true);
             _powerEffectivenessLookup = state.GetComponentLookup<PowerEffectiveness>(true);
             _qualityLookup = state.GetComponentLookup<VesselQuality>(true);
             _mobilityProfileLookup = state.GetComponentLookup<VesselMobilityProfile>(true);
             _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
+            _navigationLookup = state.GetComponentLookup<NavigationCohesion>(true);
+            _focusModifiersLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
@@ -223,12 +229,15 @@ namespace Space4X.Systems.AI
             _miningStateLookup.Update(ref state);
             _moduleAggregateLookup.Update(ref state);
             _moduleCapabilityLookup.Update(ref state);
+            _engineOutputLookup.Update(ref state);
             _shipPowerConsumerLookup.Update(ref state);
             _powerConsumerLookup.Update(ref state);
             _powerEffectivenessLookup.Update(ref state);
             _qualityLookup.Update(ref state);
             _mobilityProfileLookup.Update(ref state);
             _physicalLookup.Update(ref state);
+            _navigationLookup.Update(ref state);
+            _focusModifiersLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
@@ -293,12 +302,15 @@ namespace Space4X.Systems.AI
                 MiningStateLookup = _miningStateLookup,
                 ModuleAggregateLookup = _moduleAggregateLookup,
                 ModuleCapabilityLookup = _moduleCapabilityLookup,
+                EngineOutputLookup = _engineOutputLookup,
                 ShipPowerConsumerLookup = _shipPowerConsumerLookup,
                 PowerConsumerLookup = _powerConsumerLookup,
                 PowerEffectivenessLookup = _powerEffectivenessLookup,
                 QualityLookup = _qualityLookup,
                 MobilityProfileLookup = _mobilityProfileLookup,
                 PhysicalLookup = _physicalLookup,
+                NavigationLookup = _navigationLookup,
+                FocusModifiersLookup = _focusModifiersLookup,
                 ResolvedControlLookup = _resolvedControlLookup,
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
                 AsteroidLookup = _asteroidLookup,
@@ -326,7 +338,7 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
-        [WithNone(typeof(StrikeCraftDogfightTag))]
+        [WithNone(typeof(StrikeCraftDogfightTag), typeof(SimulationDisabledTag))]
         public partial struct UpdateVesselMovementJob : IJobEntity
         {
             public float DeltaTime;
@@ -355,12 +367,15 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<MiningState> MiningStateLookup;
             [ReadOnly] public ComponentLookup<ModuleStatAggregate> ModuleAggregateLookup;
             [ReadOnly] public ComponentLookup<ModuleCapabilityOutput> ModuleCapabilityLookup;
+            [ReadOnly] public ComponentLookup<EnginePerformanceOutput> EngineOutputLookup;
             [ReadOnly] public BufferLookup<ShipPowerConsumer> ShipPowerConsumerLookup;
             [ReadOnly] public ComponentLookup<PowerConsumer> PowerConsumerLookup;
             [ReadOnly] public ComponentLookup<PowerEffectiveness> PowerEffectivenessLookup;
             [ReadOnly] public ComponentLookup<VesselQuality> QualityLookup;
             [ReadOnly] public ComponentLookup<VesselMobilityProfile> MobilityProfileLookup;
             [ReadOnly] public ComponentLookup<VesselPhysicalProperties> PhysicalLookup;
+            [ReadOnly] public ComponentLookup<NavigationCohesion> NavigationLookup;
+            [ReadOnly] public ComponentLookup<Space4XFocusModifiers> FocusModifiersLookup;
             [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
@@ -396,6 +411,7 @@ namespace Space4X.Systems.AI
                 {
                     turnRateState.Initialized = 1;
                     turnRateState.LastAngularSpeed = 0f;
+                    turnRateState.SmoothedDirection = float3.zero;
                 }
 
                 if (!IsFinite(transform.Position) || !IsFinite(transform.Rotation.value) || !IsFinite(movement.Velocity))
@@ -473,11 +489,35 @@ namespace Space4X.Systems.AI
 
                 var thrustAuthority = 1f;
                 var turnAuthority = 1f;
-                if (ModuleCapabilityLookup.HasComponent(entity))
+                var hasCapability = ModuleCapabilityLookup.HasComponent(entity);
+                if (hasCapability)
                 {
                     var capability = ModuleCapabilityLookup[entity];
                     thrustAuthority = math.saturate(capability.ThrustAuthority);
                     turnAuthority = math.saturate(capability.TurnAuthority);
+                }
+
+                var engineResponse = 0.5f;
+                var engineEfficiency = 0.5f;
+                var engineBoost = 0.5f;
+                var engineTech = 0.5f;
+                var engineQuality = 0.5f;
+                var engineVectoring = 0.5f;
+                if (EngineOutputLookup.HasComponent(entity))
+                {
+                    var engineOutput = EngineOutputLookup[entity];
+                    engineResponse = math.saturate(engineOutput.Response);
+                    engineEfficiency = math.saturate(engineOutput.Efficiency);
+                    engineBoost = math.saturate(engineOutput.Boost);
+                    engineTech = math.saturate(engineOutput.TechLevel);
+                    engineQuality = math.saturate(engineOutput.Quality);
+                    engineVectoring = math.saturate(engineOutput.Vectoring);
+
+                    if (!hasCapability)
+                    {
+                        thrustAuthority = math.saturate(engineOutput.ThrustAuthority);
+                        turnAuthority = math.saturate(engineOutput.TurnAuthority);
+                    }
                 }
                 var powerAuthority = ResolvePowerAuthority(entity);
                 thrustAuthority *= powerAuthority;
@@ -525,6 +565,12 @@ namespace Space4X.Systems.AI
                     cargoMass = math.max(0f, MiningVesselLookup[entity].CurrentCargo) * math.max(0f, physical.CargoMassPerUnit);
                 }
                 var massFactor = math.saturate(1f / (1f + cargoMass / baseMass));
+                var totalMass = baseMass + cargoMass;
+                var massScale = math.max(1f, totalMass / 60f);
+                var massAccelPenalty = math.max(0.2f, math.rsqrt(massScale));
+                var massDecelPenalty = math.max(0.2f, math.rsqrt(massScale * 0.85f));
+                var massTurnPenalty = math.max(0.15f, math.rsqrt(massScale * 1.15f));
+                var massSlowdownMultiplier = math.lerp(1f, 1.5f, math.saturate((massScale - 1f) / 6f));
                 var restitution = math.clamp(physical.Restitution * massFactor, 0f, 1f);
                 var tangentialDamping = math.clamp(physical.TangentialDamping, 0f, 1f);
                 var toTarget = targetPosition - transform.Position;
@@ -561,14 +607,40 @@ namespace Space4X.Systems.AI
 
                 var command = 0.5f;
                 var tactics = 0.5f;
+                var engineering = 0.5f;
                 if (StatsLookup.HasComponent(profileEntity))
                 {
                     var stats = StatsLookup[profileEntity];
                     command = math.saturate((float)stats.Command / 100f);
                     tactics = math.saturate((float)stats.Tactics / 100f);
+                    engineering = math.saturate((float)stats.Engineering / 100f);
                 }
 
-                var intelligence = math.saturate((command + tactics) * 0.5f);
+                var navigationCohesion = NavigationLookup.HasComponent(entity)
+                    ? math.saturate(NavigationLookup[entity].Value)
+                    : 0.5f;
+                var navStability = math.lerp(0.9f, 1.1f, navigationCohesion);
+                discipline = math.saturate(discipline * navStability);
+
+                var pilotSkill = math.saturate(command * 0.45f + tactics * 0.35f + engineering * 0.2f);
+                var intelligence = math.saturate((command + tactics) * 0.5f * navStability);
+                var focusEvasion = 0f;
+                var focusFormation = 0f;
+                var focusEntity = Entity.Null;
+                if (FocusModifiersLookup.HasComponent(entity))
+                {
+                    focusEntity = entity;
+                }
+                else if (FocusModifiersLookup.HasComponent(profileEntity))
+                {
+                    focusEntity = profileEntity;
+                }
+                if (focusEntity != Entity.Null)
+                {
+                    var focusMods = FocusModifiersLookup[focusEntity];
+                    focusEvasion = math.max(0f, (float)focusMods.EvasionBonus);
+                    focusFormation = math.max(0f, (float)focusMods.FormationCohesionBonus);
+                }
                 var deliberate = math.saturate(lawfulness * (0.35f + integrity * 0.65f));
                 var economic = math.saturate(integrity * (0.4f + lawfulness * 0.6f));
                 var chaotic = math.saturate(chaos * (1f - discipline * 0.35f));
@@ -577,6 +649,14 @@ namespace Space4X.Systems.AI
                 deliberate = math.saturate(math.lerp(deliberate, compliance, 0.4f));
                 chaotic = math.saturate(math.lerp(chaotic, 1f - compliance, 0.35f));
                 risk = math.saturate(math.lerp(risk, riskTolerance, 0.5f));
+
+                var pushIntent = math.saturate(
+                    math.lerp(0.35f, 0.95f, aggression)
+                    * math.lerp(1.05f, 0.85f, caution)
+                    * math.lerp(1f, 1.1f, risk));
+                var pushControl = math.saturate(
+                    math.lerp(0.75f, 1.1f, pilotSkill)
+                    * math.lerp(0.9f, 1.05f, navigationCohesion));
 
                 var currentSpeed = math.length(movement.Velocity);
                 var currentSpeedSq = currentSpeed * currentSpeed;
@@ -650,6 +730,43 @@ namespace Space4X.Systems.AI
                 accelerationMultiplier *= math.lerp(1.1f, 0.85f, patience);
                 decelerationMultiplier *= math.lerp(0.95f, 1.15f, patience);
 
+                var engineResponseMultiplier = math.lerp(0.8f, 1.2f, engineResponse);
+                var engineBoostSpeedMultiplier = math.lerp(1f, 1.25f, engineBoost);
+                var engineBoostAccelMultiplier = math.lerp(1f, 1.2f, engineBoost);
+                var engineEfficiencyMultiplier = math.lerp(0.9f, 1.1f, engineEfficiency);
+                var engineVectoringMultiplier = math.lerp(0.7f, 1.25f, engineVectoring);
+                var engineTechMultiplier = math.lerp(0.9f, 1.1f, engineTech);
+                var engineQualityMultiplier = math.lerp(0.9f, 1.1f, engineQuality);
+
+                speedMultiplier *= engineBoostSpeedMultiplier * engineEfficiencyMultiplier * engineTechMultiplier;
+                accelerationMultiplier *= engineResponseMultiplier * engineBoostAccelMultiplier * engineQualityMultiplier;
+                decelerationMultiplier *= engineResponseMultiplier * engineQualityMultiplier;
+                rotationMultiplier *= engineVectoringMultiplier * engineResponseMultiplier * engineTechMultiplier;
+
+                speedMultiplier *= math.lerp(1f, 1.12f, pushIntent);
+                accelerationMultiplier *= math.lerp(0.9f, 1.2f, pushIntent) * math.lerp(0.9f, 1.1f, pushControl);
+                rotationMultiplier *= math.lerp(0.95f, 1.12f, pushIntent) * math.lerp(0.9f, 1.1f, pushControl);
+                var brakePenalty = math.lerp(1.05f, 0.75f, pushIntent);
+                decelerationMultiplier *= math.lerp(brakePenalty, 1f, pushControl);
+
+                var navigationMultiplier = math.lerp(0.9f, 1.1f, navigationCohesion);
+                accelerationMultiplier *= math.lerp(0.95f, 1.05f, navigationCohesion);
+                decelerationMultiplier *= math.lerp(0.95f, 1.05f, navigationCohesion);
+                rotationMultiplier *= navigationMultiplier;
+                slowdownMultiplier *= math.lerp(1.1f, 0.9f, navigationCohesion);
+                slowdownMultiplier *= math.lerp(1.15f, 0.9f, engineResponse);
+                slowdownMultiplier *= math.lerp(1.1f, 0.85f, pushIntent);
+                slowdownMultiplier *= massSlowdownMultiplier;
+                if (focusEvasion > 0f || focusFormation > 0f)
+                {
+                    var evasionMult = math.lerp(1f, 1.25f, math.saturate(focusEvasion));
+                    rotationMultiplier *= evasionMult;
+                    accelerationMultiplier *= math.lerp(1f, 1.15f, focusEvasion);
+                    decelerationMultiplier *= math.lerp(1f, 1.1f, focusEvasion);
+                    slowdownMultiplier *= math.lerp(1.05f, 0.85f, focusEvasion);
+                    rotationMultiplier *= math.lerp(1f, 1.1f, math.saturate(focusFormation));
+                }
+
                 var isCarrier = CarrierLookup.HasComponent(entity);
                 if (isCarrier)
                 {
@@ -674,6 +791,9 @@ namespace Space4X.Systems.AI
                 accelerationMultiplier *= thrustAuthority;
                 decelerationMultiplier *= thrustAuthority;
                 rotationMultiplier *= turnAuthority;
+                accelerationMultiplier *= massAccelPenalty;
+                decelerationMultiplier *= massDecelPenalty;
+                rotationMultiplier *= massTurnPenalty;
 
                 var mobilitySpeedMultiplier = 1f;
                 if (MobilityProfileLookup.HasComponent(entity))
@@ -704,7 +824,8 @@ namespace Space4X.Systems.AI
                 {
                     var currentDir = math.normalize(movement.Velocity);
                     var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
-                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f);
+                    var focusSteer = 1f + focusEvasion * 0.35f;
+                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f * focusSteer);
                     direction = math.normalizesafe(math.lerp(currentDir, direction, steer), direction);
                 }
                 if (forceStop && currentSpeedSq > 1e-4f)
@@ -854,6 +975,24 @@ namespace Space4X.Systems.AI
                     }
                 }
 
+                var stabilizedDirection = StabilizeDirection(
+                    direction,
+                    math.forward(transform.Rotation),
+                    ref turnRateState,
+                    discipline,
+                    intelligence,
+                    chaotic,
+                    currentSpeed,
+                    baseSpeed,
+                    DeltaTime,
+                    forceStop);
+                if (math.lengthsq(stabilizedDirection - direction) > 1e-6f)
+                {
+                    var desiredSpeedMag = math.length(desiredVelocity);
+                    desiredVelocity = stabilizedDirection * desiredSpeedMag;
+                    direction = stabilizedDirection;
+                }
+
                 var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
                 var maxDelta = accelLimit * DeltaTime;
                 var throttle = 1f;
@@ -963,7 +1102,7 @@ namespace Space4X.Systems.AI
                 if (math.lengthsq(movement.Velocity) > 0.001f)
                 {
                     var rotationDirection = direction;
-                    if (hasAttackMove && AimDirectiveLookup.HasComponent(entity))
+                    if (AimDirectiveLookup.HasComponent(entity))
                     {
                         var aim = AimDirectiveLookup[entity];
                         if (aim.AimWeight > 0f && math.lengthsq(aim.AimDirection) > 0.001f)
@@ -1044,6 +1183,50 @@ namespace Space4X.Systems.AI
                 }
 
                 return BehaviorDisposition.Default;
+            }
+
+            private static float3 StabilizeDirection(
+                float3 desiredDirection,
+                float3 fallbackDirection,
+                ref VesselTurnRateState turnRateState,
+                float discipline,
+                float intelligence,
+                float chaotic,
+                float currentSpeed,
+                float baseSpeed,
+                float deltaTime,
+                bool forceStop)
+            {
+                if (forceStop)
+                {
+                    turnRateState.SmoothedDirection = desiredDirection;
+                    return desiredDirection;
+                }
+
+                if (math.lengthsq(turnRateState.SmoothedDirection) < 1e-4f)
+                {
+                    turnRateState.SmoothedDirection = math.normalizesafe(desiredDirection, fallbackDirection);
+                }
+
+                var stability = math.saturate(discipline * 0.65f + intelligence * 0.35f);
+                stability = math.saturate(math.lerp(stability, 1f - chaotic, 0.35f));
+                var deadband = math.lerp(0.015f, 0.07f, stability);
+                var speedFactor = math.saturate(currentSpeed / math.max(0.1f, baseSpeed));
+                var responsiveness = math.lerp(1.35f, 0.55f, stability);
+                responsiveness *= math.lerp(1.15f, 0.7f, speedFactor);
+
+                var smoothed = turnRateState.SmoothedDirection;
+                var dot = math.clamp(math.dot(smoothed, desiredDirection), -1f, 1f);
+                var angle = math.acos(dot);
+                if (angle < deadband && speedFactor > 0.15f)
+                {
+                    return smoothed;
+                }
+
+                var t = math.saturate(deltaTime * responsiveness);
+                smoothed = math.normalizesafe(math.lerp(smoothed, desiredDirection, t), desiredDirection);
+                turnRateState.SmoothedDirection = smoothed;
+                return smoothed;
             }
 
             private float3 AvoidThreats(float3 desiredDirection, float3 position, float avoidanceRadius, float avoidanceStrength)

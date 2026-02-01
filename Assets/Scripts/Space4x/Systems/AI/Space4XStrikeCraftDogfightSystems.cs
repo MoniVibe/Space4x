@@ -336,12 +336,27 @@ namespace Space4X.Systems.AI
                     experience01 = math.max(experience01, math.saturate(experience.Level / 5f));
                 }
 
-                var reaction = math.lerp(0.55f, 0.95f, experience01);
-                var speedScale = math.lerp(1.1f, 0.95f, experience01);
-                var jinkScale = math.lerp(1.25f, 0.8f, experience01);
-                var separationScale = math.lerp(0.6f, 1.1f, experience01);
-                var fireConeScale = math.lerp(1.25f, 0.8f, experience01);
-                var breakOffScale = math.lerp(1.2f, 0.9f, experience01);
+                var role = StrikeCraftRole.Fighter;
+                if (ProfileLookup.HasComponent(entity))
+                {
+                    role = ProfileLookup[entity].Role;
+                }
+
+                ResolveRoleTuning(role,
+                    out var roleSpeed,
+                    out var roleTurn,
+                    out var roleFireCone,
+                    out var roleBreakOff,
+                    out var roleJink,
+                    out var roleSeparation,
+                    out var roleReaction);
+
+                var reaction = math.lerp(0.55f, 0.95f, experience01) * roleReaction;
+                var speedScale = math.lerp(1.1f, 0.95f, experience01) * roleSpeed;
+                var jinkScale = math.lerp(1.25f, 0.8f, experience01) * roleJink;
+                var separationScale = math.lerp(0.6f, 1.1f, experience01) * roleSeparation;
+                var fireConeScale = math.lerp(1.25f, 0.8f, experience01) * roleFireCone;
+                var breakOffScale = math.lerp(1.2f, 0.9f, experience01) * roleBreakOff;
 
                 if ((traits & StrikeCraftTraits.QuickReaction) != 0)
                 {
@@ -367,8 +382,12 @@ namespace Space4X.Systems.AI
                     fireConeScale *= 0.85f;
                 }
 
+                reaction = math.saturate(reaction);
+                speedScale = math.max(0.5f, speedScale);
                 jinkScale = math.clamp(jinkScale, 0.5f, 1.6f);
                 separationScale = math.clamp(separationScale, 0.5f, 1.5f);
+                fireConeScale = math.clamp(fireConeScale, 0.6f, 1.4f);
+                breakOffScale = math.clamp(breakOffScale, 0.7f, 1.4f);
 
                 var fireConeDegrees = math.max(5f, Config.FireConeDegrees * fireConeScale);
                 var fireConeCos = math.cos(math.radians(fireConeDegrees));
@@ -377,7 +396,9 @@ namespace Space4X.Systems.AI
                     ? (uint)math.max(10f, math.round((float)Config.BreakOffTicks * breakOffScale))
                     : 0u;
 
-                var maxLateralAccel = math.max(0.1f, Config.MaxLateralAccel) * math.lerp(0.75f, 1.05f, experience01);
+                var maxLateralAccel = math.max(0.1f, Config.MaxLateralAccel)
+                    * math.lerp(0.75f, 1.05f, experience01)
+                    * math.max(0.6f, roleTurn);
                 var jinkStrength = math.max(0f, Config.JinkStrength + tuning.EvasionJinkStrength) * jinkScale;
 
                 var forward = ResolveForward(transform, movement);
@@ -542,6 +563,66 @@ namespace Space4X.Systems.AI
                     ConeDot = coneDot,
                     PnOmega = omega
                 };
+            }
+
+            private static void ResolveRoleTuning(
+                StrikeCraftRole role,
+                out float speed,
+                out float turn,
+                out float fireCone,
+                out float breakOff,
+                out float jink,
+                out float separation,
+                out float reaction)
+            {
+                speed = 1f;
+                turn = 1f;
+                fireCone = 1f;
+                breakOff = 1f;
+                jink = 1f;
+                separation = 1f;
+                reaction = 1f;
+
+                switch (role)
+                {
+                    case StrikeCraftRole.Interceptor:
+                        speed = 1.15f;
+                        turn = 1.2f;
+                        fireCone = 0.85f;
+                        breakOff = 0.85f;
+                        jink = 1.15f;
+                        separation = 0.95f;
+                        reaction = 1.1f;
+                        break;
+                    case StrikeCraftRole.Bomber:
+                        speed = 0.85f;
+                        turn = 0.8f;
+                        fireCone = 1.1f;
+                        breakOff = 1.25f;
+                        jink = 0.85f;
+                        separation = 1.25f;
+                        reaction = 0.9f;
+                        break;
+                    case StrikeCraftRole.Suppression:
+                        speed = 0.95f;
+                        turn = 0.9f;
+                        fireCone = 1.2f;
+                        breakOff = 1.05f;
+                        jink = 0.9f;
+                        separation = 1.15f;
+                        reaction = 0.95f;
+                        break;
+                    case StrikeCraftRole.Recon:
+                    case StrikeCraftRole.EWar:
+                        speed = 1.05f;
+                        turn = 1.05f;
+                        fireCone = 1.15f;
+                        breakOff = 1.3f;
+                        jink = 1.25f;
+                        separation = 1.3f;
+                        reaction = 1.05f;
+                        break;
+                }
             }
 
             private static float ResolveMaxWeaponRange(Entity entity, DynamicBuffer<WeaponMount> weapons,
@@ -938,12 +1019,14 @@ namespace Space4X.Systems.AI
                 ref LocalTransform transform,
                 ref VesselMovement movement,
                 ref VesselTurnRateState turnRateState,
+                in StrikeCraftProfile profile,
                 in StrikeCraftDogfightSteering steering,
                 DynamicBuffer<SubsystemHealth> subsystems,
                 DynamicBuffer<SubsystemDisabled> disabledSubsystems)
             {
                 var wasMoving = movement.IsMoving;
                 var engineScale = Space4XSubsystemUtility.ResolveEngineScale(subsystems, disabledSubsystems);
+                ResolveRoleMotorTuning(profile.Role, out var roleSpeed, out var roleTurn);
                 var accel = steering.Output.DesiredAccel;
                 if (!math.all(math.isfinite(accel)))
                 {
@@ -952,7 +1035,7 @@ namespace Space4X.Systems.AI
 
                 accel *= engineScale;
                 movement.Velocity += accel * DeltaTime;
-                var maxSpeed = math.max(0.1f, movement.BaseSpeed * Config.ApproachMaxSpeedMultiplier * engineScale);
+                var maxSpeed = math.max(0.1f, movement.BaseSpeed * Config.ApproachMaxSpeedMultiplier * engineScale * roleSpeed);
                 movement.Velocity = LimitSpeed(movement.Velocity, maxSpeed);
 
                 movement.CurrentSpeed = math.length(movement.Velocity);
@@ -962,7 +1045,7 @@ namespace Space4X.Systems.AI
                 if (math.lengthsq(desiredForward) > 0.0001f)
                 {
                     var desiredRotation = quaternion.LookRotationSafe(math.normalizesafe(desiredForward), math.up());
-                    var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : Config.MaxTurnRate) * engineScale;
+                    var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : Config.MaxTurnRate) * engineScale * roleTurn;
                     var dt = math.max(DeltaTime, 1e-4f);
                     var forward = math.forward(transform.Rotation);
                     var angle = math.acos(math.clamp(math.dot(forward, math.forward(desiredRotation)), -1f, 1f));
@@ -998,6 +1081,33 @@ namespace Space4X.Systems.AI
                     movement.MoveStartTick = CurrentTick;
                 }
                 movement.LastMoveTick = CurrentTick;
+            }
+
+            private static void ResolveRoleMotorTuning(StrikeCraftRole role, out float speed, out float turn)
+            {
+                speed = 1f;
+                turn = 1f;
+
+                switch (role)
+                {
+                    case StrikeCraftRole.Interceptor:
+                        speed = 1.1f;
+                        turn = 1.2f;
+                        break;
+                    case StrikeCraftRole.Bomber:
+                        speed = 0.9f;
+                        turn = 0.85f;
+                        break;
+                    case StrikeCraftRole.Suppression:
+                        speed = 0.95f;
+                        turn = 0.9f;
+                        break;
+                    case StrikeCraftRole.Recon:
+                    case StrikeCraftRole.EWar:
+                        speed = 1.05f;
+                        turn = 1.05f;
+                        break;
+                }
             }
 
             private static float3 LimitSpeed(float3 velocity, float maxSpeed)

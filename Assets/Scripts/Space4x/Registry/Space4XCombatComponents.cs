@@ -105,6 +105,11 @@ namespace Space4X.Registry
         public float MaxRange;
 
         /// <summary>
+        /// Fire arc width in degrees (0 = use default or no constraint).
+        /// </summary>
+        public float FireArcDegrees;
+
+        /// <summary>
         /// Base accuracy [0, 1].
         /// </summary>
         public half BaseAccuracy;
@@ -207,6 +212,7 @@ namespace Space4X.Registry
     {
         public Space4XWeapon Weapon;
         public Entity CurrentTarget;
+        public half FireArcCenterOffsetDeg;
         public byte IsEnabled;
     }
 

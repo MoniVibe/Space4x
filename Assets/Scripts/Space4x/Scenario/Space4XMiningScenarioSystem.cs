@@ -6,6 +6,7 @@ using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Modularity;
+using PureDOTS.Runtime.Modules;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Interrupts;
@@ -54,6 +55,7 @@ namespace Space4x.Scenario
         private string _templateRoot;
         private bool _useSmokeMotionTuning;
         private bool _isCollisionScenario;
+        private bool _applyDefaultModuleLoadouts;
         private Entity _friendlyAffiliationEntity;
         private Entity _hostileAffiliationEntity;
 
@@ -186,6 +188,8 @@ namespace Space4x.Scenario
 
         private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)
         {
+            _applyDefaultModuleLoadouts = scenarioConfig != null && scenarioConfig.applyDefaultModuleLoadouts;
+            ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
             if (scenarioConfig == null)
             {
                 return;
@@ -365,6 +369,22 @@ namespace Space4x.Scenario
                 Threshold = 500f,
                 CooldownTicks = 300,
                 Enabled = 1
+            });
+        }
+
+        private void ApplyReferenceFrameConfig(bool enabled)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XReferenceFrameConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XReferenceFrameConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, new Space4XReferenceFrameConfig
+            {
+                Enabled = (byte)(enabled ? 1 : 0),
+                LocalBubbleRadius = 500f,
+                EnterSOIMultiplier = 0.9f,
+                ExitSOIMultiplier = 1.1f
             });
         }
 
@@ -946,6 +966,12 @@ namespace Space4x.Scenario
                 storageBuffer.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
             }
 
+            var hasShipLoadout = TryApplySpawnShipDefinition(entity, spawn, DefaultModuleLoadoutKind.Carrier);
+            if (!hasShipLoadout)
+            {
+                EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.Carrier);
+            }
+
             var fleetData = spawn.components?.Fleet;
             var combatData = spawn.components?.Combat;
             if (fleetData != null || combatData != null)
@@ -1045,6 +1071,12 @@ namespace Space4x.Scenario
                 CurrentCargo = 0f,
                 CargoResourceType = ParseResourceType(spawn.resourceId ?? "Minerals")
             });
+
+            var hasShipLoadout = TryApplySpawnShipDefinition(entity, spawn, DefaultModuleLoadoutKind.MiningVessel);
+            if (!hasShipLoadout)
+            {
+                EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.MiningVessel);
+            }
 
             var toolKind = ParseMiningToolKind(spawn.toolKind);
             EntityManager.AddComponentData(entity, new Space4XMiningToolProfile
@@ -1624,7 +1656,398 @@ namespace Space4x.Scenario
                 {
                     Flags = escortDisposition
                 });
+                var hasEscortLoadout = TryApplyEscortShipDefinition(entity, combatData, DefaultModuleLoadoutKind.Escort);
+                if (!hasEscortLoadout)
+                {
+                    EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.Escort);
+                }
             }
+        }
+
+        private enum DefaultModuleLoadoutKind : byte
+        {
+            Carrier,
+            MiningVessel,
+            Escort
+        }
+
+        private bool TryApplySpawnShipDefinition(Entity owner, MiningSpawnDefinition spawn, DefaultModuleLoadoutKind loadoutKind)
+        {
+            var ship = ResolveShipDefinition(spawn);
+            return ApplyShipDefinition(owner, ship, loadoutKind);
+        }
+
+        private bool TryApplyEscortShipDefinition(Entity owner, CombatComponentData combatData, DefaultModuleLoadoutKind loadoutKind)
+        {
+            var ship = ResolveEscortShipDefinition(combatData);
+            return ApplyShipDefinition(owner, ship, loadoutKind);
+        }
+
+        private void EnsureDefaultModuleLoadout(Entity owner, DefaultModuleLoadoutKind loadoutKind)
+        {
+            if (!_applyDefaultModuleLoadouts)
+            {
+                return;
+            }
+
+            if (EntityManager.HasComponent<CarrierModuleSlot>(owner))
+            {
+                return;
+            }
+
+            EnsureModuleOwnerState(owner, loadoutKind);
+
+            var slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            DynamicBuffer<ModuleAttachment> attachments;
+            if (EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            }
+            else
+            {
+                attachments = EntityManager.AddBuffer<ModuleAttachment>(owner);
+            }
+            attachments.Clear();
+
+            switch (loadoutKind)
+            {
+                case DefaultModuleLoadoutKind.Carrier:
+                    AddModuleSlot(slots, attachments, "reactor-mk2", out _);
+                    AddModuleSlot(slots, attachments, "engine-mk2", out _);
+                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
+                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
+                    AddModuleSlot(slots, attachments, "shield-m-1", out _);
+                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
+                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
+                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
+                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
+                    AddModuleSlot(slots, attachments, "missile-m-1", out _);
+                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    break;
+                case DefaultModuleLoadoutKind.MiningVessel:
+                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
+                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
+                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
+                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
+                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
+                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
+                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
+                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
+                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    break;
+                case DefaultModuleLoadoutKind.Escort:
+                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
+                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
+                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
+                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
+                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
+                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
+                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
+                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
+                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
+                    AddModuleSlot(slots, attachments, "missile-s-1", out _);
+                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    break;
+            }
+        }
+
+        private void EnsureModuleOwnerState(Entity owner, DefaultModuleLoadoutKind loadoutKind)
+        {
+            if (!EntityManager.HasComponent<ModuleStatAggregate>(owner))
+            {
+                EntityManager.AddComponentData(owner, new ModuleStatAggregate
+                {
+                    SpeedMultiplier = 1f,
+                    CargoMultiplier = 1f,
+                    EnergyMultiplier = 1f,
+                    RefitRateMultiplier = 1f,
+                    RepairRateMultiplier = 1f,
+                    ActiveModuleCount = 0
+                });
+            }
+
+            if (!EntityManager.HasComponent<SupplyStatus>(owner))
+            {
+                var supply = loadoutKind == DefaultModuleLoadoutKind.Carrier
+                    ? SupplyStatus.DefaultCarrier
+                    : SupplyStatus.DefaultVessel;
+                EntityManager.AddComponentData(owner, supply);
+            }
+        }
+
+        private bool ApplyShipDefinition(Entity owner, ShipDefinitionData ship, DefaultModuleLoadoutKind loadoutKind)
+        {
+            if (ship == null)
+            {
+                return false;
+            }
+
+            ApplyHullId(owner, ship);
+
+            if (ship.modules == null || ship.modules.Count == 0)
+            {
+                return false;
+            }
+
+            EnsureModuleOwnerState(owner, loadoutKind);
+
+            DynamicBuffer<CarrierModuleSlot> slots;
+            if (EntityManager.HasBuffer<CarrierModuleSlot>(owner))
+            {
+                slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+                if (slots.Length > 0)
+                {
+                    return false;
+                }
+                slots.Clear();
+            }
+            else
+            {
+                slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            }
+
+            var attachments = EntityManager.HasBuffer<ModuleAttachment>(owner)
+                ? EntityManager.GetBuffer<ModuleAttachment>(owner)
+                : EntityManager.AddBuffer<ModuleAttachment>(owner);
+            attachments.Clear();
+
+            var totalMass = 0f;
+            var moduleCount = 0;
+
+            for (int i = 0; i < ship.modules.Count; i++)
+            {
+                var moduleId = ship.modules[i];
+                if (string.IsNullOrWhiteSpace(moduleId))
+                {
+                    continue;
+                }
+
+                if (AddModuleSlot(slots, attachments, moduleId, out var massTons))
+                {
+                    totalMass += massTons;
+                    moduleCount++;
+                }
+            }
+
+            if (ship.massCap > 0f && totalMass > ship.massCap + 0.01f)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Ship mass cap exceeded (hull='{ship.hullId ?? "unknown"}' total={totalMass:F1} cap={ship.massCap:F1} modules={moduleCount}).");
+            }
+
+            return moduleCount > 0;
+        }
+
+        private void ApplyHullId(Entity owner, ShipDefinitionData ship)
+        {
+            if (ship == null || string.IsNullOrWhiteSpace(ship.hullId))
+            {
+                return;
+            }
+
+            var hullId = new FixedString64Bytes(ship.hullId);
+
+            if (EntityManager.HasComponent<Carrier>(owner))
+            {
+                if (EntityManager.HasComponent<CarrierHullId>(owner))
+                {
+                    EntityManager.SetComponentData(owner, new CarrierHullId { HullId = hullId });
+                }
+                else
+                {
+                    EntityManager.AddComponentData(owner, new CarrierHullId { HullId = hullId });
+                }
+            }
+
+            if (EntityManager.HasComponent<HullId>(owner))
+            {
+                EntityManager.SetComponentData(owner, new HullId { Id = hullId });
+            }
+            else
+            {
+                EntityManager.AddComponentData(owner, new HullId { Id = hullId });
+            }
+        }
+
+        private bool AddModuleSlot(DynamicBuffer<CarrierModuleSlot> slots, DynamicBuffer<ModuleAttachment> attachments, string moduleId, out float massTons)
+        {
+            var module = CreateModuleEntity(moduleId, out var slotSize, out massTons);
+            if (module == Entity.Null)
+            {
+                massTons = 0f;
+                return false;
+            }
+
+            var slotIndex = slots.Length;
+            slots.Add(new CarrierModuleSlot
+            {
+                SlotIndex = slotIndex,
+                SlotSize = slotSize,
+                CurrentModule = module,
+                TargetModule = module,
+                RefitProgress = 0f,
+                State = ModuleSlotState.Active
+            });
+
+            attachments.Add(new ModuleAttachment { Module = module });
+            return true;
+        }
+
+        private Entity CreateModuleEntity(string moduleId, out ModuleSlotSize slotSize, out float massTons)
+        {
+            slotSize = ModuleSlotSize.Small;
+            massTons = 0f;
+            if (string.IsNullOrWhiteSpace(moduleId))
+            {
+                return Entity.Null;
+            }
+
+            var moduleIdFixed = new FixedString64Bytes(moduleId);
+            var hasSpec = ModuleCatalogUtility.TryGetModuleSpec(EntityManager, moduleIdFixed, out var spec);
+            if (hasSpec)
+            {
+                slotSize = ConvertMountSize(spec.RequiredSize);
+                massTons = math.max(0f, spec.MassTons);
+            }
+
+            var entity = EntityManager.CreateEntity();
+            EntityManager.AddComponentData(entity, new ModuleTypeId { Value = moduleIdFixed });
+            EntityManager.AddComponentData(entity, new ModuleSlotRequirement
+            {
+                SlotSize = slotSize
+            });
+
+            EntityManager.AddComponentData(entity, new ModuleStatModifier
+            {
+                SpeedMultiplier = 1f,
+                CargoMultiplier = 1f,
+                EnergyMultiplier = 1f,
+                RefitRateMultiplier = 1f,
+                RepairRateMultiplier = 1f
+            });
+
+            var maxHealth = 100f;
+            var efficiency = hasSpec ? math.clamp(spec.DefaultEfficiency, 0.1f, 1f) : 1f;
+            EntityManager.AddComponentData(entity, new ModuleHealth
+            {
+                MaxHealth = maxHealth,
+                CurrentHealth = maxHealth * efficiency,
+                MaxFieldRepairHealth = maxHealth * 0.8f,
+                DegradationPerSecond = 0f,
+                RepairPriority = 128,
+                Failed = 0
+            });
+
+            return entity;
+        }
+
+        private static ModuleSlotSize ConvertMountSize(MountSize size)
+        {
+            return size switch
+            {
+                MountSize.S => ModuleSlotSize.Small,
+                MountSize.M => ModuleSlotSize.Medium,
+                MountSize.L => ModuleSlotSize.Large,
+                _ => ModuleSlotSize.Medium
+            };
+        }
+
+        private ShipDefinitionData ResolveShipDefinition(MiningSpawnDefinition spawn)
+        {
+            if (spawn == null)
+            {
+                return null;
+            }
+
+            ShipDefinitionData templateShip = null;
+            if (!string.IsNullOrWhiteSpace(spawn.shipTemplateId))
+            {
+                templateShip = ResolveShipTemplate(spawn.shipTemplateId);
+            }
+
+            if (spawn.ship == null)
+            {
+                return CloneShipDefinition(templateShip);
+            }
+
+            if (templateShip == null)
+            {
+                return CloneShipDefinition(spawn.ship);
+            }
+
+            return MergeShipDefinition(templateShip, spawn.ship);
+        }
+
+        private ShipDefinitionData ResolveEscortShipDefinition(CombatComponentData combatData)
+        {
+            if (combatData == null)
+            {
+                return null;
+            }
+
+            ShipDefinitionData templateShip = null;
+            if (!string.IsNullOrWhiteSpace(combatData.escortShipTemplateId))
+            {
+                templateShip = ResolveShipTemplate(combatData.escortShipTemplateId);
+            }
+
+            if (combatData.escortShip == null)
+            {
+                return CloneShipDefinition(templateShip);
+            }
+
+            if (templateShip == null)
+            {
+                return CloneShipDefinition(combatData.escortShip);
+            }
+
+            return MergeShipDefinition(templateShip, combatData.escortShip);
+        }
+
+        private static ShipDefinitionData CloneShipDefinition(ShipDefinitionData source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return new ShipDefinitionData
+            {
+                hullId = source.hullId,
+                massCap = source.massCap,
+                modules = source.modules != null ? new List<string>(source.modules) : null
+            };
+        }
+
+        private static ShipDefinitionData MergeShipDefinition(ShipDefinitionData baseDefinition, ShipDefinitionData overrideDefinition)
+        {
+            if (baseDefinition == null)
+            {
+                return CloneShipDefinition(overrideDefinition);
+            }
+
+            if (overrideDefinition == null)
+            {
+                return CloneShipDefinition(baseDefinition);
+            }
+
+            var merged = CloneShipDefinition(baseDefinition);
+
+            if (!string.IsNullOrWhiteSpace(overrideDefinition.hullId))
+            {
+                merged.hullId = overrideDefinition.hullId;
+            }
+
+            if (overrideDefinition.massCap > 0f)
+            {
+                merged.massCap = overrideDefinition.massCap;
+            }
+
+            if (overrideDefinition.modules != null && overrideDefinition.modules.Count > 0)
+            {
+                merged.modules = new List<string>(overrideDefinition.modules);
+            }
+
+            return merged;
         }
 
         private void EnsureCarrierAuthorityAndCrew(Entity carrierEntity, float lawfulness, uint currentTick)
@@ -2243,6 +2666,57 @@ namespace Space4x.Scenario
             }
         }
 
+        private ShipTemplateFileData LoadShipTemplateFile(string templateId)
+        {
+            var path = ResolveTemplatePath(templateId);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Ship template missing: {templateId} ({path})");
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<ShipTemplateFileData>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Failed to parse ship template {templateId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private ShipDefinitionData ResolveShipTemplate(string templateId)
+        {
+            if (string.IsNullOrWhiteSpace(templateId))
+            {
+                return null;
+            }
+
+            var template = LoadShipTemplateFile(templateId);
+            if (template == null)
+            {
+                return null;
+            }
+
+            if (template.ship != null)
+            {
+                return CloneShipDefinition(template.ship);
+            }
+
+            if (template.modules == null && string.IsNullOrWhiteSpace(template.hullId) && template.massCap <= 0f)
+            {
+                return null;
+            }
+
+            return new ShipDefinitionData
+            {
+                hullId = template.hullId,
+                massCap = template.massCap,
+                modules = template.modules != null ? new List<string>(template.modules) : null
+            };
+        }
+
         private string ResolveTemplateRoot(string scenarioPath)
         {
             if (string.IsNullOrWhiteSpace(scenarioPath))
@@ -2653,6 +3127,8 @@ namespace Space4x.Scenario
         public bool disableLegacyMining;
         public bool disableLegacyPatrol;
         public bool applyFloatingOrigin;
+        public bool applyReferenceFrames;
+        public bool applyDefaultModuleLoadouts;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
@@ -2750,6 +3226,10 @@ namespace Space4x.Scenario
     {
         public string templateId;
         public string governanceMode;
+        public string hullId;
+        public float massCap;
+        public List<string> modules;
+        public ShipDefinitionData ship;
         public List<StationRequirementData> stationRequirements;
     }
 
@@ -2823,6 +3303,8 @@ namespace Space4x.Scenario
         public string kind;
         public string entityId;
         public float[] position;
+        public string shipTemplateId;
+        public ShipDefinitionData ship;
         public string carrierId;
         public string toolKind;
         public string toolShape;
@@ -2878,6 +3360,8 @@ namespace Space4x.Scenario
         public string strikeCraftRole;
         public int escortCount;
         public float escortRelease_s;
+        public string escortShipTemplateId;
+        public ShipDefinitionData escortShip;
         public string pilotProfileId;
         public List<string> pilotProfileIds;
     }

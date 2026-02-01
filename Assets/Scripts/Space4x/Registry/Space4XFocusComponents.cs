@@ -194,6 +194,16 @@ namespace Space4X.Registry
             IsOnDuty = 1
         };
 
+        public static OfficerFocusProfile Pilot() => new OfficerFocusProfile
+        {
+            PrimaryArchetype = Space4XFocusArchetype.Tactical,
+            SecondaryArchetype = Space4XFocusArchetype.Weapons,
+            ArchetypeAffinity = (half)0.35f,
+            FocusExperience = (half)0.4f,
+            MentalResilience = (half)0.45f,
+            IsOnDuty = 1
+        };
+
         public static OfficerFocusProfile FacilityWorker() => new OfficerFocusProfile
         {
             PrimaryArchetype = Space4XFocusArchetype.Operations,
@@ -905,4 +915,3 @@ namespace Space4X.Registry
         public half ExternalFatigue;
     }
 }
-

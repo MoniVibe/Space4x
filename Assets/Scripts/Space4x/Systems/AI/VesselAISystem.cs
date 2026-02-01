@@ -42,6 +42,7 @@ namespace Space4X.Systems.AI
         {
             _vesselQuery = SystemAPI.QueryBuilder()
                 .WithAll<VesselAIState, MiningVessel, LocalTransform>()
+                .WithNone<SimulationDisabledTag>()
                 .Build();
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
@@ -193,6 +194,7 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
+        [WithNone(typeof(SimulationDisabledTag))]
         public partial struct UpdateVesselAIJob : IJobEntity
         {
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;

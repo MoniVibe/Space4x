@@ -32,6 +32,11 @@ namespace Space4X.Registry
         private ComponentLookup<StrikeCraftDogfightMetrics> _dogfightMetricsLookup;
         private ComponentLookup<StrikeCraftDogfightTag> _dogfightTagLookup;
         private ComponentLookup<VesselAimDirective> _aimLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
+        private ComponentLookup<CarrierTag> _carrierTagLookup;
+        private ComponentLookup<Space4XFocusModifiers> _focusLookup;
+        private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
 
@@ -47,6 +52,11 @@ namespace Space4X.Registry
             _dogfightMetricsLookup = state.GetComponentLookup<StrikeCraftDogfightMetrics>(false);
             _dogfightTagLookup = state.GetComponentLookup<StrikeCraftDogfightTag>(true);
             _aimLookup = state.GetComponentLookup<VesselAimDirective>(true);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _carrierTagLookup = state.GetComponentLookup<CarrierTag>(true);
+            _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
+            _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
         }
@@ -69,6 +79,11 @@ namespace Space4X.Registry
             _dogfightMetricsLookup.Update(ref state);
             _dogfightTagLookup.Update(ref state);
             _aimLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
+            _carrierTagLookup.Update(ref state);
+            _focusLookup.Update(ref state);
+            _pilotLookup.Update(ref state);
+            _strikePilotLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
 
@@ -113,6 +128,14 @@ namespace Space4X.Registry
                 {
                     var effectiveness = _effectivenessLookup[entity];
                     effectivenessMultiplier = math.max(0f, effectiveness.FiringEffectiveness);
+                }
+
+                var focusAccuracyBonus = 0f;
+                var focusRofMultiplier = 1f;
+                if (TryResolveFocusModifiers(entity, out var focusModifiers))
+                {
+                    focusAccuracyBonus = (float)focusModifiers.AccuracyBonus;
+                    focusRofMultiplier = math.max(0.1f, (float)focusModifiers.RateOfFireMultiplier);
                 }
 
                 Entity target = engagement.ValueRO.PrimaryTarget;
@@ -169,6 +192,7 @@ namespace Space4X.Registry
 
                 var directionToTarget = distance > 1e-4f ? toTarget / distance : forward;
                 var fireConeCos = _dogfightTagLookup.HasComponent(entity) ? dogfightFireConeCos : defaultFireConeCos;
+                var broadsidePreferred = IsBroadsidePreferred(entity);
 
                 var targetVelocity = float3.zero;
                 if (_movementLookup.HasComponent(target))
@@ -229,7 +253,24 @@ namespace Space4X.Registry
                     }
 
                     var aimDirection = math.normalizesafe(aimPoint - transform.ValueRO.Position, directionToTarget);
-                    if (math.dot(forward, aimDirection) < fireConeCos)
+
+                    var fireArcDegrees = ResolveWeaponFireArcDegrees(mount.Weapon);
+                    var coneForward = forward;
+                    if (fireArcDegrees > 0f && fireArcDegrees < 360f)
+                    {
+                        var arcOffset = (float)mount.FireArcCenterOffsetDeg;
+                        if (broadsidePreferred && math.abs(arcOffset) < 0.01f)
+                        {
+                            arcOffset = (i & 1) == 0 ? 90f : -90f;
+                        }
+
+                        if (!IsWithinArc(forward, aimDirection, fireArcDegrees, arcOffset))
+                        {
+                            continue;
+                        }
+                        coneForward = RotateYaw(forward, arcOffset);
+                    }
+                    if (math.dot(coneForward, aimDirection) < fireConeCos)
                     {
                         continue;
                     }
@@ -242,6 +283,7 @@ namespace Space4X.Registry
 
                     // Apply effectiveness to cooldown (damaged weapons fire slower)
                     int adjustedCooldown = (int)(mount.Weapon.CooldownTicks / math.max(0.1f, effectivenessMultiplier));
+                    adjustedCooldown = (int)(adjustedCooldown / focusRofMultiplier);
                     adjustedCooldown = math.clamp(adjustedCooldown, 0, ushort.MaxValue);
 
                     // Fire weapon
@@ -279,6 +321,48 @@ namespace Space4X.Registry
             }
         }
 
+        private bool TryResolveFocusModifiers(Entity shipEntity, out Space4XFocusModifiers modifiers)
+        {
+            if (_focusLookup.HasComponent(shipEntity))
+            {
+                modifiers = _focusLookup[shipEntity];
+                return true;
+            }
+
+            var pilot = ResolvePilot(shipEntity);
+            if (pilot != Entity.Null && _focusLookup.HasComponent(pilot))
+            {
+                modifiers = _focusLookup[pilot];
+                return true;
+            }
+
+            modifiers = default;
+            return false;
+        }
+
+        private Entity ResolvePilot(Entity shipEntity)
+        {
+            if (_pilotLookup.HasComponent(shipEntity))
+            {
+                var pilot = _pilotLookup[shipEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            if (_strikePilotLookup.HasComponent(shipEntity))
+            {
+                var pilot = _strikePilotLookup[shipEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            return Entity.Null;
+        }
+
         private static float ResolveProjectileSpeed(in Space4XWeapon weapon, float projectileSpeedMultiplier)
         {
             var baseSpeed = weapon.Type switch
@@ -296,6 +380,53 @@ namespace Space4X.Registry
 
             var sizeScale = 1f + 0.25f * (int)weapon.Size;
             return baseSpeed * sizeScale * math.max(0f, projectileSpeedMultiplier);
+        }
+
+        private bool IsBroadsidePreferred(Entity entity)
+        {
+            return _carrierLookup.HasComponent(entity) || _carrierTagLookup.HasComponent(entity);
+        }
+
+        private static float ResolveWeaponFireArcDegrees(in Space4XWeapon weapon)
+        {
+            if (weapon.FireArcDegrees > 0f)
+            {
+                return math.clamp(weapon.FireArcDegrees, 0f, 360f);
+            }
+
+            return weapon.Type switch
+            {
+                WeaponType.PointDefense => 320f,
+                WeaponType.Flak => 260f,
+                WeaponType.Missile => 200f,
+                WeaponType.Torpedo => 140f,
+                WeaponType.Kinetic => 140f,
+                _ => 160f
+            };
+        }
+
+        private static bool IsWithinArc(float3 forward, float3 targetDirection, float arcDegrees, float arcOffsetDegrees)
+        {
+            if (arcDegrees <= 0f || arcDegrees >= 360f)
+            {
+                return true;
+            }
+
+            var center = RotateYaw(forward, arcOffsetDegrees);
+            var halfArcRad = math.radians(arcDegrees * 0.5f);
+            var minDot = math.cos(halfArcRad);
+            return math.dot(center, targetDirection) >= minDot;
+        }
+
+        private static float3 RotateYaw(float3 direction, float degrees)
+        {
+            if (math.abs(degrees) < 0.001f)
+            {
+                return direction;
+            }
+
+            var rot = quaternion.AxisAngle(math.up(), math.radians(degrees));
+            return math.normalizesafe(math.mul(rot, direction), direction);
         }
     }
 
@@ -434,6 +565,11 @@ namespace Space4X.Registry
                         var cohesion = _cohesionMultipliersLookup[entity];
                         hitChance *= cohesion.AccuracyMultiplier;
                         hitChance = math.clamp(hitChance, 0f, 1f);
+                    }
+
+                    if (math.abs(focusAccuracyBonus) > 0.0001f)
+                    {
+                        hitChance = math.clamp(hitChance + focusAccuracyBonus, 0f, 1f);
                     }
 
                     if (random.NextFloat() > hitChance)

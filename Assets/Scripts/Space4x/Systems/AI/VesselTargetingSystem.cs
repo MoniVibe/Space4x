@@ -137,6 +137,7 @@ namespace Space4X.Systems.AI
             }
         }
 
+        [WithNone(typeof(SimulationDisabledTag))]
         public partial struct ResolveVesselTargetPositionsJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
@@ -255,7 +256,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
 
 
 

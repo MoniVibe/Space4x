@@ -35,7 +35,7 @@ namespace Space4X.Headless
             }
 
             var miningProof = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF");
-            if (string.Equals(miningProof, "0", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(miningProof, "1", StringComparison.OrdinalIgnoreCase))
             {
                 Enabled = false;
                 return;
@@ -90,6 +90,9 @@ namespace Space4X.Headless
                 return;
             }
 
+            Debug.LogError(
+                $"[Space4XHeadlessAsteroidDigGate] FAIL no terrain dig by tick={timeState.Tick}; " +
+                $"requesting exit {Space4XHeadlessDiagnostics.TestFailExitCode}");
             WriteFailureSummary(timeState.Tick);
             HeadlessExitUtility.Request(EntityManager, timeState.Tick, Space4XHeadlessDiagnostics.TestFailExitCode);
         }

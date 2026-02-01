@@ -6,6 +6,23 @@
       "kind": "Carrier",
       "entityId": "friendly-carrier-1",
       "position": [0, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 300,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "missile-m-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "components": {
         "ResourceStorage": [
           {"type": "Minerals", "capacity": 10000},
@@ -23,7 +40,24 @@
           "strikeCraftCount": 2,
           "strikeCraftRole": "Fighter",
           "escortCount": 1,
-          "escortRelease_s": 45
+          "escortRelease_s": 45,
+          "escortShip": {
+            "hullId": "lcv-sparrow",
+            "massCap": 220,
+            "modules": [
+              "reactor-mk1",
+              "engine-mk1",
+              "bridge-mk1",
+              "cockpit-mk1",
+              "shield-s-1",
+              "armor-s-1",
+              "scanner-s-1",
+              "laser-s-1",
+              "pd-s-1",
+              "missile-s-1",
+              "ammo-bay-s-1"
+            ]
+          }
         }
       }
     },
@@ -31,6 +65,23 @@
       "kind": "Carrier",
       "entityId": "friendly-carrier-2",
       "position": [100, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 300,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "missile-m-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "components": {
         "ResourceStorage": [
           {"type": "Minerals", "capacity": 10000}
@@ -47,7 +98,24 @@
           "strikeCraftCount": 2,
           "strikeCraftRole": "Fighter",
           "escortCount": 1,
-          "escortRelease_s": 45
+          "escortRelease_s": 45,
+          "escortShip": {
+            "hullId": "lcv-sparrow",
+            "massCap": 220,
+            "modules": [
+              "reactor-mk1",
+              "engine-mk1",
+              "bridge-mk1",
+              "cockpit-mk1",
+              "shield-s-1",
+              "armor-s-1",
+              "scanner-s-1",
+              "laser-s-1",
+              "pd-s-1",
+              "missile-s-1",
+              "ammo-bay-s-1"
+            ]
+          }
         }
       }
     },
@@ -55,6 +123,23 @@
       "kind": "Carrier",
       "entityId": "hostile-carrier-1",
       "position": [400, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 300,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "missile-m-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "components": {
         "ResourceStorage": [
           {"type": "Minerals", "capacity": 10000}
@@ -71,7 +156,24 @@
           "strikeCraftCount": 2,
           "strikeCraftRole": "Interceptor",
           "escortCount": 1,
-          "escortRelease_s": 45
+          "escortRelease_s": 45,
+          "escortShip": {
+            "hullId": "lcv-sparrow",
+            "massCap": 220,
+            "modules": [
+              "reactor-mk1",
+              "engine-mk1",
+              "bridge-mk1",
+              "cockpit-mk1",
+              "shield-s-1",
+              "armor-s-1",
+              "scanner-s-1",
+              "laser-s-1",
+              "pd-s-1",
+              "missile-s-1",
+              "ammo-bay-s-1"
+            ]
+          }
         }
       }
     },
@@ -79,6 +181,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-f1-1",
       "position": [0, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "friendly-carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.8,
@@ -90,6 +207,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-f1-2",
       "position": [0, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "friendly-carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.8,
@@ -101,6 +233,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-f1-3",
       "position": [0, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "friendly-carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.85,
@@ -112,6 +259,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-f2-1",
       "position": [100, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "friendly-carrier-2",
       "resourceId": "Minerals",
       "miningEfficiency": 0.8,
@@ -123,6 +285,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-f2-2",
       "position": [100, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "friendly-carrier-2",
       "resourceId": "Minerals",
       "miningEfficiency": 0.75,
@@ -134,6 +311,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-h1-1",
       "position": [400, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "hostile-carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.75,
@@ -145,6 +337,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-h1-2",
       "position": [400, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "hostile-carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.75,
