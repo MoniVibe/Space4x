@@ -1,3 +1,4 @@
+using System;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
@@ -18,6 +19,7 @@ namespace Space4x.Scenario
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     public partial struct Space4XScenarioActionSystem : ISystem
     {
+        private const string HeadlessProductionActionsEnv = "SPACE4X_HEADLESS_PRODUCTION_ACTIONS";
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<PatrolBehavior> _patrolLookup;
         private ComponentLookup<MovementCommand> _movementLookup;
@@ -25,6 +27,7 @@ namespace Space4x.Scenario
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<VesselMovement> _vesselMovementLookup;
         private byte _profileReady;
+        private byte _productionActionsEnabled;
         private float _carrierRadius;
         private float _asteroidRadius;
 
@@ -41,6 +44,7 @@ namespace Space4x.Scenario
             _intentLookup = state.GetComponentLookup<EntityIntent>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _vesselMovementLookup = state.GetComponentLookup<VesselMovement>(false);
+            _productionActionsEnabled = ResolveProductionActionGate() ? (byte)1 : (byte)0;
         }
 
         public void OnUpdate(ref SystemState state)
@@ -77,6 +81,13 @@ namespace Space4x.Scenario
                         continue;
                     }
 
+                    if (_productionActionsEnabled == 0 && IsProductionAction(action.Kind))
+                    {
+                        action.Executed = 1;
+                        actionBuffer[i] = action;
+                        continue;
+                    }
+
                     switch (action.Kind)
                     {
                         case Space4XScenarioActionKind.MoveFleet:
@@ -103,6 +114,35 @@ namespace Space4x.Scenario
                     actionBuffer[i] = action;
                 }
             }
+        }
+
+        private static bool ResolveProductionActionGate()
+        {
+            if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                return true;
+            }
+
+            var value = Environment.GetEnvironmentVariable(HeadlessProductionActionsEnv);
+            return IsTruthy(value);
+        }
+
+        private static bool IsProductionAction(Space4XScenarioActionKind kind)
+        {
+            return kind == Space4XScenarioActionKind.EconomyEnable ||
+                   kind == Space4XScenarioActionKind.ProdCreateBusiness ||
+                   kind == Space4XScenarioActionKind.ProdAddItem ||
+                   kind == Space4XScenarioActionKind.ProdRequest;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase);
         }
 
         private void ProcessMoveFleet(ref SystemState state, in Space4XScenarioAction action, uint tick)
