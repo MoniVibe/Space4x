@@ -2,6 +2,9 @@
   "scenarioId": "scenario_space_01_scale_10k",
   "seed": 12345,
   "duration_s": 300,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "spawn": [
     {
       "kind": "Carrier",

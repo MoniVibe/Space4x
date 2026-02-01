@@ -6,6 +6,7 @@
                    "mining":  false
                },
     "scenarioConfig":  {
+                           "applyDefaultModuleLoadouts":  true,
                            "headlessQuestions":  [
 
                                                  ]
