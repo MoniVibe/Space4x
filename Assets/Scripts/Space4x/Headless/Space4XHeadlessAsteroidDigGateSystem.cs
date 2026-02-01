@@ -8,6 +8,7 @@ using PureDOTS.Runtime.Time;
 using Space4x.Scenario;
 using Unity.Entities;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Headless
 {
@@ -90,7 +91,7 @@ namespace Space4X.Headless
                 return;
             }
 
-            Debug.LogError(
+            UnityDebug.LogError(
                 $"[Space4XHeadlessAsteroidDigGate] FAIL no terrain dig by tick={timeState.Tick}; " +
                 $"requesting exit {Space4XHeadlessDiagnostics.TestFailExitCode}");
             WriteFailureSummary(timeState.Tick);
