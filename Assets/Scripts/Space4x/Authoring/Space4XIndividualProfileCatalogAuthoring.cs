@@ -133,7 +133,7 @@ namespace Space4X.Authoring
                     profileArray[i] = new IndividualProfileTemplate
                     {
                         Id = new FixedString64Bytes(data.id ?? string.Empty),
-                        Alignment = PureDOTS.Runtime.Individual.AlignmentTriplet.FromFloats(
+                        Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(
                             math.clamp(data.law, -1f, 1f),
                             math.clamp(data.good, -1f, 1f),
                             math.clamp(data.integrity, -1f, 1f)),
