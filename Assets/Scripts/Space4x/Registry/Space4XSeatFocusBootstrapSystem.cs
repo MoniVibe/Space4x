@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Authority;
 using Unity.Collections;
 using Unity.Entities;
 

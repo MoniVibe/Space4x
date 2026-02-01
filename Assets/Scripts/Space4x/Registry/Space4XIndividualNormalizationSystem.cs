@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Agency;
+using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Platform;
