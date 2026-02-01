@@ -451,6 +451,9 @@ namespace Space4X.Registry
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private BufferLookup<DamageScarEvent> _scarLookup;
         private ComponentLookup<SubsystemTargetDirective> _subsystemDirectiveLookup;
+        private ComponentLookup<Space4XFocusModifiers> _focusLookup;
+        private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
         private const float SubsystemDamageFraction = 0.25f;
         private const float AntiSubsystemDamageMultiplier = 1.5f;
         private const float CriticalSubsystemDamageMultiplier = 1.25f;
@@ -474,6 +477,9 @@ namespace Space4X.Registry
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(false);
             _scarLookup = state.GetBufferLookup<DamageScarEvent>(false);
             _subsystemDirectiveLookup = state.GetComponentLookup<SubsystemTargetDirective>(true);
+            _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
+            _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
         }
 
         [BurstCompile]
@@ -505,6 +511,9 @@ namespace Space4X.Registry
             _subsystemDisabledLookup.Update(ref state);
             _scarLookup.Update(ref state);
             _subsystemDirectiveLookup.Update(ref state);
+            _focusLookup.Update(ref state);
+            _pilotLookup.Update(ref state);
+            _strikePilotLookup.Update(ref state);
 
             foreach (var (weapons, engagement, transform, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>>()
@@ -535,6 +544,12 @@ namespace Space4X.Registry
                 if (SystemAPI.HasComponent<Space4XEngagement>(target))
                 {
                     evasion = (float)SystemAPI.GetComponent<Space4XEngagement>(target).EvasionModifier;
+                }
+
+                var focusAccuracyBonus = 0f;
+                if (TryResolveFocusModifiers(entity, out var focusModifiers))
+                {
+                    focusAccuracyBonus = (float)focusModifiers.AccuracyBonus;
                 }
 
                 // Process weapons that just fired (cooldown == max)
@@ -715,6 +730,48 @@ namespace Space4X.Registry
                 targetEngagement.DamageReceived += rawDamage;
                 SystemAPI.SetComponent(target, targetEngagement);
             }
+        }
+
+        private bool TryResolveFocusModifiers(Entity shipEntity, out Space4XFocusModifiers modifiers)
+        {
+            if (_focusLookup.HasComponent(shipEntity))
+            {
+                modifiers = _focusLookup[shipEntity];
+                return true;
+            }
+
+            var pilot = ResolvePilot(shipEntity);
+            if (pilot != Entity.Null && _focusLookup.HasComponent(pilot))
+            {
+                modifiers = _focusLookup[pilot];
+                return true;
+            }
+
+            modifiers = default;
+            return false;
+        }
+
+        private Entity ResolvePilot(Entity shipEntity)
+        {
+            if (_pilotLookup.HasComponent(shipEntity))
+            {
+                var pilot = _pilotLookup[shipEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            if (_strikePilotLookup.HasComponent(shipEntity))
+            {
+                var pilot = _strikePilotLookup[shipEntity].Pilot;
+                if (pilot != Entity.Null)
+                {
+                    return pilot;
+                }
+            }
+
+            return Entity.Null;
         }
 
         private void ApplySubsystemDamage(Entity target, Entity source, in Space4XWeapon weapon, float hullDamage, bool isCritical, uint tick)
