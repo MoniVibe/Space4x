@@ -1,5 +1,6 @@
 using System;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
 using PureDOTS.Runtime.Interrupts;
