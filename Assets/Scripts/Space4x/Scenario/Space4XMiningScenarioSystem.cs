@@ -1885,7 +1885,7 @@ namespace Space4x.Scenario
                 CurrentModule = module,
                 TargetModule = module,
                 RefitProgress = 0f,
-                State = ModuleSlotState.Active
+                State = Space4X.Registry.ModuleSlotState.Active
             });
 
             attachments.Add(new ModuleAttachment { Module = module });
