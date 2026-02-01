@@ -6,6 +6,7 @@ using PureDOTS.Runtime.Modules;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
+using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
