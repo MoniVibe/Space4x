@@ -70,8 +70,8 @@ namespace Space4X.Systems.Modules
         private ComponentLookup<WeaponModuleProfile> _weaponProfileLookup;
         private BufferLookup<ModuleCommand> _commandLookup;
 
-        private static BlobAssetReference<ModuleSpecBlob> s_ThrustSpec;
-        private static BlobAssetReference<ModuleSpecBlob> s_TurnSpec;
+        private BlobAssetReference<ModuleSpecBlob> _thrustSpec;
+        private BlobAssetReference<ModuleSpecBlob> _turnSpec;
 
         public void OnCreate(ref SystemState state)
         {
@@ -101,16 +101,16 @@ namespace Space4X.Systems.Modules
 
         public void OnDestroy(ref SystemState state)
         {
-            if (s_ThrustSpec.IsCreated)
+            if (_thrustSpec.IsCreated)
             {
-                s_ThrustSpec.Dispose();
-                s_ThrustSpec = default;
+                _thrustSpec.Dispose();
+                _thrustSpec = default;
             }
 
-            if (s_TurnSpec.IsCreated)
+            if (_turnSpec.IsCreated)
             {
-                s_TurnSpec.Dispose();
-                s_TurnSpec = default;
+                _turnSpec.Dispose();
+                _turnSpec = default;
             }
         }
 
@@ -736,24 +736,24 @@ namespace Space4X.Systems.Modules
                    || moduleClass == ModuleClass.PointDefense;
         }
 
-        private static BlobAssetReference<ModuleSpecBlob> ResolveDefaultSpec(ModuleCapabilityKind capability)
+        private BlobAssetReference<ModuleSpecBlob> ResolveDefaultSpec(ModuleCapabilityKind capability)
         {
             if (capability == ModuleCapabilityKind.TurnAuthority)
             {
-                if (!s_TurnSpec.IsCreated)
+                if (!_turnSpec.IsCreated)
                 {
-                    s_TurnSpec = BuildSpec(0f, 1.5f, 4f, 6f, 4f, 1.5f, 2f, 3f, 1f, 0f, capability);
+                    _turnSpec = BuildSpec(0f, 1.5f, 4f, 6f, 4f, 1.5f, 2f, 3f, 1f, 0f, capability);
                 }
 
-                return s_TurnSpec;
+                return _turnSpec;
             }
 
-            if (!s_ThrustSpec.IsCreated)
+            if (!_thrustSpec.IsCreated)
             {
-                s_ThrustSpec = BuildSpec(0f, 2f, 6f, 8f, 6f, 2f, 3f, 4f, 1f, 0f, ModuleCapabilityKind.ThrustAuthority);
+                _thrustSpec = BuildSpec(0f, 2f, 6f, 8f, 6f, 2f, 3f, 4f, 1f, 0f, ModuleCapabilityKind.ThrustAuthority);
             }
 
-            return s_ThrustSpec;
+            return _thrustSpec;
         }
 
         private static BlobAssetReference<ModuleSpecBlob> BuildSpec(

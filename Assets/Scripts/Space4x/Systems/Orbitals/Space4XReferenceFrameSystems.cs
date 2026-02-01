@@ -706,20 +706,27 @@ namespace Space4X.Systems.Orbitals
                 processedCount++;
             }
 
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
-
-            if (!SystemAPI.TryGetSingletonEntity<Space4XFrameTransitionMetrics>(out var metricsEntity))
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (SystemAPI.TryGetSingletonEntity<Space4XFrameTransitionMetrics>(out var metricsEntity))
             {
-                metricsEntity = state.EntityManager.CreateEntity(typeof(Space4XFrameTransitionMetrics));
+                ecb.SetComponent(metricsEntity, new Space4XFrameTransitionMetrics
+                {
+                    Tick = timeState.Tick,
+                    ProcessedCount = processedCount
+                });
+            }
+            else
+            {
+                metricsEntity = ecb.CreateEntity();
+                ecb.AddComponent(metricsEntity, new Space4XFrameTransitionMetrics
+                {
+                    Tick = timeState.Tick,
+                    ProcessedCount = processedCount
+                });
             }
 
-            var timeState = SystemAPI.GetSingleton<TimeState>();
-            state.EntityManager.SetComponentData(metricsEntity, new Space4XFrameTransitionMetrics
-            {
-                Tick = timeState.Tick,
-                ProcessedCount = processedCount
-            });
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
     }
 

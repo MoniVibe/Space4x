@@ -78,7 +78,6 @@ namespace Space4X.Registry
             };
 
             var blobAsset = builder.CreateBlobAssetReference<IndividualProfileCatalogBlob>(Allocator.Persistent);
-            builder.Dispose();
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new IndividualProfileCatalogSingleton
