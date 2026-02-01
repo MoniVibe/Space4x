@@ -324,6 +324,7 @@ namespace Space4X.Registry
             }
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var currentTick = timeState.Tick;
 
             // Process entities that have both DockedTag and are in certain AI states that indicate undocking
             // This is a simplified check - in practice, undocking would be triggered by orders
