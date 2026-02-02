@@ -1,7 +1,6 @@
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
-using PureDOTS.Runtime.Stats;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
