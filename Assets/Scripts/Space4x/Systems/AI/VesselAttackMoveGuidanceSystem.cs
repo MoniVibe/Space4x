@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Steering;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -23,6 +24,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
+        private ComponentLookup<VesselMovement> _movementLookup;
         private ComponentLookup<CarrierDepartmentState> _departmentStateLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<CarrierTag> _carrierTagLookup;
@@ -43,6 +45,7 @@ namespace Space4X.Systems.AI
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _movementLookup = state.GetComponentLookup<VesselMovement>(true);
             _departmentStateLookup = state.GetComponentLookup<CarrierDepartmentState>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _carrierTagLookup = state.GetComponentLookup<CarrierTag>(true);
@@ -73,6 +76,12 @@ namespace Space4X.Systems.AI
                 stanceConfig = stanceConfigSingleton;
             }
 
+            var projectileSpeedMultiplier = 1f;
+            if (SystemAPI.TryGetSingleton<Space4XWeaponTuningConfig>(out var weaponTuning))
+            {
+                projectileSpeedMultiplier = math.max(0f, weaponTuning.ProjectileSpeedMultiplier);
+            }
+
             var missingAimAttackMove = SystemAPI.QueryBuilder()
                 .WithAll<AttackMoveIntent>()
                 .WithNone<VesselAimDirective>()
@@ -100,6 +109,7 @@ namespace Space4X.Systems.AI
             _engagementLookup.Update(ref state);
             _pilotLookup.Update(ref state);
             _statsLookup.Update(ref state);
+            _movementLookup.Update(ref state);
             _departmentStateLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _carrierTagLookup.Update(ref state);
@@ -138,6 +148,16 @@ namespace Space4X.Systems.AI
                     ? math.normalizesafe(aimPosition - transform.ValueRO.Position, moveDir)
                     : moveDir;
 
+                var facingSkill = hasAim ? ResolveFacingSkill(entity) : 0f;
+                if (hasAim && aimTarget != Entity.Null && _movementLookup.HasComponent(aimTarget) && _weaponLookup.HasBuffer(entity))
+                {
+                    if (TryResolveLeadDirection(entity, aimTarget, aimPosition, transform.ValueRO.Position, projectileSpeedMultiplier, out var leadDir))
+                    {
+                        var leadBlend = math.saturate(math.lerp(0.2f, 0.6f, facingSkill));
+                        aimDir = math.normalizesafe(math.lerp(aimDir, leadDir, leadBlend), aimDir);
+                    }
+                }
+
                 var maxRange = ResolveMaxWeaponRange(entity);
                 var aimWeight = 0f;
                 var distanceToAim = hasAim ? math.distance(transform.ValueRO.Position, aimPosition) : 0f;
@@ -159,7 +179,6 @@ namespace Space4X.Systems.AI
 
                 if (hasAim && maxRange > 0f && distanceToAim <= maxRange * 1.1f && _weaponLookup.HasBuffer(entity))
                 {
-                    var facingSkill = ResolveFacingSkill(entity);
                     var weapons = _weaponLookup[entity];
                     var facingDir = ResolveFacingDirection(entity, aimDir, transform.ValueRO.Rotation, distanceToAim, weapons, facingSkill, out var coverage);
                     if (coverage > 0.001f)
@@ -209,9 +228,18 @@ namespace Space4X.Systems.AI
                 var distanceToAim = math.distance(transform.ValueRO.Position, aimPosition);
                 var aimWeight = 0f;
 
+                var facingSkill = ResolveFacingSkill(entity);
+                if (_movementLookup.HasComponent(aimTarget) && _weaponLookup.HasBuffer(entity))
+                {
+                    if (TryResolveLeadDirection(entity, aimTarget, aimPosition, transform.ValueRO.Position, projectileSpeedMultiplier, out var leadDir))
+                    {
+                        var leadBlend = math.saturate(math.lerp(0.2f, 0.6f, facingSkill));
+                        aimDir = math.normalizesafe(math.lerp(aimDir, leadDir, leadBlend), aimDir);
+                    }
+                }
+
                 if (maxRange > 0f && distanceToAim <= maxRange * 1.2f && _weaponLookup.HasBuffer(entity))
                 {
-                    var facingSkill = ResolveFacingSkill(entity);
                     var weapons = _weaponLookup[entity];
                     var facingDir = ResolveFacingDirection(entity, aimDir, transform.ValueRO.Rotation, distanceToAim, weapons, facingSkill, out var coverage);
                     if (coverage > 0.001f)
@@ -322,6 +350,114 @@ namespace Space4X.Systems.AI
             }
 
             return maxRange;
+        }
+
+        private bool TryResolveLeadDirection(
+            Entity entity,
+            Entity target,
+            float3 targetPosition,
+            float3 origin,
+            float projectileSpeedMultiplier,
+            out float3 leadDirection)
+        {
+            leadDirection = default;
+            if (target == Entity.Null || !_movementLookup.HasComponent(target))
+            {
+                return false;
+            }
+
+            var projectileSpeed = ResolveLeadProjectileSpeed(entity, projectileSpeedMultiplier);
+            if (projectileSpeed <= 0f)
+            {
+                return false;
+            }
+
+            var targetVelocity = _movementLookup[target].Velocity;
+            if (SteeringPrimitives.LeadInterceptPoint(targetPosition, targetVelocity, origin, projectileSpeed, out var interceptPoint, out _))
+            {
+                leadDirection = math.normalizesafe(interceptPoint - origin, targetPosition - origin);
+                return true;
+            }
+
+            return false;
+        }
+
+        private float ResolveLeadProjectileSpeed(Entity entity, float projectileSpeedMultiplier)
+        {
+            if (!_weaponLookup.HasBuffer(entity))
+            {
+                return 0f;
+            }
+
+            var weapons = _weaponLookup[entity];
+            var hasSubsystems = _subsystemLookup.HasBuffer(entity);
+            var hasDisabled = _subsystemDisabledLookup.HasBuffer(entity);
+            DynamicBuffer<SubsystemHealth> subsystems = default;
+            DynamicBuffer<SubsystemDisabled> disabled = default;
+            var weaponsDisabled = false;
+
+            if (hasSubsystems)
+            {
+                subsystems = _subsystemLookup[entity];
+                if (hasDisabled)
+                {
+                    disabled = _subsystemDisabledLookup[entity];
+                    weaponsDisabled = Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, disabled, SubsystemType.Weapons);
+                }
+                else
+                {
+                    weaponsDisabled = Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, SubsystemType.Weapons);
+                }
+            }
+
+            var maxSpeed = 0f;
+            for (int i = 0; i < weapons.Length; i++)
+            {
+                var mount = weapons[i];
+                if (mount.IsEnabled == 0)
+                {
+                    continue;
+                }
+
+                if (weaponsDisabled)
+                {
+                    if (hasDisabled)
+                    {
+                        if (Space4XSubsystemUtility.IsWeaponMountDisabled(entity, i, subsystems, disabled))
+                        {
+                            continue;
+                        }
+                    }
+                    else if (Space4XSubsystemUtility.ShouldDisableMount(entity, i))
+                    {
+                        continue;
+                    }
+                }
+
+                var projectileSpeed = ResolveProjectileSpeed(mount.Weapon, projectileSpeedMultiplier);
+                maxSpeed = math.max(maxSpeed, projectileSpeed);
+            }
+
+            return maxSpeed;
+        }
+
+        private static float ResolveProjectileSpeed(in Space4XWeapon weapon, float projectileSpeedMultiplier)
+        {
+            var baseSpeed = weapon.Type switch
+            {
+                WeaponType.Laser => 400f,
+                WeaponType.PointDefense => 450f,
+                WeaponType.Plasma => 320f,
+                WeaponType.Ion => 280f,
+                WeaponType.Kinetic => 220f,
+                WeaponType.Flak => 200f,
+                WeaponType.Missile => 140f,
+                WeaponType.Torpedo => 90f,
+                _ => 200f
+            };
+
+            var sizeScale = 1f + 0.25f * (int)weapon.Size;
+            return baseSpeed * sizeScale * math.max(0f, projectileSpeedMultiplier);
         }
 
         private float ResolveFacingSkill(Entity entity)

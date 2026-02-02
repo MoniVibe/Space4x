@@ -62,6 +62,9 @@ namespace Space4X.Systems.AI
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
+        private ComponentLookup<LocalTransform> _targetTransformLookup;
+        private ComponentLookup<Space4XEngagement> _engagementLookup;
+        private BufferLookup<WeaponMount> _weaponLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
         private ComponentLookup<Space4XAsteroidCenter> _asteroidCenterLookup;
@@ -117,6 +120,9 @@ namespace Space4X.Systems.AI
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
+            _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
+            _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
             _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             _asteroidCenterLookup = state.GetComponentLookup<Space4XAsteroidCenter>(true);
@@ -247,6 +253,9 @@ namespace Space4X.Systems.AI
             _resolvedControlLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
+            _targetTransformLookup.Update(ref state);
+            _engagementLookup.Update(ref state);
+            _weaponLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
             _asteroidVolumeLookup.Update(ref state);
             _asteroidCenterLookup.Update(ref state);
@@ -322,6 +331,9 @@ namespace Space4X.Systems.AI
                 ResolvedControlLookup = _resolvedControlLookup,
                 CrewSkillsLookup = _crewSkillsLookup,
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
+                TargetTransformLookup = _targetTransformLookup,
+                EngagementLookup = _engagementLookup,
+                WeaponLookup = _weaponLookup,
                 AsteroidLookup = _asteroidLookup,
                 AsteroidVolumeLookup = _asteroidVolumeLookup,
                 AsteroidCenterLookup = _asteroidCenterLookup,
@@ -389,6 +401,9 @@ namespace Space4X.Systems.AI
             [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
             [ReadOnly] public ComponentLookup<CrewSkills> CrewSkillsLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
+            [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
+            [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
+            [ReadOnly] public BufferLookup<WeaponMount> WeaponLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
             [ReadOnly] public ComponentLookup<Space4XAsteroidVolumeConfig> AsteroidVolumeLookup;
             [ReadOnly] public ComponentLookup<Space4XAsteroidCenter> AsteroidCenterLookup;
@@ -719,6 +734,28 @@ namespace Space4X.Systems.AI
                     * math.lerp(0.85f, 1.15f, pilotMastery)
                     * math.lerp(1f, 0.9f, pilotJitter));
 
+                var suppressArrival = false;
+                if (!forceHold && !noTarget)
+                {
+                    if (AimDirectiveLookup.HasComponent(entity))
+                    {
+                        var aim = AimDirectiveLookup[entity];
+                        suppressArrival = aim.AimTarget != Entity.Null;
+                    }
+
+                    if (!suppressArrival && EngagementLookup.HasComponent(entity))
+                    {
+                        var engagement = EngagementLookup[entity];
+                        if (engagement.PrimaryTarget != Entity.Null &&
+                            engagement.Phase != EngagementPhase.None &&
+                            engagement.Phase != EngagementPhase.Destroyed &&
+                            engagement.Phase != EngagementPhase.Disabled)
+                        {
+                            suppressArrival = true;
+                        }
+                    }
+                }
+
                 var currentSpeed = math.length(movement.Velocity);
                 var currentSpeedSq = currentSpeed * currentSpeed;
                 movement.CurrentSpeed = currentSpeed;
@@ -730,6 +767,10 @@ namespace Space4X.Systems.AI
 
                 var stopSpeed = math.max(0.05f, baseSpeed * 0.1f);
                 var arrivedAndSlow = distance <= arrivalDistance && currentSpeed <= stopSpeed;
+                if (suppressArrival)
+                {
+                    arrivedAndSlow = false;
+                }
                 if (arrivedAndSlow && !inertialEnabled)
                 {
                     movement.Velocity = float3.zero;
@@ -765,6 +806,19 @@ namespace Space4X.Systems.AI
                 var avoidanceStrength = stanceConfig.AvoidanceStrength;
                 var speedMultiplier = stanceConfig.SpeedMultiplier;
                 var rotationMultiplier = stanceConfig.RotationMultiplier;
+
+                var combatSpeedScale = 1f;
+                var combatManeuver = false;
+                if (!forceHold && !noTarget)
+                {
+                    if (TryResolveCombatManeuver(entity, aiState, hasAttackMove, attackMove, transform, stanceConfig, pilotMastery,
+                            navigationCohesion, out var combatDirection, out var maneuverSpeedScale))
+                    {
+                        direction = combatDirection;
+                        combatSpeedScale = maneuverSpeedScale;
+                        combatManeuver = true;
+                    }
+                }
 
                 speedMultiplier *= math.lerp(1f, MotionConfig.DeliberateSpeedMultiplier, deliberate);
                 speedMultiplier *= math.lerp(1f, MotionConfig.ChaoticSpeedMultiplier, chaotic);
@@ -862,6 +916,7 @@ namespace Space4X.Systems.AI
                 accelerationMultiplier *= massAccelPenalty;
                 decelerationMultiplier *= massDecelPenalty;
                 rotationMultiplier *= massTurnPenalty;
+                speedMultiplier *= combatSpeedScale;
 
                 var mobilitySpeedMultiplier = 1f;
                 if (MobilityProfileLookup.HasComponent(entity))
@@ -1232,7 +1287,15 @@ namespace Space4X.Systems.AI
                 {
                     intentType = MoveIntentType.Hold;
                 }
+                else if (combatManeuver && !forceHold && !noTarget)
+                {
+                    intentType = MoveIntentType.Orbit;
+                }
                 var planMode = ResolvePlanMode(entity, aiState, distance, arrivalDistance, isAsteroidTarget);
+                if (combatManeuver && !forceHold && !noTarget)
+                {
+                    planMode = MovePlanMode.Orbit;
+                }
                 var planSpeed = math.length(desiredVelocity);
                 var eta = planSpeed > 0.01f ? distance / planSpeed : 0f;
                 var planAccel = DeltaTime > 1e-4f ? maxDelta / DeltaTime : accelLimit;
@@ -1256,6 +1319,221 @@ namespace Space4X.Systems.AI
                 }
 
                 return BehaviorDisposition.Default;
+            }
+
+            private bool TryResolveCombatManeuver(
+                Entity entity,
+                in VesselAIState aiState,
+                bool hasAttackMove,
+                in AttackMoveIntent attackMove,
+                in LocalTransform transform,
+                in StanceTuningEntry stance,
+                float pilotMastery,
+                float navigationCohesion,
+                out float3 combatDirection,
+                out float speedScale)
+            {
+                combatDirection = default;
+                speedScale = 1f;
+
+                if (!WeaponLookup.HasBuffer(entity))
+                {
+                    return false;
+                }
+
+                Entity combatTarget = Entity.Null;
+                if (AimDirectiveLookup.HasComponent(entity))
+                {
+                    var aim = AimDirectiveLookup[entity];
+                    if (aim.AimTarget != Entity.Null)
+                    {
+                        combatTarget = aim.AimTarget;
+                    }
+                }
+
+                if (combatTarget == Entity.Null && EngagementLookup.HasComponent(entity))
+                {
+                    var engagement = EngagementLookup[entity];
+                    if (engagement.PrimaryTarget != Entity.Null &&
+                        engagement.Phase != EngagementPhase.None &&
+                        engagement.Phase != EngagementPhase.Destroyed &&
+                        engagement.Phase != EngagementPhase.Disabled)
+                    {
+                        combatTarget = engagement.PrimaryTarget;
+                    }
+                }
+
+                if (combatTarget == Entity.Null)
+                {
+                    if (hasAttackMove && attackMove.EngageTarget != Entity.Null)
+                    {
+                        combatTarget = attackMove.EngageTarget;
+                    }
+                    else if (aiState.TargetEntity != Entity.Null)
+                    {
+                        combatTarget = aiState.TargetEntity;
+                    }
+                }
+
+                if (combatTarget == Entity.Null || !TargetTransformLookup.HasComponent(combatTarget))
+                {
+                    return false;
+                }
+
+                if (!TryResolveWeaponRangeProfile(entity, out var maxRange, out var optimalRange))
+                {
+                    return false;
+                }
+
+                if (hasAttackMove)
+                {
+                    if (attackMove.Source == AttackMoveSource.MoveWhileEngaged ||
+                        attackMove.Source == AttackMoveSource.Unknown)
+                    {
+                        return false;
+                    }
+
+                    var destToTarget = math.distance(attackMove.Destination, TargetTransformLookup[combatTarget].Position);
+                    if (destToTarget > maxRange * 1.5f && attackMove.DestinationRadius <= 0f)
+                    {
+                        return false;
+                    }
+                }
+
+                var targetPos = TargetTransformLookup[combatTarget].Position;
+                var toTarget = targetPos - transform.Position;
+                var distance = math.length(toTarget);
+                if (distance <= 0.01f)
+                {
+                    return false;
+                }
+
+                var preferredRange = optimalRange > 0f ? optimalRange : maxRange * 0.7f;
+                var rangeBias = math.lerp(1.15f, 0.85f, math.saturate(stance.AttackMoveBearingWeight));
+                var desiredRange = math.max(1f, math.lerp(preferredRange, maxRange, 0.35f) * rangeBias);
+
+                if (CarrierLookup.HasComponent(entity))
+                {
+                    desiredRange *= 1.1f;
+                }
+
+                var toTargetDir = toTarget / distance;
+                var rangeError = distance - desiredRange;
+                var radialDir = rangeError >= 0f ? toTargetDir : -toTargetDir;
+
+                var orbitDir = math.normalizesafe(math.cross(math.up(), toTargetDir), new float3(1f, 0f, 0f));
+                if (math.lengthsq(orbitDir) < 1e-4f)
+                {
+                    orbitDir = math.normalizesafe(math.cross(toTargetDir, new float3(0f, 0f, 1f)), new float3(1f, 0f, 0f));
+                }
+
+                orbitDir *= ResolveOrbitSign(entity, combatTarget);
+
+                var orbitStrength = math.lerp(0.25f, 0.65f, pilotMastery);
+                orbitStrength *= math.lerp(0.9f, 1.1f, navigationCohesion);
+                if (CarrierLookup.HasComponent(entity))
+                {
+                    orbitStrength = math.max(orbitStrength, 0.5f);
+                }
+
+                var rangeBlend = math.saturate(1f - math.abs(rangeError) / math.max(desiredRange, 1f));
+                combatDirection = math.normalizesafe(math.lerp(radialDir, orbitDir, rangeBlend * orbitStrength), radialDir);
+
+                var rangeT = math.saturate(rangeError / math.max(desiredRange, 1f));
+                var closeT = math.saturate(-rangeError / math.max(desiredRange, 1f));
+                speedScale = math.lerp(0.45f, 1f, rangeT);
+                speedScale *= math.lerp(1f, 0.6f, closeT);
+                speedScale = math.clamp(speedScale, 0.25f, 1.1f);
+                return true;
+            }
+
+            private bool TryResolveWeaponRangeProfile(Entity entity, out float maxRange, out float optimalRange)
+            {
+                maxRange = 0f;
+                optimalRange = 0f;
+
+                if (!WeaponLookup.HasBuffer(entity))
+                {
+                    return false;
+                }
+
+                var weapons = WeaponLookup[entity];
+                var hasSubsystems = SubsystemLookup.HasBuffer(entity);
+                var hasDisabled = SubsystemDisabledLookup.HasBuffer(entity);
+                DynamicBuffer<SubsystemHealth> subsystems = default;
+                DynamicBuffer<SubsystemDisabled> disabled = default;
+                var weaponsDisabled = false;
+
+                if (hasSubsystems)
+                {
+                    subsystems = SubsystemLookup[entity];
+                    if (hasDisabled)
+                    {
+                        disabled = SubsystemDisabledLookup[entity];
+                        weaponsDisabled = Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, disabled, SubsystemType.Weapons);
+                    }
+                    else
+                    {
+                        weaponsDisabled = Space4XSubsystemUtility.IsSubsystemDisabled(subsystems, SubsystemType.Weapons);
+                    }
+                }
+
+                var weightSum = 0f;
+                for (int i = 0; i < weapons.Length; i++)
+                {
+                    var mount = weapons[i];
+                    if (mount.IsEnabled == 0)
+                    {
+                        continue;
+                    }
+
+                    if (weaponsDisabled)
+                    {
+                        if (hasDisabled)
+                        {
+                            if (Space4XSubsystemUtility.IsWeaponMountDisabled(entity, i, subsystems, disabled))
+                            {
+                                continue;
+                            }
+                        }
+                        else if (Space4XSubsystemUtility.ShouldDisableMount(entity, i))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (mount.Weapon.MaxRange <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var weight = ResolveWeaponWeight(mount.Weapon);
+                    var optimal = mount.Weapon.OptimalRange > 0f ? mount.Weapon.OptimalRange : mount.Weapon.MaxRange * 0.7f;
+
+                    maxRange = math.max(maxRange, mount.Weapon.MaxRange);
+                    optimalRange += optimal * weight;
+                    weightSum += weight;
+                }
+
+                if (weightSum > 0f)
+                {
+                    optimalRange /= weightSum;
+                }
+
+                return maxRange > 0f;
+            }
+
+            private static float ResolveWeaponWeight(in Space4XWeapon weapon)
+            {
+                var sizeWeight = 1f + 0.35f * (int)weapon.Size;
+                var damageWeight = math.max(0f, weapon.BaseDamage) * 0.02f;
+                return math.max(0.5f, sizeWeight + damageWeight);
+            }
+
+            private static float ResolveOrbitSign(Entity entity, Entity target)
+            {
+                var seed = math.hash(new uint2((uint)entity.Index, (uint)target.Index));
+                return (seed & 1u) == 0 ? -1f : 1f;
             }
 
             private static float3 StabilizeDirection(
