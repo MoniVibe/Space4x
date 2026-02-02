@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Modules;
+using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Power;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Profile;
@@ -40,6 +41,7 @@ namespace Space4X.Systems.AI
         private BufferLookup<OutlookEntry> _outlookLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
@@ -58,6 +60,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<NavigationCohesion> _navigationLookup;
         private ComponentLookup<Space4XFocusModifiers> _focusModifiersLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
+        private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
@@ -93,6 +96,7 @@ namespace Space4X.Systems.AI
             _outlookLookup = state.GetBufferLookup<OutlookEntry>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
@@ -111,6 +115,7 @@ namespace Space4X.Systems.AI
             _navigationLookup = state.GetComponentLookup<NavigationCohesion>(true);
             _focusModifiersLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
+            _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
             _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
@@ -221,6 +226,7 @@ namespace Space4X.Systems.AI
             _outlookLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _pilotLookup.Update(ref state);
+            _pilotProficiencyLookup.Update(ref state);
             _seatRefLookup.Update(ref state);
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
@@ -239,6 +245,7 @@ namespace Space4X.Systems.AI
             _navigationLookup.Update(ref state);
             _focusModifiersLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
+            _crewSkillsLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
             _asteroidVolumeLookup.Update(ref state);
@@ -294,6 +301,7 @@ namespace Space4X.Systems.AI
                 OutlookLookup = _outlookLookup,
                 StatsLookup = _statsLookup,
                 PilotLookup = _pilotLookup,
+                PilotProficiencyLookup = _pilotProficiencyLookup,
                 SeatRefLookup = _seatRefLookup,
                 SeatLookup = _seatLookup,
                 SeatOccupantLookup = _seatOccupantLookup,
@@ -312,6 +320,7 @@ namespace Space4X.Systems.AI
                 NavigationLookup = _navigationLookup,
                 FocusModifiersLookup = _focusModifiersLookup,
                 ResolvedControlLookup = _resolvedControlLookup,
+                CrewSkillsLookup = _crewSkillsLookup,
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
                 AsteroidLookup = _asteroidLookup,
                 AsteroidVolumeLookup = _asteroidVolumeLookup,
@@ -359,6 +368,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public BufferLookup<OutlookEntry> OutlookLookup;
             [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
             [ReadOnly] public ComponentLookup<VesselPilotLink> PilotLookup;
+            [ReadOnly] public ComponentLookup<PilotProficiency> PilotProficiencyLookup;
             [ReadOnly] public BufferLookup<AuthoritySeatRef> SeatRefLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeat> SeatLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeatOccupant> SeatOccupantLookup;
@@ -377,6 +387,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<NavigationCohesion> NavigationLookup;
             [ReadOnly] public ComponentLookup<Space4XFocusModifiers> FocusModifiersLookup;
             [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
+            [ReadOnly] public ComponentLookup<CrewSkills> CrewSkillsLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
             [ReadOnly] public ComponentLookup<Space4XAsteroidVolumeConfig> AsteroidVolumeLookup;
@@ -619,11 +630,56 @@ namespace Space4X.Systems.AI
                 var navigationCohesion = NavigationLookup.HasComponent(entity)
                     ? math.saturate(NavigationLookup[entity].Value)
                     : 0.5f;
+                var crewExploration = 0.5f;
+                if (CrewSkillsLookup.HasComponent(entity))
+                {
+                    crewExploration = math.saturate(CrewSkillsLookup[entity].ExplorationSkill);
+                }
+                var crewNavigation = math.lerp(0.85f, 1.15f, crewExploration);
+                navigationCohesion = math.saturate(navigationCohesion * crewNavigation);
                 var navStability = math.lerp(0.9f, 1.1f, navigationCohesion);
                 discipline = math.saturate(discipline * navStability);
 
                 var pilotSkill = math.saturate(command * 0.45f + tactics * 0.35f + engineering * 0.2f);
                 var intelligence = math.saturate((command + tactics) * 0.5f * navStability);
+                var pilotProficiency = new PilotProficiency
+                {
+                    ControlMult = 1f,
+                    TurnRateMult = 1f,
+                    EnergyMult = 1f,
+                    Jitter = 0f,
+                    ReactionSec = 0.5f
+                };
+                if (PilotProficiencyLookup.HasComponent(profileEntity))
+                {
+                    pilotProficiency = PilotProficiencyLookup[profileEntity];
+                }
+                else if (PilotProficiencyLookup.HasComponent(entity))
+                {
+                    pilotProficiency = PilotProficiencyLookup[entity];
+                }
+
+                var controlMult = math.clamp(pilotProficiency.ControlMult, 0.5f, 1.6f);
+                var turnMult = math.clamp(pilotProficiency.TurnRateMult, 0.6f, 1.4f);
+                var energyMult = math.clamp(pilotProficiency.EnergyMult, 0.6f, 1.6f);
+                var reactionSec = math.clamp(pilotProficiency.ReactionSec, 0.1f, 1.2f);
+                var jitter = math.clamp(pilotProficiency.Jitter, 0f, 0.2f);
+
+                var controlNorm = math.saturate((controlMult - 0.5f) / 1.0f);
+                var turnNorm = math.saturate((turnMult - 0.7f) / 0.6f);
+                var energyNorm = math.saturate((1.5f - energyMult) / 0.8f);
+                var reactionNorm = math.saturate((1.0f - reactionSec) / 0.9f);
+                var jitterNorm = math.saturate(jitter / 0.1f);
+
+                var pilotMastery = math.saturate(pilotSkill * 0.55f + controlNorm * 0.25f + crewExploration * 0.2f);
+                var pilotControlMultiplier = math.lerp(0.85f, 1.15f, controlNorm);
+                var pilotTurnMultiplier = math.lerp(0.85f, 1.2f, turnNorm);
+                var pilotEnergyMultiplier = math.lerp(0.9f, 1.1f, energyNorm);
+                var pilotResponseMultiplier = math.lerp(0.75f, 1.2f, reactionNorm);
+                var pilotStabilityBias = math.lerp(0.85f, 1.2f, math.saturate(pilotSkill * 0.6f + crewExploration * 0.25f + controlNorm * 0.15f));
+                var pilotJitter = jitterNorm;
+                var throttleRampScale = math.lerp(1.35f, 0.85f, reactionNorm);
+                throttleRampScale *= math.lerp(1.15f, 0.9f, pilotMastery);
                 var focusEvasion = 0f;
                 var focusFormation = 0f;
                 var focusEntity = Entity.Null;
@@ -657,6 +713,11 @@ namespace Space4X.Systems.AI
                 var pushControl = math.saturate(
                     math.lerp(0.75f, 1.1f, pilotSkill)
                     * math.lerp(0.9f, 1.05f, navigationCohesion));
+                pushIntent = math.saturate(pushIntent * math.lerp(0.9f, 1.1f, pilotMastery));
+                pushControl = math.saturate(
+                    pushControl
+                    * math.lerp(0.85f, 1.15f, pilotMastery)
+                    * math.lerp(1f, 0.9f, pilotJitter));
 
                 var currentSpeed = math.length(movement.Velocity);
                 var currentSpeedSq = currentSpeed * currentSpeed;
@@ -729,6 +790,13 @@ namespace Space4X.Systems.AI
                 slowdownMultiplier *= math.lerp(0.95f, 1.2f, patience);
                 accelerationMultiplier *= math.lerp(1.1f, 0.85f, patience);
                 decelerationMultiplier *= math.lerp(0.95f, 1.15f, patience);
+
+                speedMultiplier *= pilotEnergyMultiplier;
+                accelerationMultiplier *= pilotControlMultiplier * math.lerp(1f, 0.9f, pilotJitter);
+                decelerationMultiplier *= math.lerp(0.9f, 1.1f, controlNorm);
+                rotationMultiplier *= pilotTurnMultiplier * math.lerp(1f, 0.92f, pilotJitter);
+                slowdownMultiplier *= math.lerp(1.15f, 0.9f, pilotMastery);
+                slowdownMultiplier *= math.lerp(1f, 1.2f, pilotJitter);
 
                 var engineResponseMultiplier = math.lerp(0.8f, 1.2f, engineResponse);
                 var engineBoostSpeedMultiplier = math.lerp(1f, 1.25f, engineBoost);
@@ -825,7 +893,7 @@ namespace Space4X.Systems.AI
                     var currentDir = math.normalize(movement.Velocity);
                     var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
                     var focusSteer = 1f + focusEvasion * 0.35f;
-                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f * focusSteer);
+                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f * focusSteer * pilotResponseMultiplier);
                     direction = math.normalizesafe(math.lerp(currentDir, direction, steer), direction);
                 }
                 if (forceStop && currentSpeedSq > 1e-4f)
@@ -985,7 +1053,10 @@ namespace Space4X.Systems.AI
                     currentSpeed,
                     baseSpeed,
                     DeltaTime,
-                    forceStop);
+                    forceStop,
+                    pilotStabilityBias,
+                    pilotResponseMultiplier,
+                    pilotJitter);
                 if (math.lengthsq(stabilizedDirection - direction) > 1e-6f)
                 {
                     var desiredSpeedMag = math.length(desiredVelocity);
@@ -1003,6 +1074,8 @@ namespace Space4X.Systems.AI
                         var rampTicks = InertiaConfig.ThrottleRampTicks;
                         if (rampTicks > 0)
                         {
+                            var adjustedRamp = (int)math.round(rampTicks * throttleRampScale);
+                            rampTicks = (ushort)math.clamp(adjustedRamp, 1, 120);
                             throttleState.RampTicks = (ushort)math.min((uint)rampTicks, (uint)throttleState.RampTicks + 1u);
                             throttle = (float)throttleState.RampTicks / rampTicks;
                             maxDelta *= throttle;
@@ -1119,8 +1192,8 @@ namespace Space4X.Systems.AI
                         movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
                         var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
                         var dt = math.max(DeltaTime, 1e-4f);
-                        var maxAngularSpeed = math.PI * 4f;
-                        var maxAngularAccel = math.PI * 8f;
+                        var maxAngularSpeed = math.PI * 4f * math.lerp(0.9f, 1.1f, turnNorm);
+                        var maxAngularAccel = math.PI * 8f * math.lerp(0.9f, 1.1f, controlNorm);
                         if (isCarrier)
                         {
                             maxAngularAccel *= MotionConfig.CapitalShipTurnMultiplier;
@@ -1195,7 +1268,10 @@ namespace Space4X.Systems.AI
                 float currentSpeed,
                 float baseSpeed,
                 float deltaTime,
-                bool forceStop)
+                bool forceStop,
+                float stabilityBias,
+                float responseMultiplier,
+                float jitter)
             {
                 if (forceStop)
                 {
@@ -1210,10 +1286,19 @@ namespace Space4X.Systems.AI
 
                 var stability = math.saturate(discipline * 0.65f + intelligence * 0.35f);
                 stability = math.saturate(math.lerp(stability, 1f - chaotic, 0.35f));
+                stability = math.saturate(stability * math.max(0.1f, stabilityBias));
                 var deadband = math.lerp(0.015f, 0.07f, stability);
                 var speedFactor = math.saturate(currentSpeed / math.max(0.1f, baseSpeed));
                 var responsiveness = math.lerp(1.35f, 0.55f, stability);
                 responsiveness *= math.lerp(1.15f, 0.7f, speedFactor);
+                responsiveness *= math.max(0.1f, responseMultiplier);
+
+                var jitterScale = math.saturate(jitter);
+                if (jitterScale > 0f)
+                {
+                    deadband = math.lerp(deadband, deadband * 1.35f, jitterScale);
+                    responsiveness = math.lerp(responsiveness, responsiveness * 0.8f, jitterScale);
+                }
 
                 var smoothed = turnRateState.SmoothedDirection;
                 var dot = math.clamp(math.dot(smoothed, desiredDirection), -1f, 1f);
