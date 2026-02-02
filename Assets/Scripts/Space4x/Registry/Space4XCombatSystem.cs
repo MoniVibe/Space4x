@@ -37,6 +37,9 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XFocusModifiers> _focusLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
+        private ComponentLookup<Space4XNormalizedIndividualStats> _normalizedStatsLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
+        private ComponentLookup<PhysiqueFinesseWill> _physiqueLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
 
@@ -57,6 +60,9 @@ namespace Space4X.Registry
             _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _normalizedStatsLookup = state.GetComponentLookup<Space4XNormalizedIndividualStats>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _physiqueLookup = state.GetComponentLookup<PhysiqueFinesseWill>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
         }
@@ -84,6 +90,9 @@ namespace Space4X.Registry
             _focusLookup.Update(ref state);
             _pilotLookup.Update(ref state);
             _strikePilotLookup.Update(ref state);
+            _normalizedStatsLookup.Update(ref state);
+            _statsLookup.Update(ref state);
+            _physiqueLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
 
@@ -361,6 +370,69 @@ namespace Space4X.Registry
             }
 
             return Entity.Null;
+        }
+
+        private float ResolveGunnerySkill(Entity shipEntity)
+        {
+            var pilot = ResolvePilot(shipEntity);
+            var profile = pilot != Entity.Null ? pilot : shipEntity;
+
+            if (_normalizedStatsLookup.HasComponent(profile))
+            {
+                var stats = _normalizedStatsLookup[profile];
+                var skill = stats.Tactics * 0.45f + stats.Finesse * 0.35f + stats.Command * 0.2f;
+                return math.saturate(skill);
+            }
+
+            float command = 0.5f;
+            float tactics = 0.5f;
+            float finesse = 0.5f;
+
+            if (_statsLookup.HasComponent(profile))
+            {
+                var stats = _statsLookup[profile];
+                command = math.saturate((float)stats.Command / 100f);
+                tactics = math.saturate((float)stats.Tactics / 100f);
+            }
+
+            if (_physiqueLookup.HasComponent(profile))
+            {
+                var physique = _physiqueLookup[profile];
+                finesse = math.saturate((float)physique.Finesse / 100f);
+            }
+
+            var fallbackSkill = tactics * 0.45f + finesse * 0.35f + command * 0.2f;
+            return math.saturate(fallbackSkill);
+        }
+
+        private static float ResolveTrackingPenalty(
+            in Space4XWeapon weapon,
+            float distance,
+            float3 directionToTarget,
+            float3 relativeVelocity,
+            float gunnerySkill)
+        {
+            if (distance <= 0.01f)
+            {
+                return 1f;
+            }
+
+            var omega = math.length(math.cross(relativeVelocity, directionToTarget)) / math.max(distance, 0.1f);
+            var basePenalty = weapon.Type switch
+            {
+                WeaponType.PointDefense => 0.05f,
+                WeaponType.Flak => 0.07f,
+                WeaponType.Laser => 0.08f,
+                WeaponType.Plasma => 0.09f,
+                WeaponType.Ion => 0.09f,
+                WeaponType.Kinetic => 0.1f,
+                WeaponType.Missile => 0.12f,
+                WeaponType.Torpedo => 0.15f,
+                _ => 0.1f
+            };
+
+            var skillFactor = math.lerp(basePenalty * 1.4f, basePenalty * 0.6f, math.saturate(gunnerySkill));
+            return math.saturate(1f - omega * skillFactor);
         }
 
         private float ResolveGunnerySkill(Entity shipEntity)
