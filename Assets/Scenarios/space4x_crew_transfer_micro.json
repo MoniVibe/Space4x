@@ -7,7 +7,7 @@
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.transfer",
-        "required": false
+        "required": true
       }
     ],
     "crewTemplates": [

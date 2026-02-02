@@ -11,7 +11,7 @@
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.sensors_causality",
-        "required": false
+        "required": true
       }
     ],
     "crewTemplates": [

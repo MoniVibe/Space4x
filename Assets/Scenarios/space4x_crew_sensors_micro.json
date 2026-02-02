@@ -7,7 +7,7 @@
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.sensors_selection",
-        "required": false
+        "required": true
       }
     ],
     "crewTemplates": [

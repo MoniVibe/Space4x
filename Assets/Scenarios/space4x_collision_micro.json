@@ -3,7 +3,13 @@
   "seed": 7,
   "duration_s": 30,
   "scenarioConfig": {
-    "applyDefaultModuleLoadouts": true
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.collision.phasing",
+        "required": true
+      }
+    ]
   },
   "proofs": {
     "mining": false
