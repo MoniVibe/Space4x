@@ -95,6 +95,11 @@ namespace Space4X.Systems.Interaction
                 }
 
                 var holdTarget = input.RayOrigin + input.RayDirection * holdDistance;
+                var releaseVelocity = float3.zero;
+                if (handState.HeldEntity != Entity.Null && deltaTime > 1e-5f)
+                {
+                    releaseVelocity = (holdTarget - handState.HoldPoint) / deltaTime;
+                }
 
                 var worldGrabActive = policy.EnableWorldGrab != 0 && input.CtrlHeld && input.ShiftHeld;
                 var debugWorldGrabAny = worldGrabActive && policy.DebugWorldGrabAny != 0;
@@ -151,17 +156,19 @@ namespace Space4X.Systems.Interaction
                             ResourceTypeIndex = 0,
                             Amount = 0f
                         });
+
+                        handState.HoldPoint = holdTarget;
                     }
 
                     if (rmbReleased)
                     {
-                        var direction = math.normalizesafe(input.RayDirection, new float3(0f, 1f, 0f));
                         var chargeLevel = math.clamp(handState.ChargeTimer / MaxChargeSeconds, 0f, 1f);
 
                         var commandType = input.ShiftHeld ? HandCommandType.QueueThrow :
                             input.CtrlHeld ? HandCommandType.SlingshotThrow :
                             HandCommandType.Throw;
 
+                        var direction = math.normalizesafe(input.RayDirection, new float3(0f, 1f, 0f));
                         float speed;
                         if (commandType == HandCommandType.SlingshotThrow)
                         {
@@ -171,8 +178,12 @@ namespace Space4X.Systems.Interaction
                         }
                         else
                         {
-                            var speedMultiplier = GetSpeedMultiplier(handState.HeldEntity, commandType);
-                            speed = ThrowSpeed * speedMultiplier;
+                            var releaseSpeed = math.length(releaseVelocity);
+                            if (releaseSpeed > 1e-4f)
+                            {
+                                direction = releaseVelocity / releaseSpeed;
+                            }
+                            speed = releaseSpeed;
                         }
 
                         commandBuffer.Add(new HandCommand
@@ -189,6 +200,7 @@ namespace Space4X.Systems.Interaction
                         });
 
                         handState.ChargeTimer = 0f;
+                        handState.HoldPoint = holdTarget;
                     }
                 }
 
