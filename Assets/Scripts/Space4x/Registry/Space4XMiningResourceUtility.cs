@@ -54,6 +54,28 @@ namespace Space4X.Registry
             return false;
         }
 
+        public static bool TryMapDepositIdToResourceId(byte depositId, out FixedString64Bytes resourceId)
+        {
+            switch (depositId)
+            {
+                case 1:
+                    resourceId = CreateShortOreId();
+                    return true;
+                case 2:
+                    resourceId = CreateRareMetalsId();
+                    return true;
+                case 3:
+                    resourceId = CreateEnergyCrystalsId();
+                    return true;
+                case 4:
+                    resourceId = CreateOrganicMatterId();
+                    return true;
+                default:
+                    resourceId = default;
+                    return false;
+            }
+        }
+
         private static FixedString64Bytes CreateMineralsId()
         {
             FixedString64Bytes id = default;

@@ -2,6 +2,7 @@ using PureDOTS.Environment;
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Stats;
 using PureDOTS.Systems;
@@ -28,11 +29,15 @@ namespace Space4X.Registry
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
+        private ComponentLookup<TerrainVolume> _terrainVolumeLookup;
+        private ComponentLookup<TerrainChunk> _terrainChunkLookup;
+        private BufferLookup<TerrainVoxelRuntime> _terrainVoxelLookup;
         private ComponentLookup<MiningState> _miningStateLookup;
         private BufferLookup<Space4XMiningLatchReservation> _latchReservationLookup;
         private BufferLookup<PlayEffectRequest> _effectRequestLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLinkLookup;
+        private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<Space4XMiningToolProfile> _toolProfileLookup;
@@ -137,11 +142,15 @@ namespace Space4X.Registry
             _asteroidLookup = state.GetComponentLookup<Asteroid>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
+            _terrainVolumeLookup = state.GetComponentLookup<TerrainVolume>(true);
+            _terrainChunkLookup = state.GetComponentLookup<TerrainChunk>(true);
+            _terrainVoxelLookup = state.GetBufferLookup<TerrainVoxelRuntime>(true);
             _miningStateLookup = state.GetComponentLookup<MiningState>(true);
             _latchReservationLookup = state.GetBufferLookup<Space4XMiningLatchReservation>();
             _effectRequestLookup = state.GetBufferLookup<PlayEffectRequest>();
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _pilotLinkLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _toolProfileLookup = state.GetComponentLookup<Space4XMiningToolProfile>(true);
@@ -223,6 +232,9 @@ namespace Space4X.Registry
             _behaviorDispositionLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
             _asteroidVolumeLookup.Update(ref state);
+            _terrainVolumeLookup.Update(ref state);
+            _terrainChunkLookup.Update(ref state);
+            _terrainVoxelLookup.Update(ref state);
             _miningStateLookup.Update(ref state);
             _latchReservationLookup.Update(ref state);
             _toolProfileLookup.Update(ref state);
@@ -234,6 +246,7 @@ namespace Space4X.Registry
             _seatRefLookup.Update(ref state);
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
+            _pilotProficiencyLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
             var actionStreamConfig = default(ProfileActionEventStreamConfig);
@@ -290,6 +303,41 @@ namespace Space4X.Registry
                 approachSamples = state.EntityManager.GetBuffer<MiningApproachTelemetrySample>(miningSpineEntity);
             }
 
+            var hasTerrainConfig = SystemAPI.TryGetSingleton<TerrainWorldConfig>(out var terrainConfig);
+            var hasVoxelAccessor = false;
+            TerrainVoxelAccessor voxelAccessor = default;
+            NativeParallelHashMap<TerrainChunkKey, Entity> chunkLookup = default;
+            if (hasTerrainConfig)
+            {
+                var chunkCount = 0;
+                foreach (var _ in SystemAPI.Query<RefRO<TerrainChunk>>())
+                {
+                    chunkCount++;
+                }
+
+                if (chunkCount > 0)
+                {
+                    chunkLookup = new NativeParallelHashMap<TerrainChunkKey, Entity>(chunkCount, Allocator.Temp);
+                    foreach (var (chunk, chunkEntity) in SystemAPI.Query<RefRO<TerrainChunk>>().WithEntityAccess())
+                    {
+                        chunkLookup.TryAdd(new TerrainChunkKey
+                        {
+                            VolumeEntity = chunk.ValueRO.VolumeEntity,
+                            ChunkCoord = chunk.ValueRO.ChunkCoord
+                        }, chunkEntity);
+                    }
+
+                    voxelAccessor = new TerrainVoxelAccessor
+                    {
+                        ChunkLookup = chunkLookup,
+                        Chunks = _terrainChunkLookup,
+                        RuntimeVoxels = _terrainVoxelLookup,
+                        WorldConfig = terrainConfig
+                    };
+                    hasVoxelAccessor = true;
+                }
+            }
+
             foreach (var (order, miningState, vessel, yield, transform, entity) in SystemAPI.Query<RefRW<MiningOrder>, RefRW<MiningState>, RefRW<MiningVessel>, RefRW<MiningYield>, RefRW<LocalTransform>>()
                          .WithEntityAccess())
             {
@@ -298,7 +346,15 @@ namespace Space4X.Registry
                     continue;
                 }
 
-                var cargoType = Space4XMiningResourceUtility.MapToResourceType(order.ValueRO.ResourceId, vessel.ValueRO.CargoResourceType);
+                var cargoType = vessel.ValueRO.CargoResourceType;
+                if (!yield.ValueRO.ResourceId.IsEmpty)
+                {
+                    cargoType = Space4XMiningResourceUtility.MapToResourceType(yield.ValueRO.ResourceId, cargoType);
+                }
+                else
+                {
+                    cargoType = Space4XMiningResourceUtility.MapToResourceType(order.ValueRO.ResourceId, cargoType);
+                }
                 if (vessel.ValueRO.CargoResourceType != cargoType)
                 {
                     vessel.ValueRW.CargoResourceType = cargoType;
@@ -378,6 +434,9 @@ namespace Space4X.Registry
                 var toolKind = toolProfile.ToolKind;
                 var toolShape = ResolveToolShape(toolProfile);
                 var disposition = ResolveBehaviorDisposition(entity);
+                var pilotSkill = ResolvePilotSkill01(entity);
+                var pilotEfficiency = ResolvePilotEfficiencyMultiplier(pilotSkill);
+                var pilotSafety = ResolvePilotSafetyMultiplier(pilotSkill);
                 var logisticsMultiplier = ResolveLogisticsOpsMultiplier(entity, vesselData.CarrierEntity, operatorTuning);
                 var logisticsSpeed = math.clamp(logisticsMultiplier, 0.75f, 1.35f);
                 var returnRatio = ResolveCargoReturnRatio(disposition);
@@ -506,18 +565,65 @@ namespace Space4X.Registry
                             var digHead = miningState.ValueRW.DigHeadLocal;
                             var digDirection = miningState.ValueRW.DigDirectionLocal;
                             var yieldMultiplier = 1f;
+                            var yieldResourceId = order.ValueRO.ResourceId;
+                            var hasOreSample = false;
+                            var oreGrade = (byte)0;
+                            var hasDepositOverride = false;
                             if (miningState.ValueRW.HasDigHead != 0)
                             {
                                 var distance = math.length(digHead);
                                 var fallbackDirection = math.normalizesafe(digDirection, new float3(0f, 0f, 1f));
                                 digDirection = math.normalizesafe(-digHead, fallbackDirection);
                                 miningState.ValueRW.DigDirectionLocal = digDirection;
-                                yieldMultiplier = ResolveYieldMultiplier(distance, math.max(0.01f, volumeConfig.Radius), volumeConfig, digConfig);
+
+                                if (hasVoxelAccessor && _terrainVolumeLookup.HasComponent(target))
+                                {
+                                    var volume = _terrainVolumeLookup[target];
+                                    if (TrySampleEmbeddedDeposit(target, volume, digHead, terrainConfig, ref voxelAccessor, out var voxelSample))
+                                    {
+                                        hasOreSample = true;
+                                        oreGrade = voxelSample.OreGrade;
+                                        if (voxelSample.DepositId != 0 &&
+                                            Space4XMiningResourceUtility.TryMapDepositIdToResourceId(voxelSample.DepositId, out var depositResourceId))
+                                        {
+                                            hasDepositOverride = true;
+                                            yieldResourceId = depositResourceId;
+                                        }
+                                    }
+                                }
+
+                                yieldMultiplier = ResolveYieldMultiplier(distance, math.max(0.01f, volumeConfig.Radius), volumeConfig, digConfig, oreGrade, hasOreSample);
                             }
 
                             yieldMultiplier *= ResolveToolYieldMultiplier(toolKind, toolProfile, digConfig);
                             yieldMultiplier *= logisticsMultiplier;
-                            var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW, order.ValueRO.ResourceId);
+                            yieldMultiplier *= pilotEfficiency;
+
+                            var cargoType = ResolveResourceType(target, order.ValueRO.ResourceId, vessel.ValueRO.CargoResourceType);
+                            if (hasDepositOverride && !yieldResourceId.IsEmpty)
+                            {
+                                cargoType = Space4XMiningResourceUtility.MapToResourceType(yieldResourceId, cargoType);
+                            }
+                            if (vessel.ValueRO.CargoResourceType != cargoType)
+                            {
+                                vessel.ValueRW.CargoResourceType = cargoType;
+                            }
+
+                            if (!yieldResourceId.IsEmpty)
+                            {
+                                if (yield.ValueRW.ResourceId.IsEmpty)
+                                {
+                                    yield.ValueRW.ResourceId = yieldResourceId;
+                                }
+                                else if (!yield.ValueRW.ResourceId.Equals(yieldResourceId))
+                                {
+                                    yield.ValueRW.ResourceId = yieldResourceId;
+                                    yield.ValueRW.PendingAmount = 0f;
+                                    yield.ValueRW.SpawnReady = 0;
+                                }
+                            }
+
+                            var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW);
                             if (mined <= 0f)
                             {
                                 break;
@@ -535,6 +641,10 @@ namespace Space4X.Registry
                                     if (hasModificationQueue && modificationBuffer.IsCreated)
                                     {
                                         var end = toolShape == TerrainModificationShape.Brush ? digStart : digEnd;
+                                        var heatDelta = ResolveToolHeatDelta(toolKind, toolProfile, digConfig);
+                                        var instabilityDelta = ResolveToolInstabilityDelta(toolKind, toolProfile, digConfig);
+                                        heatDelta = math.max(0f, heatDelta * pilotSafety);
+                                        instabilityDelta = math.max(0f, instabilityDelta * pilotSafety);
                                         modificationBuffer.Add(new TerrainModificationRequest
                                         {
                                             Kind = TerrainModificationKind.Dig,
@@ -548,8 +658,8 @@ namespace Space4X.Registry
                                             DamageDelta = ResolveToolDamageDelta(toolKind, toolProfile, digConfig),
                                             DamageThreshold = ResolveToolDamageThreshold(toolKind, toolProfile, digConfig),
                                             YieldMultiplier = ResolveToolYieldMultiplier(toolKind, toolProfile, digConfig),
-                                            HeatDelta = ResolveToolHeatDelta(toolKind, toolProfile, digConfig),
-                                            InstabilityDelta = ResolveToolInstabilityDelta(toolKind, toolProfile, digConfig),
+                                            HeatDelta = heatDelta,
+                                            InstabilityDelta = instabilityDelta,
                                             Flags = TerrainModificationFlags.AffectsVolume,
                                             RequestedTick = currentTick,
                                             Actor = entity,
@@ -562,7 +672,7 @@ namespace Space4X.Registry
                                 }
                             }
 
-                            UpdateYield(ref yield.ValueRW, order.ValueRO.ResourceId, mined);
+                            UpdateYield(ref yield.ValueRW, yieldResourceId, mined);
                             LogMiningCommand(hasCommandLog, commandLog, currentTick, target, entity, vessel.ValueRO.CargoResourceType, mined, transform.ValueRO.Position);
                             var effectDirection = ResolveEffectDirection(miningState.ValueRO, target, transform.ValueRO.Position);
                             EmitEffect(effectBuffer, entity, tickInterval, toolKind, toolProfile, digConfig, transform.ValueRO.Position, effectDirection);
@@ -609,6 +719,11 @@ namespace Space4X.Registry
                         }
                         break;
                 }
+            }
+
+            if (chunkLookup.IsCreated)
+            {
+                chunkLookup.Dispose();
             }
 
         }
@@ -778,7 +893,7 @@ namespace Space4X.Registry
             return genericDistanceSq <= requiredDistance * requiredDistance;
         }
 
-        private float ApplyMiningTick(Entity miner, Entity target, float tickInterval, float yieldMultiplier, ref MiningVessel vessel, in FixedString64Bytes orderResourceId)
+        private float ApplyMiningTick(Entity miner, Entity target, float tickInterval, float yieldMultiplier, ref MiningVessel vessel)
         {
             if (!_resourceStateLookup.HasComponent(target))
             {
@@ -796,7 +911,6 @@ namespace Space4X.Registry
                 ? _resourceConfigLookup[target]
                 : new ResourceSourceConfig { GatherRatePerWorker = 5f, MaxSimultaneousWorkers = 1, RespawnSeconds = 0f, Flags = 0 };
 
-            vessel.CargoResourceType = ResolveResourceType(target, orderResourceId, vessel.CargoResourceType);
             var miningRate = math.max(0f, config.GatherRatePerWorker) * math.max(0f, vessel.MiningEfficiency);
             miningRate *= GetMiningSkillMultiplier(miner);
             miningRate *= math.max(0f, yieldMultiplier);
@@ -992,7 +1106,9 @@ namespace Space4X.Registry
             float distance,
             float radius,
             in Space4XAsteroidVolumeConfig volumeConfig,
-            in Space4XMiningDigConfig digConfig)
+            in Space4XMiningDigConfig digConfig,
+            byte oreGrade,
+            bool useOreGrade)
         {
             if (radius <= 0f)
             {
@@ -1020,9 +1136,17 @@ namespace Space4X.Registry
                 layerMultiplier = digConfig.CrustYieldMultiplier;
             }
 
-            var depthRatio = math.saturate(1f - (distance / radius));
-            var exponent = math.max(0.01f, volumeConfig.OreGradeExponent);
-            var oreNorm = math.pow(depthRatio, exponent) * (volumeConfig.CoreOreGrade / 255f);
+            float oreNorm;
+            if (useOreGrade)
+            {
+                oreNorm = oreGrade / 255f;
+            }
+            else
+            {
+                var depthRatio = math.saturate(1f - (distance / radius));
+                var exponent = math.max(0.01f, volumeConfig.OreGradeExponent);
+                oreNorm = math.pow(depthRatio, exponent) * (volumeConfig.CoreOreGrade / 255f);
+            }
             var oreMultiplier = 1f + oreNorm * math.max(0f, digConfig.OreGradeWeight);
 
             return math.max(0.01f, layerMultiplier * oreMultiplier);
@@ -1198,6 +1322,42 @@ namespace Space4X.Registry
             local = math.rotate(math.inverse(transform.Rotation), local);
             var scale = math.max(0.0001f, transform.Scale);
             return local / scale;
+        }
+
+        private static bool TrySampleEmbeddedDeposit(
+            Entity volumeEntity,
+            in TerrainVolume volume,
+            in float3 digHeadLocal,
+            in TerrainWorldConfig terrainConfig,
+            ref TerrainVoxelAccessor voxelAccessor,
+            out TerrainVoxelSample sample)
+        {
+            sample = default;
+            if (!voxelAccessor.ChunkLookup.IsCreated)
+            {
+                return false;
+            }
+
+            if (terrainConfig.VoxelSize <= 0f ||
+                terrainConfig.VoxelsPerChunk.x <= 0 ||
+                terrainConfig.VoxelsPerChunk.y <= 0 ||
+                terrainConfig.VoxelsPerChunk.z <= 0)
+            {
+                return false;
+            }
+
+            var chunkSize = new float3(terrainConfig.VoxelsPerChunk) * terrainConfig.VoxelSize;
+            if (math.any(chunkSize <= 0f))
+            {
+                return false;
+            }
+
+            var local = digHeadLocal - volume.LocalOrigin;
+            var chunkCoord = (int3)math.floor(local / chunkSize);
+            var chunkOrigin = new float3(chunkCoord) * chunkSize;
+            var voxelCoord = (int3)math.floor((local - chunkOrigin) / terrainConfig.VoxelSize);
+
+            return voxelAccessor.TrySampleVoxel(volumeEntity, chunkCoord, voxelCoord, out sample);
         }
 
         private static void UpdateYield(ref MiningYield yield, in FixedString64Bytes resourceId, float mined)
@@ -1519,6 +1679,39 @@ namespace Space4X.Registry
             var skill = math.saturate(skills.MiningSkill);
             // Up to +50% output at max skill.
             return 1f + 0.5f * skill;
+        }
+
+        private float ResolvePilotSkill01(Entity miner)
+        {
+            var profileEntity = ResolveProfileEntity(miner);
+            if (_pilotProficiencyLookup.HasComponent(profileEntity))
+            {
+                var proficiency = _pilotProficiencyLookup[profileEntity];
+                var control = math.saturate((proficiency.ControlMult - 0.5f) / 1.0f);
+                var reaction = math.saturate((1f - proficiency.ReactionSec) / 0.9f);
+                var energy = math.saturate((1.5f - proficiency.EnergyMult) / 0.8f);
+                var jitterPenalty = math.saturate(proficiency.Jitter / 0.1f);
+                var skill = math.saturate(control * 0.45f + reaction * 0.3f + energy * 0.25f);
+                return math.saturate(skill * (1f - jitterPenalty * 0.2f));
+            }
+
+            if (_statsLookup.HasComponent(profileEntity))
+            {
+                var stats = _statsLookup[profileEntity];
+                return math.saturate((float)stats.Engineering / 100f);
+            }
+
+            return 0.5f;
+        }
+
+        private static float ResolvePilotEfficiencyMultiplier(float skill01)
+        {
+            return math.lerp(0.85f, 1.25f, math.saturate(skill01));
+        }
+
+        private static float ResolvePilotSafetyMultiplier(float skill01)
+        {
+            return math.lerp(1.15f, 0.75f, math.saturate(skill01));
         }
 
         private Entity ResolveProfileEntity(Entity miner)
