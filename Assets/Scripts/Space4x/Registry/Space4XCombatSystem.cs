@@ -580,6 +580,12 @@ namespace Space4X.Registry
                 currentTick = (uint)SystemAPI.Time.ElapsedTime;
             }
 
+            var combatTuning = Space4XCombatTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XCombatTuningConfig>(out var combatTuningSingleton))
+            {
+                combatTuning = combatTuningSingleton;
+            }
+
             _formationBonusLookup.Update(ref state);
             _formationIntegrityLookup.Update(ref state);
             _formationConfigLookup.Update(ref state);
@@ -636,7 +642,7 @@ namespace Space4X.Registry
                     focusAccuracyBonus = (float)focusModifiers.AccuracyBonus;
                 }
 
-                var gunnerySkill = ResolveGunnerySkill(entity);
+                var gunnerySkill = ResolveGunnerySkill(entity, combatTuning);
                 var toTarget = targetTransform.Position - transform.ValueRO.Position;
                 var directionToTarget = math.lengthsq(toTarget) > 1e-6f ? math.normalizesafe(toTarget) : math.forward(transform.ValueRO.Rotation);
                 var attackerVelocity = _movementLookup.HasComponent(entity) ? _movementLookup[entity].Velocity : float3.zero;
@@ -681,7 +687,7 @@ namespace Space4X.Registry
                     var gunneryMultiplier = math.lerp(0.75f, 1.15f, gunnerySkill);
                     hitChance = math.clamp(hitChance * gunneryMultiplier, 0f, 1f);
 
-                    var trackingPenalty = ResolveTrackingPenalty(mount.Weapon, distance, directionToTarget, relativeVelocity, gunnerySkill);
+                    var trackingPenalty = ResolveTrackingPenalty(mount.Weapon, distance, directionToTarget, relativeVelocity, gunnerySkill, combatTuning);
                     hitChance = math.clamp(hitChance * trackingPenalty, 0f, 1f);
 
                     if (random.NextFloat() > hitChance)
@@ -871,15 +877,31 @@ namespace Space4X.Registry
             return Entity.Null;
         }
 
-        private float ResolveGunnerySkill(Entity shipEntity)
+        private float ResolveGunnerySkill(Entity shipEntity, in Space4XCombatTuningConfig tuning)
         {
             var pilot = ResolvePilot(shipEntity);
             var profile = pilot != Entity.Null ? pilot : shipEntity;
 
+            var tacticsWeight = math.max(0f, tuning.GunneryTacticsWeight);
+            var finesseWeight = math.max(0f, tuning.GunneryFinesseWeight);
+            var commandWeight = math.max(0f, tuning.GunneryCommandWeight);
+            var weightSum = tacticsWeight + finesseWeight + commandWeight;
+            if (weightSum <= 1e-4f)
+            {
+                tacticsWeight = 0.34f;
+                finesseWeight = 0.33f;
+                commandWeight = 0.33f;
+                weightSum = 1f;
+            }
+            var invWeight = 1f / weightSum;
+            tacticsWeight *= invWeight;
+            finesseWeight *= invWeight;
+            commandWeight *= invWeight;
+
             if (_normalizedStatsLookup.HasComponent(profile))
             {
                 var stats = _normalizedStatsLookup[profile];
-                var skill = stats.Tactics * 0.45f + stats.Finesse * 0.35f + stats.Command * 0.2f;
+                var skill = stats.Tactics * tacticsWeight + stats.Finesse * finesseWeight + stats.Command * commandWeight;
                 return math.saturate(skill);
             }
 
@@ -900,7 +922,7 @@ namespace Space4X.Registry
                 finesse = math.saturate((float)physique.Finesse / 100f);
             }
 
-            var fallbackSkill = tactics * 0.45f + finesse * 0.35f + command * 0.2f;
+            var fallbackSkill = tactics * tacticsWeight + finesse * finesseWeight + command * commandWeight;
             return math.saturate(fallbackSkill);
         }
 
@@ -909,7 +931,8 @@ namespace Space4X.Registry
             float distance,
             float3 directionToTarget,
             float3 relativeVelocity,
-            float gunnerySkill)
+            float gunnerySkill,
+            in Space4XCombatTuningConfig tuning)
         {
             if (distance <= 0.01f)
             {
@@ -930,7 +953,9 @@ namespace Space4X.Registry
                 _ => 0.1f
             };
 
-            var skillFactor = math.lerp(basePenalty * 1.4f, basePenalty * 0.6f, math.saturate(gunnerySkill));
+            var minScale = math.max(0f, tuning.TrackingPenaltyMinScale);
+            var maxScale = math.max(minScale, tuning.TrackingPenaltyMaxScale);
+            var skillFactor = math.lerp(basePenalty * maxScale, basePenalty * minScale, math.saturate(gunnerySkill));
             return math.saturate(1f - omega * skillFactor);
         }
 

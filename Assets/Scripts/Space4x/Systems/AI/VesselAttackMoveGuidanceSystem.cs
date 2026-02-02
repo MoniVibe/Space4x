@@ -140,6 +140,12 @@ namespace Space4X.Systems.AI
                 projectileSpeedMultiplier = math.max(0f, weaponTuning.ProjectileSpeedMultiplier);
             }
 
+            var movementTuning = Space4XMovementTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XMovementTuningConfig>(out var movementTuningSingleton))
+            {
+                movementTuning = movementTuningSingleton;
+            }
+
             var missingAimAttackMove = SystemAPI.QueryBuilder()
                 .WithAll<AttackMoveIntent>()
                 .WithNone<VesselAimDirective>()
@@ -212,7 +218,7 @@ namespace Space4X.Systems.AI
 
                 var maxRange = ResolveMaxWeaponRange(entity);
                 var distanceToAim = hasAim ? math.distance(transform.ValueRO.Position, aimPosition) : 0f;
-                var contactRange = maxRange > 0f ? maxRange * 1.05f : 0f;
+                var contactRange = ResolveContactRange(maxRange, movementTuning);
                 var inContact = hasAim && maxRange > 0f && distanceToAim <= contactRange;
 
                 var facingSkill = inContact ? ResolveFacingSkill(entity) : 0f;
@@ -288,7 +294,7 @@ namespace Space4X.Systems.AI
                 var aimDir = math.normalizesafe(aimPosition - transform.ValueRO.Position, fallbackDir);
                 var maxRange = ResolveMaxWeaponRange(entity);
                 var distanceToAim = math.distance(transform.ValueRO.Position, aimPosition);
-                var contactRange = maxRange > 0f ? maxRange * 1.05f : 0f;
+                var contactRange = ResolveContactRange(maxRange, movementTuning);
                 var inContact = maxRange > 0f && distanceToAim <= contactRange;
                 var aimWeight = 0f;
 
@@ -414,6 +420,18 @@ namespace Space4X.Systems.AI
             }
 
             return maxRange;
+        }
+
+        private static float ResolveContactRange(float maxRange, in Space4XMovementTuningConfig tuning)
+        {
+            if (maxRange <= 0f)
+            {
+                return 0f;
+            }
+
+            var scale = math.max(0f, tuning.ContactRangeScale);
+            var min = math.max(0f, tuning.ContactRangeMin);
+            return math.max(min, maxRange * scale);
         }
 
         private bool TryResolveLeadDirection(
