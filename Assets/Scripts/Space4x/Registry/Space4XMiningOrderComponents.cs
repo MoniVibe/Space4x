@@ -64,6 +64,8 @@ namespace Space4X.Registry
         public byte HasLatchPoint;
         public uint LatchSettleUntilTick;
         public uint LastLatchTelemetryTick;
+        public float ToolHeat01;
+        public float ToolInstability01;
     }
 
     public struct Space4XMiningLatchConfig : IComponentData

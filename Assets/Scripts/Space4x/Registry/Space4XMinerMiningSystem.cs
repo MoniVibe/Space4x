@@ -59,6 +59,13 @@ namespace Space4X.Registry
         private const float LatchDuration = 0.9f;
         private const float DetachDuration = 0.8f;
         private const float DockDuration = 1.2f;
+        private const float ToolHeatAccumulationScale = 0.05f;
+        private const float ToolInstabilityAccumulationScale = 0.04f;
+        private const float ToolHeatCooldownPerSecond = 0.08f;
+        private const float ToolInstabilityCooldownPerSecond = 0.06f;
+        private const float ToolHeatPenaltyStart = 0.7f;
+        private const float ToolInstabilityPenaltyStart = 0.65f;
+        private const float ToolStressPenaltyFloor = 0.6f;
 
         private static FixedString64Bytes CreateMiningEffectId()
         {
@@ -447,6 +454,14 @@ namespace Space4X.Registry
                 var latchDuration = ResolvePhaseDuration(LatchDuration, disposition) / logisticsSpeed;
                 var detachDuration = ResolvePhaseDuration(DetachDuration, disposition) / logisticsSpeed;
                 var dockDuration = ResolvePhaseDuration(DockDuration, disposition) / logisticsSpeed;
+                var vesselStressMultiplier = ResolveVesselStressMultiplier(vesselData);
+                var toolHeat01 = miningState.ValueRO.ToolHeat01;
+                var toolInstability01 = miningState.ValueRO.ToolInstability01;
+                var cooldownScale = phase == MiningPhase.Mining ? 1f : 1.35f;
+                toolHeat01 = math.max(0f, toolHeat01 - ToolHeatCooldownPerSecond * cooldownScale * deltaTime);
+                toolInstability01 = math.max(0f, toolInstability01 - ToolInstabilityCooldownPerSecond * cooldownScale * deltaTime);
+                miningState.ValueRW.ToolHeat01 = toolHeat01;
+                miningState.ValueRW.ToolInstability01 = toolInstability01;
 
                 switch (phase)
                 {
@@ -598,6 +613,7 @@ namespace Space4X.Registry
                             yieldMultiplier *= ResolveToolYieldMultiplier(toolKind, toolProfile, digConfig);
                             yieldMultiplier *= logisticsMultiplier;
                             yieldMultiplier *= pilotEfficiency;
+                            yieldMultiplier *= ResolveStressYieldMultiplier(toolHeat01, toolInstability01);
 
                             var cargoType = ResolveResourceType(target, order.ValueRO.ResourceId, vessel.ValueRO.CargoResourceType);
                             if (hasDepositOverride && !yieldResourceId.IsEmpty)
@@ -637,14 +653,21 @@ namespace Space4X.Registry
                                 {
                                     var digStart = digHead;
                                     var digEnd = digStart + digDirection * stepLength;
+                                    var heatDelta = ResolveToolHeatDelta(toolKind, toolProfile, digConfig);
+                                    var instabilityDelta = ResolveToolInstabilityDelta(toolKind, toolProfile, digConfig);
+                                    heatDelta = math.max(0f, heatDelta * pilotSafety);
+                                    instabilityDelta = math.max(0f, instabilityDelta * pilotSafety);
+
+                                    var heatGain = heatDelta * tickInterval * ToolHeatAccumulationScale * vesselStressMultiplier;
+                                    var instabilityGain = instabilityDelta * tickInterval * ToolInstabilityAccumulationScale * vesselStressMultiplier;
+                                    toolHeat01 = math.saturate(toolHeat01 + heatGain);
+                                    toolInstability01 = math.saturate(toolInstability01 + instabilityGain);
+                                    miningState.ValueRW.ToolHeat01 = toolHeat01;
+                                    miningState.ValueRW.ToolInstability01 = toolInstability01;
 
                                     if (hasModificationQueue && modificationBuffer.IsCreated)
                                     {
                                         var end = toolShape == TerrainModificationShape.Brush ? digStart : digEnd;
-                                        var heatDelta = ResolveToolHeatDelta(toolKind, toolProfile, digConfig);
-                                        var instabilityDelta = ResolveToolInstabilityDelta(toolKind, toolProfile, digConfig);
-                                        heatDelta = math.max(0f, heatDelta * pilotSafety);
-                                        instabilityDelta = math.max(0f, instabilityDelta * pilotSafety);
                                         modificationBuffer.Add(new TerrainModificationRequest
                                         {
                                             Kind = TerrainModificationKind.Dig,
@@ -1712,6 +1735,20 @@ namespace Space4X.Registry
         private static float ResolvePilotSafetyMultiplier(float skill01)
         {
             return math.lerp(1.15f, 0.75f, math.saturate(skill01));
+        }
+
+        private static float ResolveVesselStressMultiplier(in MiningVessel vessel)
+        {
+            var efficiency = math.saturate(vessel.MiningEfficiency);
+            return math.lerp(1.2f, 0.85f, efficiency);
+        }
+
+        private static float ResolveStressYieldMultiplier(float heat01, float instability01)
+        {
+            var heatPenalty = math.saturate((heat01 - ToolHeatPenaltyStart) / math.max(0.0001f, 1f - ToolHeatPenaltyStart));
+            var instabilityPenalty = math.saturate((instability01 - ToolInstabilityPenaltyStart) / math.max(0.0001f, 1f - ToolInstabilityPenaltyStart));
+            var combined = math.saturate(heatPenalty * 0.55f + instabilityPenalty * 0.45f);
+            return math.lerp(1f, ToolStressPenaltyFloor, combined);
         }
 
         private Entity ResolveProfileEntity(Entity miner)
