@@ -166,8 +166,13 @@ namespace Space4X.Systems.AI
                     ? math.normalizesafe(aimPosition - transform.ValueRO.Position, moveDir)
                     : moveDir;
 
-                var facingSkill = hasAim ? ResolveFacingSkill(entity) : 0f;
-                if (hasAim && aimTarget != Entity.Null && _movementLookup.HasComponent(aimTarget) && _weaponLookup.HasBuffer(entity))
+                var maxRange = ResolveMaxWeaponRange(entity);
+                var distanceToAim = hasAim ? math.distance(transform.ValueRO.Position, aimPosition) : 0f;
+                var contactRange = maxRange > 0f ? maxRange * 1.05f : 0f;
+                var inContact = hasAim && maxRange > 0f && distanceToAim <= contactRange;
+
+                var facingSkill = inContact ? ResolveFacingSkill(entity) : 0f;
+                if (inContact && aimTarget != Entity.Null && _movementLookup.HasComponent(aimTarget) && _weaponLookup.HasBuffer(entity))
                 {
                     if (TryResolveLeadDirection(entity, aimTarget, aimPosition, transform.ValueRO.Position, projectileSpeedMultiplier, out var leadDir))
                     {
@@ -176,26 +181,21 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                var maxRange = ResolveMaxWeaponRange(entity);
                 var aimWeight = 0f;
-                var distanceToAim = hasAim ? math.distance(transform.ValueRO.Position, aimPosition) : 0f;
-                if (hasAim && maxRange > 0f && intent.ValueRO.KeepFiringWhileInRange != 0)
+                if (inContact && intent.ValueRO.KeepFiringWhileInRange != 0)
                 {
-                    if (distanceToAim <= maxRange)
-                    {
-                        var tuning = ResolveStanceTuning(entity, stanceConfig);
-                        var bearingWeight = math.max(0f, tuning.AttackMoveBearingWeight);
-                        var destinationWeight = math.max(0f, tuning.AttackMoveDestinationWeight);
-                        var weightSum = bearingWeight + destinationWeight;
-                        var stanceWeight = weightSum > 1e-4f ? bearingWeight / weightSum : 0f;
-                        var bearingDot = math.dot(moveDir, aimDir);
-                        var coneError = math.saturate((0.7f - bearingDot) / 0.3f);
-                        var bias = 0.4f + 0.6f * coneError;
-                        aimWeight = math.saturate(stanceWeight * bias);
-                    }
+                    var tuning = ResolveStanceTuning(entity, stanceConfig);
+                    var bearingWeight = math.max(0f, tuning.AttackMoveBearingWeight);
+                    var destinationWeight = math.max(0f, tuning.AttackMoveDestinationWeight);
+                    var weightSum = bearingWeight + destinationWeight;
+                    var stanceWeight = weightSum > 1e-4f ? bearingWeight / weightSum : 0f;
+                    var bearingDot = math.dot(moveDir, aimDir);
+                    var coneError = math.saturate((0.7f - bearingDot) / 0.3f);
+                    var bias = 0.4f + 0.6f * coneError;
+                    aimWeight = math.saturate(stanceWeight * bias);
                 }
 
-                if (hasAim && maxRange > 0f && distanceToAim <= maxRange * 1.1f && _weaponLookup.HasBuffer(entity))
+                if (inContact && _weaponLookup.HasBuffer(entity))
                 {
                     var weapons = _weaponLookup[entity];
                     var facingDir = ResolveFacingDirection(entity, aimDir, transform.ValueRO.Rotation, distanceToAim, weapons, facingSkill, out var coverage);
@@ -244,10 +244,12 @@ namespace Space4X.Systems.AI
                 var aimDir = math.normalizesafe(aimPosition - transform.ValueRO.Position, fallbackDir);
                 var maxRange = ResolveMaxWeaponRange(entity);
                 var distanceToAim = math.distance(transform.ValueRO.Position, aimPosition);
+                var contactRange = maxRange > 0f ? maxRange * 1.05f : 0f;
+                var inContact = maxRange > 0f && distanceToAim <= contactRange;
                 var aimWeight = 0f;
 
-                var facingSkill = ResolveFacingSkill(entity);
-                if (_movementLookup.HasComponent(aimTarget) && _weaponLookup.HasBuffer(entity))
+                var facingSkill = inContact ? ResolveFacingSkill(entity) : 0f;
+                if (inContact && _movementLookup.HasComponent(aimTarget) && _weaponLookup.HasBuffer(entity))
                 {
                     if (TryResolveLeadDirection(entity, aimTarget, aimPosition, transform.ValueRO.Position, projectileSpeedMultiplier, out var leadDir))
                     {
@@ -256,7 +258,7 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                if (maxRange > 0f && distanceToAim <= maxRange * 1.2f && _weaponLookup.HasBuffer(entity))
+                if (inContact && _weaponLookup.HasBuffer(entity))
                 {
                     var weapons = _weaponLookup[entity];
                     var facingDir = ResolveFacingDirection(entity, aimDir, transform.ValueRO.Rotation, distanceToAim, weapons, facingSkill, out var coverage);

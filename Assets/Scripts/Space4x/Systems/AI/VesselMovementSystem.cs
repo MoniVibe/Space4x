@@ -1483,6 +1483,22 @@ namespace Space4X.Systems.AI
                     return false;
                 }
 
+                var contactRange = maxRange * 1.05f;
+                var inContact = distance <= contactRange;
+                if (!inContact && EngagementLookup.HasComponent(entity))
+                {
+                    var engagement = EngagementLookup[entity];
+                    if (engagement.PrimaryTarget == combatTarget && engagement.Phase == EngagementPhase.Engaged)
+                    {
+                        inContact = true;
+                    }
+                }
+
+                if (!inContact)
+                {
+                    return false;
+                }
+
                 var preferredRange = optimalRange > 0f ? optimalRange : maxRange * 0.7f;
                 var rangeBias = math.lerp(1.15f, 0.85f, math.saturate(stance.AttackMoveBearingWeight));
                 var desiredRange = math.max(1f, math.lerp(preferredRange, maxRange, 0.35f) * rangeBias);
