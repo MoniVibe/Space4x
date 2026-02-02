@@ -214,10 +214,19 @@ namespace Space4X.Registry
                 ecb.AddComponent(entity, capacities);
             }
 
-            if (!em.HasComponent<PhysiqueFinesseWill>(entity))
+            var hasPhysique = em.HasComponent<PhysiqueFinesseWill>(entity);
+            var physique = hasPhysique ? em.GetComponentData<PhysiqueFinesseWill>(entity)
+                : hasTemplate ? template.Physique : DefaultPhysique();
+
+            if (!hasPhysique)
             {
-                var physique = hasTemplate ? template.Physique : DefaultPhysique();
                 ecb.AddComponent(entity, physique);
+            }
+
+            if (!em.HasComponent<PureDOTS.Runtime.Stats.WisdomStat>(entity))
+            {
+                var wisdomValue = math.clamp((float)physique.Will, 0f, 100f);
+                ecb.AddComponent(entity, PureDOTS.Runtime.Stats.WisdomStat.FromValue(wisdomValue));
             }
 
             if (!em.HasComponent<PersonalityAxes>(entity))
