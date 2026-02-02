@@ -65,8 +65,52 @@ namespace Space4X.Systems.AI
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
-            _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
-            _roleWeaponsOfficer = new FixedString64Bytes("ship.weapons_officer");
+            _roleNavigationOfficer = default;
+            _roleNavigationOfficer.Append('s');
+            _roleNavigationOfficer.Append('h');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('p');
+            _roleNavigationOfficer.Append('.');
+            _roleNavigationOfficer.Append('n');
+            _roleNavigationOfficer.Append('a');
+            _roleNavigationOfficer.Append('v');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('g');
+            _roleNavigationOfficer.Append('a');
+            _roleNavigationOfficer.Append('t');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('o');
+            _roleNavigationOfficer.Append('n');
+            _roleNavigationOfficer.Append('_');
+            _roleNavigationOfficer.Append('o');
+            _roleNavigationOfficer.Append('f');
+            _roleNavigationOfficer.Append('f');
+            _roleNavigationOfficer.Append('i');
+            _roleNavigationOfficer.Append('c');
+            _roleNavigationOfficer.Append('e');
+            _roleNavigationOfficer.Append('r');
+
+            _roleWeaponsOfficer = default;
+            _roleWeaponsOfficer.Append('s');
+            _roleWeaponsOfficer.Append('h');
+            _roleWeaponsOfficer.Append('i');
+            _roleWeaponsOfficer.Append('p');
+            _roleWeaponsOfficer.Append('.');
+            _roleWeaponsOfficer.Append('w');
+            _roleWeaponsOfficer.Append('e');
+            _roleWeaponsOfficer.Append('a');
+            _roleWeaponsOfficer.Append('p');
+            _roleWeaponsOfficer.Append('o');
+            _roleWeaponsOfficer.Append('n');
+            _roleWeaponsOfficer.Append('s');
+            _roleWeaponsOfficer.Append('_');
+            _roleWeaponsOfficer.Append('o');
+            _roleWeaponsOfficer.Append('f');
+            _roleWeaponsOfficer.Append('f');
+            _roleWeaponsOfficer.Append('i');
+            _roleWeaponsOfficer.Append('c');
+            _roleWeaponsOfficer.Append('e');
+            _roleWeaponsOfficer.Append('r');
         }
 
         [BurstCompile]
