@@ -98,7 +98,7 @@ namespace Space4X.Systems.Interaction
 
                 var worldGrabActive = policy.EnableWorldGrab != 0 && input.CtrlHeld && input.ShiftHeld;
                 var debugWorldGrabAny = worldGrabActive && policy.DebugWorldGrabAny != 0;
-                var celestialPick = worldGrabActive &&
+                var celestialPick = debugWorldGrabAny &&
                     affordances.TargetEntity != Entity.Null &&
                     _celestialLookup.HasComponent(affordances.TargetEntity);
 

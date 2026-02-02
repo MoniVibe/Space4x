@@ -33,7 +33,7 @@ namespace Space4X.Systems.Interaction
                 {
                     AutoPickDynamicPhysics = 1,
                     EnableWorldGrab = 1,
-                    DebugWorldGrabAny = 1,
+                    DebugWorldGrabAny = 0,
                     WorldGrabRequiresTag = 1
                 });
             }
