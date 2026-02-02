@@ -19,22 +19,22 @@ namespace Space4X.Registry
         private ComponentLookup<AuthoritySeatOccupant> _occupantLookup;
         private ComponentLookup<Space4XFocusModifiers> _focusLookup;
 
-        private FixedString64Bytes _roleCaptain;
-        private FixedString64Bytes _roleXO;
-        private FixedString64Bytes _roleShipmaster;
-        private FixedString64Bytes _roleFleetAdmiral;
-        private FixedString64Bytes _roleNavigationOfficer;
-        private FixedString64Bytes _roleWeaponsOfficer;
-        private FixedString64Bytes _roleSensorsOfficer;
-        private FixedString64Bytes _roleCommunicationsOfficer;
-        private FixedString64Bytes _roleLogisticsOfficer;
-        private FixedString64Bytes _roleChiefEngineer;
-        private FixedString64Bytes _roleSecurityOfficer;
-        private FixedString64Bytes _roleMarineCommander;
-        private FixedString64Bytes _roleMarineSergeant;
-        private FixedString64Bytes _roleFlightCommander;
-        private FixedString64Bytes _roleFlightDirector;
-        private FixedString64Bytes _roleHangarDeckOfficer;
+        private static readonly FixedString64Bytes RoleCaptain = "ship.captain";
+        private static readonly FixedString64Bytes RoleXO = "ship.xo";
+        private static readonly FixedString64Bytes RoleShipmaster = "ship.shipmaster";
+        private static readonly FixedString64Bytes RoleFleetAdmiral = "ship.fleet_admiral";
+        private static readonly FixedString64Bytes RoleNavigationOfficer = "ship.navigation_officer";
+        private static readonly FixedString64Bytes RoleWeaponsOfficer = "ship.weapons_officer";
+        private static readonly FixedString64Bytes RoleSensorsOfficer = "ship.sensors_officer";
+        private static readonly FixedString64Bytes RoleCommunicationsOfficer = "ship.communications_officer";
+        private static readonly FixedString64Bytes RoleLogisticsOfficer = "ship.logistics_officer";
+        private static readonly FixedString64Bytes RoleChiefEngineer = "ship.chief_engineer";
+        private static readonly FixedString64Bytes RoleSecurityOfficer = "ship.security_officer";
+        private static readonly FixedString64Bytes RoleMarineCommander = "ship.marine_commander";
+        private static readonly FixedString64Bytes RoleMarineSergeant = "ship.marine_sergeant";
+        private static readonly FixedString64Bytes RoleFlightCommander = "ship.flight_commander";
+        private static readonly FixedString64Bytes RoleFlightDirector = "ship.flight_director";
+        private static readonly FixedString64Bytes RoleHangarDeckOfficer = "ship.hangar_deck_officer";
 
         private enum SeatFocusDomain : byte
         {
@@ -61,23 +61,6 @@ namespace Space4X.Registry
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _occupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
-
-            _roleCaptain = new FixedString64Bytes("ship.captain");
-            _roleXO = new FixedString64Bytes("ship.xo");
-            _roleShipmaster = new FixedString64Bytes("ship.shipmaster");
-            _roleFleetAdmiral = new FixedString64Bytes("ship.fleet_admiral");
-            _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
-            _roleWeaponsOfficer = new FixedString64Bytes("ship.weapons_officer");
-            _roleSensorsOfficer = new FixedString64Bytes("ship.sensors_officer");
-            _roleCommunicationsOfficer = new FixedString64Bytes("ship.communications_officer");
-            _roleLogisticsOfficer = new FixedString64Bytes("ship.logistics_officer");
-            _roleChiefEngineer = new FixedString64Bytes("ship.chief_engineer");
-            _roleSecurityOfficer = new FixedString64Bytes("ship.security_officer");
-            _roleMarineCommander = new FixedString64Bytes("ship.marine_commander");
-            _roleMarineSergeant = new FixedString64Bytes("ship.marine_sergeant");
-            _roleFlightCommander = new FixedString64Bytes("ship.flight_commander");
-            _roleFlightDirector = new FixedString64Bytes("ship.flight_director");
-            _roleHangarDeckOfficer = new FixedString64Bytes("ship.hangar_deck_officer");
         }
 
         [BurstCompile]
@@ -182,64 +165,64 @@ namespace Space4X.Registry
 
         private bool TryResolveDomain(in FixedString64Bytes roleId, out SeatFocusDomain domain, out byte priority)
         {
-            if (roleId.Equals(_roleWeaponsOfficer))
+            if (roleId.Equals(RoleWeaponsOfficer))
             {
                 domain = SeatFocusDomain.Weapons;
                 priority = 2;
                 return true;
             }
 
-            if (roleId.Equals(_roleSensorsOfficer))
+            if (roleId.Equals(RoleSensorsOfficer))
             {
                 domain = SeatFocusDomain.Sensors;
                 priority = 2;
                 return true;
             }
 
-            if (roleId.Equals(_roleCommunicationsOfficer))
+            if (roleId.Equals(RoleCommunicationsOfficer))
             {
                 domain = SeatFocusDomain.Sensors;
                 priority = 1;
                 return true;
             }
 
-            if (roleId.Equals(_roleChiefEngineer))
+            if (roleId.Equals(RoleChiefEngineer))
             {
                 domain = SeatFocusDomain.Engineering;
                 priority = 2;
                 return true;
             }
 
-            if (roleId.Equals(_roleLogisticsOfficer))
+            if (roleId.Equals(RoleLogisticsOfficer))
             {
                 domain = SeatFocusDomain.Operations;
                 priority = 2;
                 return true;
             }
 
-            if (roleId.Equals(_roleNavigationOfficer))
+            if (roleId.Equals(RoleNavigationOfficer))
             {
                 domain = SeatFocusDomain.Tactical;
                 priority = 2;
                 return true;
             }
 
-            if (roleId.Equals(_roleFlightCommander) || roleId.Equals(_roleFlightDirector) || roleId.Equals(_roleHangarDeckOfficer))
+            if (roleId.Equals(RoleFlightCommander) || roleId.Equals(RoleFlightDirector) || roleId.Equals(RoleHangarDeckOfficer))
             {
                 domain = SeatFocusDomain.Tactical;
                 priority = 1;
                 return true;
             }
 
-            if (roleId.Equals(_roleCaptain))
+            if (roleId.Equals(RoleCaptain))
             {
                 domain = SeatFocusDomain.Command;
                 priority = 2;
                 return true;
             }
 
-            if (roleId.Equals(_roleXO) || roleId.Equals(_roleShipmaster) || roleId.Equals(_roleFleetAdmiral) ||
-                roleId.Equals(_roleSecurityOfficer) || roleId.Equals(_roleMarineCommander) || roleId.Equals(_roleMarineSergeant))
+            if (roleId.Equals(RoleXO) || roleId.Equals(RoleShipmaster) || roleId.Equals(RoleFleetAdmiral) ||
+                roleId.Equals(RoleSecurityOfficer) || roleId.Equals(RoleMarineCommander) || roleId.Equals(RoleMarineSergeant))
             {
                 domain = SeatFocusDomain.Command;
                 priority = 1;

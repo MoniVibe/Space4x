@@ -2,7 +2,6 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using Space4X.Runtime;
 using Space4X.Systems.Orbitals;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -19,7 +18,6 @@ namespace Space4X.Headless
         private const uint ReportIntervalTicks = 30;
         private uint _nextReportTick;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
@@ -31,7 +29,6 @@ namespace Space4X.Headless
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();

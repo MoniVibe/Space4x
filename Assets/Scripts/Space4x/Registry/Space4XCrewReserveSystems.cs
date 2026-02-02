@@ -625,6 +625,7 @@ namespace Space4X.Registry
     {
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _occupantLookup;
+        private static readonly FixedString64Bytes BaselineProfileId = "baseline";
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -705,7 +706,7 @@ namespace Space4X.Registry
                     ecb.AddComponent<SimIndividualTag>(crewEntity);
                     ecb.AddComponent(crewEntity, new IndividualProfileId
                     {
-                        Id = new FixedString64Bytes("baseline")
+                        Id = BaselineProfileId
                     });
                     ecb.AppendToBuffer(shipEntity, new PlatformCrewMember
                     {
