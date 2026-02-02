@@ -108,6 +108,17 @@ namespace Space4X.Runtime
 
             buffer.Add(new AuthorityCraftSeatClaim
             {
+                RoleId = new FixedString64Bytes("ship.logistics_officer"),
+                Domains = AgencyDomain.Logistics | AgencyDomain.Work | AgencyDomain.FlightOps,
+                Targets = AuthorityCraftTarget.MiningVessel,
+                PressureMultiplier = 1.05f,
+                LegitimacyMultiplier = 1f,
+                HostilityMultiplier = 1f,
+                ConsentMultiplier = 1f
+            });
+
+            buffer.Add(new AuthorityCraftSeatClaim
+            {
                 RoleId = new FixedString64Bytes("ship.flight_commander"),
                 Domains = AgencyDomain.FlightOps | AgencyDomain.Combat,
                 Targets = AuthorityCraftTarget.StrikeCraft,

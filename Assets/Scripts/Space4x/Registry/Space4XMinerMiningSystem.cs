@@ -1,7 +1,9 @@
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Agency;
+using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Stats;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Unity.Burst;
@@ -35,6 +37,15 @@ namespace Space4X.Registry
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<Space4XMiningToolProfile> _toolProfileLookup;
         private ComponentLookup<Carrier> _carrierLookup;
+        private BufferLookup<CraftOperatorConsole> _operatorConsoleLookup;
+        private ComponentLookup<IndividualStats> _statsLookup;
+        private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
+        private ComponentLookup<CarrierDepartmentState> _departmentStateLookup;
+        private BufferLookup<AuthoritySeatRef> _seatRefLookup;
+        private ComponentLookup<AuthoritySeat> _seatLookup;
+        private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
+        private FixedString64Bytes _roleLogisticsOfficer;
+        private FixedString64Bytes _roleCaptain;
         private Entity _effectStreamEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
         private static readonly FixedString64Bytes MiningLaserEffectId = CreateMiningLaserEffectId();
@@ -135,6 +146,51 @@ namespace Space4X.Registry
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _toolProfileLookup = state.GetComponentLookup<Space4XMiningToolProfile>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _operatorConsoleLookup = state.GetBufferLookup<CraftOperatorConsole>(true);
+            _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
+            _departmentStateLookup = state.GetComponentLookup<CarrierDepartmentState>(true);
+            _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
+            _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
+            _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
+
+            _roleLogisticsOfficer = default;
+            _roleLogisticsOfficer.Append('s');
+            _roleLogisticsOfficer.Append('h');
+            _roleLogisticsOfficer.Append('i');
+            _roleLogisticsOfficer.Append('p');
+            _roleLogisticsOfficer.Append('.');
+            _roleLogisticsOfficer.Append('l');
+            _roleLogisticsOfficer.Append('o');
+            _roleLogisticsOfficer.Append('g');
+            _roleLogisticsOfficer.Append('i');
+            _roleLogisticsOfficer.Append('s');
+            _roleLogisticsOfficer.Append('t');
+            _roleLogisticsOfficer.Append('i');
+            _roleLogisticsOfficer.Append('c');
+            _roleLogisticsOfficer.Append('s');
+            _roleLogisticsOfficer.Append('_');
+            _roleLogisticsOfficer.Append('o');
+            _roleLogisticsOfficer.Append('f');
+            _roleLogisticsOfficer.Append('f');
+            _roleLogisticsOfficer.Append('i');
+            _roleLogisticsOfficer.Append('c');
+            _roleLogisticsOfficer.Append('e');
+            _roleLogisticsOfficer.Append('r');
+
+            _roleCaptain = default;
+            _roleCaptain.Append('s');
+            _roleCaptain.Append('h');
+            _roleCaptain.Append('i');
+            _roleCaptain.Append('p');
+            _roleCaptain.Append('.');
+            _roleCaptain.Append('c');
+            _roleCaptain.Append('a');
+            _roleCaptain.Append('p');
+            _roleCaptain.Append('t');
+            _roleCaptain.Append('a');
+            _roleCaptain.Append('i');
+            _roleCaptain.Append('n');
 
             EnsureEffectStream(ref state);
         }
@@ -171,6 +227,13 @@ namespace Space4X.Registry
             _latchReservationLookup.Update(ref state);
             _toolProfileLookup.Update(ref state);
             _carrierLookup.Update(ref state);
+            _operatorConsoleLookup.Update(ref state);
+            _statsLookup.Update(ref state);
+            _departmentStatsLookup.Update(ref state);
+            _departmentStateLookup.Update(ref state);
+            _seatRefLookup.Update(ref state);
+            _seatLookup.Update(ref state);
+            _seatOccupantLookup.Update(ref state);
             EnsureEffectStream(ref state);
 
             var actionStreamConfig = default(ProfileActionEventStreamConfig);
@@ -195,6 +258,12 @@ namespace Space4X.Registry
             if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var latchConfigSingleton))
             {
                 latchConfig = latchConfigSingleton;
+            }
+
+            var operatorTuning = CraftOperatorTuning.Default;
+            if (SystemAPI.TryGetSingleton<CraftOperatorTuning>(out var operatorTuningSingleton))
+            {
+                operatorTuning = operatorTuningSingleton;
             }
 
             var latchRegionCount = latchConfig.RegionCount > 0 ? latchConfig.RegionCount : Space4XMiningLatchUtility.DefaultLatchRegionCount;
@@ -309,14 +378,16 @@ namespace Space4X.Registry
                 var toolKind = toolProfile.ToolKind;
                 var toolShape = ResolveToolShape(toolProfile);
                 var disposition = ResolveBehaviorDisposition(entity);
+                var logisticsMultiplier = ResolveLogisticsOpsMultiplier(entity, vesselData.CarrierEntity, operatorTuning);
+                var logisticsSpeed = math.clamp(logisticsMultiplier, 0.75f, 1.35f);
                 var returnRatio = ResolveCargoReturnRatio(disposition);
                 var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * returnRatio;
                 var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) &&
                                       _resourceStateLookup[target].UnitsRemaining <= 0f;
-                var undockDuration = ResolvePhaseDuration(UndockDuration, disposition);
-                var latchDuration = ResolvePhaseDuration(LatchDuration, disposition);
-                var detachDuration = ResolvePhaseDuration(DetachDuration, disposition);
-                var dockDuration = ResolvePhaseDuration(DockDuration, disposition);
+                var undockDuration = ResolvePhaseDuration(UndockDuration, disposition) / logisticsSpeed;
+                var latchDuration = ResolvePhaseDuration(LatchDuration, disposition) / logisticsSpeed;
+                var detachDuration = ResolvePhaseDuration(DetachDuration, disposition) / logisticsSpeed;
+                var dockDuration = ResolvePhaseDuration(DockDuration, disposition) / logisticsSpeed;
 
                 switch (phase)
                 {
@@ -445,6 +516,7 @@ namespace Space4X.Registry
                             }
 
                             yieldMultiplier *= ResolveToolYieldMultiplier(toolKind, toolProfile, digConfig);
+                            yieldMultiplier *= logisticsMultiplier;
                             var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW, order.ValueRO.ResourceId);
                             if (mined <= 0f)
                             {
@@ -1310,6 +1382,111 @@ namespace Space4X.Registry
             return BehaviorDisposition.Default;
         }
 
+        private float ResolveLogisticsOpsMultiplier(Entity miner, Entity carrier, in CraftOperatorTuning tuning)
+        {
+            var operatorSkill = 0.5f;
+            var consoleQuality = 0.5f;
+            var cohesion = 0.5f;
+            var commandSkill = 0.5f;
+            var haulingSkill = 0.5f;
+
+            if (_crewSkillsLookup.HasComponent(miner))
+            {
+                haulingSkill = math.saturate(_crewSkillsLookup[miner].HaulingSkill);
+            }
+
+            Entity controller = Entity.Null;
+            if (_operatorConsoleLookup.HasBuffer(miner))
+            {
+                var consoles = _operatorConsoleLookup[miner];
+                for (int i = 0; i < consoles.Length; i++)
+                {
+                    var console = consoles[i];
+                    if ((console.Domain & AgencyDomain.Logistics) == 0)
+                    {
+                        continue;
+                    }
+
+                    consoleQuality = math.saturate(console.ConsoleQuality);
+                    controller = console.Controller;
+                    break;
+                }
+            }
+
+            if (controller == Entity.Null && carrier != Entity.Null)
+            {
+                controller = ResolveSeatOccupant(carrier, _roleLogisticsOfficer);
+            }
+
+            if (controller != Entity.Null && _statsLookup.HasComponent(controller))
+            {
+                operatorSkill = Space4XOperatorInterfaceUtility.ResolveOperatorSkill(AgencyDomain.Logistics, _statsLookup[controller], tuning);
+            }
+
+            if (carrier != Entity.Null)
+            {
+                cohesion = ResolveLogisticsCohesion(carrier);
+
+                var captain = ResolveSeatOccupant(carrier, _roleCaptain);
+                if (captain != Entity.Null && _statsLookup.HasComponent(captain))
+                {
+                    var stats = _statsLookup[captain];
+                    commandSkill = math.saturate(stats.Command / 100f);
+                }
+            }
+
+            var baseCoordination = math.saturate(operatorSkill * 0.55f + cohesion * 0.25f + commandSkill * 0.2f);
+            var qualityCoordination = math.saturate(baseCoordination * math.lerp(0.85f, 1.15f, consoleQuality));
+            var haulingBoost = math.lerp(0.9f, 1.1f, haulingSkill);
+            var opsMultiplier = math.lerp(0.8f, 1.3f, qualityCoordination) * haulingBoost;
+            return math.clamp(opsMultiplier, 0.75f, 1.35f);
+        }
+
+        private float ResolveLogisticsCohesion(Entity carrier)
+        {
+            if (_departmentStatsLookup.HasBuffer(carrier))
+            {
+                var buffer = _departmentStatsLookup[carrier];
+                var logistics = -1f;
+                var command = -1f;
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    var stats = buffer[i].Stats;
+                    switch (stats.Type)
+                    {
+                        case DepartmentType.Logistics:
+                            logistics = math.saturate((float)stats.Cohesion);
+                            break;
+                        case DepartmentType.Command:
+                            command = math.saturate((float)stats.Cohesion);
+                            break;
+                    }
+                }
+
+                if (logistics >= 0f && command >= 0f)
+                {
+                    return math.saturate((logistics + command) * 0.5f);
+                }
+
+                if (logistics >= 0f)
+                {
+                    return logistics;
+                }
+
+                if (command >= 0f)
+                {
+                    return command;
+                }
+            }
+
+            if (_departmentStateLookup.HasComponent(carrier))
+            {
+                return math.saturate((float)_departmentStateLookup[carrier].AverageCohesion);
+            }
+
+            return 0.5f;
+        }
+
         private static float ResolvePhaseDuration(float baseDuration, in BehaviorDisposition disposition)
         {
             var caution = disposition.Caution;
@@ -1361,6 +1538,39 @@ namespace Space4X.Registry
             }
 
             return miner;
+        }
+
+        private Entity ResolveSeatOccupant(Entity carrierEntity, FixedString64Bytes roleId)
+        {
+            if (!_seatRefLookup.HasBuffer(carrierEntity))
+            {
+                return Entity.Null;
+            }
+
+            var seats = _seatRefLookup[carrierEntity];
+            for (int i = 0; i < seats.Length; i++)
+            {
+                var seatEntity = seats[i].SeatEntity;
+                if (seatEntity == Entity.Null || !_seatLookup.HasComponent(seatEntity))
+                {
+                    continue;
+                }
+
+                var seat = _seatLookup[seatEntity];
+                if (!seat.RoleId.Equals(roleId))
+                {
+                    continue;
+                }
+
+                if (_seatOccupantLookup.HasComponent(seatEntity))
+                {
+                    return _seatOccupantLookup[seatEntity].OccupantEntity;
+                }
+
+                return Entity.Null;
+            }
+
+            return Entity.Null;
         }
 
         private bool TryResolveController(Entity miner, AgencyDomain domain, out Entity controller)
