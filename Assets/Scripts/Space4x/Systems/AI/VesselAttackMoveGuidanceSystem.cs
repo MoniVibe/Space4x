@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Steering;
 using PureDOTS.Systems;
@@ -5,6 +6,7 @@ using Space4X.Registry;
 using Space4X.Runtime;
 using Space4X.Systems;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -23,15 +25,21 @@ namespace Space4X.Systems.AI
         private ComponentLookup<TargetPriority> _priorityLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private BufferLookup<AuthoritySeatRef> _seatRefLookup;
+        private ComponentLookup<AuthoritySeat> _seatLookup;
+        private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<VesselMovement> _movementLookup;
         private ComponentLookup<CarrierDepartmentState> _departmentStateLookup;
+        private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<CarrierTag> _carrierTagLookup;
         private BufferLookup<WeaponMount> _weaponLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private EntityStorageInfoLookup _entityLookup;
+        private FixedString64Bytes _roleNavigationOfficer;
+        private FixedString64Bytes _roleWeaponsOfficer;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -44,15 +52,21 @@ namespace Space4X.Systems.AI
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
+            _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
+            _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _movementLookup = state.GetComponentLookup<VesselMovement>(true);
             _departmentStateLookup = state.GetComponentLookup<CarrierDepartmentState>(true);
+            _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _carrierTagLookup = state.GetComponentLookup<CarrierTag>(true);
             _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
+            _roleNavigationOfficer = new FixedString64Bytes("ship.navigation_officer");
+            _roleWeaponsOfficer = new FixedString64Bytes("ship.weapons_officer");
         }
 
         [BurstCompile]
@@ -108,9 +122,13 @@ namespace Space4X.Systems.AI
             _priorityLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _pilotLookup.Update(ref state);
+            _seatRefLookup.Update(ref state);
+            _seatLookup.Update(ref state);
+            _seatOccupantLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _movementLookup.Update(ref state);
             _departmentStateLookup.Update(ref state);
+            _departmentStatsLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _carrierTagLookup.Update(ref state);
             _weaponLookup.Update(ref state);
@@ -462,7 +480,26 @@ namespace Space4X.Systems.AI
 
         private float ResolveFacingSkill(Entity entity)
         {
-            float intelligence = 0.5f;
+            var navigationSkill = ResolveNavigationSkill(entity);
+            var weaponsSkill = ResolveWeaponsOfficerSkill(entity);
+            var combatCohesion = ResolveDepartmentCohesion(entity, DepartmentType.Combat);
+            var weaponsCoordination = math.saturate(weaponsSkill * 0.55f + combatCohesion * 0.45f);
+            var skill = 0.3f + 0.4f * navigationSkill + 0.3f * weaponsCoordination;
+            return math.saturate(skill);
+        }
+
+        private float ResolveNavigationSkill(Entity entity)
+        {
+            var navigationOfficer = ResolveSeatOccupant(entity, _roleNavigationOfficer);
+            if (navigationOfficer != Entity.Null && _statsLookup.HasComponent(navigationOfficer))
+            {
+                var stats = _statsLookup[navigationOfficer];
+                var command = math.saturate((float)stats.Command / 100f);
+                var tactics = math.saturate((float)stats.Tactics / 100f);
+                var engineering = math.saturate((float)stats.Engineering / 100f);
+                return math.saturate(command * 0.4f + tactics * 0.4f + engineering * 0.2f);
+            }
+
             if (_pilotLookup.HasComponent(entity))
             {
                 var pilot = _pilotLookup[entity].Pilot;
@@ -471,18 +508,81 @@ namespace Space4X.Systems.AI
                     var stats = _statsLookup[pilot];
                     var command = math.saturate((float)stats.Command / 100f);
                     var tactics = math.saturate((float)stats.Tactics / 100f);
-                    intelligence = math.saturate((command + tactics) * 0.5f);
+                    return math.saturate((command + tactics) * 0.5f);
                 }
             }
 
-            float cohesion = 0.5f;
-            if (_departmentStateLookup.HasComponent(entity))
+            return 0.5f;
+        }
+
+        private float ResolveWeaponsOfficerSkill(Entity entity)
+        {
+            var weaponsOfficer = ResolveSeatOccupant(entity, _roleWeaponsOfficer);
+            if (weaponsOfficer != Entity.Null && _statsLookup.HasComponent(weaponsOfficer))
             {
-                cohesion = math.saturate((float)_departmentStateLookup[entity].AverageCohesion);
+                var stats = _statsLookup[weaponsOfficer];
+                var command = math.saturate((float)stats.Command / 100f);
+                var tactics = math.saturate((float)stats.Tactics / 100f);
+                return math.saturate(command * 0.35f + tactics * 0.65f);
             }
 
-            var skill = 0.35f + 0.35f * intelligence + 0.3f * cohesion;
-            return math.saturate(skill);
+            return 0.5f;
+        }
+
+        private float ResolveDepartmentCohesion(Entity entity, DepartmentType department)
+        {
+            if (_departmentStatsLookup.HasBuffer(entity))
+            {
+                var buffer = _departmentStatsLookup[entity];
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    var stats = buffer[i].Stats;
+                    if (stats.Type == department)
+                    {
+                        return math.saturate((float)stats.Cohesion);
+                    }
+                }
+            }
+
+            if (_departmentStateLookup.HasComponent(entity))
+            {
+                return math.saturate((float)_departmentStateLookup[entity].AverageCohesion);
+            }
+
+            return 0.5f;
+        }
+
+        private Entity ResolveSeatOccupant(Entity shipEntity, FixedString64Bytes roleId)
+        {
+            if (!_seatRefLookup.HasBuffer(shipEntity))
+            {
+                return Entity.Null;
+            }
+
+            var seats = _seatRefLookup[shipEntity];
+            for (int i = 0; i < seats.Length; i++)
+            {
+                var seatEntity = seats[i].SeatEntity;
+                if (seatEntity == Entity.Null || !_seatLookup.HasComponent(seatEntity))
+                {
+                    continue;
+                }
+
+                var seat = _seatLookup[seatEntity];
+                if (!seat.RoleId.Equals(roleId))
+                {
+                    continue;
+                }
+
+                if (_seatOccupantLookup.HasComponent(seatEntity))
+                {
+                    return _seatOccupantLookup[seatEntity].OccupantEntity;
+                }
+
+                return Entity.Null;
+            }
+
+            return Entity.Null;
         }
 
         private float3 ResolveFacingDirection(

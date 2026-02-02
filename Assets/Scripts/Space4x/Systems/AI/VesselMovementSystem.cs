@@ -62,6 +62,8 @@ namespace Space4X.Systems.AI
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
+        private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
+        private ComponentLookup<TargetPriority> _priorityLookup;
         private ComponentLookup<LocalTransform> _targetTransformLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private BufferLookup<WeaponMount> _weaponLookup;
@@ -120,6 +122,8 @@ namespace Space4X.Systems.AI
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
+            _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
+            _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
             _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
@@ -253,6 +257,8 @@ namespace Space4X.Systems.AI
             _resolvedControlLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
+            _departmentStatsLookup.Update(ref state);
+            _priorityLookup.Update(ref state);
             _targetTransformLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _weaponLookup.Update(ref state);
@@ -331,6 +337,8 @@ namespace Space4X.Systems.AI
                 ResolvedControlLookup = _resolvedControlLookup,
                 CrewSkillsLookup = _crewSkillsLookup,
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
+                DepartmentStatsLookup = _departmentStatsLookup,
+                PriorityLookup = _priorityLookup,
                 TargetTransformLookup = _targetTransformLookup,
                 EngagementLookup = _engagementLookup,
                 WeaponLookup = _weaponLookup,
@@ -401,6 +409,8 @@ namespace Space4X.Systems.AI
             [ReadOnly] public BufferLookup<ResolvedControl> ResolvedControlLookup;
             [ReadOnly] public ComponentLookup<CrewSkills> CrewSkillsLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
+            [ReadOnly] public BufferLookup<DepartmentStatsBuffer> DepartmentStatsLookup;
+            [ReadOnly] public ComponentLookup<TargetPriority> PriorityLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
             [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
             [ReadOnly] public BufferLookup<WeaponMount> WeaponLookup;
@@ -472,7 +482,18 @@ namespace Space4X.Systems.AI
                 var hasAttackMove = AttackMoveLookup.HasComponent(entity);
                 var attackMove = hasAttackMove ? AttackMoveLookup[entity] : default;
                 var forceHold = aiState.CurrentState == VesselAIState.State.Mining;
-                var noTarget = aiState.TargetEntity == Entity.Null && !hasAttackMove;
+                var priorityTarget = Entity.Null;
+                var hasPriorityTarget = false;
+                if (PriorityLookup.HasComponent(entity))
+                {
+                    var priority = PriorityLookup[entity];
+                    if (priority.CurrentTarget != Entity.Null && TargetTransformLookup.HasComponent(priority.CurrentTarget))
+                    {
+                        priorityTarget = priority.CurrentTarget;
+                        hasPriorityTarget = true;
+                    }
+                }
+                var noTarget = aiState.TargetEntity == Entity.Null && !hasAttackMove && !hasPriorityTarget;
 
                 // Don't move if mining - stay in place to gather resources
                 if (forceHold && !inertialEnabled)
@@ -553,6 +574,10 @@ namespace Space4X.Systems.AI
 
                 // TargetPosition should be resolved by VesselTargetingSystem (runs earlier in Space4XTransportAISystemGroup).
                 var targetPosition = hasAttackMove ? attackMove.Destination : aiState.TargetPosition;
+                if (!hasAttackMove && aiState.TargetEntity == Entity.Null && hasPriorityTarget)
+                {
+                    targetPosition = TargetTransformLookup[priorityTarget].Position;
+                }
                 if (forceHold || noTarget)
                 {
                     targetPosition = transform.Position;
@@ -809,10 +834,11 @@ namespace Space4X.Systems.AI
 
                 var combatSpeedScale = 1f;
                 var combatManeuver = false;
+                var commandBias = ResolveCommandApproachBias(entity);
                 if (!forceHold && !noTarget)
                 {
                     if (TryResolveCombatManeuver(entity, aiState, hasAttackMove, attackMove, transform, stanceConfig, pilotMastery,
-                            navigationCohesion, out var combatDirection, out var maneuverSpeedScale))
+                            navigationCohesion, commandBias, out var combatDirection, out var maneuverSpeedScale))
                     {
                         direction = combatDirection;
                         combatSpeedScale = maneuverSpeedScale;
@@ -1300,6 +1326,10 @@ namespace Space4X.Systems.AI
                 var eta = planSpeed > 0.01f ? distance / planSpeed : 0f;
                 var planAccel = DeltaTime > 1e-4f ? maxDelta / DeltaTime : accelLimit;
                 var decisionTarget = noTarget ? Entity.Null : aiState.TargetEntity;
+                if (decisionTarget == Entity.Null && hasPriorityTarget)
+                {
+                    decisionTarget = priorityTarget;
+                }
                 UpdateMoveIntent(entity, decisionTarget, targetPosition, intentType, ref debugState, hasDebug);
                 UpdateMovePlan(entity, planMode, desiredVelocity, planAccel, eta, ref debugState, hasDebug);
                 UpdateDecisionTrace(entity, decisionReason, decisionTarget, 1f, blockerEntity, ref debugState, hasDebug);
@@ -1321,6 +1351,41 @@ namespace Space4X.Systems.AI
                 return BehaviorDisposition.Default;
             }
 
+            private float ResolveCommandApproachBias(Entity vesselEntity)
+            {
+                var cohesion = ResolveDepartmentCohesion(vesselEntity, DepartmentType.Command);
+                var captain = ResolveSeatOccupant(vesselEntity, RoleCaptain);
+                var command = 0.5f;
+                var tactics = 0.5f;
+                if (captain != Entity.Null && StatsLookup.HasComponent(captain))
+                {
+                    var stats = StatsLookup[captain];
+                    command = math.saturate((float)stats.Command / 100f);
+                    tactics = math.saturate((float)stats.Tactics / 100f);
+                }
+
+                var captainSkill = math.saturate(command * 0.7f + tactics * 0.3f);
+                return math.saturate(cohesion * 0.55f + captainSkill * 0.45f);
+            }
+
+            private float ResolveDepartmentCohesion(Entity vesselEntity, DepartmentType department)
+            {
+                if (DepartmentStatsLookup.HasBuffer(vesselEntity))
+                {
+                    var buffer = DepartmentStatsLookup[vesselEntity];
+                    for (int i = 0; i < buffer.Length; i++)
+                    {
+                        var stats = buffer[i].Stats;
+                        if (stats.Type == department)
+                        {
+                            return math.saturate((float)stats.Cohesion);
+                        }
+                    }
+                }
+
+                return 0.5f;
+            }
+
             private bool TryResolveCombatManeuver(
                 Entity entity,
                 in VesselAIState aiState,
@@ -1330,6 +1395,7 @@ namespace Space4X.Systems.AI
                 in StanceTuningEntry stance,
                 float pilotMastery,
                 float navigationCohesion,
+                float commandBias,
                 out float3 combatDirection,
                 out float speedScale)
             {
@@ -1375,6 +1441,15 @@ namespace Space4X.Systems.AI
                     }
                 }
 
+                if (combatTarget == Entity.Null && PriorityLookup.HasComponent(entity))
+                {
+                    var priority = PriorityLookup[entity];
+                    if (priority.CurrentTarget != Entity.Null)
+                    {
+                        combatTarget = priority.CurrentTarget;
+                    }
+                }
+
                 if (combatTarget == Entity.Null || !TargetTransformLookup.HasComponent(combatTarget))
                 {
                     return false;
@@ -1417,6 +1492,9 @@ namespace Space4X.Systems.AI
                     desiredRange *= 1.1f;
                 }
 
+                var commandApproach = math.saturate(commandBias);
+                desiredRange *= math.lerp(1.05f, 0.9f, commandApproach);
+
                 var toTargetDir = toTarget / distance;
                 var rangeError = distance - desiredRange;
                 var radialDir = rangeError >= 0f ? toTargetDir : -toTargetDir;
@@ -1431,6 +1509,7 @@ namespace Space4X.Systems.AI
 
                 var orbitStrength = math.lerp(0.25f, 0.65f, pilotMastery);
                 orbitStrength *= math.lerp(0.9f, 1.1f, navigationCohesion);
+                orbitStrength *= math.lerp(1.05f, 0.75f, commandApproach);
                 if (CarrierLookup.HasComponent(entity))
                 {
                     orbitStrength = math.max(orbitStrength, 0.5f);
