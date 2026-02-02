@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Core;
-using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Space4X.StrikeCraft;
 using Space4x.Scenario;
