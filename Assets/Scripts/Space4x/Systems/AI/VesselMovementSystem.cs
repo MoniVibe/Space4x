@@ -19,6 +19,7 @@ using Unity.Physics;
 using Unity.Transforms;
 using UnityEngine;
 using UnityDebug = UnityEngine.Debug;
+using WeaponMountBuffer = Space4X.Registry.WeaponMount;
 
 namespace Space4X.Systems.AI
 {
@@ -66,7 +67,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<TargetPriority> _priorityLookup;
         private ComponentLookup<LocalTransform> _targetTransformLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
-        private BufferLookup<WeaponMount> _weaponLookup;
+        private BufferLookup<WeaponMountBuffer> _weaponLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
         private ComponentLookup<Space4XAsteroidCenter> _asteroidCenterLookup;
@@ -126,7 +127,7 @@ namespace Space4X.Systems.AI
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
             _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
-            _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
+            _weaponLookup = state.GetBufferLookup<WeaponMountBuffer>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
             _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
             _asteroidCenterLookup = state.GetComponentLookup<Space4XAsteroidCenter>(true);
@@ -413,7 +414,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<TargetPriority> PriorityLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
             [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
-            [ReadOnly] public BufferLookup<WeaponMount> WeaponLookup;
+            [ReadOnly] public BufferLookup<WeaponMountBuffer> WeaponLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
             [ReadOnly] public ComponentLookup<Space4XAsteroidVolumeConfig> AsteroidVolumeLookup;
             [ReadOnly] public ComponentLookup<Space4XAsteroidCenter> AsteroidCenterLookup;
