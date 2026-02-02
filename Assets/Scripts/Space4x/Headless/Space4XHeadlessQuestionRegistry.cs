@@ -171,6 +171,7 @@ namespace Space4X.Headless
         public const string CrewSensorsCausality = "space4x.q.crew.sensors_causality";
         public const string CrewTransfer = "space4x.q.crew.transfer";
         public const string CollisionPhasing = "space4x.q.collision.phasing";
+        public const string CombatAttackRun = "space4x.q.combat.attack_run";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -211,7 +212,8 @@ namespace Space4X.Headless
             new CrewSensorsSelectionQuestion(),
             new CrewSensorsCausalityQuestion(),
             new CrewTransferQuestion(),
-            new CollisionPhasingQuestion()
+            new CollisionPhasingQuestion(),
+            new CombatAttackRunQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -841,6 +843,64 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"event_count={eventCount:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatAttackRunQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatAttackRun;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var attackSeen = signals.GetMetricOrDefault("space4x.combat.attack_run_seen");
+                var capSeen = signals.GetMetricOrDefault("space4x.combat.cap_seen");
+                var wingSeen = signals.GetMetricOrDefault("space4x.combat.wing_directive_seen");
+                var maxStrike = signals.GetMetricOrDefault("space4x.combat.strikecraft_max");
+                var maxAttack = signals.GetMetricOrDefault("space4x.combat.attack_run_max_active");
+                var maxCap = signals.GetMetricOrDefault("space4x.combat.cap_max_active");
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["attack_run_seen"] = attackSeen;
+                answer.Metrics["cap_seen"] = capSeen;
+                answer.Metrics["wing_directive_seen"] = wingSeen;
+                answer.Metrics["strikecraft_max"] = maxStrike;
+                answer.Metrics["attack_run_max_active"] = maxAttack;
+                answer.Metrics["cap_max_active"] = maxCap;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (attackSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no attack run observed";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"attack_run_seen={attackSeen:0} cap_seen={capSeen:0}";
                 return answer;
             }
         }

@@ -3,7 +3,13 @@
   "seed": 1337,
   "duration_s": 10,
   "scenarioConfig": {
-    "applyDefaultModuleLoadouts": true
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      }
+    ]
   },
   "dogfightConfig": {
     "acquireRadius": 250.0,

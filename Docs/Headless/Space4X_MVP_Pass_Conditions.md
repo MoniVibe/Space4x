@@ -13,6 +13,13 @@ This sheet defines the micro-scenario gates used to tighten iteration on MVP sys
 - Pass: `space4x.mining.gather_commands > 0` and (`space4x.mining.ore_delta > 0` or `space4x.mining.cargo_delta > 0` or `space4x.mining.pass > 0.5`).
 - Fail if a `MINING_STALL` blackcat is emitted.
 
+## Combat
+- Question: `space4x.q.combat.attack_run`
+- Scenario: `space4x_combat_micro.json`
+- Metrics: `space4x.combat.*`
+- Pass: `space4x.combat.strikecraft_seen == 1` and `space4x.combat.attack_run_seen == 1`.
+- Unknown if no strike craft are observed in the window.
+
 ## Comms
 - Question: `space4x.q.comms.delivery`
 - Scenario: `space4x_comms_micro.json`
