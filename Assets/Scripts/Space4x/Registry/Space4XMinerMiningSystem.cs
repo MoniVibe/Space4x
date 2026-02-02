@@ -615,14 +615,14 @@ namespace Space4X.Registry
                             yieldMultiplier *= pilotEfficiency;
                             yieldMultiplier *= ResolveStressYieldMultiplier(toolHeat01, toolInstability01);
 
-                            var cargoType = ResolveResourceType(target, order.ValueRO.ResourceId, vessel.ValueRO.CargoResourceType);
+                            var resolvedCargoType = ResolveResourceType(target, order.ValueRO.ResourceId, vessel.ValueRO.CargoResourceType);
                             if (hasDepositOverride && !yieldResourceId.IsEmpty)
                             {
-                                cargoType = Space4XMiningResourceUtility.MapToResourceType(yieldResourceId, cargoType);
+                                resolvedCargoType = Space4XMiningResourceUtility.MapToResourceType(yieldResourceId, resolvedCargoType);
                             }
-                            if (vessel.ValueRO.CargoResourceType != cargoType)
+                            if (vessel.ValueRO.CargoResourceType != resolvedCargoType)
                             {
-                                vessel.ValueRW.CargoResourceType = cargoType;
+                                vessel.ValueRW.CargoResourceType = resolvedCargoType;
                             }
 
                             if (!yieldResourceId.IsEmpty)
