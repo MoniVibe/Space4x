@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Hand;
+using PureDOTS.Runtime.Interaction;
 using Space4X.Runtime.Interaction;
 using Space4X.Physics;
 using Unity.Burst;
@@ -23,6 +24,8 @@ namespace Space4X.Systems.Interaction
     {
         private ComponentLookup<Space4XCelestialManipulable> _celestialLookup;
         private ComponentLookup<Space4XCelestialHoldState> _holdLookup;
+        private ComponentLookup<HandHeldTag> _heldLookup;
+        private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -30,6 +33,8 @@ namespace Space4X.Systems.Interaction
             state.RequireForUpdate<TimeState>();
             _celestialLookup = state.GetComponentLookup<Space4XCelestialManipulable>(true);
             _holdLookup = state.GetComponentLookup<Space4XCelestialHoldState>(false);
+            _heldLookup = state.GetComponentLookup<HandHeldTag>(true);
+            _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
         }
 
         [BurstCompile]
@@ -41,8 +46,10 @@ namespace Space4X.Systems.Interaction
 
             _celestialLookup.Update(ref state);
             _holdLookup.Update(ref state);
+            _heldLookup.Update(ref state);
+            _movementSuppressedLookup.Update(ref state);
 
-            foreach (var (handStateRef, commandBuffer) in SystemAPI.Query<RefRW<HandStateData>, DynamicBuffer<HandCommand>>())
+            foreach (var (handStateRef, commandBuffer, handEntity) in SystemAPI.Query<RefRW<HandStateData>, DynamicBuffer<HandCommand>>().WithEntityAccess())
             {
                 var handState = handStateRef.ValueRW;
                 var buffer = commandBuffer;
@@ -64,11 +71,11 @@ namespace Space4X.Systems.Interaction
                     {
                         case HandCommandType.Pick:
                             handState.HeldEntity = cmd.TargetEntity;
-                            EnsureHoldState(ref ecb, cmd.TargetEntity, cmd.TargetPosition, 6f);
+                            EnsureHoldState(ref ecb, cmd.TargetEntity, cmd.TargetPosition, handEntity);
                             buffer.RemoveAt(i);
                             break;
                         case HandCommandType.Hold:
-                            EnsureHoldState(ref ecb, cmd.TargetEntity, cmd.TargetPosition, 6f);
+                            EnsureHoldState(ref ecb, cmd.TargetEntity, cmd.TargetPosition, handEntity);
                             buffer.RemoveAt(i);
                             break;
                         case HandCommandType.Throw:
@@ -94,12 +101,12 @@ namespace Space4X.Systems.Interaction
             ecb.Dispose();
         }
 
-        private void EnsureHoldState(ref EntityCommandBuffer ecb, Entity target, float3 position, float followStrength)
+        private void EnsureHoldState(ref EntityCommandBuffer ecb, Entity target, float3 position, Entity holder)
         {
             var hold = new Space4XCelestialHoldState
             {
                 TargetPosition = position,
-                FollowStrength = followStrength,
+                FollowStrength = 0f,
                 Active = 1
             };
 
@@ -110,6 +117,25 @@ namespace Space4X.Systems.Interaction
             else
             {
                 ecb.AddComponent(target, hold);
+            }
+
+            var heldTag = new HandHeldTag { Holder = holder };
+            if (_heldLookup.HasComponent(target))
+            {
+                ecb.SetComponent(target, heldTag);
+            }
+            else
+            {
+                ecb.AddComponent(target, heldTag);
+            }
+
+            if (_movementSuppressedLookup.HasComponent(target))
+            {
+                ecb.SetComponentEnabled<MovementSuppressed>(target, true);
+            }
+            else
+            {
+                ecb.AddComponent<MovementSuppressed>(target);
             }
         }
 
@@ -122,9 +148,14 @@ namespace Space4X.Systems.Interaction
             });
         }
 
-        private static void ClearHold(ref EntityCommandBuffer ecb, Entity target)
+        private void ClearHold(ref EntityCommandBuffer ecb, Entity target)
         {
             ecb.RemoveComponent<Space4XCelestialHoldState>(target);
+            ecb.RemoveComponent<HandHeldTag>(target);
+            if (_movementSuppressedLookup.HasComponent(target))
+            {
+                ecb.SetComponentEnabled<MovementSuppressed>(target, false);
+            }
         }
     }
 
@@ -145,11 +176,6 @@ namespace Space4X.Systems.Interaction
             var timeState = SystemAPI.GetSingleton<TimeState>();
             float deltaTime = timeState.FixedDeltaTime > 0f ? timeState.FixedDeltaTime : timeState.DeltaTime;
 
-            foreach (var velocity in SystemAPI.Query<RefRW<SpaceVelocity>>().WithAll<Space4XCelestialManipulable>())
-            {
-                velocity.ValueRW.Linear *= 0.995f;
-            }
-
             foreach (var (transform, velocity, hold) in SystemAPI.Query<
                 RefRW<LocalTransform>,
                 RefRW<SpaceVelocity>,
@@ -160,14 +186,23 @@ namespace Space4X.Systems.Interaction
                     continue;
                 }
 
-                var displacement = hold.ValueRO.TargetPosition - transform.ValueRO.Position;
-                velocity.ValueRW.Linear += displacement * hold.ValueRO.FollowStrength * deltaTime;
+                var current = transform.ValueRO;
+                current.Position = hold.ValueRO.TargetPosition;
+                transform.ValueRW = current;
+                velocity.ValueRW = new SpaceVelocity
+                {
+                    Linear = float3.zero,
+                    Angular = float3.zero
+                };
             }
 
             foreach (var (transform, velocity) in SystemAPI.Query<
                 RefRW<LocalTransform>,
-                RefRW<SpaceVelocity>>().WithAll<Space4XCelestialManipulable>())
+                RefRW<SpaceVelocity>>()
+                     .WithAll<Space4XCelestialManipulable>()
+                     .WithNone<Space4XCelestialHoldState>())
             {
+                velocity.ValueRW.Linear *= 0.995f;
                 transform.ValueRW.Position += velocity.ValueRO.Linear * deltaTime;
             }
 

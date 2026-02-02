@@ -7,6 +7,7 @@ using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Power;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Interaction;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
@@ -83,6 +84,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<PhysicsCollider> _physicsColliderLookup;
         private ComponentLookup<SpacePhysicsBody> _spacePhysicsBodyLookup;
         private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
+        private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -143,6 +145,7 @@ namespace Space4X.Systems.AI
             _physicsColliderLookup = state.GetComponentLookup<PhysicsCollider>(true);
             _spacePhysicsBodyLookup = state.GetComponentLookup<SpacePhysicsBody>(true);
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
+            _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -278,6 +281,7 @@ namespace Space4X.Systems.AI
             _physicsColliderLookup.Update(ref state);
             _spacePhysicsBodyLookup.Update(ref state);
             _colliderSpecLookup.Update(ref state);
+            _movementSuppressedLookup.Update(ref state);
 
             var hasPhysicsWorld = SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorld);
 
@@ -358,6 +362,7 @@ namespace Space4X.Systems.AI
                 PhysicsColliderLookup = _physicsColliderLookup,
                 SpacePhysicsBodyLookup = _spacePhysicsBodyLookup,
                 ColliderSpecLookup = _colliderSpecLookup,
+                MovementSuppressedLookup = _movementSuppressedLookup,
                 HasPhysicsWorld = hasPhysicsWorld,
                 PhysicsWorld = physicsWorld,
                 SweepSkin = 0.05f,
@@ -430,6 +435,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<PhysicsCollider> PhysicsColliderLookup;
             [ReadOnly] public ComponentLookup<SpacePhysicsBody> SpacePhysicsBodyLookup;
             [ReadOnly] public ComponentLookup<PhysicsColliderSpec> ColliderSpecLookup;
+            [ReadOnly] public ComponentLookup<MovementSuppressed> MovementSuppressedLookup;
             [ReadOnly] public PhysicsWorldSingleton PhysicsWorld;
             public bool HasPhysicsWorld;
             public float SweepSkin;
@@ -462,6 +468,17 @@ namespace Space4X.Systems.AI
                         debugState.NaNInfCount += 1;
                         MovementDebugLookup[entity] = debugState;
                     }
+                    return;
+                }
+
+                if (MovementSuppressedLookup.HasComponent(entity) &&
+                    MovementSuppressedLookup.IsComponentEnabled(entity))
+                {
+                    movement.Velocity = float3.zero;
+                    movement.CurrentSpeed = 0f;
+                    movement.IsMoving = 0;
+                    turnRateState.LastAngularSpeed = 0f;
+                    throttleState.RampTicks = 0;
                     return;
                 }
 

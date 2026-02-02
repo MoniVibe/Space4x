@@ -1,5 +1,6 @@
 using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Interaction;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Space4X.Physics;
@@ -246,11 +247,16 @@ namespace Space4X.Systems.Orbitals
     [UpdateBefore(typeof(Space4X.Systems.AI.Space4XTransportAISystemGroup))]
     public partial struct Space4XOrbitDriftSystem : ISystem
     {
+        private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
+        private ComponentLookup<HandHeldTag> _handHeldLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
+            _handHeldLookup = state.GetComponentLookup<HandHeldTag>(true);
         }
 
         [BurstCompile]
@@ -271,10 +277,19 @@ namespace Space4X.Systems.Orbitals
             var currentTick = timeState.Tick;
             var deltaTime = timeState.FixedDeltaTime > 0f ? timeState.FixedDeltaTime : timeState.DeltaTime;
 
+            _movementSuppressedLookup.Update(ref state);
+            _handHeldLookup.Update(ref state);
+
             foreach (var (anchor, anchorState, transform, entity) in SystemAPI
                          .Query<RefRO<Space4XOrbitAnchor>, RefRW<Space4XOrbitAnchorState>, RefRW<LocalTransform>>()
                          .WithEntityAccess())
             {
+                if ((_movementSuppressedLookup.HasComponent(entity) && _movementSuppressedLookup.IsComponentEnabled(entity)) ||
+                    _handHeldLookup.HasComponent(entity))
+                {
+                    continue;
+                }
+
                 var parentPosition = ResolveParentPosition(anchor.ValueRO.ParentStar, ref state);
                 var elapsedTicks = math.max(0u, currentTick - anchor.ValueRO.EpochTick);
                 var phase = anchor.ValueRO.Phase + anchor.ValueRO.AngularSpeed * elapsedTicks * deltaTime;
@@ -331,12 +346,16 @@ namespace Space4X.Systems.Orbitals
     {
         private const float Damping = 0.92f;
         private const float MinSpeed = 0.0005f;
+        private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
+        private ComponentLookup<HandHeldTag> _handHeldLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
+            _handHeldLookup = state.GetComponentLookup<HandHeldTag>(true);
         }
 
         [BurstCompile]
@@ -357,12 +376,21 @@ namespace Space4X.Systems.Orbitals
             var deltaTime = timeState.FixedDeltaTime > 0f ? timeState.FixedDeltaTime : timeState.DeltaTime;
             var damp = math.pow(Damping, deltaTime * 60f);
 
+            _movementSuppressedLookup.Update(ref state);
+            _handHeldLookup.Update(ref state);
+
             foreach (var (velocity, transform, entity) in SystemAPI
                          .Query<RefRW<SpaceVelocity>, RefRW<LocalTransform>>()
                          .WithAll<Space4XMicroImpulseTag>()
                          .WithNone<VesselMovement>()
                          .WithEntityAccess())
             {
+                if ((_movementSuppressedLookup.HasComponent(entity) && _movementSuppressedLookup.IsComponentEnabled(entity)) ||
+                    _handHeldLookup.HasComponent(entity))
+                {
+                    continue;
+                }
+
                 var delta = velocity.ValueRO.Linear * deltaTime;
                 if (math.lengthsq(delta) > 0f)
                 {

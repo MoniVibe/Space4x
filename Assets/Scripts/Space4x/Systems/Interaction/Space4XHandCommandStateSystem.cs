@@ -45,6 +45,17 @@ namespace Space4X.Systems.Interaction
             var input = SystemAPI.GetSingleton<HandInputFrame>();
             var affordances = SystemAPI.GetSingleton<HandAffordances>();
             var timeState = SystemAPI.GetSingleton<TimeState>();
+            var policy = new HandPickupPolicy
+            {
+                AutoPickDynamicPhysics = 0,
+                EnableWorldGrab = 0,
+                DebugWorldGrabAny = 0,
+                WorldGrabRequiresTag = 1
+            };
+            if (SystemAPI.TryGetSingleton(out HandPickupPolicy policyValue))
+            {
+                policy = policyValue;
+            }
             uint currentTick = timeState.Tick;
             float deltaTime = timeState.DeltaTime > 0f ? timeState.DeltaTime : 1f / 60f;
             bool isNewSample = input.SampleId != _lastInputSampleId;
@@ -85,7 +96,9 @@ namespace Space4X.Systems.Interaction
 
                 var holdTarget = input.RayOrigin + input.RayDirection * holdDistance;
 
-                var celestialPick = input.CtrlHeld && input.ShiftHeld &&
+                var worldGrabActive = policy.EnableWorldGrab != 0 && input.CtrlHeld && input.ShiftHeld;
+                var debugWorldGrabAny = worldGrabActive && policy.DebugWorldGrabAny != 0;
+                var celestialPick = worldGrabActive &&
                     affordances.TargetEntity != Entity.Null &&
                     _celestialLookup.HasComponent(affordances.TargetEntity);
 
@@ -93,7 +106,7 @@ namespace Space4X.Systems.Interaction
                 {
                     if (rmbPressed && ((affordances.Flags & HandAffordanceFlags.CanPickUp) != 0 || celestialPick))
                     {
-                        if (!CanPickTarget(affordances.TargetEntity, celestialPick))
+                        if (!CanPickTarget(affordances.TargetEntity, celestialPick, debugWorldGrabAny))
                         {
                             handStateRef.ValueRW = handState;
                             continue;
@@ -188,7 +201,7 @@ namespace Space4X.Systems.Interaction
             }
         }
 
-        private bool CanPickTarget(Entity target, bool celestialModifierHeld)
+        private bool CanPickTarget(Entity target, bool celestialModifierHeld, bool debugWorldGrabAny)
         {
             if (target == Entity.Null)
             {
@@ -200,7 +213,7 @@ namespace Space4X.Systems.Interaction
                 return false;
             }
 
-            if (_spacePickableLookup.HasComponent(target))
+            if (!debugWorldGrabAny && _spacePickableLookup.HasComponent(target))
             {
                 var config = _spacePickableLookup[target];
                 if (config.MaxMass > 0f)
