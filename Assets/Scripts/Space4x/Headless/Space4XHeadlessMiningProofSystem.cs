@@ -455,6 +455,18 @@ namespace Space4X.Headless
             }
         }
 
+        private static bool IsSmokeScenarioPath(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
+            return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
+        }
+
         private FixedString64Bytes ResolveBankTestId()
         {
             if (_bankResolved != 0)
@@ -469,7 +481,7 @@ namespace Space4X.Headless
                 return _bankTestId;
             }
 
-            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (IsSmokeScenarioPath(scenarioPath))
             {
                 _bankTestId = new FixedString64Bytes("S0.SPACE4X_SMOKE");
             }

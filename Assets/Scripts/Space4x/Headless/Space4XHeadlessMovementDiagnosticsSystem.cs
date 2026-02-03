@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Scenarios;
@@ -523,7 +524,7 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (IsSmokeScenarioPath(scenarioPath))
             {
                 // Smoke mining undock/approach can trip stuck counters before latch; skip stuck failures there.
                 _ignoreStuckFailures = true;
@@ -560,6 +561,18 @@ namespace Space4X.Headless
                 // Refit/research focus on module loops; ignore stuck spikes to keep telemetry flowing.
                 _ignoreStuckFailures = true;
             }
+        }
+
+        private static bool IsSmokeScenarioPath(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
+            return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
         }
 
         private void WriteInvariantBundle(ref SystemState state, uint tick, float worldSeconds, uint failNaN, uint failStuck, uint failSpike, uint failTurnRate, uint failTurnAccel, Entity nanOffender, Entity stuckOffender, Entity speedOffender, Entity turnRateOffender, Entity turnAccelOffender)
