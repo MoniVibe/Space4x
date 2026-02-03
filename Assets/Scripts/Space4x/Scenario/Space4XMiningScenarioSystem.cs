@@ -51,6 +51,7 @@ namespace Space4x.Scenario
         private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
+        private Dictionary<string, Entity> _profileEntities;
         private string _scenarioPath;
         private string _templateRoot;
         private bool _useSmokeMotionTuning;
@@ -156,9 +157,11 @@ namespace Space4x.Scenario
             }
 
             _spawnedEntities = new Dictionary<string, Entity>();
+            _profileEntities = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
             if (isMiningScenario)
             {
                 SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
+                ApplyPersonalRelations(timeState.Tick);
             }
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
             var durationSeconds = math.max(0f, _scenarioData.duration_s);
@@ -1512,6 +1515,16 @@ namespace Space4x.Scenario
                 EntityManager.AddComponentData(pilot, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
             }
 
+            if (!string.IsNullOrWhiteSpace(profileData?.id))
+            {
+                var profileId = new FixedString64Bytes(profileData.id);
+                EntityManager.AddComponentData(pilot, new IndividualProfileId { Id = profileId });
+                if (_profileEntities != null && !_profileEntities.ContainsKey(profileData.id))
+                {
+                    _profileEntities[profileData.id] = pilot;
+                }
+            }
+
             EntityManager.AddBuffer<OutlookEntry>(pilot);
             EntityManager.AddBuffer<TopOutlook>(pilot);
             var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(pilot);
@@ -1585,6 +1598,74 @@ namespace Space4x.Scenario
             }
 
             return pilot;
+        }
+
+        private void ApplyPersonalRelations(uint currentTick)
+        {
+            if (_scenarioData == null || _scenarioData.personalRelations == null || _scenarioData.personalRelations.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var relation in _scenarioData.personalRelations)
+            {
+                if (relation == null ||
+                    string.IsNullOrWhiteSpace(relation.idA) ||
+                    string.IsNullOrWhiteSpace(relation.idB))
+                {
+                    continue;
+                }
+
+                if (_profileEntities == null ||
+                    !_profileEntities.TryGetValue(relation.idA, out var entityA) ||
+                    !_profileEntities.TryGetValue(relation.idB, out var entityB))
+                {
+                    Debug.LogWarning($"[Space4XMiningScenario] PersonalRelation missing entities idA='{relation.idA}' idB='{relation.idB}'.");
+                    continue;
+                }
+
+                var kind = ParsePersonalRelationKind(relation.kind);
+                var score = (sbyte)math.clamp((int)math.round(relation.score), -100, 100);
+                var trust = (half)math.saturate(relation.trust);
+                var fear = (half)math.saturate(relation.fear);
+
+                UpsertPersonalRelation(entityA, entityB, score, kind, trust, fear, currentTick);
+                UpsertPersonalRelation(entityB, entityA, score, kind, trust, fear, currentTick);
+            }
+        }
+
+        private void UpsertPersonalRelation(Entity source, Entity other, sbyte score, PersonalRelationKind kind, half trust, half fear, uint tick)
+        {
+            if (!EntityManager.HasBuffer<PersonalRelationEntry>(source))
+            {
+                EntityManager.AddBuffer<PersonalRelationEntry>(source);
+            }
+
+            var buffer = EntityManager.GetBuffer<PersonalRelationEntry>(source);
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                if (entry.Other == other)
+                {
+                    entry.Score = score;
+                    entry.Kind = kind;
+                    entry.Trust = trust;
+                    entry.Fear = fear;
+                    entry.LastInteractionTick = tick;
+                    buffer[i] = entry;
+                    return;
+                }
+            }
+
+            buffer.Add(new PersonalRelationEntry
+            {
+                Other = other,
+                Score = score,
+                Kind = kind,
+                Trust = trust,
+                Fear = fear,
+                LastInteractionTick = tick
+            });
         }
 
         private void SpawnEscorts(Entity carrierEntity, float3 carrierPosition, CombatComponentData combatData, byte scenarioSide, uint currentTick, float fixedDt)
@@ -2928,6 +3009,30 @@ namespace Space4x.Scenario
             };
         }
 
+        private static PersonalRelationKind ParsePersonalRelationKind(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return PersonalRelationKind.None;
+            }
+
+            return value switch
+            {
+                "BestFriend" => PersonalRelationKind.Friend,
+                "BestFriends" => PersonalRelationKind.Friend,
+                "Friend" => PersonalRelationKind.Friend,
+                "Comrade" => PersonalRelationKind.Comrade,
+                "Rival" => PersonalRelationKind.Rival,
+                "Family" => PersonalRelationKind.Family,
+                "Mentor" => PersonalRelationKind.Mentor,
+                "Protege" => PersonalRelationKind.Protege,
+                "Debtor" => PersonalRelationKind.Debtor,
+                "Creditor" => PersonalRelationKind.Creditor,
+                "BloodFeud" => PersonalRelationKind.BloodFeud,
+                _ => PersonalRelationKind.None
+            };
+        }
+
         private IndividualProfileData FindIndividualProfile(string profileId)
         {
             if (string.IsNullOrWhiteSpace(profileId) || _scenarioData == null || _scenarioData.individuals == null)
@@ -3120,6 +3225,7 @@ namespace Space4x.Scenario
         public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
         public List<IndividualProfileData> individuals;
+        public List<PersonalRelationData> personalRelations;
     }
 
     [System.Serializable]
@@ -3379,6 +3485,17 @@ namespace Space4x.Scenario
         public ushort cultureId;
         public List<OutlookWeightData> outlooks;
         public BehaviorDispositionData behaviorDisposition;
+    }
+
+    [System.Serializable]
+    public class PersonalRelationData
+    {
+        public string idA;
+        public string idB;
+        public string kind;
+        public float score;
+        public float trust;
+        public float fear;
     }
 
     [System.Serializable]
