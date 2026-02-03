@@ -75,6 +75,16 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Temporary override for module targeting policy (e.g., mercy shots).
+    /// </summary>
+    public struct ModuleTargetPolicyOverride : IComponentData
+    {
+        public ModuleTargetPolicyKind Kind;
+        public Entity TargetShip;
+        public uint ExpireTick;
+    }
+
+    /// <summary>
     /// Tuning knobs for engagement intent/tactical planning.
     /// </summary>
     public struct EngagementDoctrineConfig : IComponentData

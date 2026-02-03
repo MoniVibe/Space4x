@@ -1374,12 +1374,14 @@ namespace Space4X.Registry
         private ComponentLookup<ModuleTargetPriority> _priorityLookup;
         private ComponentLookup<PDModuleHealth> _healthLookup;
         private ComponentLookup<ModuleTargetPolicy> _modulePolicyLookup;
+        private ComponentLookup<ModuleTargetPolicyOverride> _modulePolicyOverrideLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TargetPriority>();
             state.RequireForUpdate<Space4XEngagement>();
+            state.RequireForUpdate<TimeState>();
 
             _formationBonusLookup = state.GetComponentLookup<FormationBonus>(true);
             _formationIntegrityLookup = state.GetComponentLookup<FormationIntegrity>(true);
@@ -1391,11 +1393,18 @@ namespace Space4X.Registry
             _priorityLookup = state.GetComponentLookup<ModuleTargetPriority>(true);
             _healthLookup = state.GetComponentLookup<PDModuleHealth>(true);
             _modulePolicyLookup = state.GetComponentLookup<ModuleTargetPolicy>(true);
+            _modulePolicyOverrideLookup = state.GetComponentLookup<ModuleTargetPolicyOverride>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (timeState.IsPaused)
+            {
+                return;
+            }
+
             _formationBonusLookup.Update(ref state);
             _formationIntegrityLookup.Update(ref state);
             _formationConfigLookup.Update(ref state);
@@ -1406,6 +1415,7 @@ namespace Space4X.Registry
             _priorityLookup.Update(ref state);
             _healthLookup.Update(ref state);
             _modulePolicyLookup.Update(ref state);
+            _modulePolicyOverrideLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -1463,7 +1473,7 @@ namespace Space4X.Registry
                     // Select module target if target ship has modules
                     if (_slotLookup.HasBuffer(targetShip))
                     {
-                        var moduleTarget = SelectModuleTarget(entity, targetShip);
+                        var moduleTarget = SelectModuleTarget(entity, targetShip, timeState.Tick);
 
                         if (moduleTarget != Entity.Null)
                         {
@@ -1536,8 +1546,22 @@ namespace Space4X.Registry
             ecb.Dispose();
         }
 
-        private Entity SelectModuleTarget(Entity attacker, Entity targetShip)
+        private Entity SelectModuleTarget(Entity attacker, Entity targetShip, uint currentTick)
         {
+            if (_modulePolicyOverrideLookup.HasComponent(attacker))
+            {
+                var overridePolicy = _modulePolicyOverrideLookup[attacker];
+                if (overridePolicy.Kind != ModuleTargetPolicyKind.Default &&
+                    (overridePolicy.ExpireTick == 0 || currentTick <= overridePolicy.ExpireTick) &&
+                    (overridePolicy.TargetShip == Entity.Null || overridePolicy.TargetShip == targetShip))
+                {
+                    return SelectModuleTargetWithPolicy(attacker, targetShip, new ModuleTargetPolicy
+                    {
+                        Kind = overridePolicy.Kind
+                    });
+                }
+            }
+
             if (_modulePolicyLookup.HasComponent(attacker))
             {
                 var policy = _modulePolicyLookup[attacker];

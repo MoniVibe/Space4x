@@ -359,6 +359,50 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Recognition and mercy tuning for strike craft pilots.
+    /// </summary>
+    public struct StrikeCraftRecognitionConfig : IComponentData
+    {
+        public uint CheckCooldownTicks;
+        public uint MercyDurationTicks;
+        public float RecognitionRange;
+        public float CultureRecognitionChance;
+        public float RaceRecognitionChance;
+        public float MercyGoodThreshold;
+        public sbyte HostileRelationThreshold;
+        public byte RequireHostileRelation;
+
+        public static StrikeCraftRecognitionConfig Default => new StrikeCraftRecognitionConfig
+        {
+            CheckCooldownTicks = 90,
+            MercyDurationTicks = 240,
+            RecognitionRange = 250f,
+            CultureRecognitionChance = 0.55f,
+            RaceRecognitionChance = 0.35f,
+            MercyGoodThreshold = 0.55f,
+            HostileRelationThreshold = -25,
+            RequireHostileRelation = 1
+        };
+    }
+
+    /// <summary>
+    /// Runtime recognition state for strike craft (cooldowns, mercy targeting).
+    /// </summary>
+    public struct StrikeCraftRecognitionState : IComponentData
+    {
+        public uint NextCheckTick;
+        public uint MercyUntilTick;
+        public Entity MercyTarget;
+
+        public static StrikeCraftRecognitionState Default => new StrikeCraftRecognitionState
+        {
+            NextCheckTick = 0,
+            MercyUntilTick = 0,
+            MercyTarget = Entity.Null
+        };
+    }
+
+    /// <summary>
     /// Configuration for attack run behavior.
     /// </summary>
     public struct AttackRunConfig : IComponentData
