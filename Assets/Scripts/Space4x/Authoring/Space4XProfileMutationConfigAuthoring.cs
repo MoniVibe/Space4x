@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Profile;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Space4X.Authoring
 {
@@ -11,11 +12,13 @@ namespace Space4X.Authoring
     {
         [Header("Drift Scales")]
         [SerializeField, Range(0f, 1f)] private float alignmentScale = 0.08f;
-        [SerializeField, Range(0f, 1f)] private float outlookScale = 0.1f;
+        [FormerlySerializedAs("outlookScale")]
+        [SerializeField, Range(0f, 1f)] private float stanceScale = 0.1f;
         [SerializeField, Range(0f, 1f)] private float dispositionScale = 0.07f;
         [Header("Per-Apply Caps")]
         [SerializeField, Range(0f, 1f)] private float alignmentMaxDelta = 0.12f;
-        [SerializeField, Range(0f, 1f)] private float outlookMaxDelta = 0.15f;
+        [FormerlySerializedAs("outlookMaxDelta")]
+        [SerializeField, Range(0f, 1f)] private float stanceMaxDelta = 0.15f;
         [SerializeField, Range(0f, 1f)] private float dispositionMaxDelta = 0.1f;
         [Header("Accumulator")]
         [SerializeField, Range(0.5f, 1f)] private float accumulatorDecay = 0.85f;
@@ -29,10 +32,10 @@ namespace Space4X.Authoring
         private void OnValidate()
         {
             alignmentScale = math.clamp(alignmentScale, 0f, 1f);
-            outlookScale = math.clamp(outlookScale, 0f, 1f);
+            stanceScale = math.clamp(stanceScale, 0f, 1f);
             dispositionScale = math.clamp(dispositionScale, 0f, 1f);
             alignmentMaxDelta = math.clamp(alignmentMaxDelta, 0f, 1f);
-            outlookMaxDelta = math.clamp(outlookMaxDelta, 0f, 1f);
+            stanceMaxDelta = math.clamp(stanceMaxDelta, 0f, 1f);
             dispositionMaxDelta = math.clamp(dispositionMaxDelta, 0f, 1f);
             accumulatorDecay = math.clamp(accumulatorDecay, 0.5f, 1f);
             applyIntervalTicks = math.clamp(applyIntervalTicks, 1f, 600f);
@@ -50,10 +53,10 @@ namespace Space4X.Authoring
                 AddComponent(entity, new ProfileMutationConfig
                 {
                     AlignmentScale = math.clamp(authoring.alignmentScale, 0f, 1f),
-                    OutlookScale = math.clamp(authoring.outlookScale, 0f, 1f),
+                    StanceScale = math.clamp(authoring.stanceScale, 0f, 1f),
                     DispositionScale = math.clamp(authoring.dispositionScale, 0f, 1f),
                     AlignmentMaxDelta = math.clamp(authoring.alignmentMaxDelta, 0f, 1f),
-                    OutlookMaxDelta = math.clamp(authoring.outlookMaxDelta, 0f, 1f),
+                    StanceMaxDelta = math.clamp(authoring.stanceMaxDelta, 0f, 1f),
                     DispositionMaxDelta = math.clamp(authoring.dispositionMaxDelta, 0f, 1f),
                     AccumulatorDecay = math.clamp(authoring.accumulatorDecay, 0.5f, 1f),
                     ApplyIntervalTicks = (uint)math.max(1f, authoring.applyIntervalTicks),

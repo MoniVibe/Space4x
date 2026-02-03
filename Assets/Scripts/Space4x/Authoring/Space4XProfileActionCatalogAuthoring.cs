@@ -21,7 +21,7 @@ namespace Space4X.Authoring
             [Range(-1f, 1f)] public float LawDelta;
             [Range(-1f, 1f)] public float GoodDelta;
             [Range(-1f, 1f)] public float IntegrityDelta;
-            [Header("Outlook Drift (Loyalist/Opportunist/Fanatic/Mutinous)")]
+            [Header("Stance Drift (Loyalist/Opportunist/Fanatic/Mutinous)")]
             [Range(-1f, 1f)] public float LoyalistDelta;
             [Range(-1f, 1f)] public float OpportunistDelta;
             [Range(-1f, 1f)] public float FanaticDelta;
@@ -98,7 +98,7 @@ namespace Space4X.Authoring
                     {
                         Token = data.Token,
                         AlignmentDelta = new float3(data.GoodDelta, data.LawDelta, data.IntegrityDelta),
-                        OutlookDelta = new float4(data.LoyalistDelta, data.OpportunistDelta, data.FanaticDelta, data.MutinousDelta),
+                        StanceDelta = new float4(data.LoyalistDelta, data.OpportunistDelta, data.FanaticDelta, data.MutinousDelta),
                         DispositionDeltaA = new float3(data.ComplianceDelta, data.CautionDelta, data.FormationAdherenceDelta),
                         DispositionDeltaB = new float3(data.RiskToleranceDelta, data.AggressionDelta, data.PatienceDelta),
                         Weight = math.max(0f, data.Weight)
