@@ -369,6 +369,8 @@ namespace Space4X.Registry
         public float CultureRecognitionChance;
         public float RaceRecognitionChance;
         public float MercyGoodThreshold;
+        public float MercySuppressMinChance;
+        public float MercySuppressMaxChance;
         public sbyte HostileRelationThreshold;
         public byte RequireHostileRelation;
 
@@ -380,6 +382,8 @@ namespace Space4X.Registry
             CultureRecognitionChance = 0.55f,
             RaceRecognitionChance = 0.35f,
             MercyGoodThreshold = 0.55f,
+            MercySuppressMinChance = 0.4f,
+            MercySuppressMaxChance = 0.85f,
             HostileRelationThreshold = -25,
             RequireHostileRelation = 1
         };
@@ -400,6 +404,17 @@ namespace Space4X.Registry
             MercyUntilTick = 0,
             MercyTarget = Entity.Null
         };
+    }
+
+    /// <summary>
+    /// Soft fire discipline intent (suppresses some shots without hard-gating weapons).
+    /// </summary>
+    public struct StrikeCraftFireDiscipline : IComponentData
+    {
+        public byte SuppressFire;
+        public float SuppressChance;
+        public uint UntilTick;
+        public Entity Target;
     }
 
     /// <summary>

@@ -31,6 +31,7 @@ namespace Space4X.Registry
         private ComponentLookup<StrikeCraftState> _strikeCraftStateLookup;
         private ComponentLookup<StrikeCraftDogfightMetrics> _dogfightMetricsLookup;
         private ComponentLookup<StrikeCraftDogfightTag> _dogfightTagLookup;
+        private ComponentLookup<StrikeCraftFireDiscipline> _fireDisciplineLookup;
         private ComponentLookup<VesselAimDirective> _aimLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<CarrierTag> _carrierTagLookup;
@@ -54,6 +55,7 @@ namespace Space4X.Registry
             _strikeCraftStateLookup = state.GetComponentLookup<StrikeCraftState>(false);
             _dogfightMetricsLookup = state.GetComponentLookup<StrikeCraftDogfightMetrics>(false);
             _dogfightTagLookup = state.GetComponentLookup<StrikeCraftDogfightTag>(true);
+            _fireDisciplineLookup = state.GetComponentLookup<StrikeCraftFireDiscipline>(true);
             _aimLookup = state.GetComponentLookup<VesselAimDirective>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _carrierTagLookup = state.GetComponentLookup<CarrierTag>(true);
@@ -84,6 +86,7 @@ namespace Space4X.Registry
             _strikeCraftStateLookup.Update(ref state);
             _dogfightMetricsLookup.Update(ref state);
             _dogfightTagLookup.Update(ref state);
+            _fireDisciplineLookup.Update(ref state);
             _aimLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _carrierTagLookup.Update(ref state);
@@ -203,6 +206,20 @@ namespace Space4X.Registry
                 var fireConeCos = _dogfightTagLookup.HasComponent(entity) ? dogfightFireConeCos : defaultFireConeCos;
                 var broadsidePreferred = IsBroadsidePreferred(entity);
 
+                var suppressFire = false;
+                var suppressChance = 0f;
+                if (_fireDisciplineLookup.HasComponent(entity))
+                {
+                    var discipline = _fireDisciplineLookup[entity];
+                    if (discipline.SuppressFire != 0 &&
+                        (discipline.UntilTick == 0 || currentTick <= discipline.UntilTick) &&
+                        (discipline.Target == Entity.Null || discipline.Target == target))
+                    {
+                        suppressFire = true;
+                        suppressChance = math.saturate(discipline.SuppressChance);
+                    }
+                }
+
                 var targetVelocity = float3.zero;
                 if (_movementLookup.HasComponent(target))
                 {
@@ -282,6 +299,15 @@ namespace Space4X.Registry
                     if (math.dot(coneForward, aimDirection) < fireConeCos)
                     {
                         continue;
+                    }
+
+                    if (suppressFire && suppressChance > 0f)
+                    {
+                        var roll = DeterministicRoll(entity, target, currentTick, (uint)i);
+                        if (roll < suppressChance)
+                        {
+                            continue;
+                        }
                     }
 
                     // Ammo check
@@ -457,6 +483,12 @@ namespace Space4X.Registry
         private bool IsBroadsidePreferred(Entity entity)
         {
             return _carrierLookup.HasComponent(entity) || _carrierTagLookup.HasComponent(entity);
+        }
+
+        private static float DeterministicRoll(Entity actor, Entity target, uint tick, uint salt)
+        {
+            var hash = math.hash(new uint4((uint)actor.Index, (uint)target.Index, tick, salt));
+            return (hash & 0xFFFF) / 65535f;
         }
 
         private static float ResolveWeaponFireArcDegrees(in Space4XWeapon weapon)

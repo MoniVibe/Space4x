@@ -1,6 +1,8 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Telemetry;
 using Space4X.Registry;
 using Space4X.Runtime;
+using Space4X.Telemetry;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -26,6 +28,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<CultureId> _cultureLookup;
         private ComponentLookup<RaceId> _raceLookup;
+        private ComponentLookup<StrikeCraftFireDiscipline> _fireDisciplineLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<Space4XFaction> _factionLookup;
@@ -33,6 +36,8 @@ namespace Space4X.Systems.AI
         private BufferLookup<FactionRelationEntry> _factionRelationLookup;
         private ComponentLookup<ModuleTargetPolicyOverride> _policyOverrideLookup;
         private EntityStorageInfoLookup _entityLookup;
+        private FixedString64Bytes _sourceId;
+        private FixedString64Bytes _eventMercyStarted;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -48,6 +53,7 @@ namespace Space4X.Systems.AI
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _cultureLookup = state.GetComponentLookup<CultureId>(true);
             _raceLookup = state.GetComponentLookup<RaceId>(true);
+            _fireDisciplineLookup = state.GetComponentLookup<StrikeCraftFireDiscipline>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
@@ -55,6 +61,8 @@ namespace Space4X.Systems.AI
             _factionRelationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
             _policyOverrideLookup = state.GetComponentLookup<ModuleTargetPolicyOverride>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
+            _sourceId = new FixedString64Bytes("Space4X.StrikeCraft");
+            _eventMercyStarted = new FixedString64Bytes("RecognitionMercy");
         }
 
         [BurstCompile]
@@ -76,6 +84,7 @@ namespace Space4X.Systems.AI
             _transformLookup.Update(ref state);
             _cultureLookup.Update(ref state);
             _raceLookup.Update(ref state);
+            _fireDisciplineLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _factionLookup.Update(ref state);
@@ -91,6 +100,7 @@ namespace Space4X.Systems.AI
             }
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var emitTelemetry = TryResolveTelemetryEventBuffer(ref state, out var eventBuffer);
 
             foreach (var (_, entity) in SystemAPI.Query<RefRO<StrikeCraftState>>()
                 .WithNone<StrikeCraftRecognitionState>()
@@ -121,6 +131,15 @@ namespace Space4X.Systems.AI
                             ecb.RemoveComponent<ModuleTargetPolicyOverride>(entity);
                         }
                     }
+
+                    if (_fireDisciplineLookup.HasComponent(entity))
+                    {
+                        var discipline = _fireDisciplineLookup[entity];
+                        if (discipline.Target == previousMercyTarget)
+                        {
+                            ecb.RemoveComponent<StrikeCraftFireDiscipline>(entity);
+                        }
+                    }
                 }
 
                 if (targetEntity == Entity.Null || !_entityLookup.Exists(targetEntity))
@@ -131,6 +150,8 @@ namespace Space4X.Systems.AI
                 if (recognition.ValueRO.MercyTarget == targetEntity && recognition.ValueRO.MercyUntilTick > currentTick)
                 {
                     EnsurePolicyOverride(ref ecb, entity, targetEntity, recognition.ValueRO.MercyUntilTick);
+                    EnsureFireDiscipline(ref ecb, entity, targetEntity, recognition.ValueRO.MercyUntilTick,
+                        config.MercySuppressMinChance, config.MercySuppressMaxChance, ResolveGoodness(ResolveProfileEntity(entity)));
                     continue;
                 }
 
@@ -204,6 +225,14 @@ namespace Space4X.Systems.AI
                 recognition.ValueRW.MercyTarget = targetEntity;
                 recognition.ValueRW.MercyUntilTick = mercyUntil;
                 EnsurePolicyOverride(ref ecb, entity, targetEntity, mercyUntil);
+                EnsureFireDiscipline(ref ecb, entity, targetEntity, mercyUntil,
+                    config.MercySuppressMinChance, config.MercySuppressMaxChance, goodness);
+
+                if (emitTelemetry)
+                {
+                    eventBuffer.AddEvent(_eventMercyStarted, currentTick, _sourceId,
+                        BuildMercyPayload(entity, mercyProfile, targetEntity, cultureMatch, raceMatch, goodness, chance, mercyUntil));
+                }
             }
 
             ecb.Playback(state.EntityManager);
@@ -519,6 +548,69 @@ namespace Space4X.Systems.AI
             {
                 ecb.AddComponent(craftEntity, overridePolicy);
             }
+        }
+
+        private void EnsureFireDiscipline(ref EntityCommandBuffer ecb, Entity craftEntity, Entity targetEntity,
+            uint expireTick, float minChance, float maxChance, float goodness)
+        {
+            var normalized = math.saturate(goodness);
+            var suppressChance = math.lerp(minChance, maxChance, normalized);
+            var discipline = new StrikeCraftFireDiscipline
+            {
+                SuppressFire = 1,
+                SuppressChance = math.clamp(suppressChance, 0f, 1f),
+                UntilTick = expireTick,
+                Target = targetEntity
+            };
+
+            if (_fireDisciplineLookup.HasComponent(craftEntity))
+            {
+                ecb.SetComponent(craftEntity, discipline);
+            }
+            else
+            {
+                ecb.AddComponent(craftEntity, discipline);
+            }
+        }
+
+        private static FixedString128Bytes BuildMercyPayload(Entity craft, Entity pilot, Entity target,
+            bool cultureMatch, bool raceMatch, float goodness, float chance, uint untilTick)
+        {
+            var writer = new TelemetryJsonWriter();
+            writer.AddEntity("craft", craft);
+            writer.AddEntity("pilot", pilot);
+            writer.AddEntity("target", target);
+            writer.AddBool("culture", cultureMatch);
+            writer.AddBool("race", raceMatch);
+            writer.AddFloat("good", goodness);
+            writer.AddFloat("chance", chance);
+            writer.AddUInt("untilTick", untilTick);
+            return writer.Build();
+        }
+
+        private bool TryResolveTelemetryEventBuffer(ref SystemState state, out DynamicBuffer<TelemetryEvent> buffer)
+        {
+            buffer = default;
+            if (SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var config))
+            {
+                if (config.Enabled == 0 || (config.Flags & TelemetryExportFlags.IncludeTelemetryEvents) == 0)
+                {
+                    return false;
+                }
+            }
+
+            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            {
+                return false;
+            }
+
+            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryEvent>(telemetryRef.Stream))
+            {
+                return false;
+            }
+
+            buffer = state.EntityManager.GetBuffer<TelemetryEvent>(telemetryRef.Stream);
+            return true;
         }
 
         private static float DeterministicRoll(Entity actor, Entity target, uint tick, uint salt)
