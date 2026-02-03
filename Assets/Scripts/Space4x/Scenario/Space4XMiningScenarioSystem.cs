@@ -59,6 +59,8 @@ namespace Space4x.Scenario
         private bool _applyDefaultModuleLoadouts;
         private Entity _friendlyAffiliationEntity;
         private Entity _hostileAffiliationEntity;
+        private const ushort FriendlyFactionId = 1;
+        private const ushort HostileFactionId = 2;
 
         protected override void OnCreate()
         {
@@ -162,6 +164,7 @@ namespace Space4x.Scenario
             {
                 SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
                 ApplyPersonalRelations(timeState.Tick);
+                EnsureScenarioFactionRelations(timeState.Tick);
             }
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
             var durationSeconds = math.max(0f, _scenarioData.duration_s);
@@ -520,6 +523,7 @@ namespace Space4x.Scenario
             {
                 AffiliationName = new FixedString64Bytes(affiliationName)
             });
+            EnsureScenarioFactionProfile(entity, scenarioSide);
 
             if (scenarioSide == 1)
             {
@@ -1665,6 +1669,168 @@ namespace Space4x.Scenario
                 Trust = trust,
                 Fear = fear,
                 LastInteractionTick = tick
+            });
+        }
+
+        private void EnsureScenarioFactionProfile(Entity affiliationEntity, byte scenarioSide)
+        {
+            if (affiliationEntity == Entity.Null)
+            {
+                return;
+            }
+
+            var outlook = ResolveScenarioOutlook(scenarioSide);
+            var factionId = scenarioSide == 1 ? HostileFactionId : FriendlyFactionId;
+
+            if (EntityManager.HasComponent<Space4XFaction>(affiliationEntity))
+            {
+                var faction = EntityManager.GetComponentData<Space4XFaction>(affiliationEntity);
+                if (faction.FactionId == 0)
+                {
+                    faction.FactionId = factionId;
+                }
+                if (outlook != FactionOutlook.None)
+                {
+                    faction.Outlook = outlook;
+                }
+                EntityManager.SetComponentData(affiliationEntity, faction);
+                return;
+            }
+
+            var profile = Space4XFaction.Empire(factionId, outlook);
+            EntityManager.AddComponentData(affiliationEntity, profile);
+        }
+
+        private FactionOutlook ResolveScenarioOutlook(byte scenarioSide)
+        {
+            var config = _scenarioData?.scenarioConfig;
+            if (config == null)
+            {
+                return FactionOutlook.None;
+            }
+
+            var tokens = scenarioSide == 1 ? config.hostileFactionOutlook : config.friendlyFactionOutlook;
+            return ParseFactionOutlook(tokens);
+        }
+
+        private static FactionOutlook ParseFactionOutlook(List<string> values)
+        {
+            if (values == null || values.Count == 0)
+            {
+                return FactionOutlook.None;
+            }
+
+            var outlook = FactionOutlook.None;
+            for (int i = 0; i < values.Count; i++)
+            {
+                var token = values[i];
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    continue;
+                }
+
+                switch (token.Trim())
+                {
+                    case "Expansionist":
+                        outlook |= FactionOutlook.Expansionist;
+                        break;
+                    case "Isolationist":
+                        outlook |= FactionOutlook.Isolationist;
+                        break;
+                    case "Militarist":
+                        outlook |= FactionOutlook.Militarist;
+                        break;
+                    case "Pacifist":
+                        outlook |= FactionOutlook.Pacifist;
+                        break;
+                    case "Materialist":
+                        outlook |= FactionOutlook.Materialist;
+                        break;
+                    case "Spiritualist":
+                        outlook |= FactionOutlook.Spiritualist;
+                        break;
+                    case "Xenophile":
+                        outlook |= FactionOutlook.Xenophile;
+                        break;
+                    case "Xenophobe":
+                        outlook |= FactionOutlook.Xenophobe;
+                        break;
+                    case "Egalitarian":
+                        outlook |= FactionOutlook.Egalitarian;
+                        break;
+                    case "Authoritarian":
+                        outlook |= FactionOutlook.Authoritarian;
+                        break;
+                    case "Corrupt":
+                        outlook |= FactionOutlook.Corrupt;
+                        break;
+                    case "Honorable":
+                        outlook |= FactionOutlook.Honorable;
+                        break;
+                }
+            }
+
+            return outlook;
+        }
+
+        private void EnsureScenarioFactionRelations(uint currentTick)
+        {
+            if (_friendlyAffiliationEntity == Entity.Null || _hostileAffiliationEntity == Entity.Null)
+            {
+                return;
+            }
+
+            EnsureScenarioFactionProfile(_friendlyAffiliationEntity, 0);
+            EnsureScenarioFactionProfile(_hostileAffiliationEntity, 1);
+
+            EnsureFactionRelation(_friendlyAffiliationEntity, _hostileAffiliationEntity, -80, currentTick);
+            EnsureFactionRelation(_hostileAffiliationEntity, _friendlyAffiliationEntity, -80, currentTick);
+        }
+
+        private void EnsureFactionRelation(Entity selfFaction, Entity otherFaction, sbyte score, uint tick)
+        {
+            if (!EntityManager.HasComponent<Space4XFaction>(selfFaction) ||
+                !EntityManager.HasComponent<Space4XFaction>(otherFaction))
+            {
+                return;
+            }
+
+            if (!EntityManager.HasBuffer<FactionRelationEntry>(selfFaction))
+            {
+                EntityManager.AddBuffer<FactionRelationEntry>(selfFaction);
+            }
+
+            var otherProfile = EntityManager.GetComponentData<Space4XFaction>(otherFaction);
+            var buffer = EntityManager.GetBuffer<FactionRelationEntry>(selfFaction);
+
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                if (entry.Relation.OtherFaction == otherFaction || entry.Relation.OtherFactionId == otherProfile.FactionId)
+                {
+                    entry.Relation.OtherFaction = otherFaction;
+                    entry.Relation.OtherFactionId = otherProfile.FactionId;
+                    entry.Relation.Score = score;
+                    entry.Relation.LastInteractionTick = tick;
+                    buffer[i] = entry;
+                    return;
+                }
+            }
+
+            buffer.Add(new FactionRelationEntry
+            {
+                Relation = new FactionRelation
+                {
+                    OtherFaction = otherFaction,
+                    OtherFactionId = otherProfile.FactionId,
+                    Score = score,
+                    Trust = (half)0f,
+                    Fear = (half)0.5f,
+                    Respect = (half)0f,
+                    TradeVolume = 0f,
+                    RecentCombats = 0,
+                    LastInteractionTick = tick
+                }
             });
         }
 
@@ -3237,6 +3403,8 @@ namespace Space4x.Scenario
         public bool applyFloatingOrigin;
         public bool applyReferenceFrames;
         public bool applyDefaultModuleLoadouts;
+        public List<string> friendlyFactionOutlook;
+        public List<string> hostileFactionOutlook;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;

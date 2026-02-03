@@ -1,0 +1,202 @@
+{
+  "scenarioId": "space4x_relations_culture_mix",
+  "seed": 20260203,
+  "duration_s": 60,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "friendlyFactionOutlook": ["Pacifist", "Xenophile", "Honorable"],
+    "hostileFactionOutlook": ["Militarist", "Xenophobe", "Authoritarian"],
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 250.0,
+    "coneDegrees": 45.0,
+    "navConstantN": 3.5,
+    "breakOffDistance": 18.0,
+    "breakOffTicks": 90,
+    "rejoinRadius": 6.0,
+    "rejoinOffset": [0.0, 0.0, -12.0],
+    "jinkStrength": 0.15
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "culture-alpha",
+      "position": [-70.0, 0.0],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "pilotProfileIds": [
+            "xeno-peace-1",
+            "xeno-peace-2",
+            "xeno-peace-3",
+            "xeno-peace-4"
+          ],
+          "escortCount": 0,
+          "escortRelease_s": 0.0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "culture-bravo",
+      "position": [70.0, 0.0],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "pilotProfileIds": [
+            "xeno-war-1",
+            "xeno-war-2",
+            "xeno-war-3",
+            "xeno-war-4"
+          ],
+          "escortCount": 0,
+          "escortRelease_s": 0.0
+        }
+      }
+    }
+  ],
+  "individuals": [
+    {
+      "id": "xeno-peace-1",
+      "law": 0.85,
+      "good": 0.9,
+      "integrity": 0.8,
+      "raceId": 1,
+      "cultureId": 10,
+      "outlooks": [
+        { "outlookId": "Loyalist", "weight": 0.8 },
+        { "outlookId": "Opportunist", "weight": 0.1 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.85,
+        "caution": 0.55,
+        "formationAdherence": 0.7,
+        "riskTolerance": 0.25,
+        "aggression": 0.25,
+        "patience": 0.75
+      }
+    },
+    {
+      "id": "xeno-peace-2",
+      "law": 0.75,
+      "good": 0.8,
+      "integrity": 0.7,
+      "raceId": 2,
+      "cultureId": 11,
+      "outlooks": [
+        { "outlookId": "Loyalist", "weight": 0.6 },
+        { "outlookId": "Opportunist", "weight": 0.2 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.75,
+        "caution": 0.45,
+        "formationAdherence": 0.6,
+        "riskTolerance": 0.35,
+        "aggression": 0.3,
+        "patience": 0.7
+      }
+    },
+    {
+      "id": "xeno-peace-3",
+      "law": 0.65,
+      "good": 0.7,
+      "integrity": 0.65,
+      "raceId": 3,
+      "cultureId": 12,
+      "outlooks": [
+        { "outlookId": "Loyalist", "weight": 0.5 }
+      ]
+    },
+    {
+      "id": "xeno-peace-4",
+      "law": 0.55,
+      "good": 0.65,
+      "integrity": 0.6,
+      "raceId": 4,
+      "cultureId": 13,
+      "outlooks": [
+        { "outlookId": "Neutral", "weight": 0.7 }
+      ]
+    },
+    {
+      "id": "xeno-war-1",
+      "law": -0.65,
+      "good": 0.15,
+      "integrity": 0.2,
+      "raceId": 5,
+      "cultureId": 10,
+      "outlooks": [
+        { "outlookId": "Fanatic", "weight": 0.7 },
+        { "outlookId": "Mutinous", "weight": 0.2 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.3,
+        "caution": 0.2,
+        "formationAdherence": 0.35,
+        "riskTolerance": 0.8,
+        "aggression": 0.8,
+        "patience": 0.2
+      }
+    },
+    {
+      "id": "xeno-war-2",
+      "law": -0.55,
+      "good": 0.2,
+      "integrity": 0.25,
+      "raceId": 2,
+      "cultureId": 14,
+      "outlooks": [
+        { "outlookId": "Fanatic", "weight": 0.6 },
+        { "outlookId": "Opportunist", "weight": 0.3 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.25,
+        "caution": 0.15,
+        "formationAdherence": 0.3,
+        "riskTolerance": 0.85,
+        "aggression": 0.85,
+        "patience": 0.15
+      }
+    },
+    {
+      "id": "xeno-war-3",
+      "law": -0.7,
+      "good": 0.1,
+      "integrity": 0.15,
+      "raceId": 3,
+      "cultureId": 15,
+      "outlooks": [
+        { "outlookId": "Mutinous", "weight": 0.6 }
+      ]
+    },
+    {
+      "id": "xeno-war-4",
+      "law": -0.45,
+      "good": 0.25,
+      "integrity": 0.3,
+      "raceId": 4,
+      "cultureId": 13,
+      "outlooks": [
+        { "outlookId": "Opportunist", "weight": 0.5 }
+      ]
+    }
+  ]
+}
