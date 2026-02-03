@@ -71,7 +71,7 @@ namespace Space4X.Presentation
             new UpdateLODJob
             {
                 CameraPosition = cameraPosition,
-                UseRenderFrame = useRenderFrame ? 1 : 0,
+                UseRenderFrame = (byte)(useRenderFrame ? 1 : 0),
                 RenderFrameAnchor = renderFrameState.AnchorPosition,
                 RenderFrameScale = renderFrameState.Scale,
                 BaseConfig = lodConfig,
