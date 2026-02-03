@@ -7,6 +7,10 @@
   },
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "spawnLane": "mining-json",
     "applyMotionTuning": true,
     "applyMotionProfile": true,

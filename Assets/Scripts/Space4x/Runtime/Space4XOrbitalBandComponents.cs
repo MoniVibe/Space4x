@@ -10,6 +10,7 @@ namespace Space4X.Runtime
         public float DistanceScale;
         public float SpeedScale;
         public float RangeScale;
+        public float PresentationScale;
         public float EnterMultiplier;
         public float ExitMultiplier;
 
@@ -21,6 +22,7 @@ namespace Space4X.Runtime
             DistanceScale = 1.35f,
             SpeedScale = 1.15f,
             RangeScale = 1.25f,
+            PresentationScale = 0.75f,
             EnterMultiplier = 0.98f,
             ExitMultiplier = 1.02f
         };
@@ -33,6 +35,7 @@ namespace Space4X.Runtime
         public float DistanceScale;
         public float SpeedScale;
         public float RangeScale;
+        public float PresentationScale;
     }
 
     public struct Space4XOrbitalBandState : IComponentData
@@ -41,6 +44,7 @@ namespace Space4X.Runtime
         public float DistanceScale;
         public float SpeedScale;
         public float RangeScale;
+        public float PresentationScale;
         public byte InBand;
     }
 

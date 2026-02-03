@@ -16,6 +16,7 @@ using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Systems;
 using Space4X.Headless;
+using Space4X.Presentation;
 using Space4X.Registry;
 using Space4X.Runtime;
 using AlignmentTriplet = Space4X.Registry.AlignmentTriplet;
@@ -196,7 +197,8 @@ namespace Space4x.Scenario
         {
             _applyDefaultModuleLoadouts = scenarioConfig != null && scenarioConfig.applyDefaultModuleLoadouts;
             ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
-            ApplyOrbitalBandConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
+            ApplyOrbitalBandConfig(scenarioConfig);
+            ApplyRenderFrameConfig(scenarioConfig);
             if (scenarioConfig == null)
             {
                 return;
@@ -397,7 +399,7 @@ namespace Space4x.Scenario
             });
         }
 
-        private void ApplyOrbitalBandConfig(bool enabled)
+        private void ApplyOrbitalBandConfig(MiningScenarioConfigData scenarioConfig)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XOrbitalBandConfig>(out var configEntity))
             {
@@ -405,7 +407,106 @@ namespace Space4x.Scenario
             }
 
             var config = Space4XOrbitalBandConfig.Default;
+            var referenceFramesEnabled = scenarioConfig != null && scenarioConfig.applyReferenceFrames;
+            var enabled = referenceFramesEnabled;
+            var bandOverride = scenarioConfig != null ? scenarioConfig.orbitalBand : null;
+            if (bandOverride != null && bandOverride.enabled >= 0)
+            {
+                enabled = referenceFramesEnabled && bandOverride.enabled != 0;
+            }
             config.Enabled = (byte)(enabled ? 1 : 0);
+
+            if (bandOverride != null)
+            {
+                if (bandOverride.innerRadius >= 0f)
+                {
+                    config.InnerRadius = bandOverride.innerRadius;
+                }
+                if (bandOverride.outerRadius >= 0f)
+                {
+                    config.OuterRadius = bandOverride.outerRadius;
+                }
+                if (bandOverride.distanceScale > 0f)
+                {
+                    config.DistanceScale = bandOverride.distanceScale;
+                }
+                if (bandOverride.speedScale > 0f)
+                {
+                    config.SpeedScale = bandOverride.speedScale;
+                }
+                if (bandOverride.rangeScale > 0f)
+                {
+                    config.RangeScale = bandOverride.rangeScale;
+                }
+                if (bandOverride.presentationScale > 0f)
+                {
+                    config.PresentationScale = bandOverride.presentationScale;
+                }
+                if (bandOverride.enterMultiplier > 0f)
+                {
+                    config.EnterMultiplier = bandOverride.enterMultiplier;
+                }
+                if (bandOverride.exitMultiplier > 0f)
+                {
+                    config.ExitMultiplier = bandOverride.exitMultiplier;
+                }
+            }
+            EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private void ApplyRenderFrameConfig(MiningScenarioConfigData scenarioConfig)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XRenderFrameConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XRenderFrameConfig));
+            }
+
+            var config = Space4XRenderFrameConfig.Default;
+            var frameOverride = scenarioConfig != null ? scenarioConfig.renderFrame : null;
+            if (frameOverride != null)
+            {
+                if (frameOverride.enabled >= 0)
+                {
+                    config.Enabled = (byte)(frameOverride.enabled != 0 ? 1 : 0);
+                }
+                if (frameOverride.useBandScale >= 0)
+                {
+                    config.UseBandScale = (byte)(frameOverride.useBandScale != 0 ? 1 : 0);
+                }
+                if (frameOverride.surfaceScale > 0f)
+                {
+                    config.SurfaceScale = frameOverride.surfaceScale;
+                }
+                if (frameOverride.orbitalScale > 0f)
+                {
+                    config.OrbitalScale = frameOverride.orbitalScale;
+                }
+                if (frameOverride.deepScale > 0f)
+                {
+                    config.DeepScale = frameOverride.deepScale;
+                }
+                if (frameOverride.surfaceEnterMultiplier > 0f)
+                {
+                    config.SurfaceEnterMultiplier = frameOverride.surfaceEnterMultiplier;
+                }
+                if (frameOverride.surfaceExitMultiplier > 0f)
+                {
+                    config.SurfaceExitMultiplier = frameOverride.surfaceExitMultiplier;
+                }
+                if (frameOverride.orbitalEnterMultiplier > 0f)
+                {
+                    config.OrbitalEnterMultiplier = frameOverride.orbitalEnterMultiplier;
+                }
+                if (frameOverride.orbitalExitMultiplier > 0f)
+                {
+                    config.OrbitalExitMultiplier = frameOverride.orbitalExitMultiplier;
+                }
+                if (frameOverride.minHoldTicks >= 0)
+                {
+                    config.MinHoldTicks = (uint)frameOverride.minHoldTicks;
+                }
+            }
+
             EntityManager.SetComponentData(configEntity, config);
         }
 
@@ -3417,12 +3518,43 @@ namespace Space4x.Scenario
         public bool applyFloatingOrigin;
         public bool applyReferenceFrames;
         public bool applyDefaultModuleLoadouts;
+        public OrbitalBandConfigData orbitalBand;
+        public RenderFrameConfigData renderFrame;
         public List<string> friendlyFactionOutlook;
         public List<string> hostileFactionOutlook;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
         public List<CrewTemplateConfigData> crewTemplates;
+    }
+
+    [System.Serializable]
+    public class OrbitalBandConfigData
+    {
+        public int enabled = -1;
+        public float innerRadius = -1f;
+        public float outerRadius = -1f;
+        public float distanceScale = -1f;
+        public float speedScale = -1f;
+        public float rangeScale = -1f;
+        public float presentationScale = -1f;
+        public float enterMultiplier = -1f;
+        public float exitMultiplier = -1f;
+    }
+
+    [System.Serializable]
+    public class RenderFrameConfigData
+    {
+        public int enabled = -1;
+        public int useBandScale = -1;
+        public float surfaceScale = -1f;
+        public float orbitalScale = -1f;
+        public float deepScale = -1f;
+        public float surfaceEnterMultiplier = -1f;
+        public float surfaceExitMultiplier = -1f;
+        public float orbitalEnterMultiplier = -1f;
+        public float orbitalExitMultiplier = -1f;
+        public int minHoldTicks = -1;
     }
 
     [System.Serializable]

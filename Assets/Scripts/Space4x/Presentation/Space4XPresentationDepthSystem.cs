@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using Space4X.Runtime;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
@@ -16,6 +17,8 @@ namespace Space4X.Presentation
     {
         private ComponentLookup<PresentationScaleMultiplier> _scaleMultiplierLookup;
         private ComponentLookup<SimPoseSnapshot> _poseSnapshotLookup;
+        private ComponentLookup<Space4XOrbitalBandState> _orbitalBandStateLookup;
+        private ComponentLookup<Space4XFrameTransform> _frameTransformLookup;
         private const float CarrierAmplitude = 2.5f;
         private const float VesselAmplitude = 1.25f;
         private const float StrikeCraftAmplitude = 1.1f;
@@ -48,6 +51,8 @@ namespace Space4X.Presentation
         {
             _scaleMultiplierLookup = state.GetComponentLookup<PresentationScaleMultiplier>(true);
             _poseSnapshotLookup = state.GetComponentLookup<SimPoseSnapshot>(true);
+            _orbitalBandStateLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
+            _frameTransformLookup = state.GetComponentLookup<Space4XFrameTransform>(true);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -73,10 +78,30 @@ namespace Space4X.Presentation
             {
                 alpha = math.saturate(interpolation.Alpha);
             }
+            var useBandScale = false;
+            var useRenderFrame = false;
+            var renderFrame = default(Space4XRenderFrameState);
+            if (SystemAPI.TryGetSingleton<Space4XOrbitalBandConfig>(out var bandConfig))
+            {
+                useBandScale = bandConfig.Enabled != 0;
+            }
+            if (SystemAPI.TryGetSingleton<Space4XRenderFrameState>(out var renderFrameState) &&
+                SystemAPI.TryGetSingleton<Space4XRenderFrameConfig>(out var renderFrameConfig) &&
+                renderFrameConfig.Enabled != 0)
+            {
+                useRenderFrame = true;
+                renderFrame = renderFrameState;
+                useBandScale = false;
+            }
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             ResolveScaleDefaults(ref state, out var carrierScale, out var craftScale, out var asteroidBaseScale);
             _scaleMultiplierLookup.Update(ref state);
             _poseSnapshotLookup.Update(ref state);
+            if (useBandScale)
+            {
+                _orbitalBandStateLookup.Update(ref state);
+                _frameTransformLookup.Update(ref state);
+            }
 
             foreach (var (_, _, entity) in SystemAPI
                          .Query<RefRO<CarrierPresentationTag>, RefRO<LocalTransform>>()
@@ -152,7 +177,7 @@ namespace Space4X.Presentation
                          .WithAll<CarrierPresentationTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 31) * CarrierBaseOffset;
                 float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * CarrierFrequency + phase) * CarrierAmplitude;
@@ -172,7 +197,7 @@ namespace Space4X.Presentation
                          .WithAll<CraftPresentationTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 47) * CraftBaseOffset;
                 float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * VesselFrequency + phase) * VesselAmplitude;
@@ -192,7 +217,7 @@ namespace Space4X.Presentation
                          .WithAll<StrikeCraftPresentationTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 53) * StrikeCraftBaseOffset;
                 float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * StrikeCraftFrequency + phase) * StrikeCraftAmplitude;
@@ -212,7 +237,7 @@ namespace Space4X.Presentation
                          .WithAll<ResourcePickupPresentationTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 61) * PickupBaseOffset;
                 float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * PickupFrequency + phase) * PickupAmplitude;
@@ -232,7 +257,7 @@ namespace Space4X.Presentation
                          .WithAll<AsteroidPresentationTag, Asteroid>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 79) * AsteroidBaseOffset;
                 float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * AsteroidFrequency + phase) * AsteroidAmplitude;
@@ -253,7 +278,7 @@ namespace Space4X.Presentation
                          .WithAll<ProjectilePresentationTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float baseScale = DefaultProjectileScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -269,7 +294,7 @@ namespace Space4X.Presentation
                          .WithAll<FleetImpostorTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float baseScale = DefaultFleetImpostorScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -290,7 +315,7 @@ namespace Space4X.Presentation
                          .WithAll<IndividualPresentationTag>()
                          .WithEntityAccess())
             {
-                var pose = ResolvePose(entity, transform.ValueRO, alpha);
+                var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float baseScale = DefaultIndividualScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -310,36 +335,100 @@ namespace Space4X.Presentation
             public float Scale;
         }
 
-        private PoseSample ResolvePose(Entity entity, in LocalTransform fallback, float alpha)
+        private PoseSample ResolvePose(
+            Entity entity,
+            in LocalTransform fallback,
+            float alpha,
+            bool useBandScale,
+            bool useRenderFrame,
+            in Space4XRenderFrameState renderFrame)
         {
             if (_poseSnapshotLookup.HasComponent(entity))
             {
                 var snapshot = _poseSnapshotLookup[entity];
                 if (snapshot.CurrTick == snapshot.PrevTick)
                 {
+                    var position = ResolveRenderPosition(entity, snapshot.CurrPosition, useBandScale, useRenderFrame, in renderFrame);
                     return new PoseSample
                     {
-                        Position = snapshot.CurrPosition,
+                        Position = position,
                         Rotation = snapshot.CurrRotation,
                         Scale = snapshot.CurrScale
                     };
                 }
 
                 var t = math.saturate(alpha);
+                var position = ResolveRenderPosition(entity, math.lerp(snapshot.PrevPosition, snapshot.CurrPosition, t), useBandScale, useRenderFrame, in renderFrame);
                 return new PoseSample
                 {
-                    Position = math.lerp(snapshot.PrevPosition, snapshot.CurrPosition, t),
+                    Position = position,
                     Rotation = math.slerp(snapshot.PrevRotation, snapshot.CurrRotation, t),
                     Scale = math.lerp(snapshot.PrevScale, snapshot.CurrScale, t)
                 };
             }
 
+            var fallbackPosition = ResolveRenderPosition(entity, fallback.Position, useBandScale, useRenderFrame, in renderFrame);
             return new PoseSample
             {
-                Position = fallback.Position,
+                Position = fallbackPosition,
                 Rotation = fallback.Rotation,
                 Scale = fallback.Scale
             };
+        }
+
+        private float3 ResolveRenderPosition(
+            Entity entity,
+            float3 position,
+            bool useBandScale,
+            bool useRenderFrame,
+            in Space4XRenderFrameState renderFrame)
+        {
+            if (useRenderFrame)
+            {
+                if (renderFrame.AnchorFrame == Entity.Null)
+                {
+                    return position;
+                }
+
+                var scale = math.max(0.01f, renderFrame.Scale);
+                if (math.abs(scale - 1f) <= 0.0001f)
+                {
+                    return position;
+                }
+
+                return renderFrame.AnchorPosition + (position - renderFrame.AnchorPosition) * scale;
+            }
+
+            if (!useBandScale)
+            {
+                return position;
+            }
+
+            if (!_orbitalBandStateLookup.HasComponent(entity))
+            {
+                return position;
+            }
+
+            var band = _orbitalBandStateLookup[entity];
+            if (band.InBand == 0 || band.AnchorFrame == Entity.Null)
+            {
+                return position;
+            }
+
+            if (!_frameTransformLookup.HasComponent(band.AnchorFrame))
+            {
+                return position;
+            }
+
+            var anchor = _frameTransformLookup[band.AnchorFrame].PositionWorld;
+            var anchorPos = new float3((float)anchor.x, (float)anchor.y, (float)anchor.z);
+            var scale = math.max(0.01f, band.PresentationScale);
+            if (math.abs(scale - 1f) <= 0.0001f)
+            {
+                return position;
+            }
+
+            return anchorPos + (position - anchorPos) * scale;
         }
 
         private void ResolveScaleDefaults(

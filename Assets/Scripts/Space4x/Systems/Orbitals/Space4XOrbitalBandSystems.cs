@@ -61,7 +61,8 @@ namespace Space4X.Systems.Orbitals
                     OuterRadius = math.max(innerRadius, outerRadius),
                     DistanceScale = math.max(0.01f, config.DistanceScale),
                     SpeedScale = math.max(0.01f, config.SpeedScale),
-                    RangeScale = math.max(0.01f, config.RangeScale)
+                    RangeScale = math.max(0.01f, config.RangeScale),
+                    PresentationScale = math.max(0.01f, config.PresentationScale)
                 };
 
                 ecb.AddComponent(entity, region);
@@ -84,6 +85,7 @@ namespace Space4X.Systems.Orbitals
                     DistanceScale = 1f,
                     SpeedScale = 1f,
                     RangeScale = 1f,
+                    PresentationScale = 1f,
                     InBand = 0
                 });
             }
@@ -125,6 +127,7 @@ namespace Space4X.Systems.Orbitals
                     bandState.ValueRW.DistanceScale = 1f;
                     bandState.ValueRW.SpeedScale = 1f;
                     bandState.ValueRW.RangeScale = 1f;
+                    bandState.ValueRW.PresentationScale = 1f;
                     bandState.ValueRW.InBand = 0;
                     continue;
                 }
@@ -136,6 +139,7 @@ namespace Space4X.Systems.Orbitals
                     bandState.ValueRW.DistanceScale = 1f;
                     bandState.ValueRW.SpeedScale = 1f;
                     bandState.ValueRW.RangeScale = 1f;
+                    bandState.ValueRW.PresentationScale = 1f;
                     bandState.ValueRW.InBand = 0;
                     continue;
                 }
@@ -160,6 +164,7 @@ namespace Space4X.Systems.Orbitals
                     bandState.ValueRW.DistanceScale = math.max(0.01f, region.DistanceScale);
                     bandState.ValueRW.SpeedScale = math.max(0.01f, region.SpeedScale);
                     bandState.ValueRW.RangeScale = math.max(0.01f, region.RangeScale);
+                    bandState.ValueRW.PresentationScale = math.max(0.01f, region.PresentationScale);
                     bandState.ValueRW.InBand = 1;
                 }
                 else
@@ -168,6 +173,7 @@ namespace Space4X.Systems.Orbitals
                     bandState.ValueRW.DistanceScale = 1f;
                     bandState.ValueRW.SpeedScale = 1f;
                     bandState.ValueRW.RangeScale = 1f;
+                    bandState.ValueRW.PresentationScale = 1f;
                     bandState.ValueRW.InBand = 0;
                 }
             }

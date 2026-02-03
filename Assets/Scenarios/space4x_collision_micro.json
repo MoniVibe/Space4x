@@ -4,6 +4,10 @@
   "duration_s": 30,
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "headlessQuestions": [
       {
         "id": "space4x.q.collision.phasing",
