@@ -1419,6 +1419,7 @@ namespace Space4X.Registry
         private ComponentLookup<FormationIntegrity> _formationIntegrityLookup;
         private ComponentLookup<FormationCombatConfig> _formationConfigLookup;
         private ComponentLookup<FormationAssignment> _formationAssignmentLookup;
+        private ComponentLookup<Space4XOrbitalBandState> _orbitalBandLookup;
         private EntityStorageInfoLookup _entityLookup;
         private BufferLookup<PDCarrierModuleSlot> _slotLookup;
         private ComponentLookup<PDShipModule> _moduleLookup;
@@ -1438,6 +1439,7 @@ namespace Space4X.Registry
             _formationIntegrityLookup = state.GetComponentLookup<FormationIntegrity>(true);
             _formationConfigLookup = state.GetComponentLookup<FormationCombatConfig>(true);
             _formationAssignmentLookup = state.GetComponentLookup<FormationAssignment>(true);
+            _orbitalBandLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
             _slotLookup = state.GetBufferLookup<PDCarrierModuleSlot>(true);
             _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
@@ -1460,6 +1462,7 @@ namespace Space4X.Registry
             _formationIntegrityLookup.Update(ref state);
             _formationConfigLookup.Update(ref state);
             _formationAssignmentLookup.Update(ref state);
+            _orbitalBandLookup.Update(ref state);
             _entityLookup.Update(ref state);
             _slotLookup.Update(ref state);
             _moduleLookup.Update(ref state);
@@ -1598,6 +1601,20 @@ namespace Space4X.Registry
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+        }
+
+        private float ResolveRangeScale(Entity entity)
+        {
+            if (_orbitalBandLookup.HasComponent(entity))
+            {
+                var band = _orbitalBandLookup[entity];
+                if (band.InBand != 0)
+                {
+                    return math.max(0.01f, band.RangeScale);
+                }
+            }
+
+            return 1f;
         }
 
         private Entity SelectModuleTarget(Entity attacker, Entity targetShip, uint currentTick)
