@@ -29,6 +29,7 @@ namespace Space4X.Systems.AI
         private BufferLookup<ResourceStorage> _carrierInventoryLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
+        private ComponentLookup<MiningYield> _yieldLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -37,6 +38,7 @@ namespace Space4X.Systems.AI
             _carrierInventoryLookup = state.GetBufferLookup<ResourceStorage>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _yieldLookup = state.GetComponentLookup<MiningYield>(false);
 
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
@@ -58,6 +60,7 @@ namespace Space4X.Systems.AI
             _carrierInventoryLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _statsLookup.Update(ref state);
+            _yieldLookup.Update(ref state);
 
             var depositDistance = 2f; // Vessels deposit when within 2 units of carrier
             var depositDistanceSq = depositDistance * depositDistance;
@@ -161,6 +164,14 @@ namespace Space4X.Systems.AI
                 else
                 {
                     vessel.ValueRW = vesselValue;
+                }
+
+                if (_yieldLookup.HasComponent(entity))
+                {
+                    var yield = _yieldLookup[entity];
+                    yield.PendingAmount = math.max(0f, vesselValue.CurrentCargo);
+                    yield.SpawnReady = yield.SpawnThreshold > 0f && yield.PendingAmount >= yield.SpawnThreshold ? (byte)1 : (byte)0;
+                    _yieldLookup[entity] = yield;
                 }
             }
         }

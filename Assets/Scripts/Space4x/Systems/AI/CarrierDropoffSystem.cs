@@ -32,6 +32,7 @@ namespace Space4X.Systems.AI
         private BufferLookup<CraftOperatorConsole> _operatorConsoleLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<CrewSkills> _crewSkillsLookup;
+        private ComponentLookup<MiningYield> _yieldLookup;
         private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
         private ComponentLookup<CarrierDepartmentState> _departmentStateLookup;
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
@@ -48,6 +49,7 @@ namespace Space4X.Systems.AI
             _operatorConsoleLookup = state.GetBufferLookup<CraftOperatorConsole>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _crewSkillsLookup = state.GetComponentLookup<CrewSkills>(true);
+            _yieldLookup = state.GetComponentLookup<MiningYield>(false);
             _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
             _departmentStateLookup = state.GetComponentLookup<CarrierDepartmentState>(true);
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
@@ -112,6 +114,7 @@ namespace Space4X.Systems.AI
             _operatorConsoleLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _crewSkillsLookup.Update(ref state);
+            _yieldLookup.Update(ref state);
             _departmentStatsLookup.Update(ref state);
             _departmentStateLookup.Update(ref state);
             _seatRefLookup.Update(ref state);
@@ -174,6 +177,14 @@ namespace Space4X.Systems.AI
 
                 vesselValue.CurrentCargo = math.max(0f, vesselValue.CurrentCargo - accepted);
                 vessel.ValueRW = vesselValue;
+
+                if (_yieldLookup.HasComponent(entity))
+                {
+                    var yield = _yieldLookup[entity];
+                    yield.PendingAmount = math.max(0f, vesselValue.CurrentCargo);
+                    yield.SpawnReady = yield.SpawnThreshold > 0f && yield.PendingAmount >= yield.SpawnThreshold ? (byte)1 : (byte)0;
+                    _yieldLookup[entity] = yield;
+                }
 
                 if (hasCommandLog)
                 {
