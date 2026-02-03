@@ -24,6 +24,9 @@ namespace Space4X.Authoring
         [SerializeField, Min(0f)] private float transitionMinSeconds = 0.5f;
         [SerializeField, Min(0f)] private float transitionMaxSeconds = 1.5f;
 
+        [Header("Movement - Orbit Smoothing")]
+        [SerializeField, Range(0f, 0.5f)] private float combatOrbitDeadbandScale = 0.12f;
+
         [Header("Movement - Attack Runs")]
         [SerializeField, Min(0f)] private float attackRunStartRangeScale = 1.1f;
         [SerializeField, Range(0f, 1f)] private float attackRunMinBias = 0.25f;
@@ -56,6 +59,7 @@ namespace Space4X.Authoring
             combatTurnMultiplier = math.max(0f, combatTurnMultiplier);
             transitionMinSeconds = math.max(0f, transitionMinSeconds);
             transitionMaxSeconds = math.max(transitionMinSeconds, transitionMaxSeconds);
+            combatOrbitDeadbandScale = math.clamp(combatOrbitDeadbandScale, 0f, 0.5f);
 
             attackRunStartRangeScale = math.max(0f, attackRunStartRangeScale);
             attackRunMinBias = math.clamp(attackRunMinBias, 0f, 1f);
@@ -90,6 +94,7 @@ namespace Space4X.Authoring
                 movement.CombatTurnMultiplier = math.max(0f, authoring.combatTurnMultiplier);
                 movement.TransitionMinSeconds = math.max(0f, authoring.transitionMinSeconds);
                 movement.TransitionMaxSeconds = math.max(movement.TransitionMinSeconds, authoring.transitionMaxSeconds);
+                movement.CombatOrbitDeadbandScale = math.clamp(authoring.combatOrbitDeadbandScale, 0f, 0.5f);
                 movement.AttackRunStartRangeScale = math.max(0f, authoring.attackRunStartRangeScale);
                 movement.AttackRunMinBias = math.clamp(authoring.attackRunMinBias, 0f, 1f);
                 movement.AttackRunCommitSeconds = math.max(0f, authoring.attackRunCommitSeconds);

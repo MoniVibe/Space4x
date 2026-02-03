@@ -21,6 +21,7 @@ namespace Space4X.Runtime
         public float CombatTurnMultiplier;
         public float TransitionMinSeconds;
         public float TransitionMaxSeconds;
+        public float CombatOrbitDeadbandScale;
         public float AttackRunStartRangeScale;
         public float AttackRunMinBias;
         public float AttackRunCommitSeconds;
@@ -39,6 +40,7 @@ namespace Space4X.Runtime
             CombatTurnMultiplier = 1.1f,
             TransitionMinSeconds = 0.5f,
             TransitionMaxSeconds = 1.5f,
+            CombatOrbitDeadbandScale = 0.12f,
             AttackRunStartRangeScale = 1.1f,
             AttackRunMinBias = 0.25f,
             AttackRunCommitSeconds = 1.6f,

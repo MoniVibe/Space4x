@@ -31,6 +31,7 @@ namespace Space4X.Runtime
         public float3 LastDesiredDirection;
         public float3 AttackRunDirection;
         public float LastAngularSpeed;
+        public float CombatBlend;
         public uint LastDesiredTick;
         public uint HeadingHoldUntilTick;
         public uint AttackRunCommitUntilTick;

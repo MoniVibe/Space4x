@@ -464,6 +464,7 @@ namespace Space4X.Systems.AI
                     turnRateState.SmoothedDirection = float3.zero;
                     turnRateState.LastDesiredDirection = float3.zero;
                     turnRateState.AttackRunDirection = float3.zero;
+                    turnRateState.CombatBlend = 0f;
                     turnRateState.LastDesiredTick = 0;
                     turnRateState.HeadingHoldUntilTick = 0;
                     turnRateState.AttackRunCommitUntilTick = 0;
@@ -850,6 +851,7 @@ namespace Space4X.Systems.AI
                 }
 
                 var direction = math.normalizesafe(toTarget, new float3(0f, 0f, 1f));
+                var baseDirection = direction;
                 
                 // Get stance parameters (default to Balanced if no stance component)
                 var stanceType = VesselStanceMode.Balanced;
@@ -867,15 +869,44 @@ namespace Space4X.Systems.AI
                 var combatSpeedScale = 1f;
                 var combatManeuver = false;
                 var commandBias = ResolveCommandApproachBias(entity);
+                var combatDirection = direction;
+                var maneuverSpeedScale = 1f;
                 if (!forceHold && !noTarget)
                 {
                     if (TryResolveCombatManeuver(entity, aiState, hasAttackMove, attackMove, transform, stanceConfig, ref turnRateState,
-                            pilotMastery, navigationCohesion, commandBias, out var combatDirection, out var maneuverSpeedScale))
+                            pilotMastery, navigationCohesion, commandBias, out combatDirection, out maneuverSpeedScale))
                     {
-                        direction = combatDirection;
-                        combatSpeedScale = maneuverSpeedScale;
                         combatManeuver = true;
                     }
+                }
+
+                var combatIntent = combatManeuver;
+                if (!combatIntent && !forceHold && !noTarget)
+                {
+                    if (AimDirectiveLookup.HasComponent(entity))
+                    {
+                        var aim = AimDirectiveLookup[entity];
+                        combatIntent = aim.AimTarget != Entity.Null;
+                    }
+
+                    if (!combatIntent && EngagementLookup.HasComponent(entity))
+                    {
+                        var engagement = EngagementLookup[entity];
+                        if (engagement.PrimaryTarget != Entity.Null &&
+                            engagement.Phase != EngagementPhase.None &&
+                            engagement.Phase != EngagementPhase.Destroyed &&
+                            engagement.Phase != EngagementPhase.Disabled)
+                        {
+                            combatIntent = true;
+                        }
+                    }
+                }
+
+                var combatBlend = UpdateCombatBlend(combatIntent, pilotMastery, navigationCohesion, ref turnRateState);
+                if (combatManeuver)
+                {
+                    direction = math.normalizesafe(math.lerp(baseDirection, combatDirection, combatBlend), combatDirection);
+                    combatSpeedScale = math.lerp(1f, maneuverSpeedScale, combatBlend);
                 }
 
                 speedMultiplier *= math.lerp(1f, MotionConfig.DeliberateSpeedMultiplier, deliberate);
@@ -894,6 +925,17 @@ namespace Space4X.Systems.AI
                 var slowdownMultiplier = math.lerp(1f, MotionConfig.DeliberateSlowdownMultiplier, deliberate);
                 slowdownMultiplier *= math.lerp(1f, MotionConfig.ChaoticSlowdownMultiplier, chaotic);
                 slowdownMultiplier *= math.lerp(1f, MotionConfig.IntelligentSlowdownMultiplier, intelligence);
+
+                var cruiseSpeedMultiplier = math.max(0f, MovementTuning.CruiseSpeedMultiplier);
+                var combatSpeedMultiplier = math.max(0f, MovementTuning.CombatSpeedMultiplier);
+                var cruiseTurnMultiplier = math.max(0f, MovementTuning.CruiseTurnMultiplier);
+                var combatTurnMultiplier = math.max(0f, MovementTuning.CombatTurnMultiplier);
+                var combatAccelMultiplier = math.max(0f, MovementTuning.CombatAccelMultiplier);
+                speedMultiplier *= math.lerp(cruiseSpeedMultiplier, combatSpeedMultiplier, combatBlend);
+                rotationMultiplier *= math.lerp(cruiseTurnMultiplier, combatTurnMultiplier, combatBlend);
+                accelerationMultiplier *= math.lerp(1f, combatAccelMultiplier, combatBlend);
+                decelerationMultiplier *= math.lerp(1f, math.max(0.75f, combatAccelMultiplier), combatBlend);
+                slowdownMultiplier *= math.lerp(1f, 0.9f, combatBlend);
 
                 speedMultiplier *= math.lerp(0.95f, 1.1f, aggression);
                 rotationMultiplier *= math.lerp(0.9f, 1.1f, aggression);
@@ -1634,8 +1676,14 @@ namespace Space4X.Systems.AI
                     orbitStrength = math.max(orbitStrength, 0.5f);
                 }
 
-                var rangeBlend = math.saturate(1f - math.abs(rangeError) / math.max(desiredRange, 1f));
-                combatDirection = math.normalizesafe(math.lerp(radialDir, orbitDir, rangeBlend * orbitStrength), radialDir);
+                var rangeAbs = math.abs(rangeError);
+                var rangeBlend = math.saturate(1f - rangeAbs / math.max(desiredRange, 1f));
+                var deadbandScale = math.max(0f, MovementTuning.CombatOrbitDeadbandScale);
+                var deadband = math.max(0.1f, desiredRange * deadbandScale);
+                var radialWeight = math.saturate((rangeAbs - deadband) / math.max(1e-4f, desiredRange));
+                var orbitBlend = rangeBlend * orbitStrength;
+                orbitBlend *= (1f - radialWeight);
+                combatDirection = math.normalizesafe(math.lerp(radialDir, orbitDir, orbitBlend), radialDir);
 
                 var rangeT = math.saturate(rangeError / math.max(desiredRange, 1f));
                 var closeT = math.saturate(-rangeError / math.max(desiredRange, 1f));
@@ -1652,6 +1700,28 @@ namespace Space4X.Systems.AI
                 var scale = math.lerp(minScale, maxScale, math.saturate(bias));
                 scale *= math.lerp(0.95f, 1.05f, math.saturate(navigationCohesion));
                 return math.clamp(scale, 0.2f, 1.25f);
+            }
+
+            private float UpdateCombatBlend(bool combatIntent, float pilotMastery, float navigationCohesion, ref VesselTurnRateState turnRateState)
+            {
+                var target = combatIntent ? 1f : 0f;
+                var minSeconds = math.max(0.05f, MovementTuning.TransitionMinSeconds);
+                var maxSeconds = math.max(minSeconds, MovementTuning.TransitionMaxSeconds);
+                var responsiveness = math.saturate(pilotMastery * 0.6f + navigationCohesion * 0.4f);
+                var transitionSec = math.lerp(maxSeconds, minSeconds, responsiveness);
+                var step = transitionSec <= 1e-4f ? 1f : math.saturate(DeltaTime / transitionSec);
+
+                turnRateState.CombatBlend = math.lerp(turnRateState.CombatBlend, target, step);
+                if (turnRateState.CombatBlend < 0.001f && target == 0f)
+                {
+                    turnRateState.CombatBlend = 0f;
+                }
+                else if (turnRateState.CombatBlend > 0.999f && target == 1f)
+                {
+                    turnRateState.CombatBlend = 1f;
+                }
+
+                return math.saturate(turnRateState.CombatBlend);
             }
 
             private bool TryResolveWeaponRangeProfile(Entity entity, out float maxRange, out float optimalRange)
