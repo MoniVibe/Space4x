@@ -163,6 +163,11 @@ namespace Space4X.Registry
         public float PricePerUnit;
 
         /// <summary>
+        /// Currency used for the offer.
+        /// </summary>
+        public FixedString64Bytes CurrencyId;
+
+        /// <summary>
         /// Entity making the offer.
         /// </summary>
         public Entity OfferingEntity;
@@ -557,4 +562,3 @@ namespace Space4X.Registry
         }
     }
 }
-
