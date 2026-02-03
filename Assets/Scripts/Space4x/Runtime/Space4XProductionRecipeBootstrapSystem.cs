@@ -363,6 +363,32 @@ namespace Space4X.Runtime
                 LaborCost = 1.0f
             }, ammoInputs, ammoOutputs));
 
+            // Supplies -> Research packet
+            var researchInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            researchInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 12f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var researchOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            researchOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_research"),
+                Quantity = 5f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_research_packet"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Alchemist,
+                MinTechTier = 1,
+                MinArtisanExpertise = 10,
+                BaseTimeCost = 8.0f,
+                LaborCost = 1.0f
+            }, researchInputs, researchOutputs));
+
             // Ship hull build (shipyard placeholder: Builder)
             var shipInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
             shipInputs.Add(new RecipeInputBlob

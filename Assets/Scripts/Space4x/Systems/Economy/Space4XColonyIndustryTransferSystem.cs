@@ -1,0 +1,268 @@
+using PureDOTS.Runtime;
+using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Economy.Production;
+using PureDOTS.Runtime.Economy.Resources;
+using Space4X.Registry;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
+
+namespace Space4X.Systems.Economy
+{
+    /// <summary>
+    /// Minimal colony-level logistics: pools key outputs and redistributes inputs between facilities.
+    /// </summary>
+    [BurstCompile]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
+    [UpdateBefore(typeof(Space4XFacilityAutoProductionSystem))]
+    public partial struct Space4XColonyIndustryTransferSystem : ISystem
+    {
+        private ComponentLookup<ColonyIndustryInventory> _colonyInventoryLookup;
+        private ComponentLookup<BusinessInventory> _inventoryLookup;
+        private BufferLookup<InventoryItem> _itemsLookup;
+
+        private FixedString64Bytes _ingotId;
+        private FixedString64Bytes _alloyId;
+        private FixedString64Bytes _partsId;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<ScenarioState>();
+            state.RequireForUpdate<TickTimeState>();
+            state.RequireForUpdate<RewindState>();
+
+            _colonyInventoryLookup = state.GetComponentLookup<ColonyIndustryInventory>(true);
+            _inventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
+            _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
+
+            _ingotId = new FixedString64Bytes("space4x_ingot");
+            _alloyId = new FixedString64Bytes("space4x_alloy");
+            _partsId = new FixedString64Bytes("space4x_parts");
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingleton(out ScenarioState scenario) ||
+                !scenario.IsInitialized ||
+                !scenario.EnableEconomy)
+            {
+                return;
+            }
+
+            var tickTime = SystemAPI.GetSingleton<TickTimeState>();
+            if (tickTime.IsPaused)
+            {
+                return;
+            }
+
+            var rewind = SystemAPI.GetSingleton<RewindState>();
+            if (rewind.Mode != RewindMode.Record)
+            {
+                return;
+            }
+
+            _colonyInventoryLookup.Update(ref state);
+            _inventoryLookup.Update(ref state);
+            _itemsLookup.Update(ref state);
+
+            foreach (var (colonyInventory, colonyEntity) in SystemAPI.Query<RefRO<ColonyIndustryInventory>>().WithEntityAccess())
+            {
+                var poolEntity = colonyInventory.ValueRO.InventoryEntity;
+                if (poolEntity == Entity.Null || !_itemsLookup.HasBuffer(poolEntity))
+                {
+                    continue;
+                }
+
+                var poolItems = _itemsLookup[poolEntity];
+
+                // Export pass: pull outputs into the colony pool.
+                foreach (var (link, facility) in SystemAPI.Query<RefRO<ColonyFacilityLink>>().WithEntityAccess())
+                {
+                    if (link.ValueRO.Colony != colonyEntity)
+                    {
+                        continue;
+                    }
+
+                    if (!_inventoryLookup.HasComponent(facility))
+                    {
+                        continue;
+                    }
+
+                    var facilityInventory = _inventoryLookup[facility].InventoryEntity;
+                    if (facilityInventory == Entity.Null || !_itemsLookup.HasBuffer(facilityInventory))
+                    {
+                        continue;
+                    }
+
+                    var facilityItems = _itemsLookup[facilityInventory];
+
+                    switch (link.ValueRO.FacilityClass)
+                    {
+                        case FacilityBusinessClass.Refinery:
+                            TransferAll(ref facilityItems, ref poolItems, _ingotId);
+                            TransferAll(ref facilityItems, ref poolItems, _alloyId);
+                            break;
+                        case FacilityBusinessClass.Production:
+                            TransferAll(ref facilityItems, ref poolItems, _partsId);
+                            break;
+                    }
+                }
+
+                // Import pass: feed required inputs back to facilities.
+                foreach (var (link, facility) in SystemAPI.Query<RefRO<ColonyFacilityLink>>().WithEntityAccess())
+                {
+                    if (link.ValueRO.Colony != colonyEntity)
+                    {
+                        continue;
+                    }
+
+                    if (!_inventoryLookup.HasComponent(facility))
+                    {
+                        continue;
+                    }
+
+                    var facilityInventory = _inventoryLookup[facility].InventoryEntity;
+                    if (facilityInventory == Entity.Null || !_itemsLookup.HasBuffer(facilityInventory))
+                    {
+                        continue;
+                    }
+
+                    var facilityItems = _itemsLookup[facilityInventory];
+
+                    switch (link.ValueRO.FacilityClass)
+                    {
+                        case FacilityBusinessClass.Production:
+                            EnsureMinimum(ref poolItems, ref facilityItems, _ingotId, 40f, tickTime.Tick);
+                            break;
+                        case FacilityBusinessClass.ModuleFacility:
+                            EnsureMinimum(ref poolItems, ref facilityItems, _partsId, 20f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, _alloyId, 20f, tickTime.Tick);
+                            break;
+                        case FacilityBusinessClass.Shipyard:
+                            EnsureMinimum(ref poolItems, ref facilityItems, _partsId, 40f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, _alloyId, 30f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, _ingotId, 20f, tickTime.Tick);
+                            break;
+                    }
+                }
+            }
+        }
+
+        private static void TransferAll(ref DynamicBuffer<InventoryItem> source, ref DynamicBuffer<InventoryItem> destination, in FixedString64Bytes itemId)
+        {
+            for (int i = source.Length - 1; i >= 0; i--)
+            {
+                if (!source[i].ItemId.Equals(itemId))
+                {
+                    continue;
+                }
+
+                var item = source[i];
+                source.RemoveAt(i);
+                AddItem(ref destination, item.ItemId, item.Quantity, item.Quality, item.Durability, item.CreatedTick);
+            }
+        }
+
+        private static void EnsureMinimum(ref DynamicBuffer<InventoryItem> pool, ref DynamicBuffer<InventoryItem> facility, in FixedString64Bytes itemId, float target, uint tick)
+        {
+            if (target <= 0f)
+            {
+                return;
+            }
+
+            var current = GetItemQuantity(facility, itemId);
+            if (current >= target - 1e-4f)
+            {
+                return;
+            }
+
+            var needed = target - current;
+            var pulled = TakeItem(ref pool, itemId, needed);
+            if (pulled > 0f)
+            {
+                AddItem(ref facility, itemId, pulled, 1f, 1f, tick);
+            }
+        }
+
+        private static float GetItemQuantity(DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId)
+        {
+            var total = 0f;
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (items[i].ItemId.Equals(itemId))
+                {
+                    total += items[i].Quantity;
+                }
+            }
+
+            return total;
+        }
+
+        private static float TakeItem(ref DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId, float amount)
+        {
+            if (amount <= 0f)
+            {
+                return 0f;
+            }
+
+            var remaining = amount;
+            var taken = 0f;
+
+            for (int i = items.Length - 1; i >= 0 && remaining > 0f; i--)
+            {
+                if (!items[i].ItemId.Equals(itemId))
+                {
+                    continue;
+                }
+
+                var item = items[i];
+                var take = math.min(item.Quantity, remaining);
+                item.Quantity -= take;
+                remaining -= take;
+                taken += take;
+
+                if (item.Quantity <= 0f)
+                {
+                    items.RemoveAt(i);
+                }
+                else
+                {
+                    items[i] = item;
+                }
+            }
+
+            return taken;
+        }
+
+        private static void AddItem(ref DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId, float quantity, float quality, float durability, uint tick)
+        {
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (!items[i].ItemId.Equals(itemId))
+                {
+                    continue;
+                }
+
+                var item = items[i];
+                item.Quantity += quantity;
+                item.Quality = math.max(item.Quality, quality);
+                item.Durability = math.max(item.Durability, durability);
+                items[i] = item;
+                return;
+            }
+
+            items.Add(new InventoryItem
+            {
+                ItemId = itemId,
+                Quantity = quantity,
+                Quality = quality,
+                Durability = durability,
+                CreatedTick = tick
+            });
+        }
+    }
+}
