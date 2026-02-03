@@ -47,3 +47,10 @@ Implementation notes
 - Prefer Blob assets for read‑only deposit templates.
 - Use enableable components / change filtering to reduce churn.
 - Presentation systems should be optional and non‑authoritative.
+
+Advisory decision (2026‑02‑03)
+------------------------------
+- MVP stays numeric only; no full‑mesh deformation or collider rebuilds.
+- Asteroids should be instanced base meshes + shader displacement for variety.
+- True deformation is localized: optional voxel/SDF patches at mining sites (later).
+- Physics uses proxy colliders; render meshes never drive gameplay collision.
