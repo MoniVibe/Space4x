@@ -180,8 +180,8 @@ namespace Space4X.Systems.Orbitals
             });
             state.EntityManager.AddComponentData(planetFrame, new Space4XSOIRegion
             {
-                EnterRadius = 80.0,
-                ExitRadius = 100.0
+                EnterRadius = 200.0,
+                ExitRadius = 240.0
             });
             state.EntityManager.AddComponentData(planetFrame, new Space4XFrameTransform
             {

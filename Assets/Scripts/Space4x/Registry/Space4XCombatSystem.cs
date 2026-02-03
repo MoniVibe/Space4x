@@ -41,6 +41,7 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XNormalizedIndividualStats> _normalizedStatsLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<PhysiqueFinesseWill> _physiqueLookup;
+        private ComponentLookup<Space4XOrbitalBandState> _orbitalBandLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
 
@@ -65,6 +66,7 @@ namespace Space4X.Registry
             _normalizedStatsLookup = state.GetComponentLookup<Space4XNormalizedIndividualStats>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _physiqueLookup = state.GetComponentLookup<PhysiqueFinesseWill>(true);
+            _orbitalBandLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
         }
@@ -96,6 +98,7 @@ namespace Space4X.Registry
             _normalizedStatsLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _physiqueLookup.Update(ref state);
+            _orbitalBandLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
 
@@ -155,6 +158,8 @@ namespace Space4X.Registry
                 {
                     continue;
                 }
+
+                var rangeScale = ResolveRangeScale(entity);
 
                 // Get target position
                 if (!SystemAPI.HasComponent<LocalTransform>(target))
@@ -264,7 +269,7 @@ namespace Space4X.Registry
                     }
 
                     // Range check
-                    if (distance > mount.Weapon.MaxRange)
+                    if (distance > mount.Weapon.MaxRange * rangeScale)
                     {
                         continue;
                     }
@@ -459,6 +464,20 @@ namespace Space4X.Registry
 
             var skillFactor = math.lerp(basePenalty * 1.4f, basePenalty * 0.6f, math.saturate(gunnerySkill));
             return math.saturate(1f - omega * skillFactor);
+        }
+
+        private float ResolveRangeScale(Entity entity)
+        {
+            if (_orbitalBandLookup.HasComponent(entity))
+            {
+                var band = _orbitalBandLookup[entity];
+                if (band.InBand != 0)
+                {
+                    return math.max(0.01f, band.RangeScale);
+                }
+            }
+
+            return 1f;
         }
 
         private static float ResolveProjectileSpeed(in Space4XWeapon weapon, float projectileSpeedMultiplier)
@@ -696,8 +715,8 @@ namespace Space4X.Registry
                         (float)mount.Weapon.BaseAccuracy,
                         evasion,
                         distance,
-                        mount.Weapon.OptimalRange,
-                        mount.Weapon.MaxRange
+                        mount.Weapon.OptimalRange * rangeScale,
+                        mount.Weapon.MaxRange * rangeScale
                     );
 
                     uint hitSeed = (uint)(entity.Index * 12345) + currentTick + (uint)i;
@@ -1477,6 +1496,8 @@ namespace Space4X.Registry
                 var targetTransform = SystemAPI.GetComponent<LocalTransform>(priority.ValueRO.CurrentTarget);
                 float distance = math.distance(transform.ValueRO.Position, targetTransform.Position);
 
+                var rangeScale = ResolveRangeScale(entity);
+
                 // Get max weapon range
                 float maxRange = 500f; // Default
                 if (SystemAPI.HasBuffer<WeaponMount>(entity))
@@ -1490,6 +1511,7 @@ namespace Space4X.Registry
                         }
                     }
                 }
+                maxRange *= rangeScale;
 
                 // Initiate engagement if in range
                 if (distance <= maxRange * 1.2f) // Slightly beyond max range to start approach

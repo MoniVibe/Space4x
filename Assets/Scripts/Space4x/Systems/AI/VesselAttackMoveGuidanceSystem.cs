@@ -37,6 +37,7 @@ namespace Space4X.Systems.AI
         private BufferLookup<WeaponMount> _weaponLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
+        private ComponentLookup<Space4XOrbitalBandState> _orbitalBandLookup;
         private EntityStorageInfoLookup _entityLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleWeaponsOfficer;
@@ -64,6 +65,7 @@ namespace Space4X.Systems.AI
             _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
+            _orbitalBandLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
@@ -184,6 +186,7 @@ namespace Space4X.Systems.AI
             _weaponLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
+            _orbitalBandLookup.Update(ref state);
             _entityLookup.Update(ref state);
 
             foreach (var (aim, entity) in SystemAPI.Query<RefRW<VesselAimDirective>>()
@@ -216,7 +219,8 @@ namespace Space4X.Systems.AI
                     ? math.normalizesafe(aimPosition - transform.ValueRO.Position, moveDir)
                     : moveDir;
 
-                var maxRange = ResolveMaxWeaponRange(entity);
+                var rangeScale = ResolveRangeScale(entity);
+                var maxRange = ResolveMaxWeaponRange(entity) * rangeScale;
                 var distanceToAim = hasAim ? math.distance(transform.ValueRO.Position, aimPosition) : 0f;
                 var contactRange = ResolveContactRange(maxRange, movementTuning);
                 var inContact = hasAim && maxRange > 0f && distanceToAim <= contactRange;
@@ -292,7 +296,8 @@ namespace Space4X.Systems.AI
 
                 var fallbackDir = math.forward(transform.ValueRO.Rotation);
                 var aimDir = math.normalizesafe(aimPosition - transform.ValueRO.Position, fallbackDir);
-                var maxRange = ResolveMaxWeaponRange(entity);
+                var rangeScale = ResolveRangeScale(entity);
+                var maxRange = ResolveMaxWeaponRange(entity) * rangeScale;
                 var distanceToAim = math.distance(transform.ValueRO.Position, aimPosition);
                 var contactRange = ResolveContactRange(maxRange, movementTuning);
                 var inContact = maxRange > 0f && distanceToAim <= contactRange;
@@ -432,6 +437,20 @@ namespace Space4X.Systems.AI
             var scale = math.max(0f, tuning.ContactRangeScale);
             var min = math.max(0f, tuning.ContactRangeMin);
             return math.max(min, maxRange * scale);
+        }
+
+        private float ResolveRangeScale(Entity entity)
+        {
+            if (_orbitalBandLookup.HasComponent(entity))
+            {
+                var band = _orbitalBandLookup[entity];
+                if (band.InBand != 0)
+                {
+                    return math.max(0.01f, band.RangeScale);
+                }
+            }
+
+            return 1f;
         }
 
         private bool TryResolveLeadDirection(

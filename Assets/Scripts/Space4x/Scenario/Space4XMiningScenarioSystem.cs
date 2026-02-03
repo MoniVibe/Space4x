@@ -196,6 +196,7 @@ namespace Space4x.Scenario
         {
             _applyDefaultModuleLoadouts = scenarioConfig != null && scenarioConfig.applyDefaultModuleLoadouts;
             ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
+            ApplyOrbitalBandConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
             if (scenarioConfig == null)
             {
                 return;
@@ -394,6 +395,18 @@ namespace Space4x.Scenario
                 EnterSOIMultiplier = 0.9f,
                 ExitSOIMultiplier = 1.1f
             });
+        }
+
+        private void ApplyOrbitalBandConfig(bool enabled)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XOrbitalBandConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XOrbitalBandConfig));
+            }
+
+            var config = Space4XOrbitalBandConfig.Default;
+            config.Enabled = (byte)(enabled ? 1 : 0);
+            EntityManager.SetComponentData(configEntity, config);
         }
 
         private void ApplySmokeLatchConfig()
