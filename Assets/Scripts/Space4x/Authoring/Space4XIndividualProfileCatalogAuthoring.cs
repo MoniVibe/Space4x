@@ -7,6 +7,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Authoring
@@ -16,9 +17,10 @@ namespace Space4X.Authoring
     public sealed class Space4XIndividualProfileCatalogAuthoring : MonoBehaviour
     {
         [Serializable]
-        public class OutlookWeightData
+        [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Space4X.Authoring", null, "OutlookWeightData")]
+        public class StanceWeightData
         {
-            public OutlookId outlookId = OutlookId.Neutral;
+            public StanceId StanceId = StanceId.Neutral;
             [Range(-1f, 1f)] public float weight = 0.15f;
         }
 
@@ -32,8 +34,9 @@ namespace Space4X.Authoring
             [Range(-1f, 1f)] public float good = 0f;
             [Range(-1f, 1f)] public float integrity = 0f;
 
-            [Header("Outlooks")]
-            public List<OutlookWeightData> outlooks = new List<OutlookWeightData>();
+            [Header("Stances")]
+            [FormerlySerializedAs("outlooks")]
+            public List<StanceWeightData> stances = new List<StanceWeightData>();
 
             [Header("Behavior Disposition")]
             public bool overrideBehavior = true;
@@ -110,21 +113,21 @@ namespace Space4X.Authoring
                 for (int i = 0; i < authoring.profiles.Count; i++)
                 {
                     var data = authoring.profiles[i];
-                    var outlookList = new FixedList64Bytes<OutlookWeight>();
+                    var stanceList = new FixedList64Bytes<StanceWeight>();
 
-                    if (data.outlooks != null)
+                    if (data.stances != null)
                     {
-                        for (int j = 0; j < data.outlooks.Count; j++)
+                        for (int j = 0; j < data.stances.Count; j++)
                         {
-                            if (outlookList.Length >= outlookList.Capacity)
+                            if (stanceList.Length >= stanceList.Capacity)
                             {
                                 break;
                             }
 
-                            var entry = data.outlooks[j];
-                            outlookList.Add(new OutlookWeight
+                            var entry = data.stances[j];
+                            stanceList.Add(new StanceWeight
                             {
-                                OutlookId = entry.outlookId,
+                                StanceId = entry.StanceId,
                                 Weight = (half)math.clamp(entry.weight, -1f, 1f)
                             });
                         }
@@ -191,7 +194,7 @@ namespace Space4X.Authoring
                         MoraleDriftRate = math.max(0f, data.moraleDriftRate),
                         BehaviorExplicit = data.overrideBehavior ? (byte)1 : (byte)0,
                         MoraleExplicit = data.overrideMorale ? (byte)1 : (byte)0,
-                        Outlooks = outlookList
+                        Stances = stanceList
                     };
                 }
 
@@ -211,3 +214,5 @@ namespace Space4X.Authoring
         }
     }
 }
+
+

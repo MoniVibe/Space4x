@@ -9,7 +9,7 @@ using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 namespace Space4X.Registry
 {
     /// <summary>
-    /// Normalizes outlook/race/culture buffers ahead of compliance so downstream systems can rely on aggregates.
+    /// Normalizes stance/race/culture buffers ahead of compliance so downstream systems can rely on aggregates.
     /// </summary>
     [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4XAffiliationComplianceSystem))]
@@ -38,10 +38,10 @@ namespace Space4X.Registry
             // Phase A: Ensure buffers exist via ECB (no structural changes during iteration)
             foreach (var (_, entity) in SystemAPI.Query<RefRO<AlignmentTriplet>>().WithEntityAccess())
             {
-                // Ensure TopOutlook buffer exists
-                if (!em.HasBuffer<TopOutlook>(entity))
+                // Ensure TopStance buffer exists
+                if (!em.HasBuffer<TopStance>(entity))
                 {
-                    ecb.AddBuffer<TopOutlook>(entity);
+                    ecb.AddBuffer<TopStance>(entity);
                 }
 
                 // Ensure RacePresence buffer exists if entity has RaceId
@@ -64,35 +64,35 @@ namespace Space4X.Registry
             // Phase B: Pure aggregation, NO structural changes here
             foreach (var (_, entity) in SystemAPI.Query<RefRO<AlignmentTriplet>>().WithEntityAccess())
             {
-                AggregateOutlooks(ref state, entity);
+                AggregateStances(ref state, entity);
                 AggregateRace(ref state, entity);
                 AggregateCulture(ref state, entity);
             }
         }
 
-        private void AggregateOutlooks(ref SystemState state, Entity entity)
+        private void AggregateStances(ref SystemState state, Entity entity)
         {
             // Buffer should already exist from Phase A
-            if (!SystemAPI.HasBuffer<TopOutlook>(entity))
+            if (!SystemAPI.HasBuffer<TopStance>(entity))
             {
                 return; // Should not happen after Phase A, but guard anyway
             }
 
-            var topBuffer = SystemAPI.GetBuffer<TopOutlook>(entity);
+            var topBuffer = SystemAPI.GetBuffer<TopStance>(entity);
 
             // Buffer should already exist from Phase A
-            if (!SystemAPI.HasBuffer<OutlookEntry>(entity))
+            if (!SystemAPI.HasBuffer<StanceEntry>(entity))
             {
                 // No source data, just clear the output buffer
                 topBuffer.Clear();
                 return;
             }
 
-            var entries = SystemAPI.GetBuffer<OutlookEntry>(entity);
+            var entries = SystemAPI.GetBuffer<StanceEntry>(entity);
 
             topBuffer.Clear();
 
-            var accumulator = new OutlookAccumulator();
+            var accumulator = new StanceAccumulator();
             accumulator.Consider(entries);
             accumulator.WriteTo(topBuffer);
         }
@@ -145,33 +145,33 @@ namespace Space4X.Registry
             });
         }
 
-        private struct OutlookSample
+        private struct StanceSample
         {
-            public OutlookId Id;
+            public StanceId Id;
             public float Weight;
             public float Magnitude;
         }
 
-        private struct OutlookAccumulator
+        private struct StanceAccumulator
         {
-            public OutlookSample First;
-            public OutlookSample Second;
-            public OutlookSample Third;
+            public StanceSample First;
+            public StanceSample Second;
+            public StanceSample Third;
             public int Count;
 
-            public void Consider(DynamicBuffer<OutlookEntry> buffer)
+            public void Consider(DynamicBuffer<StanceEntry> buffer)
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    Consider(buffer[i].OutlookId, (float)buffer[i].Weight);
+                    Consider(buffer[i].StanceId, (float)buffer[i].Weight);
                 }
             }
 
-            private void Consider(OutlookId outlookId, float weight)
+            private void Consider(StanceId StanceId, float weight)
             {
-                var sample = new OutlookSample
+                var sample = new StanceSample
                 {
-                    Id = outlookId,
+                    Id = StanceId,
                     Weight = weight,
                     Magnitude = math.abs(weight)
                 };
@@ -184,25 +184,25 @@ namespace Space4X.Registry
                 Insert(ref sample);
             }
 
-            public void WriteTo(DynamicBuffer<TopOutlook> buffer)
+            public void WriteTo(DynamicBuffer<TopStance> buffer)
             {
                 if (Count > 0)
                 {
-                    buffer.Add(new TopOutlook { OutlookId = First.Id, Weight = (half)First.Weight });
+                    buffer.Add(new TopStance { StanceId = First.Id, Weight = (half)First.Weight });
                 }
 
                 if (Count > 1)
                 {
-                    buffer.Add(new TopOutlook { OutlookId = Second.Id, Weight = (half)Second.Weight });
+                    buffer.Add(new TopStance { StanceId = Second.Id, Weight = (half)Second.Weight });
                 }
 
                 if (Count > 2)
                 {
-                    buffer.Add(new TopOutlook { OutlookId = Third.Id, Weight = (half)Third.Weight });
+                    buffer.Add(new TopStance { StanceId = Third.Id, Weight = (half)Third.Weight });
                 }
             }
 
-            private bool TryReplace(ref OutlookSample sample)
+            private bool TryReplace(ref StanceSample sample)
             {
                 if (Count > 0 && First.Id == sample.Id)
                 {
@@ -234,7 +234,7 @@ namespace Space4X.Registry
                 return false;
             }
 
-            private void Insert(ref OutlookSample sample)
+            private void Insert(ref StanceSample sample)
             {
                 if (Count == 0)
                 {
@@ -282,3 +282,4 @@ namespace Space4X.Registry
         }
     }
 }
+

@@ -90,26 +90,26 @@ namespace Space4X.Tests
         }
 
         [Test]
-        public void CrewAggregationBuildsTopOutlooksAndPresence()
+        public void CrewAggregationBuildsTopStancesAndPresence()
         {
             var entity = _entityManager.CreateEntity(typeof(AlignmentTriplet), typeof(RaceId), typeof(CultureId));
             _entityManager.SetComponentData(entity, new RaceId { Value = 7 });
             _entityManager.SetComponentData(entity, new CultureId { Value = 3 });
 
-            var outlooks = _entityManager.AddBuffer<OutlookEntry>(entity);
-            outlooks.Add(new OutlookEntry { OutlookId = OutlookId.Opportunist, Weight = (half)0.5f });
-            outlooks.Add(new OutlookEntry { OutlookId = OutlookId.Fanatic, Weight = (half)(-0.8f) });
-            outlooks.Add(new OutlookEntry { OutlookId = OutlookId.Mutinous, Weight = (half)0.3f });
-            outlooks.Add(new OutlookEntry { OutlookId = OutlookId.Loyalist, Weight = (half)0.6f });
+            var stances = _entityManager.AddBuffer<StanceEntry>(entity);
+            stances.Add(new StanceEntry { StanceId = StanceId.Opportunist, Weight = (half)0.5f });
+            stances.Add(new StanceEntry { StanceId = StanceId.Fanatic, Weight = (half)(-0.8f) });
+            stances.Add(new StanceEntry { StanceId = StanceId.Mutinous, Weight = (half)0.3f });
+            stances.Add(new StanceEntry { StanceId = StanceId.Loyalist, Weight = (half)0.6f });
 
             var aggregation = _world.GetOrCreateSystem<Space4XCrewAggregationSystem>();
             aggregation.Update(_world.Unmanaged);
 
-            var top = _entityManager.GetBuffer<TopOutlook>(entity);
+            var top = _entityManager.GetBuffer<TopStance>(entity);
             Assert.AreEqual(3, top.Length);
-            Assert.AreEqual(OutlookId.Fanatic, top[0].OutlookId);
-            Assert.AreEqual(OutlookId.Loyalist, top[1].OutlookId);
-            Assert.AreEqual(OutlookId.Opportunist, top[2].OutlookId);
+            Assert.AreEqual(StanceId.Fanatic, top[0].StanceId);
+            Assert.AreEqual(StanceId.Loyalist, top[1].StanceId);
+            Assert.AreEqual(StanceId.Opportunist, top[2].StanceId);
 
             var races = _entityManager.GetBuffer<RacePresence>(entity);
             Assert.AreEqual(1, races.Length);
@@ -169,7 +169,7 @@ namespace Space4X.Tests
         {
             var entity = _entityManager.CreateEntity(typeof(DoctrineProfile));
             _entityManager.AddBuffer<DoctrineAxisExpectation>(entity);
-            _entityManager.AddBuffer<DoctrineOutlookExpectation>(entity);
+            _entityManager.AddBuffer<DoctrineStanceExpectation>(entity);
 
             _entityManager.SetComponentData(entity, new DoctrineProfile
             {
@@ -183,7 +183,7 @@ namespace Space4X.Tests
                     IntegrityMax = (half)1f
                 },
                 AxisTolerance = (half)0f,
-                OutlookTolerance = (half)0f,
+                StanceTolerance = (half)0f,
                 ChaosMutinyThreshold = (half)chaosThreshold,
                 LawfulContractFloor = (half)0.2f,
                 SuspicionGain = (half)suspicionGain
@@ -239,3 +239,5 @@ namespace Space4X.Tests
     }
 }
 #endif
+
+

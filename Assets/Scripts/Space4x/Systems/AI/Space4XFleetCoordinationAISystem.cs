@@ -27,7 +27,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Space4XFleet> _fleetLookup;
         private ComponentLookup<AICommandQueue> _commandQueueLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -41,7 +41,7 @@ namespace Space4X.Systems.AI
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _fleetLookup = state.GetComponentLookup<Space4XFleet>(true);
             _commandQueueLookup = state.GetComponentLookup<AICommandQueue>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
         }
 
         [BurstCompile]
@@ -155,7 +155,7 @@ namespace Space4X.Systems.AI
             public ComponentLookup<VesselStanceComponent> StanceLookup;
             public ComponentLookup<FormationData> FormationLookup;
             [ReadOnly] public ComponentLookup<AICommandQueue> CommandQueueLookup;
-            [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
+            [ReadOnly] public BufferLookup<TopStance> OutlookLookup;
 
             public void Execute(ref FormationData formation, Entity entity)
             {
@@ -220,3 +220,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
+

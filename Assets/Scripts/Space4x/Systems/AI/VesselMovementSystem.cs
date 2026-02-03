@@ -40,7 +40,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<CapabilityState> _capabilityStateLookup;
         private ComponentLookup<CapabilityEffectiveness> _effectivenessLookup;
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
-        private BufferLookup<OutlookEntry> _outlookLookup;
+        private BufferLookup<StanceEntry> _outlookLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
@@ -101,7 +101,7 @@ namespace Space4X.Systems.AI
             _capabilityStateLookup = state.GetComponentLookup<CapabilityState>(true);
             _effectivenessLookup = state.GetComponentLookup<CapabilityEffectiveness>(true);
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _outlookLookup = state.GetBufferLookup<OutlookEntry>(true);
+            _outlookLookup = state.GetBufferLookup<StanceEntry>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
@@ -398,7 +398,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<CapabilityState> CapabilityStateLookup;
             [ReadOnly] public ComponentLookup<CapabilityEffectiveness> EffectivenessLookup;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            [ReadOnly] public BufferLookup<OutlookEntry> OutlookLookup;
+            [ReadOnly] public BufferLookup<StanceEntry> OutlookLookup;
             [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
             [ReadOnly] public ComponentLookup<VesselPilotLink> PilotLookup;
             [ReadOnly] public ComponentLookup<PilotProficiency> PilotProficiencyLookup;
@@ -2010,18 +2010,18 @@ namespace Space4X.Systems.AI
                 {
                     var entry = buffer[i];
                     var weight = math.clamp((float)entry.Weight, 0f, 1f);
-                    switch (entry.OutlookId)
+                    switch (entry.StanceId)
                     {
-                        case OutlookId.Loyalist:
+                        case StanceId.Loyalist:
                             discipline += 0.2f * weight;
                             break;
-                        case OutlookId.Fanatic:
+                        case StanceId.Fanatic:
                             discipline += 0.25f * weight;
                             break;
-                        case OutlookId.Opportunist:
+                        case StanceId.Opportunist:
                             discipline -= 0.15f * weight;
                             break;
-                        case OutlookId.Mutinous:
+                        case StanceId.Mutinous:
                             discipline -= 0.3f * weight;
                             break;
                     }
@@ -2474,3 +2474,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
+

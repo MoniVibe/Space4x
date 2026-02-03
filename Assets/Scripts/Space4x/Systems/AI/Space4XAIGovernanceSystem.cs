@@ -20,7 +20,7 @@ namespace Space4X.Systems.AI
     public partial struct Space4XAIGovernanceSystem : ISystem
     {
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
         private BufferLookup<EthicAxisValue> _axisLookup;
         private ComponentLookup<DoctrineProfile> _doctrineLookup;
 
@@ -30,7 +30,7 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _axisLookup = state.GetBufferLookup<EthicAxisValue>(true);
             _doctrineLookup = state.GetComponentLookup<DoctrineProfile>(true);
         }
@@ -69,7 +69,7 @@ namespace Space4X.Systems.AI
         {
             public uint CurrentTick;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
+            [ReadOnly] public BufferLookup<TopStance> OutlookLookup;
             [ReadOnly] public BufferLookup<EthicAxisValue> AxisLookup;
             [ReadOnly] public ComponentLookup<DoctrineProfile> DoctrineLookup;
 
@@ -138,4 +138,5 @@ namespace Space4X.Systems.AI
         }
     }
 }
+
 

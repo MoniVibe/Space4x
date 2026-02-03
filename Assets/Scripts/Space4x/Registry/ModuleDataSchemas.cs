@@ -1253,3 +1253,4 @@ namespace Space4X.Registry
         public BlobAssetReference<AggregateComboTableBlob> Table;
     }
 }
+

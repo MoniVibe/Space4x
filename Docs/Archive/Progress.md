@@ -11,7 +11,7 @@ When told to "proceed work," open your agent TODO (A/B/C below) and update this 
 
 ## Agent statuses
 - Agent 1 (Phase 2 rewind/time): In progress. Open: rewind determinism tests for mining/haul; registry continuity validation.
-- Agent A (Alignment/compliance/doctrine): In progress. Doctrine baker + OutlookId enum added; compliance now emits telemetry (including suspicion max/alerts), planner tickets + inbox, and aggregation normalizes outlook/race/culture buffers. Mining demo carriers/miners now bake alignment/affiliation. Next: mutiny/desertion demo + scene-wide affiliation pass.
+- Agent A (Alignment/compliance/doctrine): In progress. Doctrine baker + StanceId enum added; compliance now emits telemetry (including suspicion max/alerts), planner tickets + inbox, and aggregation normalizes stance/race/culture buffers. Mining demo carriers/miners now bake alignment/affiliation. Next: mutiny/desertion demo + scene-wide affiliation pass.
 - Agent B (Modules/degradation/skills): In progress. Module maintenance log + telemetry added; refit/repair/health hooks emit events + XP; station-only refit gating + overhaul repairs landed; maintenance playback rebuilds telemetry. **COMPLETE**: Module/hull catalog system with blob assets (`ModuleCatalogAuthoring`, `HullCatalogAuthoring`, `RefitRepairTuningAuthoring`), facility proximity detection (`FacilityProximitySystem`), catalog-based refit time calculation, rating aggregation (`Space4XModuleRatingAggregationSystem`), scenario loader (`Space4XRefitScenarioSystem`) and action processor (`Space4XRefitScenarioActionProcessor`), telemetry wiring (`Space4XModuleTelemetryAggregationSystem`), and tests. Burst compatibility verified. Next: extend skill XP/command logs into combat/haul/hazard flows. TODOs in `Docs/TODO/AgentB_Modules_Degradation.md`.
 - Agent C (Mobility/economy/tech/time): In progress. Tech diffusion baseline + telemetry/logging landed; next: mobility graph maintenance + economy pricing/queue handling. TODOs in `Docs/TODO/AgentC_Mobility_Economy.md`.
 
@@ -25,3 +25,4 @@ When told to "proceed work," open your agent TODO (A/B/C below) and update this 
 - Agent B: `Docs/TODO/AgentB_Modules_Degradation.md`
 - Phase 2: `Docs/TODO/Phase2_Demo_TODO.md`
 - Integration index: `Docs/TODO/4xdotsrequest.md`
+

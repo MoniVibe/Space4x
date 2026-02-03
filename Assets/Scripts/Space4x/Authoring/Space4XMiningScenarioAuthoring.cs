@@ -20,6 +20,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.Serialization;
 using RenderKeys = Space4X.Presentation.Space4XRenderKeys;
 using UnityDebug = UnityEngine.Debug;
 
@@ -433,7 +434,8 @@ namespace Space4X.Registry
             [Range(-1f, 1f)] public float Good;
             [Range(-1f, 1f)] public float Integrity;
             public EthicAxisDefinition[] Axes;
-            public OutlookDefinition[] Outlooks;
+            [FormerlySerializedAs("Outlooks")]
+            public StanceDefinition[] Stances;
 
             public static AlignmentDefinition CreateNeutral()
             {
@@ -443,7 +445,7 @@ namespace Space4X.Registry
                     Good = 0f,
                     Integrity = 0f,
                     Axes = Array.Empty<EthicAxisDefinition>(),
-                    Outlooks = Array.Empty<OutlookDefinition>()
+                    Stances = Array.Empty<StanceDefinition>()
                 };
             }
         }
@@ -456,9 +458,10 @@ namespace Space4X.Registry
         }
 
         [Serializable]
-        public struct OutlookDefinition
+        [MovedFrom(true, "Space4X.Registry", null, "OutlookDefinition")]
+        public struct StanceDefinition
         {
-            public OutlookId OutlookId;
+            public StanceId StanceId;
             [Range(-1f, 1f)] public float Weight;
         }
 
@@ -1876,36 +1879,36 @@ namespace Space4X.Registry
                 AddComponent(crew, stats);
                 AddComponent(crew, disposition);
 
-                var outlookId = ResolveOutlookId(config, lawfulness);
-                var outlookEntries = AddBuffer<OutlookEntry>(crew);
-                var outlooks = AddBuffer<TopOutlook>(crew);
-                outlookEntries.Add(new OutlookEntry
+                var StanceId = ResolveStanceId(config, lawfulness);
+                var outlookEntries = AddBuffer<StanceEntry>(crew);
+                var outlooks = AddBuffer<TopStance>(crew);
+                outlookEntries.Add(new StanceEntry
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
-                outlooks.Add(new TopOutlook
+                outlooks.Add(new TopStance
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
 
                 return crew;
             }
 
-            private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+            private static StanceId ResolveStanceId(in StrikeCraftPilotProfileConfig config, float lawfulness)
             {
                 if (lawfulness >= config.LoyalistLawThreshold)
                 {
-                    return config.FriendlyOutlook;
+                    return config.FriendlyStance;
                 }
 
                 if (lawfulness <= config.MutinousLawThreshold)
                 {
-                    return config.HostileOutlook;
+                    return config.HostileStance;
                 }
 
-                return config.NeutralOutlook;
+                return config.NeutralStance;
             }
 
             private void AddAlignment(Entity entity, AlignmentDefinition alignment, ushort raceId, ushort cultureId)
@@ -1928,16 +1931,16 @@ namespace Space4X.Registry
                     }
                 }
 
-                var outlookBuffer = AddBuffer<OutlookEntry>(entity);
-                if (alignment.Outlooks != null)
+                var stanceBuffer = AddBuffer<StanceEntry>(entity);
+                if (alignment.Stances != null)
                 {
-                    for (int i = 0; i < alignment.Outlooks.Length; i++)
+                    for (int i = 0; i < alignment.Stances.Length; i++)
                     {
-                        var outlook = alignment.Outlooks[i];
-                        outlookBuffer.Add(new OutlookEntry
+                        var stance = alignment.Stances[i];
+                        stanceBuffer.Add(new StanceEntry
                         {
-                            OutlookId = outlook.OutlookId,
-                            Weight = (half)math.clamp(outlook.Weight, -1f, 1f)
+                            StanceId = stance.StanceId,
+                            Weight = (half)math.clamp(stance.Weight, -1f, 1f)
                         });
                     }
                 }
@@ -2004,3 +2007,6 @@ namespace Space4X.Registry
         }
     }
 }
+
+
+

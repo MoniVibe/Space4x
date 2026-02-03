@@ -153,26 +153,26 @@ namespace Space4X.Registry
                 ecb.AddComponent(entity, alignmentValue);
             }
 
-            if (!em.HasBuffer<OutlookEntry>(entity))
+            if (!em.HasBuffer<StanceEntry>(entity))
             {
-                var outlooks = ecb.AddBuffer<OutlookEntry>(entity);
-                if (hasTemplate && template.Outlooks.Length > 0)
+                var stances = ecb.AddBuffer<StanceEntry>(entity);
+                if (hasTemplate && template.Stances.Length > 0)
                 {
-                    for (int i = 0; i < template.Outlooks.Length; i++)
+                    for (int i = 0; i < template.Stances.Length; i++)
                     {
-                        var entry = template.Outlooks[i];
-                        outlooks.Add(new OutlookEntry
+                        var entry = template.Stances[i];
+                        stances.Add(new StanceEntry
                         {
-                            OutlookId = entry.OutlookId,
+                            StanceId = entry.StanceId,
                             Weight = entry.Weight
                         });
                     }
                 }
                 else
                 {
-                    outlooks.Add(new OutlookEntry
+                    stances.Add(new StanceEntry
                     {
-                        OutlookId = OutlookId.Neutral,
+                        StanceId = StanceId.Neutral,
                         Weight = (half)0.15f
                     });
                 }
@@ -360,3 +360,4 @@ namespace Space4X.Registry
         }
     }
 }
+

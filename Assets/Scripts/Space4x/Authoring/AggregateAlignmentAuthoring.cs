@@ -4,6 +4,7 @@ using Space4X.Registry;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Space4X.Authoring
 {
@@ -30,9 +31,10 @@ namespace Space4X.Authoring
         }
 
         [Serializable]
-        public class TopOutlookEntry
+        [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Space4X.Authoring", null, "TopOutlookEntry")]
+        public class TopStanceEntry
         {
-            public OutlookId outlookId;
+            public StanceId StanceId;
             [Range(-1f, 1f)]
             public float weight = 0f;
         }
@@ -43,8 +45,9 @@ namespace Space4X.Authoring
         [Tooltip("Culture composition (aggregated from members)")]
         public List<CulturePresenceEntry> culturePresence = new List<CulturePresenceEntry>();
 
-        [Tooltip("Top outlooks (top three aggregated from members)")]
-        public List<TopOutlookEntry> topOutlooks = new List<TopOutlookEntry>();
+        [FormerlySerializedAs("topOutlooks")]
+        [Tooltip("Top stances (top three aggregated from members)")]
+        public List<TopStanceEntry> topStances = new List<TopStanceEntry>();
 
         public sealed class Baker : Unity.Entities.Baker<AggregateAlignmentAuthoring>
         {
@@ -86,19 +89,19 @@ namespace Space4X.Authoring
                     }
                 }
 
-                // Add top outlooks buffer
-                if (authoring.topOutlooks != null && authoring.topOutlooks.Count > 0)
+                // Add top stances buffer
+                if (authoring.topStances != null && authoring.topStances.Count > 0)
                 {
-                    var outlookBuffer = AddBuffer<TopOutlook>(entity);
+                    var outlookBuffer = AddBuffer<TopStance>(entity);
                     int count = 0;
-                    foreach (var entry in authoring.topOutlooks)
+                    foreach (var entry in authoring.topStances)
                     {
                         if (count >= 3) break; // Only top three
                         if (math.abs(entry.weight) > 0.01f)
                         {
-                            outlookBuffer.Add(new TopOutlook
+                            outlookBuffer.Add(new TopStance
                             {
-                                OutlookId = entry.outlookId,
+                                StanceId = entry.StanceId,
                                 Weight = (half)math.clamp(entry.weight, -1f, 1f)
                             });
                             count++;
@@ -109,4 +112,5 @@ namespace Space4X.Authoring
         }
     }
 }
+
 

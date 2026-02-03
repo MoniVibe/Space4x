@@ -66,9 +66,9 @@ namespace Space4X.Registry
     }
 
     /// <summary>
-    /// Outlook identifiers shared across authoring, narrative, and DOTS systems.
+    /// Stance identifiers shared across authoring, narrative, and DOTS systems.
     /// </summary>
-    public enum OutlookId : ushort
+    public enum StanceId : ushort
     {
         Neutral = 0,
         Loyalist = 1,
@@ -78,12 +78,12 @@ namespace Space4X.Registry
     }
 
     /// <summary>
-    /// Individual outlook weight. Multiple entries may exist, but only the top three are surfaced for crews.
+    /// Individual stance weight. Multiple entries may exist, but only the top three are surfaced for crews.
     /// </summary>
     [InternalBufferCapacity(3)]
-    public struct OutlookEntry : IBufferElementData
+    public struct StanceEntry : IBufferElementData
     {
-        public OutlookId OutlookId;
+        public StanceId StanceId;
         public half Weight;
     }
 
@@ -108,12 +108,12 @@ namespace Space4X.Registry
     }
 
     /// <summary>
-    /// Aggregated outlook values (already filtered to top three).
+    /// Aggregated stance values (already filtered to top three).
     /// </summary>
     [InternalBufferCapacity(3)]
-    public struct TopOutlook : IBufferElementData
+    public struct TopStance : IBufferElementData
     {
-        public OutlookId OutlookId;
+        public StanceId StanceId;
         public half Weight;
     }
 
@@ -227,7 +227,7 @@ namespace Space4X.Registry
     {
         public AlignmentWindow AlignmentWindow;
         public half AxisTolerance;
-        public half OutlookTolerance;
+        public half StanceTolerance;
         public half ChaosMutinyThreshold;
         public half LawfulContractFloor;
         public half SuspicionGain;
@@ -245,12 +245,12 @@ namespace Space4X.Registry
     }
 
     /// <summary>
-    /// Required outlooks for membership.
+    /// Required stances for membership.
     /// </summary>
     [InternalBufferCapacity(3)]
-    public struct DoctrineOutlookExpectation : IBufferElementData
+    public struct DoctrineStanceExpectation : IBufferElementData
     {
-        public OutlookId OutlookId;
+        public StanceId StanceId;
         public half MinimumWeight;
     }
 
@@ -368,3 +368,4 @@ namespace Space4X.Registry
         }
     }
 }
+

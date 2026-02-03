@@ -21,7 +21,7 @@ namespace Space4X.Registry
         private EntityQuery _evaluationQuery;
         private ComponentLookup<DoctrineProfile> _doctrineLookup;
         private BufferLookup<DoctrineAxisExpectation> _axisExpectationLookup;
-        private BufferLookup<DoctrineOutlookExpectation> _outlookExpectationLookup;
+        private BufferLookup<DoctrineStanceExpectation> _stanceExpectationLookup;
         private ComponentLookup<ContractBinding> _contractLookup;
 
         public void OnCreate(ref SystemState state)
@@ -30,7 +30,7 @@ namespace Space4X.Registry
 
             _doctrineLookup = state.GetComponentLookup<DoctrineProfile>(true);
             _axisExpectationLookup = state.GetBufferLookup<DoctrineAxisExpectation>(true);
-            _outlookExpectationLookup = state.GetBufferLookup<DoctrineOutlookExpectation>(true);
+            _stanceExpectationLookup = state.GetBufferLookup<DoctrineStanceExpectation>(true);
             _contractLookup = state.GetComponentLookup<ContractBinding>(true);
 
             _evaluationQuery = SystemAPI.QueryBuilder()
@@ -48,7 +48,7 @@ namespace Space4X.Registry
 
             _doctrineLookup.Update(ref state);
             _axisExpectationLookup.Update(ref state);
-            _outlookExpectationLookup.Update(ref state);
+            _stanceExpectationLookup.Update(ref state);
             _contractLookup.Update(ref state);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -59,14 +59,14 @@ namespace Space4X.Registry
                 var chaosScore = AlignmentMath.Chaos(alignment.ValueRO);
                 var lawfulnessScore = AlignmentMath.Lawfulness(alignment.ValueRO);
 
-                var topOutlooks = TopThreeOutlooks.Empty;
-                if (SystemAPI.HasBuffer<OutlookEntry>(entity))
+                var topStances = TopThreeStances.Empty;
+                if (SystemAPI.HasBuffer<StanceEntry>(entity))
                 {
-                    topOutlooks.Populate(SystemAPI.GetBuffer<OutlookEntry>(entity));
+                    topStances.Populate(SystemAPI.GetBuffer<StanceEntry>(entity));
                 }
-                else if (SystemAPI.HasBuffer<TopOutlook>(entity))
+                else if (SystemAPI.HasBuffer<TopStance>(entity))
                 {
-                    topOutlooks.Populate(SystemAPI.GetBuffer<TopOutlook>(entity));
+                    topStances.Populate(SystemAPI.GetBuffer<TopStance>(entity));
                 }
 
                 var hasAxisBuffer = SystemAPI.HasBuffer<EthicAxisValue>(entity);
@@ -113,9 +113,9 @@ namespace Space4X.Registry
                     var doctrine = _doctrineLookup[affiliation.Target];
                     var alignmentDeviation = doctrine.AlignmentWindow.ComputeDeviation(alignmentValues);
                     var axisDeviation = EvaluateAxisDeviation(affiliation.Target, hasAxisBuffer, axisBuffer, (float)doctrine.AxisTolerance);
-                    var outlookDeviation = EvaluateOutlookDeviation(affiliation.Target, ref topOutlooks, (float)doctrine.OutlookTolerance);
+                    var stanceDeviation = EvaluateStanceDeviation(affiliation.Target, ref topStances, (float)doctrine.StanceTolerance);
 
-                    var totalDeviation = math.csum(alignmentDeviation) + axisDeviation + outlookDeviation;
+                    var totalDeviation = math.csum(alignmentDeviation) + axisDeviation + stanceDeviation;
                     if (totalDeviation <= 0.0001f)
                     {
                         continue;
@@ -208,14 +208,14 @@ namespace Space4X.Registry
             return deviation;
         }
 
-        private float EvaluateOutlookDeviation(Entity doctrineEntity, ref TopThreeOutlooks topOutlooks, float tolerance)
+        private float EvaluateStanceDeviation(Entity doctrineEntity, ref TopThreeStances topStances, float tolerance)
         {
-            if (!_outlookExpectationLookup.HasBuffer(doctrineEntity))
+            if (!_stanceExpectationLookup.HasBuffer(doctrineEntity))
             {
                 return 0f;
             }
 
-            var expectations = _outlookExpectationLookup[doctrineEntity];
+            var expectations = _stanceExpectationLookup[doctrineEntity];
             if (expectations.Length == 0)
             {
                 return 0f;
@@ -225,7 +225,7 @@ namespace Space4X.Registry
             for (int i = 0; i < expectations.Length; i++)
             {
                 var expectation = expectations[i];
-                if (!topOutlooks.TryGet(expectation.OutlookId, out var weight))
+                if (!topStances.TryGet(expectation.StanceId, out var weight))
                 {
                     var missing = (float)expectation.MinimumWeight;
                     if (missing > tolerance)
@@ -303,43 +303,43 @@ namespace Space4X.Registry
             return SystemAPI.GetComponentRW<SuspicionScore>(entity);
         }
 
-        private struct OutlookSample
+        private struct StanceSample
         {
-            public OutlookId Id;
+            public StanceId Id;
             public float Weight;
             public float Magnitude;
         }
 
-        private struct TopThreeOutlooks
+        private struct TopThreeStances
         {
-            public OutlookSample First;
-            public OutlookSample Second;
-            public OutlookSample Third;
+            public StanceSample First;
+            public StanceSample Second;
+            public StanceSample Third;
             public int Count;
 
-            public static TopThreeOutlooks Empty => default;
+            public static TopThreeStances Empty => default;
 
-            public void Populate(DynamicBuffer<OutlookEntry> buffer)
+            public void Populate(DynamicBuffer<StanceEntry> buffer)
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    Consider(buffer[i].OutlookId, (float)buffer[i].Weight);
+                    Consider(buffer[i].StanceId, (float)buffer[i].Weight);
                 }
             }
 
-            public void Populate(DynamicBuffer<TopOutlook> buffer)
+            public void Populate(DynamicBuffer<TopStance> buffer)
             {
                 for (int i = 0; i < buffer.Length; i++)
                 {
-                    Consider(buffer[i].OutlookId, (float)buffer[i].Weight);
+                    Consider(buffer[i].StanceId, (float)buffer[i].Weight);
                 }
             }
 
-            public void Consider(OutlookId outlookId, float weight)
+            public void Consider(StanceId StanceId, float weight)
             {
-                var sample = new OutlookSample
+                var sample = new StanceSample
                 {
-                    Id = outlookId,
+                    Id = StanceId,
                     Weight = weight,
                     Magnitude = math.abs(weight)
                 };
@@ -352,21 +352,21 @@ namespace Space4X.Registry
                 Insert(ref sample);
             }
 
-            public bool TryGet(OutlookId outlookId, out float weight)
+            public bool TryGet(StanceId StanceId, out float weight)
             {
-                if (Count > 0 && First.Id == outlookId)
+                if (Count > 0 && First.Id == StanceId)
                 {
                     weight = First.Weight;
                     return true;
                 }
 
-                if (Count > 1 && Second.Id == outlookId)
+                if (Count > 1 && Second.Id == StanceId)
                 {
                     weight = Second.Weight;
                     return true;
                 }
 
-                if (Count > 2 && Third.Id == outlookId)
+                if (Count > 2 && Third.Id == StanceId)
                 {
                     weight = Third.Weight;
                     return true;
@@ -376,7 +376,7 @@ namespace Space4X.Registry
                 return false;
             }
 
-            private bool TryReplaceExisting(ref OutlookSample sample)
+            private bool TryReplaceExisting(ref StanceSample sample)
             {
                 if (Count > 0 && First.Id == sample.Id)
                 {
@@ -408,7 +408,7 @@ namespace Space4X.Registry
                 return false;
             }
 
-            private void Insert(ref OutlookSample sample)
+            private void Insert(ref StanceSample sample)
             {
                 if (Count == 0)
                 {
@@ -456,3 +456,5 @@ namespace Space4X.Registry
         }
     }
 }
+
+

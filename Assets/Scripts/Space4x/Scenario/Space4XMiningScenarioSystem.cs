@@ -1529,54 +1529,55 @@ namespace Space4x.Scenario
                 }
             }
 
-            EntityManager.AddBuffer<OutlookEntry>(pilot);
-            EntityManager.AddBuffer<TopOutlook>(pilot);
-            var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(pilot);
-            var outlooks = EntityManager.GetBuffer<TopOutlook>(pilot);
-            if (profileData != null && profileData.outlooks != null && profileData.outlooks.Count > 0)
+            EntityManager.AddBuffer<StanceEntry>(pilot);
+            EntityManager.AddBuffer<TopStance>(pilot);
+            var stanceEntries = EntityManager.GetBuffer<StanceEntry>(pilot);
+            var topStances = EntityManager.GetBuffer<TopStance>(pilot);
+            var stanceWeights = profileData?.ResolveStances();
+            if (stanceWeights != null && stanceWeights.Count > 0)
             {
-                for (int i = 0; i < profileData.outlooks.Count; i++)
+                for (int i = 0; i < stanceWeights.Count; i++)
                 {
-                    var entry = profileData.outlooks[i];
-                    outlookEntries.Add(new OutlookEntry
+                    var entry = stanceWeights[i];
+                    stanceEntries.Add(new StanceEntry
                     {
-                        OutlookId = ParseOutlookId(entry.outlookId),
+                        StanceId = ParseStanceId(entry.ResolveStanceId()),
                         Weight = (half)math.clamp(entry.weight, -1f, 1f)
                     });
                 }
 
-                var ordered = profileData.outlooks
+                var ordered = stanceWeights
                     .OrderByDescending(o => o.weight)
                     .Take(3);
                 foreach (var entry in ordered)
                 {
-                    outlooks.Add(new TopOutlook
+                    topStances.Add(new TopStance
                     {
-                        OutlookId = ParseOutlookId(entry.outlookId),
+                        StanceId = ParseStanceId(entry.ResolveStanceId()),
                         Weight = (half)math.clamp(entry.weight, 0f, 1f)
                     });
                 }
             }
             else
             {
-                var outlookId = config.NeutralOutlook;
+                var StanceId = config.NeutralStance;
                 if (lawfulness >= config.LoyalistLawThreshold)
                 {
-                    outlookId = config.FriendlyOutlook;
+                    StanceId = config.FriendlyStance;
                 }
                 else if (lawfulness <= config.MutinousLawThreshold)
                 {
-                    outlookId = config.HostileOutlook;
+                    StanceId = config.HostileStance;
                 }
 
-                outlookEntries.Add(new OutlookEntry
+                stanceEntries.Add(new StanceEntry
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
-                outlooks.Add(new TopOutlook
+                topStances.Add(new TopStance
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
             }
@@ -3021,38 +3022,38 @@ namespace Space4x.Scenario
                          + (float)stats.Resolve) / 6f
             });
 
-            var outlookId = ResolveOutlookId(config, lawfulness);
-            EntityManager.AddBuffer<OutlookEntry>(crew);
-            EntityManager.AddBuffer<TopOutlook>(crew);
-            var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(crew);
-            var outlooks = EntityManager.GetBuffer<TopOutlook>(crew);
-            outlookEntries.Add(new OutlookEntry
+            var StanceId = ResolveStanceId(config, lawfulness);
+            EntityManager.AddBuffer<StanceEntry>(crew);
+            EntityManager.AddBuffer<TopStance>(crew);
+            var stanceEntries = EntityManager.GetBuffer<StanceEntry>(crew);
+            var topStances = EntityManager.GetBuffer<TopStance>(crew);
+            stanceEntries.Add(new StanceEntry
             {
-                OutlookId = outlookId,
+                StanceId = StanceId,
                 Weight = (half)1f
             });
-            outlooks.Add(new TopOutlook
+            topStances.Add(new TopStance
             {
-                OutlookId = outlookId,
+                StanceId = StanceId,
                 Weight = (half)1f
             });
 
             return crew;
         }
 
-        private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+        private static StanceId ResolveStanceId(in StrikeCraftPilotProfileConfig config, float lawfulness)
         {
             if (lawfulness >= config.LoyalistLawThreshold)
             {
-                return config.FriendlyOutlook;
+                return config.FriendlyStance;
             }
 
             if (lawfulness <= config.MutinousLawThreshold)
             {
-                return config.HostileOutlook;
+                return config.HostileStance;
             }
 
-            return config.NeutralOutlook;
+            return config.NeutralStance;
         }
 
         private float3 GetPosition(float[] position)
@@ -3158,20 +3159,20 @@ namespace Space4x.Scenario
             };
         }
 
-        private static OutlookId ParseOutlookId(string value)
+        private static StanceId ParseStanceId(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                return OutlookId.Neutral;
+                return StanceId.Neutral;
             }
 
             return value switch
             {
-                "Loyalist" => OutlookId.Loyalist,
-                "Opportunist" => OutlookId.Opportunist,
-                "Fanatic" => OutlookId.Fanatic,
-                "Mutinous" => OutlookId.Mutinous,
-                _ => OutlookId.Neutral
+                "Loyalist" => StanceId.Loyalist,
+                "Opportunist" => StanceId.Opportunist,
+                "Fanatic" => StanceId.Fanatic,
+                "Mutinous" => StanceId.Mutinous,
+                _ => StanceId.Neutral
             };
         }
 
@@ -3651,8 +3652,11 @@ namespace Space4x.Scenario
         public float integrity;
         public ushort raceId;
         public ushort cultureId;
-        public List<OutlookWeightData> outlooks;
+        public List<StanceWeightData> stances;
+        public List<StanceWeightData> outlooks; // legacy
         public BehaviorDispositionData behaviorDisposition;
+
+        public List<StanceWeightData> ResolveStances() => stances ?? outlooks;
     }
 
     [System.Serializable]
@@ -3679,10 +3683,21 @@ namespace Space4x.Scenario
     }
 
     [System.Serializable]
-    public class OutlookWeightData
+    public class StanceWeightData
     {
-        public string outlookId;
+        public string stanceId;
+        public string outlookId; // legacy
         public float weight;
+
+        public string ResolveStanceId()
+        {
+            if (!string.IsNullOrWhiteSpace(stanceId))
+            {
+                return stanceId;
+            }
+
+            return outlookId;
+        }
     }
 
     [System.Serializable]
@@ -3710,3 +3725,6 @@ namespace Space4x.Scenario
         public string json;
     }
 }
+
+
+

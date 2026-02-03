@@ -258,17 +258,17 @@ namespace Space4X.Registry
     /// </summary>
     public struct StrikeCraftPilotProfileConfig : IComponentData
     {
-        public OutlookId FriendlyOutlook;
-        public OutlookId HostileOutlook;
-        public OutlookId NeutralOutlook;
+        public StanceId FriendlyStance;
+        public StanceId HostileStance;
+        public StanceId NeutralStance;
         public float LoyalistLawThreshold;
         public float MutinousLawThreshold;
 
         public static StrikeCraftPilotProfileConfig Default => new StrikeCraftPilotProfileConfig
         {
-            FriendlyOutlook = OutlookId.Loyalist,
-            HostileOutlook = OutlookId.Mutinous,
-            NeutralOutlook = OutlookId.Neutral,
+            FriendlyStance = StanceId.Loyalist,
+            HostileStance = StanceId.Mutinous,
+            NeutralStance = StanceId.Neutral,
             LoyalistLawThreshold = 0.55f,
             MutinousLawThreshold = -0.55f
         };
@@ -854,3 +854,4 @@ namespace Space4X.Registry
         }
     }
 }
+

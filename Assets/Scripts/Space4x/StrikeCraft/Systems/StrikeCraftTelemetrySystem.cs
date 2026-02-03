@@ -25,7 +25,7 @@ namespace Space4X.StrikeCraft
         private ComponentLookup<StrikeCraftWingDirective> _wingDirectiveLookup;
         private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<StrikeCraftMaintenanceQuality> _maintenanceQualityLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private EntityQuery _missingTelemetryQuery;
 
@@ -68,7 +68,7 @@ namespace Space4X.StrikeCraft
             _wingDirectiveLookup = state.GetComponentLookup<StrikeCraftWingDirective>(true);
             _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _maintenanceQualityLookup = state.GetComponentLookup<StrikeCraftMaintenanceQuality>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _missingTelemetryQuery = SystemAPI.QueryBuilder()
                 .WithAll<StrikeCraftProfile>()
@@ -427,18 +427,18 @@ namespace Space4X.StrikeCraft
             {
                 var entry = buffer[i];
                 var weight = math.clamp((float)entry.Weight, 0f, 1f);
-                switch (entry.OutlookId)
+                switch (entry.StanceId)
                 {
-                    case OutlookId.Loyalist:
+                    case StanceId.Loyalist:
                         discipline += 0.2f * weight;
                         break;
-                    case OutlookId.Fanatic:
+                    case StanceId.Fanatic:
                         discipline += 0.25f * weight;
                         break;
-                    case OutlookId.Opportunist:
+                    case StanceId.Opportunist:
                         discipline -= 0.15f * weight;
                         break;
-                    case OutlookId.Mutinous:
+                    case StanceId.Mutinous:
                         discipline -= 0.3f * weight;
                         break;
                 }
@@ -514,3 +514,4 @@ namespace Space4X.StrikeCraft
         }
     }
 }
+

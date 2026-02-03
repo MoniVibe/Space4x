@@ -2,6 +2,7 @@ using System;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Registry
@@ -17,18 +18,20 @@ namespace Space4X.Registry
     {
         [SerializeField] private AlignmentBounds alignmentWindow = AlignmentBounds.Default();
         [SerializeField, Range(0f, 2f)] private float axisTolerance = 0.1f;
-        [SerializeField, Range(0f, 2f)] private float outlookTolerance = 0.1f;
+        [FormerlySerializedAs("outlookTolerance")]
+        [SerializeField, Range(0f, 2f)] private float stanceTolerance = 0.1f;
         [SerializeField, Range(0f, 1f)] private float chaosMutinyThreshold = 0.35f;
         [SerializeField, Range(0f, 1f)] private float lawfulContractFloor = 0.25f;
         [SerializeField, Range(0f, 2f)] private float suspicionGain = 0.15f;
         [SerializeField] private AxisExpectation[] axisExpectations = Array.Empty<AxisExpectation>();
-        [SerializeField] private OutlookExpectation[] outlookExpectations = Array.Empty<OutlookExpectation>();
+        [FormerlySerializedAs("outlookExpectations")]
+        [SerializeField] private StanceExpectation[] stanceExpectations = Array.Empty<StanceExpectation>();
 
         private void OnValidate()
         {
             alignmentWindow = alignmentWindow.Clamp();
             axisTolerance = math.clamp(axisTolerance, 0f, 2f);
-            outlookTolerance = math.clamp(outlookTolerance, 0f, 2f);
+            stanceTolerance = math.clamp(stanceTolerance, 0f, 2f);
             chaosMutinyThreshold = math.clamp(chaosMutinyThreshold, 0f, 1f);
             lawfulContractFloor = math.clamp(lawfulContractFloor, 0f, 1f);
             suspicionGain = math.max(0f, suspicionGain);
@@ -41,11 +44,11 @@ namespace Space4X.Registry
                 }
             }
 
-            if (outlookExpectations != null)
+            if (stanceExpectations != null)
             {
-                for (int i = 0; i < outlookExpectations.Length; i++)
+                for (int i = 0; i < stanceExpectations.Length; i++)
                 {
-                    outlookExpectations[i] = outlookExpectations[i].Clamp();
+                    stanceExpectations[i] = stanceExpectations[i].Clamp();
                 }
             }
         }
@@ -60,7 +63,7 @@ namespace Space4X.Registry
                 {
                     AlignmentWindow = authoring.alignmentWindow.Clamp().ToWindow(),
                     AxisTolerance = (half)math.clamp(authoring.axisTolerance, 0f, 2f),
-                    OutlookTolerance = (half)math.clamp(authoring.outlookTolerance, 0f, 2f),
+                    StanceTolerance = (half)math.clamp(authoring.stanceTolerance, 0f, 2f),
                     ChaosMutinyThreshold = (half)math.clamp(authoring.chaosMutinyThreshold, 0f, 1f),
                     LawfulContractFloor = (half)math.clamp(authoring.lawfulContractFloor, 0f, 1f),
                     SuspicionGain = (half)math.max(0f, authoring.suspicionGain)
@@ -102,15 +105,15 @@ namespace Space4X.Registry
                     UnityDebug.LogWarning($"[Space4XDoctrineAuthoring] {fanaticCount} fanatic ethic expectations defined; additional entries were clamped to ±1.5.", authoring);
                 }
 
-                var outlookBuffer = AddBuffer<DoctrineOutlookExpectation>(entity);
-                if (authoring.outlookExpectations != null)
+                var outlookBuffer = AddBuffer<DoctrineStanceExpectation>(entity);
+                if (authoring.stanceExpectations != null)
                 {
-                    for (int i = 0; i < authoring.outlookExpectations.Length; i++)
+                    for (int i = 0; i < authoring.stanceExpectations.Length; i++)
                     {
-                        var expectation = authoring.outlookExpectations[i].Clamp();
-                        outlookBuffer.Add(new DoctrineOutlookExpectation
+                        var expectation = authoring.stanceExpectations[i].Clamp();
+                        outlookBuffer.Add(new DoctrineStanceExpectation
                         {
-                            OutlookId = expectation.Outlook,
+                            StanceId = expectation.Outlook,
                             MinimumWeight = (half)expectation.MinimumWeight
                         });
                     }
@@ -144,15 +147,15 @@ namespace Space4X.Registry
         }
 
         [Serializable]
-        private struct OutlookExpectation
+        private struct StanceExpectation
         {
-            public OutlookId Outlook;
+            public StanceId Outlook;
             [Range(-1f, 1f)] public float MinimumWeight;
 
-            public OutlookExpectation Clamp()
+            public StanceExpectation Clamp()
             {
                 var clampedWeight = math.clamp(MinimumWeight, -1f, 1f);
-                return new OutlookExpectation
+                return new StanceExpectation
                 {
                     Outlook = Outlook,
                     MinimumWeight = clampedWeight
@@ -223,3 +226,5 @@ namespace Space4X.Registry
         }
     }
 }
+
+

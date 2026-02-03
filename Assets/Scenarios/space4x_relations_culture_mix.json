@@ -77,9 +77,9 @@
       "integrity": 0.8,
       "raceId": 1,
       "cultureId": 10,
-      "outlooks": [
-        { "outlookId": "Loyalist", "weight": 0.8 },
-        { "outlookId": "Opportunist", "weight": 0.1 }
+      "stances": [
+        { "stanceId": "Loyalist", "weight": 0.8 },
+        { "stanceId": "Opportunist", "weight": 0.1 }
       ],
       "behaviorDisposition": {
         "enabled": true,
@@ -98,9 +98,9 @@
       "integrity": 0.7,
       "raceId": 2,
       "cultureId": 11,
-      "outlooks": [
-        { "outlookId": "Loyalist", "weight": 0.6 },
-        { "outlookId": "Opportunist", "weight": 0.2 }
+      "stances": [
+        { "stanceId": "Loyalist", "weight": 0.6 },
+        { "stanceId": "Opportunist", "weight": 0.2 }
       ],
       "behaviorDisposition": {
         "enabled": true,
@@ -119,8 +119,8 @@
       "integrity": 0.65,
       "raceId": 3,
       "cultureId": 12,
-      "outlooks": [
-        { "outlookId": "Loyalist", "weight": 0.5 }
+      "stances": [
+        { "stanceId": "Loyalist", "weight": 0.5 }
       ]
     },
     {
@@ -130,8 +130,8 @@
       "integrity": 0.6,
       "raceId": 4,
       "cultureId": 13,
-      "outlooks": [
-        { "outlookId": "Neutral", "weight": 0.7 }
+      "stances": [
+        { "stanceId": "Neutral", "weight": 0.7 }
       ]
     },
     {
@@ -141,9 +141,9 @@
       "integrity": 0.2,
       "raceId": 5,
       "cultureId": 10,
-      "outlooks": [
-        { "outlookId": "Fanatic", "weight": 0.7 },
-        { "outlookId": "Mutinous", "weight": 0.2 }
+      "stances": [
+        { "stanceId": "Fanatic", "weight": 0.7 },
+        { "stanceId": "Mutinous", "weight": 0.2 }
       ],
       "behaviorDisposition": {
         "enabled": true,
@@ -162,9 +162,9 @@
       "integrity": 0.25,
       "raceId": 2,
       "cultureId": 14,
-      "outlooks": [
-        { "outlookId": "Fanatic", "weight": 0.6 },
-        { "outlookId": "Opportunist", "weight": 0.3 }
+      "stances": [
+        { "stanceId": "Fanatic", "weight": 0.6 },
+        { "stanceId": "Opportunist", "weight": 0.3 }
       ],
       "behaviorDisposition": {
         "enabled": true,
@@ -183,8 +183,8 @@
       "integrity": 0.15,
       "raceId": 3,
       "cultureId": 15,
-      "outlooks": [
-        { "outlookId": "Mutinous", "weight": 0.6 }
+      "stances": [
+        { "stanceId": "Mutinous", "weight": 0.6 }
       ]
     },
     {
@@ -194,9 +194,11 @@
       "integrity": 0.3,
       "raceId": 4,
       "cultureId": 13,
-      "outlooks": [
-        { "outlookId": "Opportunist", "weight": 0.5 }
+      "stances": [
+        { "stanceId": "Opportunist", "weight": 0.5 }
       ]
     }
   ]
 }
+
+

@@ -57,7 +57,7 @@ namespace Space4X.Systems.AI
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
@@ -106,7 +106,7 @@ namespace Space4X.Systems.AI
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(false);
@@ -401,7 +401,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public BufferLookup<AuthoritySeatRef> SeatRefLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeat> SeatLookup;
             [ReadOnly] public ComponentLookup<AuthoritySeatOccupant> SeatOccupantLookup;
-            [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
+            [ReadOnly] public BufferLookup<TopStance> OutlookLookup;
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public BufferLookup<AffiliationTag> AffiliationLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<Space4XEngagement> EngagementLookup;
@@ -978,18 +978,18 @@ namespace Space4X.Systems.AI
                 {
                     var entry = buffer[i];
                     var weight = math.clamp((float)entry.Weight, 0f, 1f);
-                    switch (entry.OutlookId)
+                    switch (entry.StanceId)
                     {
-                        case OutlookId.Loyalist:
+                        case StanceId.Loyalist:
                             discipline += 0.2f * weight;
                             break;
-                        case OutlookId.Fanatic:
+                        case StanceId.Fanatic:
                             discipline += 0.25f * weight;
                             break;
-                        case OutlookId.Opportunist:
+                        case StanceId.Opportunist:
                             discipline -= 0.15f * weight;
                             break;
-                        case OutlookId.Mutinous:
+                        case StanceId.Mutinous:
                             discipline -= 0.3f * weight;
                             break;
                     }
@@ -1677,3 +1677,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
+

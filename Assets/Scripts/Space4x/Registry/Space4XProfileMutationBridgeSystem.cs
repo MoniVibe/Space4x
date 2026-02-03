@@ -43,7 +43,7 @@ namespace Space4X.Registry
                 ecb.AddComponent(entity, AlignmentMigrationHelper.ToUnified(alignment.ValueRO));
             }
 
-            foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<OutlookEntry>>()
+            foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<StanceEntry>>()
                          .WithNone<PureDOTS.Runtime.Alignment.OutlookEntry>()
                          .WithEntityAccess())
             {
@@ -53,7 +53,7 @@ namespace Space4X.Registry
                     var entry = outlookBuffer[i];
                     target.Add(new PureDOTS.Runtime.Alignment.OutlookEntry
                     {
-                        OutlookId = (PureDOTS.Runtime.Alignment.Outlook)entry.OutlookId,
+                        StanceId = (PureDOTS.Runtime.Alignment.Outlook)entry.StanceId,
                         Weight = entry.Weight
                     });
                 }
@@ -98,17 +98,17 @@ namespace Space4X.Registry
             }
 
             foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<PureDOTS.Runtime.Alignment.OutlookEntry>>()
-                         .WithAll<ProfileActionAccumulator, OutlookEntry>()
+                         .WithAll<ProfileActionAccumulator, StanceEntry>()
                          .WithEntityAccess())
             {
-                var target = state.EntityManager.GetBuffer<OutlookEntry>(entity);
+                var target = state.EntityManager.GetBuffer<StanceEntry>(entity);
                 target.Clear();
                 for (int i = 0; i < outlookBuffer.Length; i++)
                 {
                     var entry = outlookBuffer[i];
-                    target.Add(new OutlookEntry
+                    target.Add(new StanceEntry
                     {
-                        OutlookId = (OutlookId)entry.OutlookId,
+                        StanceId = (StanceId)entry.StanceId,
                         Weight = entry.Weight
                     });
                 }
@@ -116,3 +116,4 @@ namespace Space4X.Registry
         }
     }
 }
+

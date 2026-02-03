@@ -11,9 +11,9 @@ namespace Space4X.Registry
         public FixedString64Bytes Id;
     }
 
-    public struct OutlookWeight
+    public struct StanceWeight
     {
-        public OutlookId OutlookId;
+        public StanceId StanceId;
         public half Weight;
     }
 
@@ -33,7 +33,7 @@ namespace Space4X.Registry
         public byte MoraleExplicit;
         public byte Reserved0;
         public byte Reserved1;
-        public FixedList64Bytes<OutlookWeight> Outlooks;
+        public FixedList64Bytes<StanceWeight> Stances;
     }
 
     public struct IndividualProfileCatalogBlob
@@ -47,3 +47,4 @@ namespace Space4X.Registry
         public FixedString64Bytes DefaultProfileId;
     }
 }
+

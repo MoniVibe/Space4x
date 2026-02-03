@@ -31,8 +31,8 @@ namespace Space4X.Registry
             ref var catalogBlob = ref builder.ConstructRoot<IndividualProfileCatalogBlob>();
             var profiles = builder.Allocate(ref catalogBlob.Profiles, 1);
 
-            var outlooks = new FixedList64Bytes<OutlookWeight>();
-            outlooks.Add(new OutlookWeight { OutlookId = OutlookId.Neutral, Weight = (half)0.15f });
+            var stances = new FixedList64Bytes<StanceWeight>();
+            stances.Add(new StanceWeight { StanceId = StanceId.Neutral, Weight = (half)0.15f });
 
             profiles[0] = new IndividualProfileTemplate
             {
@@ -74,7 +74,7 @@ namespace Space4X.Registry
                 MoraleExplicit = 0,
                 Reserved0 = 0,
                 Reserved1 = 0,
-                Outlooks = outlooks
+                Stances = stances
             };
 
             var blobAsset = builder.CreateBlobAssetReference<IndividualProfileCatalogBlob>(Allocator.Persistent);
@@ -102,3 +102,5 @@ namespace Space4X.Registry
         }
     }
 }
+
+
