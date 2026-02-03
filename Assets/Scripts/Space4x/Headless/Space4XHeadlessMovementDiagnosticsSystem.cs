@@ -327,6 +327,21 @@ namespace Space4X.Headless
                 {
                     speed = math.length(movement.ValueRO.Velocity);
                 }
+                if (SystemAPI.HasComponent<MoveIntent>(entity))
+                {
+                    var intent = SystemAPI.GetComponentRO<MoveIntent>(entity).ValueRO;
+                    if (intent.IntentType == MoveIntentType.None)
+                    {
+                        var stateValue = turnState.ValueRW;
+                        stateValue.LastRotation = transform.ValueRO.Rotation;
+                        stateValue.LastAngularSpeed = 0f;
+                        stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
+                        stateValue.Initialized = 1;
+                        turnState.ValueRW = stateValue;
+                        continue;
+                    }
+                }
+
                 var wantsMove = movement.ValueRO.IsMoving != 0 && speed >= TurnSpeedMin;
                 if (wantsMove)
                 {
