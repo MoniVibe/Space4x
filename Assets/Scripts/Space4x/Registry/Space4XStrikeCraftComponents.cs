@@ -371,6 +371,7 @@ namespace Space4X.Registry
         public float MercyGoodThreshold;
         public float MercySuppressMinChance;
         public float MercySuppressMaxChance;
+        public float MercyLoyaltyPenalty;
         public sbyte HostileRelationThreshold;
         public byte RequireHostileRelation;
 
@@ -384,6 +385,7 @@ namespace Space4X.Registry
             MercyGoodThreshold = 0.55f,
             MercySuppressMinChance = 0.4f,
             MercySuppressMaxChance = 0.85f,
+            MercyLoyaltyPenalty = 0.03f,
             HostileRelationThreshold = -25,
             RequireHostileRelation = 1
         };

@@ -328,6 +328,26 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Lightweight disciplinary record for court-martial style consequences.
+    /// </summary>
+    public enum DisciplinaryInfractionKind : byte
+    {
+        MercyInCombat = 0,
+        DisobeyedOrders = 1
+    }
+
+    /// <summary>
+    /// Records a single disciplinary infraction for an entity.
+    /// </summary>
+    public struct DisciplinaryRecord : IComponentData
+    {
+        public Entity Faction;
+        public DisciplinaryInfractionKind Kind;
+        public half Severity;
+        public uint Tick;
+    }
+
+    /// <summary>
     /// Alignment helper utility functions.
     /// </summary>
     public static class AlignmentMath

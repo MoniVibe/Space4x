@@ -54,7 +54,7 @@ namespace Space4X.Systems.AI
             _cultureLookup = state.GetComponentLookup<CultureId>(true);
             _raceLookup = state.GetComponentLookup<RaceId>(true);
             _fireDisciplineLookup = state.GetComponentLookup<StrikeCraftFireDiscipline>(true);
-            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(false);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
             _diplomaticStatusLookup = state.GetBufferLookup<DiplomaticStatusEntry>(true);
@@ -228,10 +228,26 @@ namespace Space4X.Systems.AI
                 EnsureFireDiscipline(ref ecb, entity, targetEntity, mercyUntil,
                     config.MercySuppressMinChance, config.MercySuppressMaxChance, goodness);
 
+                var disciplineApplied = false;
+                var penaltyApplied = 0f;
+                var disciplineFaction = ResolveFactionEntity(entity);
+                var mercyAllowed = IsMercyAllowed(disciplineFaction);
+                if (!mercyAllowed && config.MercyLoyaltyPenalty > 0f)
+                {
+                    penaltyApplied = ApplyLoyaltyPenalty(mercyProfile, disciplineFaction, config.MercyLoyaltyPenalty);
+                    if (penaltyApplied > 0f)
+                    {
+                        disciplineApplied = true;
+                    }
+
+                    SetDisciplinaryRecord(ref ecb, mercyProfile, disciplineFaction, penaltyApplied, currentTick);
+                }
+
                 if (emitTelemetry)
                 {
                     eventBuffer.AddEvent(_eventMercyStarted, currentTick, _sourceId,
-                        BuildMercyPayload(entity, mercyProfile, targetEntity, cultureMatch, raceMatch, goodness, chance, mercyUntil));
+                        BuildMercyPayload(entity, mercyProfile, targetEntity, cultureMatch, raceMatch, goodness, chance,
+                            mercyUntil, disciplineApplied, penaltyApplied));
                 }
             }
 
@@ -531,6 +547,78 @@ namespace Space4X.Systems.AI
             return relationScore <= -25;
         }
 
+        private bool IsMercyAllowed(Entity factionEntity)
+        {
+            if (factionEntity == Entity.Null || !_factionLookup.HasComponent(factionEntity))
+            {
+                return true;
+            }
+
+            var outlook = _factionLookup[factionEntity].Outlook;
+            if ((outlook & (FactionOutlook.Pacifist | FactionOutlook.Honorable)) != 0)
+            {
+                return true;
+            }
+
+            if ((outlook & (FactionOutlook.Militarist | FactionOutlook.Authoritarian | FactionOutlook.Xenophobe)) != 0)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private float ApplyLoyaltyPenalty(Entity profileEntity, Entity factionEntity, float penalty)
+        {
+            if (factionEntity == Entity.Null || !_affiliationLookup.HasBuffer(profileEntity))
+            {
+                return 0f;
+            }
+
+            var buffer = _affiliationLookup[profileEntity];
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                var tag = buffer[i];
+                if (tag.Type != AffiliationType.Faction || tag.Target != factionEntity)
+                {
+                    continue;
+                }
+
+                var before = (float)tag.Loyalty;
+                var after = math.saturate(before - penalty);
+                tag.Loyalty = (half)after;
+                buffer[i] = tag;
+                return math.max(0f, before - after);
+            }
+
+            return 0f;
+        }
+
+        private void SetDisciplinaryRecord(ref EntityCommandBuffer ecb, Entity profileEntity, Entity factionEntity, float penalty, uint tick)
+        {
+            if (profileEntity == Entity.Null)
+            {
+                return;
+            }
+
+            var record = new DisciplinaryRecord
+            {
+                Faction = factionEntity,
+                Kind = DisciplinaryInfractionKind.MercyInCombat,
+                Severity = (half)math.saturate(penalty),
+                Tick = tick
+            };
+
+            if (SystemAPI.HasComponent<DisciplinaryRecord>(profileEntity))
+            {
+                ecb.SetComponent(profileEntity, record);
+            }
+            else
+            {
+                ecb.AddComponent(profileEntity, record);
+            }
+        }
+
         private void EnsurePolicyOverride(ref EntityCommandBuffer ecb, Entity craftEntity, Entity targetEntity, uint expireTick)
         {
             var overridePolicy = new ModuleTargetPolicyOverride
@@ -574,7 +662,7 @@ namespace Space4X.Systems.AI
         }
 
         private static FixedString128Bytes BuildMercyPayload(Entity craft, Entity pilot, Entity target,
-            bool cultureMatch, bool raceMatch, float goodness, float chance, uint untilTick)
+            bool cultureMatch, bool raceMatch, float goodness, float chance, uint untilTick, bool disciplineApplied, float penalty)
         {
             var writer = new TelemetryJsonWriter();
             writer.AddEntity("craft", craft);
@@ -585,6 +673,8 @@ namespace Space4X.Systems.AI
             writer.AddFloat("good", goodness);
             writer.AddFloat("chance", chance);
             writer.AddUInt("untilTick", untilTick);
+            writer.AddBool("discipline", disciplineApplied);
+            writer.AddFloat("penalty", penalty);
             return writer.Build();
         }
 
