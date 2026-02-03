@@ -59,7 +59,7 @@ namespace Space4X.Runtime
             {
                 RecipeId = new FixedString64Bytes("space4x_ore_to_ingot"),
                 Stage = ProductionStage.Refining,
-                RequiredBusinessType = BusinessType.Blacksmith,
+                RequiredBusinessType = BusinessType.Alchemist,
                 MinTechTier = 1,
                 MinArtisanExpertise = 10,
                 BaseTimeCost = 6.0f,
