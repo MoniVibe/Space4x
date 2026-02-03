@@ -422,13 +422,13 @@ namespace Space4X.Presentation
 
             var anchor = _frameTransformLookup[band.AnchorFrame].PositionWorld;
             var anchorPos = new float3((float)anchor.x, (float)anchor.y, (float)anchor.z);
-            var scale = math.max(0.01f, band.PresentationScale);
-            if (math.abs(scale - 1f) <= 0.0001f)
+            var bandScale = math.max(0.01f, band.PresentationScale);
+            if (math.abs(bandScale - 1f) <= 0.0001f)
             {
                 return position;
             }
 
-            return anchorPos + (position - anchorPos) * scale;
+            return anchorPos + (position - anchorPos) * bandScale;
         }
 
         private void ResolveScaleDefaults(
