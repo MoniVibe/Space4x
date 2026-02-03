@@ -159,10 +159,10 @@ namespace Space4X.Registry
                         {
                             isFriendly = true;
                         }
-                        else if (TryResolveRelationScore(selfFaction, targetFaction, out relationScore, out var stance))
+                        else if (TryResolveRelationScore(selfFaction, targetFaction, out relationScore, out var relationStance))
                         {
-                            isFriendly = IsFriendlyRelation(relationScore, stance);
-                            isHostile = IsHostileRelation(relationScore, stance);
+                            isFriendly = IsFriendlyRelation(relationScore, relationStance);
+                            isHostile = IsHostileRelation(relationScore, relationStance);
                         }
                     }
 
