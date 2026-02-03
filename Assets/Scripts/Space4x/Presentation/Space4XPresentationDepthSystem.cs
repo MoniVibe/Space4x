@@ -348,20 +348,20 @@ namespace Space4X.Presentation
                 var snapshot = _poseSnapshotLookup[entity];
                 if (snapshot.CurrTick == snapshot.PrevTick)
                 {
-                    var renderPosition = ResolveRenderPosition(entity, snapshot.CurrPosition, useBandScale, useRenderFrame, in renderFrame);
+                    var currentPosition = ResolveRenderPosition(entity, snapshot.CurrPosition, useBandScale, useRenderFrame, in renderFrame);
                     return new PoseSample
                     {
-                        Position = renderPosition,
+                        Position = currentPosition,
                         Rotation = snapshot.CurrRotation,
                         Scale = snapshot.CurrScale
                     };
                 }
 
                 var t = math.saturate(alpha);
-                var renderPosition = ResolveRenderPosition(entity, math.lerp(snapshot.PrevPosition, snapshot.CurrPosition, t), useBandScale, useRenderFrame, in renderFrame);
+                var interpolatedPosition = ResolveRenderPosition(entity, math.lerp(snapshot.PrevPosition, snapshot.CurrPosition, t), useBandScale, useRenderFrame, in renderFrame);
                 return new PoseSample
                 {
-                    Position = renderPosition,
+                    Position = interpolatedPosition,
                     Rotation = math.slerp(snapshot.PrevRotation, snapshot.CurrRotation, t),
                     Scale = math.lerp(snapshot.PrevScale, snapshot.CurrScale, t)
                 };
