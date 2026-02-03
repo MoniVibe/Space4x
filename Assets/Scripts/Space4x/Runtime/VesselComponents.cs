@@ -28,7 +28,10 @@ namespace Space4X.Runtime
     public struct VesselTurnRateState : IComponentData
     {
         public float3 SmoothedDirection;
+        public float3 LastDesiredDirection;
         public float LastAngularSpeed;
+        public uint LastDesiredTick;
+        public uint HeadingHoldUntilTick;
         public byte Initialized;
     }
 

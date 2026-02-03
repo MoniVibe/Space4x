@@ -455,6 +455,9 @@ namespace Space4X.Systems.AI
                     turnRateState.Initialized = 1;
                     turnRateState.LastAngularSpeed = 0f;
                     turnRateState.SmoothedDirection = float3.zero;
+                    turnRateState.LastDesiredDirection = float3.zero;
+                    turnRateState.LastDesiredTick = 0;
+                    turnRateState.HeadingHoldUntilTick = 0;
                 }
 
                 if (!IsFinite(transform.Position) || !IsFinite(transform.Rotation.value) || !IsFinite(movement.Velocity))
@@ -1142,6 +1145,21 @@ namespace Space4X.Systems.AI
                     }
                 }
 
+                direction = ApplyHeadingHold(
+                    direction,
+                    math.forward(transform.Rotation),
+                    ref turnRateState,
+                    CurrentTick,
+                    hasDebug ? debugState.LastIntentChangeTick : 0u,
+                    hasDebug ? debugState.LastPlanChangeTick : 0u,
+                    currentSpeed,
+                    baseSpeed,
+                    combatManeuver,
+                    discipline,
+                    intelligence,
+                    pilotStabilityBias,
+                    pilotResponseMultiplier);
+
                 var stabilizedDirection = StabilizeDirection(
                     direction,
                     math.forward(transform.Rotation),
@@ -1703,6 +1721,73 @@ namespace Space4X.Systems.AI
                 smoothed = math.normalizesafe(math.lerp(smoothed, desiredDirection, t), desiredDirection);
                 turnRateState.SmoothedDirection = smoothed;
                 return smoothed;
+            }
+
+            private static float3 ApplyHeadingHold(
+                float3 desiredDirection,
+                float3 fallbackDirection,
+                ref VesselTurnRateState turnRateState,
+                uint currentTick,
+                uint lastIntentTick,
+                uint lastPlanTick,
+                float currentSpeed,
+                float baseSpeed,
+                bool combatManeuver,
+                float discipline,
+                float intelligence,
+                float stabilityBias,
+                float responseMultiplier)
+            {
+                if (math.lengthsq(desiredDirection) < 1e-6f)
+                {
+                    return desiredDirection;
+                }
+
+                var desired = math.normalizesafe(desiredDirection, fallbackDirection);
+                if (math.lengthsq(turnRateState.LastDesiredDirection) < 1e-4f)
+                {
+                    turnRateState.LastDesiredDirection = desired;
+                    turnRateState.LastDesiredTick = currentTick;
+                    return desired;
+                }
+
+                var speedFactor = math.saturate(currentSpeed / math.max(0.1f, baseSpeed));
+                var stability = math.saturate(discipline * 0.6f + intelligence * 0.4f);
+                stability = math.saturate(stability * math.max(0.1f, stabilityBias));
+                var holdTicks = (uint)math.clamp(math.round(math.lerp(4f, 10f, stability)), 3f, 12f);
+                if (combatManeuver)
+                {
+                    holdTicks = (uint)math.clamp(holdTicks - 1u, 2u, 10u);
+                }
+
+                var recentIntent = currentTick > lastIntentTick && currentTick - lastIntentTick <= 2u;
+                var recentPlan = currentTick > lastPlanTick && currentTick - lastPlanTick <= 2u;
+                if (!recentIntent && !recentPlan && speedFactor > 0.2f)
+                {
+                    var dot = math.clamp(math.dot(turnRateState.LastDesiredDirection, desired), -1f, 1f);
+                    var angle = math.acos(dot);
+                    var angleThreshold = math.lerp(0.55f, 0.9f, math.saturate(responseMultiplier));
+                    if (angle > angleThreshold)
+                    {
+                        if (turnRateState.HeadingHoldUntilTick == 0 || currentTick >= turnRateState.HeadingHoldUntilTick)
+                        {
+                            turnRateState.HeadingHoldUntilTick = currentTick + holdTicks;
+                        }
+
+                        if (currentTick < turnRateState.HeadingHoldUntilTick)
+                        {
+                            return turnRateState.LastDesiredDirection;
+                        }
+                    }
+                    else if (turnRateState.HeadingHoldUntilTick != 0 && currentTick >= turnRateState.HeadingHoldUntilTick)
+                    {
+                        turnRateState.HeadingHoldUntilTick = 0;
+                    }
+                }
+
+                turnRateState.LastDesiredDirection = desired;
+                turnRateState.LastDesiredTick = currentTick;
+                return desired;
             }
 
             private float3 AvoidThreats(float3 desiredDirection, float3 position, float avoidanceRadius, float avoidanceStrength)
