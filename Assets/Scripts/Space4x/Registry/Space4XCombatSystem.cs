@@ -574,6 +574,7 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XNormalizedIndividualStats> _normalizedStatsLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<PhysiqueFinesseWill> _physiqueLookup;
+        private ComponentLookup<Space4XOrbitalBandState> _orbitalBandLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private BufferLookup<DamageScarEvent> _scarLookup;
@@ -604,6 +605,7 @@ namespace Space4X.Registry
             _normalizedStatsLookup = state.GetComponentLookup<Space4XNormalizedIndividualStats>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _physiqueLookup = state.GetComponentLookup<PhysiqueFinesseWill>(true);
+            _orbitalBandLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(false);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(false);
             _scarLookup = state.GetBufferLookup<DamageScarEvent>(false);
@@ -648,6 +650,7 @@ namespace Space4X.Registry
             _normalizedStatsLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _physiqueLookup.Update(ref state);
+            _orbitalBandLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
             _scarLookup.Update(ref state);
@@ -699,6 +702,7 @@ namespace Space4X.Registry
                 var attackerVelocity = _movementLookup.HasComponent(entity) ? _movementLookup[entity].Velocity : float3.zero;
                 var targetVelocity = _movementLookup.HasComponent(target) ? _movementLookup[target].Velocity : float3.zero;
                 var relativeVelocity = targetVelocity - attackerVelocity;
+                var rangeScale = ResolveRangeScale(entity);
 
                 // Process weapons that just fired (cooldown == max)
                 for (int i = 0; i < weapons.Length; i++)
@@ -1008,6 +1012,20 @@ namespace Space4X.Registry
             var maxScale = math.max(minScale, tuning.TrackingPenaltyMaxScale);
             var skillFactor = math.lerp(basePenalty * maxScale, basePenalty * minScale, math.saturate(gunnerySkill));
             return math.saturate(1f - omega * skillFactor);
+        }
+
+        private float ResolveRangeScale(Entity entity)
+        {
+            if (_orbitalBandLookup.HasComponent(entity))
+            {
+                var band = _orbitalBandLookup[entity];
+                if (band.InBand != 0)
+                {
+                    return math.max(0.01f, band.RangeScale);
+                }
+            }
+
+            return 1f;
         }
 
         private void ApplySubsystemDamage(Entity target, Entity source, in Space4XWeapon weapon, float hullDamage, bool isCritical, uint tick)
