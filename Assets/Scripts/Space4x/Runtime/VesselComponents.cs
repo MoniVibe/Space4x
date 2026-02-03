@@ -29,9 +29,13 @@ namespace Space4X.Runtime
     {
         public float3 SmoothedDirection;
         public float3 LastDesiredDirection;
+        public float3 AttackRunDirection;
         public float LastAngularSpeed;
         public uint LastDesiredTick;
         public uint HeadingHoldUntilTick;
+        public uint AttackRunCommitUntilTick;
+        public uint AttackRunCooldownUntilTick;
+        public Entity AttackRunTarget;
         public byte Initialized;
     }
 

@@ -24,6 +24,14 @@ namespace Space4X.Authoring
         [SerializeField, Min(0f)] private float transitionMinSeconds = 0.5f;
         [SerializeField, Min(0f)] private float transitionMaxSeconds = 1.5f;
 
+        [Header("Movement - Attack Runs")]
+        [SerializeField, Min(0f)] private float attackRunStartRangeScale = 1.1f;
+        [SerializeField, Range(0f, 1f)] private float attackRunMinBias = 0.25f;
+        [SerializeField, Min(0f)] private float attackRunCommitSeconds = 1.6f;
+        [SerializeField, Min(0f)] private float attackRunCooldownSeconds = 2.2f;
+        [SerializeField, Min(0f)] private float attackRunSpeedMinScale = 0.85f;
+        [SerializeField, Min(0f)] private float attackRunSpeedMaxScale = 1.15f;
+
         [Header("Combat - Gunnery Weights")]
         [SerializeField, Range(0f, 1f)] private float gunneryTacticsWeight = 0.45f;
         [SerializeField, Range(0f, 1f)] private float gunneryFinesseWeight = 0.35f;
@@ -48,6 +56,13 @@ namespace Space4X.Authoring
             combatTurnMultiplier = math.max(0f, combatTurnMultiplier);
             transitionMinSeconds = math.max(0f, transitionMinSeconds);
             transitionMaxSeconds = math.max(transitionMinSeconds, transitionMaxSeconds);
+
+            attackRunStartRangeScale = math.max(0f, attackRunStartRangeScale);
+            attackRunMinBias = math.clamp(attackRunMinBias, 0f, 1f);
+            attackRunCommitSeconds = math.max(0f, attackRunCommitSeconds);
+            attackRunCooldownSeconds = math.max(attackRunCommitSeconds, attackRunCooldownSeconds);
+            attackRunSpeedMinScale = math.max(0f, attackRunSpeedMinScale);
+            attackRunSpeedMaxScale = math.max(attackRunSpeedMinScale, attackRunSpeedMaxScale);
 
             gunneryTacticsWeight = math.clamp(gunneryTacticsWeight, 0f, 1f);
             gunneryFinesseWeight = math.clamp(gunneryFinesseWeight, 0f, 1f);
@@ -75,6 +90,12 @@ namespace Space4X.Authoring
                 movement.CombatTurnMultiplier = math.max(0f, authoring.combatTurnMultiplier);
                 movement.TransitionMinSeconds = math.max(0f, authoring.transitionMinSeconds);
                 movement.TransitionMaxSeconds = math.max(movement.TransitionMinSeconds, authoring.transitionMaxSeconds);
+                movement.AttackRunStartRangeScale = math.max(0f, authoring.attackRunStartRangeScale);
+                movement.AttackRunMinBias = math.clamp(authoring.attackRunMinBias, 0f, 1f);
+                movement.AttackRunCommitSeconds = math.max(0f, authoring.attackRunCommitSeconds);
+                movement.AttackRunCooldownSeconds = math.max(movement.AttackRunCommitSeconds, authoring.attackRunCooldownSeconds);
+                movement.AttackRunSpeedMinScale = math.max(0f, authoring.attackRunSpeedMinScale);
+                movement.AttackRunSpeedMaxScale = math.max(movement.AttackRunSpeedMinScale, authoring.attackRunSpeedMaxScale);
 
                 var combat = Space4XCombatTuningConfig.Default;
                 combat.GunneryTacticsWeight = math.clamp(authoring.gunneryTacticsWeight, 0f, 1f);

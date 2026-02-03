@@ -21,6 +21,12 @@ namespace Space4X.Runtime
         public float CombatTurnMultiplier;
         public float TransitionMinSeconds;
         public float TransitionMaxSeconds;
+        public float AttackRunStartRangeScale;
+        public float AttackRunMinBias;
+        public float AttackRunCommitSeconds;
+        public float AttackRunCooldownSeconds;
+        public float AttackRunSpeedMinScale;
+        public float AttackRunSpeedMaxScale;
 
         public static Space4XMovementTuningConfig Default => new Space4XMovementTuningConfig
         {
@@ -32,7 +38,13 @@ namespace Space4X.Runtime
             CombatAccelMultiplier = 1.1f,
             CombatTurnMultiplier = 1.1f,
             TransitionMinSeconds = 0.5f,
-            TransitionMaxSeconds = 1.5f
+            TransitionMaxSeconds = 1.5f,
+            AttackRunStartRangeScale = 1.1f,
+            AttackRunMinBias = 0.25f,
+            AttackRunCommitSeconds = 1.6f,
+            AttackRunCooldownSeconds = 2.2f,
+            AttackRunSpeedMinScale = 0.85f,
+            AttackRunSpeedMaxScale = 1.15f
         };
     }
 

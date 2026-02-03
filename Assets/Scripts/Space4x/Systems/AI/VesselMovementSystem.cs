@@ -300,6 +300,11 @@ namespace Space4X.Systems.AI
             {
                 inertiaConfig = inertiaConfigSingleton;
             }
+            var movementTuning = Space4XMovementTuningConfig.Default;
+            if (SystemAPI.TryGetSingleton<Space4XMovementTuningConfig>(out var movementTuningSingleton))
+            {
+                movementTuning = movementTuningSingleton;
+            }
 
             var job = new UpdateVesselMovementJob
             {
@@ -310,6 +315,7 @@ namespace Space4X.Systems.AI
                 MotionConfig = motionConfig,
                 StanceConfig = stanceConfig,
                 InertiaConfig = inertiaConfig,
+                MovementTuning = movementTuning,
                 RoleNavigationOfficer = _roleNavigationOfficer,
                 RoleShipmaster = _roleShipmaster,
                 RoleCaptain = _roleCaptain,
@@ -383,6 +389,7 @@ namespace Space4X.Systems.AI
             public VesselMotionProfileConfig MotionConfig;
             public Space4XStanceTuningConfig StanceConfig;
             public Space4XMovementInertiaConfig InertiaConfig;
+            public Space4XMovementTuningConfig MovementTuning;
             public FixedString64Bytes RoleNavigationOfficer;
             public FixedString64Bytes RoleShipmaster;
             public FixedString64Bytes RoleCaptain;
@@ -456,8 +463,12 @@ namespace Space4X.Systems.AI
                     turnRateState.LastAngularSpeed = 0f;
                     turnRateState.SmoothedDirection = float3.zero;
                     turnRateState.LastDesiredDirection = float3.zero;
+                    turnRateState.AttackRunDirection = float3.zero;
                     turnRateState.LastDesiredTick = 0;
                     turnRateState.HeadingHoldUntilTick = 0;
+                    turnRateState.AttackRunCommitUntilTick = 0;
+                    turnRateState.AttackRunCooldownUntilTick = 0;
+                    turnRateState.AttackRunTarget = Entity.Null;
                 }
 
                 if (!IsFinite(transform.Position) || !IsFinite(transform.Rotation.value) || !IsFinite(movement.Velocity))
@@ -858,8 +869,8 @@ namespace Space4X.Systems.AI
                 var commandBias = ResolveCommandApproachBias(entity);
                 if (!forceHold && !noTarget)
                 {
-                    if (TryResolveCombatManeuver(entity, aiState, hasAttackMove, attackMove, transform, stanceConfig, pilotMastery,
-                            navigationCohesion, commandBias, out var combatDirection, out var maneuverSpeedScale))
+                    if (TryResolveCombatManeuver(entity, aiState, hasAttackMove, attackMove, transform, stanceConfig, ref turnRateState,
+                            pilotMastery, navigationCohesion, commandBias, out var combatDirection, out var maneuverSpeedScale))
                     {
                         direction = combatDirection;
                         combatSpeedScale = maneuverSpeedScale;
@@ -1429,6 +1440,7 @@ namespace Space4X.Systems.AI
                 in AttackMoveIntent attackMove,
                 in LocalTransform transform,
                 in StanceTuningEntry stance,
+                ref VesselTurnRateState turnRateState,
                 float pilotMastery,
                 float navigationCohesion,
                 float commandBias,
@@ -1548,6 +1560,61 @@ namespace Space4X.Systems.AI
                 desiredRange *= math.lerp(1.05f, 0.9f, commandApproach);
 
                 var toTargetDir = toTarget / distance;
+                var attackRunBias = math.saturate(pilotMastery * 0.6f + commandBias * 0.4f);
+                attackRunBias = math.saturate(attackRunBias * math.lerp(0.85f, 1.1f, navigationCohesion));
+                if (turnRateState.AttackRunTarget != Entity.Null && turnRateState.AttackRunTarget != combatTarget)
+                {
+                    turnRateState.AttackRunCommitUntilTick = 0;
+                    turnRateState.AttackRunCooldownUntilTick = 0;
+                    turnRateState.AttackRunTarget = Entity.Null;
+                }
+                if (turnRateState.AttackRunCommitUntilTick != 0)
+                {
+                    if (turnRateState.AttackRunTarget != combatTarget || CurrentTick >= turnRateState.AttackRunCommitUntilTick)
+                    {
+                        turnRateState.AttackRunCommitUntilTick = 0;
+                    }
+                }
+
+                if (turnRateState.AttackRunCommitUntilTick != 0 && CurrentTick < turnRateState.AttackRunCommitUntilTick)
+                {
+                    if (turnRateState.AttackRunTarget == combatTarget && distance <= contactRange * 2.2f)
+                    {
+                        combatDirection = math.normalizesafe(turnRateState.AttackRunDirection, toTargetDir);
+                        speedScale = ResolveAttackRunSpeedScale(attackRunBias, navigationCohesion);
+                        return true;
+                    }
+
+                    turnRateState.AttackRunCommitUntilTick = 0;
+                }
+
+                if (CurrentTick >= turnRateState.AttackRunCooldownUntilTick)
+                {
+                    var minBias = math.saturate(MovementTuning.AttackRunMinBias);
+                    if (attackRunBias >= minBias)
+                    {
+                        var startRangeScale = math.max(0.1f, MovementTuning.AttackRunStartRangeScale);
+                        var minRange = desiredRange * 0.35f;
+                        var startRange = desiredRange * startRangeScale;
+                        if (distance <= startRange && distance >= minRange)
+                        {
+                            var dt = math.max(1e-4f, DeltaTime);
+                            var commitSeconds = math.max(0.05f, MovementTuning.AttackRunCommitSeconds);
+                            var cooldownSeconds = math.max(commitSeconds, MovementTuning.AttackRunCooldownSeconds);
+                            var commitTicks = (uint)math.max(1f, math.round(commitSeconds / dt));
+                            var cooldownTicks = (uint)math.max(commitTicks, math.round(cooldownSeconds / dt));
+
+                            turnRateState.AttackRunDirection = toTargetDir;
+                            turnRateState.AttackRunCommitUntilTick = CurrentTick + commitTicks;
+                            turnRateState.AttackRunCooldownUntilTick = CurrentTick + cooldownTicks;
+                            turnRateState.AttackRunTarget = combatTarget;
+
+                            combatDirection = toTargetDir;
+                            speedScale = ResolveAttackRunSpeedScale(attackRunBias, navigationCohesion);
+                            return true;
+                        }
+                    }
+                }
                 var rangeError = distance - desiredRange;
                 var radialDir = rangeError >= 0f ? toTargetDir : -toTargetDir;
 
@@ -1576,6 +1643,15 @@ namespace Space4X.Systems.AI
                 speedScale *= math.lerp(1f, 0.6f, closeT);
                 speedScale = math.clamp(speedScale, 0.25f, 1.1f);
                 return true;
+            }
+
+            private float ResolveAttackRunSpeedScale(float bias, float navigationCohesion)
+            {
+                var minScale = math.max(0.05f, MovementTuning.AttackRunSpeedMinScale);
+                var maxScale = math.max(minScale, MovementTuning.AttackRunSpeedMaxScale);
+                var scale = math.lerp(minScale, maxScale, math.saturate(bias));
+                scale *= math.lerp(0.95f, 1.05f, math.saturate(navigationCohesion));
+                return math.clamp(scale, 0.2f, 1.25f);
             }
 
             private bool TryResolveWeaponRangeProfile(Entity entity, out float maxRange, out float optimalRange)
