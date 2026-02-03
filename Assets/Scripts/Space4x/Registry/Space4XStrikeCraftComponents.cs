@@ -368,12 +368,14 @@ namespace Space4X.Registry
         public float RecognitionRange;
         public float CultureRecognitionChance;
         public float RaceRecognitionChance;
+        public float PersonalRecognitionChance;
         public float MercyGoodThreshold;
         public float MercySuppressMinChance;
         public float MercySuppressMaxChance;
         public float MercyLoyaltyPenalty;
         public sbyte HostileRelationThreshold;
         public byte RequireHostileRelation;
+        public sbyte PersonalRelationThreshold;
 
         public static StrikeCraftRecognitionConfig Default => new StrikeCraftRecognitionConfig
         {
@@ -382,12 +384,14 @@ namespace Space4X.Registry
             RecognitionRange = 250f,
             CultureRecognitionChance = 0.55f,
             RaceRecognitionChance = 0.35f,
+            PersonalRecognitionChance = 0.8f,
             MercyGoodThreshold = 0.55f,
             MercySuppressMinChance = 0.4f,
             MercySuppressMaxChance = 0.85f,
             MercyLoyaltyPenalty = 0.03f,
             HostileRelationThreshold = -25,
-            RequireHostileRelation = 1
+            RequireHostileRelation = 1,
+            PersonalRelationThreshold = 20
         };
     }
 

@@ -29,6 +29,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<CultureId> _cultureLookup;
         private ComponentLookup<RaceId> _raceLookup;
         private ComponentLookup<StrikeCraftFireDiscipline> _fireDisciplineLookup;
+        private BufferLookup<PersonalRelationEntry> _personalRelationLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<Space4XFaction> _factionLookup;
@@ -54,6 +55,7 @@ namespace Space4X.Systems.AI
             _cultureLookup = state.GetComponentLookup<CultureId>(true);
             _raceLookup = state.GetComponentLookup<RaceId>(true);
             _fireDisciplineLookup = state.GetComponentLookup<StrikeCraftFireDiscipline>(true);
+            _personalRelationLookup = state.GetBufferLookup<PersonalRelationEntry>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(false);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
@@ -85,6 +87,7 @@ namespace Space4X.Systems.AI
             _cultureLookup.Update(ref state);
             _raceLookup.Update(ref state);
             _fireDisciplineLookup.Update(ref state);
+            _personalRelationLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _factionLookup.Update(ref state);
@@ -187,7 +190,8 @@ namespace Space4X.Systems.AI
 
                 var cultureMatch = TryResolveCultureMatch(selfProfile, targetProfile);
                 var raceMatch = TryResolveRaceMatch(selfProfile, targetProfile);
-                if (!cultureMatch && !raceMatch)
+                var hasPersonalRelation = TryResolvePersonalRelation(selfProfile, targetProfile, out var relationScore, out var relationKind);
+                if (!cultureMatch && !raceMatch && !hasPersonalRelation)
                 {
                     continue;
                 }
@@ -200,6 +204,10 @@ namespace Space4X.Systems.AI
                 if (raceMatch)
                 {
                     baseChance = math.max(baseChance, config.RaceRecognitionChance);
+                }
+                if (hasPersonalRelation && relationScore >= config.PersonalRelationThreshold)
+                {
+                    baseChance = math.max(baseChance, config.PersonalRecognitionChance);
                 }
 
                 if (baseChance <= 0f)
@@ -246,8 +254,8 @@ namespace Space4X.Systems.AI
                 if (emitTelemetry)
                 {
                     eventBuffer.AddEvent(_eventMercyStarted, currentTick, _sourceId,
-                        BuildMercyPayload(entity, mercyProfile, targetEntity, cultureMatch, raceMatch, goodness, chance,
-                            mercyUntil, disciplineApplied, penaltyApplied));
+                        BuildMercyPayload(entity, mercyProfile, targetEntity, cultureMatch, raceMatch, hasPersonalRelation,
+                            relationScore, relationKind, goodness, chance, mercyUntil, disciplineApplied, penaltyApplied));
                 }
             }
 
@@ -339,6 +347,44 @@ namespace Space4X.Systems.AI
             }
 
             return 0.5f;
+        }
+
+        private bool TryResolvePersonalRelation(Entity self, Entity other, out sbyte score, out PersonalRelationKind kind)
+        {
+            score = 0;
+            kind = PersonalRelationKind.None;
+
+            if (self != Entity.Null && _personalRelationLookup.HasBuffer(self))
+            {
+                var relations = _personalRelationLookup[self];
+                for (int i = 0; i < relations.Length; i++)
+                {
+                    var relation = relations[i];
+                    if (relation.Other == other)
+                    {
+                        score = relation.Score;
+                        kind = relation.Kind;
+                        return true;
+                    }
+                }
+            }
+
+            if (other != Entity.Null && _personalRelationLookup.HasBuffer(other))
+            {
+                var relations = _personalRelationLookup[other];
+                for (int i = 0; i < relations.Length; i++)
+                {
+                    var relation = relations[i];
+                    if (relation.Other == self)
+                    {
+                        score = relation.Score;
+                        kind = relation.Kind;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private float ResolveRecognitionSkill(Entity profileEntity, Entity craftEntity)
@@ -662,7 +708,8 @@ namespace Space4X.Systems.AI
         }
 
         private static FixedString128Bytes BuildMercyPayload(Entity craft, Entity pilot, Entity target,
-            bool cultureMatch, bool raceMatch, float goodness, float chance, uint untilTick, bool disciplineApplied, float penalty)
+            bool cultureMatch, bool raceMatch, bool personalMatch, sbyte relationScore, PersonalRelationKind relationKind,
+            float goodness, float chance, uint untilTick, bool disciplineApplied, float penalty)
         {
             var writer = new TelemetryJsonWriter();
             writer.AddEntity("craft", craft);
@@ -670,6 +717,9 @@ namespace Space4X.Systems.AI
             writer.AddEntity("target", target);
             writer.AddBool("culture", cultureMatch);
             writer.AddBool("race", raceMatch);
+            writer.AddBool("personal", personalMatch);
+            writer.AddInt("relationScore", relationScore);
+            writer.AddInt("relationKind", (int)relationKind);
             writer.AddFloat("good", goodness);
             writer.AddFloat("chance", chance);
             writer.AddUInt("untilTick", untilTick);
