@@ -36,6 +36,7 @@ namespace Space4X.Systems.AI
         private BufferLookup<DiplomaticStatusEntry> _diplomaticStatusLookup;
         private BufferLookup<FactionRelationEntry> _factionRelationLookup;
         private ComponentLookup<ModuleTargetPolicyOverride> _policyOverrideLookup;
+        private ComponentLookup<DisciplinaryRecord> _disciplinaryLookup;
         private EntityStorageInfoLookup _entityLookup;
         private FixedString64Bytes _sourceId;
         private FixedString64Bytes _eventMercyStarted;
@@ -62,6 +63,7 @@ namespace Space4X.Systems.AI
             _diplomaticStatusLookup = state.GetBufferLookup<DiplomaticStatusEntry>(true);
             _factionRelationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
             _policyOverrideLookup = state.GetComponentLookup<ModuleTargetPolicyOverride>(true);
+            _disciplinaryLookup = state.GetComponentLookup<DisciplinaryRecord>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
             _sourceId = new FixedString64Bytes("Space4X.StrikeCraft");
             _eventMercyStarted = new FixedString64Bytes("RecognitionMercy");
@@ -94,6 +96,7 @@ namespace Space4X.Systems.AI
             _diplomaticStatusLookup.Update(ref state);
             _factionRelationLookup.Update(ref state);
             _policyOverrideLookup.Update(ref state);
+            _disciplinaryLookup.Update(ref state);
             _entityLookup.Update(ref state);
 
             var config = StrikeCraftRecognitionConfig.Default;
@@ -655,7 +658,7 @@ namespace Space4X.Systems.AI
                 Tick = tick
             };
 
-            if (SystemAPI.HasComponent<DisciplinaryRecord>(profileEntity))
+            if (_disciplinaryLookup.HasComponent(profileEntity))
             {
                 ecb.SetComponent(profileEntity, record);
             }
