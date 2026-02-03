@@ -1518,6 +1518,16 @@ namespace Space4X.Systems.AI
                     return false;
                 }
 
+                var bandRangeScale = 1f;
+                if (OrbitalBandLookup.HasComponent(entity))
+                {
+                    var band = OrbitalBandLookup[entity];
+                    if (band.InBand != 0)
+                    {
+                        bandRangeScale = math.max(0.01f, band.RangeScale);
+                    }
+                }
+
                 Entity combatTarget = Entity.Null;
                 if (AimDirectiveLookup.HasComponent(entity))
                 {
