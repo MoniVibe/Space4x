@@ -19,6 +19,9 @@ namespace Space4X.Mining
     /// <summary>
     /// Hardened mining system for Space4X vessels with robust state machine and physics disruption handling.
     /// Integrates with PureDOTS mining components for cross-game compatibility.
+    /// Intent note: current MVP is numeric bite + direct transfer. Future presentation slice
+    /// will shift to mesh-embedded deposits, bite volumes, and pickup/hauler loops. See
+    /// Docs/resource_extraction_intent.md for the full target behavior.
     /// </summary>
     // [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
