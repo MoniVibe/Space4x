@@ -374,7 +374,8 @@ namespace Space4X.Headless
 
             var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
             return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
-                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
+                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase);
         }
 
         private void LogBankResult(ref SystemState state, FixedString64Bytes testId, bool pass, string reason, uint tick)

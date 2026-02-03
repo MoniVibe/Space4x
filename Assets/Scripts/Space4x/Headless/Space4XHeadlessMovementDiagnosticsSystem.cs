@@ -572,7 +572,8 @@ namespace Space4X.Headless
 
             var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
             return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
-                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
+                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase);
         }
 
         private void WriteInvariantBundle(ref SystemState state, uint tick, float worldSeconds, uint failNaN, uint failStuck, uint failSpike, uint failTurnRate, uint failTurnAccel, Entity nanOffender, Entity stuckOffender, Entity speedOffender, Entity turnRateOffender, Entity turnAccelOffender)

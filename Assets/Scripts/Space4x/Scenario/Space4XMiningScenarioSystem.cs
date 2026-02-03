@@ -316,13 +316,15 @@ namespace Space4x.Scenario
             var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
             if (!string.IsNullOrWhiteSpace(scenarioName) &&
                 (scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase)
-                 || scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase)))
+                 || scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase)
+                 || scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
 
             var scenarioId = scenarioInfo.ScenarioId.ToString();
-            if (scenarioId.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase))
+            if (scenarioId.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                scenarioId.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
