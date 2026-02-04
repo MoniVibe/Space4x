@@ -117,7 +117,8 @@ namespace Space4X.Systems.Economy
                          .WithAll<Carrier>()
                          .WithEntityAccess())
             {
-                if (storage.Length == 0)
+                var storageBuffer = storage;
+                if (storageBuffer.Length == 0)
                 {
                     continue;
                 }
@@ -132,9 +133,9 @@ namespace Space4X.Systems.Economy
                 var remaining = transferBudget;
                 var updated = false;
 
-                for (int i = 0; i < storage.Length && remaining > 1e-4f; i++)
+                for (int i = 0; i < storageBuffer.Length && remaining > 1e-4f; i++)
                 {
-                    var slot = storage[i];
+                    var slot = storageBuffer[i];
                     if (slot.Amount <= 1e-4f)
                     {
                         continue;
@@ -152,7 +153,7 @@ namespace Space4X.Systems.Economy
                     }
 
                     slot.Amount -= transfer;
-                    storage[i] = slot;
+                    storageBuffer[i] = slot;
                     remaining -= transfer;
                     updated = true;
                     exportedTotal += transfer;
