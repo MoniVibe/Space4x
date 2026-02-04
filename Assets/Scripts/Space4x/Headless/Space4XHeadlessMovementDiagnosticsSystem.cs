@@ -496,13 +496,19 @@ namespace Space4X.Headless
                 // Fall back to the generic runner env var used by headless scripts.
                 scenarioPath = SystemEnv.GetEnvironmentVariable("SCENARIO_PATH");
             }
-            if (string.IsNullOrWhiteSpace(scenarioPath))
+            var scenarioId = string.Empty;
+            if (string.IsNullOrWhiteSpace(scenarioPath) && SystemAPI.TryGetSingleton(out ScenarioInfo scenarioInfo))
+            {
+                scenarioId = scenarioInfo.ScenarioId.ToString();
+            }
+            if (string.IsNullOrWhiteSpace(scenarioPath) && string.IsNullOrWhiteSpace(scenarioId))
             {
                 return;
             }
 
             _scenarioResolved = true;
-            if (scenarioPath.EndsWith(CollisionScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(scenarioPath) &&
+                scenarioPath.EndsWith(CollisionScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
                 _ignoreStuckFailures = true;
                 _ignoreTeleportFailures = true;
@@ -510,21 +516,28 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (scenarioPath.EndsWith(SensorsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
-                scenarioPath.EndsWith(CommsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
-                scenarioPath.EndsWith(CommsBlockedScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 (scenarioPath.EndsWith(SensorsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(CommsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(CommsBlockedScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
+                ScenarioIdMatches(scenarioId, SensorsScenarioFile) ||
+                ScenarioIdMatches(scenarioId, CommsScenarioFile) ||
+                ScenarioIdMatches(scenarioId, CommsBlockedScenarioFile))
             {
                 _ignoreTurnFailures = true;
                 return;
             }
 
-            if (scenarioPath.EndsWith(TurnrateScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 scenarioPath.EndsWith(TurnrateScenarioFile, StringComparison.OrdinalIgnoreCase)) ||
+                ScenarioIdMatches(scenarioId, TurnrateScenarioFile))
             {
                 _deferTurnFailures = true;
                 return;
             }
 
-            if (IsSmokeScenarioPath(scenarioPath))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) && IsSmokeScenarioPath(scenarioPath)) ||
+                IsSmokeScenarioId(scenarioId))
             {
                 // Smoke mining undock/approach can trip stuck counters before latch; skip stuck failures there.
                 _ignoreStuckFailures = true;
@@ -535,8 +548,11 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (scenarioPath.EndsWith(MiningScenarioFile, StringComparison.OrdinalIgnoreCase) ||
-                scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 (scenarioPath.EndsWith(MiningScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
+                ScenarioIdMatches(scenarioId, MiningScenarioFile) ||
+                ScenarioIdMatches(scenarioId, MiningCombatScenarioFile))
             {
                 // Mining scenarios can have acceptable teleports during approach/retargeting.
                 _ignoreTeleportFailures = true;
@@ -545,7 +561,9 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (scenarioPath.EndsWith(MiningMicroScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 scenarioPath.EndsWith(MiningMicroScenarioFile, StringComparison.OrdinalIgnoreCase)) ||
+                ScenarioIdMatches(scenarioId, MiningMicroScenarioFile))
             {
                 // Mining micro focuses on progress gating, not movement spike detection.
                 _ignoreTeleportFailures = true;
@@ -555,8 +573,11 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
-                scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
+                ScenarioIdMatches(scenarioId, RefitScenarioFile) ||
+                ScenarioIdMatches(scenarioId, ResearchScenarioFile))
             {
                 // Refit/research focus on module loops; ignore stuck spikes to keep telemetry flowing.
                 _ignoreStuckFailures = true;
@@ -574,6 +595,29 @@ namespace Space4X.Headless
             return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
                    scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase) ||
                    scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsSmokeScenarioId(string scenarioId)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                return false;
+            }
+
+            return scenarioId.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioId.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioId.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ScenarioIdMatches(string scenarioId, string scenarioFile)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                return false;
+            }
+
+            var fileId = Path.GetFileNameWithoutExtension(scenarioFile);
+            return scenarioId.Equals(fileId, StringComparison.OrdinalIgnoreCase);
         }
 
         private void WriteInvariantBundle(ref SystemState state, uint tick, float worldSeconds, uint failNaN, uint failStuck, uint failSpike, uint failTurnRate, uint failTurnAccel, Entity nanOffender, Entity stuckOffender, Entity speedOffender, Entity turnRateOffender, Entity turnAccelOffender)
