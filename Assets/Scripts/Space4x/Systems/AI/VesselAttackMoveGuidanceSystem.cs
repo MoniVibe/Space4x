@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Steering;
 using PureDOTS.Systems;
 using Space4X.Registry;
@@ -25,6 +26,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<TargetPriority> _priorityLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
+        private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
@@ -53,6 +55,7 @@ namespace Space4X.Systems.AI
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
@@ -174,6 +177,7 @@ namespace Space4X.Systems.AI
             _priorityLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _pilotLookup.Update(ref state);
+            _pilotProficiencyLookup.Update(ref state);
             _seatRefLookup.Update(ref state);
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
@@ -266,14 +270,7 @@ namespace Space4X.Systems.AI
                     aimTarget = Entity.Null;
                 }
 
-                if (_aimLookup.HasComponent(entity))
-                {
-                    var directive = _aimLookup[entity];
-                    directive.AimDirection = aimDir;
-                    directive.AimWeight = aimWeight;
-                    directive.AimTarget = aimTarget;
-                    _aimLookup[entity] = directive;
-                }
+                UpdateAimDirective(entity, aimDir, aimWeight, aimTarget, facingSkill, timeState);
 
                 aiState.ValueRW.TargetEntity = aimTarget;
             }
@@ -325,14 +322,7 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                if (_aimLookup.HasComponent(entity))
-                {
-                    var directive = _aimLookup[entity];
-                    directive.AimDirection = aimDir;
-                    directive.AimWeight = math.saturate(aimWeight);
-                    directive.AimTarget = aimTarget;
-                    _aimLookup[entity] = directive;
-                }
+                UpdateAimDirective(entity, aimDir, math.saturate(aimWeight), aimTarget, facingSkill, timeState);
             }
         }
 
@@ -569,6 +559,72 @@ namespace Space4X.Systems.AI
             var weaponsCoordination = math.saturate(weaponsSkill * 0.55f + combatCohesion * 0.45f);
             var skill = 0.3f + 0.4f * navigationSkill + 0.3f * weaponsCoordination;
             return math.saturate(skill);
+        }
+
+        private void UpdateAimDirective(
+            Entity entity,
+            float3 aimDirection,
+            float aimWeight,
+            Entity aimTarget,
+            float facingSkill,
+            in TimeState timeState)
+        {
+            if (!_aimLookup.HasComponent(entity))
+            {
+                return;
+            }
+
+            var aim = _aimLookup[entity];
+            var response = ResolveAimResponse(entity, facingSkill);
+            var smoothFactor = math.saturate(math.lerp(0.2f, 0.85f, response));
+            var dt = math.max(1e-4f, timeState.FixedDeltaTime);
+            var step = math.saturate(dt * math.lerp(2.2f, 6f, smoothFactor));
+            if (aimWeight <= 0f)
+            {
+                step = math.max(step, math.saturate(dt * 5f));
+            }
+
+            var reset = aim.LastUpdateTick == 0 ||
+                        aim.AimTarget != aimTarget ||
+                        math.lengthsq(aim.SmoothedDirection) < 1e-4f;
+            if (reset)
+            {
+                aim.SmoothedDirection = aimDirection;
+                aim.SmoothedWeight = aimWeight;
+            }
+            else
+            {
+                var smoothedDir = math.normalizesafe(
+                    math.lerp(aim.SmoothedDirection, aimDirection, step),
+                    aimDirection);
+                aim.SmoothedDirection = smoothedDir;
+                aim.SmoothedWeight = math.lerp(aim.SmoothedWeight, aimWeight, step);
+            }
+
+            aim.AimDirection = aimDirection;
+            aim.AimWeight = aimWeight;
+            aim.AimTarget = aimTarget;
+            aim.LastUpdateTick = timeState.Tick;
+            _aimLookup[entity] = aim;
+        }
+
+        private float ResolveAimResponse(Entity entity, float facingSkill)
+        {
+            var response = math.saturate(facingSkill);
+            var reaction = 0.5f;
+
+            if (_pilotLookup.HasComponent(entity))
+            {
+                var pilot = _pilotLookup[entity].Pilot;
+                if (pilot != Entity.Null && _pilotProficiencyLookup.HasComponent(pilot))
+                {
+                    var proficiency = _pilotProficiencyLookup[pilot];
+                    var reactionSec = math.clamp(proficiency.ReactionSec, 0.1f, 1.2f);
+                    reaction = math.saturate((1.2f - reactionSec) / 1.1f);
+                }
+            }
+
+            return math.saturate(response * 0.55f + reaction * 0.45f);
         }
 
         private float ResolveNavigationSkill(Entity entity)

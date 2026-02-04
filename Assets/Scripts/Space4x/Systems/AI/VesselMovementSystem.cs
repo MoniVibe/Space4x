@@ -1369,9 +1369,16 @@ namespace Space4X.Systems.AI
                     if (AimDirectiveLookup.HasComponent(entity))
                     {
                         var aim = AimDirectiveLookup[entity];
-                        if (aim.AimWeight > 0f && math.lengthsq(aim.AimDirection) > 0.001f)
+                        var aimDirection = aim.AimDirection;
+                        var aimWeight = aim.AimWeight;
+                        if (aim.SmoothedWeight > 0f && math.lengthsq(aim.SmoothedDirection) > 0.001f)
                         {
-                            rotationDirection = math.normalizesafe(math.lerp(direction, aim.AimDirection, aim.AimWeight), direction);
+                            aimDirection = aim.SmoothedDirection;
+                            aimWeight = aim.SmoothedWeight;
+                        }
+                        if (aimWeight > 0f && math.lengthsq(aimDirection) > 0.001f)
+                        {
+                            rotationDirection = math.normalizesafe(math.lerp(direction, aimDirection, aimWeight), direction);
                         }
                     }
 
@@ -1674,6 +1681,9 @@ namespace Space4X.Systems.AI
                             var dt = math.max(1e-4f, DeltaTime);
                             var commitSeconds = math.max(0.05f, MovementTuning.AttackRunCommitSeconds);
                             var cooldownSeconds = math.max(commitSeconds, MovementTuning.AttackRunCooldownSeconds);
+                            var runDiscipline = math.saturate(pilotMastery * 0.65f + navigationCohesion * 0.35f);
+                            commitSeconds *= math.lerp(0.85f, 1.35f, runDiscipline);
+                            cooldownSeconds *= math.lerp(0.9f, 1.25f, runDiscipline);
                             var commitTicks = (uint)math.max(1f, math.round(commitSeconds / dt));
                             var cooldownTicks = (uint)math.max(commitTicks, math.round(cooldownSeconds / dt));
 

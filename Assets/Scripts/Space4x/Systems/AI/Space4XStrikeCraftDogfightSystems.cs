@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Steering;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -20,6 +21,8 @@ namespace Space4X.Systems.AI
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
         private ComponentLookup<StrikeCraftExperience> _experienceLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
+        private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private EntityQuery _candidateQuery;
@@ -45,6 +48,8 @@ namespace Space4X.Systems.AI
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
             _experienceLookup = state.GetComponentLookup<StrikeCraftExperience>(true);
+            _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(false);
             _candidateQuery = state.GetEntityQuery(
@@ -142,6 +147,8 @@ namespace Space4X.Systems.AI
             _affiliationLookup.Update(ref state);
             _profileLookup.Update(ref state);
             _experienceLookup.Update(ref state);
+            _pilotLinkLookup.Update(ref state);
+            _pilotProficiencyLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
             _engagementLookup.Update(ref state);
 
@@ -194,6 +201,8 @@ namespace Space4X.Systems.AI
                 HullLookup = _hullLookup,
                 ProfileLookup = _profileLookup,
                 ExperienceLookup = _experienceLookup,
+                PilotLinkLookup = _pilotLinkLookup,
+                PilotProficiencyLookup = _pilotProficiencyLookup,
                 PatrolStanceLookup = _patrolStanceLookup,
                 EngagementLookup = _engagementLookup
             };
@@ -280,6 +289,8 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<HullIntegrity> HullLookup;
             [ReadOnly] public ComponentLookup<StrikeCraftProfile> ProfileLookup;
             [ReadOnly] public ComponentLookup<StrikeCraftExperience> ExperienceLookup;
+            [ReadOnly] public ComponentLookup<StrikeCraftPilotLink> PilotLinkLookup;
+            [ReadOnly] public ComponentLookup<PilotProficiency> PilotProficiencyLookup;
             [ReadOnly] public ComponentLookup<PatrolStance> PatrolStanceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<Space4XEngagement> EngagementLookup;
 
@@ -351,7 +362,9 @@ namespace Space4X.Systems.AI
                     out var roleSeparation,
                     out var roleReaction);
 
+                var pilotReaction = ResolvePilotReaction(entity);
                 var reaction = math.lerp(0.55f, 0.95f, experience01) * roleReaction;
+                reaction *= math.lerp(0.75f, 1.15f, pilotReaction);
                 var speedScale = math.lerp(1.1f, 0.95f, experience01) * roleSpeed;
                 var jinkScale = math.lerp(1.25f, 0.8f, experience01) * roleJink;
                 var separationScale = math.lerp(0.6f, 1.1f, experience01) * roleSeparation;
@@ -392,9 +405,14 @@ namespace Space4X.Systems.AI
                 var fireConeDegrees = math.max(5f, Config.FireConeDegrees * fireConeScale);
                 var fireConeCos = math.cos(math.radians(fireConeDegrees));
                 var breakOffDistance = math.max(5f, Config.BreakOffDistance * breakOffScale);
+                breakOffDistance *= math.lerp(0.85f, 1.15f, pilotReaction);
                 var breakOffTicks = Config.BreakOffTicks > 0
-                    ? (uint)math.max(10f, math.round((float)Config.BreakOffTicks * breakOffScale))
+                    ? (uint)math.max(8f, math.round((float)Config.BreakOffTicks * breakOffScale))
                     : 0u;
+                if (breakOffTicks > 0)
+                {
+                    breakOffTicks = (uint)math.max(6f, math.round(breakOffTicks * math.lerp(1.2f, 0.75f, pilotReaction)));
+                }
 
                 var maxLateralAccel = math.max(0.1f, Config.MaxLateralAccel)
                     * math.lerp(0.75f, 1.05f, experience01)
@@ -413,6 +431,10 @@ namespace Space4X.Systems.AI
                 var relativeVelocity = targetVelocity - velocity;
                 var closingSpeed = -math.dot(relativeVelocity, directionToTarget);
                 var omega = ComputeOmega(toTarget, relativeVelocity);
+
+                var phaseAge = CurrentTick - state.DogfightPhaseStartTick;
+                var minPhaseTicks = (uint)math.max(2f, math.round(math.lerp(9f, 3f, pilotReaction)));
+                var canTransition = phaseAge >= minPhaseTicks;
 
                 if (state.TargetEntity != Entity.Null && HullLookup.HasComponent(state.TargetEntity))
                 {
@@ -471,7 +493,7 @@ namespace Space4X.Systems.AI
                         desiredAccel = seekAccel + pnAccel + separation + jink;
                         desiredAccel = LimitAccel(desiredAccel, maxLateralAccel);
 
-                        if (inCone && inRange)
+                        if (inCone && inRange && canTransition)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.FireWindow, CurrentTick);
                         }
@@ -486,11 +508,12 @@ namespace Space4X.Systems.AI
                         desiredAccel = separation + jink;
                         desiredAccel = LimitAccel(desiredAccel, maxLateralAccel * 0.5f);
 
-                        if (!inCone || !inRange)
+                        if ((!inCone || !inRange) && canTransition)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.Approach, CurrentTick);
                         }
-                        else if (distance <= breakOffDistance)
+                        else if (distance <= breakOffDistance * math.lerp(1f, 1.35f, math.saturate(closingSpeed / math.max(1f, movement.BaseSpeed))) &&
+                                 canTransition)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.BreakOff, CurrentTick);
                         }
@@ -512,7 +535,7 @@ namespace Space4X.Systems.AI
                         desiredAccel = evadeAccel + lateral + separation;
                         desiredAccel = LimitAccel(desiredAccel, maxLateralAccel);
 
-                        if (CurrentTick - state.DogfightPhaseStartTick >= breakOffTicks ||
+                        if ((breakOffTicks > 0 && CurrentTick - state.DogfightPhaseStartTick >= breakOffTicks) ||
                             distance > breakOffDistance * 2f)
                         {
                             SetPhase(ref state, ref metrics, StrikeCraftDogfightPhase.Rejoin, CurrentTick);
@@ -906,6 +929,24 @@ namespace Space4X.Systems.AI
 
                 var losRate = math.cross(toTarget, relativeVelocity) / distanceSq;
                 return math.length(losRate);
+            }
+
+            private float ResolvePilotReaction(Entity craftEntity)
+            {
+                if (!PilotLinkLookup.HasComponent(craftEntity))
+                {
+                    return 0.5f;
+                }
+
+                var pilot = PilotLinkLookup[craftEntity].Pilot;
+                if (pilot == Entity.Null || !PilotProficiencyLookup.HasComponent(pilot))
+                {
+                    return 0.5f;
+                }
+
+                var proficiency = PilotProficiencyLookup[pilot];
+                var reactionSec = math.clamp(proficiency.ReactionSec, 0.1f, 1.2f);
+                return math.saturate((1.2f - reactionSec) / 1.1f);
             }
 
             private bool TryResolveLeader(

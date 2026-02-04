@@ -155,6 +155,9 @@ namespace Space4X.Systems.AI
             aim.AimDirection = float3.zero;
             aim.AimWeight = 0f;
             aim.AimTarget = Entity.Null;
+            aim.SmoothedDirection = float3.zero;
+            aim.SmoothedWeight = 0f;
+            aim.LastUpdateTick = 0;
             _aimLookup[entity] = aim;
         }
 
