@@ -263,6 +263,12 @@ namespace Space4X.Systems.Economy
 
             float bestDistanceSq = float.MaxValue;
             float bestAmount = 0f;
+            var fallbackCarrier = Entity.Null;
+            var fallbackColony = Entity.Null;
+            var fallbackCargoType = ResourceType.Minerals;
+            float fallbackDistanceSq = float.MaxValue;
+            float fallbackAmount = 0f;
+            var fallbackLoad = math.max(1f, minCarrierLoad * 0.25f);
 
             for (int i = 0; i < carriers.Length; i++)
             {
@@ -290,6 +296,28 @@ namespace Space4X.Systems.Economy
 
                 if (total < minCarrierLoad || dominantAmount <= 1e-3f)
                 {
+                    if (total < fallbackLoad || dominantAmount <= 1e-3f)
+                    {
+                        continue;
+                    }
+
+                    var candidatePosFallback = _transformLookup[candidate].Position;
+                    var distSqFallback = math.distancesq(haulerPosition, candidatePosFallback);
+                    if (distSqFallback < fallbackDistanceSq || (math.abs(distSqFallback - fallbackDistanceSq) < 0.01f && dominantAmount > fallbackAmount))
+                    {
+                        var resolvedColony = ResolveTargetColony(candidate, candidatePosFallback, colonies);
+                        if (resolvedColony == Entity.Null)
+                        {
+                            continue;
+                        }
+
+                        fallbackCarrier = candidate;
+                        fallbackColony = resolvedColony;
+                        fallbackCargoType = dominantType;
+                        fallbackDistanceSq = distSqFallback;
+                        fallbackAmount = dominantAmount;
+                    }
+
                     continue;
                 }
 
@@ -310,6 +338,13 @@ namespace Space4X.Systems.Economy
                     bestDistanceSq = distSq;
                     bestAmount = dominantAmount;
                 }
+            }
+
+            if (carrier == Entity.Null && fallbackCarrier != Entity.Null)
+            {
+                carrier = fallbackCarrier;
+                colony = fallbackColony;
+                cargoType = fallbackCargoType;
             }
 
             return carrier != Entity.Null && colony != Entity.Null;
