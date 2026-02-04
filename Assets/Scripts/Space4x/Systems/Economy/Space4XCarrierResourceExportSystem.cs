@@ -1,6 +1,7 @@
 using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
+using PureDOTS.Runtime.Telemetry;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
@@ -93,6 +94,8 @@ namespace Space4X.Systems.Economy
 
             using var colonyEntities = _colonyQuery.ToEntityArray(Allocator.Temp);
 
+            float exportedTotal = 0f;
+
             foreach (var (storage, transform, carrier) in SystemAPI.Query<DynamicBuffer<ResourceStorage>, RefRO<LocalTransform>>()
                          .WithAll<Carrier>()
                          .WithEntityAccess())
@@ -135,6 +138,7 @@ namespace Space4X.Systems.Economy
                     storage[i] = slot;
                     remaining -= transfer;
                     updated = true;
+                    exportedTotal += transfer;
                 }
 
                 if (!updated)
@@ -150,6 +154,19 @@ namespace Space4X.Systems.Economy
                     var colony = _colonyLookup[targetColony];
                     colony.StoredResources = math.max(0f, stock.OreReserve + stock.SuppliesReserve + stock.ResearchReserve);
                     _colonyLookup[targetColony] = colony;
+                }
+            }
+
+            if (exportedTotal > 0f &&
+                SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var exportConfig) &&
+                exportConfig.Enabled != 0 &&
+                (exportConfig.Flags & TelemetryExportFlags.IncludeTelemetryMetrics) != 0 &&
+                SystemAPI.TryGetSingletonBuffer<TelemetryMetric>(out var telemetry))
+            {
+                var cadence = exportConfig.CadenceTicks > 0 ? exportConfig.CadenceTicks : 30u;
+                if (timeState.Tick % cadence == 0)
+                {
+                    telemetry.AddMetric("space4x.mining.exported", exportedTotal, TelemetryMetricUnit.Custom);
                 }
             }
         }
