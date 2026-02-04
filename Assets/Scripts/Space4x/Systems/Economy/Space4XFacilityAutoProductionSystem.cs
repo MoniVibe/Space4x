@@ -19,29 +19,37 @@ namespace Space4X.Systems.Economy
     [UpdateBefore(typeof(ProductionJobSchedulingSystem))]
     public partial struct Space4XFacilityAutoProductionSystem : ISystem
     {
+        private static readonly FixedString64Bytes RecipeOreToIngot = "space4x_ore_to_ingot";
+        private static readonly FixedString64Bytes RecipeOreToAlloy = "space4x_ore_to_alloy";
+        private static readonly FixedString64Bytes RecipePartsAssembly = "space4x_parts_assembly";
+        private static readonly FixedString64Bytes RecipeShipHull = "space4x_ship_lcv_sparrow";
+        private static readonly FixedString64Bytes RecipeResearchPacket = "space4x_research_packet";
+        private static readonly FixedString64Bytes RecipeEngineMk1 = "space4x_module_engine_mk1";
+        private static readonly FixedString64Bytes RecipeShieldS1 = "space4x_module_shield_s_1";
+        private static readonly FixedString64Bytes RecipeLaserS1 = "space4x_module_laser_s_1";
+        private static readonly FixedString64Bytes RecipeBridgeMk1 = "space4x_module_bridge_mk1";
+        private static readonly FixedString64Bytes RecipeCockpitMk1 = "space4x_module_cockpit_mk1";
+        private static readonly FixedString64Bytes RecipeArmorS1 = "space4x_module_armor_s_1";
+        private static readonly FixedString64Bytes RecipeAmmoS1 = "space4x_module_ammo_bay_s_1";
+
+        private static readonly FixedString64Bytes ItemOre = "space4x_ore";
+        private static readonly FixedString64Bytes ItemIngot = "space4x_ingot";
+        private static readonly FixedString64Bytes ItemAlloy = "space4x_alloy";
+        private static readonly FixedString64Bytes ItemParts = "space4x_parts";
+        private static readonly FixedString64Bytes ItemSupplies = "space4x_supplies";
+        private static readonly FixedString64Bytes ItemResearch = "space4x_research";
+        private static readonly FixedString64Bytes ItemEngineMk1 = "engine-mk1";
+        private static readonly FixedString64Bytes ItemShieldS1 = "shield-s-1";
+        private static readonly FixedString64Bytes ItemLaserS1 = "laser-s-1";
+        private static readonly FixedString64Bytes ItemBridgeMk1 = "bridge-mk1";
+        private static readonly FixedString64Bytes ItemCockpitMk1 = "cockpit-mk1";
+        private static readonly FixedString64Bytes ItemArmorS1 = "armor-s-1";
+        private static readonly FixedString64Bytes ItemAmmoS1 = "ammo-bay-s-1";
+        private static readonly FixedString64Bytes ItemHullLcvSparrow = "lcv-sparrow";
+
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
         private BufferLookup<ProductionJob> _jobsLookup;
-
-        private FixedString64Bytes _oreToIngot;
-        private FixedString64Bytes _oreToAlloy;
-        private FixedString64Bytes _partsAssembly;
-        private FixedString64Bytes _shipHull;
-        private FixedString64Bytes _researchPacket;
-        private FixedString64Bytes _engineMk1;
-        private FixedString64Bytes _shieldS1;
-        private FixedString64Bytes _laserS1;
-        private FixedString64Bytes _bridgeMk1;
-        private FixedString64Bytes _cockpitMk1;
-        private FixedString64Bytes _armorS1;
-        private FixedString64Bytes _ammoS1;
-
-        private FixedString64Bytes _oreId;
-        private FixedString64Bytes _ingotId;
-        private FixedString64Bytes _alloyId;
-        private FixedString64Bytes _partsId;
-        private FixedString64Bytes _suppliesId;
-        private FixedString64Bytes _researchId;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -54,26 +62,6 @@ namespace Space4X.Systems.Economy
             _inventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
             _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
             _jobsLookup = state.GetBufferLookup<ProductionJob>(true);
-
-            _oreToIngot = new FixedString64Bytes("space4x_ore_to_ingot");
-            _oreToAlloy = new FixedString64Bytes("space4x_ore_to_alloy");
-            _partsAssembly = new FixedString64Bytes("space4x_parts_assembly");
-            _shipHull = new FixedString64Bytes("space4x_ship_lcv_sparrow");
-            _researchPacket = new FixedString64Bytes("space4x_research_packet");
-            _engineMk1 = new FixedString64Bytes("space4x_module_engine_mk1");
-            _shieldS1 = new FixedString64Bytes("space4x_module_shield_s_1");
-            _laserS1 = new FixedString64Bytes("space4x_module_laser_s_1");
-            _bridgeMk1 = new FixedString64Bytes("space4x_module_bridge_mk1");
-            _cockpitMk1 = new FixedString64Bytes("space4x_module_cockpit_mk1");
-            _armorS1 = new FixedString64Bytes("space4x_module_armor_s_1");
-            _ammoS1 = new FixedString64Bytes("space4x_module_ammo_bay_s_1");
-
-            _oreId = new FixedString64Bytes("space4x_ore");
-            _ingotId = new FixedString64Bytes("space4x_ingot");
-            _alloyId = new FixedString64Bytes("space4x_alloy");
-            _partsId = new FixedString64Bytes("space4x_parts");
-            _suppliesId = new FixedString64Bytes("space4x_supplies");
-            _researchId = new FixedString64Bytes("space4x_research");
         }
 
         [BurstCompile]
@@ -158,17 +146,17 @@ namespace Space4X.Systems.Economy
                     var ingotTarget = math.max(20f, capacity * 0.08f);
                     var alloyTarget = math.max(20f, capacity * 0.06f);
 
-                    if (GetItemQuantity(items, _ingotId) < ingotTarget &&
-                        GetItemQuantity(items, _oreId) >= 100f)
+                    if (GetItemQuantity(items, ItemIngot) < ingotTarget &&
+                        GetItemQuantity(items, ItemOre) >= 100f)
                     {
-                        return _oreToIngot;
+                        return RecipeOreToIngot;
                     }
 
-                    if (GetItemQuantity(items, _alloyId) < alloyTarget &&
-                        GetItemQuantity(items, _oreId) >= 80f &&
-                        GetItemQuantity(items, _suppliesId) >= 10f)
+                    if (GetItemQuantity(items, ItemAlloy) < alloyTarget &&
+                        GetItemQuantity(items, ItemOre) >= 80f &&
+                        GetItemQuantity(items, ItemSupplies) >= 10f)
                     {
-                        return _oreToAlloy;
+                        return RecipeOreToAlloy;
                     }
                     break;
                 }
@@ -176,77 +164,77 @@ namespace Space4X.Systems.Economy
                 case FacilityBusinessClass.ShipFabrication:
                 {
                     var partsTarget = math.max(20f, capacity * 0.05f);
-                    if (GetItemQuantity(items, _partsId) < partsTarget &&
-                        GetItemQuantity(items, _ingotId) >= 10f &&
-                        GetItemQuantity(items, _suppliesId) >= 5f)
+                    if (GetItemQuantity(items, ItemParts) < partsTarget &&
+                        GetItemQuantity(items, ItemIngot) >= 10f &&
+                        GetItemQuantity(items, ItemSupplies) >= 5f)
                     {
-                        return _partsAssembly;
+                        return RecipePartsAssembly;
                     }
                     break;
                 }
                 case FacilityBusinessClass.ModuleFacility:
                 {
-                    if (GetItemQuantity(items, new FixedString64Bytes("engine-mk1")) < 1f &&
+                    if (GetItemQuantity(items, ItemEngineMk1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _engineMk1;
+                        return RecipeEngineMk1;
                     }
 
-                    if (GetItemQuantity(items, new FixedString64Bytes("shield-s-1")) < 1f &&
+                    if (GetItemQuantity(items, ItemShieldS1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _shieldS1;
+                        return RecipeShieldS1;
                     }
 
-                    if (GetItemQuantity(items, new FixedString64Bytes("laser-s-1")) < 1f &&
+                    if (GetItemQuantity(items, ItemLaserS1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _laserS1;
+                        return RecipeLaserS1;
                     }
 
-                    if (GetItemQuantity(items, new FixedString64Bytes("bridge-mk1")) < 1f &&
+                    if (GetItemQuantity(items, ItemBridgeMk1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _bridgeMk1;
+                        return RecipeBridgeMk1;
                     }
 
-                    if (GetItemQuantity(items, new FixedString64Bytes("cockpit-mk1")) < 1f &&
+                    if (GetItemQuantity(items, ItemCockpitMk1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _cockpitMk1;
+                        return RecipeCockpitMk1;
                     }
 
-                    if (GetItemQuantity(items, new FixedString64Bytes("armor-s-1")) < 1f &&
+                    if (GetItemQuantity(items, ItemArmorS1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _armorS1;
+                        return RecipeArmorS1;
                     }
 
-                    if (GetItemQuantity(items, new FixedString64Bytes("ammo-bay-s-1")) < 1f &&
+                    if (GetItemQuantity(items, ItemAmmoS1) < 1f &&
                         HasPartsAndAlloy(items))
                     {
-                        return _ammoS1;
+                        return RecipeAmmoS1;
                     }
                     break;
                 }
                 case FacilityBusinessClass.Shipyard:
                 {
-                    if (GetItemQuantity(items, new FixedString64Bytes("lcv-sparrow")) < 1f &&
-                        GetItemQuantity(items, _partsId) >= 30f &&
-                        GetItemQuantity(items, _alloyId) >= 40f &&
-                        GetItemQuantity(items, _ingotId) >= 20f)
+                    if (GetItemQuantity(items, ItemHullLcvSparrow) < 1f &&
+                        GetItemQuantity(items, ItemParts) >= 30f &&
+                        GetItemQuantity(items, ItemAlloy) >= 40f &&
+                        GetItemQuantity(items, ItemIngot) >= 20f)
                     {
-                        return _shipHull;
+                        return RecipeShipHull;
                     }
                     break;
                 }
                 case FacilityBusinessClass.Research:
                 {
                     var researchTarget = 5f;
-                    if (GetItemQuantity(items, _researchId) < researchTarget &&
-                        GetItemQuantity(items, _suppliesId) >= 12f)
+                    if (GetItemQuantity(items, ItemResearch) < researchTarget &&
+                        GetItemQuantity(items, ItemSupplies) >= 12f)
                     {
-                        return _researchPacket;
+                        return RecipeResearchPacket;
                     }
                     break;
                 }
@@ -257,9 +245,7 @@ namespace Space4X.Systems.Economy
 
         private static bool HasPartsAndAlloy(DynamicBuffer<InventoryItem> items)
         {
-            var parts = new FixedString64Bytes("space4x_parts");
-            var alloy = new FixedString64Bytes("space4x_alloy");
-            return GetItemQuantity(items, parts) >= 4f && GetItemQuantity(items, alloy) >= 5f;
+            return GetItemQuantity(items, ItemParts) >= 4f && GetItemQuantity(items, ItemAlloy) >= 5f;
         }
 
         private static float GetItemQuantity(DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId)

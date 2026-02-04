@@ -20,6 +20,8 @@ namespace Space4X.Systems.Economy
     [UpdateAfter(typeof(Space4X.Systems.AI.CarrierPickupSystem))]
     public partial struct Space4XCarrierResourceExportSystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricMiningExported = "space4x.mining.exported";
+
         private EntityQuery _colonyQuery;
         private EntityQuery _haulerQuery;
         private ComponentLookup<ColonyIndustryStock> _stockLookup;
@@ -184,7 +186,7 @@ namespace Space4X.Systems.Economy
                 var cadence = exportConfig.CadenceTicks > 0 ? exportConfig.CadenceTicks : 30u;
                 if (timeState.Tick % cadence == 0)
                 {
-                    telemetry.AddMetric("space4x.mining.exported", exportedTotal, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric(MetricMiningExported, exportedTotal, TelemetryMetricUnit.Custom);
                 }
             }
         }

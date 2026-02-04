@@ -18,6 +18,7 @@ namespace Space4X.Systems.Economy
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     public partial struct Space4XResearchTechBridgeSystem : ISystem
     {
+        private static readonly FixedString64Bytes ItemResearch = "space4x_research";
         private const float ResearchDrainPerTick = 8f;
         private const float DiffusionBaseSeconds = 25f;
 
@@ -26,8 +27,6 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<TechDiffusionState> _diffusionLookup;
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
-
-        private FixedString64Bytes _researchId;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -41,8 +40,6 @@ namespace Space4X.Systems.Economy
             _diffusionLookup = state.GetComponentLookup<TechDiffusionState>(false);
             _inventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
             _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
-
-            _researchId = new FixedString64Bytes("space4x_research");
         }
 
         [BurstCompile]
@@ -101,7 +98,7 @@ namespace Space4X.Systems.Economy
                 }
 
                 var items = _itemsLookup[inventoryEntity];
-                var drained = ConsumeItem(ref items, _researchId, drainBudget);
+                var drained = ConsumeItem(ref items, ItemResearch, drainBudget);
                 if (drained <= 0f)
                 {
                     continue;

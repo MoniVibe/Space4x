@@ -20,6 +20,9 @@ namespace Space4X.Systems.AI
     [UpdateBefore(typeof(Space4X.Registry.Space4XCombatInitiationSystem))]
     public partial struct Space4XStrikeCraftRecognitionSystem : ISystem
     {
+        private static readonly FixedString64Bytes TelemetrySourceId = "Space4X.StrikeCraft";
+        private static readonly FixedString64Bytes EventMercyStarted = "RecognitionMercy";
+
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
         private ComponentLookup<VesselPilotLink> _vesselPilotLookup;
         private ComponentLookup<StrikeCraftExperience> _experienceLookup;
@@ -38,8 +41,6 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ModuleTargetPolicyOverride> _policyOverrideLookup;
         private ComponentLookup<DisciplinaryRecord> _disciplinaryLookup;
         private EntityStorageInfoLookup _entityLookup;
-        private FixedString64Bytes _sourceId;
-        private FixedString64Bytes _eventMercyStarted;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -65,8 +66,6 @@ namespace Space4X.Systems.AI
             _policyOverrideLookup = state.GetComponentLookup<ModuleTargetPolicyOverride>(true);
             _disciplinaryLookup = state.GetComponentLookup<DisciplinaryRecord>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
-            _sourceId = new FixedString64Bytes("Space4X.StrikeCraft");
-            _eventMercyStarted = new FixedString64Bytes("RecognitionMercy");
         }
 
         [BurstCompile]
@@ -256,7 +255,7 @@ namespace Space4X.Systems.AI
 
                 if (emitTelemetry)
                 {
-                    eventBuffer.AddEvent(_eventMercyStarted, currentTick, _sourceId,
+                    eventBuffer.AddEvent(EventMercyStarted, currentTick, TelemetrySourceId,
                         BuildMercyPayload(entity, mercyProfile, targetEntity, cultureMatch, raceMatch, hasPersonalRelation,
                             relationScore, relationKind, goodness, chance, mercyUntil, disciplineApplied, penaltyApplied));
                 }

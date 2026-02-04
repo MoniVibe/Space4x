@@ -23,6 +23,10 @@ namespace Space4X.Systems.AI
     [UpdateBefore(typeof(MiningResourceSpawnSystem))]
     public partial struct CarrierDropoffSystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricCarrierDropoff = "space4x.mining.carrierDropoff";
+        private static readonly FixedString64Bytes MetricCarrierDropoffActive = "space4x.mining.carrierDropoff.active";
+        private static readonly FixedString64Bytes MetricCarrierDropoffCargo = "space4x.mining.carrierDropoff.cargo";
+
         private const float DropoffDistance = 3.5f;
         private const float DropoffDistanceSq = DropoffDistance * DropoffDistance;
         private const float DropoffRatePerSecond = 250f;
@@ -255,9 +259,9 @@ namespace Space4X.Systems.AI
                 var cadence = exportConfig.CadenceTicks > 0 ? exportConfig.CadenceTicks : 30u;
                 if (timeState.Tick % cadence == 0)
                 {
-                    telemetry.AddMetric("space4x.mining.carrierDropoff", droppedTotal, TelemetryMetricUnit.Custom);
-                    telemetry.AddMetric("space4x.mining.carrierDropoff.active", activeDroppers, TelemetryMetricUnit.Count);
-                    telemetry.AddMetric("space4x.mining.carrierDropoff.cargo", cargoHeld, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric(MetricCarrierDropoff, droppedTotal, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric(MetricCarrierDropoffActive, activeDroppers, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric(MetricCarrierDropoffCargo, cargoHeld, TelemetryMetricUnit.Custom);
                 }
             }
         }

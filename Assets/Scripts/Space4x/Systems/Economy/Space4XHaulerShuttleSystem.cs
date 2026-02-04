@@ -21,6 +21,13 @@ namespace Space4X.Systems.Economy
     [UpdateBefore(typeof(Space4XCarrierResourceExportSystem))]
     public partial struct Space4XHaulerShuttleSystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricHaulerDelivered = "space4x.mining.haulerDelivered";
+        private static readonly FixedString64Bytes MetricHaulerCount = "space4x.mining.hauler.count";
+        private static readonly FixedString64Bytes MetricHaulerActive = "space4x.mining.hauler.active";
+        private static readonly FixedString64Bytes MetricHaulerToCarrier = "space4x.mining.hauler.toCarrier";
+        private static readonly FixedString64Bytes MetricHaulerToColony = "space4x.mining.hauler.toColony";
+        private static readonly FixedString64Bytes MetricHaulerCargo = "space4x.mining.hauler.cargo";
+
         private EntityQuery _carrierQuery;
         private EntityQuery _colonyQuery;
         private EntityQuery _missingStateQuery;
@@ -279,12 +286,12 @@ namespace Space4X.Systems.Economy
                 var cadence = exportConfig.CadenceTicks > 0 ? exportConfig.CadenceTicks : 30u;
                 if (timeState.Tick % cadence == 0)
                 {
-                    telemetry.AddMetric("space4x.mining.haulerDelivered", deliveredTotal, TelemetryMetricUnit.Custom);
-                    telemetry.AddMetric("space4x.mining.hauler.count", totalHaulers, TelemetryMetricUnit.Count);
-                    telemetry.AddMetric("space4x.mining.hauler.active", activeHaulers, TelemetryMetricUnit.Count);
-                    telemetry.AddMetric("space4x.mining.hauler.toCarrier", toCarrierCount, TelemetryMetricUnit.Count);
-                    telemetry.AddMetric("space4x.mining.hauler.toColony", toColonyCount, TelemetryMetricUnit.Count);
-                    telemetry.AddMetric("space4x.mining.hauler.cargo", cargoInTransit, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric(MetricHaulerDelivered, deliveredTotal, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric(MetricHaulerCount, totalHaulers, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric(MetricHaulerActive, activeHaulers, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric(MetricHaulerToCarrier, toCarrierCount, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric(MetricHaulerToColony, toColonyCount, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric(MetricHaulerCargo, cargoInTransit, TelemetryMetricUnit.Custom);
                 }
             }
         }

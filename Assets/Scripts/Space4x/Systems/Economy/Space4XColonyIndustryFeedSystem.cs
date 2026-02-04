@@ -18,6 +18,8 @@ namespace Space4X.Systems.Economy
     [UpdateBefore(typeof(ProductionJobSchedulingSystem))]
     public partial struct Space4XColonyIndustryFeedSystem : ISystem
     {
+        private static readonly FixedString64Bytes ItemOre = "space4x_ore";
+        private static readonly FixedString64Bytes ItemSupplies = "space4x_supplies";
         private const float OrePerPopPerSecond = 0.0005f;
         private const float SuppliesPerPopPerSecond = 0.00025f;
         private const float ResearchPerPopPerSecond = 0.00005f;
@@ -27,9 +29,6 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<ColonyIndustryStock> _stockLookup;
         private ComponentLookup<BusinessInventory> _businessInventoryLookup;
         private BufferLookup<InventoryItem> _itemBufferLookup;
-
-        private FixedString64Bytes _oreId;
-        private FixedString64Bytes _suppliesId;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -42,9 +41,6 @@ namespace Space4X.Systems.Economy
             _stockLookup = state.GetComponentLookup<ColonyIndustryStock>(false);
             _businessInventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
             _itemBufferLookup = state.GetBufferLookup<InventoryItem>(false);
-
-            _oreId = new FixedString64Bytes("space4x_ore");
-            _suppliesId = new FixedString64Bytes("space4x_supplies");
         }
 
         [BurstCompile]
@@ -125,17 +121,17 @@ namespace Space4X.Systems.Economy
                 switch (link.ValueRO.FacilityClass)
                 {
                     case FacilityBusinessClass.Refinery:
-                        Feed(ref stock.OreReserve, feedAmount, _oreId, ref items, tickTime.Tick);
+                        Feed(ref stock.OreReserve, feedAmount, ItemOre, ref items, tickTime.Tick);
                         break;
                     case FacilityBusinessClass.Production:
                     case FacilityBusinessClass.ModuleFacility:
                     case FacilityBusinessClass.ShipFabrication:
                     case FacilityBusinessClass.Shipyard:
                     case FacilityBusinessClass.Construction:
-                        Feed(ref stock.SuppliesReserve, feedAmount, _suppliesId, ref items, tickTime.Tick);
+                        Feed(ref stock.SuppliesReserve, feedAmount, ItemSupplies, ref items, tickTime.Tick);
                         break;
                     case FacilityBusinessClass.Research:
-                        Feed(ref stock.SuppliesReserve, feedAmount, _suppliesId, ref items, tickTime.Tick);
+                        Feed(ref stock.SuppliesReserve, feedAmount, ItemSupplies, ref items, tickTime.Tick);
                         break;
                 }
 

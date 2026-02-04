@@ -23,14 +23,13 @@ namespace Space4X.Systems.Economy
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     public partial struct Space4XShipyardAssemblySystem : ISystem
     {
+        private static readonly FixedString64Bytes HullItemId = "lcv-sparrow";
         private const int MaxSpawnPerTick = 1;
 
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<TechLevel> _techLookup;
-
-        private FixedString64Bytes _hullItemId;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -44,7 +43,6 @@ namespace Space4X.Systems.Economy
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _techLookup = state.GetComponentLookup<TechLevel>(true);
 
-            _hullItemId = new FixedString64Bytes("lcv-sparrow");
         }
 
         [BurstCompile]
@@ -103,7 +101,7 @@ namespace Space4X.Systems.Economy
                 }
 
                 var items = _itemsLookup[inventoryEntity];
-                if (!TryConsumeHull(ref items, _hullItemId))
+                if (!TryConsumeHull(ref items, HullItemId))
                 {
                     continue;
                 }
@@ -196,7 +194,7 @@ namespace Space4X.Systems.Economy
                 ecb.AddBuffer<DockedEntity>(ship);
                 ecb.AddBuffer<ResourceStorage>(ship);
 
-                ecb.AddComponent(ship, new CarrierHullId { HullId = _hullItemId });
+                ecb.AddComponent(ship, new CarrierHullId { HullId = HullItemId });
                 ecb.AddComponent(ship, HullIntegrity.LightCarrier);
 
                 ecb.AddComponent(ship, new CaptainOrder

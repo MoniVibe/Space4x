@@ -524,6 +524,10 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XCrewSkillTelemetrySystem))]
     public partial struct Space4XFleetInterceptTelemetrySystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricInterceptAttempts = "space4x.intercept.attempts";
+        private static readonly FixedString64Bytes MetricInterceptRendezvous = "space4x.intercept.rendezvous";
+        private static readonly FixedString64Bytes MetricInterceptLastTick = "space4x.intercept.lastTick";
+
         private EntityQuery _telemetryQuery;
         private EntityQuery _queueQuery;
 
@@ -549,9 +553,9 @@ namespace Space4X.Registry
             var telemetryEntity = _telemetryQuery.GetSingletonEntity();
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
 
-            buffer.AddMetric("space4x.intercept.attempts", metrics.InterceptAttempts);
-            buffer.AddMetric("space4x.intercept.rendezvous", metrics.RendezvousAttempts);
-            buffer.AddMetric("space4x.intercept.lastTick", metrics.LastAttemptTick);
+            buffer.AddMetric(MetricInterceptAttempts, metrics.InterceptAttempts);
+            buffer.AddMetric(MetricInterceptRendezvous, metrics.RendezvousAttempts);
+            buffer.AddMetric(MetricInterceptLastTick, metrics.LastAttemptTick);
         }
     }
 }

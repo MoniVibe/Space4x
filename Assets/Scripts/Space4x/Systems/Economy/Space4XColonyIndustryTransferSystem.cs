@@ -19,13 +19,13 @@ namespace Space4X.Systems.Economy
     [UpdateBefore(typeof(Space4XFacilityAutoProductionSystem))]
     public partial struct Space4XColonyIndustryTransferSystem : ISystem
     {
+        private static readonly FixedString64Bytes ItemIngot = "space4x_ingot";
+        private static readonly FixedString64Bytes ItemAlloy = "space4x_alloy";
+        private static readonly FixedString64Bytes ItemParts = "space4x_parts";
+
         private ComponentLookup<ColonyIndustryInventory> _colonyInventoryLookup;
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
-
-        private FixedString64Bytes _ingotId;
-        private FixedString64Bytes _alloyId;
-        private FixedString64Bytes _partsId;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -37,10 +37,6 @@ namespace Space4X.Systems.Economy
             _colonyInventoryLookup = state.GetComponentLookup<ColonyIndustryInventory>(true);
             _inventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
             _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
-
-            _ingotId = new FixedString64Bytes("space4x_ingot");
-            _alloyId = new FixedString64Bytes("space4x_alloy");
-            _partsId = new FixedString64Bytes("space4x_parts");
         }
 
         [BurstCompile]
@@ -103,11 +99,11 @@ namespace Space4X.Systems.Economy
                     switch (link.ValueRO.FacilityClass)
                     {
                         case FacilityBusinessClass.Refinery:
-                            TransferAll(ref facilityItems, ref poolItems, _ingotId);
-                            TransferAll(ref facilityItems, ref poolItems, _alloyId);
+                            TransferAll(ref facilityItems, ref poolItems, ItemIngot);
+                            TransferAll(ref facilityItems, ref poolItems, ItemAlloy);
                             break;
                         case FacilityBusinessClass.Production:
-                            TransferAll(ref facilityItems, ref poolItems, _partsId);
+                            TransferAll(ref facilityItems, ref poolItems, ItemParts);
                             break;
                     }
                 }
@@ -136,16 +132,16 @@ namespace Space4X.Systems.Economy
                     switch (link.ValueRO.FacilityClass)
                     {
                         case FacilityBusinessClass.Production:
-                            EnsureMinimum(ref poolItems, ref facilityItems, _ingotId, 40f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, ItemIngot, 40f, tickTime.Tick);
                             break;
                         case FacilityBusinessClass.ModuleFacility:
-                            EnsureMinimum(ref poolItems, ref facilityItems, _partsId, 20f, tickTime.Tick);
-                            EnsureMinimum(ref poolItems, ref facilityItems, _alloyId, 20f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, ItemParts, 20f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, ItemAlloy, 20f, tickTime.Tick);
                             break;
                         case FacilityBusinessClass.Shipyard:
-                            EnsureMinimum(ref poolItems, ref facilityItems, _partsId, 40f, tickTime.Tick);
-                            EnsureMinimum(ref poolItems, ref facilityItems, _alloyId, 30f, tickTime.Tick);
-                            EnsureMinimum(ref poolItems, ref facilityItems, _ingotId, 20f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, ItemParts, 40f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, ItemAlloy, 30f, tickTime.Tick);
+                            EnsureMinimum(ref poolItems, ref facilityItems, ItemIngot, 20f, tickTime.Tick);
                             break;
                     }
                 }

@@ -12,6 +12,8 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     public partial struct Space4XHazardMitigationSystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricHazardMitigated = "space4x.hazard.mitigated";
+
         private EntityQuery _hazardQuery;
         private EntityQuery _telemetryQuery;
         private BufferLookup<HazardResistance> _resistanceLookup;
@@ -65,7 +67,7 @@ namespace Space4X.Registry
 
             if (hasTelemetry && telemetryBuffer.IsCreated && mitigatedTotal > 0f)
             {
-                telemetryBuffer.AddMetric("space4x.hazard.mitigated", mitigatedTotal, TelemetryMetricUnit.Custom);
+                telemetryBuffer.AddMetric(MetricHazardMitigated, mitigatedTotal, TelemetryMetricUnit.Custom);
             }
         }
 

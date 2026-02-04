@@ -12,6 +12,13 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XFieldRepairSystem))]
     public partial struct Space4XModuleMaintenanceTelemetrySystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricRefitStarted = "space4x.modules.refit.started";
+        private static readonly FixedString64Bytes MetricRefitCompleted = "space4x.modules.refit.completed";
+        private static readonly FixedString64Bytes MetricRefitWork = "space4x.modules.refit.work";
+        private static readonly FixedString64Bytes MetricRepairApplied = "space4x.modules.repair.applied";
+        private static readonly FixedString64Bytes MetricFailures = "space4x.modules.failures";
+        private static readonly FixedString64Bytes MetricLastTick = "space4x.modules.lastTick";
+
         private EntityQuery _telemetryQuery;
         private EntityQuery _maintenanceQuery;
 
@@ -39,12 +46,12 @@ namespace Space4X.Registry
             var metrics = state.EntityManager.GetComponentData<ModuleMaintenanceTelemetry>(maintenanceEntity);
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
 
-            buffer.AddMetric("space4x.modules.refit.started", metrics.RefitStarted, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.modules.refit.completed", metrics.RefitCompleted, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.modules.refit.work", metrics.RefitWorkApplied, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.modules.repair.applied", metrics.RepairApplied, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.modules.failures", metrics.Failures, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.modules.lastTick", metrics.LastUpdateTick, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricRefitStarted, metrics.RefitStarted, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricRefitCompleted, metrics.RefitCompleted, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricRefitWork, metrics.RefitWorkApplied, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricRepairApplied, metrics.RepairApplied, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricFailures, metrics.Failures, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricLastTick, metrics.LastUpdateTick, TelemetryMetricUnit.Custom);
         }
     }
 }
