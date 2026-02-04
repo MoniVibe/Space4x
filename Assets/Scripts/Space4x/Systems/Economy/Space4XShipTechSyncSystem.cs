@@ -67,8 +67,8 @@ namespace Space4X.Systems.Economy
 
         private static WarpTechTier ResolveWarpTier(in TechLevel tech)
         {
-            var tier = math.max(tech.MiningTech,
-                math.max(tech.CombatTech, math.max(tech.HaulingTech, tech.ProcessingTech)));
+            var tier = math.max((int)tech.MiningTech,
+                math.max((int)tech.CombatTech, math.max((int)tech.HaulingTech, (int)tech.ProcessingTech)));
 
             return tier switch
             {
