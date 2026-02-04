@@ -203,8 +203,6 @@ namespace Space4X.Systems.Economy
                         continue;
                     }
 
-                    _storageLookup[shuttle.TargetCarrier] = storage;
-
                     if (shuttle.CargoAmount >= capacity - 1e-3f)
                     {
                         shuttle.Phase = Space4XHaulerShuttlePhase.ToColony;
