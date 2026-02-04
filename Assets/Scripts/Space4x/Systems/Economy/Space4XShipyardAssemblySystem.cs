@@ -2,6 +2,7 @@ using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
+using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Registry;
