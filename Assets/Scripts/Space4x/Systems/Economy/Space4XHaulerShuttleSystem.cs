@@ -195,7 +195,20 @@ namespace Space4X.Systems.Economy
                 {
                     if (shuttle.TargetColony == Entity.Null || !_transformLookup.HasComponent(shuttle.TargetColony))
                     {
-                        Reset(ref shuttle);
+                        var carrierRef = shuttle.TargetCarrier != Entity.Null ? shuttle.TargetCarrier : Entity.Null;
+                        var resolvedColony = ResolveTargetColony(carrierRef, position, colonies);
+                        if (resolvedColony != Entity.Null)
+                        {
+                            shuttle.TargetColony = resolvedColony;
+                            stateRW.ValueRW = shuttle;
+                            continue;
+                        }
+
+                        if (shuttle.CargoAmount <= 1e-3f)
+                        {
+                            Reset(ref shuttle);
+                        }
+
                         stateRW.ValueRW = shuttle;
                         continue;
                     }
