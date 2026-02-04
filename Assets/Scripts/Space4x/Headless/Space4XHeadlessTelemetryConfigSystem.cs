@@ -53,6 +53,10 @@ namespace Space4X.Headless
             {
                 config.ValueRW.OutputPath = new FixedString512Bytes(Space4XHeadlessDiagnostics.TelemetryPath);
                 config.ValueRW.Enabled = 1;
+                if (config.ValueRW.MaxOutputBytes == 0)
+                {
+                    config.ValueRW.MaxOutputBytes = 24u * 1024u * 1024u;
+                }
                 config.ValueRW.Version++;
             }
 
