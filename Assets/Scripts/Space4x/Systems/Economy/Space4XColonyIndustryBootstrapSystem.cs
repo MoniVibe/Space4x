@@ -1,5 +1,6 @@
 using PureDOTS.Runtime;
 using PureDOTS.Runtime.Economy.Resources;
+using PureDOTS.Runtime.Spatial;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
