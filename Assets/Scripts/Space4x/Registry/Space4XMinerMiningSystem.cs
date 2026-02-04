@@ -41,6 +41,7 @@ namespace Space4X.Registry
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<Space4XMiningToolProfile> _toolProfileLookup;
+        private ComponentLookup<Space4XFocusModifiers> _focusLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private BufferLookup<CraftOperatorConsole> _operatorConsoleLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
@@ -161,6 +162,7 @@ namespace Space4X.Registry
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _toolProfileLookup = state.GetComponentLookup<Space4XMiningToolProfile>(true);
+            _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _operatorConsoleLookup = state.GetBufferLookup<CraftOperatorConsole>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
@@ -245,6 +247,7 @@ namespace Space4X.Registry
             _miningStateLookup.Update(ref state);
             _latchReservationLookup.Update(ref state);
             _toolProfileLookup.Update(ref state);
+            _focusLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _operatorConsoleLookup.Update(ref state);
             _statsLookup.Update(ref state);
@@ -445,6 +448,7 @@ namespace Space4X.Registry
                 var pilotEfficiency = ResolvePilotEfficiencyMultiplier(pilotSkill);
                 var pilotSafety = ResolvePilotSafetyMultiplier(pilotSkill);
                 var logisticsMultiplier = ResolveLogisticsOpsMultiplier(entity, vesselData.CarrierEntity, operatorTuning);
+                var focusEfficiency = ResolveFocusEfficiency(entity);
                 var logisticsSpeed = math.clamp(logisticsMultiplier, 0.75f, 1.35f);
                 var returnRatio = ResolveCargoReturnRatio(disposition);
                 var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * returnRatio;
@@ -613,6 +617,7 @@ namespace Space4X.Registry
                             yieldMultiplier *= ResolveToolYieldMultiplier(toolKind, toolProfile, digConfig);
                             yieldMultiplier *= logisticsMultiplier;
                             yieldMultiplier *= pilotEfficiency;
+                            yieldMultiplier *= focusEfficiency;
                             yieldMultiplier *= ResolveStressYieldMultiplier(toolHeat01, toolInstability01);
 
                             var resolvedCargoType = ResolveResourceType(target, order.ValueRO.ResourceId, vessel.ValueRO.CargoResourceType);
@@ -1725,6 +1730,18 @@ namespace Space4X.Registry
             }
 
             return 0.5f;
+        }
+
+        private float ResolveFocusEfficiency(Entity miner)
+        {
+            if (!_focusLookup.HasComponent(miner))
+            {
+                return 1f;
+            }
+
+            var modifiers = _focusLookup[miner];
+            var bonus = math.max(0f, (float)modifiers.ResourceEfficiencyBonus);
+            return math.clamp(1f + bonus, 0.85f, 1.5f);
         }
 
         private static float ResolvePilotEfficiencyMultiplier(float skill01)
