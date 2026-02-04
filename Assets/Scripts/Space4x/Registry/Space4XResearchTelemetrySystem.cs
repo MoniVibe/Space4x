@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Research;
 using PureDOTS.Runtime.Telemetry;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 
 namespace Space4X.Registry
