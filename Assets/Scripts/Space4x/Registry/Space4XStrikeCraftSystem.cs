@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Movement;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -319,6 +320,8 @@ namespace Space4X.Registry
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
         private ComponentLookup<StrikeCraftKinematics> _kinematicsLookup;
         private ComponentLookup<VesselMovement> _vesselMovementLookup;
+        private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
+        private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private uint _lastTick;
@@ -333,6 +336,8 @@ namespace Space4X.Registry
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
             _kinematicsLookup = state.GetComponentLookup<StrikeCraftKinematics>(true);
             _vesselMovementLookup = state.GetComponentLookup<VesselMovement>(true);
+            _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
         }
@@ -365,6 +370,8 @@ namespace Space4X.Registry
             _alignmentLookup.Update(ref state);
             _kinematicsLookup.Update(ref state);
             _vesselMovementLookup.Update(ref state);
+            _pilotLinkLookup.Update(ref state);
+            _pilotProficiencyLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
 
@@ -373,6 +380,7 @@ namespace Space4X.Registry
                     .WithNone<StrikeCraftDogfightTag>()
                     .WithEntityAccess())
             {
+                var pilotReaction = ResolvePilotReaction(entity);
                 var baseSpeed = ResolveBaseSpeed(entity);
                 var speed = baseSpeed * ResolveRoleSpeed(craftState.ValueRO.Role);
                 var chaos = 0.5f;
@@ -391,8 +399,9 @@ namespace Space4X.Registry
                 }
 
                 var velocity = kinematics.ValueRO.Velocity;
-                var accel = math.max(1f, speed * 1.8f);
-                var decel = math.max(1f, speed * 2.4f);
+                var reactionScale = math.lerp(0.75f, 1.1f, pilotReaction);
+                var accel = math.max(1f, speed * 1.8f) * reactionScale;
+                var decel = math.max(1f, speed * 2.4f) * math.lerp(0.85f, 1.15f, pilotReaction);
 
                 switch (craftState.ValueRO.Phase)
                 {
@@ -424,7 +433,7 @@ namespace Space4X.Registry
                             var slowdownDistance = math.max(8f, config.ValueRO.AttackRange * 0.2f);
 
                             ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toTarget, distance, slowdownDistance);
-                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel, pilotReaction);
                         }
                         else
                         {
@@ -438,7 +447,7 @@ namespace Space4X.Registry
                             var forward = math.normalizesafe(velocity, math.forward(transform.ValueRO.Rotation));
                             var attackSpeed = speed * (float)config.ValueRO.AttackSpeedMod;
                             var desiredVelocity = forward * attackSpeed;
-                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, forward, deltaTime, accel, decel);
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, forward, deltaTime, accel, decel, pilotReaction);
                         }
                         break;
 
@@ -447,7 +456,7 @@ namespace Space4X.Registry
                         {
                             var breakDir = math.normalizesafe(velocity, math.forward(transform.ValueRO.Rotation));
                             var desiredVelocity = breakDir * speed * 1.2f;
-                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, breakDir, deltaTime, accel, decel);
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, breakDir, deltaTime, accel, decel, pilotReaction);
                         }
                         break;
 
@@ -464,7 +473,7 @@ namespace Space4X.Registry
                             var desiredVelocity = direction * desiredSpeed;
                             var slowdownDistance = 50f;
                             ApplyArrivalBraking(ref desiredVelocity, ref direction, velocity, toCarrier, distance, slowdownDistance);
-                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                            ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel, pilotReaction);
                         }
                         else
                         {
@@ -493,7 +502,7 @@ namespace Space4X.Registry
                                 {
                                     var direction = math.normalizesafe(toAnchor);
                                     var desiredVelocity = direction * speed * 0.35f;
-                                    ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                                    ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel, pilotReaction);
                                 }
                                 else
                                 {
@@ -505,12 +514,12 @@ namespace Space4X.Registry
                             {
                                 var targetPosition = carrierTransform.Position + orbitOffset;
                                 var toTarget = targetPosition - transform.ValueRO.Position;
-                            var patrolSpeed = speed * 0.45f;
+                                var patrolSpeed = speed * 0.45f;
                                 if (math.lengthsq(toTarget) > 0.01f)
                                 {
                                     var direction = math.normalizesafe(toTarget);
                                     var desiredVelocity = direction * patrolSpeed;
-                                    ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel);
+                                    ApplySteering(ref transform.ValueRW, ref velocity, desiredVelocity, direction, deltaTime, accel, decel, pilotReaction);
                                 }
                                 else
                                 {
@@ -566,6 +575,24 @@ namespace Space4X.Registry
             }
 
             return math.max(0.1f, baseSpeed * engineScale);
+        }
+
+        private float ResolvePilotReaction(Entity craftEntity)
+        {
+            if (!_pilotLinkLookup.HasComponent(craftEntity))
+            {
+                return 0.5f;
+            }
+
+            var pilot = _pilotLinkLookup[craftEntity].Pilot;
+            if (pilot == Entity.Null || !_pilotProficiencyLookup.HasComponent(pilot))
+            {
+                return 0.5f;
+            }
+
+            var proficiency = _pilotProficiencyLookup[pilot];
+            var reactionSec = math.clamp(proficiency.ReactionSec, 0.1f, 1.2f);
+            return math.saturate((1.2f - reactionSec) / 1.1f);
         }
 
         private static float3 ResolveTargetVelocity(
@@ -654,11 +681,15 @@ namespace Space4X.Registry
             float3 desiredDirection,
             float deltaTime,
             float acceleration,
-            float deceleration)
+            float deceleration,
+            float reaction)
         {
+            var response = math.lerp(0.35f, 1f, reaction);
+            desiredVelocity = math.lerp(velocity, desiredVelocity, response);
             var currentSpeed = math.length(velocity);
             var desiredSpeed = math.length(desiredVelocity);
             var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
+            accelLimit *= math.lerp(0.85f, 1.1f, reaction);
             var maxDelta = accelLimit * deltaTime;
             var deltaV = desiredVelocity - velocity;
             var deltaSq = math.lengthsq(deltaV);
