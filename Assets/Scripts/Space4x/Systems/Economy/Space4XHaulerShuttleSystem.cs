@@ -113,6 +113,11 @@ namespace Space4X.Systems.Economy
             using var colonies = _colonyQuery.ToEntityArray(Allocator.Temp);
 
             float deliveredTotal = 0f;
+            var totalHaulers = 0;
+            var activeHaulers = 0;
+            var toCarrierCount = 0;
+            var toColonyCount = 0;
+            var cargoInTransit = 0f;
 
             foreach (var (stateRW, transformRW, haulerEntity) in SystemAPI.Query<RefRW<Space4XHaulerShuttleState>, RefRW<LocalTransform>>()
                          .WithAll<HaulerTag>()
@@ -120,9 +125,18 @@ namespace Space4X.Systems.Economy
             {
                 var shuttle = stateRW.ValueRW;
                 var position = transformRW.ValueRO.Position;
+                totalHaulers++;
+                cargoInTransit += math.max(0f, shuttle.CargoAmount);
 
                 if (shuttle.Phase == Space4XHaulerShuttlePhase.Idle)
                 {
+                    if (shuttle.CooldownTimer > 0f)
+                    {
+                        shuttle.CooldownTimer = math.max(0f, shuttle.CooldownTimer - deltaTime);
+                        stateRW.ValueRW = shuttle;
+                        continue;
+                    }
+
                     if (TryAssignCarrier(position, config.MinCarrierLoad, carriers, colonies, out var carrier, out var colony, out var cargoType))
                     {
                         shuttle.TargetCarrier = carrier;
@@ -130,6 +144,12 @@ namespace Space4X.Systems.Economy
                         shuttle.CargoType = cargoType;
                         shuttle.CargoAmount = 0f;
                         shuttle.Phase = Space4XHaulerShuttlePhase.ToCarrier;
+                        activeHaulers++;
+                        toCarrierCount++;
+                    }
+                    else
+                    {
+                        shuttle.CooldownTimer = math.max(0f, shuttle.CooldownTimer);
                     }
 
                     stateRW.ValueRW = shuttle;
@@ -138,6 +158,8 @@ namespace Space4X.Systems.Economy
 
                 if (shuttle.Phase == Space4XHaulerShuttlePhase.ToCarrier)
                 {
+                    activeHaulers++;
+                    toCarrierCount++;
                     if (shuttle.TargetCarrier == Entity.Null ||
                         !_transformLookup.HasComponent(shuttle.TargetCarrier) ||
                         !_storageLookup.HasBuffer(shuttle.TargetCarrier))
@@ -191,8 +213,10 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
-                if (shuttle.Phase == Space4XHaulerShuttlePhase.ToColony)
+                    if (shuttle.Phase == Space4XHaulerShuttlePhase.ToColony)
                 {
+                    activeHaulers++;
+                    toColonyCount++;
                     if (shuttle.TargetColony == Entity.Null || !_transformLookup.HasComponent(shuttle.TargetColony))
                     {
                         var carrierRef = shuttle.TargetCarrier != Entity.Null ? shuttle.TargetCarrier : Entity.Null;
@@ -242,7 +266,7 @@ namespace Space4X.Systems.Economy
                         }
                     }
 
-                    Reset(ref shuttle);
+                    Reset(ref shuttle, config.DropoffCooldownSeconds);
                     stateRW.ValueRW = shuttle;
                 }
             }
@@ -257,6 +281,11 @@ namespace Space4X.Systems.Economy
                 if (timeState.Tick % cadence == 0)
                 {
                     telemetry.AddMetric("space4x.mining.haulerDelivered", deliveredTotal, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric("space4x.mining.hauler.count", totalHaulers, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric("space4x.mining.hauler.active", activeHaulers, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric("space4x.mining.hauler.toCarrier", toCarrierCount, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric("space4x.mining.hauler.toColony", toColonyCount, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric("space4x.mining.hauler.cargo", cargoInTransit, TelemetryMetricUnit.Custom);
                 }
             }
         }
@@ -524,12 +553,13 @@ namespace Space4X.Systems.Economy
             return current + delta / distance * maxDistance;
         }
 
-        private static void Reset(ref Space4XHaulerShuttleState shuttle)
+        private static void Reset(ref Space4XHaulerShuttleState shuttle, float cooldownSeconds = 0f)
         {
             shuttle.TargetCarrier = Entity.Null;
             shuttle.TargetColony = Entity.Null;
             shuttle.CargoAmount = 0f;
             shuttle.Phase = Space4XHaulerShuttlePhase.Idle;
+            shuttle.CooldownTimer = math.max(0f, cooldownSeconds);
         }
     }
 }

@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Telemetry;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -129,6 +130,9 @@ namespace Space4X.Systems.AI
 
             var deltaTime = timeState.FixedDeltaTime;
             var hasCommandLog = SystemAPI.TryGetSingletonBuffer<MiningCommandLogEntry>(out var commandLog);
+            var droppedTotal = 0f;
+            var activeDroppers = 0;
+            var cargoHeld = 0f;
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI
                          .Query<RefRW<MiningVessel>, RefRW<VesselAIState>, RefRO<LocalTransform>>()
@@ -140,6 +144,9 @@ namespace Space4X.Systems.AI
                 {
                     continue;
                 }
+
+                activeDroppers++;
+                cargoHeld += math.max(0f, vesselValue.CurrentCargo);
 
                 // Only drop off when returning (prevents dumping cargo at the mining site).
                 if (aiState.ValueRO.CurrentState != VesselAIState.State.Returning)
@@ -175,6 +182,7 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                droppedTotal += accepted;
                 vesselValue.CurrentCargo = math.max(0f, vesselValue.CurrentCargo - accepted);
                 vessel.ValueRW = vesselValue;
 
@@ -235,6 +243,21 @@ namespace Space4X.Systems.AI
                         miningState.PhaseTimer = DockingHoldDuration / logisticsSpeed;
                         SystemAPI.GetComponentRW<MiningState>(entity).ValueRW = miningState;
                     }
+                }
+            }
+
+            if (droppedTotal > 0f &&
+                SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var exportConfig) &&
+                exportConfig.Enabled != 0 &&
+                (exportConfig.Flags & TelemetryExportFlags.IncludeTelemetryMetrics) != 0 &&
+                SystemAPI.TryGetSingletonBuffer<TelemetryMetric>(out var telemetry))
+            {
+                var cadence = exportConfig.CadenceTicks > 0 ? exportConfig.CadenceTicks : 30u;
+                if (timeState.Tick % cadence == 0)
+                {
+                    telemetry.AddMetric("space4x.mining.carrierDropoff", droppedTotal, TelemetryMetricUnit.Custom);
+                    telemetry.AddMetric("space4x.mining.carrierDropoff.active", activeDroppers, TelemetryMetricUnit.Count);
+                    telemetry.AddMetric("space4x.mining.carrierDropoff.cargo", cargoHeld, TelemetryMetricUnit.Custom);
                 }
             }
         }

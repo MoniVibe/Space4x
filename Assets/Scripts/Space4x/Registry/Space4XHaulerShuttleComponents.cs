@@ -19,6 +19,7 @@ namespace Space4X.Registry
         public ResourceType CargoType;
         public float CargoAmount;
         public Space4XHaulerShuttlePhase Phase;
+        public float CooldownTimer;
     }
 
     /// <summary>
@@ -31,6 +32,7 @@ namespace Space4X.Registry
         public float Speed;
         public float TransferRatePerSecond;
         public float MinCarrierLoad;
+        public float DropoffCooldownSeconds;
 
         public static Space4XHaulerShuttleConfig Default => new Space4XHaulerShuttleConfig
         {
@@ -38,7 +40,8 @@ namespace Space4X.Registry
             DropoffRadius = 8f,
             Speed = 6f,
             TransferRatePerSecond = 300f,
-            MinCarrierLoad = 200f
+            MinCarrierLoad = 200f,
+            DropoffCooldownSeconds = 1.2f
         };
     }
 }
