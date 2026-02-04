@@ -709,6 +709,7 @@ namespace Space4X.Systems.AI
             }
         }
 
+        [BurstDiscard]
         private static FixedString128Bytes BuildMercyPayload(Entity craft, Entity pilot, Entity target,
             bool cultureMatch, bool raceMatch, bool personalMatch, sbyte relationScore, PersonalRelationKind relationKind,
             float goodness, float chance, uint untilTick, bool disciplineApplied, float penalty)

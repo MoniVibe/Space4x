@@ -10,20 +10,17 @@ namespace Space4X.Registry
     /// Assigns a default anatomy to race-bearing entities when none is specified.
     /// Keeps anatomy data-driven while remaining flexible per race/variant later.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XAnatomyBridgeSystem : ISystem
     {
         private static readonly FixedString64Bytes DefaultAnatomyId = new FixedString64Bytes("humanoid");
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RaceId>();
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -44,7 +41,6 @@ namespace Space4X.Registry
             ecb.Playback(state.EntityManager);
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
