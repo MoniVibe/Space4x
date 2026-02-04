@@ -370,6 +370,11 @@ namespace Space4X.Registry
                     vessel.ValueRW.CargoResourceType = cargoType;
                 }
 
+                if (yield.ValueRO.SpawnThreshold <= 0f)
+                {
+                    yield.ValueRW.SpawnThreshold = math.max(1f, vessel.ValueRO.CargoCapacity * 0.25f);
+                }
+
                 var phase = miningState.ValueRO.Phase;
                 var isReturnPhase = phase == MiningPhase.Detaching ||
                                     phase == MiningPhase.ReturnApproach ||
@@ -450,10 +455,6 @@ namespace Space4X.Registry
                 var logisticsMultiplier = ResolveLogisticsOpsMultiplier(entity, vesselData.CarrierEntity, operatorTuning);
                 var focusEfficiency = ResolveFocusEfficiency(entity);
                 var logisticsSpeed = math.clamp(logisticsMultiplier, 0.75f, 1.35f);
-                var returnRatio = ResolveCargoReturnRatio(disposition);
-                var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * returnRatio;
-                var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) &&
-                                      _resourceStateLookup[target].UnitsRemaining <= 0f;
                 var undockDuration = ResolvePhaseDuration(UndockDuration, disposition) / logisticsSpeed;
                 var latchDuration = ResolvePhaseDuration(LatchDuration, disposition) / logisticsSpeed;
                 var detachDuration = ResolvePhaseDuration(DetachDuration, disposition) / logisticsSpeed;
@@ -466,6 +467,11 @@ namespace Space4X.Registry
                 toolInstability01 = math.max(0f, toolInstability01 - ToolInstabilityCooldownPerSecond * cooldownScale * deltaTime);
                 miningState.ValueRW.ToolHeat01 = toolHeat01;
                 miningState.ValueRW.ToolInstability01 = toolInstability01;
+                var returnRatio = ResolveCargoReturnRatio(disposition);
+                returnRatio = AdjustCargoReturnRatio(returnRatio, pilotSkill, logisticsMultiplier, toolHeat01, toolInstability01);
+                var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * returnRatio;
+                var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) &&
+                                      _resourceStateLookup[target].UnitsRemaining <= 0f;
 
                 switch (phase)
                 {
@@ -1694,6 +1700,22 @@ namespace Space4X.Registry
                         (caution - 0.5f) * 0.2f +
                         (patience - 0.5f) * 0.1f;
             return math.clamp(ratio, 0.6f, 0.98f);
+        }
+
+        private static float AdjustCargoReturnRatio(
+            float baseRatio,
+            float pilotSkill01,
+            float logisticsMultiplier,
+            float toolHeat01,
+            float toolInstability01)
+        {
+            var stress = math.saturate(math.max(toolHeat01, toolInstability01));
+            var skillBias = math.lerp(0.9f, 1.05f, math.saturate(pilotSkill01));
+            var logistics01 = math.saturate((logisticsMultiplier - 0.75f) / 0.6f);
+            var logisticsBias = math.lerp(0.95f, 1.05f, logistics01);
+            var stressBias = math.lerp(1.05f, 0.8f, stress);
+            var ratio = baseRatio * skillBias * logisticsBias * stressBias;
+            return math.clamp(ratio, 0.55f, 0.98f);
         }
 
         private float GetMiningSkillMultiplier(Entity miner)
