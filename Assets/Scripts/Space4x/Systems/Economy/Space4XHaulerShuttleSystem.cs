@@ -168,6 +168,13 @@ namespace Space4X.Systems.Economy
                     var storage = _storageLookup[shuttle.TargetCarrier];
                     if (!TryTransferFromCarrier(ref storage, shuttle.CargoType, capacity, config.TransferRatePerSecond * deltaTime, ref shuttle))
                     {
+                        if (shuttle.CargoAmount > 1e-3f)
+                        {
+                            shuttle.Phase = Space4XHaulerShuttlePhase.ToColony;
+                            stateRW.ValueRW = shuttle;
+                            continue;
+                        }
+
                         Reset(ref shuttle);
                         stateRW.ValueRW = shuttle;
                         continue;
