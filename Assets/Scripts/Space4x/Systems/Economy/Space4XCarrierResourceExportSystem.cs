@@ -1,5 +1,6 @@
 using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Logistics.Components;
 using PureDOTS.Systems;
 using PureDOTS.Runtime.Telemetry;
 using Space4X.Registry;
@@ -20,6 +21,7 @@ namespace Space4X.Systems.Economy
     public partial struct Space4XCarrierResourceExportSystem : ISystem
     {
         private EntityQuery _colonyQuery;
+        private EntityQuery _haulerQuery;
         private ComponentLookup<ColonyIndustryStock> _stockLookup;
         private ComponentLookup<Space4XColony> _colonyLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
@@ -34,6 +36,10 @@ namespace Space4X.Systems.Economy
 
             _colonyQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4XColony, ColonyIndustryStock>()
+                .Build();
+
+            _haulerQuery = SystemAPI.QueryBuilder()
+                .WithAll<HaulerTag>()
                 .Build();
 
             _stockLookup = state.GetComponentLookup<ColonyIndustryStock>(false);
@@ -78,6 +84,17 @@ namespace Space4X.Systems.Economy
 
             var deltaTime = math.max(0f, timeState.FixedDeltaTime);
             var transferBudget = math.max(0f, config.TransferRatePerSecond) * deltaTime;
+            if (!_haulerQuery.IsEmptyIgnoreFilter)
+            {
+                var fallback = math.saturate(config.FallbackMultiplierWhenHaulersPresent);
+                if (fallback <= 0f)
+                {
+                    return;
+                }
+
+                transferBudget *= fallback;
+            }
+
             if (transferBudget <= 0f)
             {
                 return;
