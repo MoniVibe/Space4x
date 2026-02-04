@@ -53,7 +53,6 @@ namespace Space4X.Presentation
         public uint LastSwitchTick;
     }
 
-    [BurstCompile]
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
     [UpdateBefore(typeof(Space4XPresentationLODSystem))]
     public partial struct Space4XRenderFrameResolveSystem : ISystem
@@ -62,7 +61,6 @@ namespace Space4X.Presentation
         private ComponentLookup<Space4XOrbitalBandRegion> _bandRegionLookup;
         private ComponentLookup<Space4XSOIRegion> _soiRegionLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XCameraState>();
@@ -72,7 +70,6 @@ namespace Space4X.Presentation
             _soiRegionLookup = state.GetComponentLookup<Space4XSOIRegion>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!RuntimeMode.IsRenderingEnabled)

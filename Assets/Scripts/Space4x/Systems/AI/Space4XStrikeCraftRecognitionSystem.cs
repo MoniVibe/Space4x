@@ -14,7 +14,6 @@ namespace Space4X.Systems.AI
     /// <summary>
     /// Applies lightweight recognition/mercy decisions for strike craft pilots.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4X.Registry.Space4XCombatInitiationSystem))]
@@ -42,7 +41,6 @@ namespace Space4X.Systems.AI
         private ComponentLookup<DisciplinaryRecord> _disciplinaryLookup;
         private EntityStorageInfoLookup _entityLookup;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -68,7 +66,6 @@ namespace Space4X.Systems.AI
             _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -709,7 +706,6 @@ namespace Space4X.Systems.AI
             }
         }
 
-        [BurstDiscard]
         private static FixedString128Bytes BuildMercyPayload(Entity craft, Entity pilot, Entity target,
             bool cultureMatch, bool raceMatch, bool personalMatch, sbyte relationScore, PersonalRelationKind relationKind,
             float goodness, float chance, uint untilTick, bool disciplineApplied, float penalty)
