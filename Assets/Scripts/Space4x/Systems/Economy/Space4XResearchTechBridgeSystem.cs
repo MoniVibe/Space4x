@@ -135,7 +135,7 @@ namespace Space4X.Systems.Economy
                 var tech = _techLookup[entity];
                 var currentTier = math.max((int)tech.MiningTech,
                     math.max((int)tech.CombatTech, math.max((int)tech.HaulingTech, (int)tech.ProcessingTech)));
-                var nextTier = (byte)math.min(pool.ValueRO.MaxTier, (byte)(currentTier + 1));
+                var nextTier = (byte)math.min((int)pool.ValueRO.MaxTier, currentTier + 1);
                 if (nextTier <= currentTier)
                 {
                     continue;
