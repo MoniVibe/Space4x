@@ -375,6 +375,26 @@ namespace Space4X.SimServer
                     data.directive = DirectiveData.From(entityManager.GetComponentData<Space4XFactionDirective>(entity));
                 }
 
+                if (entityManager.HasComponent<Space4XFactionDirectiveBaseline>(entity))
+                {
+                    data.directiveBaseline = DirectiveBaselineData.From(entityManager.GetComponentData<Space4XFactionDirectiveBaseline>(entity));
+                }
+
+                if (entityManager.HasBuffer<Space4XFactionOrder>(entity))
+                {
+                    var orderBuffer = entityManager.GetBuffer<Space4XFactionOrder>(entity);
+                    if (orderBuffer.Length > 0)
+                    {
+                        var orders = new DirectiveOrderData[orderBuffer.Length];
+                        for (int i = 0; i < orderBuffer.Length; i++)
+                        {
+                            orders[i] = DirectiveOrderData.From(orderBuffer[i]);
+                        }
+
+                        data.directiveOrders = orders;
+                    }
+                }
+
                 data.leader = CaptureLeader(entityManager, entity);
 
                 if (entityManager.HasBuffer<FactionRelationEntry>(entity))
@@ -1354,6 +1374,7 @@ namespace Space4X.SimServer
                 typeof(TechLevel),
                 typeof(TechDiffusionState),
                 typeof(Space4XFactionDirective),
+                typeof(Space4XFactionDirectiveBaseline),
                 typeof(Space4XSimServerTag));
 
             var faction = new Space4XFaction
@@ -1413,6 +1434,60 @@ namespace Space4X.SimServer
                     LastUpdatedTick = 0,
                     ExpiresAtTick = 0,
                     DirectiveId = new FixedString64Bytes("default")
+                });
+            }
+
+            if (data.directiveBaseline != null)
+            {
+                entityManager.SetComponentData(entity, data.directiveBaseline.ToComponent());
+            }
+            else
+            {
+                var directive = entityManager.GetComponentData<Space4XFactionDirective>(entity);
+                entityManager.SetComponentData(entity, new Space4XFactionDirectiveBaseline
+                {
+                    Security = directive.Security,
+                    Economy = directive.Economy,
+                    Research = directive.Research,
+                    Expansion = directive.Expansion,
+                    Diplomacy = directive.Diplomacy,
+                    Production = directive.Production,
+                    Food = directive.Food,
+                    Aggression = (float)faction.Aggression,
+                    RiskTolerance = (float)faction.RiskTolerance
+                });
+            }
+
+            if (data.directiveOrders != null && data.directiveOrders.Length > 0)
+            {
+                var orders = entityManager.AddBuffer<Space4XFactionOrder>(entity);
+                orders.Clear();
+                foreach (var orderData in data.directiveOrders)
+                {
+                    orders.Add(orderData.ToComponent());
+                }
+            }
+            else if (data.directive != null && (!string.IsNullOrWhiteSpace(data.directive.directiveId) || data.directive.expiresAtTick != 0))
+            {
+                var orders = entityManager.AddBuffer<Space4XFactionOrder>(entity);
+                orders.Clear();
+                orders.Add(new Space4XFactionOrder
+                {
+                    OrderId = new FixedString64Bytes(data.directive.directiveId ?? string.Empty),
+                    Source = Space4XDirectiveSource.Scripted,
+                    Mode = Space4XDirectiveMode.Override,
+                    Priority = data.directive.priority,
+                    IssuedTick = data.directive.lastUpdatedTick,
+                    ExpiresAtTick = data.directive.expiresAtTick,
+                    Security = data.directive.security,
+                    Economy = data.directive.economy,
+                    Research = data.directive.research,
+                    Expansion = data.directive.expansion,
+                    Diplomacy = data.directive.diplomacy,
+                    Production = data.directive.production,
+                    Food = data.directive.food,
+                    Aggression = -1f,
+                    RiskTolerance = -1f
                 });
             }
 
@@ -2185,6 +2260,8 @@ namespace Space4X.SimServer
             public TechLevelData tech;
             public TechDiffusionData diffusion;
             public DirectiveData directive;
+            public DirectiveBaselineData directiveBaseline;
+            public DirectiveOrderData[] directiveOrders;
             public LeaderData leader;
             public RelationData[] relations;
             public ContactData[] contacts;
@@ -2446,6 +2523,116 @@ namespace Space4X.SimServer
                     LastUpdatedTick = lastUpdatedTick,
                     ExpiresAtTick = expiresAtTick,
                     DirectiveId = new FixedString64Bytes(directiveId ?? string.Empty)
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class DirectiveBaselineData
+        {
+            public float security;
+            public float economy;
+            public float research;
+            public float expansion;
+            public float diplomacy;
+            public float production;
+            public float food;
+            public float aggression;
+            public float riskTolerance;
+
+            public static DirectiveBaselineData From(Space4XFactionDirectiveBaseline baseline)
+            {
+                return new DirectiveBaselineData
+                {
+                    security = baseline.Security,
+                    economy = baseline.Economy,
+                    research = baseline.Research,
+                    expansion = baseline.Expansion,
+                    diplomacy = baseline.Diplomacy,
+                    production = baseline.Production,
+                    food = baseline.Food,
+                    aggression = baseline.Aggression,
+                    riskTolerance = baseline.RiskTolerance
+                };
+            }
+
+            public Space4XFactionDirectiveBaseline ToComponent()
+            {
+                return new Space4XFactionDirectiveBaseline
+                {
+                    Security = security,
+                    Economy = economy,
+                    Research = research,
+                    Expansion = expansion,
+                    Diplomacy = diplomacy,
+                    Production = production,
+                    Food = food,
+                    Aggression = aggression,
+                    RiskTolerance = riskTolerance
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class DirectiveOrderData
+        {
+            public string orderId;
+            public byte source;
+            public byte mode;
+            public float priority;
+            public uint issuedTick;
+            public uint expiresAtTick;
+            public float security;
+            public float economy;
+            public float research;
+            public float expansion;
+            public float diplomacy;
+            public float production;
+            public float food;
+            public float aggression;
+            public float riskTolerance;
+
+            public static DirectiveOrderData From(Space4XFactionOrder order)
+            {
+                return new DirectiveOrderData
+                {
+                    orderId = order.OrderId.ToString(),
+                    source = (byte)order.Source,
+                    mode = (byte)order.Mode,
+                    priority = order.Priority,
+                    issuedTick = order.IssuedTick,
+                    expiresAtTick = order.ExpiresAtTick,
+                    security = order.Security,
+                    economy = order.Economy,
+                    research = order.Research,
+                    expansion = order.Expansion,
+                    diplomacy = order.Diplomacy,
+                    production = order.Production,
+                    food = order.Food,
+                    aggression = order.Aggression,
+                    riskTolerance = order.RiskTolerance
+                };
+            }
+
+            public Space4XFactionOrder ToComponent()
+            {
+                return new Space4XFactionOrder
+                {
+                    OrderId = new FixedString64Bytes(orderId ?? string.Empty),
+                    Source = (Space4XDirectiveSource)source,
+                    Mode = (Space4XDirectiveMode)mode,
+                    Priority = priority,
+                    IssuedTick = issuedTick,
+                    ExpiresAtTick = expiresAtTick,
+                    Security = security,
+                    Economy = economy,
+                    Research = research,
+                    Expansion = expansion,
+                    Diplomacy = diplomacy,
+                    Production = production,
+                    Food = food,
+                    Aggression = aggression,
+                    RiskTolerance = riskTolerance
                 };
             }
         }

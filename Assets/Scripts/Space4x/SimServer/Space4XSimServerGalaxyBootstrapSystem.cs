@@ -163,6 +163,18 @@ namespace Space4X.SimServer
                     ExpiresAtTick = 0,
                     DirectiveId = new FixedString64Bytes("default")
                 });
+                entityManager.AddComponentData(factionEntity, new Space4XFactionDirectiveBaseline
+                {
+                    Security = (float)faction.MilitaryFocus,
+                    Economy = (float)faction.TradeFocus,
+                    Research = (float)faction.ResearchFocus,
+                    Expansion = (float)faction.ExpansionDrive,
+                    Diplomacy = 0.5f,
+                    Production = (float)faction.TradeFocus,
+                    Food = 0.5f,
+                    Aggression = (float)faction.Aggression,
+                    RiskTolerance = (float)faction.RiskTolerance
+                });
 
                 CreateFactionLeadership(entityManager, factionEntity, faction, ref factionRng);
 

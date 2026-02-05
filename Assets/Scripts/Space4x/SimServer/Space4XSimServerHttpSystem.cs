@@ -95,10 +95,14 @@ namespace Space4X.SimServer
             var factionName = request.ResolveFactionName();
             var applyAll = factionId == 0 && string.IsNullOrWhiteSpace(factionName);
             var directiveId = request.ResolveDirectiveId();
+            var orderId = request.ResolveOrderId(directiveId);
             var priority = request.ResolvePriority();
             var expiresAtTick = ResolveExpiryTick(request, tick, ticksPerSecond);
+            var mode = request.ResolveMode();
+            var source = request.ResolveSource();
+            var replaceOrders = request.ResolveReplaceOrders();
 
-            var resolvedWeights = ResolveWeights(request, directiveId);
+            var resolvedWeights = ResolveWeights(request, orderId);
             var entityManager = state.EntityManager;
             var factionLookup = state.GetComponentLookup<Space4XFaction>(true);
             var relationLookup = state.GetComponentLookup<AffiliationRelation>(true);
@@ -108,16 +112,6 @@ namespace Space4X.SimServer
                 if (!applyAll && !MatchesFaction(factionLookup, relationLookup, entity, factionId, factionName))
                 {
                     continue;
-                }
-
-                if (entityManager.HasComponent<Space4XFactionDirective>(entity))
-                {
-                    var existing = entityManager.GetComponentData<Space4XFactionDirective>(entity);
-                    var expired = existing.ExpiresAtTick != 0 && tick >= existing.ExpiresAtTick;
-                    if (!expired && existing.Priority > priority)
-                    {
-                        continue;
-                    }
                 }
 
                 ref var factionRw = ref faction.ValueRW;
@@ -135,20 +129,15 @@ namespace Space4X.SimServer
                 var risk = ResolveWeight(resolvedWeights.RiskTolerance,
                     math.saturate(expansion * 0.5f + economy * 0.3f + security * 0.2f));
 
-                factionRw.MilitaryFocus = (half)security;
-                factionRw.TradeFocus = (half)economy;
-                factionRw.ResearchFocus = (half)research;
-                factionRw.ExpansionDrive = (half)expansion;
-                factionRw.Aggression = (half)aggression;
-                factionRw.RiskTolerance = (half)risk;
-
-                if (!entityManager.HasComponent<Space4XFactionDirective>(entity))
+                EnsureOrderBuffer(entityManager, entity, replaceOrders);
+                UpsertOrder(entityManager, entity, new Space4XFactionOrder
                 {
-                    entityManager.AddComponent<Space4XFactionDirective>(entity);
-                }
-
-                entityManager.SetComponentData(entity, new Space4XFactionDirective
-                {
+                    OrderId = new FixedString64Bytes(orderId ?? string.Empty),
+                    Source = source,
+                    Mode = mode,
+                    Priority = priority,
+                    IssuedTick = tick,
+                    ExpiresAtTick = expiresAtTick,
                     Security = security,
                     Economy = economy,
                     Research = research,
@@ -156,15 +145,74 @@ namespace Space4X.SimServer
                     Diplomacy = diplomacy,
                     Production = production,
                     Food = food,
-                    Priority = priority,
-                    LastUpdatedTick = tick,
-                    ExpiresAtTick = expiresAtTick,
-                    DirectiveId = new FixedString64Bytes(directiveId ?? string.Empty)
+                    Aggression = aggression,
+                    RiskTolerance = risk
                 });
+            }
+        }
 
-                var leader = ResolveLeader(entityManager, entity);
-                ApplyDirectiveProfile(entityManager, leader != Entity.Null ? leader : entity,
-                    security, economy, research, expansion, diplomacy, aggression, risk, food);
+        private static void EnsureOrderBuffer(EntityManager entityManager, Entity entity, bool replaceOrders)
+        {
+            DynamicBuffer<Space4XFactionOrder> buffer;
+            if (entityManager.HasBuffer<Space4XFactionOrder>(entity))
+            {
+                buffer = entityManager.GetBuffer<Space4XFactionOrder>(entity);
+                if (replaceOrders)
+                {
+                    buffer.Clear();
+                }
+                return;
+            }
+
+            buffer = entityManager.AddBuffer<Space4XFactionOrder>(entity);
+            if (replaceOrders)
+            {
+                buffer.Clear();
+            }
+        }
+
+        private static void UpsertOrder(EntityManager entityManager, Entity entity, in Space4XFactionOrder order)
+        {
+            if (!entityManager.HasBuffer<Space4XFactionOrder>(entity))
+            {
+                entityManager.AddBuffer<Space4XFactionOrder>(entity);
+            }
+
+            var buffer = entityManager.GetBuffer<Space4XFactionOrder>(entity);
+            var orderId = order.OrderId;
+
+            if (!orderId.IsEmpty)
+            {
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    if (buffer[i].OrderId.Equals(orderId))
+                    {
+                        buffer[i] = order;
+                        return;
+                    }
+                }
+            }
+
+            if (buffer.Length < buffer.Capacity)
+            {
+                buffer.Add(order);
+                return;
+            }
+
+            var lowestIndex = -1;
+            var lowestPriority = float.MaxValue;
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].Priority < lowestPriority)
+                {
+                    lowestPriority = buffer[i].Priority;
+                    lowestIndex = i;
+                }
+            }
+
+            if (lowestIndex >= 0 && order.Priority >= lowestPriority)
+            {
+                buffer[lowestIndex] = order;
             }
         }
 
@@ -211,56 +259,6 @@ namespace Space4X.SimServer
             }
 
             return 2f;
-        }
-
-        private static void ApplyDirectiveProfile(
-            EntityManager entityManager,
-            Entity entity,
-            float security,
-            float economy,
-            float research,
-            float expansion,
-            float diplomacy,
-            float aggression,
-            float risk,
-            float food)
-        {
-            var target = Space4XSimServerProfileUtility.BuildLeaderDisposition(
-                security,
-                economy,
-                research,
-                expansion,
-                diplomacy,
-                aggression,
-                risk,
-                food);
-
-            if (entityManager.HasComponent<BehaviorDisposition>(entity))
-            {
-                var current = entityManager.GetComponentData<BehaviorDisposition>(entity);
-                var blended = Space4XSimServerProfileUtility.LerpDisposition(current, target, 0.35f);
-                entityManager.SetComponentData(entity, blended);
-                return;
-            }
-
-            entityManager.AddComponentData(entity, target);
-        }
-
-        private static Entity ResolveLeader(EntityManager entityManager, Entity factionEntity)
-        {
-            if (!entityManager.HasComponent<AuthorityBody>(factionEntity))
-            {
-                return Entity.Null;
-            }
-
-            var body = entityManager.GetComponentData<AuthorityBody>(factionEntity);
-            if (body.ExecutiveSeat == Entity.Null || !entityManager.HasComponent<AuthoritySeatOccupant>(body.ExecutiveSeat))
-            {
-                return Entity.Null;
-            }
-
-            var occupant = entityManager.GetComponentData<AuthoritySeatOccupant>(body.ExecutiveSeat).OccupantEntity;
-            return entityManager.Exists(occupant) ? occupant : Entity.Null;
         }
 
         private void UpdateStatusIfNeeded(ref SystemState state)
@@ -330,6 +328,11 @@ namespace Space4X.SimServer
                 {
                     _builder.Append(",\"directive\":null");
                 }
+
+                var orderCount = state.EntityManager.HasBuffer<Space4XFactionOrder>(entity)
+                    ? state.EntityManager.GetBuffer<Space4XFactionOrder>(entity).Length
+                    : 0;
+                _builder.Append(",\"orders\":").Append(orderCount);
 
                 _builder.Append("}");
             }
@@ -442,6 +445,12 @@ namespace Space4X.SimServer
             public string faction_name;
             public string directiveId;
             public string directive_id;
+            public string orderId;
+            public string order_id;
+            public string mode;
+            public string source;
+            public bool replaceOrders;
+            public bool replace_orders;
             public float priority = -1f;
             public float priority_weight = -1f;
             public uint expiresAtTick;
@@ -476,6 +485,22 @@ namespace Space4X.SimServer
                 return !string.IsNullOrWhiteSpace(directiveId) ? directiveId : directive_id;
             }
 
+            public string ResolveOrderId(string fallback)
+            {
+                var resolved = !string.IsNullOrWhiteSpace(orderId) ? orderId : order_id;
+                if (!string.IsNullOrWhiteSpace(resolved))
+                {
+                    return resolved;
+                }
+
+                if (!string.IsNullOrWhiteSpace(fallback))
+                {
+                    return fallback;
+                }
+
+                return "manual";
+            }
+
             public float ResolvePriority()
             {
                 var value = priority >= 0f ? priority : priority_weight;
@@ -500,6 +525,44 @@ namespace Space4X.SimServer
             public float ResolveDurationSeconds()
             {
                 return durationSeconds > 0f ? durationSeconds : duration_seconds;
+            }
+
+            public Space4XDirectiveMode ResolveMode()
+            {
+                if (string.IsNullOrWhiteSpace(mode))
+                {
+                    return Space4XDirectiveMode.Blend;
+                }
+
+                var normalized = mode.Trim().ToLowerInvariant();
+                return normalized switch
+                {
+                    "override" => Space4XDirectiveMode.Override,
+                    "blend" => Space4XDirectiveMode.Blend,
+                    _ => Space4XDirectiveMode.Blend
+                };
+            }
+
+            public Space4XDirectiveSource ResolveSource()
+            {
+                if (string.IsNullOrWhiteSpace(source))
+                {
+                    return Space4XDirectiveSource.Player;
+                }
+
+                var normalized = source.Trim().ToLowerInvariant();
+                return normalized switch
+                {
+                    "ai" => Space4XDirectiveSource.AI,
+                    "scripted" => Space4XDirectiveSource.Scripted,
+                    "player" => Space4XDirectiveSource.Player,
+                    _ => Space4XDirectiveSource.Player
+                };
+            }
+
+            public bool ResolveReplaceOrders()
+            {
+                return replaceOrders || replace_orders;
             }
 
             public float ResolveWeight(float direct, float? nested)
