@@ -25,7 +25,11 @@ namespace Space4X.Authoring
             [Range(0f, 1f)] public float emResist = 1f;
             [Range(0f, 1f)] public float radiationResist = 1f;
             [Range(0f, 1f)] public float explosiveResist;
+            [Range(0f, 1f)] public float causticResist = 1f;
             [Min(0f)] public float repairRateMultiplier = 1f;
+            public Space4XDamageType hardenedType = Space4XDamageType.Unknown;
+            [Range(0f, 1f)] public float hardenedBonus = 0f;
+            [Range(0f, 1f)] public float hardenedPenalty = 0f;
         }
 
         public List<ArmorModuleSpecData> modules = new List<ArmorModuleSpecData>();
@@ -58,7 +62,11 @@ namespace Space4X.Authoring
                         EMResist = math.saturate(data.emResist),
                         RadiationResist = math.saturate(data.radiationResist),
                         ExplosiveResist = math.saturate(data.explosiveResist),
-                        RepairRateMultiplier = math.max(0f, data.repairRateMultiplier)
+                        CausticResist = math.saturate(data.causticResist),
+                        RepairRateMultiplier = math.max(0f, data.repairRateMultiplier),
+                        HardenedType = data.hardenedType,
+                        HardenedBonus = math.saturate(data.hardenedBonus),
+                        HardenedPenalty = math.saturate(data.hardenedPenalty)
                     };
                 }
 

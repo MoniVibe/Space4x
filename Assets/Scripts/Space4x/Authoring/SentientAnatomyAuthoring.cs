@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using PureDOTS.Runtime.Individual;
+using AnatomySlotBuffer = PureDOTS.Runtime.Individual.AnatomySlot;
+using AnatomySlotKind = PureDOTS.Runtime.Individual.AnatomySlotType;
 using Space4X.Registry;
 using Unity.Entities;
 using Unity.Collections;
@@ -50,7 +52,7 @@ namespace Space4X.Authoring
                     SpeciesId = new FixedString64Bytes(authoring.speciesId ?? string.Empty)
                 });
 
-                var slotBuffer = AddBuffer<AnatomySlot>(entity);
+                var slotBuffer = AddBuffer<AnatomySlotBuffer>(entity);
                 if (authoring.slots != null)
                 {
                     foreach (var slot in authoring.slots)
@@ -60,7 +62,7 @@ namespace Space4X.Authoring
                             continue;
                         }
 
-                        slotBuffer.Add(new AnatomySlot
+                        slotBuffer.Add(new AnatomySlotBuffer
                         {
                             SlotId = new FixedString64Bytes(slot.slotId ?? string.Empty),
                             SlotType = ParseSlotType(slot.slotType),
@@ -71,36 +73,36 @@ namespace Space4X.Authoring
                 }
             }
 
-            private static AnatomySlotType ParseSlotType(string value)
+            private static AnatomySlotKind ParseSlotType(string value)
             {
                 if (string.IsNullOrWhiteSpace(value))
                 {
-                    return AnatomySlotType.Other;
+                    return AnatomySlotKind.Other;
                 }
 
                 var key = value.Trim().ToLowerInvariant();
                 if (key.Contains("limb"))
                 {
-                    return AnatomySlotType.Limb;
+                    return AnatomySlotKind.Limb;
                 }
                 if (key.Contains("organ"))
                 {
-                    return AnatomySlotType.Organ;
+                    return AnatomySlotKind.Organ;
                 }
                 if (key.Contains("neural") || key.Contains("brain"))
                 {
-                    return AnatomySlotType.Neural;
+                    return AnatomySlotKind.Neural;
                 }
                 if (key.Contains("sensor") || key.Contains("sense"))
                 {
-                    return AnatomySlotType.Sensory;
+                    return AnatomySlotKind.Sensory;
                 }
                 if (key.Contains("utility") || key.Contains("mount"))
                 {
-                    return AnatomySlotType.Utility;
+                    return AnatomySlotKind.Utility;
                 }
 
-                return AnatomySlotType.Other;
+                return AnatomySlotKind.Other;
             }
         }
     }

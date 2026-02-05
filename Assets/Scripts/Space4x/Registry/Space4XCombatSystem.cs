@@ -44,6 +44,12 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XOrbitalBandState> _orbitalBandLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
+        private ComponentLookup<ModuleLimbProfile> _limbProfileLookup;
+        private BufferLookup<ModuleLimbState> _limbStateLookup;
+        private BufferLookup<ModuleLimbDamageEvent> _limbDamageLookup;
+        private ComponentLookup<ModuleTarget> _moduleTargetLookup;
+        private BufferLookup<PDCarrierModuleSlot> _moduleSlotLookup;
+        private ComponentLookup<PDShipModule> _moduleLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -69,6 +75,12 @@ namespace Space4X.Registry
             _orbitalBandLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
+            _limbProfileLookup = state.GetComponentLookup<ModuleLimbProfile>(true);
+            _limbStateLookup = state.GetBufferLookup<ModuleLimbState>(true);
+            _limbDamageLookup = state.GetBufferLookup<ModuleLimbDamageEvent>(false);
+            _moduleTargetLookup = state.GetComponentLookup<ModuleTarget>(true);
+            _moduleSlotLookup = state.GetBufferLookup<PDCarrierModuleSlot>(true);
+            _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
         }
 
         [BurstCompile]
@@ -101,6 +113,12 @@ namespace Space4X.Registry
             _orbitalBandLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
+            _limbProfileLookup.Update(ref state);
+            _limbStateLookup.Update(ref state);
+            _limbDamageLookup.Update(ref state);
+            _moduleTargetLookup.Update(ref state);
+            _moduleSlotLookup.Update(ref state);
+            _moduleLookup.Update(ref state);
 
             var dogfightConfig = StrikeCraftDogfightConfig.Default;
             if (SystemAPI.TryGetSingleton<StrikeCraftDogfightConfig>(out var dogfightConfigSingleton))
@@ -115,6 +133,15 @@ namespace Space4X.Registry
             {
                 projectileSpeedMultiplier = math.max(0f, weaponTuning.ProjectileSpeedMultiplier);
             }
+
+            const float heatPenaltyStart = 0.65f;
+            const float heatPenaltyScale = 0.75f;
+            const float overheatDamageScale = 0.08f;
+            const float defaultHeatDissipation = 0.02f;
+            const float defaultHeatPerShot = 0.1f;
+            const float defaultHeatCapacity = 1f;
+
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (weapons, engagement, transform, supply, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRO<Space4XEngagement>, RefRO<LocalTransform>, RefRW<SupplyStatus>>()
@@ -237,9 +264,54 @@ namespace Space4X.Registry
                 for (int i = 0; i < weaponBuffer.Length; i++)
                 {
                     var mount = weaponBuffer[i];
+                    var mountDirty = false;
+                    var heatCapacity = mount.HeatCapacity > 0f ? mount.HeatCapacity : defaultHeatCapacity;
+                    var heatDissipation = mount.HeatDissipation > 0f ? mount.HeatDissipation : defaultHeatDissipation;
+                    var heatPerShot = mount.HeatPerShot > 0f ? mount.HeatPerShot : defaultHeatPerShot;
+                    var heat = math.clamp(mount.Heat01, 0f, 1f);
+                    var coolingRating = mount.CoolingRating;
+
+                    if (mount.SourceModule != Entity.Null && _limbProfileLookup.HasComponent(mount.SourceModule))
+                    {
+                        coolingRating = (half)math.clamp(_limbProfileLookup[mount.SourceModule].Cooling, 0f, 1f);
+                        heatCapacity = math.lerp(0.6f, 1.4f, (float)coolingRating);
+                        heatDissipation = math.lerp(0.01f, 0.06f, (float)coolingRating);
+                    }
+
+                    if (heat > 0f)
+                    {
+                        var cooled = math.max(0f, heat - heatDissipation);
+                        if (cooled != heat)
+                        {
+                            heat = cooled;
+                            mount.Heat01 = heat;
+                            mountDirty = true;
+                        }
+                    }
+
+                    if (heat >= 1f && mount.SourceModule != Entity.Null)
+                    {
+                        if (!_limbDamageLookup.HasBuffer(mount.SourceModule))
+                        {
+                            ecb.AddBuffer<ModuleLimbDamageEvent>(mount.SourceModule);
+                        }
+
+                        var damage = math.max(0.02f, heatPerShot * overheatDamageScale);
+                        ecb.AppendToBuffer(mount.SourceModule, new ModuleLimbDamageEvent
+                        {
+                            Family = ModuleLimbFamily.Cooling,
+                            LimbId = ModuleLimbId.Unknown,
+                            Damage = damage,
+                            Tick = currentTick
+                        });
+                    }
 
                     if (mount.IsEnabled == 0)
                     {
+                        if (mountDirty)
+                        {
+                            weaponBuffer[i] = mount;
+                        }
                         continue;
                     }
                     if (weaponsDisabled)
@@ -248,6 +320,10 @@ namespace Space4X.Registry
                         {
                             if (Space4XSubsystemUtility.IsWeaponMountDisabled(entity, i, subsystems, disabledSubsystems))
                             {
+                                if (mountDirty)
+                                {
+                                    weaponBuffer[i] = mount;
+                                }
                                 continue;
                             }
                         }
@@ -255,6 +331,10 @@ namespace Space4X.Registry
                         {
                             if (Space4XSubsystemUtility.ShouldDisableMount(entity, i))
                             {
+                                if (mountDirty)
+                                {
+                                    weaponBuffer[i] = mount;
+                                }
                                 continue;
                             }
                         }
@@ -264,6 +344,7 @@ namespace Space4X.Registry
                     if (mount.Weapon.CurrentCooldown > 0)
                     {
                         mount.Weapon.CurrentCooldown--;
+                        mountDirty = true;
                         weaponBuffer[i] = mount;
                         continue;
                     }
@@ -271,6 +352,10 @@ namespace Space4X.Registry
                     // Range check
                     if (distance > mount.Weapon.MaxRange * rangeScale)
                     {
+                        if (mountDirty)
+                        {
+                            weaponBuffer[i] = mount;
+                        }
                         continue;
                     }
 
@@ -297,12 +382,20 @@ namespace Space4X.Registry
 
                         if (!IsWithinArc(forward, aimDirection, fireArcDegrees, arcOffset))
                         {
+                            if (mountDirty)
+                            {
+                                weaponBuffer[i] = mount;
+                            }
                             continue;
                         }
                         coneForward = RotateYaw(forward, arcOffset);
                     }
                     if (math.dot(coneForward, aimDirection) < fireConeCos)
                     {
+                        if (mountDirty)
+                        {
+                            weaponBuffer[i] = mount;
+                        }
                         continue;
                     }
 
@@ -311,6 +404,10 @@ namespace Space4X.Registry
                         var roll = DeterministicRoll(entity, target, currentTick, (uint)i);
                         if (roll < suppressChance)
                         {
+                            if (mountDirty)
+                            {
+                                weaponBuffer[i] = mount;
+                            }
                             continue;
                         }
                     }
@@ -318,17 +415,29 @@ namespace Space4X.Registry
                     // Ammo check
                     if (mount.Weapon.AmmoPerShot > 0 && supply.ValueRO.Ammunition < mount.Weapon.AmmoPerShot)
                     {
+                        if (mountDirty)
+                        {
+                            weaponBuffer[i] = mount;
+                        }
                         continue;
                     }
 
                     // Apply effectiveness to cooldown (damaged weapons fire slower)
                     int adjustedCooldown = (int)(mount.Weapon.CooldownTicks / math.max(0.1f, effectivenessMultiplier));
                     adjustedCooldown = (int)(adjustedCooldown / focusRofMultiplier);
+                    if (heat > heatPenaltyStart)
+                    {
+                        var heatPenalty = math.saturate((heat - heatPenaltyStart) / math.max(0.0001f, 1f - heatPenaltyStart));
+                        adjustedCooldown = (int)math.round(adjustedCooldown * (1f + heatPenalty * heatPenaltyScale));
+                    }
                     adjustedCooldown = math.clamp(adjustedCooldown, 0, ushort.MaxValue);
 
                     // Fire weapon
                     mount.Weapon.CurrentCooldown = (ushort)adjustedCooldown;
                     mount.CurrentTarget = target;
+                    heat = math.saturate(heat + (heatPerShot / math.max(0.1f, heatCapacity)));
+                    mount.Heat01 = heat;
+                    mountDirty = true;
                     weaponBuffer[i] = mount;
 
                     if (_dogfightTagLookup.HasComponent(entity))
@@ -359,6 +468,9 @@ namespace Space4X.Registry
                     }
                 }
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private bool TryResolveFocusModifiers(Entity shipEntity, out Space4XFocusModifiers modifiers)
@@ -782,7 +894,7 @@ namespace Space4X.Registry
                     }
 
                     // Apply damage to target
-                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref state);
+                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb, ref state);
 
                     engagement.ValueRW.DamageDealt += rawDamage;
                 }
@@ -798,6 +910,7 @@ namespace Space4X.Registry
             uint tick,
             in LocalTransform sourceTransform,
             in LocalTransform targetTransform,
+            ref EntityCommandBuffer ecb,
             ref SystemState state)
         {
             float remainingDamage = rawDamage;
@@ -852,6 +965,11 @@ namespace Space4X.Registry
                 SystemAPI.SetComponent(target, hull);
             }
 
+            if (armorDamage > 0f || hullDamage > 0f)
+            {
+                TryApplyLimbDamage(target, source, damageType, armorDamage, hullDamage, tick, ref ecb);
+            }
+
             if (hullDamage > 0f)
             {
                 ApplySubsystemDamage(target, source, weapon, hullDamage, isCritical, tick);
@@ -885,6 +1003,116 @@ namespace Space4X.Registry
                 targetEngagement.DamageReceived += rawDamage;
                 SystemAPI.SetComponent(target, targetEngagement);
             }
+        }
+
+        private void TryApplyLimbDamage(
+            Entity targetShip,
+            Entity source,
+            Space4XDamageType damageType,
+            float armorDamage,
+            float hullDamage,
+            uint tick,
+            ref EntityCommandBuffer ecb)
+        {
+            var targetModule = ResolveTargetModule(source, targetShip);
+            if (targetModule == Entity.Null)
+            {
+                return;
+            }
+
+            if (!_limbStateLookup.HasBuffer(targetModule))
+            {
+                return;
+            }
+
+            var damageBasis = math.max(hullDamage, armorDamage * 0.35f);
+            if (damageBasis <= 0f)
+            {
+                return;
+            }
+
+            var limbDamage = math.saturate(damageBasis * 0.0015f);
+            if (limbDamage <= 0f)
+            {
+                return;
+            }
+
+            limbDamage *= ResolveLimbDamageScale(damageType);
+            if (limbDamage <= 0f)
+            {
+                return;
+            }
+
+            if (!_limbDamageLookup.HasBuffer(targetModule))
+            {
+                ecb.AddBuffer<ModuleLimbDamageEvent>(targetModule);
+            }
+
+            ecb.AppendToBuffer(targetModule, new ModuleLimbDamageEvent
+            {
+                Family = ResolveLimbFamily(damageType),
+                LimbId = ModuleLimbId.Unknown,
+                Damage = limbDamage,
+                Tick = tick
+            });
+        }
+
+        private Entity ResolveTargetModule(Entity source, Entity targetShip)
+        {
+            if (_moduleTargetLookup.HasComponent(source))
+            {
+                var moduleTarget = _moduleTargetLookup[source];
+                if (moduleTarget.TargetShip == targetShip && moduleTarget.TargetModule != Entity.Null && SystemAPI.Exists(moduleTarget.TargetModule))
+                {
+                    return moduleTarget.TargetModule;
+                }
+            }
+
+            if (_moduleSlotLookup.HasBuffer(targetShip))
+            {
+                var slots = _moduleSlotLookup[targetShip];
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    var module = slots[i].InstalledModule;
+                    if (module == Entity.Null)
+                    {
+                        continue;
+                    }
+                    if (!_moduleLookup.HasComponent(module))
+                    {
+                        continue;
+                    }
+                    return module;
+                }
+            }
+
+            return Entity.Null;
+        }
+
+        private static ModuleLimbFamily ResolveLimbFamily(Space4XDamageType damageType)
+        {
+            return damageType switch
+            {
+                Space4XDamageType.Thermal => ModuleLimbFamily.Cooling,
+                Space4XDamageType.EM => ModuleLimbFamily.Power,
+                Space4XDamageType.Radiation => ModuleLimbFamily.Sensors,
+                Space4XDamageType.Caustic => ModuleLimbFamily.Structural,
+                Space4XDamageType.Energy => ModuleLimbFamily.Lensing,
+                Space4XDamageType.Kinetic => ModuleLimbFamily.Structural,
+                Space4XDamageType.Explosive => ModuleLimbFamily.Structural,
+                _ => ModuleLimbFamily.Structural
+            };
+        }
+
+        private static float ResolveLimbDamageScale(Space4XDamageType damageType)
+        {
+            return damageType switch
+            {
+                Space4XDamageType.Thermal => 1.15f,
+                Space4XDamageType.EM => 1.1f,
+                Space4XDamageType.Caustic => 1.2f,
+                _ => 1f
+            };
         }
 
         private bool TryResolveFocusModifiers(Entity shipEntity, out Space4XFocusModifiers modifiers)
@@ -1849,6 +2077,7 @@ namespace Space4X.Registry
             float deltaThermal = 0f;
             float deltaEm = 0f;
             float deltaRadiation = 0f;
+            float deltaCaustic = 0f;
             float deltaKinetic = 0f;
             float deltaExplosive = 0f;
 
@@ -1890,6 +2119,9 @@ namespace Space4X.Registry
                         case Space4XDamageType.Radiation:
                             deltaRadiation += amount;
                             break;
+                        case Space4XDamageType.Caustic:
+                            deltaCaustic += amount;
+                            break;
                         case Space4XDamageType.Kinetic:
                             deltaKinetic += amount;
                             break;
@@ -1905,12 +2137,14 @@ namespace Space4X.Registry
             telemetry.DamageThermalDelta = deltaThermal;
             telemetry.DamageEMDelta = deltaEm;
             telemetry.DamageRadiationDelta = deltaRadiation;
+            telemetry.DamageCausticDelta = deltaCaustic;
             telemetry.DamageKineticDelta = deltaKinetic;
             telemetry.DamageExplosiveDelta = deltaExplosive;
             telemetry.TotalDamageEnergy += deltaEnergy;
             telemetry.TotalDamageThermal += deltaThermal;
             telemetry.TotalDamageEM += deltaEm;
             telemetry.TotalDamageRadiation += deltaRadiation;
+            telemetry.TotalDamageCaustic += deltaCaustic;
             telemetry.TotalDamageKinetic += deltaKinetic;
             telemetry.TotalDamageExplosive += deltaExplosive;
 

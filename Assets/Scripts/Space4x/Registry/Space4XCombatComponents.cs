@@ -89,7 +89,8 @@ namespace Space4X.Registry
         EM = 3,
         Radiation = 4,
         Kinetic = 5,
-        Explosive = 6
+        Explosive = 6,
+        Caustic = 7
     }
 
     /// <summary>
@@ -410,6 +411,12 @@ namespace Space4X.Registry
         public byte IsEnabled;
         public uint ShotsFired;
         public uint ShotsHit;
+        public Entity SourceModule;
+        public half CoolingRating;
+        public float Heat01;
+        public float HeatCapacity;
+        public float HeatDissipation;
+        public float HeatPerShot;
     }
 
     public struct Space4XWeaponTuningConfig : IComponentData
@@ -498,6 +505,11 @@ namespace Space4X.Registry
         /// </summary>
         public half ExplosiveResistance;
 
+        /// <summary>
+        /// Caustic resistance modifier.
+        /// </summary>
+        public half CausticResistance;
+
         public float Ratio => Maximum > 0 ? Current / Maximum : 0;
 
         public static Space4XShield Standard(float capacity) => new Space4XShield
@@ -513,7 +525,8 @@ namespace Space4X.Registry
             EMResistance = (half)1.0f,
             RadiationResistance = (half)1.0f,
             KineticResistance = (half)1.0f,
-            ExplosiveResistance = (half)1.0f
+            ExplosiveResistance = (half)1.0f,
+            CausticResistance = (half)1.0f
         };
 
         public static Space4XShield Hardened(float capacity) => new Space4XShield
@@ -529,7 +542,8 @@ namespace Space4X.Registry
             EMResistance = (half)0.75f,
             RadiationResistance = (half)0.8f,
             KineticResistance = (half)1.4f,
-            ExplosiveResistance = (half)1.2f
+            ExplosiveResistance = (half)1.2f,
+            CausticResistance = (half)0.85f
         };
 
         public static Space4XShield Dispersive(float capacity) => new Space4XShield
@@ -545,7 +559,8 @@ namespace Space4X.Registry
             EMResistance = (half)1.4f,
             RadiationResistance = (half)1.2f,
             KineticResistance = (half)0.7f,
-            ExplosiveResistance = (half)0.9f
+            ExplosiveResistance = (half)0.9f,
+            CausticResistance = (half)1.1f
         };
     }
 
@@ -610,6 +625,11 @@ namespace Space4X.Registry
         /// </summary>
         public half ExplosiveResistance;
 
+        /// <summary>
+        /// Caustic resistance modifier.
+        /// </summary>
+        public half CausticResistance;
+
         public static Space4XArmor Standard(float thickness) => new Space4XArmor
         {
             Type = ArmorType.Standard,
@@ -620,7 +640,8 @@ namespace Space4X.Registry
             EMResistance = (half)1.0f,
             RadiationResistance = (half)1.0f,
             KineticResistance = (half)1.0f,
-            ExplosiveResistance = (half)1.0f
+            ExplosiveResistance = (half)1.0f,
+            CausticResistance = (half)1.0f
         };
 
         public static Space4XArmor Reactive(float thickness) => new Space4XArmor
@@ -633,7 +654,8 @@ namespace Space4X.Registry
             EMResistance = (half)0.8f,
             RadiationResistance = (half)0.9f,
             KineticResistance = (half)0.8f,
-            ExplosiveResistance = (half)1.5f
+            ExplosiveResistance = (half)1.5f,
+            CausticResistance = (half)0.7f
         };
 
         public static Space4XArmor Ablative(float thickness) => new Space4XArmor
@@ -646,7 +668,8 @@ namespace Space4X.Registry
             EMResistance = (half)1.2f,
             RadiationResistance = (half)1.1f,
             KineticResistance = (half)1.1f,
-            ExplosiveResistance = (half)0.8f
+            ExplosiveResistance = (half)0.8f,
+            CausticResistance = (half)1.2f
         };
     }
 
@@ -776,6 +799,7 @@ namespace Space4X.Registry
         public float TotalDamageThermal;
         public float TotalDamageEM;
         public float TotalDamageRadiation;
+        public float TotalDamageCaustic;
         public float TotalDamageKinetic;
         public float TotalDamageExplosive;
 
@@ -783,6 +807,7 @@ namespace Space4X.Registry
         public float DamageThermalDelta;
         public float DamageEMDelta;
         public float DamageRadiationDelta;
+        public float DamageCausticDelta;
         public float DamageKineticDelta;
         public float DamageExplosiveDelta;
     }
@@ -924,6 +949,7 @@ namespace Space4X.Registry
                 Space4XDamageType.Thermal => ResolveResistance(shield.ThermalResistance, shield.EnergyResistance),
                 Space4XDamageType.EM => ResolveResistance(shield.EMResistance, shield.EnergyResistance),
                 Space4XDamageType.Radiation => ResolveResistance(shield.RadiationResistance, shield.EnergyResistance),
+                Space4XDamageType.Caustic => ResolveResistance(shield.CausticResistance, shield.ThermalResistance),
                 Space4XDamageType.Kinetic => ResolveResistance(shield.KineticResistance, 1f),
                 Space4XDamageType.Explosive => ResolveResistance(shield.ExplosiveResistance, 1f),
                 _ => 1.0f
@@ -941,6 +967,7 @@ namespace Space4X.Registry
                 Space4XDamageType.Thermal => ResolveResistance(armor.ThermalResistance, armor.EnergyResistance),
                 Space4XDamageType.EM => ResolveResistance(armor.EMResistance, armor.EnergyResistance),
                 Space4XDamageType.Radiation => ResolveResistance(armor.RadiationResistance, armor.EnergyResistance),
+                Space4XDamageType.Caustic => ResolveResistance(armor.CausticResistance, armor.ThermalResistance),
                 Space4XDamageType.Kinetic => ResolveResistance(armor.KineticResistance, 1f),
                 Space4XDamageType.Explosive => ResolveResistance(armor.ExplosiveResistance, 1f),
                 _ => 1.0f

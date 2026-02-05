@@ -30,6 +30,7 @@ namespace Space4X.Registry
         public float EMResist;
         public float RadiationResist;
         public float ExplosiveResist;
+        public float CausticResist;
     }
 
     public struct ArmorModuleProfile : IComponentData
@@ -42,6 +43,7 @@ namespace Space4X.Registry
         public float EMResist;
         public float RadiationResist;
         public float ExplosiveResist;
+        public float CausticResist;
         public float RepairRateMultiplier;
     }
 

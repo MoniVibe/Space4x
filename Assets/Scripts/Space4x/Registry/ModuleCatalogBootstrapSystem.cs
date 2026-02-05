@@ -73,6 +73,11 @@ namespace Space4X.Registry
                 CreateDefaultAmmoModuleCatalog(ref state);
             }
 
+            if (!SystemAPI.TryGetSingletonEntity<ModuleLimbCatalogSingleton>(out _))
+            {
+                CreateDefaultModuleLimbCatalog(ref state);
+            }
+
             if (!SystemAPI.TryGetSingletonEntity<WeaponCatalogSingleton>(out _))
             {
                 CreateDefaultWeaponCatalog(ref state);
@@ -184,6 +189,15 @@ namespace Space4X.Registry
                 {
                     ammoCatalogRef.ValueRO.Catalog.Dispose();
                     ammoCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var limbCatalogRef in SystemAPI.Query<RefRW<ModuleLimbCatalogSingleton>>())
+            {
+                if (limbCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    limbCatalogRef.ValueRO.Catalog.Dispose();
+                    limbCatalogRef.ValueRW.Catalog = default;
                 }
             }
 
@@ -378,7 +392,11 @@ namespace Space4X.Registry
                 ThermalResist = 1f,
                 EMResist = 1f,
                 RadiationResist = 1f,
-                ExplosiveResist = 1f
+                ExplosiveResist = 1f,
+                CausticResist = 1f,
+                HardenedType = Space4XDamageType.Unknown,
+                HardenedBonus = 0f,
+                HardenedPenalty = 0f
             };
 
             moduleArray[1] = new ShieldModuleSpec
@@ -393,7 +411,11 @@ namespace Space4X.Registry
                 ThermalResist = 1f,
                 EMResist = 1f,
                 RadiationResist = 1f,
-                ExplosiveResist = 1f
+                ExplosiveResist = 1f,
+                CausticResist = 1f,
+                HardenedType = Space4XDamageType.Unknown,
+                HardenedBonus = 0f,
+                HardenedPenalty = 0f
             };
 
             var blobAsset = builder.CreateBlobAssetReference<ShieldModuleCatalogBlob>(Allocator.Persistent);
@@ -439,7 +461,11 @@ namespace Space4X.Registry
                 EMResist = 1f,
                 RadiationResist = 1f,
                 ExplosiveResist = 1f,
-                RepairRateMultiplier = 1f
+                CausticResist = 1f,
+                RepairRateMultiplier = 1f,
+                HardenedType = Space4XDamageType.Unknown,
+                HardenedBonus = 0f,
+                HardenedPenalty = 0f
             };
 
             var blobAsset = builder.CreateBlobAssetReference<ArmorModuleCatalogBlob>(Allocator.Persistent);
@@ -550,6 +576,103 @@ namespace Space4X.Registry
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new AmmoModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultModuleLimbCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<ModuleLimbCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 17);
+
+            moduleArray[0] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("reactor-mk1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.7f, Structural = 0.6f, Power = 0.85f }
+            };
+            moduleArray[1] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("engine-mk1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.55f, Actuator = 0.5f, Structural = 0.4f }
+            };
+            moduleArray[2] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("laser-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.6f, Sensors = 0.45f, Lensing = 0.7f, Power = 0.4f }
+            };
+            moduleArray[3] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("pd-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.55f, Sensors = 0.55f, Lensing = 0.45f, Guidance = 0.5f, Power = 0.35f }
+            };
+            moduleArray[4] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("missile-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.45f, Sensors = 0.4f, Guidance = 0.6f, Power = 0.35f }
+            };
+            moduleArray[5] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("shield-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.5f, Projector = 0.6f, Structural = 0.5f, Power = 0.45f }
+            };
+            moduleArray[6] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("armor-s-1"),
+                Profile = new ModuleLimbProfile { Structural = 0.8f }
+            };
+            moduleArray[7] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("hangar-s-1"),
+                Profile = new ModuleLimbProfile { Actuator = 0.5f, Structural = 0.6f }
+            };
+            moduleArray[8] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("repair-s-1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.4f, Guidance = 0.4f, Cooling = 0.35f }
+            };
+            moduleArray[9] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("scanner-s-1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.9f, Cooling = 0.3f }
+            };
+            moduleArray[10] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("reactor-mk2"),
+                Profile = new ModuleLimbProfile { Cooling = 0.75f, Structural = 0.65f, Power = 0.9f }
+            };
+            moduleArray[11] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("engine-mk2"),
+                Profile = new ModuleLimbProfile { Cooling = 0.6f, Actuator = 0.55f, Structural = 0.45f }
+            };
+            moduleArray[12] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("missile-m-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.4f, Sensors = 0.35f, Guidance = 0.65f, Power = 0.4f }
+            };
+            moduleArray[13] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("shield-m-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.55f, Projector = 0.7f, Structural = 0.55f, Power = 0.5f }
+            };
+            moduleArray[14] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("bridge-mk1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.6f, Actuator = 0.4f, Structural = 0.4f, Power = 0.25f }
+            };
+            moduleArray[15] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("cockpit-mk1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.55f, Actuator = 0.45f, Structural = 0.35f, Power = 0.2f }
+            };
+            moduleArray[16] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("ammo-bay-s-1"),
+                Profile = new ModuleLimbProfile { Structural = 0.45f }
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<ModuleLimbCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new ModuleLimbCatalogSingleton { Catalog = blobAsset });
         }
 
         private void CreateDefaultWeaponCatalog(ref SystemState state)
