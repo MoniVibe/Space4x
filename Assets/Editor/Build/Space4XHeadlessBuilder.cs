@@ -17,6 +17,7 @@ using UnityEditorInternal;
 using UnityEditor.Compilation;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using PackageManagerPackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace Space4X.Headless.Editor
@@ -61,6 +62,7 @@ namespace Space4X.Headless.Editor
             try
             {
                 Directory.CreateDirectory(absoluteOutput);
+                using var renderPipelineScope = new RenderPipelineScope();
                 using var defineScope = new ScriptingDefineScope(BuildTargetGroup.Standalone, "HYBRID_RENDERER_DISABLED");
                 RunHeadlessPreflight(absoluteOutput);
                 EnsureLinuxServerSupport();
@@ -525,6 +527,46 @@ namespace Space4X.Headless.Editor
             }
 
             throw new BuildFailedException($"Missing scripts detected ({missing.Count}). Preview: {preview}");
+        }
+
+        private sealed class RenderPipelineScope : IDisposable
+        {
+            private readonly RenderPipelineAsset _defaultPipeline;
+            private readonly RenderPipelineAsset _qualityPipeline;
+            private readonly bool _changed;
+
+            public RenderPipelineScope()
+            {
+                if (!InternalEditorUtility.inBatchMode)
+                {
+                    _changed = false;
+                    return;
+                }
+
+                _defaultPipeline = GraphicsSettings.defaultRenderPipeline;
+                _qualityPipeline = QualitySettings.renderPipeline;
+                if (_defaultPipeline == null && _qualityPipeline == null)
+                {
+                    _changed = false;
+                    return;
+                }
+
+                GraphicsSettings.defaultRenderPipeline = null;
+                QualitySettings.renderPipeline = null;
+                _changed = true;
+                UnityEngine.Debug.Log("[Space4XHeadlessBuilder] Cleared render pipeline assets for batchmode build.");
+            }
+
+            public void Dispose()
+            {
+                if (!_changed)
+                {
+                    return;
+                }
+
+                GraphicsSettings.defaultRenderPipeline = _defaultPipeline;
+                QualitySettings.renderPipeline = _qualityPipeline;
+            }
         }
 
         private sealed class ScriptingDefineScope : IDisposable
