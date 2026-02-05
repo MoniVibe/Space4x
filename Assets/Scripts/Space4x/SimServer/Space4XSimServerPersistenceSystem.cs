@@ -10,6 +10,8 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Profile;
 using Space4X.Registry;
+using Space4XAlignmentTriplet = Space4X.Registry.AlignmentTriplet;
+using Space4XIndividualStats = Space4X.Registry.IndividualStats;
 using Space4XResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using Space4XResourceSourceState = Space4X.Registry.ResourceSourceState;
 using Space4XResourceTypeId = Space4X.Registry.ResourceTypeId;
@@ -587,9 +589,9 @@ namespace Space4X.SimServer
                 data.name = entityManager.GetComponentData<IndividualName>(occupant).Name.ToString();
             }
 
-            if (entityManager.HasComponent<AlignmentTriplet>(occupant))
+            if (entityManager.HasComponent<Space4XAlignmentTriplet>(occupant))
             {
-                var alignment = entityManager.GetComponentData<AlignmentTriplet>(occupant);
+                var alignment = entityManager.GetComponentData<Space4XAlignmentTriplet>(occupant);
                 data.hasAlignment = 1;
                 data.law = (float)alignment.Law;
                 data.good = (float)alignment.Good;
@@ -608,9 +610,9 @@ namespace Space4X.SimServer
                 data.patience = disposition.Patience;
             }
 
-            if (entityManager.HasComponent<IndividualStats>(occupant))
+            if (entityManager.HasComponent<Space4XIndividualStats>(occupant))
             {
-                var stats = entityManager.GetComponentData<IndividualStats>(occupant);
+                var stats = entityManager.GetComponentData<Space4XIndividualStats>(occupant);
                 data.hasStats = 1;
                 data.command = (float)stats.Command;
                 data.tactics = (float)stats.Tactics;
@@ -1031,16 +1033,16 @@ namespace Space4X.SimServer
 
             if (data != null && data.hasAlignment != 0)
             {
-                entityManager.AddComponentData(leader, AlignmentTriplet.FromFloats(data.law, data.good, data.integrity));
+                entityManager.AddComponentData(leader, Space4XAlignmentTriplet.FromFloats(data.law, data.good, data.integrity));
             }
             else
             {
-                entityManager.AddComponentData(leader, AlignmentTriplet.FromFloats(0f, 0f, 0f));
+                entityManager.AddComponentData(leader, Space4XAlignmentTriplet.FromFloats(0f, 0f, 0f));
             }
 
             if (data != null && data.hasStats != 0)
             {
-                entityManager.AddComponentData(leader, new IndividualStats
+                entityManager.AddComponentData(leader, new Space4XIndividualStats
                 {
                     Command = (half)math.clamp(data.command, 0f, 100f),
                     Tactics = (half)math.clamp(data.tactics, 0f, 100f),
@@ -1052,7 +1054,7 @@ namespace Space4X.SimServer
             }
             else
             {
-                entityManager.AddComponentData(leader, new IndividualStats
+                entityManager.AddComponentData(leader, new Space4XIndividualStats
                 {
                     Command = (half)65f,
                     Tactics = (half)60f,
