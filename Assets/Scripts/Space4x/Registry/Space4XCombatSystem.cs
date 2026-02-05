@@ -692,11 +692,12 @@ namespace Space4X.Registry
                 var targetVelocity = _movementLookup.HasComponent(target) ? _movementLookup[target].Velocity : float3.zero;
                 var relativeVelocity = targetVelocity - attackerVelocity;
                 var rangeScale = ResolveRangeScale(entity);
+                var weaponsBuffer = weapons;
 
                 // Process weapons that just fired (cooldown == max)
-                for (int i = 0; i < weapons.Length; i++)
+                for (int i = 0; i < weaponsBuffer.Length; i++)
                 {
-                    var mount = weapons[i];
+                    var mount = weaponsBuffer[i];
 
                     if (mount.CurrentTarget != target || mount.Weapon.CurrentCooldown != mount.Weapon.CooldownTicks)
                     {
@@ -738,12 +739,12 @@ namespace Space4X.Registry
 
                     if (random.NextFloat() > hitChance)
                     {
-                        weapons[i] = mount;
+                        weaponsBuffer[i] = mount;
                         continue; // Miss
                     }
 
                     mount.ShotsHit++;
-                    weapons[i] = mount;
+                    weaponsBuffer[i] = mount;
 
                     // Hit - calculate damage
                     float rawDamage = mount.Weapon.BaseDamage;
