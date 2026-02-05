@@ -68,14 +68,14 @@ namespace Space4X.SimServer
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[Space4XSimServer] Failed to parse load JSON: {ex.Message}");
+                    UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to parse load JSON: {ex.Message}");
                 }
             }
 
             var path = ResolveLoadPath(request);
             if (string.IsNullOrWhiteSpace(path))
             {
-                Debug.LogWarning("[Space4XSimServer] No save file found for load request.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] No save file found for load request.");
                 return true;
             }
 
@@ -87,30 +87,30 @@ namespace Space4X.SimServer
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XSimServer] Failed to read save file '{path}': {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to read save file '{path}': {ex.Message}");
                 return true;
             }
 
             if (data == null || data.version <= 0)
             {
-                Debug.LogWarning("[Space4XSimServer] Save data invalid or empty.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] Save data invalid or empty.");
                 return true;
             }
 
             if (data.version != Space4XSimServerPaths.SaveVersion)
             {
-                Debug.LogWarning($"[Space4XSimServer] Save version mismatch. Expected {Space4XSimServerPaths.SaveVersion}, got {data.version}.");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Save version mismatch. Expected {Space4XSimServerPaths.SaveVersion}, got {data.version}.");
                 return true;
             }
 
             if (!ApplyLoadData(ref state, data))
             {
-                Debug.LogWarning("[Space4XSimServer] Failed to apply save data.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] Failed to apply save data.");
                 return true;
             }
 
             _autosaveScheduled = false;
-            Debug.Log($"[Space4XSimServer] Loaded save '{Path.GetFileName(path)}'.");
+            UnityEngine.Debug.Log($"[Space4XSimServer] Loaded save '{Path.GetFileName(path)}'.");
             return true;
         }
 
@@ -128,7 +128,7 @@ namespace Space4X.SimServer
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[Space4XSimServer] Failed to parse save JSON: {ex.Message}");
+                        UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to parse save JSON: {ex.Message}");
                     }
                 }
 
@@ -261,7 +261,7 @@ namespace Space4X.SimServer
             var json = JsonUtility.ToJson(data, false);
             if (string.IsNullOrWhiteSpace(json))
             {
-                Debug.LogWarning("[Space4XSimServer] Save payload empty.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] Save payload empty.");
                 return;
             }
 
@@ -272,11 +272,11 @@ namespace Space4X.SimServer
                 File.Copy(tmpPath, path, true);
                 File.Delete(tmpPath);
                 Space4XSimServerPaths.TrimSaves();
-                Debug.Log($"[Space4XSimServer] Saved '{Path.GetFileName(path)}' (slot={resolvedSlot}).");
+                UnityEngine.Debug.Log($"[Space4XSimServer] Saved '{Path.GetFileName(path)}' (slot={resolvedSlot}).");
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XSimServer] Failed to write save '{path}': {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to write save '{path}': {ex.Message}");
             }
         }
 
