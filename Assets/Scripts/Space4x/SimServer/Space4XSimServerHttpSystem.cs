@@ -17,7 +17,6 @@ namespace Space4X.SimServer
     {
         private bool _started;
         private uint _lastStatusTick;
-        private StringBuilder _builder;
 
         public void OnCreate(ref SystemState state)
         {
@@ -29,7 +28,6 @@ namespace Space4X.SimServer
 
             state.RequireForUpdate<Space4XSimServerConfig>();
             state.RequireForUpdate<Space4XFaction>();
-            _builder = new StringBuilder(4096);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -281,19 +279,19 @@ namespace Space4X.SimServer
 
         private void BuildStatusJson(ref SystemState state, TimeState timeState)
         {
-            _builder.Clear();
+            var builder = new StringBuilder(4096);
             var inv = CultureInfo.InvariantCulture;
 
-            _builder.Append("{\"tick\":").Append(timeState.Tick);
-            _builder.Append(",\"worldSeconds\":").Append(timeState.WorldSeconds.ToString("0.##", inv));
-            _builder.Append(",\"factions\":[");
+            builder.Append("{\"tick\":").Append(timeState.Tick);
+            builder.Append(",\"worldSeconds\":").Append(timeState.WorldSeconds.ToString("0.##", inv));
+            builder.Append(",\"factions\":[");
 
             var first = true;
             foreach (var (faction, resources, territory, entity) in SystemAPI.Query<RefRO<Space4XFaction>, RefRO<FactionResources>, RefRO<Space4XTerritoryControl>>().WithEntityAccess())
             {
                 if (!first)
                 {
-                    _builder.Append(',');
+                    builder.Append(',');
                 }
                 first = false;
 
@@ -301,44 +299,44 @@ namespace Space4X.SimServer
                     ? state.EntityManager.GetComponentData<AffiliationRelation>(entity).AffiliationName.ToString()
                     : string.Empty;
 
-                _builder.Append("{\"id\":").Append(faction.ValueRO.FactionId);
-                _builder.Append(",\"name\":\"").Append(EscapeJson(name)).Append("\"");
-                _builder.Append(",\"type\":\"").Append(faction.ValueRO.Type.ToString()).Append("\"");
-                _builder.Append(",\"aggression\":").Append(((float)faction.ValueRO.Aggression).ToString("0.###", inv));
-                _builder.Append(",\"risk\":").Append(((float)faction.ValueRO.RiskTolerance).ToString("0.###", inv));
-                _builder.Append(",\"expansion\":").Append(((float)faction.ValueRO.ExpansionDrive).ToString("0.###", inv));
-                _builder.Append(",\"trade\":").Append(((float)faction.ValueRO.TradeFocus).ToString("0.###", inv));
-                _builder.Append(",\"research\":").Append(((float)faction.ValueRO.ResearchFocus).ToString("0.###", inv));
-                _builder.Append(",\"military\":").Append(((float)faction.ValueRO.MilitaryFocus).ToString("0.###", inv));
-                _builder.Append(",\"credits\":").Append(resources.ValueRO.Credits.ToString("0.##", inv));
-                _builder.Append(",\"materials\":").Append(resources.ValueRO.Materials.ToString("0.##", inv));
-                _builder.Append(",\"colonies\":").Append(territory.ValueRO.ColonyCount);
+                builder.Append("{\"id\":").Append(faction.ValueRO.FactionId);
+                builder.Append(",\"name\":\"").Append(EscapeJson(name)).Append("\"");
+                builder.Append(",\"type\":\"").Append(faction.ValueRO.Type.ToString()).Append("\"");
+                builder.Append(",\"aggression\":").Append(((float)faction.ValueRO.Aggression).ToString("0.###", inv));
+                builder.Append(",\"risk\":").Append(((float)faction.ValueRO.RiskTolerance).ToString("0.###", inv));
+                builder.Append(",\"expansion\":").Append(((float)faction.ValueRO.ExpansionDrive).ToString("0.###", inv));
+                builder.Append(",\"trade\":").Append(((float)faction.ValueRO.TradeFocus).ToString("0.###", inv));
+                builder.Append(",\"research\":").Append(((float)faction.ValueRO.ResearchFocus).ToString("0.###", inv));
+                builder.Append(",\"military\":").Append(((float)faction.ValueRO.MilitaryFocus).ToString("0.###", inv));
+                builder.Append(",\"credits\":").Append(resources.ValueRO.Credits.ToString("0.##", inv));
+                builder.Append(",\"materials\":").Append(resources.ValueRO.Materials.ToString("0.##", inv));
+                builder.Append(",\"colonies\":").Append(territory.ValueRO.ColonyCount);
 
                 if (state.EntityManager.HasComponent<Space4XFactionDirective>(entity))
                 {
                     var directive = state.EntityManager.GetComponentData<Space4XFactionDirective>(entity);
-                    _builder.Append(",\"directive\":{");
-                    _builder.Append("\"id\":\"").Append(EscapeJson(directive.DirectiveId.ToString())).Append("\"");
-                    _builder.Append(",\"priority\":").Append(directive.Priority.ToString("0.###", inv));
-                    _builder.Append(",\"expiresAt\":").Append(directive.ExpiresAtTick);
-                    _builder.Append(",\"lastUpdated\":").Append(directive.LastUpdatedTick);
-                    _builder.Append("}");
+                    builder.Append(",\"directive\":{");
+                    builder.Append("\"id\":\"").Append(EscapeJson(directive.DirectiveId.ToString())).Append("\"");
+                    builder.Append(",\"priority\":").Append(directive.Priority.ToString("0.###", inv));
+                    builder.Append(",\"expiresAt\":").Append(directive.ExpiresAtTick);
+                    builder.Append(",\"lastUpdated\":").Append(directive.LastUpdatedTick);
+                    builder.Append("}");
                 }
                 else
                 {
-                    _builder.Append(",\"directive\":null");
+                    builder.Append(",\"directive\":null");
                 }
 
                 var orderCount = state.EntityManager.HasBuffer<Space4XFactionOrder>(entity)
                     ? state.EntityManager.GetBuffer<Space4XFactionOrder>(entity).Length
                     : 0;
-                _builder.Append(",\"orders\":").Append(orderCount);
+                builder.Append(",\"orders\":").Append(orderCount);
 
-                _builder.Append("}");
+                builder.Append("}");
             }
 
-            _builder.Append("]}");
-            var payload = _builder.ToString();
+            builder.Append("]}");
+            var payload = builder.ToString();
             Space4XSimHttpServer.UpdateStatus(payload);
             Space4XSimServerPaths.WriteStatus(payload);
         }
