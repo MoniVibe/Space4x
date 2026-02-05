@@ -168,7 +168,7 @@ namespace Space4X.SimServer
             _nextAutosaveAt = now + config.AutosaveSeconds;
         }
 
-        private static double GetWorldSeconds(ref SystemState state)
+        private double GetWorldSeconds(ref SystemState state)
         {
             if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
             {
@@ -178,14 +178,14 @@ namespace Space4X.SimServer
             return state.WorldUnmanaged.Time.ElapsedTime;
         }
 
-        private static void DrainLoadQueue()
+        private void DrainLoadQueue()
         {
             while (Space4XSimHttpServer.TryDequeueLoad(out _))
             {
             }
         }
 
-        private static string ResolveLoadPath(LoadRequest request)
+        private string ResolveLoadPath(LoadRequest request)
         {
             Space4XSimServerPaths.EnsureDirectories();
             var saveDir = Space4XSimServerPaths.SaveDir;
@@ -228,7 +228,7 @@ namespace Space4X.SimServer
             return matches[0];
         }
 
-        private static string FindLatestSave(string saveDir)
+        private string FindLatestSave(string saveDir)
         {
             var files = Directory.GetFiles(saveDir, "*.json", SearchOption.TopDirectoryOnly);
             if (files.Length == 0)
@@ -240,7 +240,7 @@ namespace Space4X.SimServer
             return files[0];
         }
 
-        private static void SaveSnapshot(ref SystemState state, SaveRequest request, bool isAutosave)
+        private void SaveSnapshot(ref SystemState state, SaveRequest request, bool isAutosave)
         {
             var slot = request?.ResolveSlot();
             if (string.IsNullOrWhiteSpace(slot))
@@ -280,7 +280,7 @@ namespace Space4X.SimServer
             }
         }
 
-        private static SimSaveData CaptureSaveData(ref SystemState state)
+        private SimSaveData CaptureSaveData(ref SystemState state)
         {
             var data = new SimSaveData
             {
@@ -299,7 +299,7 @@ namespace Space4X.SimServer
             return data;
         }
 
-        private static SimTimeData CaptureTime(ref SystemState state)
+        private SimTimeData CaptureTime(ref SystemState state)
         {
             var timeState = SystemAPI.TryGetSingleton<TimeState>(out var time) ? time : default;
             var scalars = SystemAPI.TryGetSingleton<SimulationScalars>(out var scalarState) ? scalarState : SimulationScalars.Default;
@@ -317,7 +317,7 @@ namespace Space4X.SimServer
                 timeScale = scalars.TimeScale
             };
         }
-        private static FactionData[] CaptureFactions(ref SystemState state)
+        private FactionData[] CaptureFactions(ref SystemState state)
         {
             var list = new List<FactionData>(16);
             var entityManager = state.EntityManager;
@@ -398,7 +398,7 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static SystemData[] CaptureSystems(ref SystemState state)
+        private SystemData[] CaptureSystems(ref SystemState state)
         {
             var list = new List<SystemData>(64);
 
@@ -416,7 +416,7 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static ColonyData[] CaptureColonies(ref SystemState state)
+        private ColonyData[] CaptureColonies(ref SystemState state)
         {
             var list = new List<ColonyData>(32);
             var entityManager = state.EntityManager;
@@ -457,7 +457,7 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static ResourceData[] CaptureResources(ref SystemState state)
+        private ResourceData[] CaptureResources(ref SystemState state)
         {
             var list = new List<ResourceData>(128);
             var entityManager = state.EntityManager;
@@ -521,7 +521,7 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static AnomalyData[] CaptureAnomalies(ref SystemState state)
+        private AnomalyData[] CaptureAnomalies(ref SystemState state)
         {
             var list = new List<AnomalyData>(16);
 
@@ -542,7 +542,7 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static ushort ResolveFactionId(ComponentLookup<Space4XFaction> lookup, Entity entity, ushort fallback)
+        private ushort ResolveFactionId(ComponentLookup<Space4XFaction> lookup, Entity entity, ushort fallback)
         {
             if (entity != Entity.Null && lookup.HasComponent(entity))
             {
@@ -552,7 +552,7 @@ namespace Space4X.SimServer
             return fallback;
         }
 
-        private static LeaderData CaptureLeader(EntityManager entityManager, Entity factionEntity)
+        private LeaderData CaptureLeader(EntityManager entityManager, Entity factionEntity)
         {
             if (!entityManager.HasComponent<AuthorityBody>(factionEntity))
             {
@@ -652,7 +652,7 @@ namespace Space4X.SimServer
 
             return data;
         }
-        private static bool ApplyLoadData(ref SystemState state, SimSaveData data)
+        private bool ApplyLoadData(ref SystemState state, SimSaveData data)
         {
             var entityManager = state.EntityManager;
             var runtimeConfig = SystemAPI.TryGetSingleton(out Space4XSimServerConfig config) ? config : default;
@@ -882,7 +882,7 @@ namespace Space4X.SimServer
             return true;
         }
 
-        private static Entity CreateFactionEntity(EntityManager entityManager, FactionData data)
+        private Entity CreateFactionEntity(EntityManager entityManager, FactionData data)
         {
             var entity = entityManager.CreateEntity(
                 typeof(AffiliationRelation),
@@ -964,7 +964,7 @@ namespace Space4X.SimServer
             return entity;
         }
 
-        private static void EnsureFactionLeadership(EntityManager entityManager, Entity factionEntity, FactionData data, in Space4XFaction faction)
+        private void EnsureFactionLeadership(EntityManager entityManager, Entity factionEntity, FactionData data, in Space4XFaction faction)
         {
             if (entityManager.HasComponent<AuthorityBody>(factionEntity))
             {
@@ -1012,7 +1012,7 @@ namespace Space4X.SimServer
             seats.Add(new AuthoritySeatRef { SeatEntity = leaderSeat });
         }
 
-        private static void ApplyLeaderSnapshot(
+        private void ApplyLeaderSnapshot(
             EntityManager entityManager,
             Entity leader,
             LeaderData data,
@@ -1133,7 +1133,7 @@ namespace Space4X.SimServer
             entityManager.AddComponentData(leader, disposition);
         }
 
-        private static Entity ResolveFactionEntity(Dictionary<ushort, Entity> map, ushort id, Entity fallback)
+        private Entity ResolveFactionEntity(Dictionary<ushort, Entity> map, ushort id, Entity fallback)
         {
             return id != 0 && map.TryGetValue(id, out var entity) ? entity : fallback;
         }
@@ -1204,7 +1204,7 @@ namespace Space4X.SimServer
             }
         }
 
-        private static float ResolveTimeScale(SimTimeData timeData)
+        private float ResolveTimeScale(SimTimeData timeData)
         {
             var scale = timeData.timeScale;
             if (scale <= math.FLT_MIN_NORMAL)
@@ -1220,12 +1220,12 @@ namespace Space4X.SimServer
             return math.clamp(scale, 0.01f, 16f);
         }
 
-        private static Vector3 ToVector3(float3 value)
+        private Vector3 ToVector3(float3 value)
         {
             return new Vector3(value.x, value.y, value.z);
         }
 
-        private static float3 ToFloat3(Vector3 value)
+        private float3 ToFloat3(Vector3 value)
         {
             return new float3(value.x, value.y, value.z);
         }
