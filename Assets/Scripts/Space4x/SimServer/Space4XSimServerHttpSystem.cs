@@ -58,7 +58,7 @@ namespace Space4X.SimServer
         private void ApplyDirectives(ref SystemState state)
         {
             var tick = SystemAPI.TryGetSingleton<TimeState>(out var timeState) ? timeState.Tick : 0u;
-            var ticksPerSecond = ResolveTicksPerSecond(ref state, timeState);
+            var ticksPerSecond = ResolveTicksPerSecond(timeState);
             var applied = 0;
 
             while (applied < 64 && Space4XSimHttpServer.TryDequeueDirective(out var json))
@@ -198,7 +198,7 @@ namespace Space4X.SimServer
             return candidate >= 0f ? math.saturate(candidate) : math.saturate(fallback);
         }
 
-        private static float ResolveTicksPerSecond(ref SystemState state, in TimeState timeState)
+        private float ResolveTicksPerSecond(in TimeState timeState)
         {
             if (SystemAPI.TryGetSingleton(out Space4XSimServerConfig config) && config.TargetTicksPerSecond > 0f)
             {
