@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Transport;
 using Space4X.Orbitals;
 using Space4X.Registry;
 using Unity.Burst;
@@ -26,6 +27,7 @@ namespace Space4X.Systems.AI
         private EntityQuery _anomalyQuery;
         private EntityQuery _systemQuery;
         private EntityQuery _colonyQuery;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -43,6 +45,7 @@ namespace Space4X.Systems.AI
             _anomalyQuery = SystemAPI.QueryBuilder().WithAll<Space4XAnomaly, LocalTransform>().Build();
             _systemQuery = SystemAPI.QueryBuilder().WithAll<Space4XStarSystem, LocalTransform>().Build();
             _colonyQuery = SystemAPI.QueryBuilder().WithAll<Space4XColony, LocalTransform>().Build();
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
         }
 
         [BurstCompile]
@@ -53,6 +56,8 @@ namespace Space4X.Systems.AI
             {
                 return;
             }
+
+            _affiliationLookup.Update(ref state);
 
             var configEntity = EnsureConfig(ref state, out var config, out var boardState);
             var currentTick = time.Tick;
@@ -127,6 +132,40 @@ namespace Space4X.Systems.AI
 
             var colonies = _colonyQuery.ToEntityArray(Allocator.Temp);
             var colonyTransforms = _colonyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            var colonyFactionMap = new NativeHashMap<Entity, ushort>(math.max(8, colonies.Length), Allocator.Temp);
+            var colonyPositionMap = new NativeHashMap<Entity, float3>(math.max(8, colonies.Length), Allocator.Temp);
+            for (int i = 0; i < colonies.Length; i++)
+            {
+                var colonyEntity = colonies[i];
+                colonyPositionMap[colonyEntity] = colonyTransforms[i].Position;
+                if (_affiliationLookup.HasBuffer(colonyEntity))
+                {
+                    var affiliations = _affiliationLookup[colonyEntity];
+                    for (int a = 0; a < affiliations.Length; a++)
+                    {
+                        var tag = affiliations[a];
+                        if (tag.Type != AffiliationType.Faction || tag.Target == Entity.Null)
+                        {
+                            continue;
+                        }
+
+                        if (entityManager.HasComponent<Space4XFaction>(tag.Target))
+                        {
+                            var factionId = entityManager.GetComponentData<Space4XFaction>(tag.Target).FactionId;
+                            colonyFactionMap[colonyEntity] = factionId;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            var hasDemandBuffer = false;
+            DynamicBuffer<LogisticsDemandEntry> demandBuffer = default;
+            if (SystemAPI.TryGetSingletonEntity<LogisticsBoard>(out var boardEntity))
+            {
+                demandBuffer = entityManager.GetBuffer<LogisticsDemandEntry>(boardEntity);
+                hasDemandBuffer = true;
+            }
 
             for (int i = 0; i < factions.Length; i++)
             {
@@ -147,6 +186,37 @@ namespace Space4X.Systems.AI
                     seed = 1u;
                 }
                 var rng = new Unity.Mathematics.Random(seed);
+                var usedDemandHaul = false;
+
+                if (hasDemandBuffer && demandBuffer.Length > 0 && existingCount < config.MaxOffersPerFaction)
+                {
+                    for (int d = 0; d < demandBuffer.Length && existingCount < config.MaxOffersPerFaction; d++)
+                    {
+                        var demand = demandBuffer[d];
+                        if (demand.OutstandingUnits <= 0f)
+                        {
+                            continue;
+                        }
+
+                        if (colonyFactionMap.TryGetValue(demand.SiteEntity, out var ownerId) && ownerId != factionId)
+                        {
+                            continue;
+                        }
+
+                        if (!colonyPositionMap.TryGetValue(demand.SiteEntity, out var sitePos))
+                        {
+                            continue;
+                        }
+
+                        var units = math.min(demand.OutstandingUnits, 120f);
+                        var reward = ResolveReward(config, Space4XMissionType.HaulProcure, sitePos, units);
+                        var priority = demand.Priority > 3 ? demand.Priority : (byte)3;
+                        CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.HaulProcure, demand.SiteEntity, sitePos,
+                            demand.ResourceTypeIndex, units, reward, 0.03f, 0.06f, 0.2f, currentTick, config.OfferExpiryTicks, priority);
+                        existingCount++;
+                        usedDemandHaul = true;
+                    }
+                }
 
                 // Scout / survey (prefer POIs)
                 if (pois.Length > 0 && existingCount < config.MaxOffersPerFaction)
@@ -181,8 +251,8 @@ namespace Space4X.Systems.AI
                     existingCount++;
                 }
 
-                // Haul procurement
-                if (colonies.Length > 0 && existingCount < config.MaxOffersPerFaction)
+                // Haul procurement (fallback if no logistics demand)
+                if (!usedDemandHaul && colonies.Length > 0 && existingCount < config.MaxOffersPerFaction)
                 {
                     var index = rng.NextInt(0, colonies.Length);
                     var destPos = colonyTransforms[index].Position;
@@ -246,6 +316,8 @@ namespace Space4X.Systems.AI
             systemData.Dispose();
             colonies.Dispose();
             colonyTransforms.Dispose();
+            colonyFactionMap.Dispose();
+            colonyPositionMap.Dispose();
         }
 
         private void AssignOffers(ref SystemState state, in Space4XMissionBoardConfig config, uint currentTick)
