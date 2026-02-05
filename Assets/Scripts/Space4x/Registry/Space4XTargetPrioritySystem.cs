@@ -22,6 +22,11 @@ namespace Space4X.Registry
         private EntityQuery _potentialTargetsQuery;
         private ComponentLookup<VesselStanceComponent> _stanceLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
+        private ComponentLookup<Space4XFaction> _factionLookup;
+        private BufferLookup<DiplomaticStatusEntry> _diplomaticStatusLookup;
+        private BufferLookup<FactionRelationEntry> _factionRelationLookup;
         private uint _lastTick;
 
         public void OnCreate(ref SystemState state)
@@ -32,6 +37,11 @@ namespace Space4X.Registry
             _lastTick = 0;
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
+            _diplomaticStatusLookup = state.GetBufferLookup<DiplomaticStatusEntry>(true);
+            _factionRelationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
 
             // Query for potential hostile targets
             _potentialTargetsQuery = state.GetEntityQuery(
@@ -56,6 +66,11 @@ namespace Space4X.Registry
 
             _stanceLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
+            _factionLookup.Update(ref state);
+            _diplomaticStatusLookup.Update(ref state);
+            _factionRelationLookup.Update(ref state);
 
             var stanceConfig = Space4XStanceTuningConfig.Default;
             if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
@@ -63,7 +78,7 @@ namespace Space4X.Registry
                 stanceConfig = stanceConfigSingleton;
             }
 
-            // Get all potential targets (simplified - in reality would filter by faction/hostility)
+            // Get all potential targets; relation filtering happens per-entity during scoring.
             var potentialTargets = _potentialTargetsQuery.ToEntityArray(Allocator.Temp);
             var targetTransforms = _potentialTargetsQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
             var targetHulls = _potentialTargetsQuery.ToComponentDataArray<HullIntegrity>(Allocator.Temp);
@@ -110,6 +125,7 @@ namespace Space4X.Registry
                 }
 
                 float3 myPosition = transform.ValueRO.Position;
+                var selfFaction = ResolveFactionEntity(entity);
 
                 for (int i = 0; i < potentialTargets.Length; i++)
                 {
@@ -133,6 +149,28 @@ namespace Space4X.Registry
                     var hull = targetHulls[i];
                     float hullRatio = (float)hull.Current / math.max((float)hull.Max, 0.01f);
 
+                    var targetFaction = ResolveFactionEntity(targetEntity);
+                    bool isFriendly = false;
+                    bool isHostile = false;
+                    sbyte relationScore = 0;
+                    if (selfFaction != Entity.Null && targetFaction != Entity.Null)
+                    {
+                        if (selfFaction == targetFaction)
+                        {
+                            isFriendly = true;
+                        }
+                        else if (TryResolveRelationScore(selfFaction, targetFaction, out relationScore, out var relationStance))
+                        {
+                            isFriendly = IsFriendlyRelation(relationScore, relationStance);
+                            isHostile = IsHostileRelation(relationScore, relationStance);
+                        }
+                    }
+
+                    if (isFriendly)
+                    {
+                        continue;
+                    }
+
                     // Create candidate
                     var candidate = new TargetCandidate
                     {
@@ -141,7 +179,7 @@ namespace Space4X.Registry
                         ThreatLevel = (half)0.5f, // TODO: Get actual threat level
                         HullRatio = (half)hullRatio,
                         Value = (half)0.5f, // TODO: Get actual value
-                        IsThreateningAlly = 0 // TODO: Check ally threats
+                        IsThreateningAlly = (byte)(isHostile ? 1 : 0)
                     };
 
                     // Calculate score
@@ -150,6 +188,17 @@ namespace Space4X.Registry
                         candidate,
                         maxRange
                     );
+
+                    if ((profile.ValueRO.EnabledFactors & TargetFactors.FactionRelation) != 0 && (relationScore != 0 || isHostile))
+                    {
+                        var relationBias = ResolveRelationBias(relationScore);
+                        var relationWeight = math.lerp(0.2f, 0.6f, math.saturate((float)profile.ValueRO.ThreatWeight));
+                        candidate.Score += relationBias * relationWeight;
+                        if (isHostile)
+                        {
+                            candidate.Score += relationWeight * 0.2f;
+                        }
+                    }
 
                     // Apply engagement bonus if this is current target
                     if (targetEntity == priority.ValueRO.CurrentTarget)
@@ -177,6 +226,163 @@ namespace Space4X.Registry
             potentialTargets.Dispose();
             targetTransforms.Dispose();
             targetHulls.Dispose();
+        }
+
+        private Entity ResolveFactionEntity(Entity entity)
+        {
+            if (_affiliationLookup.HasBuffer(entity))
+            {
+                var affiliations = _affiliationLookup[entity];
+                Entity fallback = Entity.Null;
+                for (int i = 0; i < affiliations.Length; i++)
+                {
+                    var tag = affiliations[i];
+                    if (tag.Target == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    if (tag.Type == AffiliationType.Faction)
+                    {
+                        return tag.Target;
+                    }
+
+                    if (fallback == Entity.Null && tag.Type == AffiliationType.Fleet)
+                    {
+                        fallback = tag.Target;
+                    }
+                    else if (fallback == Entity.Null)
+                    {
+                        fallback = tag.Target;
+                    }
+                }
+
+                if (fallback != Entity.Null && _affiliationLookup.HasBuffer(fallback))
+                {
+                    var nested = _affiliationLookup[fallback];
+                    for (int i = 0; i < nested.Length; i++)
+                    {
+                        var tag = nested[i];
+                        if (tag.Target == Entity.Null)
+                        {
+                            continue;
+                        }
+
+                        if (tag.Type == AffiliationType.Faction)
+                        {
+                            return tag.Target;
+                        }
+
+                        if (tag.Type == AffiliationType.Fleet)
+                        {
+                            return tag.Target;
+                        }
+                    }
+                }
+
+                if (fallback != Entity.Null)
+                {
+                    return fallback;
+                }
+            }
+
+            if (_carrierLookup.HasComponent(entity))
+            {
+                var carrier = _carrierLookup[entity];
+                if (carrier.AffiliationEntity != Entity.Null)
+                {
+                    return carrier.AffiliationEntity;
+                }
+            }
+
+            return Entity.Null;
+        }
+
+        private bool TryResolveRelationScore(Entity selfFaction, Entity targetFaction, out sbyte score, out DiplomaticStance stance)
+        {
+            score = 0;
+            stance = DiplomaticStance.Neutral;
+
+            if (selfFaction == Entity.Null || targetFaction == Entity.Null)
+            {
+                return false;
+            }
+
+            if (selfFaction == targetFaction)
+            {
+                score = 100;
+                stance = DiplomaticStance.Allied;
+                return true;
+            }
+
+            if (!_factionLookup.HasComponent(targetFaction))
+            {
+                return false;
+            }
+
+            ushort targetFactionId = _factionLookup[targetFaction].FactionId;
+
+            if (_diplomaticStatusLookup.HasBuffer(selfFaction))
+            {
+                var statuses = _diplomaticStatusLookup[selfFaction];
+                for (int i = 0; i < statuses.Length; i++)
+                {
+                    var status = statuses[i].Status;
+                    if (status.OtherFactionId == targetFactionId)
+                    {
+                        score = status.RelationScore;
+                        stance = status.Stance;
+                        return true;
+                    }
+                }
+            }
+
+            if (_factionRelationLookup.HasBuffer(selfFaction))
+            {
+                var relations = _factionRelationLookup[selfFaction];
+                for (int i = 0; i < relations.Length; i++)
+                {
+                    var relation = relations[i].Relation;
+                    if (relation.OtherFactionId == targetFactionId)
+                    {
+                        score = relation.Score;
+                        stance = DiplomacyMath.DetermineStance(score, DiplomaticStance.Neutral);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsFriendlyRelation(sbyte relationScore, DiplomaticStance stance)
+        {
+            if (stance == DiplomaticStance.Allied ||
+                stance == DiplomaticStance.Friendly ||
+                stance == DiplomaticStance.Cordial ||
+                stance == DiplomaticStance.Vassal ||
+                stance == DiplomaticStance.Overlord)
+            {
+                return true;
+            }
+
+            return relationScore >= 25;
+        }
+
+        private static bool IsHostileRelation(sbyte relationScore, DiplomaticStance stance)
+        {
+            if (stance == DiplomaticStance.War || stance == DiplomaticStance.Hostile)
+            {
+                return true;
+            }
+
+            return relationScore <= -25;
+        }
+
+        private static float ResolveRelationBias(sbyte relationScore)
+        {
+            var relationNorm = math.clamp(relationScore / 100f, -1f, 1f);
+            return -relationNorm;
         }
 
         private void SelectBestTarget(

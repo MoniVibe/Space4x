@@ -279,7 +279,7 @@ namespace Space4X.Headless
             }
 
             var scenarioId = string.IsNullOrWhiteSpace(result.ScenarioId) ? ScenarioIdOverride : result.ScenarioId;
-            var seed = result.Seed != 0 ? result.Seed : SeedOverride;
+            var seed = SeedOverride != 0 ? SeedOverride : (result.Seed != 0 ? result.Seed : 0u);
             var simTicks = result.RunTicks > 0 ? (uint)result.RunTicks : s_simTicks;
             var expectedSimTicks = s_expectedSimTicks != 0 ? s_expectedSimTicks : simTicks;
             var avgDtMs = s_avgDtMs > 0f ? s_avgDtMs : 1000f / 60f;

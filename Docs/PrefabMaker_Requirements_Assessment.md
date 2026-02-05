@@ -290,7 +290,7 @@ Assets/Prefabs/Space4X/
 ### Identified Gaps
 
 #### 1. Alignment/Ownership Data in Prefabs
-**Gap**: Vision requires ownership layers and alignment data (`AlignmentTriplet`, `RaceId`, `CultureId`, `DynamicBuffer<EthicAxisValue>`, `DynamicBuffer<OutlookEntry>`, `DynamicBuffer<AffiliationTag>`)
+**Gap**: Vision requires ownership layers and alignment data (`AlignmentTriplet`, `RaceId`, `CultureId`, `DynamicBuffer<EthicAxisValue>`, `DynamicBuffer<StanceEntry>`, `DynamicBuffer<AffiliationTag>`)
 
 **Current State**: No authoring components for alignment/ownership data in prefabs
 
@@ -390,7 +390,7 @@ Assets/Prefabs/Space4X/
 **Priority**: Medium (improves developer experience)
 
 #### 9. Crew/Alignment Component Generation
-**Gap**: Agent A requires alignment buffers in crew prefabs (`DynamicBuffer<EthicAxisValue>`, `DynamicBuffer<OutlookEntry>`, `DynamicBuffer<AffiliationTag>`)
+**Gap**: Agent A requires alignment buffers in crew prefabs (`DynamicBuffer<EthicAxisValue>`, `DynamicBuffer<StanceEntry>`, `DynamicBuffer<AffiliationTag>`)
 
 **Current State**: No crew prefab generator; crews are runtime entities
 
@@ -704,4 +704,5 @@ The generator architecture is sound and extensible; these enhancements can be ad
 4. **Medium**: Create authoring components for ExpertiseEntry and ServiceTrait buffers
 5. **Low**: Implement XP accumulation/spending (future expansion)
 6. **Low**: Implement preordain track guidance (future expansion)
+
 

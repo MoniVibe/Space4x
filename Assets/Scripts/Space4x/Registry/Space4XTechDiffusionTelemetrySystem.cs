@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Telemetry;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 
 namespace Space4X.Registry
@@ -12,6 +13,11 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XTechDiffusionSystem))]
     public partial struct Space4XTechDiffusionTelemetrySystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricActive = "space4x.techdiffusion.active";
+        private static readonly FixedString64Bytes MetricCompleted = "space4x.techdiffusion.completed";
+        private static readonly FixedString64Bytes MetricLastTick = "space4x.techdiffusion.lastTick";
+        private static readonly FixedString64Bytes MetricLastUpgradeTick = "space4x.techdiffusion.lastUpgradeTick";
+
         private EntityQuery _telemetryQuery;
         private EntityQuery _diffusionTelemetryQuery;
 
@@ -39,10 +45,10 @@ namespace Space4X.Registry
             var metrics = state.EntityManager.GetComponentData<TechDiffusionTelemetry>(diffusionEntity);
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
 
-            buffer.AddMetric("space4x.techdiffusion.active", metrics.ActiveDiffusions, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.techdiffusion.completed", metrics.CompletedUpgrades, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.techdiffusion.lastTick", metrics.LastUpdateTick, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.techdiffusion.lastUpgradeTick", metrics.LastUpgradeTick, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricActive, metrics.ActiveDiffusions, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricCompleted, metrics.CompletedUpgrades, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricLastTick, metrics.LastUpdateTick, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricLastUpgradeTick, metrics.LastUpgradeTick, TelemetryMetricUnit.Custom);
         }
     }
 }

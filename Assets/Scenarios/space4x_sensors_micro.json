@@ -1,10 +1,16 @@
 {
+  "scenarioId": "space4x_sensors_micro",
   "seed": 901,
   "duration_s": 90,
   "proofs": {
     "mining": false
   },
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "spawnLane": "mining-json",
     "applyMotionTuning": true,
     "applyMotionProfile": true,

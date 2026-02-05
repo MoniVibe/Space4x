@@ -1,0 +1,221 @@
+{
+  "scenarioId": "space4x_relations_combat",
+  "seed": 20260203,
+  "duration_s": 60,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 250.0,
+    "coneDegrees": 45.0,
+    "navConstantN": 3.5,
+    "breakOffDistance": 18.0,
+    "breakOffTicks": 90,
+    "rejoinRadius": 6.0,
+    "rejoinOffset": [0.0, 0.0, -12.0],
+    "jinkStrength": 0.15
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "relations-alpha",
+      "position": [-60.0, 0.0],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "pilotProfileIds": [
+            "ally-ace-1",
+            "ally-ace-2",
+            "ally-ace-3",
+            "ally-ace-4"
+          ],
+          "escortCount": 0,
+          "escortRelease_s": 0.0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "relations-bravo",
+      "position": [60.0, 0.0],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "pilotProfileIds": [
+            "hostile-ace-1",
+            "hostile-ace-2",
+            "hostile-ace-3",
+            "hostile-ace-4"
+          ],
+          "escortCount": 0,
+          "escortRelease_s": 0.0
+        }
+      }
+    }
+  ],
+  "individuals": [
+    {
+      "id": "ally-ace-1",
+      "law": 0.7,
+      "good": 0.85,
+      "integrity": 0.6,
+      "raceId": 1,
+      "cultureId": 1,
+      "stances": [
+        { "stanceId": "Loyalist", "weight": 0.8 },
+        { "stanceId": "Opportunist", "weight": 0.2 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.8,
+        "caution": 0.45,
+        "formationAdherence": 0.6,
+        "riskTolerance": 0.3,
+        "aggression": 0.35,
+        "patience": 0.6
+      }
+    },
+    {
+      "id": "ally-ace-2",
+      "law": 0.25,
+      "good": 0.3,
+      "integrity": 0.4,
+      "raceId": 1,
+      "cultureId": 3,
+      "stances": [
+        { "stanceId": "Opportunist", "weight": 0.6 },
+        { "stanceId": "Mutinous", "weight": 0.4 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.35,
+        "caution": 0.2,
+        "formationAdherence": 0.35,
+        "riskTolerance": 0.7,
+        "aggression": 0.65,
+        "patience": 0.3
+      }
+    },
+    {
+      "id": "ally-ace-3",
+      "law": 0.55,
+      "good": 0.6,
+      "integrity": 0.5,
+      "raceId": 1,
+      "cultureId": 2,
+      "stances": [
+        { "stanceId": "Loyalist", "weight": 0.6 }
+      ]
+    },
+    {
+      "id": "ally-ace-4",
+      "law": 0.35,
+      "good": 0.5,
+      "integrity": 0.45,
+      "raceId": 2,
+      "cultureId": 2,
+      "stances": [
+        { "stanceId": "Neutral", "weight": 0.8 }
+      ]
+    },
+    {
+      "id": "hostile-ace-1",
+      "law": -0.6,
+      "good": 0.4,
+      "integrity": 0.2,
+      "raceId": 3,
+      "cultureId": 4,
+      "stances": [
+        { "stanceId": "Fanatic", "weight": 0.7 },
+        { "stanceId": "Opportunist", "weight": 0.2 },
+        { "stanceId": "Mutinous", "weight": 0.1 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.35,
+        "caution": 0.2,
+        "formationAdherence": 0.4,
+        "riskTolerance": 0.7,
+        "aggression": 0.75,
+        "patience": 0.25
+      }
+    },
+    {
+      "id": "hostile-ace-2",
+      "law": -0.3,
+      "good": 0.2,
+      "integrity": 0.3,
+      "raceId": 3,
+      "cultureId": 5,
+      "stances": [
+        { "stanceId": "Fanatic", "weight": 0.6 },
+        { "stanceId": "Opportunist", "weight": 0.4 }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.25,
+        "caution": 0.15,
+        "formationAdherence": 0.25,
+        "riskTolerance": 0.8,
+        "aggression": 0.8,
+        "patience": 0.2
+      }
+    },
+    {
+      "id": "hostile-ace-3",
+      "law": -0.5,
+      "good": 0.35,
+      "integrity": 0.4,
+      "raceId": 2,
+      "cultureId": 4,
+      "stances": [
+        { "stanceId": "Mutinous", "weight": 0.6 }
+      ]
+    },
+    {
+      "id": "hostile-ace-4",
+      "law": -0.2,
+      "good": 0.5,
+      "integrity": 0.5,
+      "raceId": 2,
+      "cultureId": 1,
+      "stances": [
+        { "stanceId": "Opportunist", "weight": 0.5 }
+      ]
+    }
+  ],
+  "personalRelations": [
+    {
+      "idA": "ally-ace-1",
+      "idB": "hostile-ace-1",
+      "kind": "BestFriend",
+      "score": 80,
+      "trust": 0.9,
+      "fear": 0.1
+    },
+    {
+      "idA": "ally-ace-2",
+      "idB": "hostile-ace-2",
+      "kind": "Friend",
+      "score": 55,
+      "trust": 0.7,
+      "fear": 0.2
+    }
+  ]
+}
+
+

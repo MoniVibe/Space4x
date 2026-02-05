@@ -24,7 +24,7 @@ Axis Ids sit in a generated enum so systems can switch over them without boxing.
 At runtime, transient systems may stitch the dense ethics vector `E` for SIMD math by streaming the buffer into a reusable float array indexed by `AxisId`. The combined trait vector is `[A | E_dense]`.
 
 **Race, culture, outlooks**  
-Individuals also carry `RaceId` and `CultureId` `IComponentData` structs (simple ushort ids resolved through authoring tables). Outlooks are tracked via `DynamicBuffer<OutlookEntry>` where each entry is `(OutlookId, Weight)` with Weight ∈ [-1,+1]. Only the three strongest absolute weights inform higher-level aggregates; retain the full buffer so narrative systems can surface niche traits.
+Individuals also carry `RaceId` and `CultureId` `IComponentData` structs (simple ushort ids resolved through authoring tables). Stances are tracked via `DynamicBuffer<StanceEntry>` where each entry is `(StanceId, Weight)` with Weight ∈ [-1,+1]. Only the three strongest absolute weights inform higher-level aggregates; retain the full buffer so narrative systems can surface niche traits.
 
 2) Initiative & task scope
 
@@ -108,7 +108,7 @@ When a fleet becomes a mobile colony, add civilian strata with their own `Alignm
 
 Aggregating cultures & outlooks:
 - Races and cultures never average—retain the set of represented ids on the aggregate (`DynamicBuffer<RacePresence>`, `DynamicBuffer<CulturePresence>` with counts).  
-- When building crew-level outlooks, sort individual outlook weights by absolute value, accumulate the top three distinct `OutlookId`s, and store them on the crew as `TopOutlookBuffer`. Downstream UX shows these as the crew's dominant philosophies.  
+- When building crew-level stances, sort individual stance weights by absolute value, accumulate the top three distinct `StanceId`s, and store them on the crew as `DynamicBuffer<TopStance>`. Downstream UX shows these as the crew's dominant philosophies.  
 - For performance, maintain running sums (alignment, outlook numerators, influence weights) in a `CrewAggregationComponent`; recompute when membership changes.
 
 6) Affiliations & conflict detection
@@ -167,3 +167,4 @@ Keep math inside Burst-friendly static methods. Queue actions as `CommandBuffer`
 - α (chaos→initiative), κ (risk amplification), k-vector for formation breaks.  
 - Cohesion coefficients determine how much officers matter vs training.  
 - Action cost ladder shapes pacing: low cost → skirmish; high cost → invasions requiring high initiative + captain approval.
+

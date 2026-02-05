@@ -1,6 +1,20 @@
 {
+  "scenarioId": "space4x_collision_micro",
   "seed": 7,
   "duration_s": 30,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.collision.phasing",
+        "required": true
+      }
+    ]
+  },
   "proofs": {
     "mining": false
   },
@@ -28,6 +42,38 @@
     }
   ],
   "actions": [
+    {
+      "time_s": 0,
+      "kind": "EconomyEnable",
+      "description": "Enable economy systems for production loop v0"
+    },
+    {
+      "time_s": 0.1,
+      "kind": "ProdCreateBusiness",
+      "businessId": "smelter-alpha",
+      "businessType": "Blacksmith",
+      "capacity": 500
+    },
+    {
+      "time_s": 0.2,
+      "kind": "ProdAddItem",
+      "businessId": "smelter-alpha",
+      "itemId": "space4x_ore",
+      "quantity": 120
+    },
+    {
+      "time_s": 0.2,
+      "kind": "ProdAddItem",
+      "businessId": "smelter-alpha",
+      "itemId": "space4x_supplies",
+      "quantity": 10
+    },
+    {
+      "time_s": 0.5,
+      "kind": "ProdRequest",
+      "businessId": "smelter-alpha",
+      "recipeId": "space4x_ore_to_ingot"
+    },
     {
       "time_s": 1,
       "kind": "MoveFleet",

@@ -83,6 +83,8 @@ namespace Space4X.Headless
 
             var foundSeat = false;
             Entity occupantEntity = Entity.Null;
+            var hasOccupant = false;
+            var injuredSelected = false;
             foreach (var (seat, occupant, entity) in SystemAPI
                          .Query<RefRO<AuthoritySeat>, RefRO<AuthoritySeatOccupant>>()
                          .WithEntityAccess())
@@ -97,19 +99,27 @@ namespace Space4X.Headless
                 break;
             }
 
+            if (occupantEntity != Entity.Null && state.EntityManager.Exists(occupantEntity))
+            {
+                hasOccupant = true;
+                injuredSelected = IsInjured(occupantEntity, state.EntityManager);
+            }
+
+            EmitMetrics(ref state, foundSeat, hasOccupant, injuredSelected, occupantEntity);
+
             if (!foundSeat)
             {
                 Fail(ref state, timeState.Tick, "missing_sensors_seat");
                 return;
             }
 
-            if (occupantEntity == Entity.Null || !state.EntityManager.Exists(occupantEntity))
+            if (!hasOccupant)
             {
                 Fail(ref state, timeState.Tick, "missing_occupant");
                 return;
             }
 
-            if (IsInjured(occupantEntity, state.EntityManager))
+            if (injuredSelected)
             {
                 Fail(ref state, timeState.Tick, "injured_selected");
                 return;
@@ -143,6 +153,52 @@ namespace Space4X.Headless
             }
 
             return false;
+        }
+
+        private static void EmitMetrics(
+            ref SystemState state,
+            bool foundSeat,
+            bool hasOccupant,
+            bool injuredSelected,
+            Entity occupantEntity)
+        {
+            if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.crew.sensors.selection.found_seat"), foundSeat ? 1f : 0f);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.crew.sensors.selection.has_occupant"), hasOccupant ? 1f : 0f);
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.crew.sensors.selection.injured_selected"), injuredSelected ? 1f : 0f);
+            if (occupantEntity != Entity.Null)
+            {
+                AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.crew.sensors.selection.occupant_entity"), occupantEntity.Index);
+            }
+        }
+
+        private static void AddOrUpdateMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                metric.Value = value;
+                buffer[i] = metric;
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorMetric
+            {
+                Key = key,
+                Value = value
+            });
         }
 
         private void Pass(ref SystemState state, uint tick)

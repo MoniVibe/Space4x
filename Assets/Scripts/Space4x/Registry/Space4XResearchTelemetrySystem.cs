@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Research;
 using PureDOTS.Runtime.Telemetry;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 
 namespace Space4X.Registry
@@ -13,6 +14,9 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(ResearchTransferProcessingSystem))]
     public partial struct Space4XResearchTelemetrySystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricHarvestCount = "space4x.research.harvest.count";
+        private static readonly FixedString64Bytes MetricBandwidthLoss = "space4x.research.bandwidth.loss";
+
         private EntityQuery _telemetryQuery;
         private EntityQuery _researchTelemetryQuery;
 
@@ -40,8 +44,8 @@ namespace Space4X.Registry
             var metrics = state.EntityManager.GetComponentData<ResearchTelemetry>(researchEntity);
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
 
-            buffer.AddMetric("space4x.research.harvest.count", (float)metrics.CompletedHarvests, TelemetryMetricUnit.Custom);
-            buffer.AddMetric("space4x.research.bandwidth.loss", metrics.TotalLoss, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricHarvestCount, (float)metrics.CompletedHarvests, TelemetryMetricUnit.Custom);
+            buffer.AddMetric(MetricBandwidthLoss, metrics.TotalLoss, TelemetryMetricUnit.Custom);
         }
     }
 }

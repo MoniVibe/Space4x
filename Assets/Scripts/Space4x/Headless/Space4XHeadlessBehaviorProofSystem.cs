@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Profile;
@@ -328,7 +329,7 @@ namespace Space4X.Headless
             }
 
             _scenarioResolved = true;
-            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (IsSmokeScenarioPath(scenarioPath))
             {
                 // Smoke scenario doesn't guarantee patrol/combat loops; avoid false negatives.
                 _patrolEnabled = false;
@@ -362,6 +363,19 @@ namespace Space4X.Headless
             }
 
             return _bankTestId;
+        }
+
+        private static bool IsSmokeScenarioPath(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
+            return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase);
         }
 
         private void LogBankResult(ref SystemState state, FixedString64Bytes testId, bool pass, string reason, uint tick)

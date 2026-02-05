@@ -15,7 +15,6 @@ namespace Space4X.Diagnostics
     /// </summary>
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [BurstCompile]
     public partial struct Space4XRenderWorldProbeSystem : ISystem
     {
         private bool _logged;

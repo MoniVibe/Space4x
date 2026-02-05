@@ -6,11 +6,64 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 using SpatialSystemGroup = PureDOTS.Systems.SpatialSystemGroup;
 
 namespace Space4X.Registry
 {
+    /// <summary>
+    /// Seeds docking policies and throughput state for carriers/stations.
+    /// </summary>
+    [BurstCompile]
+    [UpdateInGroup(typeof(InitializationSystemGroup))]
+    [UpdateAfter(typeof(Space4XShipLoopBootstrapSystem))]
+    public partial struct Space4XDockingPolicyBootstrapSystem : ISystem
+    {
+        private ComponentLookup<StationId> _stationLookup;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<DockingCapacity>();
+            _stationLookup = state.GetComponentLookup<StationId>(true);
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            _stationLookup.Update(ref state);
+
+            var em = state.EntityManager;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+
+            foreach (var (_, entity) in SystemAPI.Query<RefRO<DockingCapacity>>().WithEntityAccess())
+            {
+                if (!em.HasComponent<DockingPolicy>(entity))
+                {
+                    var policy = _stationLookup.HasComponent(entity)
+                        ? DockingPolicy.StationDefault
+                        : DockingPolicy.Default;
+                    ecb.AddComponent(entity, policy);
+                }
+
+                if (!em.HasComponent<DockingThroughputState>(entity))
+                {
+                    ecb.AddComponent(entity, new DockingThroughputState
+                    {
+                        CrewRemaining = 0f,
+                        CargoRemaining = 0f,
+                        AmmoRemaining = 0f,
+                        LastResetTick = 0u
+                    });
+                }
+            }
+
+            ecb.Playback(em);
+            ecb.Dispose();
+        }
+    }
+
     /// <summary>
     /// Validates and processes docking requests.
     /// </summary>
@@ -21,6 +74,9 @@ namespace Space4X.Registry
         private ComponentLookup<DockingCapacity> _dockingLookup;
         private ComponentLookup<CommandLoad> _commandLookup;
         private BufferLookup<DockedEntity> _dockedBufferLookup;
+        private ComponentLookup<DockingPolicy> _policyLookup;
+        private ComponentLookup<DockingState> _stateLookup;
+        private ComponentLookup<DockedPresence> _presenceLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -31,6 +87,9 @@ namespace Space4X.Registry
             _dockingLookup = state.GetComponentLookup<DockingCapacity>(false);
             _commandLookup = state.GetComponentLookup<CommandLoad>(false);
             _dockedBufferLookup = state.GetBufferLookup<DockedEntity>(false);
+            _policyLookup = state.GetComponentLookup<DockingPolicy>(true);
+            _stateLookup = state.GetComponentLookup<DockingState>(true);
+            _presenceLookup = state.GetComponentLookup<DockedPresence>(true);
         }
 
         [BurstCompile]
@@ -39,6 +98,9 @@ namespace Space4X.Registry
             _dockingLookup.Update(ref state);
             _commandLookup.Update(ref state);
             _dockedBufferLookup.Update(ref state);
+            _policyLookup.Update(ref state);
+            _stateLookup.Update(ref state);
+            _presenceLookup.Update(ref state);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
@@ -66,6 +128,9 @@ namespace Space4X.Registry
                     ref _dockingLookup,
                     ref _commandLookup,
                     ref _dockedBufferLookup,
+                    ref _policyLookup,
+                    ref _stateLookup,
+                    ref _presenceLookup,
                     currentTick,
                     ref ecb);
             }
@@ -81,6 +146,9 @@ namespace Space4X.Registry
             ref ComponentLookup<DockingCapacity> dockingLookup,
             ref ComponentLookup<CommandLoad> commandLookup,
             ref BufferLookup<DockedEntity> dockedBufferLookup,
+            ref ComponentLookup<DockingPolicy> policyLookup,
+            ref ComponentLookup<DockingState> dockingStateLookup,
+            ref ComponentLookup<DockedPresence> dockedPresenceLookup,
             uint currentTick,
             ref EntityCommandBuffer ecb)
         {
@@ -96,6 +164,22 @@ namespace Space4X.Registry
             }
 
             var docking = dockingLookup[request.TargetCarrier];
+
+            DockingPresenceMode presenceMode = DockingPresenceMode.Latch;
+            if (policyLookup.HasComponent(request.TargetCarrier))
+            {
+                var policy = policyLookup[request.TargetCarrier];
+                if (policy.AllowDocking == 0)
+                {
+                    return;
+                }
+
+                presenceMode = policy.DefaultPresence;
+                if (presenceMode == DockingPresenceMode.Despawn && policy.AllowDespawn == 0)
+                {
+                    presenceMode = DockingPresenceMode.Latch;
+                }
+            }
 
             // Check if slot is available
             if (!docking.HasSlotAvailable(request.RequiredSlot))
@@ -156,6 +240,40 @@ namespace Space4X.Registry
                 SlotIndex = (byte)(docking.TotalDocked - 1)
             });
 
+            var dockingState = new DockingState
+            {
+                Phase = DockingPhase.Docked,
+                Target = request.TargetCarrier,
+                SlotType = request.RequiredSlot,
+                PresenceMode = presenceMode,
+                RequestTick = request.RequestTick,
+                PhaseTick = currentTick
+            };
+            if (dockingStateLookup.HasComponent(requestingEntity))
+            {
+                ecb.SetComponent(requestingEntity, dockingState);
+            }
+            else
+            {
+                ecb.AddComponent(requestingEntity, dockingState);
+            }
+
+            var presence = new DockedPresence
+            {
+                Carrier = request.TargetCarrier,
+                Mode = presenceMode,
+                LatchOffset = float3.zero,
+                IsLatched = presenceMode == DockingPresenceMode.Despawn ? (byte)0 : (byte)1
+            };
+            if (dockedPresenceLookup.HasComponent(requestingEntity))
+            {
+                ecb.SetComponent(requestingEntity, presence);
+            }
+            else
+            {
+                ecb.AddComponent(requestingEntity, presence);
+            }
+
             // Remove docking request
             ecb.RemoveComponent<DockingRequest>(requestingEntity);
         }
@@ -172,6 +290,9 @@ namespace Space4X.Registry
         private BufferLookup<DockedEntity> _dockedBufferLookup;
         private ComponentLookup<DockingCapacity> _dockingLookup;
         private ComponentLookup<CommandLoad> _commandLookup;
+        private ComponentLookup<DockingState> _stateLookup;
+        private ComponentLookup<DockedPresence> _presenceLookup;
+        private ComponentLookup<SimulationDisabledTag> _disabledLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -181,6 +302,9 @@ namespace Space4X.Registry
             _dockedBufferLookup = state.GetBufferLookup<DockedEntity>(false);
             _dockingLookup = state.GetComponentLookup<DockingCapacity>(false);
             _commandLookup = state.GetComponentLookup<CommandLoad>(false);
+            _stateLookup = state.GetComponentLookup<DockingState>(true);
+            _presenceLookup = state.GetComponentLookup<DockedPresence>(true);
+            _disabledLookup = state.GetComponentLookup<SimulationDisabledTag>(true);
         }
 
         [BurstCompile]
@@ -189,6 +313,9 @@ namespace Space4X.Registry
             _dockedBufferLookup.Update(ref state);
             _dockingLookup.Update(ref state);
             _commandLookup.Update(ref state);
+            _stateLookup.Update(ref state);
+            _presenceLookup.Update(ref state);
+            _disabledLookup.Update(ref state);
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
@@ -197,6 +324,7 @@ namespace Space4X.Registry
             }
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var currentTick = timeState.Tick;
 
             // Process entities that have both DockedTag and are in certain AI states that indicate undocking
             // This is a simplified check - in practice, undocking would be triggered by orders
@@ -217,7 +345,11 @@ namespace Space4X.Registry
                         ref ecb,
                         ref _dockedBufferLookup,
                         ref _dockingLookup,
-                        ref _commandLookup);
+                        ref _commandLookup,
+                        ref _stateLookup,
+                        ref _presenceLookup,
+                        ref _disabledLookup,
+                        currentTick);
                 }
             }
 
@@ -232,7 +364,11 @@ namespace Space4X.Registry
             ref EntityCommandBuffer ecb,
             ref BufferLookup<DockedEntity> dockedBufferLookup,
             ref ComponentLookup<DockingCapacity> dockingLookup,
-            ref ComponentLookup<CommandLoad> commandLookup)
+            ref ComponentLookup<CommandLoad> commandLookup,
+            ref ComponentLookup<DockingState> dockingStateLookup,
+            ref ComponentLookup<DockedPresence> dockedPresenceLookup,
+            ref ComponentLookup<SimulationDisabledTag> disabledLookup,
+            uint currentTick)
         {
             if (docked.CarrierEntity == Entity.Null)
             {
@@ -287,7 +423,146 @@ namespace Space4X.Registry
                 }
             }
 
+            if (dockingStateLookup.HasComponent(undockingEntity))
+            {
+                var dockingState = dockingStateLookup[undockingEntity];
+                dockingState.Phase = DockingPhase.Undocking;
+                dockingState.Target = docked.CarrierEntity;
+                dockingState.PhaseTick = currentTick;
+                ecb.SetComponent(undockingEntity, dockingState);
+            }
+
+            if (dockedPresenceLookup.HasComponent(undockingEntity))
+            {
+                ecb.RemoveComponent<DockedPresence>(undockingEntity);
+            }
+
+            if (disabledLookup.HasComponent(undockingEntity))
+            {
+                ecb.RemoveComponent<SimulationDisabledTag>(undockingEntity);
+            }
+
             ecb.RemoveComponent<DockedTag>(undockingEntity);
+        }
+    }
+
+    /// <summary>
+    /// Applies docking presence rules (attach/latch/despawn) and disables simulation when needed.
+    /// </summary>
+    [BurstCompile]
+    [UpdateInGroup(typeof(SpatialSystemGroup))]
+    [UpdateAfter(typeof(Space4XUndockingSystem))]
+    public partial struct Space4XDockingPresenceSystem : ISystem
+    {
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<VesselMovement> _movementLookup;
+        private ComponentLookup<VesselAIState> _aiLookup;
+        private ComponentLookup<SimulationDisabledTag> _disabledLookup;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<RewindState>();
+            _transformLookup = state.GetComponentLookup<LocalTransform>(false);
+            _movementLookup = state.GetComponentLookup<VesselMovement>(false);
+            _aiLookup = state.GetComponentLookup<VesselAIState>(false);
+            _disabledLookup = state.GetComponentLookup<SimulationDisabledTag>(true);
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var timeState = SystemAPI.GetSingleton<TimeState>();
+            if (timeState.IsPaused)
+            {
+                return;
+            }
+
+            var rewindState = SystemAPI.GetSingleton<RewindState>();
+            if (rewindState.Mode != RewindMode.Record)
+            {
+                return;
+            }
+
+            _transformLookup.Update(ref state);
+            _movementLookup.Update(ref state);
+            _aiLookup.Update(ref state);
+            _disabledLookup.Update(ref state);
+
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+
+            foreach (var (presence, entity) in SystemAPI.Query<RefRW<DockedPresence>>().WithEntityAccess())
+            {
+                if (presence.ValueRO.Carrier == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (presence.ValueRO.Mode == DockingPresenceMode.Despawn)
+                {
+                    if (!_disabledLookup.HasComponent(entity))
+                    {
+                        ecb.AddComponent<SimulationDisabledTag>(entity);
+                    }
+
+                    ZeroMovement(entity, ref _movementLookup, ref _aiLookup);
+                    continue;
+                }
+
+                if (_disabledLookup.HasComponent(entity))
+                {
+                    ecb.RemoveComponent<SimulationDisabledTag>(entity);
+                }
+
+                if (presence.ValueRO.IsLatched == 0)
+                {
+                    continue;
+                }
+
+                if (!_transformLookup.HasComponent(entity) || !_transformLookup.HasComponent(presence.ValueRO.Carrier))
+                {
+                    continue;
+                }
+
+                var carrierTransform = _transformLookup[presence.ValueRO.Carrier];
+                var selfTransform = _transformLookup[entity];
+                if (presence.ValueRO.LatchOffset.Equals(float3.zero))
+                {
+                    presence.ValueRW.LatchOffset = selfTransform.Position - carrierTransform.Position;
+                }
+
+                selfTransform.Position = carrierTransform.Position + presence.ValueRO.LatchOffset;
+                _transformLookup[entity] = selfTransform;
+            }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
+        }
+
+        private static void ZeroMovement(
+            Entity entity,
+            ref ComponentLookup<VesselMovement> movementLookup,
+            ref ComponentLookup<VesselAIState> aiLookup)
+        {
+            if (movementLookup.HasComponent(entity))
+            {
+                var movement = movementLookup[entity];
+                movement.Velocity = float3.zero;
+                movement.CurrentSpeed = 0f;
+                movement.IsMoving = 0;
+                movementLookup[entity] = movement;
+            }
+
+            if (aiLookup.HasComponent(entity))
+            {
+                var aiState = aiLookup[entity];
+                aiState.CurrentGoal = VesselAIState.Goal.Idle;
+                aiState.CurrentState = VesselAIState.State.Idle;
+                aiState.TargetEntity = Entity.Null;
+                aiState.TargetPosition = float3.zero;
+                aiLookup[entity] = aiState;
+            }
         }
     }
 

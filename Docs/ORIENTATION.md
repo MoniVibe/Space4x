@@ -189,7 +189,7 @@ Assets/
 
 ### Alignment Components
 - `AlignmentTriplet`: Alignment data
-- `DynamicBuffer<OutlookEntry>`: Outlook buffer
+- `DynamicBuffer<StanceEntry>`: Outlook buffer
 - `DynamicBuffer<AffiliationTag>`: Affiliation tags
 - `DoctrineProfile`: Doctrine expectations
 - `ComplianceBreach`: Breach events
@@ -249,7 +249,7 @@ Unity -batchmode -projectPath . -executeMethod PureDOTS.Runtime.Devtools.Scenari
 ### Milestone: Phase 2 Demo + Phase 3 Agents
 
 **Agent A (Alignment/Compliance)**: In progress
-- Doctrine baker + OutlookId enum added
+- Doctrine baker + StanceId enum added
 - Compliance emits telemetry (suspicion max/alerts)
 - Planner tickets + inbox implemented
 - Next: Mutiny/desertion demo + scene-wide affiliation pass
@@ -414,3 +414,4 @@ Space4X is a well-structured DOTS-based 4X game with:
 **Ready for**: Fleshing out core loops, implementing missing mechanics, expanding scenario support, and building out the game vision.
 
 **Next focus areas**: Movement system integration, completing design pillars, extending scenario support, and implementing prefab maker.
+

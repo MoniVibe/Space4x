@@ -36,7 +36,10 @@ namespace Space4X.Registry
         RepairDrones = 9,
         Scanner = 10,
         Cargo = 11,
-        Tractor = 12
+        Tractor = 12,
+        Bridge = 13,
+        Cockpit = 14,
+        Ammunition = 15
     }
 
     public enum HullCategory : byte
@@ -1250,3 +1253,4 @@ namespace Space4X.Registry
         public BlobAssetReference<AggregateComboTableBlob> Table;
     }
 }
+

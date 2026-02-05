@@ -1,7 +1,13 @@
 {
+  "scenarioId": "space4x_crew_sensors_causality_micro",
   "seed": 1101,
   "duration_s": 60,
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "spawnLane": "mining-json",
     "disableLegacyMining": true,
     "disableLegacyPatrol": true,
@@ -9,7 +15,7 @@
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.sensors_causality",
-        "required": false
+        "required": true
       }
     ],
     "crewTemplates": [

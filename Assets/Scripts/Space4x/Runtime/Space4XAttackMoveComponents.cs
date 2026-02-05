@@ -38,5 +38,8 @@ namespace Space4X.Runtime
         public float3 AimDirection;
         public float AimWeight;
         public Entity AimTarget;
+        public float3 SmoothedDirection;
+        public float SmoothedWeight;
+        public uint LastUpdateTick;
     }
 }

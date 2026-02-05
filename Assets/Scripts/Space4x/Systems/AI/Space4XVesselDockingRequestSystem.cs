@@ -19,9 +19,10 @@ namespace Space4X.Systems.AI
     public partial struct Space4XVesselDockingRequestSystem : ISystem
     {
         private const float DockingRange = 4.5f;
-        private const float DockingRangeSq = DockingRange * DockingRange;
 
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<DockingPolicy> _policyLookup;
+        private ComponentLookup<DockingState> _stateLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -31,6 +32,8 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<MiningVessel>();
 
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _policyLookup = state.GetComponentLookup<DockingPolicy>(true);
+            _stateLookup = state.GetComponentLookup<DockingState>(true);
         }
 
         [BurstCompile]
@@ -49,13 +52,15 @@ namespace Space4X.Systems.AI
             }
 
             _transformLookup.Update(ref state);
+            _policyLookup.Update(ref state);
+            _stateLookup.Update(ref state);
             var currentTick = time.Tick;
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (vessel, aiState, transform, entity) in SystemAPI
                          .Query<RefRO<MiningVessel>, RefRO<VesselAIState>, RefRO<LocalTransform>>()
-                         .WithNone<DockingRequest, DockedTag>()
+                         .WithNone<DockingRequest, DockedTag, SimulationDisabledTag>()
                          .WithEntityAccess())
             {
                 if (aiState.ValueRO.CurrentState != VesselAIState.State.Returning)
@@ -70,8 +75,27 @@ namespace Space4X.Systems.AI
                 }
 
                 var carrierPos = _transformLookup[carrier].Position;
+                var dockingRange = DockingRange;
+                var presenceMode = DockingPresenceMode.Latch;
+                if (_policyLookup.HasComponent(carrier))
+                {
+                    var policy = _policyLookup[carrier];
+                    if (policy.AllowDocking == 0)
+                    {
+                        continue;
+                    }
+
+                    if (policy.DockingRange > 0f)
+                    {
+                        dockingRange = policy.DockingRange;
+                    }
+
+                    presenceMode = policy.DefaultPresence;
+                }
+
+                var dockingRangeSq = dockingRange * dockingRange;
                 var distanceSq = math.lengthsq(transform.ValueRO.Position - carrierPos);
-                if (distanceSq > DockingRangeSq)
+                if (distanceSq > dockingRangeSq)
                 {
                     continue;
                 }
@@ -83,6 +107,24 @@ namespace Space4X.Systems.AI
                     RequestTick = currentTick,
                     Priority = 0
                 });
+
+                var dockingState = new DockingState
+                {
+                    Phase = DockingPhase.Docking,
+                    Target = carrier,
+                    SlotType = DockingSlotType.Utility,
+                    PresenceMode = presenceMode,
+                    RequestTick = currentTick,
+                    PhaseTick = currentTick
+                };
+                if (_stateLookup.HasComponent(entity))
+                {
+                    ecb.SetComponent(entity, dockingState);
+                }
+                else
+                {
+                    ecb.AddComponent(entity, dockingState);
+                }
             }
 
             ecb.Playback(state.EntityManager);

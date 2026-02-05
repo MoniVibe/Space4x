@@ -336,6 +336,7 @@ namespace Space4X.Headless
         private void Pass(ref SystemState state, uint tick)
         {
             _done = 1;
+            EmitOutcomeMetrics(ref state, true, 0);
             LogBankResult(ref state, true, "pass", tick);
             ExitIfRequested(ref state, tick, 0);
         }
@@ -343,8 +344,65 @@ namespace Space4X.Headless
         private void Fail(ref SystemState state, uint tick, string reason)
         {
             _done = 1;
+            EmitOutcomeMetrics(ref state, false, ResolveFailureCode(reason));
             LogBankResult(ref state, false, reason, tick);
             ExitIfRequested(ref state, tick, 4);
+        }
+
+        private static void EmitOutcomeMetrics(ref SystemState state, bool pass, int failCode)
+        {
+            if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
+            {
+                return;
+            }
+
+            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.crew.transfer.pass"), pass ? 1f : 0f);
+            if (!pass && failCode > 0)
+            {
+                AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.crew.transfer.fail_code"), failCode);
+            }
+        }
+
+        private static int ResolveFailureCode(string reason)
+        {
+            return reason switch
+            {
+                "transfer_remove_failed" => 1,
+                "transfer_add_failed" => 2,
+                "transfer_incomplete" => 3,
+                "lod2_not_observed" => 4,
+                "ledger_missing" => 5,
+                "ledger_not_transferred" => 6,
+                "ledger_lod_not_active" => 7,
+                "ledger_stale" => 8,
+                "ledger_entry_missing" => 9,
+                _ => 0
+            };
+        }
+
+        private static void AddOrUpdateMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                metric.Value = value;
+                buffer[i] = metric;
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorMetric
+            {
+                Key = key,
+                Value = value
+            });
         }
 
         private static void ExitIfRequested(ref SystemState state, uint tick, int exitCode)

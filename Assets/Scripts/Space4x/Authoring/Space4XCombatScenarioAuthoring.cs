@@ -382,16 +382,16 @@ namespace Space4X.Authoring
                     Seed = 0u,
                     SeedSalt = (uint)(index + 1)
                 });
-                var outlookEntries = AddBuffer<OutlookEntry>(pilot);
-                outlookEntries.Add(new OutlookEntry
+                var stanceEntries = AddBuffer<StanceEntry>(pilot);
+                stanceEntries.Add(new StanceEntry
                 {
-                    OutlookId = OutlookId.Neutral,
+                    StanceId = StanceId.Neutral,
                     Weight = (half)1f
                 });
-                var outlooks = AddBuffer<TopOutlook>(pilot);
-                outlooks.Add(new TopOutlook
+                var topStances = AddBuffer<TopStance>(pilot);
+                topStances.Add(new TopStance
                 {
-                    OutlookId = OutlookId.Neutral,
+                    StanceId = StanceId.Neutral,
                     Weight = (half)1f
                 });
                 AddComponent(entity, new StrikeCraftPilotLink
@@ -557,36 +557,36 @@ namespace Space4X.Authoring
                 AddComponent(crew, stats);
                 AddComponent(crew, disposition);
 
-                var outlookId = ResolveOutlookId(config, lawfulness);
-                var outlookEntries = AddBuffer<OutlookEntry>(crew);
-                var outlooks = AddBuffer<TopOutlook>(crew);
-                outlookEntries.Add(new OutlookEntry
+                var StanceId = ResolveStanceId(config, lawfulness);
+                var stanceEntries = AddBuffer<StanceEntry>(crew);
+                var topStances = AddBuffer<TopStance>(crew);
+                stanceEntries.Add(new StanceEntry
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
-                outlooks.Add(new TopOutlook
+                topStances.Add(new TopStance
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
 
                 return crew;
             }
 
-            private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+            private static StanceId ResolveStanceId(in StrikeCraftPilotProfileConfig config, float lawfulness)
             {
                 if (lawfulness >= config.LoyalistLawThreshold)
                 {
-                    return config.FriendlyOutlook;
+                    return config.FriendlyStance;
                 }
 
                 if (lawfulness <= config.MutinousLawThreshold)
                 {
-                    return config.HostileOutlook;
+                    return config.HostileStance;
                 }
 
-                return config.NeutralOutlook;
+                return config.NeutralStance;
             }
 
             private Entity SpawnEscort(float3 position, string factionId, string shipType, Entity fleetEntity)
@@ -758,3 +758,7 @@ namespace Space4X.Authoring
         public byte EnemyFleetSpawned;
     }
 }
+
+
+
+

@@ -1,4 +1,5 @@
 {
+  "scenarioId": "space4x_refit",
   "seed": 42,
   "duration_s": 180,
   "spawn": [
@@ -88,4 +89,3 @@
     }
   }
 }
-

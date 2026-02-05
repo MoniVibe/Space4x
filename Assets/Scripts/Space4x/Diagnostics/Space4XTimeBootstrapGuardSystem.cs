@@ -12,7 +12,6 @@ namespace Space4X.Diagnostics
     /// <summary>
     /// Dev-only guard to ensure TimeState exists in Game World before simulation/movement systems run.
     /// </summary>
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(InitializationSystemGroup), OrderFirst = true)]
     public partial struct Space4XTimeBootstrapGuardSystem : ISystem

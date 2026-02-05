@@ -167,6 +167,11 @@ namespace Space4X.Headless
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
         public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
         public const string MiningProgress = "space4x.q.mining.progress";
+        public const string CrewSensorsSelection = "space4x.q.crew.sensors_selection";
+        public const string CrewSensorsCausality = "space4x.q.crew.sensors_causality";
+        public const string CrewTransfer = "space4x.q.crew.transfer";
+        public const string CollisionPhasing = "space4x.q.collision.phasing";
+        public const string CombatAttackRun = "space4x.q.combat.attack_run";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -180,6 +185,7 @@ namespace Space4X.Headless
                 "CONTACT_THRASH" => SensorsAcquireDrop,
                 "COMMS_BEAT_SKIPPED" => CommsDelivery,
                 "MINING_STALL" => MiningProgress,
+                "COLLISION_PHASING" => CollisionPhasing,
                 _ => Unknown
             };
         }
@@ -187,7 +193,7 @@ namespace Space4X.Headless
 
     internal static class Space4XHeadlessQuestionRegistry
     {
-        private static readonly IHeadlessQuestion[] Questions =
+        private static readonly IHeadlessQuestion[] DefaultQuestions =
         {
             new SensorsAcquireDropQuestion(),
             new CommsDeliveryQuestion(),
@@ -196,14 +202,28 @@ namespace Space4X.Headless
             new MiningProgressQuestion()
         };
 
+        private static readonly IHeadlessQuestion[] AllQuestions =
+        {
+            new SensorsAcquireDropQuestion(),
+            new CommsDeliveryQuestion(),
+            new CommsDeliveryBlockedQuestion(),
+            new MovementTurnRateBoundsQuestion(),
+            new MiningProgressQuestion(),
+            new CrewSensorsSelectionQuestion(),
+            new CrewSensorsCausalityQuestion(),
+            new CrewTransferQuestion(),
+            new CollisionPhasingQuestion(),
+            new CombatAttackRunQuestion()
+        };
+
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
 
         static Space4XHeadlessQuestionRegistry()
         {
             QuestionMap = new Dictionary<string, IHeadlessQuestion>(StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < Questions.Length; i++)
+            for (var i = 0; i < AllQuestions.Length; i++)
             {
-                var question = Questions[i];
+                var question = AllQuestions[i];
                 if (question == null || string.IsNullOrWhiteSpace(question.Id))
                 {
                     continue;
@@ -222,10 +242,10 @@ namespace Space4X.Headless
             var answers = new List<Space4XQuestionAnswer>();
             if (questionPack == null || questionPack.Count == 0)
             {
-                answers.Capacity = Questions.Length;
-                for (var i = 0; i < Questions.Length; i++)
+                answers.Capacity = DefaultQuestions.Length;
+                for (var i = 0; i < DefaultQuestions.Length; i++)
                 {
-                    var question = Questions[i];
+                    var question = DefaultQuestions[i];
                     if (question == null)
                     {
                         continue;
@@ -588,6 +608,299 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Fail;
                 answer.Answer = $"gather={gatherCommands:0} ore_delta={oreDelta:0.##} cargo_delta={cargoDelta:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CrewSensorsSelectionQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CrewSensorsSelection;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.crew.sensors.selection.found_seat", out var foundSeat))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_selection_metrics";
+                    answer.Answer = "crew selection metrics unavailable";
+                    return answer;
+                }
+
+                var hasOccupant = signals.GetMetricOrDefault("space4x.crew.sensors.selection.has_occupant");
+                var injuredSelected = signals.GetMetricOrDefault("space4x.crew.sensors.selection.injured_selected");
+                var occupantEntity = signals.GetMetricOrDefault("space4x.crew.sensors.selection.occupant_entity", -1f);
+
+                answer.Metrics["found_seat"] = foundSeat;
+                answer.Metrics["has_occupant"] = hasOccupant;
+                answer.Metrics["injured_selected"] = injuredSelected;
+                if (occupantEntity >= 0f)
+                {
+                    answer.Metrics["occupant_entity"] = occupantEntity;
+                }
+
+                if (foundSeat <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no sensors seat selected";
+                    return answer;
+                }
+
+                if (hasOccupant <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "sensors seat missing occupant";
+                    return answer;
+                }
+
+                if (injuredSelected > 0.5f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "injured crew selected for sensors seat";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = "healthy crew selected";
+                return answer;
+            }
+        }
+
+        private sealed class CrewSensorsCausalityQuestion : IHeadlessQuestion
+        {
+            private const float MinDeltaSeconds = 1.5f;
+            public string Id => Space4XHeadlessQuestionIds.CrewSensorsCausality;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.sensors.acquire_time_s.delta", out var delta))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_causality_metrics";
+                    answer.Answer = "crew causality metrics unavailable";
+                    return answer;
+                }
+
+                var healthyAcquire = signals.GetMetricOrDefault("space4x.sensors.acquire_time_s.healthy");
+                var injuredAcquire = signals.GetMetricOrDefault("space4x.sensors.acquire_time_s.injured");
+                var healthyFactor = signals.GetMetricOrDefault("space4x.sensors.crew_factor.healthy");
+                var injuredFactor = signals.GetMetricOrDefault("space4x.sensors.crew_factor.injured");
+
+                answer.Metrics["acquire_time_s_healthy"] = healthyAcquire;
+                answer.Metrics["acquire_time_s_injured"] = injuredAcquire;
+                answer.Metrics["acquire_time_s_delta"] = delta;
+                answer.Metrics["crew_factor_healthy"] = healthyFactor;
+                answer.Metrics["crew_factor_injured"] = injuredFactor;
+
+                if (healthyAcquire <= 0f || injuredAcquire <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "missing_acquire_samples";
+                    answer.Answer = "acquire time metrics invalid";
+                    return answer;
+                }
+
+                if (injuredAcquire <= healthyAcquire)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"injured_not_worse healthy={healthyAcquire:0.##} injured={injuredAcquire:0.##}";
+                    return answer;
+                }
+
+                if (delta < MinDeltaSeconds)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"delta_too_small delta={delta:0.##} min={MinDeltaSeconds:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"healthy={healthyAcquire:0.##} injured={injuredAcquire:0.##} delta={delta:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CrewTransferQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CrewTransfer;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (signals.TryGetMetric("space4x.crew.transfer.pass", out var passMetric))
+                {
+                    var failCode = signals.GetMetricOrDefault("space4x.crew.transfer.fail_code");
+                    answer.Metrics["pass"] = passMetric;
+                    if (failCode > 0f)
+                    {
+                        answer.Metrics["fail_code"] = failCode;
+                    }
+
+                    if (passMetric > 0.5f)
+                    {
+                        answer.Status = Space4XQuestionStatus.Pass;
+                        answer.Answer = "transfer ledger updated";
+                        return answer;
+                    }
+
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"transfer_failed code={failCode:0}";
+                    return answer;
+                }
+
+                if (!signals.TryGetMetric("space4x.ledger.transfer_tick", out var transferTick))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_transfer_metrics";
+                    answer.Answer = "transfer metrics unavailable";
+                    return answer;
+                }
+
+                var lastSeen = signals.GetMetricOrDefault("space4x.ledger.transfer_last_seen");
+                answer.Metrics["transfer_tick"] = transferTick;
+                answer.Metrics["last_seen_tick"] = lastSeen;
+
+                if (transferTick <= 0f || lastSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"ledger_invalid transfer_tick={transferTick:0} last_seen={lastSeen:0}";
+                    return answer;
+                }
+
+                if (lastSeen < transferTick)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"ledger_stale transfer_tick={transferTick:0} last_seen={lastSeen:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"transfer_tick={transferTick:0} last_seen={lastSeen:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CollisionPhasingQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CollisionPhasing;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var phasingCount = signals.CountBlackCats("COLLISION_PHASING");
+                if (phasingCount > 0)
+                {
+                    answer.Metrics["phasing_count"] = phasingCount;
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"collision phasing detected count={phasingCount}";
+                    return answer;
+                }
+
+                if (!signals.TryGetMetric("space4x.collision.event_count", out var eventCount))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_collision_metrics";
+                    answer.Answer = "collision metrics unavailable";
+                    return answer;
+                }
+
+                answer.Metrics["event_count"] = eventCount;
+                if (eventCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no collision events recorded";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"event_count={eventCount:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatAttackRunQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatAttackRun;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var attackSeen = signals.GetMetricOrDefault("space4x.combat.attack_run_seen");
+                var capSeen = signals.GetMetricOrDefault("space4x.combat.cap_seen");
+                var wingSeen = signals.GetMetricOrDefault("space4x.combat.wing_directive_seen");
+                var maxStrike = signals.GetMetricOrDefault("space4x.combat.strikecraft_max");
+                var maxAttack = signals.GetMetricOrDefault("space4x.combat.attack_run_max_active");
+                var maxCap = signals.GetMetricOrDefault("space4x.combat.cap_max_active");
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["attack_run_seen"] = attackSeen;
+                answer.Metrics["cap_seen"] = capSeen;
+                answer.Metrics["wing_directive_seen"] = wingSeen;
+                answer.Metrics["strikecraft_max"] = maxStrike;
+                answer.Metrics["attack_run_max_active"] = maxAttack;
+                answer.Metrics["cap_max_active"] = maxCap;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (attackSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no attack run observed";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"attack_run_seen={attackSeen:0} cap_seen={capSeen:0}";
                 return answer;
             }
         }

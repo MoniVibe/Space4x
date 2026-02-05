@@ -45,6 +45,17 @@ namespace Space4X.Systems.Interaction
             var input = SystemAPI.GetSingleton<HandInputFrame>();
             var affordances = SystemAPI.GetSingleton<HandAffordances>();
             var timeState = SystemAPI.GetSingleton<TimeState>();
+            var policy = new HandPickupPolicy
+            {
+                AutoPickDynamicPhysics = 0,
+                EnableWorldGrab = 0,
+                DebugWorldGrabAny = 0,
+                WorldGrabRequiresTag = 1
+            };
+            if (SystemAPI.TryGetSingleton(out HandPickupPolicy policyValue))
+            {
+                policy = policyValue;
+            }
             uint currentTick = timeState.Tick;
             float deltaTime = timeState.DeltaTime > 0f ? timeState.DeltaTime : 1f / 60f;
             bool isNewSample = input.SampleId != _lastInputSampleId;
@@ -84,8 +95,15 @@ namespace Space4X.Systems.Interaction
                 }
 
                 var holdTarget = input.RayOrigin + input.RayDirection * holdDistance;
+                var releaseVelocity = float3.zero;
+                if (handState.HeldEntity != Entity.Null && deltaTime > 1e-5f)
+                {
+                    releaseVelocity = (holdTarget - handState.HoldPoint) / deltaTime;
+                }
 
-                var celestialPick = input.CtrlHeld && input.ShiftHeld &&
+                var worldGrabActive = policy.EnableWorldGrab != 0 && input.CtrlHeld && input.ShiftHeld;
+                var debugWorldGrabAny = worldGrabActive && policy.DebugWorldGrabAny != 0;
+                var celestialPick = debugWorldGrabAny &&
                     affordances.TargetEntity != Entity.Null &&
                     _celestialLookup.HasComponent(affordances.TargetEntity);
 
@@ -93,7 +111,7 @@ namespace Space4X.Systems.Interaction
                 {
                     if (rmbPressed && ((affordances.Flags & HandAffordanceFlags.CanPickUp) != 0 || celestialPick))
                     {
-                        if (!CanPickTarget(affordances.TargetEntity, celestialPick))
+                        if (!CanPickTarget(affordances.TargetEntity, celestialPick, debugWorldGrabAny))
                         {
                             handStateRef.ValueRW = handState;
                             continue;
@@ -138,17 +156,19 @@ namespace Space4X.Systems.Interaction
                             ResourceTypeIndex = 0,
                             Amount = 0f
                         });
+
+                        handState.HoldPoint = holdTarget;
                     }
 
                     if (rmbReleased)
                     {
-                        var direction = math.normalizesafe(input.RayDirection, new float3(0f, 1f, 0f));
                         var chargeLevel = math.clamp(handState.ChargeTimer / MaxChargeSeconds, 0f, 1f);
 
                         var commandType = input.ShiftHeld ? HandCommandType.QueueThrow :
                             input.CtrlHeld ? HandCommandType.SlingshotThrow :
                             HandCommandType.Throw;
 
+                        var direction = math.normalizesafe(input.RayDirection, new float3(0f, 1f, 0f));
                         float speed;
                         if (commandType == HandCommandType.SlingshotThrow)
                         {
@@ -158,8 +178,12 @@ namespace Space4X.Systems.Interaction
                         }
                         else
                         {
-                            var speedMultiplier = GetSpeedMultiplier(handState.HeldEntity, commandType);
-                            speed = ThrowSpeed * speedMultiplier;
+                            var releaseSpeed = math.length(releaseVelocity);
+                            if (releaseSpeed > 1e-4f)
+                            {
+                                direction = releaseVelocity / releaseSpeed;
+                            }
+                            speed = releaseSpeed;
                         }
 
                         commandBuffer.Add(new HandCommand
@@ -176,6 +200,7 @@ namespace Space4X.Systems.Interaction
                         });
 
                         handState.ChargeTimer = 0f;
+                        handState.HoldPoint = holdTarget;
                     }
                 }
 
@@ -188,7 +213,7 @@ namespace Space4X.Systems.Interaction
             }
         }
 
-        private bool CanPickTarget(Entity target, bool celestialModifierHeld)
+        private bool CanPickTarget(Entity target, bool celestialModifierHeld, bool debugWorldGrabAny)
         {
             if (target == Entity.Null)
             {
@@ -200,7 +225,7 @@ namespace Space4X.Systems.Interaction
                 return false;
             }
 
-            if (_spacePickableLookup.HasComponent(target))
+            if (!debugWorldGrabAny && _spacePickableLookup.HasComponent(target))
             {
                 var config = _spacePickableLookup[target];
                 if (config.MaxMass > 0f)

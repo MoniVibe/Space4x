@@ -384,16 +384,16 @@ namespace Space4X.Systems.Dev
             ecb.AddComponent(entity, AttackRunConfig.ForRole(strikeCraftRole));
             var pilot = ecb.CreateEntity();
             ecb.AddComponent(pilot, AlignmentTriplet.FromFloats(0f, 0f, 0f));
-            var outlookEntries = ecb.AddBuffer<OutlookEntry>(pilot);
-            outlookEntries.Add(new OutlookEntry
+            var outlookEntries = ecb.AddBuffer<StanceEntry>(pilot);
+            outlookEntries.Add(new StanceEntry
             {
-                OutlookId = OutlookId.Neutral,
+                StanceId = StanceId.Neutral,
                 Weight = (half)1f
             });
-            var outlooks = ecb.AddBuffer<TopOutlook>(pilot);
-            outlooks.Add(new TopOutlook
+            var outlooks = ecb.AddBuffer<TopStance>(pilot);
+            outlooks.Add(new TopStance
             {
-                OutlookId = OutlookId.Neutral,
+                StanceId = StanceId.Neutral,
                 Weight = (half)1f
             });
             ecb.AddComponent(entity, new StrikeCraftPilotLink
@@ -740,3 +740,4 @@ namespace Space4X.Systems.Dev
         }
     }
 }
+

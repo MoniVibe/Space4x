@@ -51,7 +51,7 @@ namespace Space4X.Authoring
                 {
                     AlignmentWindow = alignmentWindow,
                     AxisTolerance = (half)0.1f,
-                    OutlookTolerance = (half)0.1f,
+                    StanceTolerance = (half)0.1f,
                     ChaosMutinyThreshold = (half)math.clamp(faction.ChaosThreshold, 0f, 1f),
                     LawfulContractFloor = (half)math.clamp(faction.LawfulnessFloor, 0f, 1f),
                     SuspicionGain = (half)0.05f
@@ -127,3 +127,4 @@ namespace Space4X.Authoring
         }
     }
 }
+

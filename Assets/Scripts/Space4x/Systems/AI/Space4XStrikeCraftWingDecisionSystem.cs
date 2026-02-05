@@ -27,7 +27,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<IssuedByAuthority> _issuedByLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
         public void OnCreate(ref SystemState state)
@@ -42,7 +42,7 @@ namespace Space4X.Systems.AI
             _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _issuedByLookup = state.GetComponentLookup<IssuedByAuthority>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
 
@@ -404,25 +404,25 @@ namespace Space4X.Systems.AI
             return (uint)math.max(1f, math.round(baseCooldown * multiplier));
         }
 
-        private static float ComputeDiscipline(DynamicBuffer<TopOutlook> outlooks)
+        private static float ComputeDiscipline(DynamicBuffer<TopStance> outlooks)
         {
             var discipline = 0.5f;
             for (var i = 0; i < outlooks.Length; i++)
             {
                 var entry = outlooks[i];
                 var weight = math.clamp((float)entry.Weight, 0f, 1f);
-                switch (entry.OutlookId)
+                switch (entry.StanceId)
                 {
-                    case OutlookId.Loyalist:
+                    case StanceId.Loyalist:
                         discipline += 0.2f * weight;
                         break;
-                    case OutlookId.Fanatic:
+                    case StanceId.Fanatic:
                         discipline += 0.25f * weight;
                         break;
-                    case OutlookId.Opportunist:
+                    case StanceId.Opportunist:
                         discipline -= 0.15f * weight;
                         break;
-                    case OutlookId.Mutinous:
+                    case StanceId.Mutinous:
                         discipline -= 0.3f * weight;
                         break;
                 }
@@ -432,3 +432,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
+

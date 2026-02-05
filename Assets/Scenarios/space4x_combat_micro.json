@@ -1,0 +1,63 @@
+{
+  "scenarioId": "space4x_combat_micro",
+  "seed": 1337,
+  "duration_s": 10,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 250.0,
+    "coneDegrees": 45.0,
+    "navConstantN": 3.5,
+    "breakOffDistance": 18.0,
+    "breakOffTicks": 90,
+    "rejoinRadius": 6.0,
+    "rejoinOffset": [0.0, 0.0, -12.0],
+    "jinkStrength": 0.15
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "combat-micro-alpha",
+      "position": [-40.0, 0.0, 0.0],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 0,
+          "escortRelease_s": 0.0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "combat-micro-bravo",
+      "position": [40.0, 0.0, 0.0],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 0,
+          "escortRelease_s": 0.0
+        }
+      }
+    }
+  ],
+  "actions": []
+}

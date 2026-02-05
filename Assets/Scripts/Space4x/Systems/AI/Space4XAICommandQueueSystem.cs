@@ -23,7 +23,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<PreFlightCheck> _preFlightLookup;
         private ComponentLookup<ThreatAssessment> _threatLookup;
         private BufferLookup<ComplianceBreach> _breachLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -34,7 +34,7 @@ namespace Space4X.Systems.AI
             _preFlightLookup = state.GetComponentLookup<PreFlightCheck>(false);
             _threatLookup = state.GetComponentLookup<ThreatAssessment>(false);
             _breachLookup = state.GetBufferLookup<ComplianceBreach>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
         }
 
         [BurstCompile]
@@ -78,7 +78,7 @@ namespace Space4X.Systems.AI
             public ComponentLookup<PreFlightCheck> PreFlightLookup;
             public ComponentLookup<ThreatAssessment> ThreatLookup;
             [ReadOnly] public BufferLookup<ComplianceBreach> BreachLookup;
-            [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
+            [ReadOnly] public BufferLookup<TopStance> OutlookLookup;
 
             public void Execute(ref DynamicBuffer<AIOrder> orders, in AICommandQueue queue, Entity entity)
             {
@@ -268,4 +268,5 @@ namespace Space4X.Systems.AI
         }
     }
 }
+
 

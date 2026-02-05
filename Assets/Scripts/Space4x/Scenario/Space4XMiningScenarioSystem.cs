@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Modularity;
+using PureDOTS.Runtime.Modules;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Interrupts;
@@ -14,6 +16,7 @@ using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Systems;
 using Space4X.Headless;
+using Space4X.Presentation;
 using Space4X.Registry;
 using Space4X.Runtime;
 using AlignmentTriplet = Space4X.Registry.AlignmentTriplet;
@@ -49,12 +52,16 @@ namespace Space4x.Scenario
         private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
         private Dictionary<string, Entity> _spawnedEntities;
+        private Dictionary<string, Entity> _profileEntities;
         private string _scenarioPath;
         private string _templateRoot;
         private bool _useSmokeMotionTuning;
         private bool _isCollisionScenario;
+        private bool _applyDefaultModuleLoadouts;
         private Entity _friendlyAffiliationEntity;
         private Entity _hostileAffiliationEntity;
+        private const ushort FriendlyFactionId = 1;
+        private const ushort HostileFactionId = 2;
 
         protected override void OnCreate()
         {
@@ -153,9 +160,12 @@ namespace Space4x.Scenario
             }
 
             _spawnedEntities = new Dictionary<string, Entity>();
+            _profileEntities = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
             if (isMiningScenario)
             {
                 SpawnEntities(timeState.Tick, timeState.FixedDeltaTime);
+                ApplyPersonalRelations(timeState.Tick);
+                EnsureScenarioFactionRelations(timeState.Tick);
             }
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
             var durationSeconds = math.max(0f, _scenarioData.duration_s);
@@ -185,6 +195,10 @@ namespace Space4x.Scenario
 
         private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)
         {
+            _applyDefaultModuleLoadouts = scenarioConfig != null && scenarioConfig.applyDefaultModuleLoadouts;
+            ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
+            ApplyOrbitalBandConfig(scenarioConfig);
+            ApplyRenderFrameConfig(scenarioConfig);
             if (scenarioConfig == null)
             {
                 return;
@@ -310,14 +324,16 @@ namespace Space4x.Scenario
         {
             var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
             if (!string.IsNullOrWhiteSpace(scenarioName) &&
-                (scenarioName.Equals("space4x_smoke", StringComparison.OrdinalIgnoreCase)
-                 || scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase)))
+                (scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase)
+                 || scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase)
+                 || scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
 
             var scenarioId = scenarioInfo.ScenarioId.ToString();
-            if (scenarioId.Equals("space4x_smoke", StringComparison.OrdinalIgnoreCase))
+            if (scenarioId.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                scenarioId.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -365,6 +381,133 @@ namespace Space4x.Scenario
                 CooldownTicks = 300,
                 Enabled = 1
             });
+        }
+
+        private void ApplyReferenceFrameConfig(bool enabled)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XReferenceFrameConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XReferenceFrameConfig));
+            }
+
+            EntityManager.SetComponentData(configEntity, new Space4XReferenceFrameConfig
+            {
+                Enabled = (byte)(enabled ? 1 : 0),
+                LocalBubbleRadius = 500f,
+                EnterSOIMultiplier = 0.9f,
+                ExitSOIMultiplier = 1.1f
+            });
+        }
+
+        private void ApplyOrbitalBandConfig(MiningScenarioConfigData scenarioConfig)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XOrbitalBandConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XOrbitalBandConfig));
+            }
+
+            var config = Space4XOrbitalBandConfig.Default;
+            var referenceFramesEnabled = scenarioConfig != null && scenarioConfig.applyReferenceFrames;
+            var enabled = referenceFramesEnabled;
+            var bandOverride = scenarioConfig != null ? scenarioConfig.orbitalBand : null;
+            if (bandOverride != null && bandOverride.enabled >= 0)
+            {
+                enabled = referenceFramesEnabled && bandOverride.enabled != 0;
+            }
+            config.Enabled = (byte)(enabled ? 1 : 0);
+
+            if (bandOverride != null)
+            {
+                if (bandOverride.innerRadius >= 0f)
+                {
+                    config.InnerRadius = bandOverride.innerRadius;
+                }
+                if (bandOverride.outerRadius >= 0f)
+                {
+                    config.OuterRadius = bandOverride.outerRadius;
+                }
+                if (bandOverride.distanceScale > 0f)
+                {
+                    config.DistanceScale = bandOverride.distanceScale;
+                }
+                if (bandOverride.speedScale > 0f)
+                {
+                    config.SpeedScale = bandOverride.speedScale;
+                }
+                if (bandOverride.rangeScale > 0f)
+                {
+                    config.RangeScale = bandOverride.rangeScale;
+                }
+                if (bandOverride.presentationScale > 0f)
+                {
+                    config.PresentationScale = bandOverride.presentationScale;
+                }
+                if (bandOverride.enterMultiplier > 0f)
+                {
+                    config.EnterMultiplier = bandOverride.enterMultiplier;
+                }
+                if (bandOverride.exitMultiplier > 0f)
+                {
+                    config.ExitMultiplier = bandOverride.exitMultiplier;
+                }
+            }
+            EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private void ApplyRenderFrameConfig(MiningScenarioConfigData scenarioConfig)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XRenderFrameConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XRenderFrameConfig));
+            }
+
+            var config = Space4XRenderFrameConfig.Default;
+            var frameOverride = scenarioConfig != null ? scenarioConfig.renderFrame : null;
+            if (frameOverride != null)
+            {
+                if (frameOverride.enabled >= 0)
+                {
+                    config.Enabled = (byte)(frameOverride.enabled != 0 ? 1 : 0);
+                }
+                if (frameOverride.useBandScale >= 0)
+                {
+                    config.UseBandScale = (byte)(frameOverride.useBandScale != 0 ? 1 : 0);
+                }
+                if (frameOverride.surfaceScale > 0f)
+                {
+                    config.SurfaceScale = frameOverride.surfaceScale;
+                }
+                if (frameOverride.orbitalScale > 0f)
+                {
+                    config.OrbitalScale = frameOverride.orbitalScale;
+                }
+                if (frameOverride.deepScale > 0f)
+                {
+                    config.DeepScale = frameOverride.deepScale;
+                }
+                if (frameOverride.surfaceEnterMultiplier > 0f)
+                {
+                    config.SurfaceEnterMultiplier = frameOverride.surfaceEnterMultiplier;
+                }
+                if (frameOverride.surfaceExitMultiplier > 0f)
+                {
+                    config.SurfaceExitMultiplier = frameOverride.surfaceExitMultiplier;
+                }
+                if (frameOverride.orbitalEnterMultiplier > 0f)
+                {
+                    config.OrbitalEnterMultiplier = frameOverride.orbitalEnterMultiplier;
+                }
+                if (frameOverride.orbitalExitMultiplier > 0f)
+                {
+                    config.OrbitalExitMultiplier = frameOverride.orbitalExitMultiplier;
+                }
+                if (frameOverride.minHoldTicks >= 0)
+                {
+                    config.MinHoldTicks = (uint)frameOverride.minHoldTicks;
+                }
+            }
+
+            EntityManager.SetComponentData(configEntity, config);
         }
 
         private void ApplySmokeLatchConfig()
@@ -494,6 +637,7 @@ namespace Space4x.Scenario
             {
                 AffiliationName = new FixedString64Bytes(affiliationName)
             });
+            EnsureScenarioFactionProfile(entity, scenarioSide);
 
             if (scenarioSide == 1)
             {
@@ -945,6 +1089,12 @@ namespace Space4x.Scenario
                 storageBuffer.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
             }
 
+            var hasShipLoadout = TryApplySpawnShipDefinition(entity, spawn, DefaultModuleLoadoutKind.Carrier);
+            if (!hasShipLoadout)
+            {
+                EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.Carrier);
+            }
+
             var fleetData = spawn.components?.Fleet;
             var combatData = spawn.components?.Combat;
             if (fleetData != null || combatData != null)
@@ -1044,6 +1194,12 @@ namespace Space4x.Scenario
                 CurrentCargo = 0f,
                 CargoResourceType = ParseResourceType(spawn.resourceId ?? "Minerals")
             });
+
+            var hasShipLoadout = TryApplySpawnShipDefinition(entity, spawn, DefaultModuleLoadoutKind.MiningVessel);
+            if (!hasShipLoadout)
+            {
+                EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.MiningVessel);
+            }
 
             var toolKind = ParseMiningToolKind(spawn.toolKind);
             EntityManager.AddComponentData(entity, new Space4XMiningToolProfile
@@ -1278,6 +1434,12 @@ namespace Space4x.Scenario
                     FleetId = new FixedString64Bytes(action.fleetId ?? action.requesterFleetId ?? string.Empty),
                     TargetFleetId = new FixedString64Bytes(action.targetFleetId ?? string.Empty),
                     TargetPosition = targetPosition,
+                    BusinessId = new FixedString64Bytes(action.businessId ?? string.Empty),
+                    ItemId = new FixedString64Bytes(action.itemId ?? string.Empty),
+                    RecipeId = new FixedString64Bytes(action.recipeId ?? string.Empty),
+                    Quantity = action.quantity,
+                    Capacity = action.capacity,
+                    BusinessType = (byte)ParseBusinessType(action.businessType),
                     Executed = 0
                 });
             }
@@ -1471,54 +1633,65 @@ namespace Space4x.Scenario
                 EntityManager.AddComponentData(pilot, AlignmentTriplet.FromFloats(lawfulness, 0f, 0f));
             }
 
-            EntityManager.AddBuffer<OutlookEntry>(pilot);
-            EntityManager.AddBuffer<TopOutlook>(pilot);
-            var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(pilot);
-            var outlooks = EntityManager.GetBuffer<TopOutlook>(pilot);
-            if (profileData != null && profileData.outlooks != null && profileData.outlooks.Count > 0)
+            if (!string.IsNullOrWhiteSpace(profileData?.id))
             {
-                for (int i = 0; i < profileData.outlooks.Count; i++)
+                var profileId = new FixedString64Bytes(profileData.id);
+                EntityManager.AddComponentData(pilot, new IndividualProfileId { Id = profileId });
+                if (_profileEntities != null && !_profileEntities.ContainsKey(profileData.id))
                 {
-                    var entry = profileData.outlooks[i];
-                    outlookEntries.Add(new OutlookEntry
+                    _profileEntities[profileData.id] = pilot;
+                }
+            }
+
+            EntityManager.AddBuffer<StanceEntry>(pilot);
+            EntityManager.AddBuffer<TopStance>(pilot);
+            var stanceEntries = EntityManager.GetBuffer<StanceEntry>(pilot);
+            var topStances = EntityManager.GetBuffer<TopStance>(pilot);
+            var stanceWeights = profileData?.ResolveStances();
+            if (stanceWeights != null && stanceWeights.Count > 0)
+            {
+                for (int i = 0; i < stanceWeights.Count; i++)
+                {
+                    var entry = stanceWeights[i];
+                    stanceEntries.Add(new StanceEntry
                     {
-                        OutlookId = ParseOutlookId(entry.outlookId),
+                        StanceId = ParseStanceId(entry.ResolveStanceId()),
                         Weight = (half)math.clamp(entry.weight, -1f, 1f)
                     });
                 }
 
-                var ordered = profileData.outlooks
+                var ordered = stanceWeights
                     .OrderByDescending(o => o.weight)
                     .Take(3);
                 foreach (var entry in ordered)
                 {
-                    outlooks.Add(new TopOutlook
+                    topStances.Add(new TopStance
                     {
-                        OutlookId = ParseOutlookId(entry.outlookId),
+                        StanceId = ParseStanceId(entry.ResolveStanceId()),
                         Weight = (half)math.clamp(entry.weight, 0f, 1f)
                     });
                 }
             }
             else
             {
-                var outlookId = config.NeutralOutlook;
+                var StanceId = config.NeutralStance;
                 if (lawfulness >= config.LoyalistLawThreshold)
                 {
-                    outlookId = config.FriendlyOutlook;
+                    StanceId = config.FriendlyStance;
                 }
                 else if (lawfulness <= config.MutinousLawThreshold)
                 {
-                    outlookId = config.HostileOutlook;
+                    StanceId = config.HostileStance;
                 }
 
-                outlookEntries.Add(new OutlookEntry
+                stanceEntries.Add(new StanceEntry
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
-                outlooks.Add(new TopOutlook
+                topStances.Add(new TopStance
                 {
-                    OutlookId = outlookId,
+                    StanceId = StanceId,
                     Weight = (half)1f
                 });
             }
@@ -1544,6 +1717,236 @@ namespace Space4x.Scenario
             }
 
             return pilot;
+        }
+
+        private void ApplyPersonalRelations(uint currentTick)
+        {
+            if (_scenarioData == null || _scenarioData.personalRelations == null || _scenarioData.personalRelations.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var relation in _scenarioData.personalRelations)
+            {
+                if (relation == null ||
+                    string.IsNullOrWhiteSpace(relation.idA) ||
+                    string.IsNullOrWhiteSpace(relation.idB))
+                {
+                    continue;
+                }
+
+                if (_profileEntities == null ||
+                    !_profileEntities.TryGetValue(relation.idA, out var entityA) ||
+                    !_profileEntities.TryGetValue(relation.idB, out var entityB))
+                {
+                    Debug.LogWarning($"[Space4XMiningScenario] PersonalRelation missing entities idA='{relation.idA}' idB='{relation.idB}'.");
+                    continue;
+                }
+
+                var kind = ParsePersonalRelationKind(relation.kind);
+                var score = (sbyte)math.clamp((int)math.round(relation.score), -100, 100);
+                var trust = (half)math.saturate(relation.trust);
+                var fear = (half)math.saturate(relation.fear);
+
+                UpsertPersonalRelation(entityA, entityB, score, kind, trust, fear, currentTick);
+                UpsertPersonalRelation(entityB, entityA, score, kind, trust, fear, currentTick);
+            }
+        }
+
+        private void UpsertPersonalRelation(Entity source, Entity other, sbyte score, PersonalRelationKind kind, half trust, half fear, uint tick)
+        {
+            if (!EntityManager.HasBuffer<PersonalRelationEntry>(source))
+            {
+                EntityManager.AddBuffer<PersonalRelationEntry>(source);
+            }
+
+            var buffer = EntityManager.GetBuffer<PersonalRelationEntry>(source);
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                if (entry.Other == other)
+                {
+                    entry.Score = score;
+                    entry.Kind = kind;
+                    entry.Trust = trust;
+                    entry.Fear = fear;
+                    entry.LastInteractionTick = tick;
+                    buffer[i] = entry;
+                    return;
+                }
+            }
+
+            buffer.Add(new PersonalRelationEntry
+            {
+                Other = other,
+                Score = score,
+                Kind = kind,
+                Trust = trust,
+                Fear = fear,
+                LastInteractionTick = tick
+            });
+        }
+
+        private void EnsureScenarioFactionProfile(Entity affiliationEntity, byte scenarioSide)
+        {
+            if (affiliationEntity == Entity.Null)
+            {
+                return;
+            }
+
+            var outlook = ResolveScenarioOutlook(scenarioSide);
+            var factionId = scenarioSide == 1 ? HostileFactionId : FriendlyFactionId;
+
+            if (EntityManager.HasComponent<Space4XFaction>(affiliationEntity))
+            {
+                var faction = EntityManager.GetComponentData<Space4XFaction>(affiliationEntity);
+                if (faction.FactionId == 0)
+                {
+                    faction.FactionId = factionId;
+                }
+                if (outlook != FactionOutlook.None)
+                {
+                    faction.Outlook = outlook;
+                }
+                EntityManager.SetComponentData(affiliationEntity, faction);
+                return;
+            }
+
+            var profile = Space4XFaction.Empire(factionId, outlook);
+            EntityManager.AddComponentData(affiliationEntity, profile);
+        }
+
+        private FactionOutlook ResolveScenarioOutlook(byte scenarioSide)
+        {
+            var config = _scenarioData?.scenarioConfig;
+            if (config == null)
+            {
+                return FactionOutlook.None;
+            }
+
+            var tokens = scenarioSide == 1 ? config.hostileFactionOutlook : config.friendlyFactionOutlook;
+            return ParseFactionOutlook(tokens);
+        }
+
+        private static FactionOutlook ParseFactionOutlook(List<string> values)
+        {
+            if (values == null || values.Count == 0)
+            {
+                return FactionOutlook.None;
+            }
+
+            var outlook = FactionOutlook.None;
+            for (int i = 0; i < values.Count; i++)
+            {
+                var token = values[i];
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    continue;
+                }
+
+                switch (token.Trim())
+                {
+                    case "Expansionist":
+                        outlook |= FactionOutlook.Expansionist;
+                        break;
+                    case "Isolationist":
+                        outlook |= FactionOutlook.Isolationist;
+                        break;
+                    case "Militarist":
+                        outlook |= FactionOutlook.Militarist;
+                        break;
+                    case "Pacifist":
+                        outlook |= FactionOutlook.Pacifist;
+                        break;
+                    case "Materialist":
+                        outlook |= FactionOutlook.Materialist;
+                        break;
+                    case "Spiritualist":
+                        outlook |= FactionOutlook.Spiritualist;
+                        break;
+                    case "Xenophile":
+                        outlook |= FactionOutlook.Xenophile;
+                        break;
+                    case "Xenophobe":
+                        outlook |= FactionOutlook.Xenophobe;
+                        break;
+                    case "Egalitarian":
+                        outlook |= FactionOutlook.Egalitarian;
+                        break;
+                    case "Authoritarian":
+                        outlook |= FactionOutlook.Authoritarian;
+                        break;
+                    case "Corrupt":
+                        outlook |= FactionOutlook.Corrupt;
+                        break;
+                    case "Honorable":
+                        outlook |= FactionOutlook.Honorable;
+                        break;
+                }
+            }
+
+            return outlook;
+        }
+
+        private void EnsureScenarioFactionRelations(uint currentTick)
+        {
+            if (_friendlyAffiliationEntity == Entity.Null || _hostileAffiliationEntity == Entity.Null)
+            {
+                return;
+            }
+
+            EnsureScenarioFactionProfile(_friendlyAffiliationEntity, 0);
+            EnsureScenarioFactionProfile(_hostileAffiliationEntity, 1);
+
+            EnsureFactionRelation(_friendlyAffiliationEntity, _hostileAffiliationEntity, -80, currentTick);
+            EnsureFactionRelation(_hostileAffiliationEntity, _friendlyAffiliationEntity, -80, currentTick);
+        }
+
+        private void EnsureFactionRelation(Entity selfFaction, Entity otherFaction, sbyte score, uint tick)
+        {
+            if (!EntityManager.HasComponent<Space4XFaction>(selfFaction) ||
+                !EntityManager.HasComponent<Space4XFaction>(otherFaction))
+            {
+                return;
+            }
+
+            if (!EntityManager.HasBuffer<FactionRelationEntry>(selfFaction))
+            {
+                EntityManager.AddBuffer<FactionRelationEntry>(selfFaction);
+            }
+
+            var otherProfile = EntityManager.GetComponentData<Space4XFaction>(otherFaction);
+            var buffer = EntityManager.GetBuffer<FactionRelationEntry>(selfFaction);
+
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                if (entry.Relation.OtherFaction == otherFaction || entry.Relation.OtherFactionId == otherProfile.FactionId)
+                {
+                    entry.Relation.OtherFaction = otherFaction;
+                    entry.Relation.OtherFactionId = otherProfile.FactionId;
+                    entry.Relation.Score = score;
+                    entry.Relation.LastInteractionTick = tick;
+                    buffer[i] = entry;
+                    return;
+                }
+            }
+
+            buffer.Add(new FactionRelationEntry
+            {
+                Relation = new FactionRelation
+                {
+                    OtherFaction = otherFaction,
+                    OtherFactionId = otherProfile.FactionId,
+                    Score = score,
+                    Trust = (half)0f,
+                    Fear = (half)0.5f,
+                    Respect = (half)0f,
+                    TradeVolume = 0f,
+                    RecentCombats = 0,
+                    LastInteractionTick = tick
+                }
+            });
         }
 
         private void SpawnEscorts(Entity carrierEntity, float3 carrierPosition, CombatComponentData combatData, byte scenarioSide, uint currentTick, float fixedDt)
@@ -1617,7 +2020,398 @@ namespace Space4x.Scenario
                 {
                     Flags = escortDisposition
                 });
+                var hasEscortLoadout = TryApplyEscortShipDefinition(entity, combatData, DefaultModuleLoadoutKind.Escort);
+                if (!hasEscortLoadout)
+                {
+                    EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.Escort);
+                }
             }
+        }
+
+        private enum DefaultModuleLoadoutKind : byte
+        {
+            Carrier,
+            MiningVessel,
+            Escort
+        }
+
+        private bool TryApplySpawnShipDefinition(Entity owner, MiningSpawnDefinition spawn, DefaultModuleLoadoutKind loadoutKind)
+        {
+            var ship = ResolveShipDefinition(spawn);
+            return ApplyShipDefinition(owner, ship, loadoutKind);
+        }
+
+        private bool TryApplyEscortShipDefinition(Entity owner, CombatComponentData combatData, DefaultModuleLoadoutKind loadoutKind)
+        {
+            var ship = ResolveEscortShipDefinition(combatData);
+            return ApplyShipDefinition(owner, ship, loadoutKind);
+        }
+
+        private void EnsureDefaultModuleLoadout(Entity owner, DefaultModuleLoadoutKind loadoutKind)
+        {
+            if (!_applyDefaultModuleLoadouts)
+            {
+                return;
+            }
+
+            if (EntityManager.HasComponent<CarrierModuleSlot>(owner))
+            {
+                return;
+            }
+
+            EnsureModuleOwnerState(owner, loadoutKind);
+
+            var slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            DynamicBuffer<ModuleAttachment> attachments;
+            if (EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            }
+            else
+            {
+                attachments = EntityManager.AddBuffer<ModuleAttachment>(owner);
+            }
+            attachments.Clear();
+
+            switch (loadoutKind)
+            {
+                case DefaultModuleLoadoutKind.Carrier:
+                    AddModuleSlot(slots, attachments, "reactor-mk2", out _);
+                    AddModuleSlot(slots, attachments, "engine-mk2", out _);
+                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
+                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
+                    AddModuleSlot(slots, attachments, "shield-m-1", out _);
+                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
+                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
+                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
+                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
+                    AddModuleSlot(slots, attachments, "missile-m-1", out _);
+                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    break;
+                case DefaultModuleLoadoutKind.MiningVessel:
+                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
+                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
+                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
+                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
+                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
+                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
+                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
+                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
+                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    break;
+                case DefaultModuleLoadoutKind.Escort:
+                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
+                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
+                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
+                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
+                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
+                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
+                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
+                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
+                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
+                    AddModuleSlot(slots, attachments, "missile-s-1", out _);
+                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    break;
+            }
+        }
+
+        private void EnsureModuleOwnerState(Entity owner, DefaultModuleLoadoutKind loadoutKind)
+        {
+            if (!EntityManager.HasComponent<ModuleStatAggregate>(owner))
+            {
+                EntityManager.AddComponentData(owner, new ModuleStatAggregate
+                {
+                    SpeedMultiplier = 1f,
+                    CargoMultiplier = 1f,
+                    EnergyMultiplier = 1f,
+                    RefitRateMultiplier = 1f,
+                    RepairRateMultiplier = 1f,
+                    ActiveModuleCount = 0
+                });
+            }
+
+            if (!EntityManager.HasComponent<SupplyStatus>(owner))
+            {
+                var supply = loadoutKind == DefaultModuleLoadoutKind.Carrier
+                    ? SupplyStatus.DefaultCarrier
+                    : SupplyStatus.DefaultVessel;
+                EntityManager.AddComponentData(owner, supply);
+            }
+        }
+
+        private bool ApplyShipDefinition(Entity owner, ShipDefinitionData ship, DefaultModuleLoadoutKind loadoutKind)
+        {
+            if (ship == null)
+            {
+                return false;
+            }
+
+            ApplyHullId(owner, ship);
+
+            if (ship.modules == null || ship.modules.Count == 0)
+            {
+                return false;
+            }
+
+            EnsureModuleOwnerState(owner, loadoutKind);
+
+            DynamicBuffer<CarrierModuleSlot> slots;
+            if (EntityManager.HasBuffer<CarrierModuleSlot>(owner))
+            {
+                slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+                if (slots.Length > 0)
+                {
+                    return false;
+                }
+                slots.Clear();
+            }
+            else
+            {
+                slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            }
+
+            var attachments = EntityManager.HasBuffer<ModuleAttachment>(owner)
+                ? EntityManager.GetBuffer<ModuleAttachment>(owner)
+                : EntityManager.AddBuffer<ModuleAttachment>(owner);
+            attachments.Clear();
+
+            var totalMass = 0f;
+            var moduleCount = 0;
+
+            for (int i = 0; i < ship.modules.Count; i++)
+            {
+                var moduleId = ship.modules[i];
+                if (string.IsNullOrWhiteSpace(moduleId))
+                {
+                    continue;
+                }
+
+                if (AddModuleSlot(slots, attachments, moduleId, out var massTons))
+                {
+                    totalMass += massTons;
+                    moduleCount++;
+                }
+            }
+
+            if (ship.massCap > 0f && totalMass > ship.massCap + 0.01f)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Ship mass cap exceeded (hull='{ship.hullId ?? "unknown"}' total={totalMass:F1} cap={ship.massCap:F1} modules={moduleCount}).");
+            }
+
+            return moduleCount > 0;
+        }
+
+        private void ApplyHullId(Entity owner, ShipDefinitionData ship)
+        {
+            if (ship == null || string.IsNullOrWhiteSpace(ship.hullId))
+            {
+                return;
+            }
+
+            var hullId = new FixedString64Bytes(ship.hullId);
+
+            if (EntityManager.HasComponent<Carrier>(owner))
+            {
+                if (EntityManager.HasComponent<CarrierHullId>(owner))
+                {
+                    EntityManager.SetComponentData(owner, new CarrierHullId { HullId = hullId });
+                }
+                else
+                {
+                    EntityManager.AddComponentData(owner, new CarrierHullId { HullId = hullId });
+                }
+            }
+
+            if (EntityManager.HasComponent<HullId>(owner))
+            {
+                EntityManager.SetComponentData(owner, new HullId { Id = hullId });
+            }
+            else
+            {
+                EntityManager.AddComponentData(owner, new HullId { Id = hullId });
+            }
+        }
+
+        private bool AddModuleSlot(DynamicBuffer<CarrierModuleSlot> slots, DynamicBuffer<ModuleAttachment> attachments, string moduleId, out float massTons)
+        {
+            var module = CreateModuleEntity(moduleId, out var slotSize, out massTons);
+            if (module == Entity.Null)
+            {
+                massTons = 0f;
+                return false;
+            }
+
+            var slotIndex = slots.Length;
+            slots.Add(new CarrierModuleSlot
+            {
+                SlotIndex = slotIndex,
+                SlotSize = slotSize,
+                CurrentModule = module,
+                TargetModule = module,
+                RefitProgress = 0f,
+                State = Space4X.Registry.ModuleSlotState.Active
+            });
+
+            attachments.Add(new ModuleAttachment { Module = module });
+            return true;
+        }
+
+        private Entity CreateModuleEntity(string moduleId, out ModuleSlotSize slotSize, out float massTons)
+        {
+            slotSize = ModuleSlotSize.Small;
+            massTons = 0f;
+            if (string.IsNullOrWhiteSpace(moduleId))
+            {
+                return Entity.Null;
+            }
+
+            var moduleIdFixed = new FixedString64Bytes(moduleId);
+            var hasSpec = ModuleCatalogUtility.TryGetModuleSpec(EntityManager, moduleIdFixed, out var spec);
+            if (hasSpec)
+            {
+                slotSize = ConvertMountSize(spec.RequiredSize);
+                massTons = math.max(0f, spec.MassTons);
+            }
+
+            var entity = EntityManager.CreateEntity();
+            EntityManager.AddComponentData(entity, new ModuleTypeId { Value = moduleIdFixed });
+            EntityManager.AddComponentData(entity, new ModuleSlotRequirement
+            {
+                SlotSize = slotSize
+            });
+
+            EntityManager.AddComponentData(entity, new ModuleStatModifier
+            {
+                SpeedMultiplier = 1f,
+                CargoMultiplier = 1f,
+                EnergyMultiplier = 1f,
+                RefitRateMultiplier = 1f,
+                RepairRateMultiplier = 1f
+            });
+
+            var maxHealth = 100f;
+            var efficiency = hasSpec ? math.clamp(spec.DefaultEfficiency, 0.1f, 1f) : 1f;
+            EntityManager.AddComponentData(entity, new ModuleHealth
+            {
+                MaxHealth = maxHealth,
+                CurrentHealth = maxHealth * efficiency,
+                MaxFieldRepairHealth = maxHealth * 0.8f,
+                DegradationPerSecond = 0f,
+                RepairPriority = 128,
+                Failed = 0
+            });
+
+            return entity;
+        }
+
+        private static ModuleSlotSize ConvertMountSize(MountSize size)
+        {
+            return size switch
+            {
+                MountSize.S => ModuleSlotSize.Small,
+                MountSize.M => ModuleSlotSize.Medium,
+                MountSize.L => ModuleSlotSize.Large,
+                _ => ModuleSlotSize.Medium
+            };
+        }
+
+        private ShipDefinitionData ResolveShipDefinition(MiningSpawnDefinition spawn)
+        {
+            if (spawn == null)
+            {
+                return null;
+            }
+
+            ShipDefinitionData templateShip = null;
+            if (!string.IsNullOrWhiteSpace(spawn.shipTemplateId))
+            {
+                templateShip = ResolveShipTemplate(spawn.shipTemplateId);
+            }
+
+            if (spawn.ship == null)
+            {
+                return CloneShipDefinition(templateShip);
+            }
+
+            if (templateShip == null)
+            {
+                return CloneShipDefinition(spawn.ship);
+            }
+
+            return MergeShipDefinition(templateShip, spawn.ship);
+        }
+
+        private ShipDefinitionData ResolveEscortShipDefinition(CombatComponentData combatData)
+        {
+            if (combatData == null)
+            {
+                return null;
+            }
+
+            ShipDefinitionData templateShip = null;
+            if (!string.IsNullOrWhiteSpace(combatData.escortShipTemplateId))
+            {
+                templateShip = ResolveShipTemplate(combatData.escortShipTemplateId);
+            }
+
+            if (combatData.escortShip == null)
+            {
+                return CloneShipDefinition(templateShip);
+            }
+
+            if (templateShip == null)
+            {
+                return CloneShipDefinition(combatData.escortShip);
+            }
+
+            return MergeShipDefinition(templateShip, combatData.escortShip);
+        }
+
+        private static ShipDefinitionData CloneShipDefinition(ShipDefinitionData source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            return new ShipDefinitionData
+            {
+                hullId = source.hullId,
+                massCap = source.massCap,
+                modules = source.modules != null ? new List<string>(source.modules) : null
+            };
+        }
+
+        private static ShipDefinitionData MergeShipDefinition(ShipDefinitionData baseDefinition, ShipDefinitionData overrideDefinition)
+        {
+            if (baseDefinition == null)
+            {
+                return CloneShipDefinition(overrideDefinition);
+            }
+
+            if (overrideDefinition == null)
+            {
+                return CloneShipDefinition(baseDefinition);
+            }
+
+            var merged = CloneShipDefinition(baseDefinition);
+
+            if (!string.IsNullOrWhiteSpace(overrideDefinition.hullId))
+            {
+                merged.hullId = overrideDefinition.hullId;
+            }
+
+            if (overrideDefinition.massCap > 0f)
+            {
+                merged.massCap = overrideDefinition.massCap;
+            }
+
+            if (overrideDefinition.modules != null && overrideDefinition.modules.Count > 0)
+            {
+                merged.modules = new List<string>(overrideDefinition.modules);
+            }
+
+            return merged;
         }
 
         private void EnsureCarrierAuthorityAndCrew(Entity carrierEntity, float lawfulness, uint currentTick)
@@ -2236,6 +3030,57 @@ namespace Space4x.Scenario
             }
         }
 
+        private ShipTemplateFileData LoadShipTemplateFile(string templateId)
+        {
+            var path = ResolveTemplatePath(templateId);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Ship template missing: {templateId} ({path})");
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<ShipTemplateFileData>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] Failed to parse ship template {templateId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private ShipDefinitionData ResolveShipTemplate(string templateId)
+        {
+            if (string.IsNullOrWhiteSpace(templateId))
+            {
+                return null;
+            }
+
+            var template = LoadShipTemplateFile(templateId);
+            if (template == null)
+            {
+                return null;
+            }
+
+            if (template.ship != null)
+            {
+                return CloneShipDefinition(template.ship);
+            }
+
+            if (template.modules == null && string.IsNullOrWhiteSpace(template.hullId) && template.massCap <= 0f)
+            {
+                return null;
+            }
+
+            return new ShipDefinitionData
+            {
+                hullId = template.hullId,
+                massCap = template.massCap,
+                modules = template.modules != null ? new List<string>(template.modules) : null
+            };
+        }
+
         private string ResolveTemplateRoot(string scenarioPath)
         {
             if (string.IsNullOrWhiteSpace(scenarioPath))
@@ -2291,38 +3136,38 @@ namespace Space4x.Scenario
                          + (float)stats.Resolve) / 6f
             });
 
-            var outlookId = ResolveOutlookId(config, lawfulness);
-            EntityManager.AddBuffer<OutlookEntry>(crew);
-            EntityManager.AddBuffer<TopOutlook>(crew);
-            var outlookEntries = EntityManager.GetBuffer<OutlookEntry>(crew);
-            var outlooks = EntityManager.GetBuffer<TopOutlook>(crew);
-            outlookEntries.Add(new OutlookEntry
+            var StanceId = ResolveStanceId(config, lawfulness);
+            EntityManager.AddBuffer<StanceEntry>(crew);
+            EntityManager.AddBuffer<TopStance>(crew);
+            var stanceEntries = EntityManager.GetBuffer<StanceEntry>(crew);
+            var topStances = EntityManager.GetBuffer<TopStance>(crew);
+            stanceEntries.Add(new StanceEntry
             {
-                OutlookId = outlookId,
+                StanceId = StanceId,
                 Weight = (half)1f
             });
-            outlooks.Add(new TopOutlook
+            topStances.Add(new TopStance
             {
-                OutlookId = outlookId,
+                StanceId = StanceId,
                 Weight = (half)1f
             });
 
             return crew;
         }
 
-        private static OutlookId ResolveOutlookId(in StrikeCraftPilotProfileConfig config, float lawfulness)
+        private static StanceId ResolveStanceId(in StrikeCraftPilotProfileConfig config, float lawfulness)
         {
             if (lawfulness >= config.LoyalistLawThreshold)
             {
-                return config.FriendlyOutlook;
+                return config.FriendlyStance;
             }
 
             if (lawfulness <= config.MutinousLawThreshold)
             {
-                return config.HostileOutlook;
+                return config.HostileStance;
             }
 
-            return config.NeutralOutlook;
+            return config.NeutralStance;
         }
 
         private float3 GetPosition(float[] position)
@@ -2379,8 +3224,41 @@ namespace Space4x.Scenario
             return kind switch
             {
                 "TriggerIntercept" => Space4XScenarioActionKind.TriggerIntercept,
+                "EconomyEnable" => Space4XScenarioActionKind.EconomyEnable,
+                "ProdCreateBusiness" => Space4XScenarioActionKind.ProdCreateBusiness,
+                "ProdAddItem" => Space4XScenarioActionKind.ProdAddItem,
+                "ProdRequest" => Space4XScenarioActionKind.ProdRequest,
                 _ => Space4XScenarioActionKind.MoveFleet
             };
+        }
+
+        private static BusinessType ParseBusinessType(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return BusinessType.Blacksmith;
+            }
+
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "sawmill":
+                    return BusinessType.Sawmill;
+                case "quarry":
+                    return BusinessType.Quarry;
+                case "mill":
+                    return BusinessType.Mill;
+                case "herbalist":
+                    return BusinessType.Herbalist;
+                case "wainwright":
+                    return BusinessType.Wainwright;
+                case "builder":
+                    return BusinessType.Builder;
+                case "alchemist":
+                    return BusinessType.Alchemist;
+                case "blacksmith":
+                default:
+                    return BusinessType.Blacksmith;
+            }
         }
 
         private ResourceType ParseResourceType(string type)
@@ -2395,20 +3273,44 @@ namespace Space4x.Scenario
             };
         }
 
-        private static OutlookId ParseOutlookId(string value)
+        private static StanceId ParseStanceId(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                return OutlookId.Neutral;
+                return StanceId.Neutral;
             }
 
             return value switch
             {
-                "Loyalist" => OutlookId.Loyalist,
-                "Opportunist" => OutlookId.Opportunist,
-                "Fanatic" => OutlookId.Fanatic,
-                "Mutinous" => OutlookId.Mutinous,
-                _ => OutlookId.Neutral
+                "Loyalist" => StanceId.Loyalist,
+                "Opportunist" => StanceId.Opportunist,
+                "Fanatic" => StanceId.Fanatic,
+                "Mutinous" => StanceId.Mutinous,
+                _ => StanceId.Neutral
+            };
+        }
+
+        private static PersonalRelationKind ParsePersonalRelationKind(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return PersonalRelationKind.None;
+            }
+
+            return value switch
+            {
+                "BestFriend" => PersonalRelationKind.Friend,
+                "BestFriends" => PersonalRelationKind.Friend,
+                "Friend" => PersonalRelationKind.Friend,
+                "Comrade" => PersonalRelationKind.Comrade,
+                "Rival" => PersonalRelationKind.Rival,
+                "Family" => PersonalRelationKind.Family,
+                "Mentor" => PersonalRelationKind.Mentor,
+                "Protege" => PersonalRelationKind.Protege,
+                "Debtor" => PersonalRelationKind.Debtor,
+                "Creditor" => PersonalRelationKind.Creditor,
+                "BloodFeud" => PersonalRelationKind.BloodFeud,
+                _ => PersonalRelationKind.None
             };
         }
 
@@ -2604,6 +3506,7 @@ namespace Space4x.Scenario
         public List<MiningScenarioAction> actions;
         public MiningTelemetryExpectations telemetryExpectations;
         public List<IndividualProfileData> individuals;
+        public List<PersonalRelationData> personalRelations;
     }
 
     [System.Serializable]
@@ -2613,10 +3516,45 @@ namespace Space4x.Scenario
         public bool disableLegacyMining;
         public bool disableLegacyPatrol;
         public bool applyFloatingOrigin;
+        public bool applyReferenceFrames;
+        public bool applyDefaultModuleLoadouts;
+        public OrbitalBandConfigData orbitalBand;
+        public RenderFrameConfigData renderFrame;
+        public List<string> friendlyFactionOutlook;
+        public List<string> hostileFactionOutlook;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
         public List<HeadlessQuestionConfigData> headlessQuestions;
         public List<CrewTemplateConfigData> crewTemplates;
+    }
+
+    [System.Serializable]
+    public class OrbitalBandConfigData
+    {
+        public int enabled = -1;
+        public float innerRadius = -1f;
+        public float outerRadius = -1f;
+        public float distanceScale = -1f;
+        public float speedScale = -1f;
+        public float rangeScale = -1f;
+        public float presentationScale = -1f;
+        public float enterMultiplier = -1f;
+        public float exitMultiplier = -1f;
+    }
+
+    [System.Serializable]
+    public class RenderFrameConfigData
+    {
+        public int enabled = -1;
+        public int useBandScale = -1;
+        public float surfaceScale = -1f;
+        public float orbitalScale = -1f;
+        public float deepScale = -1f;
+        public float surfaceEnterMultiplier = -1f;
+        public float surfaceExitMultiplier = -1f;
+        public float orbitalEnterMultiplier = -1f;
+        public float orbitalExitMultiplier = -1f;
+        public int minHoldTicks = -1;
     }
 
     [System.Serializable]
@@ -2710,6 +3648,10 @@ namespace Space4x.Scenario
     {
         public string templateId;
         public string governanceMode;
+        public string hullId;
+        public float massCap;
+        public List<string> modules;
+        public ShipDefinitionData ship;
         public List<StationRequirementData> stationRequirements;
     }
 
@@ -2769,6 +3711,12 @@ namespace Space4x.Scenario
         public string requesterFleetId;
         public string targetFleetId;
         public string description;
+        public string businessId;
+        public string businessType;
+        public string itemId;
+        public string recipeId;
+        public float quantity;
+        public float capacity;
     }
 
     [System.Serializable]
@@ -2777,6 +3725,8 @@ namespace Space4x.Scenario
         public string kind;
         public string entityId;
         public float[] position;
+        public string shipTemplateId;
+        public ShipDefinitionData ship;
         public string carrierId;
         public string toolKind;
         public string toolShape;
@@ -2832,6 +3782,8 @@ namespace Space4x.Scenario
         public string strikeCraftRole;
         public int escortCount;
         public float escortRelease_s;
+        public string escortShipTemplateId;
+        public ShipDefinitionData escortShip;
         public string pilotProfileId;
         public List<string> pilotProfileIds;
     }
@@ -2845,8 +3797,22 @@ namespace Space4x.Scenario
         public float integrity;
         public ushort raceId;
         public ushort cultureId;
-        public List<OutlookWeightData> outlooks;
+        public List<StanceWeightData> stances;
+        public List<StanceWeightData> outlooks; // legacy
         public BehaviorDispositionData behaviorDisposition;
+
+        public List<StanceWeightData> ResolveStances() => stances ?? outlooks;
+    }
+
+    [System.Serializable]
+    public class PersonalRelationData
+    {
+        public string idA;
+        public string idB;
+        public string kind;
+        public float score;
+        public float trust;
+        public float fear;
     }
 
     [System.Serializable]
@@ -2862,10 +3828,21 @@ namespace Space4x.Scenario
     }
 
     [System.Serializable]
-    public class OutlookWeightData
+    public class StanceWeightData
     {
-        public string outlookId;
+        public string stanceId;
+        public string outlookId; // legacy
         public float weight;
+
+        public string ResolveStanceId()
+        {
+            if (!string.IsNullOrWhiteSpace(stanceId))
+            {
+                return stanceId;
+            }
+
+            return outlookId;
+        }
     }
 
     [System.Serializable]
@@ -2893,3 +3870,6 @@ namespace Space4x.Scenario
         public string json;
     }
 }
+
+
+

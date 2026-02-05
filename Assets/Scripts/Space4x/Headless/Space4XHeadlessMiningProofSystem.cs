@@ -32,7 +32,6 @@ namespace Space4X.Headless
         private const string EnabledEnv = "SPACE4X_HEADLESS_MINING_PROOF";
         private const string ExitOnResultEnv = "SPACE4X_HEADLESS_MINING_PROOF_EXIT";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
-        private const string SmokeScenarioFile = "space4x_smoke.json";
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
         private const string MiningMicroScenarioFile = "space4x_mining_micro.json";
@@ -408,8 +407,7 @@ namespace Space4X.Headless
         private static bool IsSmokeScenario()
         {
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            return !string.IsNullOrWhiteSpace(scenarioPath) &&
-                   scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase);
+            return IsSmokeScenarioPath(scenarioPath);
         }
 
         private static bool IsMiningCombatScenario()
@@ -455,6 +453,19 @@ namespace Space4X.Headless
             }
         }
 
+        private static bool IsSmokeScenarioPath(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
+            return scenarioName.StartsWith("space4x_smoke", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase) ||
+                   scenarioName.StartsWith("space4x_bug_hunt", StringComparison.OrdinalIgnoreCase);
+        }
+
         private FixedString64Bytes ResolveBankTestId()
         {
             if (_bankResolved != 0)
@@ -469,7 +480,7 @@ namespace Space4X.Headless
                 return _bankTestId;
             }
 
-            if (scenarioPath.EndsWith(SmokeScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (IsSmokeScenarioPath(scenarioPath))
             {
                 _bankTestId = new FixedString64Bytes("S0.SPACE4X_SMOKE");
             }

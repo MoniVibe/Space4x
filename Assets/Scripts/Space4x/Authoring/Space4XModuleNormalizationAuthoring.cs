@@ -30,6 +30,20 @@ namespace Space4X.Registry
         [Header("Output")]
         [Min(0f)] public float MaxOutput = 1f;
 
+        [Header("Engine Profile")]
+        public EngineClass EngineClass = EngineClass.Civilian;
+        public EngineFuelType FuelType = EngineFuelType.Chemical;
+        public EngineIntakeType IntakeType = EngineIntakeType.None;
+        public EngineVectoringMode VectoringMode = EngineVectoringMode.Fixed;
+        [Range(0f, 1f)] public float TechLevel = 0f;
+        [Range(0f, 1f)] public float Quality = 0f;
+        [Min(0f)] public float ThrustScalar = 0f;
+        [Min(0f)] public float TurnScalar = 0f;
+        [Range(0f, 1f)] public float ResponseRating = 0f;
+        [Range(0f, 1f)] public float EfficiencyRating = 0f;
+        [Range(0f, 1f)] public float BoostRating = 0f;
+        [Range(0f, 1f)] public float VectoringRating = 0f;
+
         private sealed class Baker : Unity.Entities.Baker<Space4XEngineModuleAuthoring>
         {
             public override void Bake(Space4XEngineModuleAuthoring authoring)
@@ -38,6 +52,23 @@ namespace Space4X.Registry
                     authoring.PowerDrawOff, authoring.PowerDrawStandby, authoring.PowerDrawOnline, authoring.PowerDrawEmergency,
                     authoring.TauColdToOnline, authoring.TauWarmToOnline, authoring.TauOnlineToStandby, authoring.TauStandbyToOff,
                     authoring.MaxOutput, authoring.RampRateLimit, ModuleCapabilityKind.ThrustAuthority);
+
+                var entity = GetEntity(TransformUsageFlags.Dynamic);
+                AddComponent(entity, new EngineProfile
+                {
+                    Class = authoring.EngineClass,
+                    FuelType = authoring.FuelType,
+                    IntakeType = authoring.IntakeType,
+                    VectoringMode = authoring.VectoringMode,
+                    TechLevel = math.saturate(authoring.TechLevel),
+                    Quality = math.saturate(authoring.Quality),
+                    ThrustScalar = math.max(0f, authoring.ThrustScalar),
+                    TurnScalar = math.max(0f, authoring.TurnScalar),
+                    ResponseRating = math.saturate(authoring.ResponseRating),
+                    EfficiencyRating = math.saturate(authoring.EfficiencyRating),
+                    BoostRating = math.saturate(authoring.BoostRating),
+                    VectoringRating = math.saturate(authoring.VectoringRating)
+                });
             }
         }
     }
@@ -65,6 +96,20 @@ namespace Space4X.Registry
         [Header("Output")]
         [Min(0f)] public float MaxOutput = 1f;
 
+        [Header("Engine Profile")]
+        public EngineClass EngineClass = EngineClass.Civilian;
+        public EngineFuelType FuelType = EngineFuelType.Chemical;
+        public EngineIntakeType IntakeType = EngineIntakeType.None;
+        public EngineVectoringMode VectoringMode = EngineVectoringMode.Vectored;
+        [Range(0f, 1f)] public float TechLevel = 0f;
+        [Range(0f, 1f)] public float Quality = 0f;
+        [Min(0f)] public float ThrustScalar = 0f;
+        [Min(0f)] public float TurnScalar = 0f;
+        [Range(0f, 1f)] public float ResponseRating = 0f;
+        [Range(0f, 1f)] public float EfficiencyRating = 0f;
+        [Range(0f, 1f)] public float BoostRating = 0f;
+        [Range(0f, 1f)] public float VectoringRating = 0f;
+
         private sealed class Baker : Unity.Entities.Baker<Space4XThrusterModuleAuthoring>
         {
             public override void Bake(Space4XThrusterModuleAuthoring authoring)
@@ -73,6 +118,23 @@ namespace Space4X.Registry
                     authoring.PowerDrawOff, authoring.PowerDrawStandby, authoring.PowerDrawOnline, authoring.PowerDrawEmergency,
                     authoring.TauColdToOnline, authoring.TauWarmToOnline, authoring.TauOnlineToStandby, authoring.TauStandbyToOff,
                     authoring.MaxOutput, authoring.RampRateLimit, ModuleCapabilityKind.TurnAuthority);
+
+                var entity = GetEntity(TransformUsageFlags.Dynamic);
+                AddComponent(entity, new EngineProfile
+                {
+                    Class = authoring.EngineClass,
+                    FuelType = authoring.FuelType,
+                    IntakeType = authoring.IntakeType,
+                    VectoringMode = authoring.VectoringMode,
+                    TechLevel = math.saturate(authoring.TechLevel),
+                    Quality = math.saturate(authoring.Quality),
+                    ThrustScalar = math.max(0f, authoring.ThrustScalar),
+                    TurnScalar = math.max(0f, authoring.TurnScalar),
+                    ResponseRating = math.saturate(authoring.ResponseRating),
+                    EfficiencyRating = math.saturate(authoring.EfficiencyRating),
+                    BoostRating = math.saturate(authoring.BoostRating),
+                    VectoringRating = math.saturate(authoring.VectoringRating)
+                });
             }
         }
     }

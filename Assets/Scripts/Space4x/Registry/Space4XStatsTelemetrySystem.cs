@@ -19,6 +19,16 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XTelemetryBootstrapSystem))]
     public partial struct Space4XStatsTelemetrySystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricCommandAvg = "space4x.stats.command.avg";
+        private static readonly FixedString64Bytes MetricTacticsAvg = "space4x.stats.tactics.avg";
+        private static readonly FixedString64Bytes MetricLogisticsAvg = "space4x.stats.logistics.avg";
+        private static readonly FixedString64Bytes MetricDiplomacyAvg = "space4x.stats.diplomacy.avg";
+        private static readonly FixedString64Bytes MetricEngineeringAvg = "space4x.stats.engineering.avg";
+        private static readonly FixedString64Bytes MetricResolveAvg = "space4x.stats.resolve.avg";
+        private static readonly FixedString64Bytes MetricPhysiqueAvg = "space4x.stats.physique.avg";
+        private static readonly FixedString64Bytes MetricFinesseAvg = "space4x.stats.finesse.avg";
+        private static readonly FixedString64Bytes MetricWillAvg = "space4x.stats.will.avg";
+
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<PhysiqueFinesseWill> _physiqueLookup;
 
@@ -97,12 +107,12 @@ namespace Space4X.Registry
                 var avgEngineering = totalEngineering / entityCount;
                 var avgResolve = totalResolve / entityCount;
 
-                telemetryBuffer.AddMetric("space4x.stats.command.avg", avgCommand, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.tactics.avg", avgTactics, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.logistics.avg", avgLogistics, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.diplomacy.avg", avgDiplomacy, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.engineering.avg", avgEngineering, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.resolve.avg", avgResolve, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricCommandAvg, avgCommand, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricTacticsAvg, avgTactics, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricLogisticsAvg, avgLogistics, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricDiplomacyAvg, avgDiplomacy, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricEngineeringAvg, avgEngineering, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricResolveAvg, avgResolve, TelemetryMetricUnit.None);
             }
 
             if (physiqueCount > 0)
@@ -111,9 +121,9 @@ namespace Space4X.Registry
                 var avgFinesse = totalFinesse / physiqueCount;
                 var avgWill = totalWill / physiqueCount;
 
-                telemetryBuffer.AddMetric("space4x.stats.physique.avg", avgPhysique, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.finesse.avg", avgFinesse, TelemetryMetricUnit.None);
-                telemetryBuffer.AddMetric("space4x.stats.will.avg", avgWill, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricPhysiqueAvg, avgPhysique, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricFinesseAvg, avgFinesse, TelemetryMetricUnit.None);
+                telemetryBuffer.AddMetric(MetricWillAvg, avgWill, TelemetryMetricUnit.None);
             }
         }
     }

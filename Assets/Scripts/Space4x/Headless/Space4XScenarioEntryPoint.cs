@@ -275,6 +275,17 @@ namespace Space4X.Headless
                     return resolved;
                 }
 
+                var triRoot = SystemEnv.GetEnvironmentVariable("TRI_REPO_ROOT") ??
+                              SystemEnv.GetEnvironmentVariable("TRI_ROOT");
+                if (!string.IsNullOrWhiteSpace(triRoot))
+                {
+                    var triCandidate = Path.Combine(triRoot, arg);
+                    if (File.Exists(triCandidate))
+                    {
+                        return triCandidate;
+                    }
+                }
+
                 var dataCandidate = Path.Combine(Application.dataPath, arg);
                 if (File.Exists(dataCandidate))
                 {
@@ -293,6 +304,16 @@ namespace Space4X.Headless
             var scenariosRoot = Path.Combine(Application.dataPath, "Scenarios");
             if (!Directory.Exists(scenariosRoot))
             {
+                var triRoot = SystemEnv.GetEnvironmentVariable("TRI_REPO_ROOT") ??
+                              SystemEnv.GetEnvironmentVariable("TRI_ROOT");
+                if (!string.IsNullOrWhiteSpace(triRoot))
+                {
+                    var triCandidate = Path.Combine(triRoot, "Assets", "Scenarios", $"{arg}.json");
+                    if (File.Exists(triCandidate))
+                    {
+                        return triCandidate;
+                    }
+                }
                 return arg;
             }
 
@@ -405,6 +426,17 @@ namespace Space4X.Headless
             return !string.IsNullOrWhiteSpace(scenarioId);
         }
 
-        private static void Quit(int exitCode) => Application.Quit(exitCode);
+        private static void Quit(int exitCode)
+        {
+            if (exitCode != 0)
+            {
+                UnityDebug.LogError($"[ScenarioEntryPoint] Quit exit_code={exitCode}\n{SystemEnv.StackTrace}");
+            }
+            else
+            {
+                UnityDebug.Log($"[ScenarioEntryPoint] Quit exit_code={exitCode}");
+            }
+            Application.Quit(exitCode);
+        }
     }
 }

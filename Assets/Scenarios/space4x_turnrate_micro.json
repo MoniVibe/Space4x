@@ -1,10 +1,16 @@
 {
+  "scenarioId": "space4x_turnrate_micro",
   "seed": 1101,
   "duration_s": 40,
   "proofs": {
     "mining": false
   },
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "spawnLane": "mining-json",
     "applyMotionTuning": true,
     "applyMotionProfile": true,

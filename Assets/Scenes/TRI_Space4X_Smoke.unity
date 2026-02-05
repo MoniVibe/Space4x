@@ -20,11 +20,11 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.28, g: 0.3, b: 0.34, a: 1}
-  m_AmbientEquatorColor: {r: 0.16, g: 0.18, b: 0.2, a: 1}
-  m_AmbientGroundColor: {r: 0.09, g: 0.08, b: 0.07, a: 1}
+  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
+  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 1
+  m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
   m_HaloStrength: 0.5
@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 3100000002}
+  m_Sun: {fileID: 0}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -71,13 +71,13 @@ LightmapSettings:
     m_BakeBackend: 1
     m_PVRSampling: 1
     m_PVRDirectSampleCount: 32
-  m_PVRSampleCount: 512
-  m_PVRBounces: 2
-  m_PVREnvironmentSampleCount: 256
-  m_PVREnvironmentReferencePointCount: 2048
-  m_PVRFilteringMode: 1
-  m_PVRDenoiserTypeDirect: 1
-  m_PVRDenoiserTypeIndirect: 1
+    m_PVRSampleCount: 512
+    m_PVRBounces: 2
+    m_PVREnvironmentSampleCount: 256
+    m_PVREnvironmentReferencePointCount: 2048
+    m_PVRFilteringMode: 1
+    m_PVRDenoiserTypeDirect: 1
+    m_PVRDenoiserTypeIndirect: 1
     m_PVRDenoiserTypeAO: 1
     m_PVRFilterTypeDirect: 0
     m_PVRFilterTypeIndirect: 0
@@ -119,82 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1001 &3100000000
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
---- !u!4 &3100000001 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 100001, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-  m_PrefabInstance: {fileID: 3100000000}
-  m_PrefabAsset: {fileID: 0}
---- !u!108 &3100000002 stripped
-Light:
-  m_CorrespondingSourceObject: {fileID: 100004, guid: 51ef98c49ec54af3a1b488735aeb2247, type: 3}
-  m_PrefabInstance: {fileID: 3100000000}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &805860693
+--- !u!1 &209875678
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -202,23 +127,21 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 805860694}
-  - component: {fileID: 805860695}
-  - component: {fileID: 805860696}
+  - component: {fileID: 209875679}
   m_Layer: 0
-  m_Name: RenderCatalogBootstrap
+  m_Name: MiningCombatDemo
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &805860694
+--- !u!4 &209875679
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 805860693}
+  m_GameObject: {fileID: 209875678}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -227,33 +150,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &805860695
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 805860693}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1a49b4b670ae4c9bb696e3a46f04d975, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogRuntimeBootstrap
-  CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
---- !u!114 &805860696
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 805860693}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59c7c25d01774a649a017acb2a108b96, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Runtime.Physics::PureDOTS.Runtime.Physics.PhysicsColliderProfileRuntimeBootstrap
-  ProfileDefinition: {fileID: 11400000, guid: fae18f56e9eb472f8ff3c94a279e8df6, type: 2}
---- !u!1 &865863174
+--- !u!1 &224904421
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -261,143 +158,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 865863177}
-  - component: {fileID: 865863176}
-  - component: {fileID: 865863175}
-  - component: {fileID: 865863178}
+  - component: {fileID: 224904422}
+  - component: {fileID: 224904423}
   m_Layer: 0
-  m_Name: Space4XCameraRig
+  m_Name: DemoEnsureSRP
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &865863175
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 20f17508fa21bc349887aa2b97ee5ec5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Camera.Space4XCameraRigController
-  targetCamera: {fileID: 1896478328}
-  moveSpeed: 30
-  verticalSpeed: 20
-  panSpeedPerPixel: 0.1
-  rotationSpeed: 0.2
-  minPitch: 5
-  maxPitch: 85
-  zoomSpeed: 40
-  minZoomDistance: 5
-  maxZoomDistance: 300
-  scrollUnitsPerNotch: 120
-  defaultPosition: {x: 0, y: 0, z: 0}
-  defaultYawDegrees: 0
-  defaultPitchDegrees: 45
-  defaultFocusDistance: 60
-  resetToDefaultOnStart: 1
-  yAxisLocked: 1
-  moveAction: {fileID: -3749827072784733169, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  verticalAction: {fileID: -7579120919099447826, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  yAxisLockToggleAction: {fileID: 6577646431762107526, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  orbitAction: {fileID: -2336466260908654706, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  panAction: {fileID: 6276339513826019528, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  zoomAction: {fileID: 5602161819311252491, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  inputProfile: {fileID: 0}
-  inputRouter: {fileID: 865863178}
-  playerId: 0
---- !u!114 &865863176
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 09acaa2abe39dcc41809a732395961f8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Camera.Space4XCameraBootstrap
-  cameraPrefab: {fileID: 0}
---- !u!4 &865863177
+--- !u!4 &224904422
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1896478329}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &865863178
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 865863174}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 435e30ccd32b1e14bbb4ed81f7ee0af0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Input::PureDOTS.Input.HandCameraInputRouter
-  profile: {fileID: 0}
-  inputActions: {fileID: -944628639613478452, guid: a857d904a8735984ea1ae84574cc2b8a, type: 3}
-  actionMapName: Camera
-  raycastCamera: {fileID: 0}
-  interactionMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  storehouseMask:
-    serializedVersion: 2
-    m_Bits: 0
-  pileMask:
-    serializedVersion: 2
-    m_Bits: 0
-  draggableMask:
-    serializedVersion: 2
-    m_Bits: 0
-  maxRayDistance: 800
-  handlerCooldownSeconds: 0.1
-  hysteresisFrames: 2
-  logTransitions: 0
---- !u!1 &1661089259
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1661089260}
-  - component: {fileID: 1661089261}
-  m_Layer: 0
-  m_Name: RenderCatalog
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1661089260
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1661089259}
+  m_GameObject: {fileID: 224904421}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -406,20 +182,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1661089261
+--- !u!114 &224904423
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1661089259}
+  m_GameObject: {fileID: 224904421}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee2690a412164916b5cfbc5b90a8b935, type: 3}
+  m_Script: {fileID: 11500000, guid: 7f587c7fc77ce744f83fa03e8c232bef, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogAuthoring
-  CatalogDefinition: {fileID: 11400000, guid: baa5fe6b262c29c48b61186806e0d3aa, type: 2}
---- !u!1 &1896478326
+  m_EditorClassIdentifier: Space4X.Gameplay::DemoEnsureSRP
+  fallbackAsset: {fileID: 0}
+--- !u!1 &631054476
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -427,10 +203,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1896478329}
-  - component: {fileID: 1896478328}
-  - component: {fileID: 1896478327}
-  - component: {fileID: 1896478330}
+  - component: {fileID: 631054481}
+  - component: {fileID: 631054480}
+  - component: {fileID: 631054479}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -438,21 +213,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1896478327
+--- !u!81 &631054479
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1896478326}
+  m_GameObject: {fileID: 631054476}
   m_Enabled: 1
---- !u!20 &1896478328
+--- !u!20 &631054480
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1896478326}
+  m_GameObject: {fileID: 631054476}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
@@ -482,7 +257,7 @@ Camera:
   field of view: 60
   orthographic: 0
   orthographic size: 5
-  m_Depth: 0
+  m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -497,66 +272,22 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1896478329
+--- !u!4 &631054481
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1896478326}
+  m_GameObject: {fileID: 631054476}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.38268343, y: -0, z: -0, w: 0.92387956}
-  m_LocalPosition: {x: 0, y: 10, z: -10}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 10, z: -20}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 865863177}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1896478330
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1896478326}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
-  m_RenderShadows: 1
-  m_RequiresDepthTextureOption: 2
-  m_RequiresOpaqueTextureOption: 2
-  m_CameraType: 0
-  m_Cameras: []
-  m_RendererIndex: -1
-  m_VolumeLayerMask:
-    serializedVersion: 2
-    m_Bits: 1
-  m_VolumeTrigger: {fileID: 0}
-  m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
-  m_Antialiasing: 0
-  m_AntialiasingQuality: 2
-  m_StopNaN: 0
-  m_Dithering: 0
-  m_ClearDepth: 1
-  m_AllowXRRendering: 1
-  m_AllowHDROutput: 1
-  m_UseScreenCoordOverride: 0
-  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
-  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
-  m_RequiresDepthTexture: 0
-  m_RequiresColorTexture: 0
-  m_TaaSettings:
-    m_Quality: 3
-    m_FrameInfluence: 0.1
-    m_JitterScale: 1
-    m_MipBias: 0
-    m_VarianceClampScale: 0.9
-    m_ContrastAdaptiveSharpening: 0
-  m_Version: 2
---- !u!1 &2100000003
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 15, y: 0, z: 0}
+--- !u!1 &1976317674
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -564,478 +295,34 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2100000004}
-  - component: {fileID: 2100000005}
+  - component: {fileID: 1976317675}
   m_Layer: 0
-  m_Name: Space4X_MiningScenario_SubScene
+  m_Name: Directional Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2100000004
+--- !u!4 &1976317675
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2100000003}
+  m_GameObject: {fileID: 1976317674}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
+  m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2100000005
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2100000003}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 45a335734b1572644a6a5d09d87adc65, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Scenes::Unity.Scenes.SubScene
-  _SceneAsset: {fileID: 102900000, guid: 5104cbbe4805456428f9215847bd459b, type: 3}
-  _HierarchyColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  AutoLoadScene: 1
-  _SceneGUID:
-    Value:
-      x: 3954982933
-      y: 1179930756
-      z: 2232590210
-      w: 3109346164
---- !u!1 &2000000111
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2000000112}
-  - component: {fileID: 2000000113}
-  m_Layer: 0
-  m_Name: ProjectilePool
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2000000112
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000111}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2000000113
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000111}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa3a20262c31473497306d6df1539014, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ProjectilePrefab: {fileID: 100000, guid: c35751dd3a254cff92b1f161ee155642, type: 3}
-  Capacity: 16384
+  m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1661089260}
-  - {fileID: 865863177}
-  - {fileID: 805860694}
-  - {fileID: 2100000004}
-  - {fileID: 2000000111}
-  - {fileID: 2000000201}
-  - {fileID: 2000000301}
-  - {fileID: 2000000401}
-  - {fileID: 2000000501}
---- !u!1 &2000000100
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2000000101}
-  - component: {fileID: 2000000102}
-  m_Layer: 0
-  m_Name: EffectCatalog
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2000000101
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000100}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2000000102
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000100}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 051e280e08294ceaa956b62f7bcf4805, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  entries:
-  - EffectId: FX.Mining.Drill
-    Prefab: {fileID: 100000, guid: ed4d7156b7ecb474aa517b8e1ad366ac, type: 3}
-    BindingMode: 0
-    FollowMode: 1
-    FollowOffset: {x: 0, y: 0, z: 0}
-    LifetimeOverride: 1.2
-    IntensityProperty: _Intensity
-    DirectionProperty: _Direction
-  - EffectId: FX.Mining.Laser
-    Prefab: {fileID: 100000, guid: 45917c7d5543b774894963f1abc77d43, type: 3}
-    BindingMode: 0
-    FollowMode: 1
-    FollowOffset: {x: 0, y: 0, z: 0}
-    LifetimeOverride: 0.6
-    IntensityProperty: _Intensity
-    DirectionProperty: _Direction
-  - EffectId: FX.Mining.Microwave
-    Prefab: {fileID: 100000, guid: b7e1dee5dcec1524c983e73927a9bd8c, type: 3}
-    BindingMode: 0
-    FollowMode: 0
-    FollowOffset: {x: 0, y: 0, z: 0}
-    LifetimeOverride: 2
-  IntensityProperty: _Intensity
-  DirectionProperty: _Direction
---- !u!1 &2000000200
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2000000201}
-  - component: {fileID: 2000000202}
-  m_Layer: 0
-  m_Name: Space4XCargoPresentationConfig
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2000000201
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000200}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2000000202
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000200}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a4809b3448364027a35d52c37d88df30, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  LocalOffset: {x: 0, y: -0.3, z: -0.85}
-  BaseScale: 0.12
-  MaxScale: 0.35
-  Smoothing: 8
-  BoundsExtents: 0.55
---- !u!1 &2000000300
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2000000301}
-  - component: {fileID: 2000000302}
-  m_Layer: 0
-  m_Name: Space4XResourceMarkerPresentationConfig
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2000000301
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000300}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2000000302
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000300}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1df7711febc64087b47c24af3791b138, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  BaseScale: 0.65
-  MaxScale: 1.35
-  OffsetMultiplier: 1.08
-  Smoothing: 10
-  BoundsExtents: 2
-  DepletedThreshold: 0.01
-  UseCameraHemisphere: 1
---- !u!1 &2000000400
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2000000401}
-  - component: {fileID: 2000000402}
-  m_Layer: 0
-  m_Name: Space4XCarrierStorageMarkerPresentationConfig
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2000000401
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000400}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2000000402
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000400}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d406ddb558af496e9e13580d1a54abf9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  LocalOffset: {x: 0, y: 1.35, z: 0}
-  BaseScale: 0.55
-  MaxScale: 1.1
-  Smoothing: 8
-  BoundsExtents: 3
-  DepletedThreshold: 0.02
-  UseHysteresis: 1
-  ShowFillThreshold: 0.03
-  HideFillThreshold: 0.01
-  PulseDuration: 0.35
-  PulseIntensity: 0.5
---- !u!1 &2000000500
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2000000501}
-  - component: {fileID: 2000000502}
-  m_Layer: 0
-  m_Name: Space4XResourcePickupPresentationConfig
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2000000501
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000500}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2000000502
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2000000500}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa01b0f442d34e2fa389303a66acb639, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Lift: 0.35
-  MinScale: 0.35
-  MaxScale: 0.85
-  AmountForMaxScale: 100
-  BoundsExtents: 1.5
-  Smoothing: 10
-  UseSourceEntityAlignment: 1
-  LocalOffsetWhenAligned: {x: 0, y: 0.35, z: 0}
---- !u!1 &2100000000
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2100000001}
-  - component: {fileID: 2100000002}
-  m_Layer: 0
-  m_Name: Space4XStarfield
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2100000001
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2100000000}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2100000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2100000000}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f05a75025a004423ba8a94b3f3c26aa2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.Presentation.Space4XStarfield
-  followTarget: {fileID: 0}
-  targetCamera: {fileID: 0}
-  disableInBatchMode: 1
-  fieldRadius: 900
-  parallaxFactor: 0.06
-  starDensityPerMillion: 0.4
-  minStarSize: 0.6
-  maxStarSize: 2.2
-  starTint: {r: 1, g: 1, b: 1, a: 1}
-  brightnessCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0.2
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 0.6
-      value: 0.5
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  nebulaIntensity: 0.35
-  nebulaTint: {r: 0.95, g: 0.98, b: 1, a: 1}
-  starMaterialTemplate: {fileID: 2100000, guid: 426d6fb523eb425fa5365f968776c630, type: 2}
-  nebulaMaterialTemplate: {fileID: 2100000, guid: 426d6fb523eb425fa5365f968776c630, type: 2}
-  enableWarpStreaks: 1
-  warpSpeedThreshold: 60
-  warpMaxStretch: 4
-  seed: 1337
-  randomizeSeed: 0
+  - {fileID: 209875679}
+  - {fileID: 631054481}
+  - {fileID: 1976317675}
+  - {fileID: 224904422}

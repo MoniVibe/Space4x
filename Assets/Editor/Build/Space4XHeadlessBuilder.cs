@@ -14,6 +14,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditorInternal;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using PackageManagerPackageInfo = UnityEditor.PackageManager.PackageInfo;
 
@@ -26,15 +27,16 @@ namespace Space4X.Headless.Editor
     {
         private static readonly string[] HeadlessScenes =
         {
-            "Assets/Scenes/HeadlessBootstrap.unity",
-            "Assets/Scenes/TRI_Space4X_Smoke.unity"
+            "Assets/Scenes/HeadlessBootstrap.unity"
         };
 
         private const string DefaultOutputFolder = "Builds/Space4X_headless/Linux";
         private const string BuildReportFileName = "Space4X_HeadlessBuildReport.log";
         private const string BuildFailureFileName = "Space4X_HeadlessBuildFailure.log";
         private const string EditorLogSnapshotFileName = "Space4X_HeadlessEditor.log";
+        private const string MissingScriptsFileName = "Space4X_HeadlessMissingScripts.log";
         private const int EditorLogSnapshotBytes = 2 * 1024 * 1024;
+        private static string s_PreflightLogDirectory = string.Empty;
 
         [MenuItem("Space4X/Build/Headless/Linux Server")]
         public static void BuildFromMenu() => BuildLinuxHeadless();
@@ -58,7 +60,7 @@ namespace Space4X.Headless.Editor
             try
             {
                 Directory.CreateDirectory(absoluteOutput);
-                RunHeadlessPreflight();
+                RunHeadlessPreflight(absoluteOutput);
                 EnsureLinuxServerSupport();
 
                 using var targetScope = new BuildTargetScope(BuildTarget.StandaloneLinux64, BuildTargetGroup.Standalone);
@@ -267,11 +269,21 @@ namespace Space4X.Headless.Editor
             return false;
         }
 
-        private static void RunHeadlessPreflight()
+        private static void RunHeadlessPreflight(string outputDirectory)
         {
-            DisableEntitiesGraphicsForHeadless();
-            EnsureResourceTypeCatalogAsset();
-            ValidateResourceAssets();
+            s_PreflightLogDirectory = outputDirectory;
+            try
+            {
+                DisableEntitiesGraphicsForHeadless();
+                EnsureResourceTypeCatalogAsset();
+                ValidateResourceAssets();
+                ScanForMissingScripts();
+                ScanForPPtrCastIssues();
+            }
+            finally
+            {
+                s_PreflightLogDirectory = string.Empty;
+            }
         }
 
         private static void DisableEntitiesGraphicsForHeadless()
@@ -386,6 +398,186 @@ namespace Space4X.Headless.Editor
                     throw new BuildFailedException($"Asset in Resources references type compiled out by define constraints: {resourcePath}");
                 }
             }
+        }
+
+        private static void ScanForMissingScripts()
+        {
+            var missing = new List<string>();
+            var critical = new List<string>();
+
+            foreach (var guid in AssetDatabase.FindAssets("t:Prefab"))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrWhiteSpace(path) || IsSkippablePath(path))
+                {
+                    continue;
+                }
+
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(prefab) > 0)
+                {
+                    var entry = $"{path} (prefab_missing)";
+                    missing.Add(entry);
+                    if (IsCriticalPath(path))
+                    {
+                        critical.Add(entry);
+                    }
+                }
+            }
+
+            foreach (var guid in AssetDatabase.FindAssets("t:ScriptableObject"))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrWhiteSpace(path) || IsSkippablePath(path))
+                {
+                    continue;
+                }
+
+                var scriptable = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (scriptable == null)
+                {
+                    var entry = $"{path} (scriptable_missing)";
+                    missing.Add(entry);
+                    if (IsCriticalPath(path))
+                    {
+                        critical.Add(entry);
+                    }
+                }
+            }
+
+            foreach (var scenePath in HeadlessScenes)
+            {
+                if (string.IsNullOrWhiteSpace(scenePath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+                    var roots = scene.GetRootGameObjects();
+                    var sceneMissing = 0;
+                    foreach (var root in roots)
+                    {
+                        sceneMissing += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(root);
+                    }
+
+                    if (sceneMissing > 0)
+                    {
+                        var entry = $"{scenePath} (scene_missing={sceneMissing})";
+                        missing.Add(entry);
+                        critical.Add(entry);
+                    }
+
+                    EditorSceneManager.CloseScene(scene, true);
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Failed to scan scene {scenePath}: {ex.Message}");
+                }
+            }
+
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing scripts detected ({missing.Count}).");
+            for (var i = 0; i < missing.Count; i++)
+            {
+                UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script asset: {missing[i]}");
+            }
+
+            string logPath = string.Empty;
+            if (!string.IsNullOrWhiteSpace(s_PreflightLogDirectory))
+            {
+                try
+                {
+                    logPath = Path.Combine(s_PreflightLogDirectory, MissingScriptsFileName);
+                    File.WriteAllLines(logPath, missing);
+                    UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] Missing script list written to {logPath}");
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Failed to write missing script list: {ex.Message}");
+                }
+            }
+
+            var previewCount = Math.Min(20, missing.Count);
+            var preview = string.Join("; ", missing.GetRange(0, previewCount));
+            var strict = ShouldFailOnMissingScripts(critical.Count > 0);
+            if (!strict)
+            {
+                UnityEngine.Debug.LogWarning("[Space4XHeadlessBuilder] Missing scripts detected, but strict mode is off. Build will continue.");
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(logPath))
+            {
+                throw new BuildFailedException($"Missing scripts detected ({missing.Count}). See {logPath} for asset paths. Preview: {preview}");
+            }
+
+            throw new BuildFailedException($"Missing scripts detected ({missing.Count}). Preview: {preview}");
+        }
+
+        private static void ScanForPPtrCastIssues()
+        {
+            var flag = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_PPTR_SCAN");
+            if (!string.IsNullOrWhiteSpace(flag) &&
+                (flag.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                 flag.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+                 flag.Equals("no", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            var outputDir = s_PreflightLogDirectory;
+            string? logPath = null;
+            if (!string.IsNullOrWhiteSpace(outputDir))
+            {
+                outputDir = Path.Combine(outputDir, "build");
+                logPath = Path.Combine(outputDir, "Space4X_HeadlessPPtrCastScan.log");
+            }
+
+            var issues = Space4X.Editor.Diagnostics.Space4XPPtrCastScanner.RunHeadlessScan(outputDir);
+            if (issues > 0)
+            {
+                if (!string.IsNullOrWhiteSpace(logPath))
+                {
+                    UnityEngine.Debug.LogError($"[Space4XHeadlessBuilder] PPtr cast scan log: {logPath}");
+                }
+                throw new BuildFailedException($"PPtr cast issues detected ({issues}). See {logPath ?? "Space4X_HeadlessPPtrCastScan.log"} for asset paths.");
+            }
+        }
+
+        private static bool IsSkippablePath(string path)
+        {
+            return path.IndexOf("/Samples/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   path.IndexOf("/Tests/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   path.IndexOf("/Editor/", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsCriticalPath(string path)
+        {
+            return path.IndexOf("/Resources/", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool ShouldFailOnMissingScripts(bool hasCritical)
+        {
+            var flag = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_STRICT_MISSING_SCRIPTS");
+            if (!string.IsNullOrWhiteSpace(flag))
+            {
+                return flag.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                       flag.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                       flag.Equals("yes", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return hasCritical;
         }
 
         private static void EnsurePrefabHasNoMissingScripts(string prefabPath)

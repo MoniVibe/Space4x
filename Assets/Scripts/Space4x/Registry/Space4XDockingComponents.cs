@@ -329,6 +329,97 @@ namespace Space4X.Registry
         public byte SlotIndex;
     }
 
+    public enum DockingPhase : byte
+    {
+        None = 0,
+        Approaching = 1,
+        Docking = 2,
+        Docked = 3,
+        Undocking = 4,
+        Departed = 5
+    }
+
+    public enum DockingPresenceMode : byte
+    {
+        Latch = 0,
+        Attach = 1,
+        Despawn = 2
+    }
+
+    /// <summary>
+    /// Docking lifecycle state for a vessel.
+    /// </summary>
+    public struct DockingState : IComponentData
+    {
+        public DockingPhase Phase;
+        public Entity Target;
+        public DockingSlotType SlotType;
+        public DockingPresenceMode PresenceMode;
+        public uint RequestTick;
+        public uint PhaseTick;
+    }
+
+    /// <summary>
+    /// Docking throughput and policy settings for a carrier/station.
+    /// </summary>
+    public struct DockingPolicy : IComponentData
+    {
+        public DockingPresenceMode DefaultPresence;
+        public float CrewTransferPerTick;
+        public float CargoTransferPerTick;
+        public float AmmoTransferPerTick;
+        public float DockingRange;
+        public byte AllowRendezvous;
+        public byte AllowDocking;
+        public byte AllowDespawn;
+
+        public static DockingPolicy Default => new DockingPolicy
+        {
+            DefaultPresence = DockingPresenceMode.Latch,
+            CrewTransferPerTick = 8f,
+            CargoTransferPerTick = 25f,
+            AmmoTransferPerTick = 40f,
+            DockingRange = 4.5f,
+            AllowRendezvous = 0,
+            AllowDocking = 1,
+            AllowDespawn = 0
+        };
+
+        public static DockingPolicy StationDefault => new DockingPolicy
+        {
+            DefaultPresence = DockingPresenceMode.Despawn,
+            CrewTransferPerTick = 16f,
+            CargoTransferPerTick = 60f,
+            AmmoTransferPerTick = 80f,
+            DockingRange = 6f,
+            AllowRendezvous = 0,
+            AllowDocking = 1,
+            AllowDespawn = 1
+        };
+    }
+
+    /// <summary>
+    /// Per-tick throughput remaining for docking transfers.
+    /// </summary>
+    public struct DockingThroughputState : IComponentData
+    {
+        public float CrewRemaining;
+        public float CargoRemaining;
+        public float AmmoRemaining;
+        public uint LastResetTick;
+    }
+
+    /// <summary>
+    /// Presence/attachment hints for docked vessels.
+    /// </summary>
+    public struct DockedPresence : IComponentData
+    {
+        public Entity Carrier;
+        public DockingPresenceMode Mode;
+        public float3 LatchOffset;
+        public byte IsLatched;
+    }
+
     /// <summary>
     /// Utility functions for docking calculations.
     /// </summary>
@@ -383,4 +474,3 @@ namespace Space4X.Registry
         }
     }
 }
-

@@ -1,0 +1,43 @@
+{
+  "scenarioId": "space4x_smoke_headless",
+  "seed": 7,
+  "duration_s": 6,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true
+  },
+  "proofs": {
+    "mining": false
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "smoke-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "SMOKE-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 0.1,
+      "kind": "MoveFleet",
+      "fleetId": "SMOKE-ALPHA",
+      "targetPosition": [30, 0],
+      "description": "Smoke pipeline move"
+    }
+  ]
+}

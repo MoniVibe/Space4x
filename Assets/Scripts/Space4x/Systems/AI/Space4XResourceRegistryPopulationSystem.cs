@@ -22,6 +22,13 @@ namespace Space4X.Systems.AI
     {
         private EntityQuery _asteroidQuery;
         private EntityQuery _registryQuery;
+        private static readonly FixedString64Bytes ResourceIdMinerals = "space4x.resource.minerals";
+        private static readonly FixedString64Bytes ResourceIdRareMetalsA = "space4x.resource.rare_metals";
+        private static readonly FixedString64Bytes ResourceIdRareMetalsB = "space4x.resource.rareMetals";
+        private static readonly FixedString64Bytes ResourceIdEnergyCrystalsA = "space4x.resource.energy_crystals";
+        private static readonly FixedString64Bytes ResourceIdEnergyCrystalsB = "space4x.resource.energyCrystals";
+        private static readonly FixedString64Bytes ResourceIdOrganicMatterA = "space4x.resource.organic_matter";
+        private static readonly FixedString64Bytes ResourceIdOrganicMatterB = "space4x.resource.organicMatter";
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -99,27 +106,19 @@ namespace Space4X.Systems.AI
             // Map known resource ID patterns to ResourceType enum
             // This matches the IDs created by Space4XMiningResourceUtility
             // Use direct string comparison (FixedString64Bytes supports == operator)
-            FixedString64Bytes mineralsId = "space4x.resource.minerals";
-            FixedString64Bytes rareMetalsId1 = "space4x.resource.rare_metals";
-            FixedString64Bytes rareMetalsId2 = "space4x.resource.rareMetals";
-            FixedString64Bytes energyCrystalsId1 = "space4x.resource.energy_crystals";
-            FixedString64Bytes energyCrystalsId2 = "space4x.resource.energyCrystals";
-            FixedString64Bytes organicMatterId1 = "space4x.resource.organic_matter";
-            FixedString64Bytes organicMatterId2 = "space4x.resource.organicMatter";
-            
-            if (resourceId == mineralsId)
+            if (resourceId == ResourceIdMinerals)
             {
                 return Space4X.Registry.ResourceType.Minerals;
             }
-            if (resourceId == rareMetalsId1 || resourceId == rareMetalsId2)
+            if (resourceId == ResourceIdRareMetalsA || resourceId == ResourceIdRareMetalsB)
             {
                 return Space4X.Registry.ResourceType.RareMetals;
             }
-            if (resourceId == energyCrystalsId1 || resourceId == energyCrystalsId2)
+            if (resourceId == ResourceIdEnergyCrystalsA || resourceId == ResourceIdEnergyCrystalsB)
             {
                 return Space4X.Registry.ResourceType.EnergyCrystals;
             }
-            if (resourceId == organicMatterId1 || resourceId == organicMatterId2)
+            if (resourceId == ResourceIdOrganicMatterA || resourceId == ResourceIdOrganicMatterB)
             {
                 return Space4X.Registry.ResourceType.OrganicMatter;
             }

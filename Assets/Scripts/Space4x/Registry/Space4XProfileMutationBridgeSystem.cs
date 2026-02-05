@@ -43,17 +43,17 @@ namespace Space4X.Registry
                 ecb.AddComponent(entity, AlignmentMigrationHelper.ToUnified(alignment.ValueRO));
             }
 
-            foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<OutlookEntry>>()
-                         .WithNone<PureDOTS.Runtime.Alignment.OutlookEntry>()
+            foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<StanceEntry>>()
+                         .WithNone<PureDOTS.Runtime.Alignment.StanceEntry>()
                          .WithEntityAccess())
             {
-                var target = ecb.AddBuffer<PureDOTS.Runtime.Alignment.OutlookEntry>(entity);
+                var target = ecb.AddBuffer<PureDOTS.Runtime.Alignment.StanceEntry>(entity);
                 for (int i = 0; i < outlookBuffer.Length; i++)
                 {
                     var entry = outlookBuffer[i];
-                    target.Add(new PureDOTS.Runtime.Alignment.OutlookEntry
+                    target.Add(new PureDOTS.Runtime.Alignment.StanceEntry
                     {
-                        OutlookId = (PureDOTS.Runtime.Alignment.Outlook)entry.OutlookId,
+                        StanceId = (PureDOTS.Runtime.Alignment.Stance)entry.StanceId,
                         Weight = entry.Weight
                     });
                 }
@@ -97,18 +97,18 @@ namespace Space4X.Registry
                 state.EntityManager.SetComponentData(entity, AlignmentMigrationHelper.FromUnified(alignment.ValueRO));
             }
 
-            foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<PureDOTS.Runtime.Alignment.OutlookEntry>>()
-                         .WithAll<ProfileActionAccumulator, OutlookEntry>()
+            foreach (var (outlookBuffer, entity) in SystemAPI.Query<DynamicBuffer<PureDOTS.Runtime.Alignment.StanceEntry>>()
+                         .WithAll<ProfileActionAccumulator, StanceEntry>()
                          .WithEntityAccess())
             {
-                var target = state.EntityManager.GetBuffer<OutlookEntry>(entity);
+                var target = state.EntityManager.GetBuffer<StanceEntry>(entity);
                 target.Clear();
                 for (int i = 0; i < outlookBuffer.Length; i++)
                 {
                     var entry = outlookBuffer[i];
-                    target.Add(new OutlookEntry
+                    target.Add(new StanceEntry
                     {
-                        OutlookId = (OutlookId)entry.OutlookId,
+                        StanceId = (StanceId)entry.StanceId,
                         Weight = entry.Weight
                     });
                 }
@@ -116,3 +116,4 @@ namespace Space4X.Registry
         }
     }
 }
+

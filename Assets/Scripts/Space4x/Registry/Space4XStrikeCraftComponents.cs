@@ -258,17 +258,17 @@ namespace Space4X.Registry
     /// </summary>
     public struct StrikeCraftPilotProfileConfig : IComponentData
     {
-        public OutlookId FriendlyOutlook;
-        public OutlookId HostileOutlook;
-        public OutlookId NeutralOutlook;
+        public StanceId FriendlyStance;
+        public StanceId HostileStance;
+        public StanceId NeutralStance;
         public float LoyalistLawThreshold;
         public float MutinousLawThreshold;
 
         public static StrikeCraftPilotProfileConfig Default => new StrikeCraftPilotProfileConfig
         {
-            FriendlyOutlook = OutlookId.Loyalist,
-            HostileOutlook = OutlookId.Mutinous,
-            NeutralOutlook = OutlookId.Neutral,
+            FriendlyStance = StanceId.Loyalist,
+            HostileStance = StanceId.Mutinous,
+            NeutralStance = StanceId.Neutral,
             LoyalistLawThreshold = 0.55f,
             MutinousLawThreshold = -0.55f
         };
@@ -356,6 +356,71 @@ namespace Space4X.Registry
             KitingMaxDistance = 80f,
             KitingStrafeStrength = 0.35f
         };
+    }
+
+    /// <summary>
+    /// Recognition and mercy tuning for strike craft pilots.
+    /// </summary>
+    public struct StrikeCraftRecognitionConfig : IComponentData
+    {
+        public uint CheckCooldownTicks;
+        public uint MercyDurationTicks;
+        public float RecognitionRange;
+        public float CultureRecognitionChance;
+        public float RaceRecognitionChance;
+        public float PersonalRecognitionChance;
+        public float MercyGoodThreshold;
+        public float MercySuppressMinChance;
+        public float MercySuppressMaxChance;
+        public float MercyLoyaltyPenalty;
+        public sbyte HostileRelationThreshold;
+        public byte RequireHostileRelation;
+        public sbyte PersonalRelationThreshold;
+
+        public static StrikeCraftRecognitionConfig Default => new StrikeCraftRecognitionConfig
+        {
+            CheckCooldownTicks = 90,
+            MercyDurationTicks = 240,
+            RecognitionRange = 250f,
+            CultureRecognitionChance = 0.55f,
+            RaceRecognitionChance = 0.35f,
+            PersonalRecognitionChance = 0.8f,
+            MercyGoodThreshold = 0.55f,
+            MercySuppressMinChance = 0.4f,
+            MercySuppressMaxChance = 0.85f,
+            MercyLoyaltyPenalty = 0.03f,
+            HostileRelationThreshold = -25,
+            RequireHostileRelation = 1,
+            PersonalRelationThreshold = 20
+        };
+    }
+
+    /// <summary>
+    /// Runtime recognition state for strike craft (cooldowns, mercy targeting).
+    /// </summary>
+    public struct StrikeCraftRecognitionState : IComponentData
+    {
+        public uint NextCheckTick;
+        public uint MercyUntilTick;
+        public Entity MercyTarget;
+
+        public static StrikeCraftRecognitionState Default => new StrikeCraftRecognitionState
+        {
+            NextCheckTick = 0,
+            MercyUntilTick = 0,
+            MercyTarget = Entity.Null
+        };
+    }
+
+    /// <summary>
+    /// Soft fire discipline intent (suppresses some shots without hard-gating weapons).
+    /// </summary>
+    public struct StrikeCraftFireDiscipline : IComponentData
+    {
+        public byte SuppressFire;
+        public float SuppressChance;
+        public uint UntilTick;
+        public Entity Target;
     }
 
     /// <summary>
@@ -789,3 +854,4 @@ namespace Space4X.Registry
         }
     }
 }
+

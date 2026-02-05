@@ -1,11 +1,17 @@
 {
+  "scenarioId": "space4x_crew_transfer_micro",
   "seed": 1101,
   "duration_s": 60,
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "headlessQuestions": [
       {
         "id": "space4x.q.crew.transfer",
-        "required": false
+        "required": true
       }
     ],
     "crewTemplates": [

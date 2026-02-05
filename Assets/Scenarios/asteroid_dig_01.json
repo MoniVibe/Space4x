@@ -1,6 +1,10 @@
 {
+  "scenarioId": "asteroid_dig_01",
   "seed": 8128,
   "duration_s": 3045,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
   "spawn": [
     {
       "kind": "Carrier",

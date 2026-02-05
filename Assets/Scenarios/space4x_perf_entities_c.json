@@ -1,10 +1,12 @@
 {
+    "scenarioId":  "space4x_perf_entities_c",
     "seed":  1337,
     "duration_s":  80,
     "proofs":  {
                    "mining":  false
                },
     "scenarioConfig":  {
+                           "applyDefaultModuleLoadouts":  true,
                            "headlessQuestions":  [
 
                                                  ]

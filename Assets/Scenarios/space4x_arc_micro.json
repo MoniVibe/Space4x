@@ -1,10 +1,16 @@
 {
+  "scenarioId": "space4x_arc_micro",
   "seed": 1207,
   "duration_s": 45,
   "proofs": {
     "mining": false
   },
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
     "spawnLane": "mining-json",
     "applyMotionTuning": true,
     "applyMotionProfile": true,

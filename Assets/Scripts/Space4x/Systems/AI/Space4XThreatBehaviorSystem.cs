@@ -28,7 +28,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<VesselMovement> _movementLookup;
         private ComponentLookup<FleetMovementBroadcast> _fleetBroadcastLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
         private ComponentLookup<Reputation> _reputationLookup;
 
         [BurstCompile]
@@ -43,7 +43,7 @@ namespace Space4X.Systems.AI
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _movementLookup = state.GetComponentLookup<VesselMovement>(false);
             _fleetBroadcastLookup = state.GetComponentLookup<FleetMovementBroadcast>(false);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _reputationLookup = state.GetComponentLookup<Reputation>(false);
         }
 
@@ -264,3 +264,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
+

@@ -21,12 +21,14 @@ namespace Space4X.Presentation
     {
         private uint _tick;
         private ComponentLookup<PresentationLayer> _layerLookup;
+        private ComponentLookup<Space4XRenderFrameState> _renderFrameLookup;
 
         public void OnCreate(ref SystemState state)
         {
             _tick = 0;
             state.RequireForUpdate<Space4XCameraState>();
             _layerLookup = state.GetComponentLookup<PresentationLayer>(true);
+            _renderFrameLookup = state.GetComponentLookup<Space4XRenderFrameState>(true);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -50,10 +52,28 @@ namespace Space4X.Presentation
                 : PresentationLayerConfig.Default;
 
             _layerLookup.Update(ref state);
+            _renderFrameLookup.Update(ref state);
+
+            var useRenderFrame = SystemAPI.TryGetSingletonEntity<Space4XRenderFrameState>(out var renderFrameEntity) &&
+                                 SystemAPI.TryGetSingleton<Space4XRenderFrameConfig>(out var renderFrameConfig) &&
+                                 renderFrameConfig.Enabled != 0;
+            var renderFrameState = useRenderFrame ? _renderFrameLookup[renderFrameEntity] : default;
+            var cameraPosition = cameraState.Position;
+            if (useRenderFrame && renderFrameState.AnchorFrame != Entity.Null)
+            {
+                var scale = math.max(0.01f, renderFrameState.Scale);
+                if (math.abs(scale - 1f) > 0.0001f)
+                {
+                    cameraPosition = renderFrameState.AnchorPosition + (cameraPosition - renderFrameState.AnchorPosition) * scale;
+                }
+            }
 
             new UpdateLODJob
             {
-                CameraPosition = cameraState.Position,
+                CameraPosition = cameraPosition,
+                UseRenderFrame = (byte)(useRenderFrame ? 1 : 0),
+                RenderFrameAnchor = renderFrameState.AnchorPosition,
+                RenderFrameScale = renderFrameState.Scale,
                 BaseConfig = lodConfig,
                 LayerConfig = layerConfig,
                 LayerLookup = _layerLookup,
@@ -64,6 +84,9 @@ namespace Space4X.Presentation
         private partial struct UpdateLODJob : IJobEntity
         {
             public float3 CameraPosition;
+            public byte UseRenderFrame;
+            public float3 RenderFrameAnchor;
+            public float RenderFrameScale;
             public PresentationLODConfig BaseConfig;
             public PresentationLayerConfig LayerConfig;
             [ReadOnly] public ComponentLookup<PresentationLayer> LayerLookup;
@@ -91,7 +114,17 @@ namespace Space4X.Presentation
                     Hysteresis = 0f
                 };
 
-                float distance = math.distance(transform.Position, CameraPosition);
+                var position = transform.Position;
+                if (UseRenderFrame != 0)
+                {
+                    var scale = math.max(0.01f, RenderFrameScale);
+                    if (math.abs(scale - 1f) > 0.0001f)
+                    {
+                        position = RenderFrameAnchor + (position - RenderFrameAnchor) * scale;
+                    }
+                }
+
+                float distance = math.distance(position, CameraPosition);
                 lodData.CameraDistance = distance;
                 lodData.RecommendedLOD = RenderLODHelpers.CalculateLOD(distance, in thresholds);
                 lodData.LastUpdateTick = CurrentTick;

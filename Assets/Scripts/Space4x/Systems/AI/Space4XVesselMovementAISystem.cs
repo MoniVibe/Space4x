@@ -25,7 +25,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<VesselStanceComponent> _stanceLookup;
         private ComponentLookup<FormationData> _formationLookup;
         private ComponentLookup<ChildVesselTether> _tetherLookup;
-        private BufferLookup<TopOutlook> _outlookLookup;
+        private BufferLookup<TopStance> _outlookLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
 
         [BurstCompile]
@@ -37,7 +37,7 @@ namespace Space4X.Systems.AI
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _formationLookup = state.GetComponentLookup<FormationData>(false);
             _tetherLookup = state.GetComponentLookup<ChildVesselTether>(true);
-            _outlookLookup = state.GetBufferLookup<TopOutlook>(true);
+            _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
@@ -82,7 +82,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<FormationData> FormationLookup;
             [ReadOnly] public ComponentLookup<ChildVesselTether> TetherLookup;
-            [ReadOnly] public BufferLookup<TopOutlook> OutlookLookup;
+            [ReadOnly] public BufferLookup<TopStance> OutlookLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> TransformLookup;
 
             public void Execute(ref VesselMovement movement, ref VesselAIState aiState, Entity entity)
@@ -187,4 +187,5 @@ namespace Space4X.Systems.AI
         }
     }
 }
+
 

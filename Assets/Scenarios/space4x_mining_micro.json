@@ -1,7 +1,18 @@
 {
+  "scenarioId": "space4x_mining_micro",
   "seed": 42,
   "duration_s": 120,
   "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "presentationScale": 0.75
+    },
     "headlessQuestions": [
       {
         "id": "space4x.q.mining.progress",
@@ -14,6 +25,23 @@
       "kind": "Carrier",
       "entityId": "carrier-1",
       "position": [0, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 300,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "missile-m-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "components": {
         "ResourceStorage": [
           {"type": "Minerals", "capacity": 10000},
@@ -25,6 +53,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-1",
       "position": [10, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.8,
@@ -35,6 +78,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-2",
       "position": [15, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.75,
@@ -45,6 +103,21 @@
       "kind": "MiningVessel",
       "entityId": "miner-3",
       "position": [20, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
       "carrierId": "carrier-1",
       "resourceId": "Minerals",
       "miningEfficiency": 0.85,

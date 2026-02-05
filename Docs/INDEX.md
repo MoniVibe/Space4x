@@ -9,6 +9,7 @@ Quick pointers to the active documentation:
 - PureDOTS time/rewind: `Docs/PureDOTS_TimeIntegration.md`
 - Scenario runner wiring: `Docs/PureDOTS_ScenarioRunner_Wiring.md`
 - Concept vision: `Docs/Conceptualization/GameVision.md`, `Docs/Conceptualization/CorePillars.md`, `Docs/Conceptualization/DesignPrinciples.md`
+- Profile glossary (locked terms): `../../puredots/Docs/Concepts/Core/Entity_Profile_Glossary.md`
 - Rolling status: `Docs/Progress.md`
 - Integration guide: `Docs/Guides/Space4X_PureDOTS_Entity_Mapping.md` (update or archive if stale)
 - **Error Prevention (REQUIRED):** `Docs/Guides/Unity_DOTS_Common_Errors.md`

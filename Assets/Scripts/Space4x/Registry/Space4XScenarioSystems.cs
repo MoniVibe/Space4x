@@ -33,7 +33,7 @@ namespace Space4X.Registry
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<CarrierMiningTarget> _miningTargetLookup;
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
-        private BufferLookup<OutlookEntry> _outlookLookup;
+        private BufferLookup<StanceEntry> _outlookLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
@@ -55,7 +55,7 @@ namespace Space4X.Registry
             _transformLookup = state.GetComponentLookup<LocalTransform>(false);
             _miningTargetLookup = state.GetComponentLookup<CarrierMiningTarget>(true);
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _outlookLookup = state.GetBufferLookup<OutlookEntry>(true);
+            _outlookLookup = state.GetBufferLookup<StanceEntry>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
@@ -655,18 +655,18 @@ namespace Space4X.Registry
             {
                 var entry = buffer[i];
                 var weight = math.clamp((float)entry.Weight, 0f, 1f);
-                switch (entry.OutlookId)
+                switch (entry.StanceId)
                 {
-                    case OutlookId.Loyalist:
+                    case StanceId.Loyalist:
                         discipline += 0.2f * weight;
                         break;
-                    case OutlookId.Fanatic:
+                    case StanceId.Fanatic:
                         discipline += 0.25f * weight;
                         break;
-                    case OutlookId.Opportunist:
+                    case StanceId.Opportunist:
                         discipline -= 0.15f * weight;
                         break;
-                    case OutlookId.Mutinous:
+                    case StanceId.Mutinous:
                         discipline -= 0.3f * weight;
                         break;
                 }
@@ -1014,3 +1014,4 @@ namespace Space4X.Registry
         }
     }
 }
+

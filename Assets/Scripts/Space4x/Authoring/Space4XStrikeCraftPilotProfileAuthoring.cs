@@ -1,6 +1,7 @@
 using Space4X.Registry;
 using Unity.Entities;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Space4X.Authoring
 {
@@ -8,10 +9,13 @@ namespace Space4X.Authoring
     [AddComponentMenu("Space4X/Strike Craft Pilot Profile Config")]
     public sealed class Space4XStrikeCraftPilotProfileAuthoring : MonoBehaviour
     {
-        [Header("Outlook Defaults")]
-        public OutlookId friendlyOutlook = OutlookId.Loyalist;
-        public OutlookId hostileOutlook = OutlookId.Mutinous;
-        public OutlookId neutralOutlook = OutlookId.Neutral;
+        [Header("Stance Defaults")]
+        [FormerlySerializedAs("friendlyOutlook")]
+        public StanceId FriendlyStance = StanceId.Loyalist;
+        [FormerlySerializedAs("hostileOutlook")]
+        public StanceId HostileStance = StanceId.Mutinous;
+        [FormerlySerializedAs("neutralOutlook")]
+        public StanceId NeutralStance = StanceId.Neutral;
 
         [Header("Lawfulness Thresholds")]
         [Range(-1f, 1f)] public float loyalistLawThreshold = 0.55f;
@@ -24,9 +28,9 @@ namespace Space4X.Authoring
                 var entity = GetEntity(TransformUsageFlags.None);
                 AddComponent(entity, new StrikeCraftPilotProfileConfig
                 {
-                    FriendlyOutlook = authoring.friendlyOutlook,
-                    HostileOutlook = authoring.hostileOutlook,
-                    NeutralOutlook = authoring.neutralOutlook,
+                    FriendlyStance = authoring.FriendlyStance,
+                    HostileStance = authoring.HostileStance,
+                    NeutralStance = authoring.NeutralStance,
                     LoyalistLawThreshold = Mathf.Clamp(authoring.loyalistLawThreshold, -1f, 1f),
                     MutinousLawThreshold = Mathf.Clamp(authoring.mutinousLawThreshold, -1f, 1f)
                 });
@@ -34,3 +38,5 @@ namespace Space4X.Authoring
         }
     }
 }
+
+

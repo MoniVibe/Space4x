@@ -1,0 +1,43 @@
+{
+  "scenarioId": "space4x_bug_hunt_headless",
+  "seed": 17,
+  "duration_s": 4,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true
+  },
+  "proofs": {
+    "mining": false
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "bughunt-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "BUGHUNT-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 0.1,
+      "kind": "MoveFleet",
+      "fleetId": "BUGHUNT-ALPHA",
+      "targetPosition": [20, 0],
+      "description": "Bug hunt smoke move"
+    }
+  ]
+}

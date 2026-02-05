@@ -135,6 +135,11 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XCrewSkillTelemetrySystem))]
     public partial struct Space4XCrewGrowthTelemetrySystem : ISystem
     {
+        private static readonly FixedString64Bytes MetricBreedingAttempts = "space4x.crew.growth.breedingAttempts";
+        private static readonly FixedString64Bytes MetricCloningAttempts = "space4x.crew.growth.cloningAttempts";
+        private static readonly FixedString64Bytes MetricGrowthSkipped = "space4x.crew.growth.skipped";
+        private static readonly FixedString64Bytes MetricLastTick = "space4x.crew.growth.lastTick";
+
         private EntityQuery _telemetryStreamQuery;
         private EntityQuery _growthTelemetryQuery;
 
@@ -160,10 +165,10 @@ namespace Space4X.Registry
             var streamEntity = _telemetryStreamQuery.GetSingletonEntity();
             var buffer = state.EntityManager.GetBuffer<TelemetryMetric>(streamEntity);
 
-            buffer.AddMetric("space4x.crew.growth.breedingAttempts", metrics.BreedingAttempts);
-            buffer.AddMetric("space4x.crew.growth.cloningAttempts", metrics.CloningAttempts);
-            buffer.AddMetric("space4x.crew.growth.skipped", metrics.GrowthSkipped);
-            buffer.AddMetric("space4x.crew.growth.lastTick", metrics.LastUpdateTick);
+            buffer.AddMetric(MetricBreedingAttempts, metrics.BreedingAttempts);
+            buffer.AddMetric(MetricCloningAttempts, metrics.CloningAttempts);
+            buffer.AddMetric(MetricGrowthSkipped, metrics.GrowthSkipped);
+            buffer.AddMetric(MetricLastTick, metrics.LastUpdateTick);
         }
     }
 }
