@@ -48,7 +48,7 @@ namespace Space4X.SimServer
                 var host = Space4XSimServerSettings.ResolveHost();
                 Space4XSimHttpServer.Start(host, config.HttpPort);
                 _started = true;
-                Debug.Log($"[Space4XSimServer] HTTP listening on http://{host}:{config.HttpPort}/");
+                UnityEngine.Debug.Log($"[Space4XSimServer] HTTP listening on http://{host}:{config.HttpPort}/");
             }
 
             ApplyDirectives(ref state);
@@ -75,7 +75,7 @@ namespace Space4X.SimServer
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[Space4XSimServer] Failed to parse directive JSON: {ex.Message}");
+                    UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to parse directive JSON: {ex.Message}");
                     continue;
                 }
 

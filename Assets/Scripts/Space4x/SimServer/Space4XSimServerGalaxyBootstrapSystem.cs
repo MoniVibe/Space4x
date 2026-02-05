@@ -649,7 +649,8 @@ namespace Space4X.SimServer
             }
 
             entityManager.AddComponentData(entity, state);
-            entityManager.AddComponentData(entity, SalvageYield.FromCondition(state.Condition, math.max((ushort)1, state.OriginalClass)));
+            var salvageClass = state.OriginalClass < 1 ? (ushort)1 : state.OriginalClass;
+            entityManager.AddComponentData(entity, SalvageYield.FromCondition(state.Condition, salvageClass));
         }
 
         private static void SetupStation(EntityManager entityManager, Entity entity, ushort ownerFactionId, ref Unity.Mathematics.Random rng, NativeArray<Entity> factionEntities)
@@ -839,7 +840,7 @@ namespace Space4X.SimServer
                 WillInclination = (byte)rng.NextInt(4, 8),
                 GeneralXP = 0f
             });
-            entityManager.AddComponentData(leader, AlignmentTriplet.FromFloats(0f, 0f, 0f));
+            entityManager.AddComponentData(leader, Space4X.Registry.AlignmentTriplet.FromFloats(0f, 0f, 0f));
             entityManager.AddComponentData(leader, PersonalityAxes.FromValues(0f, 0f, 0f, 0f, 0f));
 
             var directive = entityManager.GetComponentData<Space4XFactionDirective>(factionEntity);

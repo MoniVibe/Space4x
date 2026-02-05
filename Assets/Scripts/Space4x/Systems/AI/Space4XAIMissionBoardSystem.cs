@@ -75,7 +75,7 @@ namespace Space4X.Systems.AI
             AssignOffers(ref state, config, currentTick);
         }
 
-        private static Entity EnsureConfig(ref SystemState state, out Space4XMissionBoardConfig config, out Space4XMissionBoardState boardState)
+        private Entity EnsureConfig(ref SystemState state, out Space4XMissionBoardConfig config, out Space4XMissionBoardState boardState)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XMissionBoardConfig>(out var entity))
             {
@@ -904,7 +904,7 @@ namespace Space4X.Systems.AI
             factionMap.Dispose();
         }
 
-        private static Space4XContactTierConfig EnsureContactConfig(ref SystemState state)
+        private Space4XContactTierConfig EnsureContactConfig(ref SystemState state)
         {
             if (SystemAPI.TryGetSingleton(out Space4XContactTierConfig config))
             {

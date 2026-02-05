@@ -298,7 +298,7 @@ namespace Space4X.SimServer
             try
             {
                 RotateStatusLogIfNeeded();
-                File.AppendAllText(StatusLogFile, json + Environment.NewLine);
+                File.AppendAllText(StatusLogFile, json + System.Environment.NewLine);
             }
             catch (Exception ex)
             {

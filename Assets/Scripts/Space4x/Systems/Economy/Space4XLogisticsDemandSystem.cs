@@ -90,7 +90,7 @@ namespace Space4X.Systems.Economy
             state.EntityManager.SetComponentData(boardEntity, board);
         }
 
-        private static Entity EnsureBoard(ref SystemState state, out LogisticsBoardConfig config)
+        private Entity EnsureBoard(ref SystemState state, out LogisticsBoardConfig config)
         {
             if (SystemAPI.TryGetSingletonEntity<LogisticsBoard>(out var entity))
             {
