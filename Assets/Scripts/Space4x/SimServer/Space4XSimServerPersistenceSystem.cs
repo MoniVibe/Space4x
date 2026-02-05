@@ -10,6 +10,9 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Profile;
 using Space4X.Registry;
+using Space4XResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
+using Space4XResourceSourceState = Space4X.Registry.ResourceSourceState;
+using Space4XResourceTypeId = Space4X.Registry.ResourceTypeId;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -460,7 +463,7 @@ namespace Space4X.SimServer
             var entityManager = state.EntityManager;
 
             foreach (var (asteroid, sourceState, sourceConfig, resourceId, transform, entity) in
-                SystemAPI.Query<RefRO<Asteroid>, RefRO<ResourceSourceState>, RefRO<ResourceSourceConfig>, RefRO<ResourceTypeId>, RefRO<LocalTransform>>()
+                SystemAPI.Query<RefRO<Asteroid>, RefRO<Space4XResourceSourceState>, RefRO<Space4XResourceSourceConfig>, RefRO<Space4XResourceTypeId>, RefRO<LocalTransform>>()
                     .WithEntityAccess())
             {
                 var data = new ResourceData
@@ -774,9 +777,9 @@ namespace Space4X.SimServer
                         typeof(LocalTransform),
                         typeof(SpatialIndexedTag),
                         typeof(Asteroid),
-                        typeof(ResourceSourceState),
-                        typeof(ResourceSourceConfig),
-                        typeof(ResourceTypeId),
+                        typeof(Space4XResourceSourceState),
+                        typeof(Space4XResourceSourceConfig),
+                        typeof(Space4XResourceTypeId),
                         typeof(RewindableTag),
                         typeof(LastRecordedTick),
                         typeof(HistoryTier),
@@ -793,19 +796,19 @@ namespace Space4X.SimServer
                         MaxResourceAmount = resourceData.maxResourceAmount,
                         MiningRate = resourceData.miningRate
                     });
-                    entityManager.SetComponentData(entity, new ResourceSourceState
+                    entityManager.SetComponentData(entity, new Space4XResourceSourceState
                     {
                         UnitsRemaining = resourceData.unitsRemaining,
                         LastHarvestTick = resourceData.lastHarvestTick
                     });
-                    entityManager.SetComponentData(entity, new ResourceSourceConfig
+                    entityManager.SetComponentData(entity, new Space4XResourceSourceConfig
                     {
                         GatherRatePerWorker = resourceData.gatherRatePerWorker,
                         MaxSimultaneousWorkers = resourceData.maxWorkers,
                         RespawnSeconds = resourceData.respawnSeconds,
                         Flags = resourceData.flags
                     });
-                    entityManager.SetComponentData(entity, new ResourceTypeId
+                    entityManager.SetComponentData(entity, new Space4XResourceTypeId
                     {
                         Value = new FixedString64Bytes(resourceData.resourceTypeId ?? string.Empty)
                     });
