@@ -27,7 +27,7 @@ namespace Space4X.SimServer
                     return s_baseDir;
                 }
 
-                var overrideDir = Environment.GetEnvironmentVariable(SaveDirEnv);
+                var overrideDir = System.Environment.GetEnvironmentVariable(SaveDirEnv);
                 if (!string.IsNullOrWhiteSpace(overrideDir))
                 {
                     s_baseDir = overrideDir.Trim();
@@ -41,7 +41,7 @@ namespace Space4X.SimServer
                     return s_baseDir;
                 }
 
-                var localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var localApp = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
                 s_baseDir = Path.Combine(localApp, "Space4XSim");
                 return s_baseDir;
             }
@@ -329,19 +329,19 @@ namespace Space4X.SimServer
 
         private static int ReadInt(string key, int fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return int.TryParse(v, out var parsed) ? parsed : fallback;
         }
 
         private static float ReadFloat(string key, float fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
         }
 
         private static bool ReadBool(string key, bool fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             if (string.IsNullOrWhiteSpace(v))
             {
                 return fallback;
