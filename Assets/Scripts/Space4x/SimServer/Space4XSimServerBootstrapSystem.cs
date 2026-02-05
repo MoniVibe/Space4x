@@ -1,4 +1,5 @@
 using PureDOTS.Runtime;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Time;
 using Unity.Entities;
@@ -104,7 +105,7 @@ namespace Space4X.SimServer
             config.DefaultScale = desiredScale;
             state.EntityManager.SetComponentData(configEntity, config);
 
-            Debug.Log($"[Space4XSimServer] Target ticks/sec={targetTicksPerSecond:0.##} fixedDt={fixedDt:0.####} timeScale={desiredScale:0.###}");
+            UnityEngine.Debug.Log($"[Space4XSimServer] Target ticks/sec={targetTicksPerSecond:0.##} fixedDt={fixedDt:0.####} timeScale={desiredScale:0.###}");
         }
     }
 }
