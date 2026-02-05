@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.WorldGen;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -17,6 +18,18 @@ namespace Space4X.SimServer
         public float TargetTicksPerSecond;
         public ushort HttpPort;
         public float AutosaveSeconds;
+        public GalaxySystemTraitMask TraitMask;
+        public GalaxyPoiMask PoiMask;
+        public byte MaxTraitsPerSystem;
+        public byte MaxPoisPerSystem;
+        public float TraitChanceBase;
+        public float TraitChancePerRing;
+        public float TraitChanceMax;
+        public float PoiChanceBase;
+        public float PoiChancePerRing;
+        public float PoiChanceMax;
+        public float PoiOffsetMin;
+        public float PoiOffsetMax;
     }
 
     public struct Space4XSimServerTag : IComponentData { }

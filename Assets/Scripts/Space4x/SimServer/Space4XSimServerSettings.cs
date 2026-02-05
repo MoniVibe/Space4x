@@ -1,4 +1,5 @@
 using System;
+using PureDOTS.Runtime.WorldGen;
 using UnityEngine;
 
 namespace Space4X.SimServer
@@ -52,7 +53,19 @@ namespace Space4X.SimServer
                 TechDiffusionDurationSeconds = ReadFloat(TechDurationEnv, 14400f),
                 TargetTicksPerSecond = Mathf.Clamp(ReadFloat(TargetTpsEnv, 2f), 0.5f, 120f),
                 HttpPort = (ushort)Mathf.Clamp(ReadInt(PortEnv, 45100), 1024, 65535),
-                AutosaveSeconds = Mathf.Max(0f, ReadFloat(AutosaveEnv, 0f))
+                AutosaveSeconds = Mathf.Max(0f, ReadFloat(AutosaveEnv, 0f)),
+                TraitMask = GalaxySystemTraitMask.All,
+                PoiMask = GalaxyPoiMask.All,
+                MaxTraitsPerSystem = 1,
+                MaxPoisPerSystem = 1,
+                TraitChanceBase = 0.35f,
+                TraitChancePerRing = 0.1f,
+                TraitChanceMax = 0.8f,
+                PoiChanceBase = 0.25f,
+                PoiChancePerRing = 0.12f,
+                PoiChanceMax = 0.75f,
+                PoiOffsetMin = 450f,
+                PoiOffsetMax = 900f
             };
         }
 

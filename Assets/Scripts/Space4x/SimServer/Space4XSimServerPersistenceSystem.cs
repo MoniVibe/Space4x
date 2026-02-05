@@ -9,6 +9,7 @@ using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.WorldGen;
 using Space4X.Registry;
 using Space4XAlignmentTriplet = Space4X.Registry.AlignmentTriplet;
 using Space4XIndividualStats = Space4X.Registry.IndividualStats;
@@ -403,16 +404,38 @@ namespace Space4X.SimServer
         private SystemData[] CaptureSystems(ref SystemState state)
         {
             var list = new List<SystemData>(64);
+            var entityManager = state.EntityManager;
 
-            foreach (var (system, transform) in SystemAPI.Query<RefRO<Space4XStarSystem>, RefRO<LocalTransform>>())
+            foreach (var (system, transform, entity) in SystemAPI.Query<RefRO<Space4XStarSystem>, RefRO<LocalTransform>>().WithEntityAccess())
             {
-                list.Add(new SystemData
+                var data = new SystemData
                 {
                     systemId = system.ValueRO.SystemId,
                     ownerFactionId = system.ValueRO.OwnerFactionId,
                     ringIndex = system.ValueRO.RingIndex,
                     position = ToVector3(transform.ValueRO.Position)
-                });
+                };
+
+                if (entityManager.HasBuffer<Space4XSystemTrait>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<Space4XSystemTrait>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var traits = new SystemTraitData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            traits[i] = new SystemTraitData
+                            {
+                                kind = (byte)buffer[i].Kind,
+                                intensity = (float)buffer[i].Intensity
+                            };
+                        }
+
+                        data.traits = traits;
+                    }
+                }
+
+                list.Add(data);
             }
 
             return list.ToArray();
@@ -735,6 +758,20 @@ namespace Space4X.SimServer
                         RingIndex = systemData.ringIndex
                     });
                     entityManager.SetComponentData(entity, LocalTransform.FromPosition(ToFloat3(systemData.position)));
+
+                    if (systemData.traits != null && systemData.traits.Length > 0)
+                    {
+                        var buffer = entityManager.AddBuffer<Space4XSystemTrait>(entity);
+                        for (int i = 0; i < systemData.traits.Length; i++)
+                        {
+                            var trait = systemData.traits[i];
+                            buffer.Add(new Space4XSystemTrait
+                            {
+                                Kind = (GalaxySystemTraitKind)trait.kind,
+                                Intensity = (half)math.saturate(trait.intensity)
+                            });
+                        }
+                    }
                 }
             }
 
@@ -1328,6 +1365,18 @@ namespace Space4X.SimServer
             public float targetTicksPerSecond;
             public ushort httpPort;
             public float autosaveSeconds;
+            public ushort traitMask;
+            public ushort poiMask;
+            public byte maxTraitsPerSystem;
+            public byte maxPoisPerSystem;
+            public float traitChanceBase;
+            public float traitChancePerRing;
+            public float traitChanceMax;
+            public float poiChanceBase;
+            public float poiChancePerRing;
+            public float poiChanceMax;
+            public float poiOffsetMin;
+            public float poiOffsetMax;
 
             public static SimConfigData FromConfig(Space4XSimServerConfig config)
             {
@@ -1344,12 +1393,41 @@ namespace Space4X.SimServer
                     techDiffusionDurationSeconds = config.TechDiffusionDurationSeconds,
                     targetTicksPerSecond = config.TargetTicksPerSecond,
                     httpPort = config.HttpPort,
-                    autosaveSeconds = config.AutosaveSeconds
+                    autosaveSeconds = config.AutosaveSeconds,
+                    traitMask = (ushort)config.TraitMask,
+                    poiMask = (ushort)config.PoiMask,
+                    maxTraitsPerSystem = config.MaxTraitsPerSystem,
+                    maxPoisPerSystem = config.MaxPoisPerSystem,
+                    traitChanceBase = config.TraitChanceBase,
+                    traitChancePerRing = config.TraitChancePerRing,
+                    traitChanceMax = config.TraitChanceMax,
+                    poiChanceBase = config.PoiChanceBase,
+                    poiChancePerRing = config.PoiChancePerRing,
+                    poiChanceMax = config.PoiChanceMax,
+                    poiOffsetMin = config.PoiOffsetMin,
+                    poiOffsetMax = config.PoiOffsetMax
                 };
             }
 
             public Space4XSimServerConfig ToConfig()
             {
+                var resolvedTraitMask = traitMask == 0 ? GalaxySystemTraitMask.All : (GalaxySystemTraitMask)traitMask;
+                var resolvedPoiMask = poiMask == 0 ? GalaxyPoiMask.All : (GalaxyPoiMask)poiMask;
+
+                var resolvedMaxTraits = maxTraitsPerSystem == 0 ? (byte)1 : maxTraitsPerSystem;
+                var resolvedMaxPois = maxPoisPerSystem == 0 ? (byte)1 : maxPoisPerSystem;
+
+                var resolvedTraitChanceBase = traitChanceBase <= 0f ? 0.35f : traitChanceBase;
+                var resolvedTraitChancePerRing = traitChancePerRing <= 0f ? 0.1f : traitChancePerRing;
+                var resolvedTraitChanceMax = traitChanceMax <= 0f ? 0.8f : traitChanceMax;
+
+                var resolvedPoiChanceBase = poiChanceBase <= 0f ? 0.25f : poiChanceBase;
+                var resolvedPoiChancePerRing = poiChancePerRing <= 0f ? 0.12f : poiChancePerRing;
+                var resolvedPoiChanceMax = poiChanceMax <= 0f ? 0.75f : poiChanceMax;
+
+                var resolvedPoiOffsetMin = poiOffsetMin <= 0f ? 450f : poiOffsetMin;
+                var resolvedPoiOffsetMax = poiOffsetMax <= 0f ? 900f : poiOffsetMax;
+
                 return new Space4XSimServerConfig
                 {
                     Seed = seed,
@@ -1363,7 +1441,19 @@ namespace Space4X.SimServer
                     TechDiffusionDurationSeconds = techDiffusionDurationSeconds,
                     TargetTicksPerSecond = targetTicksPerSecond,
                     HttpPort = httpPort,
-                    AutosaveSeconds = autosaveSeconds
+                    AutosaveSeconds = autosaveSeconds,
+                    TraitMask = resolvedTraitMask,
+                    PoiMask = resolvedPoiMask,
+                    MaxTraitsPerSystem = resolvedMaxTraits,
+                    MaxPoisPerSystem = resolvedMaxPois,
+                    TraitChanceBase = resolvedTraitChanceBase,
+                    TraitChancePerRing = resolvedTraitChancePerRing,
+                    TraitChanceMax = resolvedTraitChanceMax,
+                    PoiChanceBase = resolvedPoiChanceBase,
+                    PoiChancePerRing = resolvedPoiChancePerRing,
+                    PoiChanceMax = resolvedPoiChanceMax,
+                    PoiOffsetMin = resolvedPoiOffsetMin,
+                    PoiOffsetMax = resolvedPoiOffsetMax
                 };
             }
         }
@@ -1695,6 +1785,14 @@ namespace Space4X.SimServer
             public ushort ownerFactionId;
             public byte ringIndex;
             public Vector3 position;
+            public SystemTraitData[] traits;
+        }
+
+        [Serializable]
+        private sealed class SystemTraitData
+        {
+            public byte kind;
+            public float intensity;
         }
 
         [Serializable]

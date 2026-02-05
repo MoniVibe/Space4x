@@ -14,7 +14,13 @@ namespace Space4X.Orbitals
         Derelict,
         StrangeSatellite,
         Station,
-        Megastructure
+        Megastructure,
+        AncientRuins,
+        AlienShrine,
+        GateFragment,
+        SuperResource,
+        Scenic,
+        HazardZone
     }
 
     /// <summary>
@@ -43,4 +49,3 @@ namespace Space4X.Orbitals
         public bool OffersMission;
     }
 }
-

@@ -73,13 +73,28 @@ namespace Space4X.SimServer
                 config.ResourceBaseUnits,
                 config.ResourceRichnessGradient,
                 resourceKindCount);
+            generationConfig.TraitMask = config.TraitMask;
+            generationConfig.PoiMask = config.PoiMask;
+            generationConfig.MaxTraitsPerSystem = config.MaxTraitsPerSystem;
+            generationConfig.MaxPoisPerSystem = config.MaxPoisPerSystem;
+            generationConfig.TraitChanceBase = config.TraitChanceBase;
+            generationConfig.TraitChancePerRing = config.TraitChancePerRing;
+            generationConfig.TraitChanceMax = config.TraitChanceMax;
+            generationConfig.PoiChanceBase = config.PoiChanceBase;
+            generationConfig.PoiChancePerRing = config.PoiChancePerRing;
+            generationConfig.PoiChanceMax = config.PoiChanceMax;
+            generationConfig.PoiOffsetMin = config.PoiOffsetMin;
+            generationConfig.PoiOffsetMax = config.PoiOffsetMax;
 
             var factionSeeds = new NativeList<GalaxyFactionSeed>(config.FactionCount, Allocator.Temp);
             var systemSeeds = new NativeList<GalaxySystemSeed>(math.max(1, config.FactionCount) * math.max(1, config.SystemsPerFaction), Allocator.Temp);
             var resourceSeeds = new NativeList<GalaxyResourceSeed>(math.max(1, config.FactionCount) * math.max(1, config.SystemsPerFaction) * config.ResourcesPerSystem, Allocator.Temp);
             var anomalySeeds = new NativeList<GalaxyAnomalySeed>(Allocator.Temp);
+            var traitSeeds = new NativeList<GalaxySystemTraitSeed>(Allocator.Temp);
+            var poiSeeds = new NativeList<GalaxyPoiSeed>(Allocator.Temp);
+            var catalog = BuildGalaxyCatalog(Allocator.Temp);
 
-            GalaxyGeneration.Generate(generationConfig, ref factionSeeds, ref systemSeeds, ref resourceSeeds, ref anomalySeeds);
+            GalaxyGeneration.Generate(generationConfig, catalog, ref factionSeeds, ref systemSeeds, ref resourceSeeds, ref anomalySeeds, ref traitSeeds, ref poiSeeds);
 
             var factionEntities = new NativeArray<Entity>(factionSeeds.Length + 1, Allocator.Temp);
 
@@ -176,10 +191,15 @@ namespace Space4X.SimServer
                 factionEntities[factionId] = factionEntity;
             }
 
+            var systemEntities = new NativeArray<Entity>(systemSeeds.Length + 1, Allocator.Temp);
             for (int i = 0; i < systemSeeds.Length; i++)
             {
                 var seed = systemSeeds[i];
-                CreateStarSystem(entityManager, seed.SystemId, seed.Position, seed.RingIndex, seed.HomeFactionId);
+                var systemEntity = CreateStarSystem(entityManager, seed.SystemId, seed.Position, seed.RingIndex, seed.HomeFactionId);
+                if (seed.SystemId < systemEntities.Length)
+                {
+                    systemEntities[seed.SystemId] = systemEntity;
+                }
 
                 if (seed.HomeFactionId != 0)
                 {
@@ -212,11 +232,46 @@ namespace Space4X.SimServer
                 CreateAnomaly(entityManager, seed.Position, severity, seed.RingIndex);
             }
 
+            for (int i = 0; i < traitSeeds.Length; i++)
+            {
+                var seed = traitSeeds[i];
+                if (seed.SystemId >= systemEntities.Length)
+                {
+                    continue;
+                }
+
+                var systemEntity = systemEntities[seed.SystemId];
+                if (systemEntity == Entity.Null)
+                {
+                    continue;
+                }
+
+                var buffer = entityManager.HasBuffer<Space4XSystemTrait>(systemEntity)
+                    ? entityManager.GetBuffer<Space4XSystemTrait>(systemEntity)
+                    : entityManager.AddBuffer<Space4XSystemTrait>(systemEntity);
+
+                buffer.Add(new Space4XSystemTrait
+                {
+                    Kind = seed.Kind,
+                    Intensity = (half)math.saturate(seed.Intensity)
+                });
+            }
+
+            for (int i = 0; i < poiSeeds.Length; i++)
+            {
+                CreatePointOfInterest(entityManager, poiSeeds[i]);
+            }
+
             factionEntities.Dispose();
+            systemEntities.Dispose();
             factionSeeds.Dispose();
             systemSeeds.Dispose();
             resourceSeeds.Dispose();
             anomalySeeds.Dispose();
+            traitSeeds.Dispose();
+            poiSeeds.Dispose();
+            if (catalog.SystemTraits.IsCreated) catalog.SystemTraits.Dispose();
+            if (catalog.Pois.IsCreated) catalog.Pois.Dispose();
 
             MarkBootstrapped(ref state);
             UnityEngine.Debug.Log($"[Space4XSimServer] Galaxy initialized: factions={config.FactionCount} systemsPerFaction={config.SystemsPerFaction} resourcesPerSystem={config.ResourcesPerSystem}.");
@@ -408,6 +463,144 @@ namespace Space4X.SimServer
                         break;
                 }
             }
+        }
+
+        private static void CreatePointOfInterest(EntityManager entityManager, in GalaxyPoiSeed seed)
+        {
+            var entity = entityManager.CreateEntity(
+                typeof(LocalTransform),
+                typeof(SpatialIndexedTag),
+                typeof(OrbitalObjectTag),
+                typeof(OrbitalObjectState),
+                typeof(Space4XPoi),
+                typeof(Space4XSimServerTag));
+
+            entityManager.SetComponentData(entity, LocalTransform.FromPositionRotationScale(seed.Position, quaternion.identity, 4f));
+
+            var orbitalKind = ResolvePoiOrbitalKind(seed.Kind);
+            var hidden = seed.Kind != GalaxyPoiKind.Scenic;
+            var offersMission = seed.Kind != GalaxyPoiKind.Scenic;
+
+            entityManager.SetComponentData(entity, new OrbitalObjectState
+            {
+                Kind = orbitalKind,
+                Hidden = hidden,
+                CanDock = false,
+                OffersMission = offersMission
+            });
+
+            entityManager.SetComponentData(entity, new Space4XPoi
+            {
+                Kind = seed.Kind,
+                Reward = (half)math.saturate(seed.Reward),
+                Risk = (half)math.saturate(seed.Risk),
+                SystemId = seed.SystemId,
+                RingIndex = seed.RingIndex
+            });
+        }
+
+        private static OrbitalKind ResolvePoiOrbitalKind(GalaxyPoiKind kind)
+        {
+            return kind switch
+            {
+                GalaxyPoiKind.AncientRuins => OrbitalKind.AncientRuins,
+                GalaxyPoiKind.AlienShrine => OrbitalKind.AlienShrine,
+                GalaxyPoiKind.GateFragment => OrbitalKind.GateFragment,
+                GalaxyPoiKind.SuperResource => OrbitalKind.SuperResource,
+                GalaxyPoiKind.Scenic => OrbitalKind.Scenic,
+                GalaxyPoiKind.HazardZone => OrbitalKind.HazardZone,
+                _ => OrbitalKind.StrangeSatellite
+            };
+        }
+
+        private static GalaxyGenerationCatalog BuildGalaxyCatalog(Allocator allocator)
+        {
+            var traits = new NativeArray<GalaxySystemTraitDefinition>(5, allocator);
+            traits[0] = new GalaxySystemTraitDefinition
+            {
+                Kind = GalaxySystemTraitKind.Binary,
+                Weight = 1f,
+                MinRing = 0,
+                MaxRing = 3
+            };
+            traits[1] = new GalaxySystemTraitDefinition
+            {
+                Kind = GalaxySystemTraitKind.Nebula,
+                Weight = 0.8f,
+                MinRing = 1,
+                MaxRing = 8
+            };
+            traits[2] = new GalaxySystemTraitDefinition
+            {
+                Kind = GalaxySystemTraitKind.Neutron,
+                Weight = 0.6f,
+                MinRing = 2,
+                MaxRing = 8
+            };
+            traits[3] = new GalaxySystemTraitDefinition
+            {
+                Kind = GalaxySystemTraitKind.BlackHole,
+                Weight = 0.45f,
+                MinRing = 3,
+                MaxRing = 10
+            };
+            traits[4] = new GalaxySystemTraitDefinition
+            {
+                Kind = GalaxySystemTraitKind.AncientCore,
+                Weight = 0.35f,
+                MinRing = 4,
+                MaxRing = 12
+            };
+
+            var pois = new NativeArray<GalaxyPoiDefinition>(6, allocator);
+            pois[0] = new GalaxyPoiDefinition
+            {
+                Kind = GalaxyPoiKind.AncientRuins,
+                Weight = 1f,
+                MinRing = 2,
+                MaxRing = 12
+            };
+            pois[1] = new GalaxyPoiDefinition
+            {
+                Kind = GalaxyPoiKind.AlienShrine,
+                Weight = 0.7f,
+                MinRing = 3,
+                MaxRing = 12
+            };
+            pois[2] = new GalaxyPoiDefinition
+            {
+                Kind = GalaxyPoiKind.GateFragment,
+                Weight = 0.5f,
+                MinRing = 4,
+                MaxRing = 12
+            };
+            pois[3] = new GalaxyPoiDefinition
+            {
+                Kind = GalaxyPoiKind.SuperResource,
+                Weight = 0.8f,
+                MinRing = 3,
+                MaxRing = 12
+            };
+            pois[4] = new GalaxyPoiDefinition
+            {
+                Kind = GalaxyPoiKind.Scenic,
+                Weight = 0.9f,
+                MinRing = 1,
+                MaxRing = 12
+            };
+            pois[5] = new GalaxyPoiDefinition
+            {
+                Kind = GalaxyPoiKind.HazardZone,
+                Weight = 0.7f,
+                MinRing = 2,
+                MaxRing = 12
+            };
+
+            return new GalaxyGenerationCatalog
+            {
+                SystemTraits = traits,
+                Pois = pois
+            };
         }
 
         private static OrbitalKind RollOrbitalKind(ref Unity.Mathematics.Random rng, byte ring, int index)
