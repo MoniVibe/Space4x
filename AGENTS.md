@@ -72,3 +72,18 @@ If a detail is critical (API choice, breaking change), ask the user once rather 
 - Keep `Packages/manifest.json` and `Packages/packages-lock.json` in sync across clones when logic changes; drift causes slice-only compile errors.
 - Do not share `Library` between OSes; each clone keeps its own cache.
 - WSL is case-sensitive; fix casing mismatches that Windows may tolerate.
+
+## Buildbox Iteration Contract (Agent Loop)
+
+- Work branch-only; never push to main or rewrite history.
+- No autoloop: implement between runs. Queue → diagnose → fix → requeue.
+- Use buildbox/headless runs as the source of truth. Do not run heavy tests locally.
+- Always run a fast smoke scenario before heavier suites; if smoke fails, stop and fix first.
+- Evidence order: `out/run_summary_min.json` → `out/run_summary.json` → `meta.json` → `out/watchdog.json` + logs.
+- Stop conditions: 5 iterations without improvement, same failure twice, or infra failure twice.
+- Report the run id, exit_reason, and the top errors/suggested next step after each run.
+
+Artifacts expected per run:
+- `out/run_summary_min.json` (fast verdict)
+- `out/run_summary.json` (full metrics)
+- `meta.json`, `out/watchdog.json`, `out/player.log`, `out/stdout.log`, `out/stderr.log`
