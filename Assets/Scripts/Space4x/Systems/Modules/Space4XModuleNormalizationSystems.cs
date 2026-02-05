@@ -2071,9 +2071,10 @@ namespace Space4X.Systems.Modules
             spec = default;
             for (int i = 0; i < projectiles.Length; i++)
             {
-                if (projectiles[i].Id == projectileId)
+                ref var projectile = ref projectiles[i];
+                if (projectile.Id == projectileId)
                 {
-                    spec = projectiles[i];
+                    spec = projectile;
                     return true;
                 }
             }
