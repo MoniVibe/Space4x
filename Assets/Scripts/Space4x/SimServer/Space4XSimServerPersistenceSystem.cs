@@ -1135,7 +1135,7 @@ namespace Space4X.SimServer
             return id != 0 && map.TryGetValue(id, out var entity) ? entity : fallback;
         }
 
-        private static void ApplyTimeState(ref SystemState state, SimSaveData data)
+        private void ApplyTimeState(ref SystemState state, SimSaveData data)
         {
             var timeData = data.time ?? new SimTimeData();
             var fixedDelta = timeData.fixedDeltaTime > 0f ? timeData.fixedDeltaTime : 0.016f;
