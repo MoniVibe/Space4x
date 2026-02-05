@@ -28,7 +28,7 @@ namespace Space4X.SimServer
 
         internal static string ResolveHost()
         {
-            var host = Environment.GetEnvironmentVariable(HostEnv);
+            var host = System.Environment.GetEnvironmentVariable(HostEnv);
             if (string.IsNullOrWhiteSpace(host))
             {
                 return "localhost";
@@ -58,7 +58,7 @@ namespace Space4X.SimServer
 
         private static bool EnvIsTruthy(string key)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return string.Equals(v, "1", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase);
@@ -66,7 +66,7 @@ namespace Space4X.SimServer
 
         private static bool HasArg(string key)
         {
-            var args = Environment.GetCommandLineArgs();
+            var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
                 if (string.Equals(args[i], key, StringComparison.OrdinalIgnoreCase))
@@ -79,13 +79,13 @@ namespace Space4X.SimServer
 
         private static int ReadInt(string key, int fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return int.TryParse(v, out var parsed) ? parsed : fallback;
         }
 
         private static float ReadFloat(string key, float fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : fallback;
