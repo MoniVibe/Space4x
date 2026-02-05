@@ -1062,7 +1062,7 @@ namespace Space4X.Registry
             if (_moduleTargetLookup.HasComponent(source))
             {
                 var moduleTarget = _moduleTargetLookup[source];
-                if (moduleTarget.TargetShip == targetShip && moduleTarget.TargetModule != Entity.Null && SystemAPI.Exists(moduleTarget.TargetModule))
+                if (moduleTarget.TargetShip == targetShip && moduleTarget.TargetModule != Entity.Null && _moduleLookup.HasComponent(moduleTarget.TargetModule))
                 {
                     return moduleTarget.TargetModule;
                 }

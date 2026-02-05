@@ -1,5 +1,4 @@
 using PureDOTS.Runtime.Components;
-using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Modules;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Systems;

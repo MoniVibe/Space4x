@@ -1,5 +1,6 @@
 using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
 using Space4X.Registry;
 using Unity.Burst;

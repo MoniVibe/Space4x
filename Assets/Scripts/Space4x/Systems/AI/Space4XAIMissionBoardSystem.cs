@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Transport;
 using Space4X.Orbitals;
 using Space4X.Registry;
+using Space4X.SimServer;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
