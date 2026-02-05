@@ -2066,15 +2066,15 @@ namespace Space4X.Systems.Modules
             return false;
         }
 
-        private static bool TryGetProjectileCatalogSpec(ref BlobArray<ProjectileSpec> projectiles, in FixedString64Bytes projectileId, out ProjectileSpec spec)
+        private static bool TryGetProjectileCatalogSpec(ref BlobArray<ProjectileSpec> projectiles, in FixedString64Bytes projectileId, out int index)
         {
-            spec = default;
+            index = -1;
             for (int i = 0; i < projectiles.Length; i++)
             {
                 ref var projectile = ref projectiles[i];
                 if (projectile.Id == projectileId)
                 {
-                    spec = projectile;
+                    index = i;
                     return true;
                 }
             }
@@ -2093,8 +2093,9 @@ namespace Space4X.Systems.Modules
             if (damageType == Space4XDamageType.Unknown && hasProjectileCatalog && !weaponSpec.ProjectileId.IsEmpty)
             {
                 ref var projectiles = ref projectileCatalog.Catalog.Value.Projectiles;
-                if (TryGetProjectileCatalogSpec(ref projectiles, weaponSpec.ProjectileId, out var projectileSpec))
+                if (TryGetProjectileCatalogSpec(ref projectiles, weaponSpec.ProjectileId, out var projectileIndex))
                 {
+                    ref var projectileSpec = ref projectiles[projectileIndex];
                     damageType = projectileSpec.DamageType;
                     if (damageType == Space4XDamageType.Unknown)
                     {
