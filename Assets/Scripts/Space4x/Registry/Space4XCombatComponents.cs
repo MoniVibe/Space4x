@@ -63,6 +63,22 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Delivery mechanism for a weapon payload.
+    /// </summary>
+    public enum WeaponDelivery : byte
+    {
+        Unknown = 0,
+        Beam = 1,
+        Slug = 2,
+        Guided = 3,
+        Bus = 4,
+        Field = 5,
+        Area = 6,
+        Cloud = 7,
+        Burst = 8
+    }
+
+    /// <summary>
     /// Normalized damage types for Space4X ship combat.
     /// </summary>
     public enum Space4XDamageType : byte
@@ -118,6 +134,11 @@ namespace Space4X.Registry
         /// Damage type for resistances.
         /// </summary>
         public Space4XDamageType DamageType;
+
+        /// <summary>
+        /// Delivery mechanism (beam, guided, bus, etc.).
+        /// </summary>
+        public WeaponDelivery Delivery;
 
         /// <summary>
         /// Special weapon flags.
@@ -185,6 +206,7 @@ namespace Space4X.Registry
             Size = size,
             Family = WeaponFamily.Energy,
             DamageType = Space4XDamageType.Energy,
+            Delivery = WeaponDelivery.Beam,
             Flags = WeaponFlags.None,
             BaseDamage = 10f * (1 + (int)size),
             OptimalRange = 300f + 100f * (int)size,
@@ -204,6 +226,7 @@ namespace Space4X.Registry
             Size = size,
             Family = WeaponFamily.Kinetic,
             DamageType = Space4XDamageType.Kinetic,
+            Delivery = WeaponDelivery.Slug,
             Flags = WeaponFlags.None,
             BaseDamage = 15f * (1 + (int)size),
             OptimalRange = 200f + 80f * (int)size,
@@ -223,6 +246,7 @@ namespace Space4X.Registry
             Size = size,
             Family = WeaponFamily.Explosive,
             DamageType = Space4XDamageType.Explosive,
+            Delivery = WeaponDelivery.Guided,
             Flags = WeaponFlags.None,
             BaseDamage = 25f * (1 + (int)size),
             OptimalRange = 400f + 150f * (int)size,
@@ -242,6 +266,7 @@ namespace Space4X.Registry
             Size = size,
             Family = WeaponFamily.Explosive,
             DamageType = Space4XDamageType.Explosive,
+            Delivery = WeaponDelivery.Bus,
             Flags = WeaponFlags.None,
             BaseDamage = 100f * (1 + (int)size),
             OptimalRange = 200f + 100f * (int)size,
@@ -268,6 +293,22 @@ namespace Space4X.Registry
                 WeaponType.Torpedo => WeaponFamily.Explosive,
                 WeaponType.Flak => WeaponFamily.Explosive,
                 _ => WeaponFamily.Unknown
+            };
+        }
+
+        public static WeaponDelivery ResolveDelivery(WeaponType type)
+        {
+            return type switch
+            {
+                WeaponType.Laser => WeaponDelivery.Beam,
+                WeaponType.Ion => WeaponDelivery.Beam,
+                WeaponType.Plasma => WeaponDelivery.Beam,
+                WeaponType.Kinetic => WeaponDelivery.Slug,
+                WeaponType.PointDefense => WeaponDelivery.Slug,
+                WeaponType.Missile => WeaponDelivery.Guided,
+                WeaponType.Torpedo => WeaponDelivery.Bus,
+                WeaponType.Flak => WeaponDelivery.Area,
+                _ => WeaponDelivery.Unknown
             };
         }
 
@@ -333,6 +374,28 @@ namespace Space4X.Registry
 
             return math.saturate(baseTracking * sizeScale);
         }
+    }
+
+    /// <summary>
+    /// Optional weapon effects (status channels). Keep empty for MVP.
+    /// </summary>
+    public enum WeaponEffectType : byte
+    {
+        Unknown = 0,
+        EMP = 1,
+        ShieldSuppression = 2,
+        ArmorBreach = 3,
+        SensorBlind = 4,
+        Heat = 5,
+        Nanite = 6
+    }
+
+    [InternalBufferCapacity(2)]
+    public struct WeaponEffectOp : IBufferElementData
+    {
+        public WeaponEffectType Type;
+        public float Magnitude;
+        public ushort DurationTicks;
     }
 
     /// <summary>

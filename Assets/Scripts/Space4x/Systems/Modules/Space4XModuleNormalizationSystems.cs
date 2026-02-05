@@ -1707,6 +1707,11 @@ namespace Space4X.Systems.Modules
                         weapon.DamageType = Space4XWeapon.ResolveDamageType(weapon.Type);
                     }
 
+                    if (weapon.Delivery == WeaponDelivery.Unknown)
+                    {
+                        weapon.Delivery = Space4XWeapon.ResolveDelivery(weapon.Type);
+                    }
+
                     if (hasWeaponSpecCatalog && !weaponId.IsEmpty)
                     {
                         ref var weaponSpecs = ref weaponSpecCatalog.Catalog.Value.Weapons;
