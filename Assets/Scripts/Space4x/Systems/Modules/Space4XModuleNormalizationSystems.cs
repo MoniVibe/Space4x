@@ -1940,7 +1940,7 @@ namespace Space4X.Systems.Modules
 
                     var weapon = ResolveWeapon(spec.Class, spec.RequiredSize);
                     var arcOffset = 0f;
-                    var weaponId = FixedString64Bytes.Empty;
+                    FixedString64Bytes weaponId = default;
                     var limb = _limbProfileLookup.HasComponent(module) ? _limbProfileLookup[module] : default;
                     var cooling = math.clamp(limb.Cooling, 0f, 1f);
                     var sensors = math.clamp(limb.Sensors, 0f, 1f);

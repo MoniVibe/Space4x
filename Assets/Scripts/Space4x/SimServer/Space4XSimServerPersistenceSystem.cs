@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Spatial;
@@ -1379,7 +1380,7 @@ namespace Space4X.SimServer
 
             var faction = new Space4XFaction
             {
-                Type = (FactionType)data.type,
+                Type = (Space4X.Registry.FactionType)data.type,
                 Outlook = (FactionOutlook)data.outlook,
                 FactionId = data.factionId,
                 Aggression = (half)data.aggression,

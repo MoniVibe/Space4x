@@ -111,7 +111,8 @@ namespace Space4X.SimServer
             }
 
             var baseline = entityManager.GetComponentData<Space4XFactionDirectiveBaseline>(entity);
-            ApplyResolvedWeights(entityManager, entity, ref faction.ValueRW, baseline, tick, new FixedString64Bytes("default"), 0f, 0);
+            var resolved = new DirectiveWeights(baseline);
+            ApplyResolvedWeights(entityManager, entity, ref faction.ValueRW, resolved, tick, new FixedString64Bytes("default"), 0f, 0);
         }
 
         private static void ResolveOrders(
@@ -155,7 +156,7 @@ namespace Space4X.SimServer
                 }
             }
 
-            using var processed = new NativeArray<byte>(orders.Length, Allocator.Temp);
+            var processed = new NativeArray<byte>(orders.Length, Allocator.Temp);
             for (int applied = 0; applied < orders.Length; applied++)
             {
                 var selectedIndex = -1;
@@ -188,6 +189,7 @@ namespace Space4X.SimServer
             }
 
             ApplyResolvedWeights(entityManager, entity, ref faction.ValueRW, resolved, tick, topId, topPriority, topExpiry);
+            processed.Dispose();
         }
 
         private static void ApplyOrder(ref DirectiveWeights resolved, in Space4XFactionOrder order, float weight)
