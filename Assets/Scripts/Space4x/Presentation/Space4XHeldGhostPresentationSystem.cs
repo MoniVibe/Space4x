@@ -1,6 +1,6 @@
 using PureDOTS.Rendering;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
-using PureDOTS.Runtime.Hand;
 using PureDOTS.Runtime.Interaction;
 using Unity.Burst;
 using Unity.Collections;
