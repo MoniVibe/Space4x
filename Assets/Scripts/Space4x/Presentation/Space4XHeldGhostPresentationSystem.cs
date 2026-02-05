@@ -62,7 +62,7 @@ namespace Space4X.Presentation
                     ApplyGhost(ref ecb, entity, ref tint.ValueRW);
                 }
 
-                foreach (var (tint, entity) in SystemAPI.Query<RefRW<RenderTint>, RefRO<HeldByPlayer>>()
+                foreach (var (tint, _, entity) in SystemAPI.Query<RefRW<RenderTint>, RefRO<HeldByPlayer>>()
                              .WithEntityAccess())
                 {
                     if (!_heldByPlayerLookup.IsComponentEnabled(entity))
