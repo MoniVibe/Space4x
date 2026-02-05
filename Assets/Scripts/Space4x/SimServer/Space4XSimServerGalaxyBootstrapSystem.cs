@@ -8,7 +8,7 @@ using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.WorldGen;
 using Space4X.Orbitals;
 using Space4X.Registry;
-using SimIndividualStats = PureDOTS.Runtime.Individual.IndividualStats;
+using Space4XIndividualStats = Space4X.Registry.IndividualStats;
 using Space4XResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
 using Space4XResourceSourceState = Space4X.Registry.ResourceSourceState;
 using Space4XResourceTypeId = Space4X.Registry.ResourceTypeId;
@@ -615,7 +615,7 @@ namespace Space4X.SimServer
             var leader = entityManager.CreateEntity(typeof(SimIndividualTag), typeof(Space4XSimServerTag));
             entityManager.AddComponentData(leader, new IndividualId { Value = (int)(faction.FactionId * 1000 + 1) });
             entityManager.AddComponentData(leader, new IndividualName { Name = new FixedString64Bytes($"Leader-{faction.FactionId:00}") });
-            entityManager.AddComponentData(leader, new SimIndividualStats
+            entityManager.AddComponentData(leader, new Space4XIndividualStats
             {
                 Command = (half)math.clamp(rng.NextFloat(55f, 80f), 0f, 100f),
                 Tactics = (half)math.clamp(rng.NextFloat(50f, 75f), 0f, 100f),
