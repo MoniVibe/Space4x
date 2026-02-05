@@ -215,7 +215,7 @@ namespace Space4X.SimServer
             anomalySeeds.Dispose();
 
             MarkBootstrapped(ref state);
-            Debug.Log($"[Space4XSimServer] Galaxy initialized: factions={config.FactionCount} systemsPerFaction={config.SystemsPerFaction} resourcesPerSystem={config.ResourcesPerSystem}.");
+            UnityEngine.Debug.Log($"[Space4XSimServer] Galaxy initialized: factions={config.FactionCount} systemsPerFaction={config.SystemsPerFaction} resourcesPerSystem={config.ResourcesPerSystem}.");
         }
 
         private static void MarkBootstrapped(ref SystemState state)
