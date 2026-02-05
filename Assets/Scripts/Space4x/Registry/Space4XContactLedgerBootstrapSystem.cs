@@ -36,7 +36,7 @@ namespace Space4X.Registry
             ecb.Dispose();
         }
 
-        private static void EnsureConfig(ref SystemState state)
+        private void EnsureConfig(ref SystemState state)
         {
             if (SystemAPI.TryGetSingletonEntity<Space4XContactTierConfig>(out _))
             {

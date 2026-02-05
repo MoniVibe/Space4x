@@ -683,6 +683,11 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XFocusModifiers> _focusLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
+        private BufferLookup<ModuleLimbState> _limbStateLookup;
+        private BufferLookup<ModuleLimbDamageEvent> _limbDamageLookup;
+        private ComponentLookup<ModuleTarget> _moduleTargetLookup;
+        private BufferLookup<PDCarrierModuleSlot> _moduleSlotLookup;
+        private ComponentLookup<PDShipModule> _moduleLookup;
         private const float SubsystemDamageFraction = 0.25f;
         private const float AntiSubsystemDamageMultiplier = 1.5f;
         private const float CriticalSubsystemDamageMultiplier = 1.25f;
@@ -714,6 +719,11 @@ namespace Space4X.Registry
             _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _limbStateLookup = state.GetBufferLookup<ModuleLimbState>(true);
+            _limbDamageLookup = state.GetBufferLookup<ModuleLimbDamageEvent>(false);
+            _moduleTargetLookup = state.GetComponentLookup<ModuleTarget>(true);
+            _moduleSlotLookup = state.GetBufferLookup<PDCarrierModuleSlot>(true);
+            _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
         }
 
         [BurstCompile]
@@ -759,6 +769,13 @@ namespace Space4X.Registry
             _focusLookup.Update(ref state);
             _pilotLookup.Update(ref state);
             _strikePilotLookup.Update(ref state);
+            _limbStateLookup.Update(ref state);
+            _limbDamageLookup.Update(ref state);
+            _moduleTargetLookup.Update(ref state);
+            _moduleSlotLookup.Update(ref state);
+            _moduleLookup.Update(ref state);
+
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (weapons, engagement, transform, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>>()
@@ -899,6 +916,9 @@ namespace Space4X.Registry
                     engagement.ValueRW.DamageDealt += rawDamage;
                 }
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private void ApplyDamageToTarget(

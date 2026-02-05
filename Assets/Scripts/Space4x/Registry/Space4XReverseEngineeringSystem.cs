@@ -138,15 +138,25 @@ namespace Space4X.Registry
                 }
 
                 var evidenceBuffer = _evidenceLookup[factionEntity];
-                var blueprintId = ResolveEvidenceBlueprintId(derelict, isArtifact, seed);
-                var existingCount = CountEvidenceForBlueprint(evidenceBuffer, blueprintId);
-                var maxToAdd = math.max(0, config.MaxEvidencePerBlueprint - existingCount);
-                var toAdd = math.min(totalEvidence, maxToAdd);
+                var maxPerBlueprint = math.max(0, config.MaxEvidencePerBlueprint);
+                if (maxPerBlueprint <= 0)
+                {
+                    derelict.EvidenceExtracted = 1;
+                    entityManager.SetComponentData(target, derelict);
+                    continue;
+                }
 
-                for (int i = 0; i < toAdd; i++)
+                for (int i = 0; i < totalEvidence; i++)
                 {
                     var isArtifact = i < yield.Artifacts;
                     var seed = BuildEvidenceSeed(derelict, factionId, currentTick, (uint)i);
+                    var blueprintId = ResolveEvidenceBlueprintId(derelict, isArtifact, seed);
+                    var existingCount = CountEvidenceForBlueprint(evidenceBuffer, blueprintId);
+                    if (existingCount >= maxPerBlueprint)
+                    {
+                        continue;
+                    }
+
                     var evidence = BuildEvidence(derelict, blueprintId, isArtifact, seed, currentTick);
                     evidenceBuffer.Add(evidence);
                 }
