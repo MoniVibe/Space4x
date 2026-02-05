@@ -107,12 +107,14 @@ namespace Space4X.Systems.Economy
                 var tech = _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
                 var preferCarrier = ResolveShipClassTier(tech) >= 2;
                 var consumedHull = HullItemIdLight;
+                var hullQuality = 1f;
+                var hullDurability = 1f;
 
-                if (preferCarrier && TryConsumeHull(ref items, HullItemIdCarrier))
+                if (preferCarrier && TryConsumeHull(ref items, HullItemIdCarrier, out hullQuality, out hullDurability))
                 {
                     consumedHull = HullItemIdCarrier;
                 }
-                else if (!TryConsumeHull(ref items, HullItemIdLight))
+                else if (!TryConsumeHull(ref items, HullItemIdLight, out hullQuality, out hullDurability))
                 {
                     continue;
                 }
@@ -131,12 +133,17 @@ namespace Space4X.Systems.Economy
 
                 var carrierId = BuildCarrierId(facility.Index, tickTime.Tick);
                 var isCarrierHull = consumedHull.Equals(HullItemIdCarrier);
-                var baseSpeed = isCarrierHull ? 4.2f : 5f;
-                var baseAcceleration = isCarrierHull ? 0.35f : 0.5f;
-                var baseDeceleration = isCarrierHull ? 0.45f : 0.6f;
-                var baseTurn = isCarrierHull ? 0.25f : 0.35f;
-                var baseSlowdown = isCarrierHull ? 28f : 20f;
-                var baseArrival = isCarrierHull ? 4f : 3f;
+                var qualityFactor = math.lerp(0.85f, 1.15f, math.saturate(hullQuality));
+                var durabilityFactor = math.lerp(0.9f, 1.1f, math.saturate(hullDurability));
+                var speedFactor = qualityFactor;
+                var handlingFactor = math.lerp(0.9f, 1.1f, math.saturate(hullQuality));
+
+                var baseSpeed = (isCarrierHull ? 4.2f : 5f) * speedFactor;
+                var baseAcceleration = (isCarrierHull ? 0.35f : 0.5f) * speedFactor;
+                var baseDeceleration = (isCarrierHull ? 0.45f : 0.6f) * speedFactor;
+                var baseTurn = (isCarrierHull ? 0.25f : 0.35f) * handlingFactor;
+                var baseSlowdown = (isCarrierHull ? 28f : 20f) * handlingFactor;
+                var baseArrival = (isCarrierHull ? 4f : 3f) * handlingFactor;
                 ecb.AddComponent(ship, new Carrier
                 {
                     CarrierId = carrierId,
@@ -211,7 +218,13 @@ namespace Space4X.Systems.Economy
                 ecb.AddBuffer<ResourceStorage>(ship);
 
                 ecb.AddComponent(ship, new CarrierHullId { HullId = consumedHull });
-                ecb.AddComponent(ship, isCarrierHull ? HullIntegrity.HeavyCarrier : HullIntegrity.LightCarrier);
+                var hullIntegrity = isCarrierHull ? HullIntegrity.HeavyCarrier : HullIntegrity.LightCarrier;
+                var hullFactor = math.clamp(qualityFactor * durabilityFactor, 0.75f, 1.35f);
+                hullIntegrity.BaseMax *= hullFactor;
+                hullIntegrity.Max = hullIntegrity.BaseMax;
+                hullIntegrity.Current = hullIntegrity.BaseMax;
+                hullIntegrity.ArmorRating = (half)math.clamp((float)hullIntegrity.ArmorRating * math.lerp(0.9f, 1.1f, math.saturate(hullQuality)), 0f, 0.9f);
+                ecb.AddComponent(ship, hullIntegrity);
                 ecb.AddComponent(ship, isCarrierHull ? CrewCapacity.HeavyCarrier : CrewCapacity.LightCarrier);
 
                 ecb.AddComponent(ship, new CaptainOrder
@@ -256,8 +269,11 @@ namespace Space4X.Systems.Economy
             ecb.Dispose();
         }
 
-        private static bool TryConsumeHull(ref DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId)
+        private static bool TryConsumeHull(ref DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId, out float quality, out float durability)
         {
+            quality = 1f;
+            durability = 1f;
+
             for (int i = 0; i < items.Length; i++)
             {
                 if (!items[i].ItemId.Equals(itemId))
@@ -270,6 +286,9 @@ namespace Space4X.Systems.Economy
                 {
                     continue;
                 }
+
+                quality = math.saturate(item.Quality);
+                durability = math.saturate(item.Durability);
 
                 item.Quantity -= 1f;
                 if (item.Quantity <= 0f)

@@ -138,7 +138,7 @@ namespace Space4X.Registry
                 }
 
                 var evidenceBuffer = _evidenceLookup[factionEntity];
-                var blueprintId = (ushort)math.max(1, derelict.OriginalClass);
+                var blueprintId = ResolveEvidenceBlueprintId(derelict, isArtifact, seed);
                 var existingCount = CountEvidenceForBlueprint(evidenceBuffer, blueprintId);
                 var maxToAdd = math.max(0, config.MaxEvidencePerBlueprint - existingCount);
                 var toAdd = math.min(totalEvidence, maxToAdd);
@@ -231,6 +231,35 @@ namespace Space4X.Registry
                 EvidenceSeed = seed,
                 SourceTick = tick
             };
+        }
+
+        private static ushort ResolveEvidenceBlueprintId(in DerelictState derelict, bool isArtifact, uint seed)
+        {
+            var random = new Unity.Mathematics.Random(seed ^ 0x9e3779b9u);
+            var roll = random.NextFloat();
+
+            if (isArtifact)
+            {
+                if (roll < 0.3f) return ReverseEngineeringBlueprintFamily.Weapon;
+                if (roll < 0.5f) return ReverseEngineeringBlueprintFamily.Shield;
+                if (roll < 0.65f) return ReverseEngineeringBlueprintFamily.Engine;
+                if (roll < 0.8f) return ReverseEngineeringBlueprintFamily.Reactor;
+                if (roll < 0.9f) return ReverseEngineeringBlueprintFamily.Command;
+                return ReverseEngineeringBlueprintFamily.Hull;
+            }
+
+            if (derelict.Condition <= DerelictCondition.Damaged && roll < 0.2f)
+            {
+                return ReverseEngineeringBlueprintFamily.Reactor;
+            }
+
+            if (roll < 0.25f) return ReverseEngineeringBlueprintFamily.Hull;
+            if (roll < 0.45f) return ReverseEngineeringBlueprintFamily.Engine;
+            if (roll < 0.6f) return ReverseEngineeringBlueprintFamily.Shield;
+            if (roll < 0.75f) return ReverseEngineeringBlueprintFamily.Weapon;
+            if (roll < 0.85f) return ReverseEngineeringBlueprintFamily.Armor;
+            if (roll < 0.92f) return ReverseEngineeringBlueprintFamily.Command;
+            return ReverseEngineeringBlueprintFamily.Ammo;
         }
 
         private static int ResolveBaseFidelity(DerelictCondition condition, bool isArtifact)

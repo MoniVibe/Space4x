@@ -4,6 +4,18 @@ using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
+    public static class ReverseEngineeringBlueprintFamily
+    {
+        public const ushort Hull = 1;
+        public const ushort Engine = 2;
+        public const ushort Shield = 3;
+        public const ushort Weapon = 4;
+        public const ushort Command = 5;
+        public const ushort Armor = 6;
+        public const ushort Ammo = 7;
+        public const ushort Reactor = 8;
+    }
+
     public enum ReverseEngineeringTaskType : byte
     {
         ForensicScan = 0,
