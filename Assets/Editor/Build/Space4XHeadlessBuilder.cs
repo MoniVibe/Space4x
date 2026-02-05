@@ -293,11 +293,6 @@ namespace Space4X.Headless.Editor
                 return;
             }
 
-            if (World.DefaultGameObjectInjectionWorld == null)
-            {
-                DefaultWorldInitialization.Initialize("HeadlessPreflight", false);
-            }
-
             var rootsType = Type.GetType("Unity.Entities.UnityObjectRefUtility, Unity.Entities");
             if (rootsType != null)
             {
@@ -317,6 +312,11 @@ namespace Space4X.Headless.Editor
                         }
                     }
                 }
+            }
+
+            if (World.DefaultGameObjectInjectionWorld == null)
+            {
+                return;
             }
 
             var field = typeof(Unity.Rendering.EntitiesGraphicsSystem)
