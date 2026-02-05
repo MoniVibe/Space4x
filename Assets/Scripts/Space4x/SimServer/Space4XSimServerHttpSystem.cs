@@ -2,6 +2,8 @@ using System;
 using System.Globalization;
 using System.Text;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Authority;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -144,6 +146,10 @@ namespace Space4X.SimServer
                     LastUpdatedTick = tick,
                     DirectiveId = new FixedString64Bytes(directiveId ?? string.Empty)
                 });
+
+                var leader = ResolveLeader(entityManager, entity);
+                ApplyDirectiveProfile(entityManager, leader != Entity.Null ? leader : entity,
+                    security, economy, research, expansion, diplomacy, aggression, risk, food);
             }
         }
 
@@ -175,6 +181,56 @@ namespace Space4X.SimServer
         private static float ResolveWeight(float candidate, float fallback)
         {
             return candidate >= 0f ? math.saturate(candidate) : math.saturate(fallback);
+        }
+
+        private static void ApplyDirectiveProfile(
+            EntityManager entityManager,
+            Entity entity,
+            float security,
+            float economy,
+            float research,
+            float expansion,
+            float diplomacy,
+            float aggression,
+            float risk,
+            float food)
+        {
+            var target = Space4XSimServerProfileUtility.BuildLeaderDisposition(
+                security,
+                economy,
+                research,
+                expansion,
+                diplomacy,
+                aggression,
+                risk,
+                food);
+
+            if (entityManager.HasComponent<BehaviorDisposition>(entity))
+            {
+                var current = entityManager.GetComponentData<BehaviorDisposition>(entity);
+                var blended = Space4XSimServerProfileUtility.LerpDisposition(current, target, 0.35f);
+                entityManager.SetComponentData(entity, blended);
+                return;
+            }
+
+            entityManager.AddComponentData(entity, target);
+        }
+
+        private static Entity ResolveLeader(EntityManager entityManager, Entity factionEntity)
+        {
+            if (!entityManager.HasComponent<AuthorityBody>(factionEntity))
+            {
+                return Entity.Null;
+            }
+
+            var body = entityManager.GetComponentData<AuthorityBody>(factionEntity);
+            if (body.ExecutiveSeat == Entity.Null || !entityManager.HasComponent<AuthoritySeatOccupant>(body.ExecutiveSeat))
+            {
+                return Entity.Null;
+            }
+
+            var occupant = entityManager.GetComponentData<AuthoritySeatOccupant>(body.ExecutiveSeat).OccupantEntity;
+            return entityManager.Exists(occupant) ? occupant : Entity.Null;
         }
 
         private void UpdateStatusIfNeeded(ref SystemState state)

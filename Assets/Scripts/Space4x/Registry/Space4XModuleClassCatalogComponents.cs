@@ -31,6 +31,9 @@ namespace Space4X.Registry
         public float ArcDegrees;
         public float KineticResist;
         public float EnergyResist;
+        public float ThermalResist;
+        public float EMResist;
+        public float RadiationResist;
         public float ExplosiveResist;
     }
 
@@ -51,6 +54,9 @@ namespace Space4X.Registry
         public float DamageReduction;
         public float KineticResist;
         public float EnergyResist;
+        public float ThermalResist;
+        public float EMResist;
+        public float RadiationResist;
         public float ExplosiveResist;
         public float RepairRateMultiplier;
     }

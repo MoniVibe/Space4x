@@ -21,6 +21,9 @@ namespace Space4X.Authoring
             [Range(0f, 1f)] public float damageReduction;
             [Range(0f, 1f)] public float kineticResist;
             [Range(0f, 1f)] public float energyResist;
+            [Range(0f, 1f)] public float thermalResist = 1f;
+            [Range(0f, 1f)] public float emResist = 1f;
+            [Range(0f, 1f)] public float radiationResist = 1f;
             [Range(0f, 1f)] public float explosiveResist;
             [Min(0f)] public float repairRateMultiplier = 1f;
         }
@@ -51,6 +54,9 @@ namespace Space4X.Authoring
                         DamageReduction = math.saturate(data.damageReduction),
                         KineticResist = math.saturate(data.kineticResist),
                         EnergyResist = math.saturate(data.energyResist),
+                        ThermalResist = math.saturate(data.thermalResist),
+                        EMResist = math.saturate(data.emResist),
+                        RadiationResist = math.saturate(data.radiationResist),
                         ExplosiveResist = math.saturate(data.explosiveResist),
                         RepairRateMultiplier = math.max(0f, data.repairRateMultiplier)
                     };

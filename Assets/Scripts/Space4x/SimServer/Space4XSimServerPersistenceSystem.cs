@@ -6,6 +6,9 @@ using System.IO;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Spatial;
+using PureDOTS.Runtime.Authority;
+using PureDOTS.Runtime.Individual;
+using PureDOTS.Runtime.Profile;
 using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
@@ -364,6 +367,8 @@ namespace Space4X.SimServer
                     data.directive = DirectiveData.From(entityManager.GetComponentData<Space4XFactionDirective>(entity));
                 }
 
+                data.leader = CaptureLeader(entityManager, entity);
+
                 if (entityManager.HasBuffer<FactionRelationEntry>(entity))
                 {
                     var buffer = entityManager.GetBuffer<FactionRelationEntry>(entity);
@@ -542,6 +547,107 @@ namespace Space4X.SimServer
             }
 
             return fallback;
+        }
+
+        private static LeaderData CaptureLeader(EntityManager entityManager, Entity factionEntity)
+        {
+            if (!entityManager.HasComponent<AuthorityBody>(factionEntity))
+            {
+                return null;
+            }
+
+            var body = entityManager.GetComponentData<AuthorityBody>(factionEntity);
+            if (body.ExecutiveSeat == Entity.Null || !entityManager.HasComponent<AuthoritySeatOccupant>(body.ExecutiveSeat))
+            {
+                return null;
+            }
+
+            var occupant = entityManager.GetComponentData<AuthoritySeatOccupant>(body.ExecutiveSeat).OccupantEntity;
+            if (occupant == Entity.Null || !entityManager.Exists(occupant))
+            {
+                return null;
+            }
+
+            var data = new LeaderData();
+
+            if (entityManager.HasComponent<IndividualId>(occupant))
+            {
+                data.id = entityManager.GetComponentData<IndividualId>(occupant).Value;
+            }
+            else
+            {
+                data.id = occupant.Index;
+            }
+
+            if (entityManager.HasComponent<IndividualName>(occupant))
+            {
+                data.name = entityManager.GetComponentData<IndividualName>(occupant).Name.ToString();
+            }
+
+            if (entityManager.HasComponent<AlignmentTriplet>(occupant))
+            {
+                var alignment = entityManager.GetComponentData<AlignmentTriplet>(occupant);
+                data.hasAlignment = 1;
+                data.law = (float)alignment.Law;
+                data.good = (float)alignment.Good;
+                data.integrity = (float)alignment.Integrity;
+            }
+
+            if (entityManager.HasComponent<BehaviorDisposition>(occupant))
+            {
+                var disposition = entityManager.GetComponentData<BehaviorDisposition>(occupant);
+                data.hasBehavior = 1;
+                data.compliance = disposition.Compliance;
+                data.caution = disposition.Caution;
+                data.formationAdherence = disposition.FormationAdherence;
+                data.riskTolerance = disposition.RiskTolerance;
+                data.aggression = disposition.Aggression;
+                data.patience = disposition.Patience;
+            }
+
+            if (entityManager.HasComponent<IndividualStats>(occupant))
+            {
+                var stats = entityManager.GetComponentData<IndividualStats>(occupant);
+                data.hasStats = 1;
+                data.command = (float)stats.Command;
+                data.tactics = (float)stats.Tactics;
+                data.logistics = (float)stats.Logistics;
+                data.diplomacy = (float)stats.Diplomacy;
+                data.engineering = (float)stats.Engineering;
+                data.resolve = (float)stats.Resolve;
+            }
+
+            if (entityManager.HasComponent<PhysiqueFinesseWill>(occupant))
+            {
+                var physique = entityManager.GetComponentData<PhysiqueFinesseWill>(occupant);
+                data.hasPhysique = 1;
+                data.physique = (float)physique.Physique;
+                data.finesse = (float)physique.Finesse;
+                data.will = (float)physique.Will;
+                data.physiqueInclination = physique.PhysiqueInclination;
+                data.finesseInclination = physique.FinesseInclination;
+                data.willInclination = physique.WillInclination;
+                data.generalXp = physique.GeneralXP;
+            }
+
+            if (entityManager.HasComponent<PersonalityAxes>(occupant))
+            {
+                var personality = entityManager.GetComponentData<PersonalityAxes>(occupant);
+                data.hasPersonality = 1;
+                data.boldness = personality.Boldness;
+                data.vengefulness = personality.Vengefulness;
+                data.personalityRisk = personality.RiskTolerance;
+                data.selflessness = personality.Selflessness;
+                data.conviction = personality.Conviction;
+            }
+
+            if (entityManager.HasComponent<PreordainProfile>(occupant))
+            {
+                data.hasPreordain = 1;
+                data.preordainTrack = (byte)entityManager.GetComponentData<PreordainProfile>(occupant).Track;
+            }
+
+            return data;
         }
         private static bool ApplyLoadData(ref SystemState state, SimSaveData data)
         {
@@ -848,7 +954,178 @@ namespace Space4X.SimServer
                 entityManager.AddBuffer<FactionRelationEntry>(entity);
             }
 
+            EnsureFactionLeadership(entityManager, entity, data, faction);
+
             return entity;
+        }
+
+        private static void EnsureFactionLeadership(EntityManager entityManager, Entity factionEntity, FactionData data, in Space4XFaction faction)
+        {
+            if (entityManager.HasComponent<AuthorityBody>(factionEntity))
+            {
+                return;
+            }
+
+            var directive = entityManager.GetComponentData<Space4XFactionDirective>(factionEntity);
+            var seats = entityManager.AddBuffer<AuthoritySeatRef>(factionEntity);
+
+            var leaderSeat = entityManager.CreateEntity(
+                typeof(AuthoritySeat),
+                typeof(AuthoritySeatOccupant),
+                typeof(Space4XSimServerTag));
+
+            var roleId = new FixedString64Bytes("faction.leader");
+            entityManager.SetComponentData(leaderSeat, AuthoritySeatDefaults.CreateExecutive(factionEntity, roleId, AgencyDomain.Governance));
+            entityManager.SetComponentData(leaderSeat, AuthoritySeatDefaults.Vacant(0u));
+
+            var leader = entityManager.CreateEntity(typeof(SimIndividualTag), typeof(Space4XSimServerTag));
+            ApplyLeaderSnapshot(entityManager, leader, data?.leader, faction, directive);
+
+            var affiliations = entityManager.AddBuffer<AffiliationTag>(leader);
+            affiliations.Add(new AffiliationTag
+            {
+                Type = AffiliationType.Faction,
+                Target = factionEntity,
+                Loyalty = (half)1f
+            });
+
+            entityManager.SetComponentData(leaderSeat, new AuthoritySeatOccupant
+            {
+                OccupantEntity = leader,
+                AssignedTick = 0,
+                LastChangedTick = 0,
+                IsActing = 0
+            });
+
+            entityManager.AddComponentData(factionEntity, new AuthorityBody
+            {
+                Mode = AuthorityBodyMode.SingleExecutive,
+                ExecutiveSeat = leaderSeat,
+                CreatedTick = 0
+            });
+
+            seats.Add(new AuthoritySeatRef { SeatEntity = leaderSeat });
+        }
+
+        private static void ApplyLeaderSnapshot(
+            EntityManager entityManager,
+            Entity leader,
+            LeaderData data,
+            in Space4XFaction faction,
+            in Space4XFactionDirective directive)
+        {
+            var leaderId = data != null && data.id != 0 ? data.id : faction.FactionId * 1000 + 1;
+            entityManager.AddComponentData(leader, new IndividualId { Value = leaderId });
+
+            var name = data?.name;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                name = $"Leader-{faction.FactionId:00}";
+            }
+            entityManager.AddComponentData(leader, new IndividualName { Name = new FixedString64Bytes(name) });
+
+            if (data != null && data.hasAlignment != 0)
+            {
+                entityManager.AddComponentData(leader, AlignmentTriplet.FromFloats(data.law, data.good, data.integrity));
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, AlignmentTriplet.FromFloats(0f, 0f, 0f));
+            }
+
+            if (data != null && data.hasStats != 0)
+            {
+                entityManager.AddComponentData(leader, new IndividualStats
+                {
+                    Command = (half)math.clamp(data.command, 0f, 100f),
+                    Tactics = (half)math.clamp(data.tactics, 0f, 100f),
+                    Logistics = (half)math.clamp(data.logistics, 0f, 100f),
+                    Diplomacy = (half)math.clamp(data.diplomacy, 0f, 100f),
+                    Engineering = (half)math.clamp(data.engineering, 0f, 100f),
+                    Resolve = (half)math.clamp(data.resolve, 0f, 100f)
+                });
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, new IndividualStats
+                {
+                    Command = (half)65f,
+                    Tactics = (half)60f,
+                    Logistics = (half)60f,
+                    Diplomacy = (half)55f,
+                    Engineering = (half)50f,
+                    Resolve = (half)60f
+                });
+            }
+
+            if (data != null && data.hasPhysique != 0)
+            {
+                entityManager.AddComponentData(leader, new PhysiqueFinesseWill
+                {
+                    Physique = (half)math.clamp(data.physique, 0f, 100f),
+                    Finesse = (half)math.clamp(data.finesse, 0f, 100f),
+                    Will = (half)math.clamp(data.will, 0f, 100f),
+                    PhysiqueInclination = data.physiqueInclination,
+                    FinesseInclination = data.finesseInclination,
+                    WillInclination = data.willInclination,
+                    GeneralXP = data.generalXp
+                });
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, new PhysiqueFinesseWill
+                {
+                    Physique = (half)50f,
+                    Finesse = (half)50f,
+                    Will = (half)50f,
+                    PhysiqueInclination = 5,
+                    FinesseInclination = 5,
+                    WillInclination = 5,
+                    GeneralXP = 0f
+                });
+            }
+
+            if (data != null && data.hasPersonality != 0)
+            {
+                entityManager.AddComponentData(leader, PersonalityAxes.FromValues(
+                    data.boldness,
+                    data.vengefulness,
+                    data.personalityRisk,
+                    data.selflessness,
+                    data.conviction));
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, PersonalityAxes.FromValues(0f, 0f, 0f, 0f, 0f));
+            }
+
+            if (data != null && data.hasPreordain != 0)
+            {
+                entityManager.AddComponentData(leader, new PreordainProfile
+                {
+                    Track = (PreordainTrack)data.preordainTrack
+                });
+            }
+
+            var disposition = data != null && data.hasBehavior != 0
+                ? BehaviorDisposition.FromValues(
+                    data.compliance,
+                    data.caution,
+                    data.formationAdherence,
+                    data.riskTolerance,
+                    data.aggression,
+                    data.patience)
+                : Space4XSimServerProfileUtility.BuildLeaderDisposition(
+                    directive.Security,
+                    directive.Economy,
+                    directive.Research,
+                    directive.Expansion,
+                    directive.Diplomacy,
+                    math.saturate((float)faction.Aggression),
+                    math.saturate((float)faction.RiskTolerance),
+                    directive.Food);
+
+            entityManager.AddComponentData(leader, disposition);
         }
 
         private static Entity ResolveFactionEntity(Dictionary<ushort, Entity> map, ushort id, Entity fallback)
@@ -1101,7 +1378,49 @@ namespace Space4X.SimServer
             public TechLevelData tech;
             public TechDiffusionData diffusion;
             public DirectiveData directive;
+            public LeaderData leader;
             public RelationData[] relations;
+        }
+
+        [Serializable]
+        private sealed class LeaderData
+        {
+            public int id;
+            public string name;
+            public byte hasAlignment;
+            public float law;
+            public float good;
+            public float integrity;
+            public byte hasBehavior;
+            public float compliance;
+            public float caution;
+            public float formationAdherence;
+            public float riskTolerance;
+            public float aggression;
+            public float patience;
+            public byte hasStats;
+            public float command;
+            public float tactics;
+            public float logistics;
+            public float diplomacy;
+            public float engineering;
+            public float resolve;
+            public byte hasPhysique;
+            public float physique;
+            public float finesse;
+            public float will;
+            public byte physiqueInclination;
+            public byte finesseInclination;
+            public byte willInclination;
+            public float generalXp;
+            public byte hasPersonality;
+            public float boldness;
+            public float vengefulness;
+            public float personalityRisk;
+            public float selflessness;
+            public float conviction;
+            public byte hasPreordain;
+            public byte preordainTrack;
         }
 
         [Serializable]

@@ -23,7 +23,8 @@ namespace Space4X.Systems.Economy
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     public partial struct Space4XShipyardAssemblySystem : ISystem
     {
-        private static readonly FixedString64Bytes HullItemId = "lcv-sparrow";
+        private static readonly FixedString64Bytes HullItemIdLight = "lcv-sparrow";
+        private static readonly FixedString64Bytes HullItemIdCarrier = "cv-mule";
         private const int MaxSpawnPerTick = 1;
 
         private ComponentLookup<BusinessInventory> _inventoryLookup;
@@ -101,7 +102,17 @@ namespace Space4X.Systems.Economy
                 }
 
                 var items = _itemsLookup[inventoryEntity];
-                if (!TryConsumeHull(ref items, HullItemId))
+
+                var colony = link.ValueRO.Colony;
+                var tech = _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
+                var preferCarrier = ResolveShipClassTier(tech) >= 2;
+                var consumedHull = HullItemIdLight;
+
+                if (preferCarrier && TryConsumeHull(ref items, HullItemIdCarrier))
+                {
+                    consumedHull = HullItemIdCarrier;
+                }
+                else if (!TryConsumeHull(ref items, HullItemIdLight))
                 {
                     continue;
                 }
@@ -110,8 +121,6 @@ namespace Space4X.Systems.Economy
                     ? _transformLookup[facility].Position
                     : float3.zero;
 
-                var colony = link.ValueRO.Colony;
-                var tech = _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
                 var warpPrecision = WarpPrecision.FromTier(ResolveWarpTier(tech));
 
                 var ship = ecb.CreateEntity();
@@ -121,18 +130,25 @@ namespace Space4X.Systems.Economy
                 ecb.AddComponent(ship, MediumContext.Vacuum);
 
                 var carrierId = BuildCarrierId(facility.Index, tickTime.Tick);
+                var isCarrierHull = consumedHull.Equals(HullItemIdCarrier);
+                var baseSpeed = isCarrierHull ? 4.2f : 5f;
+                var baseAcceleration = isCarrierHull ? 0.35f : 0.5f;
+                var baseDeceleration = isCarrierHull ? 0.45f : 0.6f;
+                var baseTurn = isCarrierHull ? 0.25f : 0.35f;
+                var baseSlowdown = isCarrierHull ? 28f : 20f;
+                var baseArrival = isCarrierHull ? 4f : 3f;
                 ecb.AddComponent(ship, new Carrier
                 {
                     CarrierId = carrierId,
                     AffiliationEntity = Entity.Null,
-                    Speed = 5f,
-                    Acceleration = 0.5f,
-                    Deceleration = 0.6f,
-                    TurnSpeed = 0.35f,
-                    SlowdownDistance = 20f,
-                    ArrivalDistance = 3f,
+                    Speed = baseSpeed,
+                    Acceleration = baseAcceleration,
+                    Deceleration = baseDeceleration,
+                    TurnSpeed = baseTurn,
+                    SlowdownDistance = baseSlowdown,
+                    ArrivalDistance = baseArrival,
                     PatrolCenter = facilityPos,
-                    PatrolRadius = 45f
+                    PatrolRadius = isCarrierHull ? 60f : 45f
                 });
 
                 ecb.AddComponent(ship, new MovementCommand
@@ -144,13 +160,13 @@ namespace Space4X.Systems.Economy
                 ecb.AddComponent(ship, new VesselMovement
                 {
                     Velocity = float3.zero,
-                    BaseSpeed = 5f,
+                    BaseSpeed = baseSpeed,
                     CurrentSpeed = 0f,
-                    Acceleration = 0.5f,
-                    Deceleration = 0.6f,
-                    TurnSpeed = 0.35f,
-                    SlowdownDistance = 20f,
-                    ArrivalDistance = 3f,
+                    Acceleration = baseAcceleration,
+                    Deceleration = baseDeceleration,
+                    TurnSpeed = baseTurn,
+                    SlowdownDistance = baseSlowdown,
+                    ArrivalDistance = baseArrival,
                     DesiredRotation = quaternion.identity,
                     IsMoving = 0,
                     LastMoveTick = 0,
@@ -182,20 +198,21 @@ namespace Space4X.Systems.Economy
 
                 ecb.AddComponent(ship, new VesselPhysicalProperties
                 {
-                    Radius = 2.4f,
-                    BaseMass = 100f,
-                    HullDensity = 1.1f,
+                    Radius = isCarrierHull ? 3.6f : 2.4f,
+                    BaseMass = isCarrierHull ? 260f : 100f,
+                    HullDensity = isCarrierHull ? 1.2f : 1.1f,
                     CargoMassPerUnit = 0.02f,
                     Restitution = 0.08f,
                     TangentialDamping = 0.25f
                 });
 
-                ecb.AddComponent(ship, DockingCapacity.LightCarrier);
+                ecb.AddComponent(ship, isCarrierHull ? DockingCapacity.HeavyCarrier : DockingCapacity.LightCarrier);
                 ecb.AddBuffer<DockedEntity>(ship);
                 ecb.AddBuffer<ResourceStorage>(ship);
 
-                ecb.AddComponent(ship, new CarrierHullId { HullId = HullItemId });
-                ecb.AddComponent(ship, HullIntegrity.LightCarrier);
+                ecb.AddComponent(ship, new CarrierHullId { HullId = consumedHull });
+                ecb.AddComponent(ship, isCarrierHull ? HullIntegrity.HeavyCarrier : HullIntegrity.LightCarrier);
+                ecb.AddComponent(ship, isCarrierHull ? CrewCapacity.HeavyCarrier : CrewCapacity.LightCarrier);
 
                 ecb.AddComponent(ship, new CaptainOrder
                 {
@@ -283,6 +300,12 @@ namespace Space4X.Systems.Economy
                 1 => WarpTechTier.Basic,
                 _ => WarpTechTier.Primitive
             };
+        }
+
+        private static int ResolveShipClassTier(in TechLevel tech)
+        {
+            return math.max((int)tech.MiningTech,
+                math.max((int)tech.CombatTech, math.max((int)tech.HaulingTech, (int)tech.ProcessingTech)));
         }
 
         private static FixedString64Bytes BuildCarrierId(int facilityIndex, uint tick)

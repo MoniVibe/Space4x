@@ -449,19 +449,8 @@ namespace Space4X.Registry
             }
 
             var omega = math.length(math.cross(relativeVelocity, directionToTarget)) / math.max(distance, 0.1f);
-            var basePenalty = weapon.Type switch
-            {
-                WeaponType.PointDefense => 0.05f,
-                WeaponType.Flak => 0.07f,
-                WeaponType.Laser => 0.08f,
-                WeaponType.Plasma => 0.09f,
-                WeaponType.Ion => 0.09f,
-                WeaponType.Kinetic => 0.1f,
-                WeaponType.Missile => 0.12f,
-                WeaponType.Torpedo => 0.15f,
-                _ => 0.1f
-            };
-
+            var tracking = math.clamp(Space4XWeapon.ResolveTracking(weapon), 0.05f, 1f);
+            var basePenalty = math.lerp(0.18f, 0.04f, tracking);
             var skillFactor = math.lerp(basePenalty * 1.4f, basePenalty * 0.6f, math.saturate(gunnerySkill));
             return math.saturate(1f - omega * skillFactor);
         }
@@ -714,6 +703,8 @@ namespace Space4X.Registry
                         continue;
                     }
 
+                    mount.ShotsFired++;
+
                     // Calculate hit
                     float hitChance = CombatMath.CalculateHitChance(
                         (float)mount.Weapon.BaseAccuracy,
@@ -747,8 +738,12 @@ namespace Space4X.Registry
 
                     if (random.NextFloat() > hitChance)
                     {
+                        weapons[i] = mount;
                         continue; // Miss
                     }
+
+                    mount.ShotsHit++;
+                    weapons[i] = mount;
 
                     // Hit - calculate damage
                     float rawDamage = mount.Weapon.BaseDamage;
@@ -808,6 +803,7 @@ namespace Space4X.Registry
             float shieldDamage = 0f;
             float armorDamage = 0f;
             float hullDamage = 0f;
+            var damageType = Space4XWeapon.ResolveDamageType(weapon.Type, weapon.DamageType);
 
             // Shield absorption
             if (SystemAPI.HasComponent<Space4XShield>(target))
@@ -816,7 +812,7 @@ namespace Space4X.Registry
 
                 if (shield.Current > 0)
                 {
-                    float resistance = CombatMath.GetWeaponResistance(weapon.Type, shield);
+                    float resistance = CombatMath.GetWeaponResistance(damageType, shield);
                     float effectiveDamage = CombatMath.CalculateShieldDamage(remainingDamage, (float)weapon.ShieldModifier, resistance);
 
                     shieldDamage = math.min(shield.Current, effectiveDamage);
@@ -833,7 +829,7 @@ namespace Space4X.Registry
             if (remainingDamage > 0 && SystemAPI.HasComponent<Space4XArmor>(target))
             {
                 var armor = SystemAPI.GetComponent<Space4XArmor>(target);
-                float resistance = CombatMath.GetArmorResistance(weapon.Type, armor);
+                float resistance = CombatMath.GetArmorResistance(damageType, armor);
 
                 float mitigatedDamage = CombatMath.CalculateArmorDamage(
                     remainingDamage,
@@ -995,18 +991,8 @@ namespace Space4X.Registry
             }
 
             var omega = math.length(math.cross(relativeVelocity, directionToTarget)) / math.max(distance, 0.1f);
-            var basePenalty = weapon.Type switch
-            {
-                WeaponType.PointDefense => 0.05f,
-                WeaponType.Flak => 0.07f,
-                WeaponType.Laser => 0.08f,
-                WeaponType.Plasma => 0.09f,
-                WeaponType.Ion => 0.09f,
-                WeaponType.Kinetic => 0.1f,
-                WeaponType.Missile => 0.12f,
-                WeaponType.Torpedo => 0.15f,
-                _ => 0.1f
-            };
+            var tracking = math.clamp(Space4XWeapon.ResolveTracking(weapon), 0.05f, 1f);
+            var basePenalty = math.lerp(0.18f, 0.04f, tracking);
 
             var minScale = math.max(0f, tuning.TrackingPenaltyMinScale);
             var maxScale = math.max(minScale, tuning.TrackingPenaltyMaxScale);
@@ -1357,6 +1343,7 @@ namespace Space4X.Registry
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XEngagement>();
+            state.RequireForUpdate<TimeState>();
         }
 
         [BurstCompile]
@@ -1810,6 +1797,8 @@ namespace Space4X.Registry
 
         public void OnUpdate(ref SystemState state)
         {
+            var currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
+
             int totalCombatants = 0;
             int engaged = 0;
             int approaching = 0;
@@ -1839,6 +1828,100 @@ namespace Space4X.Registry
                     }
                 }
             }
+
+            // Aggregate weapon tracking telemetry.
+            uint shotsFiredTotal = 0;
+            uint shotsHitTotal = 0;
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>())
+            {
+                for (int i = 0; i < weapons.Length; i++)
+                {
+                    shotsFiredTotal += weapons[i].ShotsFired;
+                    shotsHitTotal += weapons[i].ShotsHit;
+                }
+            }
+
+            uint shotsMissedTotal = shotsFiredTotal >= shotsHitTotal ? shotsFiredTotal - shotsHitTotal : 0;
+
+            // Aggregate damage by type since last tick.
+            float deltaEnergy = 0f;
+            float deltaThermal = 0f;
+            float deltaEm = 0f;
+            float deltaRadiation = 0f;
+            float deltaKinetic = 0f;
+            float deltaExplosive = 0f;
+
+            Space4XCombatTelemetry telemetry = default;
+            Entity telemetryEntity;
+            if (!SystemAPI.TryGetSingletonEntity<Space4XCombatTelemetry>(out telemetryEntity))
+            {
+                telemetryEntity = state.EntityManager.CreateEntity(typeof(Space4XCombatTelemetry));
+                telemetry = new Space4XCombatTelemetry();
+            }
+            else
+            {
+                telemetry = state.EntityManager.GetComponentData<Space4XCombatTelemetry>(telemetryEntity);
+            }
+
+            foreach (var damageEvents in SystemAPI.Query<DynamicBuffer<DamageEvent>>())
+            {
+                for (int i = 0; i < damageEvents.Length; i++)
+                {
+                    var damageEvent = damageEvents[i];
+                    if (damageEvent.Tick <= telemetry.LastProcessedTick)
+                    {
+                        continue;
+                    }
+
+                    var damageType = Space4XWeapon.ResolveDamageType(damageEvent.WeaponType);
+                    var amount = damageEvent.RawDamage;
+                    switch (damageType)
+                    {
+                        case Space4XDamageType.Energy:
+                            deltaEnergy += amount;
+                            break;
+                        case Space4XDamageType.Thermal:
+                            deltaThermal += amount;
+                            break;
+                        case Space4XDamageType.EM:
+                            deltaEm += amount;
+                            break;
+                        case Space4XDamageType.Radiation:
+                            deltaRadiation += amount;
+                            break;
+                        case Space4XDamageType.Kinetic:
+                            deltaKinetic += amount;
+                            break;
+                        case Space4XDamageType.Explosive:
+                            deltaExplosive += amount;
+                            break;
+                    }
+                }
+            }
+
+            telemetry.LastProcessedTick = currentTick;
+            telemetry.DamageEnergyDelta = deltaEnergy;
+            telemetry.DamageThermalDelta = deltaThermal;
+            telemetry.DamageEMDelta = deltaEm;
+            telemetry.DamageRadiationDelta = deltaRadiation;
+            telemetry.DamageKineticDelta = deltaKinetic;
+            telemetry.DamageExplosiveDelta = deltaExplosive;
+            telemetry.TotalDamageEnergy += deltaEnergy;
+            telemetry.TotalDamageThermal += deltaThermal;
+            telemetry.TotalDamageEM += deltaEm;
+            telemetry.TotalDamageRadiation += deltaRadiation;
+            telemetry.TotalDamageKinetic += deltaKinetic;
+            telemetry.TotalDamageExplosive += deltaExplosive;
+
+            telemetry.ShotsFiredDelta = shotsFiredTotal >= telemetry.TotalShotsFired ? shotsFiredTotal - telemetry.TotalShotsFired : 0;
+            telemetry.ShotsHitDelta = shotsHitTotal >= telemetry.TotalShotsHit ? shotsHitTotal - telemetry.TotalShotsHit : 0;
+            telemetry.ShotsMissedDelta = shotsMissedTotal >= telemetry.TotalShotsMissed ? shotsMissedTotal - telemetry.TotalShotsMissed : 0;
+
+            telemetry.TotalShotsFired = shotsFiredTotal;
+            telemetry.TotalShotsHit = shotsHitTotal;
+            telemetry.TotalShotsMissed = shotsMissedTotal;
+
+            state.EntityManager.SetComponentData(telemetryEntity, telemetry);
 
             // Would emit to telemetry stream
             // UnityEngine.Debug.Log($"[Combat] Combatants: {totalCombatants}, Engaged: {engaged}, Approaching: {approaching}, Destroyed: {destroyed}, DmgDealt: {totalDamageDealt:F0}, DmgRecv: {totalDamageReceived:F0}");

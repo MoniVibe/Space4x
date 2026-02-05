@@ -50,7 +50,7 @@ namespace Space4X.SimServer
                 ResourceBaseUnits = ReadFloat(ResourceBaseEnv, 800f),
                 ResourceRichnessGradient = ReadFloat(ResourceGradientEnv, 0.2f),
                 TechDiffusionDurationSeconds = ReadFloat(TechDurationEnv, 14400f),
-                TargetTicksPerSecond = Mathf.Clamp(ReadFloat(TargetTpsEnv, 5f), 0.5f, 120f),
+                TargetTicksPerSecond = Mathf.Clamp(ReadFloat(TargetTpsEnv, 2f), 0.5f, 120f),
                 HttpPort = (ushort)Mathf.Clamp(ReadInt(PortEnv, 45100), 1024, 65535),
                 AutosaveSeconds = Mathf.Max(0f, ReadFloat(AutosaveEnv, 0f))
             };

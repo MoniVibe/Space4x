@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PureDOTS.Runtime.Individual;
 using Space4X.Registry;
 using Unity.Entities;
 using Unity.Collections;
@@ -44,10 +45,63 @@ namespace Space4X.Authoring
                     SpeciesId = new FixedString64Bytes(authoring.speciesId ?? string.Empty)
                 });
 
-                // Note: Slot data would be stored in a blob asset or buffer
-                // For now, we'll store it in a component that can be expanded later
+                AddComponent(entity, new PureDOTS.Runtime.Individual.SentientAnatomy
+                {
+                    SpeciesId = new FixedString64Bytes(authoring.speciesId ?? string.Empty)
+                });
+
+                var slotBuffer = AddBuffer<AnatomySlot>(entity);
+                if (authoring.slots != null)
+                {
+                    foreach (var slot in authoring.slots)
+                    {
+                        if (string.IsNullOrWhiteSpace(slot.slotId))
+                        {
+                            continue;
+                        }
+
+                        slotBuffer.Add(new AnatomySlot
+                        {
+                            SlotId = new FixedString64Bytes(slot.slotId ?? string.Empty),
+                            SlotType = ParseSlotType(slot.slotType),
+                            HealthMultiplier = Mathf.Max(0.1f, slot.healthMultiplier),
+                            CompatibleFamilies = new FixedString64Bytes(slot.compatibleAugmentFamilies ?? string.Empty)
+                        });
+                    }
+                }
+            }
+
+            private static AnatomySlotType ParseSlotType(string value)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return AnatomySlotType.Other;
+                }
+
+                var key = value.Trim().ToLowerInvariant();
+                if (key.Contains("limb"))
+                {
+                    return AnatomySlotType.Limb;
+                }
+                if (key.Contains("organ"))
+                {
+                    return AnatomySlotType.Organ;
+                }
+                if (key.Contains("neural") || key.Contains("brain"))
+                {
+                    return AnatomySlotType.Neural;
+                }
+                if (key.Contains("sensor") || key.Contains("sense"))
+                {
+                    return AnatomySlotType.Sensory;
+                }
+                if (key.Contains("utility") || key.Contains("mount"))
+                {
+                    return AnatomySlotType.Utility;
+                }
+
+                return AnatomySlotType.Other;
             }
         }
     }
 }
-

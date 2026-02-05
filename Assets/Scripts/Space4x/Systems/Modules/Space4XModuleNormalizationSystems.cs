@@ -567,6 +567,9 @@ namespace Space4X.Systems.Modules
                         ArcDegrees = math.clamp(spec.ArcDegrees, 0f, 360f),
                         KineticResist = math.saturate(spec.KineticResist),
                         EnergyResist = math.saturate(spec.EnergyResist),
+                        ThermalResist = math.saturate(spec.ThermalResist),
+                        EMResist = math.saturate(spec.EMResist),
+                        RadiationResist = math.saturate(spec.RadiationResist),
                         ExplosiveResist = math.saturate(spec.ExplosiveResist)
                     };
                 }
@@ -592,6 +595,9 @@ namespace Space4X.Systems.Modules
                 ArcDegrees = 360f,
                 KineticResist = 1f,
                 EnergyResist = 1f,
+                ThermalResist = 1f,
+                EMResist = 1f,
+                RadiationResist = 1f,
                 ExplosiveResist = 1f
             };
         }
@@ -615,6 +621,9 @@ namespace Space4X.Systems.Modules
                         DamageReduction = math.saturate(spec.DamageReduction),
                         KineticResist = math.saturate(spec.KineticResist),
                         EnergyResist = math.saturate(spec.EnergyResist),
+                        ThermalResist = math.saturate(spec.ThermalResist),
+                        EMResist = math.saturate(spec.EMResist),
+                        RadiationResist = math.saturate(spec.RadiationResist),
                         ExplosiveResist = math.saturate(spec.ExplosiveResist),
                         RepairRateMultiplier = math.max(0f, spec.RepairRateMultiplier)
                     };
@@ -636,6 +645,9 @@ namespace Space4X.Systems.Modules
                 DamageReduction = math.clamp(0.2f + tierInput * 0.35f, 0.1f, 0.75f),
                 KineticResist = 1f,
                 EnergyResist = 1f,
+                ThermalResist = 1f,
+                EMResist = 1f,
+                RadiationResist = 1f,
                 ExplosiveResist = 1f,
                 RepairRateMultiplier = 1f
             };
@@ -1336,6 +1348,9 @@ namespace Space4X.Systems.Modules
                 float shieldWeight = 0f;
                 float shieldK = 0f;
                 float shieldE = 0f;
+                float shieldT = 0f;
+                float shieldEM = 0f;
+                float shieldR = 0f;
                 float shieldX = 0f;
 
                 float armorThickness = 0f;
@@ -1343,6 +1358,9 @@ namespace Space4X.Systems.Modules
                 float armorWeight = 0f;
                 float armorK = 0f;
                 float armorE = 0f;
+                float armorT = 0f;
+                float armorEM = 0f;
+                float armorR = 0f;
                 float armorX = 0f;
 
                 for (var i = 0; i < modules.Length; i++)
@@ -1366,6 +1384,9 @@ namespace Space4X.Systems.Modules
                             shieldWeight += weight;
                             shieldK += math.saturate(shield.KineticResist) * weight;
                             shieldE += math.saturate(shield.EnergyResist) * weight;
+                            shieldT += math.saturate(shield.ThermalResist) * weight;
+                            shieldEM += math.saturate(shield.EMResist) * weight;
+                            shieldR += math.saturate(shield.RadiationResist) * weight;
                             shieldX += math.saturate(shield.ExplosiveResist) * weight;
                         }
                     }
@@ -1382,6 +1403,9 @@ namespace Space4X.Systems.Modules
                             armorReduction += math.saturate(armor.DamageReduction) * weight;
                             armorK += math.saturate(armor.KineticResist) * weight;
                             armorE += math.saturate(armor.EnergyResist) * weight;
+                            armorT += math.saturate(armor.ThermalResist) * weight;
+                            armorEM += math.saturate(armor.EMResist) * weight;
+                            armorR += math.saturate(armor.RadiationResist) * weight;
                             armorX += math.saturate(armor.ExplosiveResist) * weight;
                         }
                     }
@@ -1391,6 +1415,9 @@ namespace Space4X.Systems.Modules
                 {
                     var resistK = shieldWeight > 0f ? shieldK / shieldWeight : 1f;
                     var resistE = shieldWeight > 0f ? shieldE / shieldWeight : 1f;
+                    var resistT = shieldWeight > 0f ? shieldT / shieldWeight : resistE;
+                    var resistEM = shieldWeight > 0f ? shieldEM / shieldWeight : resistE;
+                    var resistR = shieldWeight > 0f ? shieldR / shieldWeight : resistE;
                     var resistX = shieldWeight > 0f ? shieldX / shieldWeight : 1f;
                     var delayTicks = (ushort)math.clamp(math.round(shieldDelay / fixedDt), 0, ushort.MaxValue);
                     var rechargePerTick = math.max(0f, shieldRecharge * fixedDt);
@@ -1404,6 +1431,9 @@ namespace Space4X.Systems.Modules
                         RechargeDelay = delayTicks,
                         CurrentDelay = 0,
                         EnergyResistance = (half)math.saturate(resistE),
+                        ThermalResistance = (half)math.saturate(resistT),
+                        EMResistance = (half)math.saturate(resistEM),
+                        RadiationResistance = (half)math.saturate(resistR),
                         KineticResistance = (half)math.saturate(resistK),
                         ExplosiveResistance = (half)math.saturate(resistX)
                     });
@@ -1413,6 +1443,9 @@ namespace Space4X.Systems.Modules
                 {
                     var resistK = armorWeight > 0f ? armorK / armorWeight : 1f;
                     var resistE = armorWeight > 0f ? armorE / armorWeight : 1f;
+                    var resistT = armorWeight > 0f ? armorT / armorWeight : resistE;
+                    var resistEM = armorWeight > 0f ? armorEM / armorWeight : resistE;
+                    var resistR = armorWeight > 0f ? armorR / armorWeight : resistE;
                     var resistX = armorWeight > 0f ? armorX / armorWeight : 1f;
                     var reduction = armorWeight > 0f ? armorReduction / armorWeight : 0.3f;
 
@@ -1422,6 +1455,9 @@ namespace Space4X.Systems.Modules
                         Thickness = math.max(1f, armorThickness),
                         PenetrationThreshold = (half)math.clamp(0.2f + reduction * 0.6f, 0.05f, 1f),
                         EnergyResistance = (half)math.saturate(resistE),
+                        ThermalResistance = (half)math.saturate(resistT),
+                        EMResistance = (half)math.saturate(resistEM),
+                        RadiationResistance = (half)math.saturate(resistR),
                         KineticResistance = (half)math.saturate(resistK),
                         ExplosiveResistance = (half)math.saturate(resistX)
                     });
@@ -1590,6 +1626,11 @@ namespace Space4X.Systems.Modules
                 return;
             }
 
+            var hasWeaponSpecCatalog = SystemAPI.TryGetSingleton<WeaponCatalogSingleton>(out var weaponSpecCatalog) &&
+                                       weaponSpecCatalog.Catalog.IsCreated;
+            var hasProjectileSpecCatalog = SystemAPI.TryGetSingleton<ProjectileCatalogSingleton>(out var projectileSpecCatalog) &&
+                                           projectileSpecCatalog.Catalog.IsCreated;
+
             ref var moduleSpecs = ref catalog.Catalog.Value.Modules;
 
             _moduleTypeLookup.Update(ref state);
@@ -1635,6 +1676,7 @@ namespace Space4X.Systems.Modules
 
                     var weapon = ResolveWeapon(spec.Class, spec.RequiredSize);
                     var arcOffset = 0f;
+                    var weaponId = FixedString64Bytes.Empty;
 
                     if (_weaponProfileLookup.HasComponent(module))
                     {
@@ -1646,6 +1688,32 @@ namespace Space4X.Systems.Modules
 
                         arcOffset = profile.FireArcOffsetDeg;
                         weapon.BaseAccuracy = (half)math.saturate((float)weapon.BaseAccuracy + profile.AccuracyBonus + profile.TrackingBonus * 0.25f);
+                        weapon.Tracking = (half)math.saturate((float)weapon.Tracking + profile.TrackingBonus);
+                        weaponId = profile.WeaponId;
+                    }
+
+                    if (weaponId.IsEmpty)
+                    {
+                        weaponId = moduleId;
+                    }
+
+                    if (weapon.Family == WeaponFamily.Unknown)
+                    {
+                        weapon.Family = Space4XWeapon.ResolveFamily(weapon.Type);
+                    }
+
+                    if (weapon.DamageType == Space4XDamageType.Unknown)
+                    {
+                        weapon.DamageType = Space4XWeapon.ResolveDamageType(weapon.Type);
+                    }
+
+                    if (hasWeaponSpecCatalog && !weaponId.IsEmpty)
+                    {
+                        ref var weaponSpecs = ref weaponSpecCatalog.Catalog.Value.Weapons;
+                        if (TryGetWeaponCatalogSpec(ref weaponSpecs, weaponId, out var weaponSpec))
+                        {
+                            ApplyWeaponSpecDamage(ref weapon, weaponSpec, hasProjectileSpecCatalog, projectileSpecCatalog);
+                        }
                     }
 
                     weaponBuffer.Add(new WeaponMount
@@ -1685,6 +1753,100 @@ namespace Space4X.Systems.Modules
                    || moduleClass == ModuleClass.PointDefense;
         }
 
+        private static bool TryGetWeaponCatalogSpec(ref BlobArray<WeaponSpec> weapons, in FixedString64Bytes weaponId, out WeaponSpec spec)
+        {
+            spec = default;
+            for (int i = 0; i < weapons.Length; i++)
+            {
+                if (weapons[i].Id == weaponId)
+                {
+                    spec = weapons[i];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryGetProjectileCatalogSpec(ref BlobArray<ProjectileSpec> projectiles, in FixedString64Bytes projectileId, out ProjectileSpec spec)
+        {
+            spec = default;
+            for (int i = 0; i < projectiles.Length; i++)
+            {
+                if (projectiles[i].Id == projectileId)
+                {
+                    spec = projectiles[i];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void ApplyWeaponSpecDamage(
+            ref Space4XWeapon weapon,
+            in WeaponSpec weaponSpec,
+            bool hasProjectileCatalog,
+            ProjectileCatalogSingleton projectileCatalog)
+        {
+            var damageType = weaponSpec.DamageType;
+
+            if (damageType == Space4XDamageType.Unknown && hasProjectileCatalog && !weaponSpec.ProjectileId.IsEmpty)
+            {
+                ref var projectiles = ref projectileCatalog.Catalog.Value.Projectiles;
+                if (TryGetProjectileCatalogSpec(ref projectiles, weaponSpec.ProjectileId, out var projectileSpec))
+                {
+                    damageType = projectileSpec.DamageType;
+                    if (damageType == Space4XDamageType.Unknown)
+                    {
+                        damageType = ResolveDamageTypeFromChannels(projectileSpec.Damage);
+                    }
+                }
+            }
+
+            if (damageType == Space4XDamageType.Unknown)
+            {
+                damageType = Space4XWeapon.ResolveDamageType(weapon.Type);
+            }
+
+            weapon.DamageType = damageType;
+            weapon.Family = ResolveFamilyFromDamageType(damageType, weapon.Type);
+        }
+
+        private static Space4XDamageType ResolveDamageTypeFromChannels(in DamageModel damage)
+        {
+            if (damage.Explosive >= damage.Kinetic && damage.Explosive >= damage.Energy && damage.Explosive > 0f)
+            {
+                return Space4XDamageType.Explosive;
+            }
+
+            if (damage.Kinetic >= damage.Energy && damage.Kinetic > 0f)
+            {
+                return Space4XDamageType.Kinetic;
+            }
+
+            if (damage.Energy > 0f)
+            {
+                return Space4XDamageType.Energy;
+            }
+
+            return Space4XDamageType.Unknown;
+        }
+
+        private static WeaponFamily ResolveFamilyFromDamageType(Space4XDamageType damageType, WeaponType fallbackType)
+        {
+            return damageType switch
+            {
+                Space4XDamageType.Energy => WeaponFamily.Energy,
+                Space4XDamageType.Thermal => WeaponFamily.Energy,
+                Space4XDamageType.EM => WeaponFamily.Energy,
+                Space4XDamageType.Radiation => WeaponFamily.Energy,
+                Space4XDamageType.Kinetic => WeaponFamily.Kinetic,
+                Space4XDamageType.Explosive => WeaponFamily.Explosive,
+                _ => Space4XWeapon.ResolveFamily(fallbackType)
+            };
+        }
+
         private static Space4XWeapon ResolveWeapon(ModuleClass moduleClass, MountSize size)
         {
             var weaponSize = ResolveWeaponSize(size);
@@ -1714,11 +1876,14 @@ namespace Space4X.Systems.Modules
             {
                 Type = WeaponType.PointDefense,
                 Size = size,
+                Family = WeaponFamily.Kinetic,
+                DamageType = Space4XDamageType.Kinetic,
                 Flags = WeaponFlags.None,
                 BaseDamage = 6f * (1 + (int)size),
                 OptimalRange = 180f + 40f * (int)size,
                 MaxRange = 260f + 60f * (int)size,
                 BaseAccuracy = (half)0.9f,
+                Tracking = (half)Space4XWeapon.ResolveTracking(WeaponType.PointDefense, size),
                 CooldownTicks = (ushort)(6 + 2 * (int)size),
                 CurrentCooldown = 0,
                 AmmoPerShot = 1,

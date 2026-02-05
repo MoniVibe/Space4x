@@ -34,6 +34,9 @@ namespace Space4X.Authoring
             [Header("Targeting")]
             [Tooltip("Lead bias (0..1, aiming hint)")]
             [Range(0f, 1f)] public float leadBias = 0.5f;
+            [Header("Damage")]
+            [Tooltip("Optional damage type override (leave Unknown to derive from projectile or weapon class)")]
+            public Space4XDamageType damageType = Space4XDamageType.Unknown;
             [Header("Projectile")]
             [Tooltip("Projectile ID (references ProjectileCatalog)")]
             public string projectileId = string.Empty;
@@ -68,6 +71,7 @@ namespace Space4X.Authoring
                         EnergyCost = math.max(0f, weaponData.energyCost),
                         HeatCost = math.max(0f, weaponData.heatCost),
                         LeadBias = math.clamp(weaponData.leadBias, 0f, 1f),
+                        DamageType = weaponData.damageType,
                         ProjectileId = new FixedString32Bytes(weaponData.projectileId ?? string.Empty)
                     };
                 }
@@ -81,4 +85,3 @@ namespace Space4X.Authoring
         }
     }
 }
-

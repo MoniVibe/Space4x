@@ -23,6 +23,9 @@ namespace Space4X.Authoring
             [Range(0f, 360f)] public float arcDegrees = 360f;
             [Range(0f, 1f)] public float kineticResist;
             [Range(0f, 1f)] public float energyResist;
+            [Range(0f, 1f)] public float thermalResist = 1f;
+            [Range(0f, 1f)] public float emResist = 1f;
+            [Range(0f, 1f)] public float radiationResist = 1f;
             [Range(0f, 1f)] public float explosiveResist;
         }
 
@@ -54,6 +57,9 @@ namespace Space4X.Authoring
                         ArcDegrees = math.clamp(data.arcDegrees, 0f, 360f),
                         KineticResist = math.saturate(data.kineticResist),
                         EnergyResist = math.saturate(data.energyResist),
+                        ThermalResist = math.saturate(data.thermalResist),
+                        EMResist = math.saturate(data.emResist),
+                        RadiationResist = math.saturate(data.radiationResist),
                         ExplosiveResist = math.saturate(data.explosiveResist)
                     };
                 }

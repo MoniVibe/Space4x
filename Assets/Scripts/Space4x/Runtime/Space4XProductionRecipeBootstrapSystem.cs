@@ -38,7 +38,7 @@ namespace Space4X.Runtime
             using var builder = new BlobBuilder(Allocator.Temp);
             ref var root = ref builder.ConstructRoot<ProductionRecipeCatalogBlob>();
 
-            var recipeData = new NativeList<(ProductionRecipeBlob recipe, NativeList<RecipeInputBlob> inputs, NativeList<RecipeOutputBlob> outputs)>(20, Allocator.Temp);
+            var recipeData = new NativeList<(ProductionRecipeBlob recipe, NativeList<RecipeInputBlob> inputs, NativeList<RecipeOutputBlob> outputs)>(28, Allocator.Temp);
 
             // Ore -> Ingot
             var oreInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
@@ -65,6 +65,32 @@ namespace Space4X.Runtime
                 BaseTimeCost = 6.0f,
                 LaborCost = 1.0f
             }, oreInputs, ingotOutputs));
+
+            // Ore -> Ingot (Mk2)
+            var oreMk2Inputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            oreMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_ore"),
+                Quantity = 120f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var ingotMk2Outputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            ingotMk2Outputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_ingot"),
+                Quantity = 100f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_ore_to_ingot_mk2"),
+                Stage = ProductionStage.Refining,
+                RequiredBusinessType = BusinessType.Alchemist,
+                MinTechTier = 2,
+                MinArtisanExpertise = 18,
+                BaseTimeCost = 7.0f,
+                LaborCost = 1.0f
+            }, oreMk2Inputs, ingotMk2Outputs));
 
             // Ingot + Supplies -> Parts
             var partsInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
@@ -99,6 +125,39 @@ namespace Space4X.Runtime
                 LaborCost = 1.0f
             }, partsInputs, partsOutputs));
 
+            // Ingot + Supplies -> Parts (Mk2)
+            var partsMk2Inputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            partsMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_ingot"),
+                Quantity = 14f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            partsMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 6f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var partsMk2Outputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            partsMk2Outputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 3f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_parts_assembly_mk2"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Builder,
+                MinTechTier = 2,
+                MinArtisanExpertise = 22,
+                BaseTimeCost = 12.0f,
+                LaborCost = 1.0f
+            }, partsMk2Inputs, partsMk2Outputs));
+
             // Ore + Supplies -> Alloy
             var alloyInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
             alloyInputs.Add(new RecipeInputBlob
@@ -131,6 +190,39 @@ namespace Space4X.Runtime
                 BaseTimeCost = 9.0f,
                 LaborCost = 1.0f
             }, alloyInputs, alloyOutputs));
+
+            // Ore + Supplies -> Alloy (Mk2)
+            var alloyMk2Inputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            alloyMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_ore"),
+                Quantity = 100f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            alloyMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 12f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var alloyMk2Outputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            alloyMk2Outputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_alloy"),
+                Quantity = 60f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_ore_to_alloy_mk2"),
+                Stage = ProductionStage.Refining,
+                RequiredBusinessType = BusinessType.Alchemist,
+                MinTechTier = 2,
+                MinArtisanExpertise = 24,
+                BaseTimeCost = 11.0f,
+                LaborCost = 1.0f
+            }, alloyMk2Inputs, alloyMk2Outputs));
 
             // Parts + Alloy -> Engine module
             var engineInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
@@ -165,6 +257,39 @@ namespace Space4X.Runtime
                 LaborCost = 1.0f
             }, engineInputs, engineOutputs));
 
+            // Parts + Alloy -> Engine module (Mk2)
+            var engineMk2Inputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            engineMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 10f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            engineMk2Inputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_alloy"),
+                Quantity = 14f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var engineMk2Outputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            engineMk2Outputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("engine-mk2"),
+                Quantity = 1f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_module_engine_mk2"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Blacksmith,
+                MinTechTier = 2,
+                MinArtisanExpertise = 26,
+                BaseTimeCost = 16.0f,
+                LaborCost = 1.0f
+            }, engineMk2Inputs, engineMk2Outputs));
+
             // Parts + Alloy -> Shield module
             var shieldInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
             shieldInputs.Add(new RecipeInputBlob
@@ -198,6 +323,39 @@ namespace Space4X.Runtime
                 LaborCost = 1.0f
             }, shieldInputs, shieldOutputs));
 
+            // Parts + Alloy -> Shield module (M)
+            var shieldMInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            shieldMInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 9f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            shieldMInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_alloy"),
+                Quantity = 12f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var shieldMOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            shieldMOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("shield-m-1"),
+                Quantity = 1f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_module_shield_m_1"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Blacksmith,
+                MinTechTier = 2,
+                MinArtisanExpertise = 24,
+                BaseTimeCost = 14.0f,
+                LaborCost = 1.0f
+            }, shieldMInputs, shieldMOutputs));
+
             // Parts + Alloy -> Laser module
             var laserInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
             laserInputs.Add(new RecipeInputBlob
@@ -230,6 +388,39 @@ namespace Space4X.Runtime
                 BaseTimeCost = 9.0f,
                 LaborCost = 1.0f
             }, laserInputs, laserOutputs));
+
+            // Parts + Alloy -> Missile module (M)
+            var missileMInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            missileMInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 9f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            missileMInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_alloy"),
+                Quantity = 12f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var missileMOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            missileMOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("missile-m-1"),
+                Quantity = 1f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_module_missile_m_1"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Blacksmith,
+                MinTechTier = 2,
+                MinArtisanExpertise = 22,
+                BaseTimeCost = 12.0f,
+                LaborCost = 1.0f
+            }, missileMInputs, missileMOutputs));
 
             // Parts + Alloy -> Bridge module
             var bridgeInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
@@ -363,6 +554,39 @@ namespace Space4X.Runtime
                 LaborCost = 1.0f
             }, ammoInputs, ammoOutputs));
 
+            // Parts + Alloy -> Reactor module (Mk2)
+            var reactorInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            reactorInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 12f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            reactorInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_alloy"),
+                Quantity = 16f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var reactorOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            reactorOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("reactor-mk2"),
+                Quantity = 1f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_module_reactor_mk2"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Blacksmith,
+                MinTechTier = 2,
+                MinArtisanExpertise = 28,
+                BaseTimeCost = 18.0f,
+                LaborCost = 1.0f
+            }, reactorInputs, reactorOutputs));
+
             // Supplies -> Research packet
             var researchInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
             researchInputs.Add(new RecipeInputBlob
@@ -428,6 +652,46 @@ namespace Space4X.Runtime
                 BaseTimeCost = 28.0f,
                 LaborCost = 1.0f
             }, shipInputs, shipOutputs));
+
+            // Ship hull build (carrier)
+            var muleInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            muleInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 60f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            muleInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_alloy"),
+                Quantity = 80f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            muleInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_ingot"),
+                Quantity = 40f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var muleOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            muleOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("cv-mule"),
+                Quantity = 1f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_ship_cv_mule"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Builder,
+                MinTechTier = 2,
+                MinArtisanExpertise = 35,
+                BaseTimeCost = 45.0f,
+                LaborCost = 1.0f
+            }, muleInputs, muleOutputs));
 
             var recipesArray = builder.Allocate(ref root.Recipes, recipeData.Length);
             for (int i = 0; i < recipeData.Length; i++)
