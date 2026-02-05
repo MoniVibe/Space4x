@@ -25,8 +25,24 @@ namespace Space4X.Registry
         Expired = 5
     }
 
+    public enum Space4XMissionPhase : byte
+    {
+        None = 0,
+        ToSource = 1,
+        ToDestination = 2
+    }
+
+    public enum Space4XMissionCargoState : byte
+    {
+        None = 0,
+        Loading = 1,
+        Loaded = 2,
+        Delivered = 3
+    }
+
     public struct Space4XMissionOffer : IComponentData
     {
+        public uint OfferId;
         public Space4XMissionType Type;
         public Space4XMissionStatus Status;
         public Entity Issuer;
@@ -50,12 +66,19 @@ namespace Space4X.Registry
     public struct Space4XMissionAssignment : IComponentData
     {
         public Entity OfferEntity;
+        public uint OfferId;
         public Space4XMissionType Type;
         public Space4XMissionStatus Status;
         public Entity TargetEntity;
         public float3 TargetPosition;
+        public Entity SourceEntity;
+        public float3 SourcePosition;
+        public float3 DestinationPosition;
+        public Space4XMissionPhase Phase;
+        public Space4XMissionCargoState CargoState;
         public ushort ResourceTypeIndex;
         public float Units;
+        public float CargoUnits;
         public float RewardCredits;
         public float RewardStanding;
         public float RewardLp;
@@ -95,5 +118,6 @@ namespace Space4X.Registry
     public struct Space4XMissionBoardState : IComponentData
     {
         public uint LastGenerationTick;
+        public uint NextOfferId;
     }
 }

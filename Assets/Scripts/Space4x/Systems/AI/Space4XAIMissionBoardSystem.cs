@@ -69,9 +69,8 @@ namespace Space4X.Systems.AI
             }
 
             boardState.LastGenerationTick = currentTick;
+            GenerateOffers(ref state, config, currentTick, ref boardState);
             state.EntityManager.SetComponentData(configEntity, boardState);
-
-            GenerateOffers(ref state, config, currentTick);
             AssignOffers(ref state, config, currentTick);
         }
 
@@ -81,7 +80,7 @@ namespace Space4X.Systems.AI
             {
                 entity = state.EntityManager.CreateEntity(typeof(Space4XMissionBoardConfig), typeof(Space4XMissionBoardState));
                 config = Space4XMissionBoardConfig.Default;
-                boardState = new Space4XMissionBoardState { LastGenerationTick = 0 };
+                boardState = new Space4XMissionBoardState { LastGenerationTick = 0, NextOfferId = 1 };
                 state.EntityManager.SetComponentData(entity, config);
                 state.EntityManager.SetComponentData(entity, boardState);
                 return entity;
@@ -92,7 +91,7 @@ namespace Space4X.Systems.AI
             return entity;
         }
 
-        private void GenerateOffers(ref SystemState state, in Space4XMissionBoardConfig config, uint currentTick)
+        private void GenerateOffers(ref SystemState state, in Space4XMissionBoardConfig config, uint currentTick, ref Space4XMissionBoardState boardState)
         {
             var entityManager = state.EntityManager;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -211,7 +210,8 @@ namespace Space4X.Systems.AI
                         var units = math.min(demand.OutstandingUnits, 120f);
                         var reward = ResolveReward(config, Space4XMissionType.HaulProcure, sitePos, units);
                         var priority = demand.Priority > 3 ? demand.Priority : (byte)3;
-                        CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.HaulProcure, demand.SiteEntity, sitePos,
+                        var offerId = NextOfferId(ref boardState);
+                        CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.HaulProcure, demand.SiteEntity, sitePos,
                             demand.ResourceTypeIndex, units, reward, 0.03f, 0.06f, 0.2f, currentTick, config.OfferExpiryTicks, priority);
                         existingCount++;
                         usedDemandHaul = true;
@@ -224,7 +224,8 @@ namespace Space4X.Systems.AI
                     var index = rng.NextInt(0, pois.Length);
                     var pos = poiTransforms[index].Position;
                     var poi = poiData[index];
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.Scout, Entity.Null, pos,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.Scout, Entity.Null, pos,
                         0, 0f, poi.Reward * 80f, poi.Reward * 0.05f, poi.Reward * 0.1f, poi.Risk, currentTick, config.OfferExpiryTicks, 2);
                     existingCount++;
                 }
@@ -235,7 +236,8 @@ namespace Space4X.Systems.AI
                     var index = rng.NextInt(0, asteroids.Length);
                     var asteroid = asteroidData[index];
                     var units = math.max(25f, asteroid.ResourceAmount * 0.1f);
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.Mine, asteroids[index], asteroidTransforms[index].Position,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.Mine, asteroids[index], asteroidTransforms[index].Position,
                         (ushort)asteroid.ResourceType, units, ResolveReward(config, Space4XMissionType.Mine, asteroidTransforms[index].Position, units), 0.04f, 0.08f, 0.2f, currentTick, config.OfferExpiryTicks, 3);
                     existingCount++;
                 }
@@ -246,7 +248,8 @@ namespace Space4X.Systems.AI
                     var index = rng.NextInt(0, colonies.Length);
                     var destPos = colonyTransforms[index].Position;
                     var units = math.max(20f, resources.Materials * 0.05f + rng.NextFloat(10f, 40f));
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.HaulDelivery, colonies[index], destPos,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.HaulDelivery, colonies[index], destPos,
                         (ushort)rng.NextInt(0, 3), units, ResolveReward(config, Space4XMissionType.HaulDelivery, destPos, units), 0.03f, 0.06f, 0.15f, currentTick, config.OfferExpiryTicks, 4);
                     existingCount++;
                 }
@@ -257,7 +260,8 @@ namespace Space4X.Systems.AI
                     var index = rng.NextInt(0, colonies.Length);
                     var destPos = colonyTransforms[index].Position;
                     var units = math.max(15f, resources.Energy * 0.04f + rng.NextFloat(8f, 30f));
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.HaulProcure, colonies[index], destPos,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.HaulProcure, colonies[index], destPos,
                         (ushort)rng.NextInt(0, 3), units, ResolveReward(config, Space4XMissionType.HaulProcure, destPos, units), 0.02f, 0.05f, 0.12f, currentTick, config.OfferExpiryTicks, 4);
                     existingCount++;
                 }
@@ -267,7 +271,8 @@ namespace Space4X.Systems.AI
                 {
                     var index = rng.NextInt(0, systems.Length);
                     var pos = systemTransforms[index].Position;
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.Patrol, systems[index], pos,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.Patrol, systems[index], pos,
                         0, 0f, ResolveReward(config, Space4XMissionType.Patrol, pos, 0f), 0.06f, 0.09f, 0.25f, currentTick, config.OfferExpiryTicks, 5);
                     existingCount++;
                 }
@@ -277,7 +282,8 @@ namespace Space4X.Systems.AI
                 {
                     var index = rng.NextInt(0, anomalies.Length);
                     var pos = anomalyTransforms[index].Position;
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.Intercept, anomalies[index], pos,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.Intercept, anomalies[index], pos,
                         0, 0f, ResolveReward(config, Space4XMissionType.Intercept, pos, 0f), 0.08f, 0.12f, 0.4f, currentTick, config.OfferExpiryTicks, 6);
                     existingCount++;
                 }
@@ -289,7 +295,8 @@ namespace Space4X.Systems.AI
                     var basePos = systemTransforms[index].Position;
                     var offset = rng.NextFloat3Direction() * rng.NextFloat(180f, 360f);
                     var pos = basePos + offset;
-                    CreateOffer(ref ecb, factionEntity, factionId, Space4XMissionType.BuildStation, systems[index], pos,
+                    var offerId = NextOfferId(ref boardState);
+                    CreateOffer(ref ecb, offerId, factionEntity, factionId, Space4XMissionType.BuildStation, systems[index], pos,
                         0, 0f, ResolveReward(config, Space4XMissionType.BuildStation, pos, 0f), 0.1f, 0.15f, 0.35f, currentTick, config.OfferExpiryTicks, 7);
                     existingCount++;
                 }
@@ -333,6 +340,34 @@ namespace Space4X.Systems.AI
             var dispositionLookup = state.GetComponentLookup<EntityDisposition>(true);
             var miningLookup = state.GetComponentLookup<MiningVessel>(true);
 
+            var colonies = _colonyQuery.ToEntityArray(Allocator.Temp);
+            var colonyTransforms = _colonyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            var colonyData = _colonyQuery.ToComponentDataArray<Space4XColony>(Allocator.Temp);
+            var colonyFactionMap = new NativeHashMap<Entity, ushort>(math.max(8, colonies.Length), Allocator.Temp);
+            for (int i = 0; i < colonies.Length; i++)
+            {
+                var colonyEntity = colonies[i];
+                if (_affiliationLookup.HasBuffer(colonyEntity))
+                {
+                    var affiliations = _affiliationLookup[colonyEntity];
+                    for (int a = 0; a < affiliations.Length; a++)
+                    {
+                        var tag = affiliations[a];
+                        if (tag.Type != AffiliationType.Faction || tag.Target == Entity.Null)
+                        {
+                            continue;
+                        }
+
+                        if (entityManager.HasComponent<Space4XFaction>(tag.Target))
+                        {
+                            var factionId = entityManager.GetComponentData<Space4XFaction>(tag.Target).FactionId;
+                            colonyFactionMap[colonyEntity] = factionId;
+                            break;
+                        }
+                    }
+                }
+            }
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var assignments = 0;
 
@@ -349,6 +384,12 @@ namespace Space4X.Systems.AI
                     offer.Status = Space4XMissionStatus.Expired;
                     offerData[i] = offer;
                     continue;
+                }
+
+                if (offer.OfferId == 0)
+                {
+                    offer.OfferId = ResolveFallbackOfferId(offers[i], currentTick);
+                    offerData[i] = offer;
                 }
 
                 var bestIndex = -1;
@@ -382,12 +423,32 @@ namespace Space4X.Systems.AI
                 var agent = agents[bestIndex];
                 var duration = ResolveDuration(config, offer.Type, offer.Risk);
                 var dueTick = currentTick + duration;
+                var isHaul = offer.Type == Space4XMissionType.HaulDelivery || offer.Type == Space4XMissionType.HaulProcure;
+                var sourceEntity = offer.TargetEntity;
+                var sourcePos = offer.TargetPosition;
+                var destPos = offer.TargetPosition;
+
+                if (isHaul)
+                {
+                    ResolveHaulEndpoints(
+                        colonies,
+                        colonyTransforms,
+                        colonyData,
+                        colonyFactionMap,
+                        offer.TargetEntity,
+                        offer.TargetPosition,
+                        offer.IssuerFactionId,
+                        offer.Type == Space4XMissionType.HaulDelivery,
+                        out sourceEntity,
+                        out sourcePos,
+                        out destPos);
+                }
 
                 var order = agentOrders[bestIndex];
                 order.Type = MapMissionToOrder(offer.Type);
                 order.Status = CaptainOrderStatus.Received;
-                order.TargetEntity = offer.TargetEntity;
-                order.TargetPosition = offer.TargetPosition;
+                order.TargetEntity = isHaul ? sourceEntity : offer.TargetEntity;
+                order.TargetPosition = isHaul ? sourcePos : offer.TargetPosition;
                 order.Priority = offer.Priority;
                 order.IssuedTick = currentTick;
                 order.TimeoutTick = dueTick;
@@ -396,12 +457,19 @@ namespace Space4X.Systems.AI
                 ecb.AddComponent(agent, new Space4XMissionAssignment
                 {
                     OfferEntity = offers[i],
+                    OfferId = offer.OfferId,
                     Type = offer.Type,
                     Status = Space4XMissionStatus.Assigned,
                     TargetEntity = offer.TargetEntity,
-                    TargetPosition = offer.TargetPosition,
+                    TargetPosition = isHaul ? sourcePos : offer.TargetPosition,
+                    SourceEntity = sourceEntity,
+                    SourcePosition = sourcePos,
+                    DestinationPosition = destPos,
+                    Phase = isHaul ? Space4XMissionPhase.ToSource : Space4XMissionPhase.None,
+                    CargoState = Space4XMissionCargoState.None,
                     ResourceTypeIndex = offer.ResourceTypeIndex,
                     Units = offer.Units,
+                    CargoUnits = 0f,
                     RewardCredits = offer.RewardCredits,
                     RewardStanding = offer.RewardStanding,
                     RewardLp = offer.RewardLp,
@@ -409,7 +477,7 @@ namespace Space4X.Systems.AI
                     StartedTick = currentTick,
                     DueTick = dueTick,
                     CompletedTick = 0,
-                    AutoComplete = 1
+                    AutoComplete = (byte)(isHaul ? 0 : 1)
                 });
 
                 offer.Status = Space4XMissionStatus.Assigned;
@@ -432,6 +500,10 @@ namespace Space4X.Systems.AI
             agents.Dispose();
             agentTransforms.Dispose();
             agentOrders.Dispose();
+            colonies.Dispose();
+            colonyTransforms.Dispose();
+            colonyData.Dispose();
+            colonyFactionMap.Dispose();
         }
 
         private static bool IsAgentEligible(Entity entity, Space4XMissionType type, ComponentLookup<EntityDisposition> dispositionLookup, ComponentLookup<MiningVessel> miningLookup)
@@ -468,6 +540,102 @@ namespace Space4X.Systems.AI
                 Space4XMissionType.BuildStation => CaptainOrderType.Construct,
                 _ => CaptainOrderType.MoveTo
             };
+        }
+
+        private static uint NextOfferId(ref Space4XMissionBoardState boardState)
+        {
+            var next = boardState.NextOfferId;
+            if (next == 0)
+            {
+                next = 1u;
+            }
+
+            boardState.NextOfferId = next + 1u;
+            if (boardState.NextOfferId == 0)
+            {
+                boardState.NextOfferId = 1u;
+            }
+
+            return next;
+        }
+
+        private static uint ResolveFallbackOfferId(Entity offerEntity, uint tick)
+        {
+            var seed = math.hash(new uint2((uint)offerEntity.Index + 1u, tick + 31u));
+            return seed == 0 ? 1u : seed;
+        }
+
+        private static void ResolveHaulEndpoints(
+            NativeArray<Entity> colonies,
+            NativeArray<LocalTransform> colonyTransforms,
+            NativeArray<Space4XColony> colonyData,
+            NativeHashMap<Entity, ushort> colonyFactionMap,
+            Entity destinationEntity,
+            float3 destinationPosition,
+            ushort issuerFactionId,
+            bool preferIssuer,
+            out Entity sourceEntity,
+            out float3 sourcePosition,
+            out float3 resolvedDestination)
+        {
+            sourceEntity = destinationEntity;
+            sourcePosition = destinationPosition;
+            resolvedDestination = destinationPosition;
+
+            if (colonies.Length == 0)
+            {
+                return;
+            }
+
+            var bestIndex = -1;
+            var bestScore = -1f;
+
+            if (preferIssuer && issuerFactionId != 0)
+            {
+                for (int i = 0; i < colonies.Length; i++)
+                {
+                    if (colonies[i] == destinationEntity)
+                    {
+                        continue;
+                    }
+
+                    if (colonyFactionMap.TryGetValue(colonies[i], out var factionId) && factionId != issuerFactionId)
+                    {
+                        continue;
+                    }
+
+                    var score = colonyData[i].StoredResources;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            if (bestIndex < 0)
+            {
+                for (int i = 0; i < colonies.Length; i++)
+                {
+                    if (colonies[i] == destinationEntity)
+                    {
+                        continue;
+                    }
+
+                    var score = colonyData[i].StoredResources;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            if (bestIndex >= 0)
+            {
+                sourceEntity = colonies[bestIndex];
+                sourcePosition = colonyTransforms[bestIndex].Position;
+            }
         }
 
         private static uint ResolveDuration(in Space4XMissionBoardConfig config, Space4XMissionType type, float risk)
@@ -508,6 +676,7 @@ namespace Space4X.Systems.AI
 
         private static void CreateOffer(
             ref EntityCommandBuffer ecb,
+            uint offerId,
             Entity issuer,
             ushort issuerFactionId,
             Space4XMissionType type,
@@ -526,6 +695,7 @@ namespace Space4X.Systems.AI
             var offerEntity = ecb.CreateEntity();
             ecb.AddComponent(offerEntity, new Space4XMissionOffer
             {
+                OfferId = offerId,
                 Type = type,
                 Status = Space4XMissionStatus.Open,
                 Issuer = issuer,
@@ -559,6 +729,10 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Space4XMissionOffer> _offerLookup;
         private ComponentLookup<FactionResources> _resourceLookup;
         private ComponentLookup<Reputation> _reputationLookup;
+        private ComponentLookup<Space4XColony> _colonyLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private BufferLookup<Space4XContactStanding> _contactLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -567,6 +741,10 @@ namespace Space4X.Systems.AI
             _offerLookup = state.GetComponentLookup<Space4XMissionOffer>(false);
             _resourceLookup = state.GetComponentLookup<FactionResources>(false);
             _reputationLookup = state.GetComponentLookup<Reputation>(false);
+            _colonyLookup = state.GetComponentLookup<Space4XColony>(false);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _contactLookup = state.GetBufferLookup<Space4XContactStanding>(false);
         }
 
         [BurstCompile]
@@ -581,6 +759,10 @@ namespace Space4X.Systems.AI
             _offerLookup.Update(ref state);
             _resourceLookup.Update(ref state);
             _reputationLookup.Update(ref state);
+            _colonyLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _contactLookup.Update(ref state);
 
             var factionMap = new NativeHashMap<ushort, Entity>(16, Allocator.Temp);
             foreach (var (faction, entity) in SystemAPI.Query<RefRO<Space4XFaction>>().WithEntityAccess())
@@ -590,6 +772,7 @@ namespace Space4X.Systems.AI
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var currentTick = time.Tick;
+            var contactConfig = EnsureContactConfig(ref state);
 
             foreach (var (assignment, order, transform, entity) in SystemAPI.Query<RefRW<Space4XMissionAssignment>, RefRW<CaptainOrder>, RefRO<LocalTransform>>().WithEntityAccess())
             {
@@ -600,20 +783,21 @@ namespace Space4X.Systems.AI
                 }
 
                 var offer = _offerLookup[assignment.ValueRO.OfferEntity];
-                var status = assignment.ValueRO.Status;
-
                 if (offer.Status == Space4XMissionStatus.Completed || offer.Status == Space4XMissionStatus.Failed || offer.Status == Space4XMissionStatus.Expired)
                 {
                     ecb.RemoveComponent<Space4XMissionAssignment>(entity);
                     continue;
                 }
 
+                var assignmentValue = assignment.ValueRW;
+                var orderValue = order.ValueRW;
                 var complete = false;
                 var failed = false;
+                var isHaul = assignmentValue.Type == Space4XMissionType.HaulDelivery || assignmentValue.Type == Space4XMissionType.HaulProcure;
 
-                if (currentTick >= assignment.ValueRO.DueTick)
+                if (assignmentValue.DueTick > 0 && currentTick >= assignmentValue.DueTick)
                 {
-                    if (assignment.ValueRO.AutoComplete != 0)
+                    if (assignmentValue.AutoComplete != 0)
                     {
                         complete = true;
                     }
@@ -623,25 +807,74 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                var orderValue = order.ValueRO;
-                if (orderValue.Type == CaptainOrderType.None && !complete && !failed)
-                {
-                    complete = true;
-                }
-
                 if (!complete && !failed)
                 {
-                    var dist = math.length(transform.ValueRO.Position - assignment.ValueRO.TargetPosition);
-                    if (dist <= 80f)
+                    if (isHaul)
                     {
-                        complete = true;
+                        if (assignmentValue.Phase == Space4XMissionPhase.None)
+                        {
+                            assignmentValue.Phase = Space4XMissionPhase.ToSource;
+                        }
+
+                        var loadRadius = 80f;
+                        var dropoffRadius = 90f;
+                        if (assignmentValue.Phase == Space4XMissionPhase.ToSource)
+                        {
+                            var dist = math.length(transform.ValueRO.Position - assignmentValue.SourcePosition);
+                            if (dist <= loadRadius)
+                            {
+                                var loadAmount = ResolveCargoLoad(ref assignmentValue);
+                                assignmentValue.CargoUnits = loadAmount;
+                                assignmentValue.CargoState = loadAmount > 0f ? Space4XMissionCargoState.Loaded : Space4XMissionCargoState.Loading;
+                                assignmentValue.Phase = Space4XMissionPhase.ToDestination;
+                                assignmentValue.TargetPosition = assignmentValue.DestinationPosition;
+                                orderValue.TargetEntity = assignmentValue.TargetEntity;
+                                orderValue.TargetPosition = assignmentValue.DestinationPosition;
+                                orderValue.Status = CaptainOrderStatus.Received;
+                            }
+                        }
+                        else if (assignmentValue.Phase == Space4XMissionPhase.ToDestination)
+                        {
+                            var dist = math.length(transform.ValueRO.Position - assignmentValue.DestinationPosition);
+                            if (dist <= dropoffRadius)
+                            {
+                                var delivered = assignmentValue.CargoUnits > 0f ? assignmentValue.CargoUnits : assignmentValue.Units;
+                                ApplyCargoDelivery(assignmentValue.TargetEntity, delivered);
+                                assignmentValue.CargoState = Space4XMissionCargoState.Delivered;
+                                complete = true;
+                            }
+                        }
+
+                        if (orderValue.Status == CaptainOrderStatus.Failed || orderValue.Status == CaptainOrderStatus.Cancelled)
+                        {
+                            failed = true;
+                        }
+                    }
+                    else
+                    {
+                        if (orderValue.Type == CaptainOrderType.None)
+                        {
+                            complete = true;
+                        }
+
+                        if (!complete)
+                        {
+                            var dist = math.length(transform.ValueRO.Position - assignmentValue.TargetPosition);
+                            if (dist <= 80f)
+                            {
+                                complete = true;
+                            }
+                        }
+
+                        if (orderValue.Status == CaptainOrderStatus.Failed || orderValue.Status == CaptainOrderStatus.Cancelled)
+                        {
+                            failed = true;
+                        }
                     }
                 }
 
-                if (orderValue.Status == CaptainOrderStatus.Failed || orderValue.Status == CaptainOrderStatus.Cancelled)
-                {
-                    failed = true;
-                }
+                assignment.ValueRW = assignmentValue;
+                order.ValueRW = orderValue;
 
                 if (!complete && !failed)
                 {
@@ -656,7 +889,8 @@ namespace Space4X.Systems.AI
 
                 if (complete)
                 {
-                    ApplyRewards(ref factionMap, assignment.ValueRO);
+                    var rewardScale = ResolveRewardScale(assignment.ValueRO);
+                    ApplyRewards(ref state, ref factionMap, entity, assignment.ValueRO, rewardScale, contactConfig);
                 }
 
                 order.ValueRW.Type = CaptainOrderType.None;
@@ -669,32 +903,183 @@ namespace Space4X.Systems.AI
             factionMap.Dispose();
         }
 
-        private void ApplyRewards(ref NativeHashMap<ushort, Entity> factionMap, in Space4XMissionAssignment assignment)
+        private static Space4XContactTierConfig EnsureContactConfig(ref SystemState state)
+        {
+            if (SystemAPI.TryGetSingleton(out Space4XContactTierConfig config))
+            {
+                return config;
+            }
+
+            var entity = state.EntityManager.CreateEntity(typeof(Space4XContactTierConfig));
+            config = Space4XContactTierConfig.Default;
+            state.EntityManager.SetComponentData(entity, config);
+            return config;
+        }
+
+        private float ResolveCargoLoad(ref Space4XMissionAssignment assignment)
+        {
+            var loadAmount = assignment.Units;
+            if (assignment.SourceEntity == Entity.Null || !_colonyLookup.HasComponent(assignment.SourceEntity))
+            {
+                return loadAmount;
+            }
+
+            var colony = _colonyLookup[assignment.SourceEntity];
+            var available = math.max(0f, colony.StoredResources);
+            loadAmount = math.min(loadAmount, available);
+            colony.StoredResources = math.max(0f, colony.StoredResources - loadAmount);
+            _colonyLookup[assignment.SourceEntity] = colony;
+            return loadAmount;
+        }
+
+        private void ApplyCargoDelivery(Entity destinationEntity, float units)
+        {
+            if (destinationEntity == Entity.Null || units <= 0f)
+            {
+                return;
+            }
+
+            if (!_colonyLookup.HasComponent(destinationEntity))
+            {
+                return;
+            }
+
+            var colony = _colonyLookup[destinationEntity];
+            colony.StoredResources += units;
+            _colonyLookup[destinationEntity] = colony;
+        }
+
+        private static float ResolveRewardScale(in Space4XMissionAssignment assignment)
+        {
+            if (assignment.Type == Space4XMissionType.HaulDelivery || assignment.Type == Space4XMissionType.HaulProcure)
+            {
+                if (assignment.Units > 0f)
+                {
+                    return math.saturate(assignment.CargoUnits / assignment.Units);
+                }
+            }
+
+            return 1f;
+        }
+
+        private void ApplyRewards(ref SystemState state, ref NativeHashMap<ushort, Entity> factionMap, Entity agentEntity,
+            in Space4XMissionAssignment assignment, float rewardScale, in Space4XContactTierConfig contactConfig)
         {
             if (assignment.IssuerFactionId == 0)
             {
                 return;
             }
 
-            if (!factionMap.TryGetValue(assignment.IssuerFactionId, out var factionEntity))
+            if (!factionMap.TryGetValue(assignment.IssuerFactionId, out var issuerFaction))
             {
                 return;
             }
 
-            if (_resourceLookup.HasComponent(factionEntity))
+            var recipientFaction = issuerFaction;
+            if (TryResolveAgentFaction(ref state, agentEntity, out var agentFaction, out var agentFactionId))
             {
-                var resources = _resourceLookup[factionEntity];
-                resources.Credits += assignment.RewardCredits;
-                resources.Influence += assignment.RewardStanding * 2f;
-                _resourceLookup[factionEntity] = resources;
+                recipientFaction = agentFaction;
+
+                if (agentFactionId != 0 && agentFactionId != assignment.IssuerFactionId)
+                {
+                    var lpDelta = assignment.RewardLp * rewardScale;
+                    if (lpDelta <= 0f)
+                    {
+                        lpDelta = assignment.RewardCredits * rewardScale * contactConfig.LpPerReward;
+                    }
+
+                    UpdateContactStanding(agentFaction, assignment.IssuerFactionId,
+                        assignment.RewardStanding * rewardScale,
+                        lpDelta,
+                        contactConfig);
+                }
             }
 
-            if (_reputationLookup.HasComponent(factionEntity))
+            if (_resourceLookup.HasComponent(recipientFaction))
             {
-                var rep = _reputationLookup[factionEntity];
-                rep.ReputationScore = (half)math.saturate((float)rep.ReputationScore + assignment.RewardStanding);
-                _reputationLookup[factionEntity] = rep;
+                var resources = _resourceLookup[recipientFaction];
+                resources.Credits += assignment.RewardCredits * rewardScale;
+                resources.Influence += assignment.RewardStanding * 2f * rewardScale;
+                _resourceLookup[recipientFaction] = resources;
             }
+
+            if (_reputationLookup.HasComponent(recipientFaction))
+            {
+                var rep = _reputationLookup[recipientFaction];
+                rep.ReputationScore = (half)math.saturate((float)rep.ReputationScore + assignment.RewardStanding * rewardScale);
+                _reputationLookup[recipientFaction] = rep;
+            }
+        }
+
+        private bool TryResolveAgentFaction(ref SystemState state, Entity agent, out Entity factionEntity, out ushort factionId)
+        {
+            factionEntity = Entity.Null;
+            factionId = 0;
+
+            if (_carrierLookup.HasComponent(agent))
+            {
+                var carrier = _carrierLookup[agent];
+                if (carrier.AffiliationEntity != Entity.Null)
+                {
+                    factionEntity = carrier.AffiliationEntity;
+                }
+            }
+
+            if (factionEntity == Entity.Null && _affiliationLookup.HasBuffer(agent))
+            {
+                var affiliations = _affiliationLookup[agent];
+                for (int i = 0; i < affiliations.Length; i++)
+                {
+                    var tag = affiliations[i];
+                    if (tag.Type == AffiliationType.Faction && tag.Target != Entity.Null)
+                    {
+                        factionEntity = tag.Target;
+                        break;
+                    }
+                }
+            }
+
+            if (factionEntity == Entity.Null || !state.EntityManager.HasComponent<Space4XFaction>(factionEntity))
+            {
+                return false;
+            }
+
+            factionId = state.EntityManager.GetComponentData<Space4XFaction>(factionEntity).FactionId;
+            return true;
+        }
+
+        private void UpdateContactStanding(Entity factionEntity, ushort contactFactionId, float standingDelta, float lpDelta, in Space4XContactTierConfig config)
+        {
+            if (!_contactLookup.HasBuffer(factionEntity))
+            {
+                return;
+            }
+
+            var buffer = _contactLookup[factionEntity];
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].ContactFactionId != contactFactionId)
+                {
+                    continue;
+                }
+
+                var entry = buffer[i];
+                var standing = math.saturate((float)entry.Standing + standingDelta * config.StandingGainScale);
+                entry.Standing = (half)standing;
+                entry.LoyaltyPoints += lpDelta;
+                entry.Tier = Space4XContactTierUtility.ResolveTier(standing, config);
+                buffer[i] = entry;
+                return;
+            }
+
+            var baseStanding = math.saturate(0.2f + standingDelta * config.StandingGainScale);
+            buffer.Add(new Space4XContactStanding
+            {
+                ContactFactionId = contactFactionId,
+                Standing = (half)baseStanding,
+                LoyaltyPoints = math.max(0f, lpDelta),
+                Tier = Space4XContactTierUtility.ResolveTier(baseStanding, config)
+            });
         }
     }
 }

@@ -298,6 +298,8 @@ namespace Space4X.SimServer
             data.colonies = CaptureColonies(ref state);
             data.resources = CaptureResources(ref state);
             data.anomalies = CaptureAnomalies(ref state);
+            data.missionOffers = CaptureMissionOffers(ref state);
+            data.missionAssignments = CaptureMissionAssignments(ref state);
 
             return data;
         }
@@ -392,6 +394,88 @@ namespace Space4X.SimServer
                             relations[i] = RelationData.From(relation, otherId);
                         }
                         data.relations = relations;
+                    }
+                }
+
+                if (entityManager.HasBuffer<Space4XContactStanding>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<Space4XContactStanding>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var contacts = new ContactData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            var entry = buffer[i];
+                            contacts[i] = new ContactData
+                            {
+                                contactFactionId = entry.ContactFactionId,
+                                standing = (float)entry.Standing,
+                                loyaltyPoints = entry.LoyaltyPoints,
+                                tier = entry.Tier
+                            };
+                        }
+                        data.contacts = contacts;
+                    }
+                }
+
+                if (entityManager.HasComponent<ReverseEngineeringState>(entity))
+                {
+                    data.reverseEngineeringState = ReverseEngineeringStateData.From(entityManager.GetComponentData<ReverseEngineeringState>(entity));
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringEvidence>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringEvidence>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var evidence = new ReverseEngineeringEvidenceData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            evidence[i] = ReverseEngineeringEvidenceData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringEvidence = evidence;
+                    }
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringTask>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringTask>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var tasks = new ReverseEngineeringTaskData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            tasks[i] = ReverseEngineeringTaskData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringTasks = tasks;
+                    }
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringBlueprintVariant>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringBlueprintVariant>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var variants = new ReverseEngineeringVariantData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            variants[i] = ReverseEngineeringVariantData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringVariants = variants;
+                    }
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringBlueprintProgress>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringBlueprintProgress>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var progress = new ReverseEngineeringProgressData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            progress[i] = ReverseEngineeringProgressData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringProgress = progress;
                     }
                 }
 
@@ -567,6 +651,200 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
+        private MissionOfferData[] CaptureMissionOffers(ref SystemState state)
+        {
+            var list = new List<MissionOfferData>(32);
+            var entityManager = state.EntityManager;
+
+            foreach (var (offer, entity) in SystemAPI.Query<RefRO<Space4XMissionOffer>>().WithEntityAccess())
+            {
+                ResolveTargetData(entityManager, offer.ValueRO.TargetEntity, offer.ValueRO.TargetPosition,
+                    out var kind, out var targetId, out var systemId, out var ringIndex, out var poiKind, out var targetPos);
+
+                list.Add(new MissionOfferData
+                {
+                    offerId = offer.ValueRO.OfferId,
+                    type = (byte)offer.ValueRO.Type,
+                    status = (byte)offer.ValueRO.Status,
+                    issuerFactionId = offer.ValueRO.IssuerFactionId,
+                    targetKind = (byte)kind,
+                    targetId = targetId,
+                    targetSystemId = systemId,
+                    targetRingIndex = ringIndex,
+                    targetPoiKind = poiKind,
+                    targetPosition = targetPos,
+                    resourceTypeIndex = offer.ValueRO.ResourceTypeIndex,
+                    units = offer.ValueRO.Units,
+                    rewardCredits = offer.ValueRO.RewardCredits,
+                    rewardStanding = offer.ValueRO.RewardStanding,
+                    rewardLp = offer.ValueRO.RewardLp,
+                    risk = offer.ValueRO.Risk,
+                    priority = offer.ValueRO.Priority,
+                    createdTick = offer.ValueRO.CreatedTick,
+                    expiryTick = offer.ValueRO.ExpiryTick,
+                    assignedTick = offer.ValueRO.AssignedTick,
+                    completedTick = offer.ValueRO.CompletedTick
+                });
+            }
+
+            return list.Count == 0 ? Array.Empty<MissionOfferData>() : list.ToArray();
+        }
+
+        private MissionAssignmentData[] CaptureMissionAssignments(ref SystemState state)
+        {
+            var list = new List<MissionAssignmentData>(32);
+            var entityManager = state.EntityManager;
+
+            foreach (var (assignment, entity) in SystemAPI.Query<RefRO<Space4XMissionAssignment>>().WithEntityAccess())
+            {
+                ResolveTargetData(entityManager, assignment.ValueRO.TargetEntity, assignment.ValueRO.TargetPosition,
+                    out var targetKind, out var targetId, out var targetSystemId, out var targetRingIndex, out var targetPoiKind, out var targetPos);
+
+                ResolveTargetData(entityManager, assignment.ValueRO.SourceEntity, assignment.ValueRO.SourcePosition,
+                    out var sourceKind, out var sourceId, out var sourceSystemId, out var sourceRingIndex, out var sourcePoiKind, out var sourcePos);
+
+                var assignedKind = (byte)0;
+                var assignedId = string.Empty;
+                if (TryResolveAssignmentEntityId(entityManager, entity, out var resolvedId, out var resolvedKind))
+                {
+                    assignedId = resolvedId;
+                    assignedKind = resolvedKind;
+                }
+
+                list.Add(new MissionAssignmentData
+                {
+                    offerId = assignment.ValueRO.OfferId,
+                    type = (byte)assignment.ValueRO.Type,
+                    status = (byte)assignment.ValueRO.Status,
+                    phase = (byte)assignment.ValueRO.Phase,
+                    cargoState = (byte)assignment.ValueRO.CargoState,
+                    issuerFactionId = assignment.ValueRO.IssuerFactionId,
+                    resourceTypeIndex = assignment.ValueRO.ResourceTypeIndex,
+                    units = assignment.ValueRO.Units,
+                    cargoUnits = assignment.ValueRO.CargoUnits,
+                    rewardCredits = assignment.ValueRO.RewardCredits,
+                    rewardStanding = assignment.ValueRO.RewardStanding,
+                    rewardLp = assignment.ValueRO.RewardLp,
+                    startedTick = assignment.ValueRO.StartedTick,
+                    dueTick = assignment.ValueRO.DueTick,
+                    completedTick = assignment.ValueRO.CompletedTick,
+                    autoComplete = assignment.ValueRO.AutoComplete,
+                    targetKind = (byte)targetKind,
+                    targetId = targetId,
+                    targetSystemId = targetSystemId,
+                    targetRingIndex = targetRingIndex,
+                    targetPoiKind = targetPoiKind,
+                    targetPosition = targetPos,
+                    sourceKind = (byte)sourceKind,
+                    sourceId = sourceId,
+                    sourceSystemId = sourceSystemId,
+                    sourceRingIndex = sourceRingIndex,
+                    sourcePoiKind = sourcePoiKind,
+                    sourcePosition = sourcePos,
+                    destinationPosition = ToVector3(assignment.ValueRO.DestinationPosition),
+                    assignedEntityId = assignedId,
+                    assignedEntityKind = assignedKind
+                });
+            }
+
+            return list.Count == 0 ? Array.Empty<MissionAssignmentData>() : list.ToArray();
+        }
+
+        private void ResolveTargetData(
+            EntityManager entityManager,
+            Entity targetEntity,
+            float3 fallbackPosition,
+            out MissionTargetKind kind,
+            out string targetId,
+            out ushort systemId,
+            out byte ringIndex,
+            out byte poiKind,
+            out Vector3 position)
+        {
+            kind = MissionTargetKind.None;
+            targetId = null;
+            systemId = 0;
+            ringIndex = 0;
+            poiKind = 0;
+            position = ToVector3(fallbackPosition);
+
+            if (targetEntity == Entity.Null || !entityManager.Exists(targetEntity))
+            {
+                return;
+            }
+
+            if (entityManager.HasComponent<LocalTransform>(targetEntity))
+            {
+                position = ToVector3(entityManager.GetComponentData<LocalTransform>(targetEntity).Position);
+            }
+
+            if (entityManager.HasComponent<Space4XColony>(targetEntity))
+            {
+                var colony = entityManager.GetComponentData<Space4XColony>(targetEntity);
+                kind = MissionTargetKind.Colony;
+                targetId = colony.ColonyId.ToString();
+                return;
+            }
+
+            if (entityManager.HasComponent<Asteroid>(targetEntity))
+            {
+                var asteroid = entityManager.GetComponentData<Asteroid>(targetEntity);
+                kind = MissionTargetKind.Asteroid;
+                targetId = asteroid.AsteroidId.ToString();
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XAnomaly>(targetEntity))
+            {
+                var anomaly = entityManager.GetComponentData<Space4XAnomaly>(targetEntity);
+                kind = MissionTargetKind.Anomaly;
+                targetId = anomaly.AnomalyId.ToString();
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XStarSystem>(targetEntity))
+            {
+                var system = entityManager.GetComponentData<Space4XStarSystem>(targetEntity);
+                kind = MissionTargetKind.System;
+                systemId = system.SystemId;
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XPoi>(targetEntity))
+            {
+                var poi = entityManager.GetComponentData<Space4XPoi>(targetEntity);
+                kind = MissionTargetKind.Poi;
+                systemId = poi.SystemId;
+                ringIndex = poi.RingIndex;
+                poiKind = (byte)poi.Kind;
+                return;
+            }
+
+            kind = MissionTargetKind.Unknown;
+        }
+
+        private static bool TryResolveAssignmentEntityId(EntityManager entityManager, Entity entity, out string id, out byte kind)
+        {
+            id = null;
+            kind = 0;
+
+            if (entityManager.HasComponent<Carrier>(entity))
+            {
+                id = entityManager.GetComponentData<Carrier>(entity).CarrierId.ToString();
+                kind = 1;
+                return true;
+            }
+
+            if (entityManager.HasComponent<MiningVessel>(entity))
+            {
+                id = entityManager.GetComponentData<MiningVessel>(entity).VesselId.ToString();
+                kind = 2;
+                return true;
+            }
+
+            return false;
+        }
+
         private ushort ResolveFactionId(ComponentLookup<Space4XFaction> lookup, Entity entity, ushort fallback)
         {
             if (entity != Entity.Null && lookup.HasComponent(entity))
@@ -739,6 +1017,33 @@ namespace Space4X.SimServer
                         buffer.Add(new FactionRelationEntry { Relation = relation });
                     }
                 }
+
+                if (pending.data?.contacts != null && pending.data.contacts.Length > 0)
+                {
+                    DynamicBuffer<Space4XContactStanding> buffer;
+                    if (entityManager.HasBuffer<Space4XContactStanding>(pending.entity))
+                    {
+                        buffer = entityManager.GetBuffer<Space4XContactStanding>(pending.entity);
+                        buffer.Clear();
+                    }
+                    else
+                    {
+                        buffer = entityManager.AddBuffer<Space4XContactStanding>(pending.entity);
+                    }
+
+                    foreach (var contact in pending.data.contacts)
+                    {
+                        buffer.Add(new Space4XContactStanding
+                        {
+                            ContactFactionId = contact.contactFactionId,
+                            Standing = (half)math.saturate(contact.standing),
+                            LoyaltyPoints = contact.loyaltyPoints,
+                            Tier = contact.tier
+                        });
+                    }
+                }
+
+                ApplyReverseEngineeringLoad(entityManager, pending.entity, pending.data);
             }
 
             if (data.systems != null)
@@ -917,7 +1222,125 @@ namespace Space4X.SimServer
                 }
             }
 
+            var colonyById = BuildColonyIdMap(ref state);
+            var asteroidById = BuildAsteroidIdMap(ref state);
+            var anomalyById = BuildAnomalyIdMap(ref state);
+            var systemById = BuildSystemIdMap(ref state);
+            var poiByKey = BuildPoiKeyMap(ref state);
+            var carrierById = BuildCarrierIdMap(ref state);
+            var vesselById = BuildVesselIdMap(ref state);
+            var offerEntities = new Dictionary<uint, Entity>();
+
+            if (data.missionOffers != null)
+            {
+                foreach (var offerData in data.missionOffers)
+                {
+                    var targetEntity = ResolveTargetEntity(offerData.targetKind, offerData.targetId, offerData.targetSystemId, offerData.targetRingIndex,
+                        offerData.targetPoiKind, colonyById, asteroidById, anomalyById, systemById, poiByKey);
+                    var targetPosition = ResolveTargetPosition(entityManager, targetEntity, offerData.targetPosition);
+                    var issuer = ResolveFactionEntity(factionMap, offerData.issuerFactionId, Entity.Null);
+
+                    var offerEntity = entityManager.CreateEntity(typeof(Space4XMissionOffer));
+                    entityManager.SetComponentData(offerEntity, new Space4XMissionOffer
+                    {
+                        OfferId = offerData.offerId,
+                        Type = (Space4XMissionType)offerData.type,
+                        Status = (Space4XMissionStatus)offerData.status,
+                        Issuer = issuer,
+                        IssuerFactionId = offerData.issuerFactionId,
+                        TargetEntity = targetEntity,
+                        TargetPosition = targetPosition,
+                        ResourceTypeIndex = offerData.resourceTypeIndex,
+                        Units = offerData.units,
+                        RewardCredits = offerData.rewardCredits,
+                        RewardStanding = offerData.rewardStanding,
+                        RewardLp = offerData.rewardLp,
+                        Risk = offerData.risk,
+                        Priority = offerData.priority,
+                        CreatedTick = offerData.createdTick,
+                        ExpiryTick = offerData.expiryTick,
+                        AssignedTick = offerData.assignedTick,
+                        CompletedTick = offerData.completedTick,
+                        AssignedEntity = Entity.Null
+                    });
+
+                    if (offerData.offerId != 0)
+                    {
+                        offerEntities[offerData.offerId] = offerEntity;
+                    }
+                }
+            }
+
+            if (data.missionAssignments != null)
+            {
+                foreach (var assignmentData in data.missionAssignments)
+                {
+                    var agent = ResolveAssignedEntity(assignmentData, carrierById, vesselById);
+                    if (agent == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    var targetEntity = ResolveTargetEntity(assignmentData.targetKind, assignmentData.targetId, assignmentData.targetSystemId, assignmentData.targetRingIndex,
+                        assignmentData.targetPoiKind, colonyById, asteroidById, anomalyById, systemById, poiByKey);
+                    var sourceEntity = ResolveTargetEntity(assignmentData.sourceKind, assignmentData.sourceId, assignmentData.sourceSystemId, assignmentData.sourceRingIndex,
+                        assignmentData.sourcePoiKind, colonyById, asteroidById, anomalyById, systemById, poiByKey);
+                    var offerEntity = assignmentData.offerId != 0 && offerEntities.TryGetValue(assignmentData.offerId, out var offerRef)
+                        ? offerRef
+                        : Entity.Null;
+
+                    var assignmentComponent = new Space4XMissionAssignment
+                    {
+                        OfferEntity = offerEntity,
+                        OfferId = assignmentData.offerId,
+                        Type = (Space4XMissionType)assignmentData.type,
+                        Status = (Space4XMissionStatus)assignmentData.status,
+                        TargetEntity = targetEntity,
+                        TargetPosition = ToFloat3(assignmentData.targetPosition),
+                        SourceEntity = sourceEntity,
+                        SourcePosition = ToFloat3(assignmentData.sourcePosition),
+                        DestinationPosition = ToFloat3(assignmentData.destinationPosition),
+                        Phase = (Space4XMissionPhase)assignmentData.phase,
+                        CargoState = (Space4XMissionCargoState)assignmentData.cargoState,
+                        ResourceTypeIndex = assignmentData.resourceTypeIndex,
+                        Units = assignmentData.units,
+                        CargoUnits = assignmentData.cargoUnits,
+                        RewardCredits = assignmentData.rewardCredits,
+                        RewardStanding = assignmentData.rewardStanding,
+                        RewardLp = assignmentData.rewardLp,
+                        IssuerFactionId = assignmentData.issuerFactionId,
+                        StartedTick = assignmentData.startedTick,
+                        DueTick = assignmentData.dueTick,
+                        CompletedTick = assignmentData.completedTick,
+                        AutoComplete = assignmentData.autoComplete
+                    };
+
+                    if (entityManager.HasComponent<Space4XMissionAssignment>(agent))
+                    {
+                        entityManager.SetComponentData(agent, assignmentComponent);
+                    }
+                    else
+                    {
+                        entityManager.AddComponentData(agent, assignmentComponent);
+                    }
+
+                    if (entityManager.HasComponent<CaptainOrder>(agent))
+                    {
+                        var order = entityManager.GetComponentData<CaptainOrder>(agent);
+                        order.Type = ResolveMissionOrderType((Space4XMissionType)assignmentData.type);
+                        order.Status = CaptainOrderStatus.Received;
+                        order.TargetEntity = assignmentComponent.TargetEntity;
+                        order.TargetPosition = assignmentComponent.TargetPosition;
+                        order.IssuedTick = assignmentComponent.StartedTick;
+                        order.TimeoutTick = assignmentComponent.DueTick;
+                        entityManager.SetComponentData(agent, order);
+                    }
+                }
+            }
+
             ApplyTimeState(ref state, data);
+
+            EnsureMissionBoardState(ref state, data);
             return true;
         }
 
@@ -1049,6 +1472,82 @@ namespace Space4X.SimServer
             });
 
             seats.Add(new AuthoritySeatRef { SeatEntity = leaderSeat });
+        }
+
+        private void ApplyReverseEngineeringLoad(EntityManager entityManager, Entity factionEntity, FactionData data)
+        {
+            if (data == null)
+            {
+                return;
+            }
+
+            if (data.reverseEngineeringState != null)
+            {
+                if (entityManager.HasComponent<ReverseEngineeringState>(factionEntity))
+                {
+                    entityManager.SetComponentData(factionEntity, data.reverseEngineeringState.ToComponent());
+                }
+                else
+                {
+                    entityManager.AddComponentData(factionEntity, data.reverseEngineeringState.ToComponent());
+                }
+            }
+            else if (!entityManager.HasComponent<ReverseEngineeringState>(factionEntity))
+            {
+                entityManager.AddComponentData(factionEntity, new ReverseEngineeringState
+                {
+                    NextTaskId = 1,
+                    NextVariantId = 1
+                });
+            }
+
+            var evidenceBuffer = entityManager.HasBuffer<ReverseEngineeringEvidence>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringEvidence>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringEvidence>(factionEntity);
+            evidenceBuffer.Clear();
+            if (data.reverseEngineeringEvidence != null)
+            {
+                foreach (var entry in data.reverseEngineeringEvidence)
+                {
+                    evidenceBuffer.Add(entry.ToBuffer());
+                }
+            }
+
+            var taskBuffer = entityManager.HasBuffer<ReverseEngineeringTask>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringTask>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringTask>(factionEntity);
+            taskBuffer.Clear();
+            if (data.reverseEngineeringTasks != null)
+            {
+                foreach (var entry in data.reverseEngineeringTasks)
+                {
+                    taskBuffer.Add(entry.ToBuffer());
+                }
+            }
+
+            var variantBuffer = entityManager.HasBuffer<ReverseEngineeringBlueprintVariant>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringBlueprintVariant>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringBlueprintVariant>(factionEntity);
+            variantBuffer.Clear();
+            if (data.reverseEngineeringVariants != null)
+            {
+                foreach (var entry in data.reverseEngineeringVariants)
+                {
+                    variantBuffer.Add(entry.ToBuffer());
+                }
+            }
+
+            var progressBuffer = entityManager.HasBuffer<ReverseEngineeringBlueprintProgress>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringBlueprintProgress>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringBlueprintProgress>(factionEntity);
+            progressBuffer.Clear();
+            if (data.reverseEngineeringProgress != null)
+            {
+                foreach (var entry in data.reverseEngineeringProgress)
+                {
+                    progressBuffer.Add(entry.ToBuffer());
+                }
+            }
         }
 
         private void ApplyLeaderSnapshot(
@@ -1243,6 +1742,215 @@ namespace Space4X.SimServer
             }
         }
 
+        private void EnsureMissionBoardState(ref SystemState state, SimSaveData data)
+        {
+            var maxOfferId = 0u;
+            if (data.missionOffers != null)
+            {
+                for (int i = 0; i < data.missionOffers.Length; i++)
+                {
+                    maxOfferId = math.max(maxOfferId, data.missionOffers[i].offerId);
+                }
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XMissionBoardConfig>(out var configEntity))
+            {
+                configEntity = state.EntityManager.CreateEntity(typeof(Space4XMissionBoardConfig), typeof(Space4XMissionBoardState));
+                state.EntityManager.SetComponentData(configEntity, Space4XMissionBoardConfig.Default);
+                state.EntityManager.SetComponentData(configEntity, new Space4XMissionBoardState
+                {
+                    LastGenerationTick = data.time?.tick ?? 0u,
+                    NextOfferId = maxOfferId + 1u
+                });
+                return;
+            }
+
+            if (!state.EntityManager.HasComponent<Space4XMissionBoardState>(configEntity))
+            {
+                state.EntityManager.AddComponentData(configEntity, new Space4XMissionBoardState
+                {
+                    LastGenerationTick = data.time?.tick ?? 0u,
+                    NextOfferId = maxOfferId + 1u
+                });
+                return;
+            }
+
+            var boardState = state.EntityManager.GetComponentData<Space4XMissionBoardState>(configEntity);
+            boardState.LastGenerationTick = data.time?.tick ?? boardState.LastGenerationTick;
+            boardState.NextOfferId = math.max(boardState.NextOfferId, maxOfferId + 1u);
+            state.EntityManager.SetComponentData(configEntity, boardState);
+        }
+
+        private Dictionary<string, Entity> BuildColonyIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (colony, entity) in SystemAPI.Query<RefRO<Space4XColony>>().WithEntityAccess())
+            {
+                map[colony.ValueRO.ColonyId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildAsteroidIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (asteroid, entity) in SystemAPI.Query<RefRO<Asteroid>>().WithEntityAccess())
+            {
+                map[asteroid.ValueRO.AsteroidId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildAnomalyIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (anomaly, entity) in SystemAPI.Query<RefRO<Space4XAnomaly>>().WithEntityAccess())
+            {
+                map[anomaly.ValueRO.AnomalyId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<ushort, Entity> BuildSystemIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<ushort, Entity>();
+            foreach (var (system, entity) in SystemAPI.Query<RefRO<Space4XStarSystem>>().WithEntityAccess())
+            {
+                map[system.ValueRO.SystemId] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<int, Entity> BuildPoiKeyMap(ref SystemState state)
+        {
+            var map = new Dictionary<int, Entity>();
+            foreach (var (poi, entity) in SystemAPI.Query<RefRO<Space4XPoi>>().WithEntityAccess())
+            {
+                var key = BuildPoiKey(poi.ValueRO.SystemId, poi.ValueRO.RingIndex, (byte)poi.ValueRO.Kind);
+                if (!map.ContainsKey(key))
+                {
+                    map[key] = entity;
+                }
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildCarrierIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (carrier, entity) in SystemAPI.Query<RefRO<Carrier>>().WithEntityAccess())
+            {
+                map[carrier.ValueRO.CarrierId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildVesselIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (vessel, entity) in SystemAPI.Query<RefRO<MiningVessel>>().WithEntityAccess())
+            {
+                map[vessel.ValueRO.VesselId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private static int BuildPoiKey(ushort systemId, byte ringIndex, byte poiKind)
+        {
+            return (systemId << 16) ^ (ringIndex << 8) ^ poiKind;
+        }
+
+        private static Entity ResolveTargetEntity(byte kindValue, string targetId, ushort systemId, byte ringIndex, byte poiKind,
+            Dictionary<string, Entity> colonyMap,
+            Dictionary<string, Entity> asteroidMap,
+            Dictionary<string, Entity> anomalyMap,
+            Dictionary<ushort, Entity> systemMap,
+            Dictionary<int, Entity> poiMap)
+        {
+            var kind = (MissionTargetKind)kindValue;
+            switch (kind)
+            {
+                case MissionTargetKind.Colony:
+                    if (!string.IsNullOrWhiteSpace(targetId) && colonyMap.TryGetValue(targetId, out var colony))
+                    {
+                        return colony;
+                    }
+                    break;
+                case MissionTargetKind.Asteroid:
+                    if (!string.IsNullOrWhiteSpace(targetId) && asteroidMap.TryGetValue(targetId, out var asteroid))
+                    {
+                        return asteroid;
+                    }
+                    break;
+                case MissionTargetKind.Anomaly:
+                    if (!string.IsNullOrWhiteSpace(targetId) && anomalyMap.TryGetValue(targetId, out var anomaly))
+                    {
+                        return anomaly;
+                    }
+                    break;
+                case MissionTargetKind.System:
+                    if (systemId != 0 && systemMap.TryGetValue(systemId, out var system))
+                    {
+                        return system;
+                    }
+                    break;
+                case MissionTargetKind.Poi:
+                    var key = BuildPoiKey(systemId, ringIndex, poiKind);
+                    if (poiMap.TryGetValue(key, out var poi))
+                    {
+                        return poi;
+                    }
+                    break;
+            }
+
+            return Entity.Null;
+        }
+
+        private float3 ResolveTargetPosition(EntityManager entityManager, Entity targetEntity, Vector3 fallback)
+        {
+            if (targetEntity != Entity.Null && entityManager.Exists(targetEntity) && entityManager.HasComponent<LocalTransform>(targetEntity))
+            {
+                return entityManager.GetComponentData<LocalTransform>(targetEntity).Position;
+            }
+
+            return ToFloat3(fallback);
+        }
+
+        private static Entity ResolveAssignedEntity(MissionAssignmentData assignmentData, Dictionary<string, Entity> carrierMap, Dictionary<string, Entity> vesselMap)
+        {
+            if (string.IsNullOrWhiteSpace(assignmentData.assignedEntityId))
+            {
+                return Entity.Null;
+            }
+
+            if (assignmentData.assignedEntityKind == 1 && carrierMap.TryGetValue(assignmentData.assignedEntityId, out var carrier))
+            {
+                return carrier;
+            }
+
+            if (assignmentData.assignedEntityKind == 2 && vesselMap.TryGetValue(assignmentData.assignedEntityId, out var vessel))
+            {
+                return vessel;
+            }
+
+            return Entity.Null;
+        }
+
+        private static CaptainOrderType ResolveMissionOrderType(Space4XMissionType type)
+        {
+            return type switch
+            {
+                Space4XMissionType.Scout => CaptainOrderType.Survey,
+                Space4XMissionType.Mine => CaptainOrderType.Mine,
+                Space4XMissionType.HaulDelivery => CaptainOrderType.Haul,
+                Space4XMissionType.HaulProcure => CaptainOrderType.Haul,
+                Space4XMissionType.Patrol => CaptainOrderType.Patrol,
+                Space4XMissionType.Intercept => CaptainOrderType.Intercept,
+                Space4XMissionType.BuildStation => CaptainOrderType.Construct,
+                _ => CaptainOrderType.MoveTo
+            };
+        }
+
         private float ResolveTimeScale(SimTimeData timeData)
         {
             var scale = timeData.timeScale;
@@ -1334,6 +2042,8 @@ namespace Space4X.SimServer
             public ColonyData[] colonies;
             public ResourceData[] resources;
             public AnomalyData[] anomalies;
+            public MissionOfferData[] missionOffers;
+            public MissionAssignmentData[] missionAssignments;
         }
 
         [Serializable]
@@ -1477,6 +2187,12 @@ namespace Space4X.SimServer
             public DirectiveData directive;
             public LeaderData leader;
             public RelationData[] relations;
+            public ContactData[] contacts;
+            public ReverseEngineeringStateData reverseEngineeringState;
+            public ReverseEngineeringEvidenceData[] reverseEngineeringEvidence;
+            public ReverseEngineeringTaskData[] reverseEngineeringTasks;
+            public ReverseEngineeringVariantData[] reverseEngineeringVariants;
+            public ReverseEngineeringProgressData[] reverseEngineeringProgress;
         }
 
         [Serializable]
@@ -1850,6 +2566,294 @@ namespace Space4X.SimServer
             public float instability;
             public int sectorId;
             public Vector3 position;
+        }
+
+        private enum MissionTargetKind : byte
+        {
+            None = 0,
+            Colony = 1,
+            Asteroid = 2,
+            Anomaly = 3,
+            System = 4,
+            Poi = 5,
+            Unknown = 250
+        }
+
+        [Serializable]
+        private sealed class MissionOfferData
+        {
+            public uint offerId;
+            public byte type;
+            public byte status;
+            public ushort issuerFactionId;
+            public byte targetKind;
+            public string targetId;
+            public ushort targetSystemId;
+            public byte targetRingIndex;
+            public byte targetPoiKind;
+            public Vector3 targetPosition;
+            public ushort resourceTypeIndex;
+            public float units;
+            public float rewardCredits;
+            public float rewardStanding;
+            public float rewardLp;
+            public float risk;
+            public byte priority;
+            public uint createdTick;
+            public uint expiryTick;
+            public uint assignedTick;
+            public uint completedTick;
+        }
+
+        [Serializable]
+        private sealed class MissionAssignmentData
+        {
+            public uint offerId;
+            public byte type;
+            public byte status;
+            public byte phase;
+            public byte cargoState;
+            public ushort issuerFactionId;
+            public ushort resourceTypeIndex;
+            public float units;
+            public float cargoUnits;
+            public float rewardCredits;
+            public float rewardStanding;
+            public float rewardLp;
+            public uint startedTick;
+            public uint dueTick;
+            public uint completedTick;
+            public byte autoComplete;
+            public byte targetKind;
+            public string targetId;
+            public ushort targetSystemId;
+            public byte targetRingIndex;
+            public byte targetPoiKind;
+            public Vector3 targetPosition;
+            public byte sourceKind;
+            public string sourceId;
+            public ushort sourceSystemId;
+            public byte sourceRingIndex;
+            public byte sourcePoiKind;
+            public Vector3 sourcePosition;
+            public Vector3 destinationPosition;
+            public string assignedEntityId;
+            public byte assignedEntityKind;
+        }
+
+        [Serializable]
+        private sealed class ContactData
+        {
+            public ushort contactFactionId;
+            public float standing;
+            public float loyaltyPoints;
+            public byte tier;
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringStateData
+        {
+            public uint nextTaskId;
+            public uint nextVariantId;
+
+            public static ReverseEngineeringStateData From(ReverseEngineeringState state)
+            {
+                return new ReverseEngineeringStateData
+                {
+                    nextTaskId = state.NextTaskId,
+                    nextVariantId = state.NextVariantId
+                };
+            }
+
+            public ReverseEngineeringState ToComponent()
+            {
+                return new ReverseEngineeringState
+                {
+                    NextTaskId = nextTaskId,
+                    NextVariantId = nextVariantId
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringEvidenceData
+        {
+            public ushort blueprintId;
+            public byte stage;
+            public byte fidelity;
+            public byte integrity;
+            public byte coverageEfficiency;
+            public byte coverageReliability;
+            public byte coverageMass;
+            public byte coveragePower;
+            public byte coverageSignature;
+            public byte coverageDurability;
+            public uint evidenceSeed;
+            public uint sourceTick;
+
+            public static ReverseEngineeringEvidenceData From(ReverseEngineeringEvidence evidence)
+            {
+                return new ReverseEngineeringEvidenceData
+                {
+                    blueprintId = evidence.BlueprintId,
+                    stage = evidence.Stage,
+                    fidelity = evidence.Fidelity,
+                    integrity = evidence.Integrity,
+                    coverageEfficiency = evidence.CoverageEfficiency,
+                    coverageReliability = evidence.CoverageReliability,
+                    coverageMass = evidence.CoverageMass,
+                    coveragePower = evidence.CoveragePower,
+                    coverageSignature = evidence.CoverageSignature,
+                    coverageDurability = evidence.CoverageDurability,
+                    evidenceSeed = evidence.EvidenceSeed,
+                    sourceTick = evidence.SourceTick
+                };
+            }
+
+            public ReverseEngineeringEvidence ToBuffer()
+            {
+                return new ReverseEngineeringEvidence
+                {
+                    BlueprintId = blueprintId,
+                    Stage = stage,
+                    Fidelity = fidelity,
+                    Integrity = integrity,
+                    CoverageEfficiency = coverageEfficiency,
+                    CoverageReliability = coverageReliability,
+                    CoverageMass = coverageMass,
+                    CoveragePower = coveragePower,
+                    CoverageSignature = coverageSignature,
+                    CoverageDurability = coverageDurability,
+                    EvidenceSeed = evidenceSeed,
+                    SourceTick = sourceTick
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringTaskData
+        {
+            public uint taskId;
+            public byte type;
+            public ushort blueprintId;
+            public byte evidenceNeeded;
+            public uint evidenceHash;
+            public float durationSeconds;
+            public float progress;
+            public uint attemptIndex;
+            public uint teamHash;
+
+            public static ReverseEngineeringTaskData From(ReverseEngineeringTask task)
+            {
+                return new ReverseEngineeringTaskData
+                {
+                    taskId = task.TaskId,
+                    type = (byte)task.Type,
+                    blueprintId = task.BlueprintId,
+                    evidenceNeeded = task.EvidenceNeeded,
+                    evidenceHash = task.EvidenceHash,
+                    durationSeconds = task.DurationSeconds,
+                    progress = task.Progress,
+                    attemptIndex = task.AttemptIndex,
+                    teamHash = task.TeamHash
+                };
+            }
+
+            public ReverseEngineeringTask ToBuffer()
+            {
+                return new ReverseEngineeringTask
+                {
+                    TaskId = taskId,
+                    Type = (ReverseEngineeringTaskType)type,
+                    BlueprintId = blueprintId,
+                    EvidenceNeeded = evidenceNeeded,
+                    EvidenceHash = evidenceHash,
+                    DurationSeconds = durationSeconds,
+                    Progress = progress,
+                    AttemptIndex = attemptIndex,
+                    TeamHash = teamHash
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringVariantData
+        {
+            public uint variantId;
+            public ushort blueprintId;
+            public byte quality;
+            public byte remainingRuns;
+            public float efficiencyScalar;
+            public float reliabilityScalar;
+            public float massScalar;
+            public float powerScalar;
+            public float signatureScalar;
+            public float durabilityScalar;
+            public uint evidenceHash;
+            public uint seed;
+
+            public static ReverseEngineeringVariantData From(ReverseEngineeringBlueprintVariant variant)
+            {
+                return new ReverseEngineeringVariantData
+                {
+                    variantId = variant.VariantId,
+                    blueprintId = variant.BlueprintId,
+                    quality = variant.Quality,
+                    remainingRuns = variant.RemainingRuns,
+                    efficiencyScalar = variant.EfficiencyScalar,
+                    reliabilityScalar = variant.ReliabilityScalar,
+                    massScalar = variant.MassScalar,
+                    powerScalar = variant.PowerScalar,
+                    signatureScalar = variant.SignatureScalar,
+                    durabilityScalar = variant.DurabilityScalar,
+                    evidenceHash = variant.EvidenceHash,
+                    seed = variant.Seed
+                };
+            }
+
+            public ReverseEngineeringBlueprintVariant ToBuffer()
+            {
+                return new ReverseEngineeringBlueprintVariant
+                {
+                    VariantId = variantId,
+                    BlueprintId = blueprintId,
+                    Quality = quality,
+                    RemainingRuns = remainingRuns,
+                    EfficiencyScalar = efficiencyScalar,
+                    ReliabilityScalar = reliabilityScalar,
+                    MassScalar = massScalar,
+                    PowerScalar = powerScalar,
+                    SignatureScalar = signatureScalar,
+                    DurabilityScalar = durabilityScalar,
+                    EvidenceHash = evidenceHash,
+                    Seed = seed
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringProgressData
+        {
+            public ushort blueprintId;
+            public uint attemptCount;
+
+            public static ReverseEngineeringProgressData From(ReverseEngineeringBlueprintProgress progress)
+            {
+                return new ReverseEngineeringProgressData
+                {
+                    blueprintId = progress.BlueprintId,
+                    attemptCount = progress.AttemptCount
+                };
+            }
+
+            public ReverseEngineeringBlueprintProgress ToBuffer()
+            {
+                return new ReverseEngineeringBlueprintProgress
+                {
+                    BlueprintId = blueprintId,
+                    AttemptCount = attemptCount
+                };
+            }
         }
 
         private sealed class PendingFaction
