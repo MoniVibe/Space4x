@@ -944,7 +944,9 @@ namespace Space4X.SimServer
                     Diplomacy = 0.5f,
                     Production = (float)faction.TradeFocus,
                     Food = 0.5f,
+                    Priority = 0.25f,
                     LastUpdatedTick = 0,
+                    ExpiresAtTick = 0,
                     DirectiveId = new FixedString64Bytes("default")
                 });
             }
@@ -1595,7 +1597,9 @@ namespace Space4X.SimServer
             public float diplomacy;
             public float production;
             public float food;
+            public float priority;
             public uint lastUpdatedTick;
+            public uint expiresAtTick;
             public string directiveId;
 
             public static DirectiveData From(Space4XFactionDirective directive)
@@ -1609,7 +1613,9 @@ namespace Space4X.SimServer
                     diplomacy = directive.Diplomacy,
                     production = directive.Production,
                     food = directive.Food,
+                    priority = directive.Priority,
                     lastUpdatedTick = directive.LastUpdatedTick,
+                    expiresAtTick = directive.ExpiresAtTick,
                     directiveId = directive.DirectiveId.ToString()
                 };
             }
@@ -1625,7 +1631,9 @@ namespace Space4X.SimServer
                     Diplomacy = diplomacy,
                     Production = production,
                     Food = food,
+                    Priority = priority,
                     LastUpdatedTick = lastUpdatedTick,
+                    ExpiresAtTick = expiresAtTick,
                     DirectiveId = new FixedString64Bytes(directiveId ?? string.Empty)
                 };
             }

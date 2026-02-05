@@ -10,6 +10,8 @@ namespace Space4X.SimServer
     {
         private const string SaveDirEnv = "SPACE4X_SIM_SAVE_DIR";
         private const string SaveKeepEnv = "SPACE4X_SIM_SAVE_KEEP";
+        private const string SaveKeepPerSlotEnv = "SPACE4X_SIM_SAVE_KEEP_PER_SLOT";
+        private const string SaveKeepTotalEnv = "SPACE4X_SIM_SAVE_KEEP_TOTAL";
         private const string StatusLogEnv = "SPACE4X_SIM_STATUS_LOG";
         private const string StatusLogMaxEnv = "SPACE4X_SIM_STATUS_LOG_MAX_MB";
         private static string s_baseDir;
@@ -54,6 +56,10 @@ namespace Space4X.SimServer
         internal static string StatusLogFile => Path.Combine(StatusDir, "status.jsonl");
 
         internal static int SaveKeepCount => ReadInt(SaveKeepEnv, 10);
+
+        internal static int SaveKeepPerSlot => ReadInt(SaveKeepPerSlotEnv, SaveKeepCount);
+
+        internal static int SaveKeepTotal => ReadInt(SaveKeepTotalEnv, 0);
 
         internal static bool StatusLogEnabled => ReadBool(StatusLogEnv, false);
 
@@ -114,11 +120,19 @@ namespace Space4X.SimServer
             {
                 var file = files[i];
                 var name = Path.GetFileName(file);
+                var slot = GetSlotKeyFromFilename(name);
+                var timestamp = GetTimestampFromFilename(name);
                 if (i > 0)
                 {
                     builder.Append(',');
                 }
-                builder.Append('\"').Append(name.Replace("\"", string.Empty)).Append('\"');
+                builder.Append("{\"file\":\"").Append(name.Replace("\"", string.Empty)).Append("\"");
+                builder.Append(",\"slot\":\"").Append(slot.Replace("\"", string.Empty)).Append("\"");
+                if (!string.IsNullOrWhiteSpace(timestamp))
+                {
+                    builder.Append(",\"timestamp\":\"").Append(timestamp.Replace("\"", string.Empty)).Append("\"");
+                }
+                builder.Append("}");
             }
             builder.Append("]}");
             return builder.ToString();
@@ -126,31 +140,136 @@ namespace Space4X.SimServer
 
         internal static void TrimSaves()
         {
-            var keep = SaveKeepCount;
-            if (keep <= 0)
-            {
-                return;
-            }
-
             if (!Directory.Exists(SaveDir))
             {
                 return;
             }
 
-            var files = new DirectoryInfo(SaveDir).GetFiles("*.json", SearchOption.TopDirectoryOnly);
-            Array.Sort(files, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+            var keepPerSlot = SaveKeepPerSlot;
+            var keepTotal = SaveKeepTotal;
 
-            for (int i = keep; i < files.Length; i++)
+            var files = new DirectoryInfo(SaveDir).GetFiles("*.json", SearchOption.TopDirectoryOnly);
+            if (files.Length == 0)
             {
-                try
+                return;
+            }
+
+            if (keepPerSlot > 0)
+            {
+                var bySlot = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<FileInfo>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in files)
                 {
-                    files[i].Delete();
+                    var slot = GetSlotKeyFromFilename(file.Name);
+                    if (!bySlot.TryGetValue(slot, out var list))
+                    {
+                        list = new System.Collections.Generic.List<FileInfo>();
+                        bySlot[slot] = list;
+                    }
+                    list.Add(file);
                 }
-                catch
+
+                foreach (var entry in bySlot)
                 {
-                    // ignore deletion failures
+                    var list = entry.Value;
+                    list.Sort((a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+                    for (int i = keepPerSlot; i < list.Count; i++)
+                    {
+                        TryDelete(list[i]);
+                    }
                 }
             }
+
+            if (keepTotal > 0)
+            {
+                files = new DirectoryInfo(SaveDir).GetFiles("*.json", SearchOption.TopDirectoryOnly);
+                Array.Sort(files, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+                for (int i = keepTotal; i < files.Length; i++)
+                {
+                    TryDelete(files[i]);
+                }
+            }
+        }
+
+        private static void TryDelete(FileInfo file)
+        {
+            try
+            {
+                file.Delete();
+            }
+            catch
+            {
+                // ignore deletion failures
+            }
+        }
+
+        private static string GetSlotKeyFromFilename(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return "autosave";
+            }
+
+            var stem = Path.GetFileNameWithoutExtension(name);
+            if (string.IsNullOrWhiteSpace(stem))
+            {
+                return "autosave";
+            }
+
+            var underscore = stem.LastIndexOf('_');
+            if (underscore <= 0)
+            {
+                return stem;
+            }
+
+            var suffix = stem.Substring(underscore + 1);
+            if (IsTimestampSuffix(suffix))
+            {
+                return stem.Substring(0, underscore);
+            }
+
+            return stem;
+        }
+
+        private static string GetTimestampFromFilename(string name)
+        {
+            var stem = Path.GetFileNameWithoutExtension(name);
+            if (string.IsNullOrWhiteSpace(stem))
+            {
+                return string.Empty;
+            }
+
+            var underscore = stem.LastIndexOf('_');
+            if (underscore <= 0)
+            {
+                return string.Empty;
+            }
+
+            var suffix = stem.Substring(underscore + 1);
+            return IsTimestampSuffix(suffix) ? suffix : string.Empty;
+        }
+
+        private static bool IsTimestampSuffix(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Length != 15)
+            {
+                return false;
+            }
+
+            if (value[8] != '_')
+            {
+                return false;
+            }
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (i == 8) continue;
+                if (!char.IsDigit(value[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         internal static void WriteStatus(string json)

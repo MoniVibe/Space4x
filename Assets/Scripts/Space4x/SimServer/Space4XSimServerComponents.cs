@@ -39,7 +39,9 @@ namespace Space4X.SimServer
         public float Diplomacy;
         public float Production;
         public float Food;
+        public float Priority;
         public uint LastUpdatedTick;
+        public uint ExpiresAtTick;
         public FixedString64Bytes DirectiveId;
     }
 }

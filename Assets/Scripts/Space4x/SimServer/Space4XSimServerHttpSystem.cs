@@ -58,6 +58,7 @@ namespace Space4X.SimServer
         private void ApplyDirectives(ref SystemState state)
         {
             var tick = SystemAPI.TryGetSingleton<TimeState>(out var timeState) ? timeState.Tick : 0u;
+            var ticksPerSecond = ResolveTicksPerSecond(ref state, timeState);
             var applied = 0;
 
             while (applied < 64 && Space4XSimHttpServer.TryDequeueDirective(out var json))
@@ -83,17 +84,19 @@ namespace Space4X.SimServer
                     continue;
                 }
 
-                ApplyDirectiveToFactions(ref state, request, tick);
+                ApplyDirectiveToFactions(ref state, request, tick, ticksPerSecond);
                 applied++;
             }
         }
 
-        private void ApplyDirectiveToFactions(ref SystemState state, DirectiveRequest request, uint tick)
+        private void ApplyDirectiveToFactions(ref SystemState state, DirectiveRequest request, uint tick, float ticksPerSecond)
         {
             var factionId = request.ResolveFactionId();
             var factionName = request.ResolveFactionName();
             var applyAll = factionId == 0 && string.IsNullOrWhiteSpace(factionName);
             var directiveId = request.ResolveDirectiveId();
+            var priority = request.ResolvePriority();
+            var expiresAtTick = ResolveExpiryTick(request, tick, ticksPerSecond);
 
             var resolvedWeights = ResolveWeights(request, directiveId);
             var entityManager = state.EntityManager;
@@ -105,6 +108,16 @@ namespace Space4X.SimServer
                 if (!applyAll && !MatchesFaction(factionLookup, relationLookup, entity, factionId, factionName))
                 {
                     continue;
+                }
+
+                if (entityManager.HasComponent<Space4XFactionDirective>(entity))
+                {
+                    var existing = entityManager.GetComponentData<Space4XFactionDirective>(entity);
+                    var expired = existing.ExpiresAtTick != 0 && tick >= existing.ExpiresAtTick;
+                    if (!expired && existing.Priority > priority)
+                    {
+                        continue;
+                    }
                 }
 
                 ref var factionRw = ref faction.ValueRW;
@@ -143,7 +156,9 @@ namespace Space4X.SimServer
                     Diplomacy = diplomacy,
                     Production = production,
                     Food = food,
+                    Priority = priority,
                     LastUpdatedTick = tick,
+                    ExpiresAtTick = expiresAtTick,
                     DirectiveId = new FixedString64Bytes(directiveId ?? string.Empty)
                 });
 
@@ -181,6 +196,21 @@ namespace Space4X.SimServer
         private static float ResolveWeight(float candidate, float fallback)
         {
             return candidate >= 0f ? math.saturate(candidate) : math.saturate(fallback);
+        }
+
+        private static float ResolveTicksPerSecond(ref SystemState state, in TimeState timeState)
+        {
+            if (SystemAPI.TryGetSingleton(out Space4XSimServerConfig config) && config.TargetTicksPerSecond > 0f)
+            {
+                return config.TargetTicksPerSecond;
+            }
+
+            if (timeState.FixedDeltaTime > math.FLT_MIN_NORMAL)
+            {
+                return 1f / timeState.FixedDeltaTime;
+            }
+
+            return 2f;
         }
 
         private static void ApplyDirectiveProfile(
@@ -285,6 +315,22 @@ namespace Space4X.SimServer
                 _builder.Append(",\"credits\":").Append(resources.ValueRO.Credits.ToString("0.##", inv));
                 _builder.Append(",\"materials\":").Append(resources.ValueRO.Materials.ToString("0.##", inv));
                 _builder.Append(",\"colonies\":").Append(territory.ValueRO.ColonyCount);
+
+                if (state.EntityManager.HasComponent<Space4XFactionDirective>(entity))
+                {
+                    var directive = state.EntityManager.GetComponentData<Space4XFactionDirective>(entity);
+                    _builder.Append(",\"directive\":{");
+                    _builder.Append("\"id\":\"").Append(EscapeJson(directive.DirectiveId.ToString())).Append("\"");
+                    _builder.Append(",\"priority\":").Append(directive.Priority.ToString("0.###", inv));
+                    _builder.Append(",\"expiresAt\":").Append(directive.ExpiresAtTick);
+                    _builder.Append(",\"lastUpdated\":").Append(directive.LastUpdatedTick);
+                    _builder.Append("}");
+                }
+                else
+                {
+                    _builder.Append(",\"directive\":null");
+                }
+
                 _builder.Append("}");
             }
 
@@ -363,6 +409,30 @@ namespace Space4X.SimServer
             return weights;
         }
 
+        private static uint ResolveExpiryTick(DirectiveRequest request, uint currentTick, float ticksPerSecond)
+        {
+            var explicitTick = request.ResolveExpiresAtTick();
+            if (explicitTick > 0)
+            {
+                return explicitTick;
+            }
+
+            var durationTicks = request.ResolveDurationTicks();
+            if (durationTicks > 0)
+            {
+                return currentTick + durationTicks;
+            }
+
+            var durationSeconds = request.ResolveDurationSeconds();
+            if (durationSeconds > 0f)
+            {
+                var delta = (uint)math.max(1f, math.round(durationSeconds * math.max(1f, ticksPerSecond)));
+                return currentTick + delta;
+            }
+
+            return 0;
+        }
+
         [Serializable]
         private sealed class DirectiveRequest
         {
@@ -372,6 +442,14 @@ namespace Space4X.SimServer
             public string faction_name;
             public string directiveId;
             public string directive_id;
+            public float priority = -1f;
+            public float priority_weight = -1f;
+            public uint expiresAtTick;
+            public uint expires_at_tick;
+            public int durationTicks;
+            public int duration_ticks;
+            public float durationSeconds;
+            public float duration_seconds;
             public float security = -1f;
             public float economy = -1f;
             public float research = -1f;
@@ -396,6 +474,32 @@ namespace Space4X.SimServer
             public string ResolveDirectiveId()
             {
                 return !string.IsNullOrWhiteSpace(directiveId) ? directiveId : directive_id;
+            }
+
+            public float ResolvePriority()
+            {
+                var value = priority >= 0f ? priority : priority_weight;
+                if (value >= 0f)
+                {
+                    return math.saturate(value);
+                }
+                return 0.5f;
+            }
+
+            public uint ResolveExpiresAtTick()
+            {
+                return expiresAtTick != 0 ? expiresAtTick : expires_at_tick;
+            }
+
+            public uint ResolveDurationTicks()
+            {
+                var value = durationTicks != 0 ? durationTicks : duration_ticks;
+                return value > 0 ? (uint)value : 0u;
+            }
+
+            public float ResolveDurationSeconds()
+            {
+                return durationSeconds > 0f ? durationSeconds : duration_seconds;
             }
 
             public float ResolveWeight(float direct, float? nested)

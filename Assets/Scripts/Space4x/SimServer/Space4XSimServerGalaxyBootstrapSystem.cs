@@ -139,7 +139,9 @@ namespace Space4X.SimServer
                     Diplomacy = 0.5f,
                     Production = (float)faction.TradeFocus,
                     Food = 0.5f,
+                    Priority = 0.25f,
                     LastUpdatedTick = 0,
+                    ExpiresAtTick = 0,
                     DirectiveId = new FixedString64Bytes("default")
                 });
 
