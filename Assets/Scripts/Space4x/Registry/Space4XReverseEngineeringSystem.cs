@@ -318,7 +318,7 @@ namespace Space4X.Registry
             var config = SystemAPI.GetSingleton<ReverseEngineeringConfig>();
             var deltaSeconds = (float)SystemAPI.Time.DeltaTime;
 
-            foreach (var (faction, reverseState, entity) in SystemAPI.Query<RefRO<Space4XFaction>, RefRW<ReverseEngineeringState>>().WithEntityAccess())
+            foreach (var (faction, reverseState, tech, entity) in SystemAPI.Query<RefRO<Space4XFaction>, RefRW<ReverseEngineeringState>, RefRO<TechLevel>>().WithEntityAccess())
             {
                 if (!SystemAPI.HasBuffer<ReverseEngineeringEvidence>(entity) ||
                     !SystemAPI.HasBuffer<ReverseEngineeringTask>(entity) ||
@@ -363,7 +363,8 @@ namespace Space4X.Registry
                         CompleteDestructiveAnalysis(evidence, task.BlueprintId, config);
                         break;
                     case ReverseEngineeringTaskType.SynthesizePrototype:
-                        CompleteSynthesis(evidence, progress, variants, ref reverseState.ValueRW, task, config);
+                        var sophistication = ResolveResearchSophistication(faction.ValueRO, tech.ValueRO);
+                        CompleteSynthesis(evidence, progress, variants, ref reverseState.ValueRW, task, config, sophistication);
                         break;
                 }
 
@@ -491,7 +492,8 @@ namespace Space4X.Registry
             DynamicBuffer<ReverseEngineeringBlueprintVariant> variants,
             ref ReverseEngineeringState state,
             ReverseEngineeringTask task,
-            in ReverseEngineeringConfig config)
+            in ReverseEngineeringConfig config,
+            float sophistication)
         {
             FixedList64Bytes<int> indices = default;
             for (int i = 0; i < evidence.Length && indices.Length < config.EvidencePerSynthesis; i++)
@@ -516,20 +518,21 @@ namespace Space4X.Registry
             }
 
             var random = new Unity.Mathematics.Random(seed);
-            var quality = math.clamp(average.quality, 0.1f, 1f);
+            var quality = math.clamp(average.quality + sophistication * 0.08f, 0.1f, 1f);
+            var compensation = ComputeCompensation(average, sophistication);
 
             var variant = new ReverseEngineeringBlueprintVariant
             {
                 VariantId = state.NextVariantId++,
                 BlueprintId = task.BlueprintId,
                 Quality = (byte)math.round(quality * 100f),
-                RemainingRuns = (byte)math.clamp(math.round(quality * config.MaxVariantRuns), 1, config.MaxVariantRuns),
-                EfficiencyScalar = ComputeScalar(average.coverageEfficiency, quality, 1f, ref random, 0.75f, 1.3f),
-                ReliabilityScalar = ComputeScalar(average.coverageReliability, quality, 1f, ref random, 0.7f, 1.35f),
-                MassScalar = ComputeScalar(average.coverageMass, quality, -1f, ref random, 0.7f, 1.35f),
-                PowerScalar = ComputeScalar(average.coveragePower, quality, -1f, ref random, 0.7f, 1.35f),
-                SignatureScalar = ComputeScalar(average.coverageSignature, quality, -1f, ref random, 0.7f, 1.35f),
-                DurabilityScalar = ComputeScalar(average.coverageDurability, quality, 1f, ref random, 0.75f, 1.3f),
+                RemainingRuns = (byte)math.clamp(math.round(quality * config.MaxVariantRuns * (0.7f + sophistication * 0.6f)), 1, config.MaxVariantRuns),
+                EfficiencyScalar = ComputeScalar(average.coverageEfficiency, quality, 1f, compensation, ref random, 0.75f, 1.3f),
+                ReliabilityScalar = ComputeScalar(average.coverageReliability, quality, 1f, compensation, ref random, 0.7f, 1.35f),
+                MassScalar = ComputeScalar(average.coverageMass, quality, -1f, compensation, ref random, 0.7f, 1.35f),
+                PowerScalar = ComputeScalar(average.coveragePower, quality, -1f, compensation, ref random, 0.7f, 1.35f),
+                SignatureScalar = ComputeScalar(average.coverageSignature, quality, -1f, compensation, ref random, 0.7f, 1.35f),
+                DurabilityScalar = ComputeScalar(average.coverageDurability, quality, 1f, compensation, ref random, 0.75f, 1.3f),
                 EvidenceHash = evidenceHash,
                 Seed = seed
             };
@@ -607,12 +610,31 @@ namespace Space4X.Registry
             return hash == 0u ? 1u : hash;
         }
 
-        private static float ComputeScalar(float coverage, float quality, float direction, ref Unity.Mathematics.Random random, float min, float max)
+        private static float ComputeScalar(float coverage, float quality, float direction, float compensation, ref Unity.Mathematics.Random random, float min, float max)
         {
             var baseDelta = (quality - 0.5f) * 0.12f + (coverage - 0.5f) * 0.18f;
             var variance = (1f - coverage) * 0.12f;
+            baseDelta += compensation * 0.2f;
             var scalar = 1f + direction * baseDelta + random.NextFloat(-variance, variance);
             return math.clamp(scalar, min, max);
+        }
+
+        private static float ComputeCompensation(
+            (float quality, float coverageEfficiency, float coverageReliability, float coverageMass, float coveragePower, float coverageSignature, float coverageDurability) average,
+            float sophistication)
+        {
+            var avgCoverage = (average.coverageEfficiency + average.coverageReliability + average.coverageMass +
+                               average.coveragePower + average.coverageSignature + average.coverageDurability) / 6f;
+            var gap = math.max(0f, 0.55f - avgCoverage);
+            return math.clamp(gap * sophistication, 0f, 0.4f);
+        }
+
+        private static float ResolveResearchSophistication(in Space4XFaction faction, in TechLevel tech)
+        {
+            var techTier = math.max((int)tech.MiningTech,
+                math.max((int)tech.CombatTech, math.max((int)tech.HaulingTech, (int)tech.ProcessingTech)));
+            var techBoost = math.saturate(techTier / 6f);
+            return math.clamp((float)faction.ResearchFocus * 0.7f + techBoost * 0.6f, 0f, 1f);
         }
 
         private static void ApplyIntegrityCosts(DynamicBuffer<ReverseEngineeringEvidence> evidence, FixedList64Bytes<int> indices, byte cost)
