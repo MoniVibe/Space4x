@@ -287,7 +287,7 @@ namespace Space4X.SimServer
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XSimServer] Failed to write status file: {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to write status file: {ex.Message}");
             }
 
             if (!StatusLogEnabled)
@@ -302,7 +302,7 @@ namespace Space4X.SimServer
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XSimServer] Failed to write status log: {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to write status log: {ex.Message}");
             }
         }
 
