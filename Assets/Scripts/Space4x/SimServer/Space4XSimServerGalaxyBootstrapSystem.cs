@@ -8,6 +8,9 @@ using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.WorldGen;
 using Space4X.Orbitals;
 using Space4X.Registry;
+using Space4XResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
+using Space4XResourceSourceState = Space4X.Registry.ResourceSourceState;
+using Space4XResourceTypeId = Space4X.Registry.ResourceTypeId;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -298,9 +301,9 @@ namespace Space4X.SimServer
                 typeof(LocalTransform),
                 typeof(SpatialIndexedTag),
                 typeof(Asteroid),
-                typeof(ResourceSourceState),
-                typeof(ResourceSourceConfig),
-                typeof(ResourceTypeId),
+                typeof(Space4XResourceSourceState),
+                typeof(Space4XResourceSourceConfig),
+                typeof(Space4XResourceTypeId),
                 typeof(RewindableTag),
                 typeof(LastRecordedTick),
                 typeof(HistoryTier),
@@ -318,13 +321,13 @@ namespace Space4X.SimServer
                 MiningRate = 12f
             });
 
-            entityManager.SetComponentData(entity, new ResourceSourceState
+            entityManager.SetComponentData(entity, new Space4XResourceSourceState
             {
                 UnitsRemaining = unitsRemaining,
                 LastHarvestTick = 0
             });
 
-            entityManager.SetComponentData(entity, new ResourceSourceConfig
+            entityManager.SetComponentData(entity, new Space4XResourceSourceConfig
             {
                 GatherRatePerWorker = 12f,
                 MaxSimultaneousWorkers = 4,
@@ -332,7 +335,7 @@ namespace Space4X.SimServer
                 Flags = 0
             });
 
-            entityManager.SetComponentData(entity, new ResourceTypeId
+            entityManager.SetComponentData(entity, new Space4XResourceTypeId
             {
                 Value = new FixedString64Bytes(resourceId)
             });
