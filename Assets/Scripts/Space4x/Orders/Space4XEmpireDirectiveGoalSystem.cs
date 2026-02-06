@@ -97,7 +97,7 @@ namespace Space4x.Orders
                     continue;
 
                 var goal = goals[i];
-                goal.Priority = math.min(goal.Priority, priority);
+                goal.Priority = goal.Priority < priority ? goal.Priority : priority;
                 if (target != Entity.Null)
                     goal.TargetEntity = target;
                 goals[i] = goal;
