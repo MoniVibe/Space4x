@@ -218,7 +218,6 @@ namespace Space4X.Headless
                 "COMMS_BEAT_SKIPPED" => CommsDelivery,
                 "COLLISION_PHASING" => CollisionPhasing,
                 "MINING_STALL" => MiningProgress,
-                "COLLISION_PHASING" => CollisionPhasing,
                 _ => Unknown
             };
         }

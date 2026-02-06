@@ -1,4 +1,4 @@
-using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
@@ -43,7 +43,7 @@ namespace Space4X.Orders
                         continue;
 
                     byte priority = PriorityFromDirective(directive);
-                    UpsertGoal(ref goals, goalType, priority, directive.TargetEntity, currentTick);
+                    UpsertGoal(goals, goalType, priority, directive.TargetEntity, currentTick);
                 }
             }
         }
@@ -88,7 +88,7 @@ namespace Space4X.Orders
             return (byte)priority;
         }
 
-        private static void UpsertGoal(ref DynamicBuffer<Space4XFactionGoal> goals, FactionGoalType goalType, byte priority, Entity target, uint currentTick)
+        private static void UpsertGoal(DynamicBuffer<Space4XFactionGoal> goals, FactionGoalType goalType, byte priority, Entity target, uint currentTick)
         {
             for (int i = 0; i < goals.Length; i++)
             {
@@ -96,7 +96,7 @@ namespace Space4X.Orders
                     continue;
 
                 var goal = goals[i];
-                goal.Priority = math.min(goal.Priority, priority);
+                goal.Priority = goal.Priority < priority ? goal.Priority : priority;
                 if (target != Entity.Null)
                     goal.TargetEntity = target;
                 goals[i] = goal;

@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System;
 using System.IO;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
@@ -45,18 +44,11 @@ namespace Space4X.Headless
                 return;
             }
 
-            var miningProof = System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF");
-            if (!string.Equals(miningProof, "1", StringComparison.OrdinalIgnoreCase))
-            {
-                Enabled = false;
-                return;
-            }
-
             RequireForUpdate<TimeState>();
             RequireForUpdate<Space4XScenarioRuntime>();
             RequireForUpdate<TerrainModificationQueue>();
 
-            var miningProof = System.Environment.GetEnvironmentVariable(MiningProofEnv);
+            var miningProof = Environment.GetEnvironmentVariable(MiningProofEnv);
             if (string.IsNullOrWhiteSpace(miningProof) ||
                 miningProof.Trim().Equals("0", StringComparison.OrdinalIgnoreCase) ||
                 miningProof.Trim().Equals("false", StringComparison.OrdinalIgnoreCase))

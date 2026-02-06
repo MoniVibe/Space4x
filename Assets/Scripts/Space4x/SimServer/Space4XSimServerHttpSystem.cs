@@ -724,7 +724,7 @@ namespace Space4X.SimServer
                 Space4XMissionType.HaulProcure => CaptainOrderType.Haul,
                 Space4XMissionType.Patrol => CaptainOrderType.Patrol,
                 Space4XMissionType.Intercept => CaptainOrderType.Intercept,
-                Space4XMissionType.BuildStation => CaptainOrderType.BuildStation,
+                Space4XMissionType.BuildStation => CaptainOrderType.Construct,
                 _ => CaptainOrderType.None
             };
         }
