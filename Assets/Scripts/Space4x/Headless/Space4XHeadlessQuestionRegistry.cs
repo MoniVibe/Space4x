@@ -216,7 +216,6 @@ namespace Space4X.Headless
                 "CONTACT_GHOST" => SensorsAcquireDrop,
                 "CONTACT_THRASH" => SensorsAcquireDrop,
                 "COMMS_BEAT_SKIPPED" => CommsDelivery,
-                "COLLISION_PHASING" => CollisionPhasing,
                 "MINING_STALL" => MiningProgress,
                 "COLLISION_PHASING" => CollisionPhasing,
                 _ => Unknown
