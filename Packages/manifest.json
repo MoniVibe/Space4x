@@ -2,7 +2,7 @@
   "dependencies": {
     "com.coplaydev.coplay": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
-    "com.moni.puredots": "file:../puredots/Packages/com.moni.puredots",
+    "com.moni.puredots": "file:../../puredots/Packages/com.moni.puredots",
     "com.unity.ai.navigation": "2.0.9",
     "com.unity.burst": "1.8.27",
     "com.unity.cloud.gltfast": "6.12.1",
