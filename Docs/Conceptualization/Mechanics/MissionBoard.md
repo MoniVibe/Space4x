@@ -81,7 +81,16 @@ Mission board config/state is persisted via:
 
 ---
 
-## 6) Suggested Next Schema (Minimal)
+## 6) SimServer Endpoints (Current)
+
+- `GET /offers` -> current mission offers
+- `GET /assignments` -> current assignments
+- `POST /mission/accept` -> accept offer (auto-assign or specify assignee)
+- `POST /mission/decline` -> decline offer
+
+---
+
+## 7) Suggested Next Schema (Minimal)
 
 **Offer**
 ```
@@ -97,4 +106,3 @@ offerId, assigneeEntity, requestedTick
 ```
 offerId, status, reasonCode, rewardApplied, tickSpan
 ```
-

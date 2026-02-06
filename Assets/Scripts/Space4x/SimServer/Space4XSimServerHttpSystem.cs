@@ -17,6 +17,7 @@ namespace Space4X.SimServer
     {
         private bool _started;
         private uint _lastStatusTick;
+        private uint _lastMissionTick;
 
         public void OnCreate(ref SystemState state)
         {
@@ -50,7 +51,9 @@ namespace Space4X.SimServer
             }
 
             ApplyDirectives(ref state);
+            ApplyMissionDecisions(ref state);
             UpdateStatusIfNeeded(ref state);
+            UpdateMissionCacheIfNeeded(ref state);
         }
 
         private void ApplyDirectives(ref SystemState state)
@@ -277,6 +280,25 @@ namespace Space4X.SimServer
             BuildStatusJson(ref state, timeState);
         }
 
+        private void UpdateMissionCacheIfNeeded(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingleton<Space4XSimServerConfig>(out var config))
+            {
+                return;
+            }
+
+            var timeState = SystemAPI.TryGetSingleton<TimeState>(out var time) ? time : default;
+            var stride = (uint)math.max(1f, config.TargetTicksPerSecond);
+            if (timeState.Tick < _lastMissionTick + stride)
+            {
+                return;
+            }
+
+            _lastMissionTick = timeState.Tick;
+            BuildOffersJson(ref state, timeState);
+            BuildAssignmentsJson(ref state, timeState);
+        }
+
         private void BuildStatusJson(ref SystemState state, TimeState timeState)
         {
             var builder = new StringBuilder(4096);
@@ -339,6 +361,490 @@ namespace Space4X.SimServer
             var payload = builder.ToString();
             Space4XSimHttpServer.UpdateStatus(payload);
             Space4XSimServerPaths.WriteStatus(payload);
+        }
+
+        private void BuildOffersJson(ref SystemState state, TimeState timeState)
+        {
+            var builder = new StringBuilder(4096);
+            var inv = CultureInfo.InvariantCulture;
+
+            builder.Append("{\"tick\":").Append(timeState.Tick).Append(",\"offers\":[");
+            var first = true;
+            foreach (var (offer, entity) in SystemAPI.Query<RefRO<Space4XMissionOffer>>().WithEntityAccess())
+            {
+                if (!first)
+                {
+                    builder.Append(',');
+                }
+                first = false;
+
+                builder.Append("{\"id\":").Append(offer.ValueRO.OfferId);
+                builder.Append(",\"status\":\"").Append(offer.ValueRO.Status.ToString()).Append('"');
+                builder.Append(",\"type\":\"").Append(offer.ValueRO.Type.ToString()).Append('"');
+                builder.Append(",\"issuerFactionId\":").Append(offer.ValueRO.IssuerFactionId);
+                builder.Append(",\"risk\":").Append(offer.ValueRO.Risk.ToString("0.###", inv));
+                builder.Append(",\"rewardCredits\":").Append(offer.ValueRO.RewardCredits.ToString("0.##", inv));
+                builder.Append(",\"rewardStanding\":").Append(offer.ValueRO.RewardStanding.ToString("0.###", inv));
+                builder.Append(",\"rewardLp\":").Append(offer.ValueRO.RewardLp.ToString("0.###", inv));
+                builder.Append(",\"units\":").Append(offer.ValueRO.Units.ToString("0.##", inv));
+                builder.Append(",\"resourceType\":").Append(offer.ValueRO.ResourceTypeIndex);
+                builder.Append(",\"priority\":").Append(offer.ValueRO.Priority);
+                builder.Append(",\"createdTick\":").Append(offer.ValueRO.CreatedTick);
+                builder.Append(",\"expiryTick\":").Append(offer.ValueRO.ExpiryTick);
+                builder.Append(",\"assignedTick\":").Append(offer.ValueRO.AssignedTick);
+                builder.Append(",\"completedTick\":").Append(offer.ValueRO.CompletedTick);
+                builder.Append(",\"entityIndex\":").Append(entity.Index);
+                builder.Append(",\"entityVersion\":").Append(entity.Version);
+                builder.Append(",\"assignedEntityIndex\":").Append(offer.ValueRO.AssignedEntity.Index);
+                builder.Append(",\"assignedEntityVersion\":").Append(offer.ValueRO.AssignedEntity.Version);
+                builder.Append(",\"targetPos\":");
+                AppendVector(builder, offer.ValueRO.TargetPosition, inv);
+                builder.Append("}");
+            }
+            builder.Append("]}");
+
+            Space4XSimHttpServer.UpdateOffers(builder.ToString());
+        }
+
+        private void BuildAssignmentsJson(ref SystemState state, TimeState timeState)
+        {
+            var builder = new StringBuilder(4096);
+            var inv = CultureInfo.InvariantCulture;
+
+            builder.Append("{\"tick\":").Append(timeState.Tick).Append(",\"assignments\":[");
+            var first = true;
+            foreach (var (assignment, entity) in SystemAPI.Query<RefRO<Space4XMissionAssignment>>().WithEntityAccess())
+            {
+                if (!first)
+                {
+                    builder.Append(',');
+                }
+                first = false;
+
+                builder.Append("{\"offerId\":").Append(assignment.ValueRO.OfferId);
+                builder.Append(",\"status\":\"").Append(assignment.ValueRO.Status.ToString()).Append('"');
+                builder.Append(",\"type\":\"").Append(assignment.ValueRO.Type.ToString()).Append('"');
+                builder.Append(",\"phase\":\"").Append(assignment.ValueRO.Phase.ToString()).Append('"');
+                builder.Append(",\"cargoState\":\"").Append(assignment.ValueRO.CargoState.ToString()).Append('"');
+                builder.Append(",\"issuerFactionId\":").Append(assignment.ValueRO.IssuerFactionId);
+                builder.Append(",\"dueTick\":").Append(assignment.ValueRO.DueTick);
+                builder.Append(",\"startedTick\":").Append(assignment.ValueRO.StartedTick);
+                builder.Append(",\"completedTick\":").Append(assignment.ValueRO.CompletedTick);
+                builder.Append(",\"agentIndex\":").Append(entity.Index);
+                builder.Append(",\"agentVersion\":").Append(entity.Version);
+                builder.Append(",\"targetPos\":");
+                AppendVector(builder, assignment.ValueRO.TargetPosition, inv);
+                builder.Append(",\"sourcePos\":");
+                AppendVector(builder, assignment.ValueRO.SourcePosition, inv);
+                builder.Append(",\"destinationPos\":");
+                AppendVector(builder, assignment.ValueRO.DestinationPosition, inv);
+                builder.Append("}");
+            }
+            builder.Append("]}");
+
+            Space4XSimHttpServer.UpdateAssignments(builder.ToString());
+        }
+
+        private static void AppendVector(StringBuilder builder, float3 value, CultureInfo inv)
+        {
+            builder.Append('[')
+                .Append(value.x.ToString("0.###", inv)).Append(',')
+                .Append(value.y.ToString("0.###", inv)).Append(',')
+                .Append(value.z.ToString("0.###", inv)).Append(']');
+        }
+
+        private void ApplyMissionDecisions(ref SystemState state)
+        {
+            var tick = SystemAPI.TryGetSingleton<TimeState>(out var timeState) ? timeState.Tick : 0u;
+            var processed = 0;
+
+            while (processed < 64 && Space4XSimHttpServer.TryDequeueMissionAccept(out var json))
+            {
+                if (TryParseMissionDecision(json, out var request))
+                {
+                    TryAcceptMission(ref state, request, tick);
+                }
+                processed++;
+            }
+
+            processed = 0;
+            while (processed < 64 && Space4XSimHttpServer.TryDequeueMissionDecline(out var json))
+            {
+                if (TryParseMissionDecision(json, out var request))
+                {
+                    TryDeclineMission(ref state, request, tick);
+                }
+                processed++;
+            }
+        }
+
+        private bool TryAcceptMission(ref SystemState state, MissionDecisionRequest request, uint tick)
+        {
+            if (!TryResolveOffer(ref state, request, out var offerEntity, out var offer))
+            {
+                return false;
+            }
+
+            if (offer.Status != Space4XMissionStatus.Open)
+            {
+                return false;
+            }
+
+            if (!TryResolveAssignee(ref state, request, offer, out var agent))
+            {
+                return false;
+            }
+
+            if (state.EntityManager.HasComponent<Space4XMissionAssignment>(agent))
+            {
+                return false;
+            }
+
+            if (!state.EntityManager.HasComponent<CaptainOrder>(agent) || !state.EntityManager.HasComponent<LocalTransform>(agent))
+            {
+                return false;
+            }
+
+            var isHaul = offer.Type == Space4XMissionType.HaulDelivery || offer.Type == Space4XMissionType.HaulProcure;
+            var sourceEntity = offer.TargetEntity;
+            var sourcePos = offer.TargetPosition;
+            var destPos = offer.TargetPosition;
+
+            if (isHaul)
+            {
+                ResolveHaulEndpoints(ref state, offer, out sourceEntity, out sourcePos, out destPos);
+            }
+
+            var config = SystemAPI.TryGetSingleton<Space4XMissionBoardConfig>(out var boardConfig)
+                ? boardConfig
+                : Space4XMissionBoardConfig.Default;
+            var duration = ResolveDuration(config, offer.Type, offer.Risk);
+            var dueTick = tick + duration;
+
+            var order = state.EntityManager.GetComponentData<CaptainOrder>(agent);
+            order.Type = MapMissionToOrder(offer.Type);
+            order.Status = CaptainOrderStatus.Received;
+            order.TargetEntity = isHaul ? sourceEntity : offer.TargetEntity;
+            order.TargetPosition = isHaul ? sourcePos : offer.TargetPosition;
+            order.Priority = offer.Priority;
+            order.IssuedTick = tick;
+            order.TimeoutTick = dueTick;
+            state.EntityManager.SetComponentData(agent, order);
+
+            state.EntityManager.AddComponentData(agent, new Space4XMissionAssignment
+            {
+                OfferEntity = offerEntity,
+                OfferId = offer.OfferId,
+                Type = offer.Type,
+                Status = Space4XMissionStatus.Assigned,
+                TargetEntity = offer.TargetEntity,
+                TargetPosition = isHaul ? sourcePos : offer.TargetPosition,
+                SourceEntity = sourceEntity,
+                SourcePosition = sourcePos,
+                DestinationPosition = destPos,
+                Phase = isHaul ? Space4XMissionPhase.ToSource : Space4XMissionPhase.None,
+                CargoState = Space4XMissionCargoState.None,
+                ResourceTypeIndex = offer.ResourceTypeIndex,
+                Units = offer.Units,
+                CargoUnits = 0f,
+                RewardCredits = offer.RewardCredits,
+                RewardStanding = offer.RewardStanding,
+                RewardLp = offer.RewardLp,
+                IssuerFactionId = offer.IssuerFactionId,
+                StartedTick = tick,
+                DueTick = dueTick,
+                CompletedTick = 0,
+                AutoComplete = (byte)(isHaul ? 0 : 1)
+            });
+
+            offer.Status = Space4XMissionStatus.Assigned;
+            offer.AssignedEntity = agent;
+            offer.AssignedTick = tick;
+            state.EntityManager.SetComponentData(offerEntity, offer);
+            return true;
+        }
+
+        private bool TryDeclineMission(ref SystemState state, MissionDecisionRequest request, uint tick)
+        {
+            if (!TryResolveOffer(ref state, request, out var offerEntity, out var offer))
+            {
+                return false;
+            }
+
+            if (offer.Status != Space4XMissionStatus.Open)
+            {
+                return false;
+            }
+
+            offer.Status = Space4XMissionStatus.Expired;
+            offer.CompletedTick = tick;
+            offer.ExpiryTick = tick;
+            state.EntityManager.SetComponentData(offerEntity, offer);
+            return true;
+        }
+
+        private bool TryResolveOffer(ref SystemState state, MissionDecisionRequest request, out Entity offerEntity, out Space4XMissionOffer offer)
+        {
+            offerEntity = Entity.Null;
+            offer = default;
+
+            var resolved = request.ResolveOfferEntity();
+            if (resolved.Index >= 0)
+            {
+                if (state.EntityManager.Exists(resolved) && state.EntityManager.HasComponent<Space4XMissionOffer>(resolved))
+                {
+                    offerEntity = resolved;
+                    offer = state.EntityManager.GetComponentData<Space4XMissionOffer>(resolved);
+                    return true;
+                }
+            }
+
+            var targetId = request.ResolveOfferId();
+            if (targetId == 0)
+            {
+                return false;
+            }
+
+            foreach (var (offerRef, entity) in SystemAPI.Query<RefRO<Space4XMissionOffer>>().WithEntityAccess())
+            {
+                if (offerRef.ValueRO.OfferId != targetId)
+                {
+                    continue;
+                }
+
+                offerEntity = entity;
+                offer = offerRef.ValueRO;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryResolveAssignee(ref SystemState state, MissionDecisionRequest request, in Space4XMissionOffer offer, out Entity agent)
+        {
+            agent = Entity.Null;
+
+            var resolvedAgent = request.ResolveAssigneeEntity();
+            if (resolvedAgent.Index >= 0 && state.EntityManager.Exists(resolvedAgent))
+            {
+                agent = resolvedAgent;
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.assigneeCarrierId))
+            {
+                foreach (var (carrier, entity) in SystemAPI.Query<RefRO<Carrier>>().WithEntityAccess())
+                {
+                    if (carrier.ValueRO.CarrierId.Equals(request.assigneeCarrierId))
+                    {
+                        agent = entity;
+                        return true;
+                    }
+                }
+            }
+
+            var factionId = request.ResolveAssigneeFactionId();
+            foreach (var (order, transform, entity) in SystemAPI.Query<RefRO<CaptainOrder>, RefRO<LocalTransform>>().WithNone<Space4XMissionAssignment>().WithEntityAccess())
+            {
+                if (!IsAgentEligible(ref state, entity, offer.Type))
+                {
+                    continue;
+                }
+
+                if (factionId != 0 && !MatchesFactionId(ref state, entity, factionId))
+                {
+                    continue;
+                }
+
+                agent = entity;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool MatchesFactionId(ref SystemState state, Entity entity, ushort factionId)
+        {
+            if (!state.EntityManager.HasBuffer<AffiliationTag>(entity))
+            {
+                return false;
+            }
+
+            var buffer = state.EntityManager.GetBuffer<AffiliationTag>(entity);
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                var tag = buffer[i];
+                if (tag.Type != AffiliationType.Faction || tag.Target == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (state.EntityManager.HasComponent<Space4XFaction>(tag.Target) &&
+                    state.EntityManager.GetComponentData<Space4XFaction>(tag.Target).FactionId == factionId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsAgentEligible(ref SystemState state, Entity entity, Space4XMissionType type)
+        {
+            var dispositionLookup = state.GetComponentLookup<EntityDisposition>(true);
+            var miningLookup = state.GetComponentLookup<MiningVessel>(true);
+
+            if (type == Space4XMissionType.Mine)
+            {
+                return miningLookup.HasComponent(entity)
+                       || (dispositionLookup.HasComponent(entity) && (dispositionLookup[entity].Flags & EntityDispositionFlags.Mining) != 0);
+            }
+
+            if (type == Space4XMissionType.HaulDelivery || type == Space4XMissionType.HaulProcure)
+            {
+                return !dispositionLookup.HasComponent(entity) || (dispositionLookup[entity].Flags & EntityDispositionFlags.Hauler) != 0;
+            }
+
+            if (type == Space4XMissionType.Patrol || type == Space4XMissionType.Intercept)
+            {
+                return !dispositionLookup.HasComponent(entity) || EntityDispositionUtility.IsCombatant(dispositionLookup[entity].Flags);
+            }
+
+            return true;
+        }
+
+        private static CaptainOrderType MapMissionToOrder(Space4XMissionType type)
+        {
+            return type switch
+            {
+                Space4XMissionType.Scout => CaptainOrderType.Survey,
+                Space4XMissionType.Mine => CaptainOrderType.Mine,
+                Space4XMissionType.HaulDelivery => CaptainOrderType.Haul,
+                Space4XMissionType.HaulProcure => CaptainOrderType.Haul,
+                Space4XMissionType.Patrol => CaptainOrderType.Patrol,
+                Space4XMissionType.Intercept => CaptainOrderType.Intercept,
+                Space4XMissionType.BuildStation => CaptainOrderType.BuildStation,
+                _ => CaptainOrderType.None
+            };
+        }
+
+        private static uint ResolveDuration(in Space4XMissionBoardConfig config, Space4XMissionType type, float risk)
+        {
+            var baseTicks = config.AssignmentBaseTicks;
+            var variance = config.AssignmentVarianceTicks;
+            var typeScale = type switch
+            {
+                Space4XMissionType.Mine => 1.4f,
+                Space4XMissionType.HaulDelivery => 1.2f,
+                Space4XMissionType.HaulProcure => 1.1f,
+                Space4XMissionType.Patrol => 1.5f,
+                Space4XMissionType.Intercept => 1.0f,
+                Space4XMissionType.BuildStation => 2.0f,
+                _ => 1.0f
+            };
+
+            var riskScale = math.saturate(0.8f + risk);
+            return (uint)math.max(60f, baseTicks * typeScale * riskScale + variance * 0.5f);
+        }
+
+        private static void ResolveHaulEndpoints(ref SystemState state, in Space4XMissionOffer offer, out Entity sourceEntity, out float3 sourcePosition, out float3 destinationPosition)
+        {
+            sourceEntity = offer.TargetEntity;
+            sourcePosition = offer.TargetPosition;
+            destinationPosition = offer.TargetPosition;
+
+            var colonyQuery = state.EntityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Space4XColony>(),
+                ComponentType.ReadOnly<LocalTransform>());
+            var colonies = colonyQuery.ToEntityArray(Allocator.Temp);
+            var colonyTransforms = colonyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            var colonyData = colonyQuery.ToComponentDataArray<Space4XColony>(Allocator.Temp);
+
+            if (colonies.Length == 0)
+            {
+                colonies.Dispose();
+                colonyTransforms.Dispose();
+                colonyData.Dispose();
+                return;
+            }
+
+            var colonyFactionMap = new NativeHashMap<Entity, ushort>(math.max(8, colonies.Length), Allocator.Temp);
+            for (int i = 0; i < colonies.Length; i++)
+            {
+                var colonyEntity = colonies[i];
+                if (!state.EntityManager.HasBuffer<AffiliationTag>(colonyEntity))
+                {
+                    continue;
+                }
+
+                var affiliations = state.EntityManager.GetBuffer<AffiliationTag>(colonyEntity);
+                for (int a = 0; a < affiliations.Length; a++)
+                {
+                    var tag = affiliations[a];
+                    if (tag.Type == AffiliationType.Faction && tag.Target != Entity.Null &&
+                        state.EntityManager.HasComponent<Space4XFaction>(tag.Target))
+                    {
+                        colonyFactionMap[colonyEntity] = state.EntityManager.GetComponentData<Space4XFaction>(tag.Target).FactionId;
+                        break;
+                    }
+                }
+            }
+
+            var preferIssuer = offer.Type == Space4XMissionType.HaulDelivery;
+            var bestIndex = -1;
+            var bestScore = -1f;
+
+            if (preferIssuer && offer.IssuerFactionId != 0)
+            {
+                for (int i = 0; i < colonies.Length; i++)
+                {
+                    if (colonies[i] == offer.TargetEntity)
+                    {
+                        continue;
+                    }
+
+                    if (colonyFactionMap.TryGetValue(colonies[i], out var factionId) && factionId != offer.IssuerFactionId)
+                    {
+                        continue;
+                    }
+
+                    var score = colonyData[i].StoredResources;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            if (bestIndex < 0)
+            {
+                for (int i = 0; i < colonies.Length; i++)
+                {
+                    if (colonies[i] == offer.TargetEntity)
+                    {
+                        continue;
+                    }
+
+                    var score = colonyData[i].StoredResources;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            if (bestIndex >= 0)
+            {
+                sourceEntity = colonies[bestIndex];
+                sourcePosition = colonyTransforms[bestIndex].Position;
+            }
+
+            colonies.Dispose();
+            colonyTransforms.Dispose();
+            colonyData.Dispose();
+            colonyFactionMap.Dispose();
         }
 
         private static string EscapeJson(string value)
@@ -408,6 +914,68 @@ namespace Space4X.SimServer
             }
 
             return weights;
+        }
+
+        [Serializable]
+        private sealed class MissionDecisionRequest
+        {
+            public uint offerId;
+            public uint offer_id;
+            public int offerEntityIndex = -1;
+            public int offer_entity_index = -1;
+            public int offerEntityVersion = -1;
+            public int offer_entity_version = -1;
+            public int assigneeEntityIndex = -1;
+            public int assignee_entity_index = -1;
+            public int assigneeEntityVersion = -1;
+            public int assignee_entity_version = -1;
+            public string assigneeCarrierId;
+            public string assignee_carrier_id;
+            public ushort assigneeFactionId;
+            public ushort assignee_faction_id;
+
+            public uint ResolveOfferId()
+            {
+                return offerId != 0 ? offerId : offer_id;
+            }
+
+            public Entity ResolveOfferEntity()
+            {
+                var index = offerEntityIndex >= 0 ? offerEntityIndex : offer_entity_index;
+                var version = offerEntityVersion >= 0 ? offerEntityVersion : offer_entity_version;
+                return index >= 0 && version >= 0 ? new Entity { Index = index, Version = version } : new Entity { Index = -1, Version = 0 };
+            }
+
+            public Entity ResolveAssigneeEntity()
+            {
+                var index = assigneeEntityIndex >= 0 ? assigneeEntityIndex : assignee_entity_index;
+                var version = assigneeEntityVersion >= 0 ? assigneeEntityVersion : assignee_entity_version;
+                return index >= 0 && version >= 0 ? new Entity { Index = index, Version = version } : new Entity { Index = -1, Version = 0 };
+            }
+
+            public ushort ResolveAssigneeFactionId()
+            {
+                return assigneeFactionId != 0 ? assigneeFactionId : assignee_faction_id;
+            }
+        }
+
+        private static bool TryParseMissionDecision(string json, out MissionDecisionRequest request)
+        {
+            request = null;
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
+            }
+
+            try
+            {
+                request = JsonUtility.FromJson<MissionDecisionRequest>(json);
+                return request != null;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static uint ResolveExpiryTick(DirectiveRequest request, uint currentTick, float ticksPerSecond)

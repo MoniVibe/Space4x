@@ -155,8 +155,12 @@ Queries:
 **Endpoints**
 - `GET /health` or `GET /` -> `{ "ok": true }`
 - `GET /status` -> JSON status blob
+- `GET /offers` -> mission offers (job list)
+- `GET /assignments` -> active assignments
 - `GET /saves` -> save slots list
 - `POST /directive` -> enqueue directive JSON
+- `POST /mission/accept` -> accept an offer
+- `POST /mission/decline` -> decline an offer
 - `POST /save` -> enqueue save request
 - `POST /load` -> enqueue load request
 
@@ -174,6 +178,22 @@ Queries:
     "security": 0.3,
     "expansion": 0.6
   }
+}
+```
+
+**Mission accept JSON (minimal)**
+```json
+{
+  "offerId": 12,
+  "assigneeEntityIndex": 1421,
+  "assigneeEntityVersion": 1
+}
+```
+
+**Mission decline JSON (minimal)**
+```json
+{
+  "offerId": 12
 }
 ```
 

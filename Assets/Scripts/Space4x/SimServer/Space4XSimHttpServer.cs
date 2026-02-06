@@ -10,10 +10,16 @@ namespace Space4X.SimServer
     internal static class Space4XSimHttpServer
     {
         private static readonly ConcurrentQueue<string> s_directiveQueue = new ConcurrentQueue<string>();
+        private static readonly ConcurrentQueue<string> s_missionAcceptQueue = new ConcurrentQueue<string>();
+        private static readonly ConcurrentQueue<string> s_missionDeclineQueue = new ConcurrentQueue<string>();
         private static readonly ConcurrentQueue<string> s_saveQueue = new ConcurrentQueue<string>();
         private static readonly ConcurrentQueue<string> s_loadQueue = new ConcurrentQueue<string>();
         private static readonly object s_statusLock = new object();
+        private static readonly object s_offerLock = new object();
+        private static readonly object s_assignmentLock = new object();
         private static string s_statusJson = "{\"ok\":true}";
+        private static string s_offersJson = "{\"offers\":[]}";
+        private static string s_assignmentsJson = "{\"assignments\":[]}";
         private static HttpListener s_listener;
         private static Thread s_thread;
         private static volatile bool s_running;
@@ -36,6 +42,16 @@ namespace Space4X.SimServer
         internal static bool TryDequeueDirective(out string json)
         {
             return s_directiveQueue.TryDequeue(out json);
+        }
+
+        internal static bool TryDequeueMissionAccept(out string json)
+        {
+            return s_missionAcceptQueue.TryDequeue(out json);
+        }
+
+        internal static bool TryDequeueMissionDecline(out string json)
+        {
+            return s_missionDeclineQueue.TryDequeue(out json);
         }
 
         internal static bool TryDequeueSave(out string json)
@@ -150,6 +166,28 @@ namespace Space4X.SimServer
                     return;
                 }
 
+                if (request.HttpMethod == "GET" && path == "/offers")
+                {
+                    string offers;
+                    lock (s_offerLock)
+                    {
+                        offers = s_offersJson;
+                    }
+                    WriteJson(response, offers);
+                    return;
+                }
+
+                if (request.HttpMethod == "GET" && path == "/assignments")
+                {
+                    string assignments;
+                    lock (s_assignmentLock)
+                    {
+                        assignments = s_assignmentsJson;
+                    }
+                    WriteJson(response, assignments);
+                    return;
+                }
+
                 if (request.HttpMethod == "GET" && path == "/saves")
                 {
                     WriteJson(response, Space4XSimServerPaths.BuildSaveListJson());
@@ -165,6 +203,30 @@ namespace Space4X.SimServer
                         s_directiveQueue.Enqueue(body);
                     }
                     WriteJson(response, "{\"accepted\":true}");
+                    return;
+                }
+
+                if (request.HttpMethod == "POST" && path == "/mission/accept")
+                {
+                    using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
+                    var body = reader.ReadToEnd();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        s_missionAcceptQueue.Enqueue(body);
+                    }
+                    WriteJson(response, "{\"queued\":true}");
+                    return;
+                }
+
+                if (request.HttpMethod == "POST" && path == "/mission/decline")
+                {
+                    using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
+                    var body = reader.ReadToEnd();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        s_missionDeclineQueue.Enqueue(body);
+                    }
+                    WriteJson(response, "{\"queued\":true}");
                     return;
                 }
 
@@ -219,6 +281,32 @@ namespace Space4X.SimServer
             response.ContentLength64 = buffer.Length;
             using var output = response.OutputStream;
             output.Write(buffer, 0, buffer.Length);
+        }
+
+        internal static void UpdateOffers(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            lock (s_offerLock)
+            {
+                s_offersJson = json;
+            }
+        }
+
+        internal static void UpdateAssignments(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            lock (s_assignmentLock)
+            {
+                s_assignmentsJson = json;
+            }
         }
 
         private static string BuildDashboardHtml()
