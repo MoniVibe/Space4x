@@ -33,6 +33,10 @@ Enable entities to rise from "nobody" to galactic stellarch through a steady str
 - Supply runs
 - Salvage operations
 - Logistics optimization
+- Survey routes
+- Repair & refit work orders
+- Smuggling / black-market runs (faction dependent)
+- Training drills / readiness cycles
 
 ### B) Missions (directed)
 - Secure a POI / system
@@ -41,6 +45,10 @@ Enable entities to rise from "nobody" to galactic stellarch through a steady str
 - Rescue / extraction
 - Diplomatic envoy
 - Raid or strike mission
+- Counter‑piracy sweep
+- Intel capture / signal intercept
+- Strategic blockade or escort corridor
+- Covert ops (low visibility, high reward)
 
 ### C) Events & Fortune
 - Lucky treasure finds
@@ -107,3 +115,49 @@ LLM agents should be able to:
 - **Mid‑term**: add POI discovery/loot pipeline with risk outcomes.
 - **Long‑term**: rank progression ladder and stellarch ascension arc.
 
+---
+
+## 8) Job & Mission Schema (Draft)
+
+**Opportunity**
+```
+id
+type (Job | Mission | Event)
+category (mining, escort, patrol, salvage, research, diplomacy, combat)
+issuer (faction / station / NPC)
+scope (sector / system / route)
+risk (0–1)
+reward (credits, reputation, tech, assets)
+constraints (time, budget, fleet size, faction alignment)
+expiresAtTick
+```
+
+**Accepted Opportunity**
+```
+opportunityId
+assignee (fleet / captain / station)
+issuedTick
+plan (ordered task list)
+status (active / completed / failed / aborted)
+outcome (reason + metrics)
+```
+
+---
+
+## 9) ECS Sketch (Where It Can Live)
+
+- **Opportunity feed**: `Space4XMissionBoardComponents` (offers + filtering).
+- **POI catalog**: `Space4XGalaxyContentComponents` (poi traits + rarity).
+- **Order execution**: `Space4XFactionGoal` -> captain/fleet orders (mission queue).
+- **Outcome pipeline**: new buffer for `OpportunityOutcome` (reward + reason).
+
+---
+
+## 10) Stellarch Ascension Arc (Milestones)
+
+1. **Local Hero**: completes 3–5 jobs with positive outcomes.
+2. **Sector Actor**: manages small fleet; earns first POI discovery.
+3. **Regional Power**: controls a trade route or production hub.
+4. **Faction Leader**: directs doctrine + territory policy.
+5. **Stellarch**: unifies multiple regions; controls major POI relics.
+6. **Legacy**: establishes institutions and doctrines that persist post‑rewind.
