@@ -44,7 +44,7 @@ namespace Space4x.Orders
                         continue;
 
                     byte priority = PriorityFromDirective(directive);
-                    UpsertGoal(ref goals, goalType, priority, directive.TargetEntity, currentTick);
+                    UpsertGoal(goals, goalType, priority, directive.TargetEntity, currentTick);
                 }
             }
         }
@@ -89,7 +89,7 @@ namespace Space4x.Orders
             return (byte)priority;
         }
 
-        private static void UpsertGoal(ref DynamicBuffer<Space4XFactionGoal> goals, FactionGoalType goalType, byte priority, Entity target, uint currentTick)
+        private static void UpsertGoal(DynamicBuffer<Space4XFactionGoal> goals, FactionGoalType goalType, byte priority, Entity target, uint currentTick)
         {
             for (int i = 0; i < goals.Length; i++)
             {
