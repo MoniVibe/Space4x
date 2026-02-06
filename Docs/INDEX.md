@@ -9,6 +9,7 @@ Quick pointers to the active documentation:
 - PureDOTS time/rewind: `Docs/PureDOTS_TimeIntegration.md`
 - Galaxy tamagotchi (2 TPS sim): `Docs/Conceptualization/Mechanics/GalaxyTamagotchi.md`
 - Civilization control set (LLM interface): `Docs/Conceptualization/Mechanics/CivilizationControlSet.md`
+- Entity progression & opportunities: `Docs/Conceptualization/Mechanics/EntityProgressionOpportunities.md`
 - Scenario runner wiring: `Docs/PureDOTS_ScenarioRunner_Wiring.md`
 - Concept vision: `Docs/Conceptualization/GameVision.md`, `Docs/Conceptualization/CorePillars.md`, `Docs/Conceptualization/DesignPrinciples.md`
 - Profile glossary (locked terms): `../../puredots/Docs/Concepts/Core/Entity_Profile_Glossary.md`
