@@ -95,6 +95,7 @@ namespace Space4X.Systems.Economy
                 }
 
                 var speedMultiplier = math.max(0.01f, (float)facility.ValueRO.SpeedMultiplier);
+                var energyEfficiency = math.max(0.01f, (float)facility.ValueRO.EnergyEfficiency);
 
                 if (_jobLookup.HasComponent(entity))
                 {
@@ -110,6 +111,7 @@ namespace Space4X.Systems.Economy
                         ref job,
                         in activeRecipe,
                         speedMultiplier,
+                        energyEfficiency,
                         tickTime.Tick,
                         deltaTime,
                         ref inventoryRW.ValueRW,
@@ -144,7 +146,8 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
-                if (!HasInputs(in queuedRecipe, items, out float missingPrimary, out float missingSecondary))
+                var energyCost = GetEnergyCost(in queuedRecipe, energyEfficiency);
+                if (!HasInputs(in queuedRecipe, energyCost, items, out float missingPrimary, out float missingSecondary, out float missingEnergy))
                 {
                     EmitNeedRequests(
                         entity,
@@ -153,13 +156,14 @@ namespace Space4X.Systems.Economy
                         in queuedRecipe,
                         missingPrimary,
                         missingSecondary,
+                        missingEnergy,
                         queue[entryIndex].Priority,
                         ref nextRequestId,
                         ref _needRequestLookup);
                     continue;
                 }
 
-                if (!ConsumeInputs(in queuedRecipe, ref inventoryRW.ValueRW, items, resourceTypeIndex.Catalog))
+                if (!ConsumeInputs(in queuedRecipe, energyCost, ref inventoryRW.ValueRW, items, resourceTypeIndex.Catalog))
                 {
                     EmitNeedRequests(
                         entity,
@@ -168,6 +172,7 @@ namespace Space4X.Systems.Economy
                         in queuedRecipe,
                         queuedRecipe.PrimaryInput.Amount,
                         queuedRecipe.HasSecondaryInput != 0 ? queuedRecipe.SecondaryInput.Amount : 0f,
+                        energyCost,
                         queue[entryIndex].Priority,
                         ref nextRequestId,
                         ref _needRequestLookup);
@@ -200,6 +205,7 @@ namespace Space4X.Systems.Economy
             ref ProcessingJob job,
             in ResourceRecipe recipe,
             float speedMultiplier,
+            float energyEfficiency,
             uint currentTick,
             float deltaTime,
             ref StorehouseInventory inventory,
@@ -246,7 +252,8 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
-            if (!HasInputs(in recipe, items, out float missingPrimary, out float missingSecondary))
+            var energyCost = GetEnergyCost(in recipe, energyEfficiency);
+            if (!HasInputs(in recipe, energyCost, items, out float missingPrimary, out float missingSecondary, out float missingEnergy))
             {
                 EmitNeedRequests(
                     facilityEntity,
@@ -255,6 +262,7 @@ namespace Space4X.Systems.Economy
                     in recipe,
                     missingPrimary,
                     missingSecondary,
+                    missingEnergy,
                     128,
                     ref nextRequestId,
                     ref needRequestLookup);
@@ -263,7 +271,7 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
-            if (!ConsumeInputs(in recipe, ref inventory, items, catalog))
+            if (!ConsumeInputs(in recipe, energyCost, ref inventory, items, catalog))
             {
                 job.RemainingTime = 0f;
                 job.Progress = (half)0f;
@@ -348,12 +356,15 @@ namespace Space4X.Systems.Economy
 
         private static bool HasInputs(
             in ResourceRecipe recipe,
+            float energyCost,
             DynamicBuffer<StorehouseInventoryItem> items,
             out float missingPrimary,
-            out float missingSecondary)
+            out float missingSecondary,
+            out float missingEnergy)
         {
             missingPrimary = 0f;
             missingSecondary = 0f;
+            missingEnergy = 0f;
 
             var primaryId64 = ToFixed64(recipe.PrimaryInput.ResourceId);
             var primaryAvailable = GetUnreserved(items, primaryId64);
@@ -366,11 +377,19 @@ namespace Space4X.Systems.Economy
                 missingSecondary = math.max(0f, recipe.SecondaryInput.Amount - secondaryAvailable);
             }
 
-            return missingPrimary <= 1e-3f && missingSecondary <= 1e-3f;
+            if (energyCost > 1e-3f)
+            {
+                var energyId = GetEnergyResourceId();
+                var energyAvailable = GetUnreserved(items, ToFixed64(energyId));
+                missingEnergy = math.max(0f, energyCost - energyAvailable);
+            }
+
+            return missingPrimary <= 1e-3f && missingSecondary <= 1e-3f && missingEnergy <= 1e-3f;
         }
 
         private static bool ConsumeInputs(
             in ResourceRecipe recipe,
+            float energyCost,
             ref StorehouseInventory inventory,
             DynamicBuffer<StorehouseInventoryItem> items,
             BlobAssetReference<ResourceTypeIndexBlob> catalog)
@@ -393,6 +412,20 @@ namespace Space4X.Systems.Economy
                 }
 
                 if (!StorehouseMutationService.TryConsumeUnreserved(secondaryIndex, recipe.SecondaryInput.Amount, catalog, ref inventory, items))
+                {
+                    return false;
+                }
+            }
+
+            if (energyCost > 1e-3f)
+            {
+                var energyId = GetEnergyResourceId();
+                if (!TryResolveResourceTypeIndex(energyId, catalog, out ushort energyIndex))
+                {
+                    return false;
+                }
+
+                if (!StorehouseMutationService.TryConsumeUnreserved(energyIndex, energyCost, catalog, ref inventory, items))
                 {
                     return false;
                 }
@@ -509,6 +542,7 @@ namespace Space4X.Systems.Economy
             in ResourceRecipe recipe,
             float missingPrimary,
             float missingSecondary,
+            float missingEnergy,
             byte queuePriority,
             ref uint nextRequestId,
             ref BufferLookup<NeedRequest> needRequestLookup)
@@ -561,6 +595,27 @@ namespace Space4X.Systems.Economy
                     FailureReason = RequestFailureReason.None
                 });
             }
+
+            if (missingEnergy > 1e-3f)
+            {
+                var energyId = GetEnergyResourceId();
+                if (!HasActiveNeedRequest(requests, energyId, facilityEntity))
+                {
+                    var requestId = ConsumeRequestId(ref nextRequestId);
+                    requests.Add(new NeedRequest
+                    {
+                        ResourceTypeId = energyId,
+                        Amount = missingEnergy,
+                        RequesterEntity = facilityEntity,
+                        Priority = priority,
+                        CreatedTick = currentTick,
+                        TargetEntity = facilityEntity,
+                        RequestId = requestId,
+                        OrderEntity = Entity.Null,
+                        FailureReason = RequestFailureReason.None
+                    });
+                }
+            }
         }
 
         private static bool HasActiveNeedRequest(
@@ -602,6 +657,43 @@ namespace Space4X.Systems.Economy
             }
 
             return 0f;
+        }
+
+        private static float GetEnergyCost(in ResourceRecipe recipe, float energyEfficiency)
+        {
+            var baseCost = math.max(0f, recipe.EnergyCost);
+            if (baseCost <= 1e-3f)
+            {
+                return 0f;
+            }
+
+            var energyId = GetEnergyResourceId();
+            if (recipe.PrimaryOutput.ResourceId.Equals(energyId) ||
+                (recipe.HasSecondaryOutput != 0 && recipe.SecondaryOutput.ResourceId.Equals(energyId)))
+            {
+                return 0f;
+            }
+
+            return baseCost * math.max(0.01f, energyEfficiency);
+        }
+
+        private static FixedString32Bytes GetEnergyResourceId()
+        {
+            FixedString32Bytes id = default;
+            id.Append('r');
+            id.Append('e');
+            id.Append('f');
+            id.Append('i');
+            id.Append('n');
+            id.Append('e');
+            id.Append('d');
+            id.Append('_');
+            id.Append('f');
+            id.Append('u');
+            id.Append('e');
+            id.Append('l');
+            id.Append('s');
+            return id;
         }
 
         private static bool TryResolveResourceTypeIndex(
