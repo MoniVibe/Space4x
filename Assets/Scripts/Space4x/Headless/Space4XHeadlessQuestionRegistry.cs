@@ -233,7 +233,6 @@ namespace Space4X.Headless
             new CommsDeliveryBlockedQuestion(),
             new MovementTurnRateBoundsQuestion(),
             new CombatFireQuestion(),
-            new MiningProgressQuestion()
             new MiningProgressQuestion(),
             new PerfSummaryQuestion(),
             new PerfBudgetQuestion(),
@@ -255,7 +254,6 @@ namespace Space4X.Headless
             new CrewTransferQuestion(),
             new CollisionPhasingQuestion(),
             new CombatAttackRunQuestion()
-        };
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -1109,4 +1107,3 @@ namespace Space4X.Headless
         }
     }
 }
-
