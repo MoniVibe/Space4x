@@ -130,3 +130,56 @@ Queries:
 - **Mid‑term**: add order outcome telemetry + reason codes.
 - **Long‑term**: live “civilization console” for LLM agents with strict budgets.
 
+---
+
+## 8) Current ECS Bindings (Concrete, 2026‑02‑06)
+
+**Strategic directives**
+- Faction buffers: `Space4XSimServerComponents.Space4XFactionOrder`
+- Resolved directive state: `Space4XSimServerComponents.Space4XFactionDirective`
+- Baseline directive state: `Space4XSimServerComponents.Space4XFactionDirectiveBaseline`
+- Directive resolver: `Space4XSimServerFactionDirectiveResolverSystem`
+
+**Goal layer**
+- Faction goals: `Space4X.Registry.Space4XFactionGoal`
+- Goal resolver: `Space4X.Registry.Space4XFactionGoalSystem`
+- Directive -> goal mapping: `Space4X.Orders.Space4XEmpireDirectiveGoalSystem`
+
+**Directive seeds**
+- Default directives per faction: `Space4X.Orders.Space4XEmpireDirectiveBootstrapSystem`
+
+---
+
+## 9) SimServer HTTP Contract (Current)
+
+**Endpoints**
+- `GET /health` or `GET /` -> `{ "ok": true }`
+- `GET /status` -> JSON status blob
+- `GET /saves` -> save slots list
+- `POST /directive` -> enqueue directive JSON
+- `POST /save` -> enqueue save request
+- `POST /load` -> enqueue load request
+
+**Directive JSON (minimal)**
+```json
+{
+  "factionId": 1,
+  "directiveId": "secure_resources",
+  "priority": 0.7,
+  "duration_seconds": 120,
+  "mode": "blend",
+  "source": "player",
+  "weights": {
+    "economy": 0.9,
+    "security": 0.3,
+    "expansion": 0.6
+  }
+}
+```
+
+**Notes**
+- Either `factionId` or `factionName` can target a faction; omit both to apply to all.
+- `orderId` overrides `directiveId` if you want a stable identifier.
+- `priority` is normalized [0,1]. Missing fields fall back to faction baseline.
+- `duration_seconds`, `duration_ticks`, or `expires_at_tick` control expiry.
+- `mode` supports `blend` or `override`.
