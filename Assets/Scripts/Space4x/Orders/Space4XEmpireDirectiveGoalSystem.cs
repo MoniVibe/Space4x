@@ -1,5 +1,5 @@
 using PureDOTS.Runtime.Orders;
-using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
