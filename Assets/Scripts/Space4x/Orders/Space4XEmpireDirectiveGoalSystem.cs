@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Orders;
 using PureDOTS.Runtime.Time;
 using Space4X.Registry;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
