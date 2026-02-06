@@ -1,4 +1,5 @@
 using PureDOTS.Runtime;
+using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Entities;
