@@ -52,6 +52,48 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// High-level weapon family (damage channel focus).
+    /// </summary>
+    public enum WeaponFamily : byte
+    {
+        Unknown = 0,
+        Energy = 1,
+        Kinetic = 2,
+        Explosive = 3
+    }
+
+    /// <summary>
+    /// Delivery mechanism for a weapon payload.
+    /// </summary>
+    public enum WeaponDelivery : byte
+    {
+        Unknown = 0,
+        Beam = 1,
+        Slug = 2,
+        Guided = 3,
+        Bus = 4,
+        Field = 5,
+        Area = 6,
+        Cloud = 7,
+        Burst = 8
+    }
+
+    /// <summary>
+    /// Normalized damage types for Space4X ship combat.
+    /// </summary>
+    public enum Space4XDamageType : byte
+    {
+        Unknown = 0,
+        Energy = 1,
+        Thermal = 2,
+        EM = 3,
+        Radiation = 4,
+        Kinetic = 5,
+        Explosive = 6,
+        Caustic = 7
+    }
+
+    /// <summary>
     /// Weapon mount size affecting stats.
     /// </summary>
     public enum WeaponSize : byte
@@ -85,6 +127,21 @@ namespace Space4X.Registry
         public WeaponSize Size;
 
         /// <summary>
+        /// Weapon family for coarse classification.
+        /// </summary>
+        public WeaponFamily Family;
+
+        /// <summary>
+        /// Damage type for resistances.
+        /// </summary>
+        public Space4XDamageType DamageType;
+
+        /// <summary>
+        /// Delivery mechanism (beam, guided, bus, etc.).
+        /// </summary>
+        public WeaponDelivery Delivery;
+
+        /// <summary>
         /// Special weapon flags.
         /// </summary>
         public WeaponFlags Flags;
@@ -115,6 +172,11 @@ namespace Space4X.Registry
         public half BaseAccuracy;
 
         /// <summary>
+        /// Tracking rating [0, 1]. Higher = better at tracking fast targets.
+        /// </summary>
+        public half Tracking;
+
+        /// <summary>
         /// Ticks between shots.
         /// </summary>
         public ushort CooldownTicks;
@@ -143,11 +205,15 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Laser,
             Size = size,
+            Family = WeaponFamily.Energy,
+            DamageType = Space4XDamageType.Energy,
+            Delivery = WeaponDelivery.Beam,
             Flags = WeaponFlags.None,
             BaseDamage = 10f * (1 + (int)size),
             OptimalRange = 300f + 100f * (int)size,
             MaxRange = 500f + 150f * (int)size,
             BaseAccuracy = (half)0.85f,
+            Tracking = (half)ResolveTracking(WeaponType.Laser, size),
             CooldownTicks = (ushort)(10 + 5 * (int)size),
             CurrentCooldown = 0,
             AmmoPerShot = 0,
@@ -159,11 +225,15 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Kinetic,
             Size = size,
+            Family = WeaponFamily.Kinetic,
+            DamageType = Space4XDamageType.Kinetic,
+            Delivery = WeaponDelivery.Slug,
             Flags = WeaponFlags.None,
             BaseDamage = 15f * (1 + (int)size),
             OptimalRange = 200f + 80f * (int)size,
             MaxRange = 400f + 120f * (int)size,
             BaseAccuracy = (half)0.75f,
+            Tracking = (half)ResolveTracking(WeaponType.Kinetic, size),
             CooldownTicks = (ushort)(8 + 4 * (int)size),
             CurrentCooldown = 0,
             AmmoPerShot = 1,
@@ -175,11 +245,15 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Missile,
             Size = size,
+            Family = WeaponFamily.Explosive,
+            DamageType = Space4XDamageType.Explosive,
+            Delivery = WeaponDelivery.Guided,
             Flags = WeaponFlags.None,
             BaseDamage = 25f * (1 + (int)size),
             OptimalRange = 400f + 150f * (int)size,
             MaxRange = 800f + 200f * (int)size,
             BaseAccuracy = (half)0.9f,
+            Tracking = (half)ResolveTracking(WeaponType.Missile, size),
             CooldownTicks = (ushort)(30 + 10 * (int)size),
             CurrentCooldown = 0,
             AmmoPerShot = 1,
@@ -191,17 +265,138 @@ namespace Space4X.Registry
         {
             Type = WeaponType.Torpedo,
             Size = size,
+            Family = WeaponFamily.Explosive,
+            DamageType = Space4XDamageType.Explosive,
+            Delivery = WeaponDelivery.Bus,
             Flags = WeaponFlags.None,
             BaseDamage = 100f * (1 + (int)size),
             OptimalRange = 200f + 100f * (int)size,
             MaxRange = 500f + 150f * (int)size,
             BaseAccuracy = (half)0.7f,
+            Tracking = (half)ResolveTracking(WeaponType.Torpedo, size),
             CooldownTicks = (ushort)(60 + 20 * (int)size),
             CurrentCooldown = 0,
             AmmoPerShot = 1,
             ShieldModifier = (half)0.8f,
             ArmorPenetration = (half)1.2f
         };
+
+        public static WeaponFamily ResolveFamily(WeaponType type)
+        {
+            return type switch
+            {
+                WeaponType.Laser => WeaponFamily.Energy,
+                WeaponType.Ion => WeaponFamily.Energy,
+                WeaponType.Plasma => WeaponFamily.Energy,
+                WeaponType.Kinetic => WeaponFamily.Kinetic,
+                WeaponType.PointDefense => WeaponFamily.Kinetic,
+                WeaponType.Missile => WeaponFamily.Explosive,
+                WeaponType.Torpedo => WeaponFamily.Explosive,
+                WeaponType.Flak => WeaponFamily.Explosive,
+                _ => WeaponFamily.Unknown
+            };
+        }
+
+        public static WeaponDelivery ResolveDelivery(WeaponType type)
+        {
+            return type switch
+            {
+                WeaponType.Laser => WeaponDelivery.Beam,
+                WeaponType.Ion => WeaponDelivery.Beam,
+                WeaponType.Plasma => WeaponDelivery.Beam,
+                WeaponType.Kinetic => WeaponDelivery.Slug,
+                WeaponType.PointDefense => WeaponDelivery.Slug,
+                WeaponType.Missile => WeaponDelivery.Guided,
+                WeaponType.Torpedo => WeaponDelivery.Bus,
+                WeaponType.Flak => WeaponDelivery.Area,
+                _ => WeaponDelivery.Unknown
+            };
+        }
+
+        public static Space4XDamageType ResolveDamageType(WeaponType type)
+        {
+            return type switch
+            {
+                WeaponType.Laser => Space4XDamageType.Energy,
+                WeaponType.Ion => Space4XDamageType.EM,
+                WeaponType.Plasma => Space4XDamageType.Thermal,
+                WeaponType.Kinetic => Space4XDamageType.Kinetic,
+                WeaponType.PointDefense => Space4XDamageType.Kinetic,
+                WeaponType.Missile => Space4XDamageType.Explosive,
+                WeaponType.Torpedo => Space4XDamageType.Explosive,
+                WeaponType.Flak => Space4XDamageType.Explosive,
+                _ => Space4XDamageType.Unknown
+            };
+        }
+
+        public static Space4XDamageType ResolveDamageType(WeaponType type, Space4XDamageType overrideType)
+        {
+            if (overrideType != Space4XDamageType.Unknown)
+            {
+                return overrideType;
+            }
+
+            return ResolveDamageType(type);
+        }
+
+        public static float ResolveTracking(in Space4XWeapon weapon)
+        {
+            if (weapon.Tracking > 0f)
+            {
+                return weapon.Tracking;
+            }
+
+            return ResolveTracking(weapon.Type, weapon.Size);
+        }
+
+        public static float ResolveTracking(WeaponType type, WeaponSize size)
+        {
+            var baseTracking = type switch
+            {
+                WeaponType.PointDefense => 0.95f,
+                WeaponType.Flak => 0.85f,
+                WeaponType.Laser => 0.8f,
+                WeaponType.Ion => 0.8f,
+                WeaponType.Plasma => 0.75f,
+                WeaponType.Kinetic => 0.65f,
+                WeaponType.Missile => 0.55f,
+                WeaponType.Torpedo => 0.4f,
+                _ => 0.6f
+            };
+
+            var sizeScale = size switch
+            {
+                WeaponSize.Small => 1.1f,
+                WeaponSize.Medium => 1.0f,
+                WeaponSize.Large => 0.9f,
+                WeaponSize.Capital => 0.8f,
+                _ => 1f
+            };
+
+            return math.saturate(baseTracking * sizeScale);
+        }
+    }
+
+    /// <summary>
+    /// Optional weapon effects (status channels). Keep empty for MVP.
+    /// </summary>
+    public enum WeaponEffectType : byte
+    {
+        Unknown = 0,
+        EMP = 1,
+        ShieldSuppression = 2,
+        ArmorBreach = 3,
+        SensorBlind = 4,
+        Heat = 5,
+        Nanite = 6
+    }
+
+    [InternalBufferCapacity(2)]
+    public struct WeaponEffectOp : IBufferElementData
+    {
+        public WeaponEffectType Type;
+        public float Magnitude;
+        public ushort DurationTicks;
     }
 
     /// <summary>
@@ -214,6 +409,14 @@ namespace Space4X.Registry
         public Entity CurrentTarget;
         public half FireArcCenterOffsetDeg;
         public byte IsEnabled;
+        public uint ShotsFired;
+        public uint ShotsHit;
+        public Entity SourceModule;
+        public half CoolingRating;
+        public float Heat01;
+        public float HeatCapacity;
+        public float HeatDissipation;
+        public float HeatPerShot;
     }
 
     public struct Space4XWeaponTuningConfig : IComponentData
@@ -278,6 +481,21 @@ namespace Space4X.Registry
         public half EnergyResistance;
 
         /// <summary>
+        /// Thermal resistance modifier.
+        /// </summary>
+        public half ThermalResistance;
+
+        /// <summary>
+        /// Electromagnetic (EMP) resistance modifier.
+        /// </summary>
+        public half EMResistance;
+
+        /// <summary>
+        /// Radiation resistance modifier.
+        /// </summary>
+        public half RadiationResistance;
+
+        /// <summary>
         /// Kinetic resistance modifier.
         /// </summary>
         public half KineticResistance;
@@ -286,6 +504,11 @@ namespace Space4X.Registry
         /// Explosive resistance modifier.
         /// </summary>
         public half ExplosiveResistance;
+
+        /// <summary>
+        /// Caustic resistance modifier.
+        /// </summary>
+        public half CausticResistance;
 
         public float Ratio => Maximum > 0 ? Current / Maximum : 0;
 
@@ -298,8 +521,12 @@ namespace Space4X.Registry
             RechargeDelay = 30,
             CurrentDelay = 0,
             EnergyResistance = (half)1.0f,
+            ThermalResistance = (half)1.0f,
+            EMResistance = (half)1.0f,
+            RadiationResistance = (half)1.0f,
             KineticResistance = (half)1.0f,
-            ExplosiveResistance = (half)1.0f
+            ExplosiveResistance = (half)1.0f,
+            CausticResistance = (half)1.0f
         };
 
         public static Space4XShield Hardened(float capacity) => new Space4XShield
@@ -311,8 +538,12 @@ namespace Space4X.Registry
             RechargeDelay = 40,
             CurrentDelay = 0,
             EnergyResistance = (half)0.8f,
+            ThermalResistance = (half)0.8f,
+            EMResistance = (half)0.75f,
+            RadiationResistance = (half)0.8f,
             KineticResistance = (half)1.4f,
-            ExplosiveResistance = (half)1.2f
+            ExplosiveResistance = (half)1.2f,
+            CausticResistance = (half)0.85f
         };
 
         public static Space4XShield Dispersive(float capacity) => new Space4XShield
@@ -324,8 +555,12 @@ namespace Space4X.Registry
             RechargeDelay = 20,
             CurrentDelay = 0,
             EnergyResistance = (half)1.5f,
+            ThermalResistance = (half)1.35f,
+            EMResistance = (half)1.4f,
+            RadiationResistance = (half)1.2f,
             KineticResistance = (half)0.7f,
-            ExplosiveResistance = (half)0.9f
+            ExplosiveResistance = (half)0.9f,
+            CausticResistance = (half)1.1f
         };
     }
 
@@ -366,6 +601,21 @@ namespace Space4X.Registry
         public half EnergyResistance;
 
         /// <summary>
+        /// Thermal resistance modifier.
+        /// </summary>
+        public half ThermalResistance;
+
+        /// <summary>
+        /// Electromagnetic (EMP) resistance modifier.
+        /// </summary>
+        public half EMResistance;
+
+        /// <summary>
+        /// Radiation resistance modifier.
+        /// </summary>
+        public half RadiationResistance;
+
+        /// <summary>
         /// Kinetic resistance modifier.
         /// </summary>
         public half KineticResistance;
@@ -375,14 +625,23 @@ namespace Space4X.Registry
         /// </summary>
         public half ExplosiveResistance;
 
+        /// <summary>
+        /// Caustic resistance modifier.
+        /// </summary>
+        public half CausticResistance;
+
         public static Space4XArmor Standard(float thickness) => new Space4XArmor
         {
             Type = ArmorType.Standard,
             Thickness = thickness,
             PenetrationThreshold = (half)0.3f,
             EnergyResistance = (half)1.0f,
+            ThermalResistance = (half)1.0f,
+            EMResistance = (half)1.0f,
+            RadiationResistance = (half)1.0f,
             KineticResistance = (half)1.0f,
-            ExplosiveResistance = (half)1.0f
+            ExplosiveResistance = (half)1.0f,
+            CausticResistance = (half)1.0f
         };
 
         public static Space4XArmor Reactive(float thickness) => new Space4XArmor
@@ -391,8 +650,12 @@ namespace Space4X.Registry
             Thickness = thickness,
             PenetrationThreshold = (half)0.4f,
             EnergyResistance = (half)0.9f,
+            ThermalResistance = (half)0.85f,
+            EMResistance = (half)0.8f,
+            RadiationResistance = (half)0.9f,
             KineticResistance = (half)0.8f,
-            ExplosiveResistance = (half)1.5f
+            ExplosiveResistance = (half)1.5f,
+            CausticResistance = (half)0.7f
         };
 
         public static Space4XArmor Ablative(float thickness) => new Space4XArmor
@@ -401,8 +664,12 @@ namespace Space4X.Registry
             Thickness = thickness,
             PenetrationThreshold = (half)0.25f,
             EnergyResistance = (half)1.4f,
+            ThermalResistance = (half)1.5f,
+            EMResistance = (half)1.2f,
+            RadiationResistance = (half)1.1f,
             KineticResistance = (half)1.1f,
-            ExplosiveResistance = (half)0.8f
+            ExplosiveResistance = (half)0.8f,
+            CausticResistance = (half)1.2f
         };
     }
 
@@ -511,6 +778,38 @@ namespace Space4X.Registry
         /// Whether this was a critical hit.
         /// </summary>
         public byte IsCritical;
+    }
+
+    /// <summary>
+    /// Aggregated combat telemetry snapshot (cumulative + delta).
+    /// </summary>
+    public struct Space4XCombatTelemetry : IComponentData
+    {
+        public uint LastProcessedTick;
+
+        public uint TotalShotsFired;
+        public uint TotalShotsHit;
+        public uint TotalShotsMissed;
+
+        public uint ShotsFiredDelta;
+        public uint ShotsHitDelta;
+        public uint ShotsMissedDelta;
+
+        public float TotalDamageEnergy;
+        public float TotalDamageThermal;
+        public float TotalDamageEM;
+        public float TotalDamageRadiation;
+        public float TotalDamageCaustic;
+        public float TotalDamageKinetic;
+        public float TotalDamageExplosive;
+
+        public float DamageEnergyDelta;
+        public float DamageThermalDelta;
+        public float DamageEMDelta;
+        public float DamageRadiationDelta;
+        public float DamageCausticDelta;
+        public float DamageKineticDelta;
+        public float DamageExplosiveDelta;
     }
 
     public enum SubsystemType : byte
@@ -642,18 +941,17 @@ namespace Space4X.Registry
         /// <summary>
         /// Gets resistance modifier for weapon type.
         /// </summary>
-        public static float GetWeaponResistance(WeaponType weaponType, in Space4XShield shield)
+        public static float GetWeaponResistance(Space4XDamageType damageType, in Space4XShield shield)
         {
-            return weaponType switch
+            return damageType switch
             {
-                WeaponType.Laser => (float)shield.EnergyResistance,
-                WeaponType.Ion => (float)shield.EnergyResistance,
-                WeaponType.Kinetic => (float)shield.KineticResistance,
-                WeaponType.PointDefense => (float)shield.KineticResistance,
-                WeaponType.Missile => (float)shield.ExplosiveResistance,
-                WeaponType.Torpedo => (float)shield.ExplosiveResistance,
-                WeaponType.Flak => (float)shield.ExplosiveResistance,
-                WeaponType.Plasma => 0.5f, // Plasma partially bypasses shields
+                Space4XDamageType.Energy => ResolveResistance(shield.EnergyResistance, 1f),
+                Space4XDamageType.Thermal => ResolveResistance(shield.ThermalResistance, shield.EnergyResistance),
+                Space4XDamageType.EM => ResolveResistance(shield.EMResistance, shield.EnergyResistance),
+                Space4XDamageType.Radiation => ResolveResistance(shield.RadiationResistance, shield.EnergyResistance),
+                Space4XDamageType.Caustic => ResolveResistance(shield.CausticResistance, shield.ThermalResistance),
+                Space4XDamageType.Kinetic => ResolveResistance(shield.KineticResistance, 1f),
+                Space4XDamageType.Explosive => ResolveResistance(shield.ExplosiveResistance, 1f),
                 _ => 1.0f
             };
         }
@@ -661,20 +959,34 @@ namespace Space4X.Registry
         /// <summary>
         /// Gets armor resistance modifier for weapon type.
         /// </summary>
-        public static float GetArmorResistance(WeaponType weaponType, in Space4XArmor armor)
+        public static float GetArmorResistance(Space4XDamageType damageType, in Space4XArmor armor)
         {
-            return weaponType switch
+            return damageType switch
             {
-                WeaponType.Laser => (float)armor.EnergyResistance,
-                WeaponType.Ion => (float)armor.EnergyResistance * 0.5f,
-                WeaponType.Kinetic => (float)armor.KineticResistance,
-                WeaponType.PointDefense => (float)armor.KineticResistance,
-                WeaponType.Missile => (float)armor.ExplosiveResistance,
-                WeaponType.Torpedo => (float)armor.ExplosiveResistance,
-                WeaponType.Flak => (float)armor.ExplosiveResistance,
-                WeaponType.Plasma => (float)armor.EnergyResistance * 0.7f,
+                Space4XDamageType.Energy => ResolveResistance(armor.EnergyResistance, 1f),
+                Space4XDamageType.Thermal => ResolveResistance(armor.ThermalResistance, armor.EnergyResistance),
+                Space4XDamageType.EM => ResolveResistance(armor.EMResistance, armor.EnergyResistance),
+                Space4XDamageType.Radiation => ResolveResistance(armor.RadiationResistance, armor.EnergyResistance),
+                Space4XDamageType.Caustic => ResolveResistance(armor.CausticResistance, armor.ThermalResistance),
+                Space4XDamageType.Kinetic => ResolveResistance(armor.KineticResistance, 1f),
+                Space4XDamageType.Explosive => ResolveResistance(armor.ExplosiveResistance, 1f),
                 _ => 1.0f
             };
+        }
+
+        private static float ResolveResistance(float value, float fallback)
+        {
+            if (value > 0f)
+            {
+                return value;
+            }
+
+            if (fallback > 0f)
+            {
+                return fallback;
+            }
+
+            return 1f;
         }
     }
 }

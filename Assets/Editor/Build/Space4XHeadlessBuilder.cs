@@ -14,8 +14,10 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditorInternal;
+using UnityEditor.Compilation;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using PackageManagerPackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace Space4X.Headless.Editor
@@ -60,6 +62,8 @@ namespace Space4X.Headless.Editor
             try
             {
                 Directory.CreateDirectory(absoluteOutput);
+                using var renderPipelineScope = new RenderPipelineScope();
+                using var defineScope = new ScriptingDefineScope(BuildTargetGroup.Standalone, "HYBRID_RENDERER_DISABLED");
                 RunHeadlessPreflight(absoluteOutput);
                 EnsureLinuxServerSupport();
 
@@ -293,11 +297,6 @@ namespace Space4X.Headless.Editor
                 return;
             }
 
-            if (World.DefaultGameObjectInjectionWorld == null)
-            {
-                DefaultWorldInitialization.Initialize("HeadlessPreflight", false);
-            }
-
             var rootsType = Type.GetType("Unity.Entities.UnityObjectRefUtility, Unity.Entities");
             if (rootsType != null)
             {
@@ -317,6 +316,11 @@ namespace Space4X.Headless.Editor
                         }
                     }
                 }
+            }
+
+            if (World.DefaultGameObjectInjectionWorld == null)
+            {
+                return;
             }
 
             var field = typeof(Unity.Rendering.EntitiesGraphicsSystem)
@@ -523,6 +527,115 @@ namespace Space4X.Headless.Editor
             }
 
             throw new BuildFailedException($"Missing scripts detected ({missing.Count}). Preview: {preview}");
+        }
+
+        private sealed class RenderPipelineScope : IDisposable
+        {
+            private readonly RenderPipelineAsset _defaultPipeline;
+            private readonly RenderPipelineAsset _qualityPipeline;
+            private readonly bool _changed;
+
+            public RenderPipelineScope()
+            {
+                if (!InternalEditorUtility.inBatchMode)
+                {
+                    _changed = false;
+                    return;
+                }
+
+                _defaultPipeline = GraphicsSettings.defaultRenderPipeline;
+                _qualityPipeline = QualitySettings.renderPipeline;
+                if (_defaultPipeline == null && _qualityPipeline == null)
+                {
+                    _changed = false;
+                    return;
+                }
+
+                GraphicsSettings.defaultRenderPipeline = null;
+                QualitySettings.renderPipeline = null;
+                _changed = true;
+                UnityEngine.Debug.Log("[Space4XHeadlessBuilder] Cleared render pipeline assets for batchmode build.");
+            }
+
+            public void Dispose()
+            {
+                if (!_changed)
+                {
+                    return;
+                }
+
+                GraphicsSettings.defaultRenderPipeline = _defaultPipeline;
+                QualitySettings.renderPipeline = _qualityPipeline;
+            }
+        }
+
+        private sealed class ScriptingDefineScope : IDisposable
+        {
+            private readonly BuildTargetGroup _group;
+            private readonly string _previous;
+            private readonly bool _changed;
+
+            public ScriptingDefineScope(BuildTargetGroup group, string define)
+            {
+                _group = group;
+                _previous = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                if (HasSymbol(_previous, define))
+                {
+                    _changed = false;
+                    return;
+                }
+
+                var updated = string.IsNullOrWhiteSpace(_previous) ? define : $"{_previous};{define}";
+                PlayerSettings.SetScriptingDefineSymbolsForGroup(group, updated);
+                _changed = true;
+                WaitForCompilation("apply headless define");
+            }
+
+            public void Dispose()
+            {
+                if (!_changed)
+                {
+                    return;
+                }
+
+                PlayerSettings.SetScriptingDefineSymbolsForGroup(_group, _previous);
+                WaitForCompilation("restore headless defines");
+            }
+
+            private static bool HasSymbol(string defines, string symbol)
+            {
+                if (string.IsNullOrWhiteSpace(defines))
+                {
+                    return false;
+                }
+
+                var parts = defines.Split(';');
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    if (string.Equals(parts[i].Trim(), symbol, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            private static void WaitForCompilation(string reason)
+            {
+                CompilationPipeline.RequestScriptCompilation();
+                var start = DateTime.UtcNow;
+                while (EditorApplication.isCompiling)
+                {
+                    if ((DateTime.UtcNow - start) > TimeSpan.FromMinutes(5))
+                    {
+                        UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Timed out waiting for script compilation ({reason}).");
+                        break;
+                    }
+
+                    System.Threading.Thread.Sleep(200);
+                }
+            }
         }
 
         private static void ScanForPPtrCastIssues()

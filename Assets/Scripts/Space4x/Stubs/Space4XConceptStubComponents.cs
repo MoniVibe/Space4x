@@ -211,7 +211,7 @@ namespace Space4X.Runtime
     public struct SaveSlotRequest : IComponentData
     {
         public int SlotIndex;
-        public byte Action; // save/load
+        public byte Action; // 0=save, 1=load, 2=delete
     }
 
     public struct StationProductionSlot : IComponentData

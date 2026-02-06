@@ -122,6 +122,11 @@ namespace Space4X.Registry
         /// </summary>
         public Entity ClaimedBy;
 
+        /// <summary>
+        /// Whether reverse engineering evidence has been extracted.
+        /// </summary>
+        public byte EvidenceExtracted;
+
         public static DerelictState FromCombat(uint tick, ushort faction, ushort shipClass)
         {
             return new DerelictState
@@ -135,7 +140,8 @@ namespace Space4X.Registry
                 OriginalFaction = faction,
                 OriginalClass = shipClass,
                 IsClaimed = 0,
-                ClaimedBy = Entity.Null
+                ClaimedBy = Entity.Null,
+                EvidenceExtracted = 0
             };
         }
 
@@ -152,7 +158,8 @@ namespace Space4X.Registry
                 OriginalFaction = 0,
                 OriginalClass = 0,
                 IsClaimed = 0,
-                ClaimedBy = Entity.Null
+                ClaimedBy = Entity.Null,
+                EvidenceExtracted = 0
             };
         }
     }
@@ -520,4 +527,3 @@ namespace Space4X.Registry
         }
     }
 }
-

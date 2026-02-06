@@ -231,11 +231,18 @@ namespace Space4X.Authoring
                 // Combat
                 AddComponent(entity, new Space4XShield
                 {
+                    Type = ShieldType.Standard,
                     Current = 1000f,
                     Maximum = 1000f,
                     RechargeRate = 10f,
                     RechargeDelay = 5,
-                    CurrentDelay = 0
+                    CurrentDelay = 0,
+                    EnergyResistance = (half)1f,
+                    ThermalResistance = (half)1f,
+                    EMResistance = (half)1f,
+                    RadiationResistance = (half)1f,
+                    KineticResistance = (half)1f,
+                    ExplosiveResistance = (half)1f
                 });
 
                 AddComponent(entity, new HullIntegrity
@@ -617,11 +624,18 @@ namespace Space4X.Authoring
 
                 AddComponent(entity, new Space4XShield
                 {
+                    Type = ShieldType.Standard,
                     Current = shield,
                     Maximum = shield,
                     RechargeRate = shield * 0.02f,
                     RechargeDelay = 3,
-                    CurrentDelay = 0
+                    CurrentDelay = 0,
+                    EnergyResistance = (half)1f,
+                    ThermalResistance = (half)1f,
+                    EMResistance = (half)1f,
+                    RadiationResistance = (half)1f,
+                    KineticResistance = (half)1f,
+                    ExplosiveResistance = (half)1f
                 });
 
                 AddComponent(entity, new HullIntegrity

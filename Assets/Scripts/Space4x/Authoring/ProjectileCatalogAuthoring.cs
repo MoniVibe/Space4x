@@ -58,6 +58,8 @@ namespace Space4X.Authoring
             [Min(0f)] public float kineticDamage = 0f;
             [Min(0f)] public float energyDamage = 0f;
             [Min(0f)] public float explosiveDamage = 0f;
+            [Tooltip("Optional damage type override (leave Unknown to derive from damage channels)")]
+            public Space4XDamageType damageType = Space4XDamageType.Unknown;
             [Header("On Hit Effects")]
             public List<EffectOpData> onHitEffects = new List<EffectOpData>();
         }
@@ -114,7 +116,8 @@ namespace Space4X.Authoring
                             Kinetic = math.max(0f, projData.kineticDamage),
                             Energy = math.max(0f, projData.energyDamage),
                             Explosive = math.max(0f, projData.explosiveDamage)
-                        }
+                        },
+                        DamageType = projData.damageType
                     };
                 }
 
@@ -127,4 +130,3 @@ namespace Space4X.Authoring
         }
     }
 }
-

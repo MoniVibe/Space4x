@@ -23,7 +23,8 @@ namespace Space4X.Systems.Economy
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     public partial struct Space4XShipyardAssemblySystem : ISystem
     {
-        private static readonly FixedString64Bytes HullItemId = "lcv-sparrow";
+        private static readonly FixedString64Bytes HullItemIdLight = "lcv-sparrow";
+        private static readonly FixedString64Bytes HullItemIdCarrier = "cv-mule";
         private const int MaxSpawnPerTick = 1;
 
         private ComponentLookup<BusinessInventory> _inventoryLookup;
@@ -101,7 +102,19 @@ namespace Space4X.Systems.Economy
                 }
 
                 var items = _itemsLookup[inventoryEntity];
-                if (!TryConsumeHull(ref items, HullItemId))
+
+                var colony = link.ValueRO.Colony;
+                var tech = _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
+                var preferCarrier = ResolveShipClassTier(tech) >= 2;
+                var consumedHull = HullItemIdLight;
+                var hullQuality = 1f;
+                var hullDurability = 1f;
+
+                if (preferCarrier && TryConsumeHull(ref items, HullItemIdCarrier, out hullQuality, out hullDurability))
+                {
+                    consumedHull = HullItemIdCarrier;
+                }
+                else if (!TryConsumeHull(ref items, HullItemIdLight, out hullQuality, out hullDurability))
                 {
                     continue;
                 }
@@ -110,8 +123,6 @@ namespace Space4X.Systems.Economy
                     ? _transformLookup[facility].Position
                     : float3.zero;
 
-                var colony = link.ValueRO.Colony;
-                var tech = _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
                 var warpPrecision = WarpPrecision.FromTier(ResolveWarpTier(tech));
 
                 var ship = ecb.CreateEntity();
@@ -121,18 +132,30 @@ namespace Space4X.Systems.Economy
                 ecb.AddComponent(ship, MediumContext.Vacuum);
 
                 var carrierId = BuildCarrierId(facility.Index, tickTime.Tick);
+                var isCarrierHull = consumedHull.Equals(HullItemIdCarrier);
+                var qualityFactor = math.lerp(0.85f, 1.15f, math.saturate(hullQuality));
+                var durabilityFactor = math.lerp(0.9f, 1.1f, math.saturate(hullDurability));
+                var speedFactor = qualityFactor;
+                var handlingFactor = math.lerp(0.9f, 1.1f, math.saturate(hullQuality));
+
+                var baseSpeed = (isCarrierHull ? 4.2f : 5f) * speedFactor;
+                var baseAcceleration = (isCarrierHull ? 0.35f : 0.5f) * speedFactor;
+                var baseDeceleration = (isCarrierHull ? 0.45f : 0.6f) * speedFactor;
+                var baseTurn = (isCarrierHull ? 0.25f : 0.35f) * handlingFactor;
+                var baseSlowdown = (isCarrierHull ? 28f : 20f) * handlingFactor;
+                var baseArrival = (isCarrierHull ? 4f : 3f) * handlingFactor;
                 ecb.AddComponent(ship, new Carrier
                 {
                     CarrierId = carrierId,
                     AffiliationEntity = Entity.Null,
-                    Speed = 5f,
-                    Acceleration = 0.5f,
-                    Deceleration = 0.6f,
-                    TurnSpeed = 0.35f,
-                    SlowdownDistance = 20f,
-                    ArrivalDistance = 3f,
+                    Speed = baseSpeed,
+                    Acceleration = baseAcceleration,
+                    Deceleration = baseDeceleration,
+                    TurnSpeed = baseTurn,
+                    SlowdownDistance = baseSlowdown,
+                    ArrivalDistance = baseArrival,
                     PatrolCenter = facilityPos,
-                    PatrolRadius = 45f
+                    PatrolRadius = isCarrierHull ? 60f : 45f
                 });
 
                 ecb.AddComponent(ship, new MovementCommand
@@ -144,13 +167,13 @@ namespace Space4X.Systems.Economy
                 ecb.AddComponent(ship, new VesselMovement
                 {
                     Velocity = float3.zero,
-                    BaseSpeed = 5f,
+                    BaseSpeed = baseSpeed,
                     CurrentSpeed = 0f,
-                    Acceleration = 0.5f,
-                    Deceleration = 0.6f,
-                    TurnSpeed = 0.35f,
-                    SlowdownDistance = 20f,
-                    ArrivalDistance = 3f,
+                    Acceleration = baseAcceleration,
+                    Deceleration = baseDeceleration,
+                    TurnSpeed = baseTurn,
+                    SlowdownDistance = baseSlowdown,
+                    ArrivalDistance = baseArrival,
                     DesiredRotation = quaternion.identity,
                     IsMoving = 0,
                     LastMoveTick = 0,
@@ -182,20 +205,27 @@ namespace Space4X.Systems.Economy
 
                 ecb.AddComponent(ship, new VesselPhysicalProperties
                 {
-                    Radius = 2.4f,
-                    BaseMass = 100f,
-                    HullDensity = 1.1f,
+                    Radius = isCarrierHull ? 3.6f : 2.4f,
+                    BaseMass = isCarrierHull ? 260f : 100f,
+                    HullDensity = isCarrierHull ? 1.2f : 1.1f,
                     CargoMassPerUnit = 0.02f,
                     Restitution = 0.08f,
                     TangentialDamping = 0.25f
                 });
 
-                ecb.AddComponent(ship, DockingCapacity.LightCarrier);
+                ecb.AddComponent(ship, isCarrierHull ? DockingCapacity.HeavyCarrier : DockingCapacity.LightCarrier);
                 ecb.AddBuffer<DockedEntity>(ship);
                 ecb.AddBuffer<ResourceStorage>(ship);
 
-                ecb.AddComponent(ship, new CarrierHullId { HullId = HullItemId });
-                ecb.AddComponent(ship, HullIntegrity.LightCarrier);
+                ecb.AddComponent(ship, new CarrierHullId { HullId = consumedHull });
+                var hullIntegrity = isCarrierHull ? HullIntegrity.HeavyCarrier : HullIntegrity.LightCarrier;
+                var hullFactor = math.clamp(qualityFactor * durabilityFactor, 0.75f, 1.35f);
+                hullIntegrity.BaseMax *= hullFactor;
+                hullIntegrity.Max = hullIntegrity.BaseMax;
+                hullIntegrity.Current = hullIntegrity.BaseMax;
+                hullIntegrity.ArmorRating = (half)math.clamp((float)hullIntegrity.ArmorRating * math.lerp(0.9f, 1.1f, math.saturate(hullQuality)), 0f, 0.9f);
+                ecb.AddComponent(ship, hullIntegrity);
+                ecb.AddComponent(ship, isCarrierHull ? CrewCapacity.HeavyCarrier : CrewCapacity.LightCarrier);
 
                 ecb.AddComponent(ship, new CaptainOrder
                 {
@@ -239,8 +269,11 @@ namespace Space4X.Systems.Economy
             ecb.Dispose();
         }
 
-        private static bool TryConsumeHull(ref DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId)
+        private static bool TryConsumeHull(ref DynamicBuffer<InventoryItem> items, in FixedString64Bytes itemId, out float quality, out float durability)
         {
+            quality = 1f;
+            durability = 1f;
+
             for (int i = 0; i < items.Length; i++)
             {
                 if (!items[i].ItemId.Equals(itemId))
@@ -253,6 +286,9 @@ namespace Space4X.Systems.Economy
                 {
                     continue;
                 }
+
+                quality = math.saturate(item.Quality);
+                durability = math.saturate(item.Durability);
 
                 item.Quantity -= 1f;
                 if (item.Quantity <= 0f)
@@ -283,6 +319,12 @@ namespace Space4X.Systems.Economy
                 1 => WarpTechTier.Basic,
                 _ => WarpTechTier.Primitive
             };
+        }
+
+        private static int ResolveShipClassTier(in TechLevel tech)
+        {
+            return math.max((int)tech.MiningTech,
+                math.max((int)tech.CombatTech, math.max((int)tech.HaulingTech, (int)tech.ProcessingTech)));
         }
 
         private static FixedString64Bytes BuildCarrierId(int facilityIndex, uint tick)

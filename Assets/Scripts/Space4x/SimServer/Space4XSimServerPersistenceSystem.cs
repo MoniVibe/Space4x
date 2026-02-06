@@ -3,10 +3,20 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Spatial;
+using PureDOTS.Runtime.Authority;
+using PureDOTS.Runtime.Individual;
+using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.WorldGen;
 using Space4X.Registry;
+using Space4XAlignmentTriplet = Space4X.Registry.AlignmentTriplet;
+using Space4XIndividualStats = Space4X.Registry.IndividualStats;
+using Space4XResourceSourceConfig = Space4X.Registry.ResourceSourceConfig;
+using Space4XResourceSourceState = Space4X.Registry.ResourceSourceState;
+using Space4XResourceTypeId = Space4X.Registry.ResourceTypeId;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -62,14 +72,14 @@ namespace Space4X.SimServer
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[Space4XSimServer] Failed to parse load JSON: {ex.Message}");
+                    UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to parse load JSON: {ex.Message}");
                 }
             }
 
             var path = ResolveLoadPath(request);
             if (string.IsNullOrWhiteSpace(path))
             {
-                Debug.LogWarning("[Space4XSimServer] No save file found for load request.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] No save file found for load request.");
                 return true;
             }
 
@@ -81,30 +91,30 @@ namespace Space4X.SimServer
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XSimServer] Failed to read save file '{path}': {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to read save file '{path}': {ex.Message}");
                 return true;
             }
 
             if (data == null || data.version <= 0)
             {
-                Debug.LogWarning("[Space4XSimServer] Save data invalid or empty.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] Save data invalid or empty.");
                 return true;
             }
 
             if (data.version != Space4XSimServerPaths.SaveVersion)
             {
-                Debug.LogWarning($"[Space4XSimServer] Save version mismatch. Expected {Space4XSimServerPaths.SaveVersion}, got {data.version}.");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Save version mismatch. Expected {Space4XSimServerPaths.SaveVersion}, got {data.version}.");
                 return true;
             }
 
             if (!ApplyLoadData(ref state, data))
             {
-                Debug.LogWarning("[Space4XSimServer] Failed to apply save data.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] Failed to apply save data.");
                 return true;
             }
 
             _autosaveScheduled = false;
-            Debug.Log($"[Space4XSimServer] Loaded save '{Path.GetFileName(path)}'.");
+            UnityEngine.Debug.Log($"[Space4XSimServer] Loaded save '{Path.GetFileName(path)}'.");
             return true;
         }
 
@@ -122,7 +132,7 @@ namespace Space4X.SimServer
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogWarning($"[Space4XSimServer] Failed to parse save JSON: {ex.Message}");
+                        UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to parse save JSON: {ex.Message}");
                     }
                 }
 
@@ -162,7 +172,7 @@ namespace Space4X.SimServer
             _nextAutosaveAt = now + config.AutosaveSeconds;
         }
 
-        private static double GetWorldSeconds(ref SystemState state)
+        private double GetWorldSeconds(ref SystemState state)
         {
             if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
             {
@@ -172,14 +182,14 @@ namespace Space4X.SimServer
             return state.WorldUnmanaged.Time.ElapsedTime;
         }
 
-        private static void DrainLoadQueue()
+        private void DrainLoadQueue()
         {
             while (Space4XSimHttpServer.TryDequeueLoad(out _))
             {
             }
         }
 
-        private static string ResolveLoadPath(LoadRequest request)
+        private string ResolveLoadPath(LoadRequest request)
         {
             Space4XSimServerPaths.EnsureDirectories();
             var saveDir = Space4XSimServerPaths.SaveDir;
@@ -222,7 +232,7 @@ namespace Space4X.SimServer
             return matches[0];
         }
 
-        private static string FindLatestSave(string saveDir)
+        private string FindLatestSave(string saveDir)
         {
             var files = Directory.GetFiles(saveDir, "*.json", SearchOption.TopDirectoryOnly);
             if (files.Length == 0)
@@ -234,7 +244,7 @@ namespace Space4X.SimServer
             return files[0];
         }
 
-        private static void SaveSnapshot(ref SystemState state, SaveRequest request, bool isAutosave)
+        private void SaveSnapshot(ref SystemState state, SaveRequest request, bool isAutosave)
         {
             var slot = request?.ResolveSlot();
             if (string.IsNullOrWhiteSpace(slot))
@@ -255,7 +265,7 @@ namespace Space4X.SimServer
             var json = JsonUtility.ToJson(data, false);
             if (string.IsNullOrWhiteSpace(json))
             {
-                Debug.LogWarning("[Space4XSimServer] Save payload empty.");
+                UnityEngine.Debug.LogWarning("[Space4XSimServer] Save payload empty.");
                 return;
             }
 
@@ -266,15 +276,15 @@ namespace Space4X.SimServer
                 File.Copy(tmpPath, path, true);
                 File.Delete(tmpPath);
                 Space4XSimServerPaths.TrimSaves();
-                Debug.Log($"[Space4XSimServer] Saved '{Path.GetFileName(path)}' (slot={resolvedSlot}).");
+                UnityEngine.Debug.Log($"[Space4XSimServer] Saved '{Path.GetFileName(path)}' (slot={resolvedSlot}).");
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XSimServer] Failed to write save '{path}': {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XSimServer] Failed to write save '{path}': {ex.Message}");
             }
         }
 
-        private static SimSaveData CaptureSaveData(ref SystemState state)
+        private SimSaveData CaptureSaveData(ref SystemState state)
         {
             var data = new SimSaveData
             {
@@ -289,11 +299,13 @@ namespace Space4X.SimServer
             data.colonies = CaptureColonies(ref state);
             data.resources = CaptureResources(ref state);
             data.anomalies = CaptureAnomalies(ref state);
+            data.missionOffers = CaptureMissionOffers(ref state);
+            data.missionAssignments = CaptureMissionAssignments(ref state);
 
             return data;
         }
 
-        private static SimTimeData CaptureTime(ref SystemState state)
+        private SimTimeData CaptureTime(ref SystemState state)
         {
             var timeState = SystemAPI.TryGetSingleton<TimeState>(out var time) ? time : default;
             var scalars = SystemAPI.TryGetSingleton<SimulationScalars>(out var scalarState) ? scalarState : SimulationScalars.Default;
@@ -311,7 +323,7 @@ namespace Space4X.SimServer
                 timeScale = scalars.TimeScale
             };
         }
-        private static FactionData[] CaptureFactions(ref SystemState state)
+        private FactionData[] CaptureFactions(ref SystemState state)
         {
             var list = new List<FactionData>(16);
             var entityManager = state.EntityManager;
@@ -364,6 +376,28 @@ namespace Space4X.SimServer
                     data.directive = DirectiveData.From(entityManager.GetComponentData<Space4XFactionDirective>(entity));
                 }
 
+                if (entityManager.HasComponent<Space4XFactionDirectiveBaseline>(entity))
+                {
+                    data.directiveBaseline = DirectiveBaselineData.From(entityManager.GetComponentData<Space4XFactionDirectiveBaseline>(entity));
+                }
+
+                if (entityManager.HasBuffer<Space4XFactionOrder>(entity))
+                {
+                    var orderBuffer = entityManager.GetBuffer<Space4XFactionOrder>(entity);
+                    if (orderBuffer.Length > 0)
+                    {
+                        var orders = new DirectiveOrderData[orderBuffer.Length];
+                        for (int i = 0; i < orderBuffer.Length; i++)
+                        {
+                            orders[i] = DirectiveOrderData.From(orderBuffer[i]);
+                        }
+
+                        data.directiveOrders = orders;
+                    }
+                }
+
+                data.leader = CaptureLeader(entityManager, entity);
+
                 if (entityManager.HasBuffer<FactionRelationEntry>(entity))
                 {
                     var buffer = entityManager.GetBuffer<FactionRelationEntry>(entity);
@@ -384,31 +418,135 @@ namespace Space4X.SimServer
                     }
                 }
 
+                if (entityManager.HasBuffer<Space4XContactStanding>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<Space4XContactStanding>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var contacts = new ContactData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            var entry = buffer[i];
+                            contacts[i] = new ContactData
+                            {
+                                contactFactionId = entry.ContactFactionId,
+                                standing = (float)entry.Standing,
+                                loyaltyPoints = entry.LoyaltyPoints,
+                                tier = entry.Tier
+                            };
+                        }
+                        data.contacts = contacts;
+                    }
+                }
+
+                if (entityManager.HasComponent<ReverseEngineeringState>(entity))
+                {
+                    data.reverseEngineeringState = ReverseEngineeringStateData.From(entityManager.GetComponentData<ReverseEngineeringState>(entity));
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringEvidence>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringEvidence>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var evidence = new ReverseEngineeringEvidenceData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            evidence[i] = ReverseEngineeringEvidenceData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringEvidence = evidence;
+                    }
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringTask>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringTask>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var tasks = new ReverseEngineeringTaskData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            tasks[i] = ReverseEngineeringTaskData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringTasks = tasks;
+                    }
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringBlueprintVariant>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringBlueprintVariant>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var variants = new ReverseEngineeringVariantData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            variants[i] = ReverseEngineeringVariantData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringVariants = variants;
+                    }
+                }
+
+                if (entityManager.HasBuffer<ReverseEngineeringBlueprintProgress>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<ReverseEngineeringBlueprintProgress>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var progress = new ReverseEngineeringProgressData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            progress[i] = ReverseEngineeringProgressData.From(buffer[i]);
+                        }
+                        data.reverseEngineeringProgress = progress;
+                    }
+                }
+
                 list.Add(data);
             }
 
             return list.ToArray();
         }
 
-        private static SystemData[] CaptureSystems(ref SystemState state)
+        private SystemData[] CaptureSystems(ref SystemState state)
         {
             var list = new List<SystemData>(64);
+            var entityManager = state.EntityManager;
 
-            foreach (var (system, transform) in SystemAPI.Query<RefRO<Space4XStarSystem>, RefRO<LocalTransform>>())
+            foreach (var (system, transform, entity) in SystemAPI.Query<RefRO<Space4XStarSystem>, RefRO<LocalTransform>>().WithEntityAccess())
             {
-                list.Add(new SystemData
+                var data = new SystemData
                 {
                     systemId = system.ValueRO.SystemId,
                     ownerFactionId = system.ValueRO.OwnerFactionId,
                     ringIndex = system.ValueRO.RingIndex,
                     position = ToVector3(transform.ValueRO.Position)
-                });
+                };
+
+                if (entityManager.HasBuffer<Space4XSystemTrait>(entity))
+                {
+                    var buffer = entityManager.GetBuffer<Space4XSystemTrait>(entity);
+                    if (buffer.Length > 0)
+                    {
+                        var traits = new SystemTraitData[buffer.Length];
+                        for (int i = 0; i < buffer.Length; i++)
+                        {
+                            traits[i] = new SystemTraitData
+                            {
+                                kind = (byte)buffer[i].Kind,
+                                intensity = (float)buffer[i].Intensity
+                            };
+                        }
+
+                        data.traits = traits;
+                    }
+                }
+
+                list.Add(data);
             }
 
             return list.ToArray();
         }
 
-        private static ColonyData[] CaptureColonies(ref SystemState state)
+        private ColonyData[] CaptureColonies(ref SystemState state)
         {
             var list = new List<ColonyData>(32);
             var entityManager = state.EntityManager;
@@ -449,13 +587,13 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static ResourceData[] CaptureResources(ref SystemState state)
+        private ResourceData[] CaptureResources(ref SystemState state)
         {
             var list = new List<ResourceData>(128);
             var entityManager = state.EntityManager;
 
             foreach (var (asteroid, sourceState, sourceConfig, resourceId, transform, entity) in
-                SystemAPI.Query<RefRO<Asteroid>, RefRO<ResourceSourceState>, RefRO<ResourceSourceConfig>, RefRO<ResourceTypeId>, RefRO<LocalTransform>>()
+                SystemAPI.Query<RefRO<Asteroid>, RefRO<Space4XResourceSourceState>, RefRO<Space4XResourceSourceConfig>, RefRO<Space4XResourceTypeId>, RefRO<LocalTransform>>()
                     .WithEntityAccess())
             {
                 var data = new ResourceData
@@ -513,7 +651,7 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static AnomalyData[] CaptureAnomalies(ref SystemState state)
+        private AnomalyData[] CaptureAnomalies(ref SystemState state)
         {
             var list = new List<AnomalyData>(16);
 
@@ -534,7 +672,201 @@ namespace Space4X.SimServer
             return list.ToArray();
         }
 
-        private static ushort ResolveFactionId(ComponentLookup<Space4XFaction> lookup, Entity entity, ushort fallback)
+        private MissionOfferData[] CaptureMissionOffers(ref SystemState state)
+        {
+            var list = new List<MissionOfferData>(32);
+            var entityManager = state.EntityManager;
+
+            foreach (var (offer, entity) in SystemAPI.Query<RefRO<Space4XMissionOffer>>().WithEntityAccess())
+            {
+                ResolveTargetData(entityManager, offer.ValueRO.TargetEntity, offer.ValueRO.TargetPosition,
+                    out var kind, out var targetId, out var systemId, out var ringIndex, out var poiKind, out var targetPos);
+
+                list.Add(new MissionOfferData
+                {
+                    offerId = offer.ValueRO.OfferId,
+                    type = (byte)offer.ValueRO.Type,
+                    status = (byte)offer.ValueRO.Status,
+                    issuerFactionId = offer.ValueRO.IssuerFactionId,
+                    targetKind = (byte)kind,
+                    targetId = targetId,
+                    targetSystemId = systemId,
+                    targetRingIndex = ringIndex,
+                    targetPoiKind = poiKind,
+                    targetPosition = targetPos,
+                    resourceTypeIndex = offer.ValueRO.ResourceTypeIndex,
+                    units = offer.ValueRO.Units,
+                    rewardCredits = offer.ValueRO.RewardCredits,
+                    rewardStanding = offer.ValueRO.RewardStanding,
+                    rewardLp = offer.ValueRO.RewardLp,
+                    risk = offer.ValueRO.Risk,
+                    priority = offer.ValueRO.Priority,
+                    createdTick = offer.ValueRO.CreatedTick,
+                    expiryTick = offer.ValueRO.ExpiryTick,
+                    assignedTick = offer.ValueRO.AssignedTick,
+                    completedTick = offer.ValueRO.CompletedTick
+                });
+            }
+
+            return list.Count == 0 ? Array.Empty<MissionOfferData>() : list.ToArray();
+        }
+
+        private MissionAssignmentData[] CaptureMissionAssignments(ref SystemState state)
+        {
+            var list = new List<MissionAssignmentData>(32);
+            var entityManager = state.EntityManager;
+
+            foreach (var (assignment, entity) in SystemAPI.Query<RefRO<Space4XMissionAssignment>>().WithEntityAccess())
+            {
+                ResolveTargetData(entityManager, assignment.ValueRO.TargetEntity, assignment.ValueRO.TargetPosition,
+                    out var targetKind, out var targetId, out var targetSystemId, out var targetRingIndex, out var targetPoiKind, out var targetPos);
+
+                ResolveTargetData(entityManager, assignment.ValueRO.SourceEntity, assignment.ValueRO.SourcePosition,
+                    out var sourceKind, out var sourceId, out var sourceSystemId, out var sourceRingIndex, out var sourcePoiKind, out var sourcePos);
+
+                var assignedKind = (byte)0;
+                var assignedId = string.Empty;
+                if (TryResolveAssignmentEntityId(entityManager, entity, out var resolvedId, out var resolvedKind))
+                {
+                    assignedId = resolvedId;
+                    assignedKind = resolvedKind;
+                }
+
+                list.Add(new MissionAssignmentData
+                {
+                    offerId = assignment.ValueRO.OfferId,
+                    type = (byte)assignment.ValueRO.Type,
+                    status = (byte)assignment.ValueRO.Status,
+                    phase = (byte)assignment.ValueRO.Phase,
+                    cargoState = (byte)assignment.ValueRO.CargoState,
+                    issuerFactionId = assignment.ValueRO.IssuerFactionId,
+                    resourceTypeIndex = assignment.ValueRO.ResourceTypeIndex,
+                    units = assignment.ValueRO.Units,
+                    cargoUnits = assignment.ValueRO.CargoUnits,
+                    rewardCredits = assignment.ValueRO.RewardCredits,
+                    rewardStanding = assignment.ValueRO.RewardStanding,
+                    rewardLp = assignment.ValueRO.RewardLp,
+                    startedTick = assignment.ValueRO.StartedTick,
+                    dueTick = assignment.ValueRO.DueTick,
+                    completedTick = assignment.ValueRO.CompletedTick,
+                    autoComplete = assignment.ValueRO.AutoComplete,
+                    targetKind = (byte)targetKind,
+                    targetId = targetId,
+                    targetSystemId = targetSystemId,
+                    targetRingIndex = targetRingIndex,
+                    targetPoiKind = targetPoiKind,
+                    targetPosition = targetPos,
+                    sourceKind = (byte)sourceKind,
+                    sourceId = sourceId,
+                    sourceSystemId = sourceSystemId,
+                    sourceRingIndex = sourceRingIndex,
+                    sourcePoiKind = sourcePoiKind,
+                    sourcePosition = sourcePos,
+                    destinationPosition = ToVector3(assignment.ValueRO.DestinationPosition),
+                    assignedEntityId = assignedId,
+                    assignedEntityKind = assignedKind
+                });
+            }
+
+            return list.Count == 0 ? Array.Empty<MissionAssignmentData>() : list.ToArray();
+        }
+
+        private void ResolveTargetData(
+            EntityManager entityManager,
+            Entity targetEntity,
+            float3 fallbackPosition,
+            out MissionTargetKind kind,
+            out string targetId,
+            out ushort systemId,
+            out byte ringIndex,
+            out byte poiKind,
+            out Vector3 position)
+        {
+            kind = MissionTargetKind.None;
+            targetId = null;
+            systemId = 0;
+            ringIndex = 0;
+            poiKind = 0;
+            position = ToVector3(fallbackPosition);
+
+            if (targetEntity == Entity.Null || !entityManager.Exists(targetEntity))
+            {
+                return;
+            }
+
+            if (entityManager.HasComponent<LocalTransform>(targetEntity))
+            {
+                position = ToVector3(entityManager.GetComponentData<LocalTransform>(targetEntity).Position);
+            }
+
+            if (entityManager.HasComponent<Space4XColony>(targetEntity))
+            {
+                var colony = entityManager.GetComponentData<Space4XColony>(targetEntity);
+                kind = MissionTargetKind.Colony;
+                targetId = colony.ColonyId.ToString();
+                return;
+            }
+
+            if (entityManager.HasComponent<Asteroid>(targetEntity))
+            {
+                var asteroid = entityManager.GetComponentData<Asteroid>(targetEntity);
+                kind = MissionTargetKind.Asteroid;
+                targetId = asteroid.AsteroidId.ToString();
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XAnomaly>(targetEntity))
+            {
+                var anomaly = entityManager.GetComponentData<Space4XAnomaly>(targetEntity);
+                kind = MissionTargetKind.Anomaly;
+                targetId = anomaly.AnomalyId.ToString();
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XStarSystem>(targetEntity))
+            {
+                var system = entityManager.GetComponentData<Space4XStarSystem>(targetEntity);
+                kind = MissionTargetKind.System;
+                systemId = system.SystemId;
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XPoi>(targetEntity))
+            {
+                var poi = entityManager.GetComponentData<Space4XPoi>(targetEntity);
+                kind = MissionTargetKind.Poi;
+                systemId = poi.SystemId;
+                ringIndex = poi.RingIndex;
+                poiKind = (byte)poi.Kind;
+                return;
+            }
+
+            kind = MissionTargetKind.Unknown;
+        }
+
+        private static bool TryResolveAssignmentEntityId(EntityManager entityManager, Entity entity, out string id, out byte kind)
+        {
+            id = null;
+            kind = 0;
+
+            if (entityManager.HasComponent<Carrier>(entity))
+            {
+                id = entityManager.GetComponentData<Carrier>(entity).CarrierId.ToString();
+                kind = 1;
+                return true;
+            }
+
+            if (entityManager.HasComponent<MiningVessel>(entity))
+            {
+                id = entityManager.GetComponentData<MiningVessel>(entity).VesselId.ToString();
+                kind = 2;
+                return true;
+            }
+
+            return false;
+        }
+
+        private ushort ResolveFactionId(ComponentLookup<Space4XFaction> lookup, Entity entity, ushort fallback)
         {
             if (entity != Entity.Null && lookup.HasComponent(entity))
             {
@@ -543,7 +875,108 @@ namespace Space4X.SimServer
 
             return fallback;
         }
-        private static bool ApplyLoadData(ref SystemState state, SimSaveData data)
+
+        private LeaderData CaptureLeader(EntityManager entityManager, Entity factionEntity)
+        {
+            if (!entityManager.HasComponent<AuthorityBody>(factionEntity))
+            {
+                return null;
+            }
+
+            var body = entityManager.GetComponentData<AuthorityBody>(factionEntity);
+            if (body.ExecutiveSeat == Entity.Null || !entityManager.HasComponent<AuthoritySeatOccupant>(body.ExecutiveSeat))
+            {
+                return null;
+            }
+
+            var occupant = entityManager.GetComponentData<AuthoritySeatOccupant>(body.ExecutiveSeat).OccupantEntity;
+            if (occupant == Entity.Null || !entityManager.Exists(occupant))
+            {
+                return null;
+            }
+
+            var data = new LeaderData();
+
+            if (entityManager.HasComponent<IndividualId>(occupant))
+            {
+                data.id = entityManager.GetComponentData<IndividualId>(occupant).Value;
+            }
+            else
+            {
+                data.id = occupant.Index;
+            }
+
+            if (entityManager.HasComponent<IndividualName>(occupant))
+            {
+                data.name = entityManager.GetComponentData<IndividualName>(occupant).Name.ToString();
+            }
+
+            if (entityManager.HasComponent<Space4XAlignmentTriplet>(occupant))
+            {
+                var alignment = entityManager.GetComponentData<Space4XAlignmentTriplet>(occupant);
+                data.hasAlignment = 1;
+                data.law = (float)alignment.Law;
+                data.good = (float)alignment.Good;
+                data.integrity = (float)alignment.Integrity;
+            }
+
+            if (entityManager.HasComponent<BehaviorDisposition>(occupant))
+            {
+                var disposition = entityManager.GetComponentData<BehaviorDisposition>(occupant);
+                data.hasBehavior = 1;
+                data.compliance = disposition.Compliance;
+                data.caution = disposition.Caution;
+                data.formationAdherence = disposition.FormationAdherence;
+                data.riskTolerance = disposition.RiskTolerance;
+                data.aggression = disposition.Aggression;
+                data.patience = disposition.Patience;
+            }
+
+            if (entityManager.HasComponent<Space4XIndividualStats>(occupant))
+            {
+                var stats = entityManager.GetComponentData<Space4XIndividualStats>(occupant);
+                data.hasStats = 1;
+                data.command = (float)stats.Command;
+                data.tactics = (float)stats.Tactics;
+                data.logistics = (float)stats.Logistics;
+                data.diplomacy = (float)stats.Diplomacy;
+                data.engineering = (float)stats.Engineering;
+                data.resolve = (float)stats.Resolve;
+            }
+
+            if (entityManager.HasComponent<PhysiqueFinesseWill>(occupant))
+            {
+                var physique = entityManager.GetComponentData<PhysiqueFinesseWill>(occupant);
+                data.hasPhysique = 1;
+                data.physique = (float)physique.Physique;
+                data.finesse = (float)physique.Finesse;
+                data.will = (float)physique.Will;
+                data.physiqueInclination = physique.PhysiqueInclination;
+                data.finesseInclination = physique.FinesseInclination;
+                data.willInclination = physique.WillInclination;
+                data.generalXp = physique.GeneralXP;
+            }
+
+            if (entityManager.HasComponent<PersonalityAxes>(occupant))
+            {
+                var personality = entityManager.GetComponentData<PersonalityAxes>(occupant);
+                data.hasPersonality = 1;
+                data.boldness = personality.Boldness;
+                data.vengefulness = personality.Vengefulness;
+                data.personalityRisk = personality.RiskTolerance;
+                data.selflessness = personality.Selflessness;
+                data.conviction = personality.Conviction;
+            }
+
+            if (entityManager.HasComponent<PreordainProfile>(occupant))
+            {
+                data.hasPreordain = 1;
+                data.preordainTrack = (byte)entityManager.GetComponentData<PreordainProfile>(occupant).Track;
+            }
+
+            return data;
+        }
+        private bool ApplyLoadData(ref SystemState state, SimSaveData data)
         {
             var entityManager = state.EntityManager;
             var runtimeConfig = SystemAPI.TryGetSingleton(out Space4XSimServerConfig config) ? config : default;
@@ -605,6 +1038,33 @@ namespace Space4X.SimServer
                         buffer.Add(new FactionRelationEntry { Relation = relation });
                     }
                 }
+
+                if (pending.data?.contacts != null && pending.data.contacts.Length > 0)
+                {
+                    DynamicBuffer<Space4XContactStanding> buffer;
+                    if (entityManager.HasBuffer<Space4XContactStanding>(pending.entity))
+                    {
+                        buffer = entityManager.GetBuffer<Space4XContactStanding>(pending.entity);
+                        buffer.Clear();
+                    }
+                    else
+                    {
+                        buffer = entityManager.AddBuffer<Space4XContactStanding>(pending.entity);
+                    }
+
+                    foreach (var contact in pending.data.contacts)
+                    {
+                        buffer.Add(new Space4XContactStanding
+                        {
+                            ContactFactionId = contact.contactFactionId,
+                            Standing = (half)math.saturate(contact.standing),
+                            LoyaltyPoints = contact.loyaltyPoints,
+                            Tier = contact.tier
+                        });
+                    }
+                }
+
+                ApplyReverseEngineeringLoad(entityManager, pending.entity, pending.data);
             }
 
             if (data.systems != null)
@@ -624,6 +1084,20 @@ namespace Space4X.SimServer
                         RingIndex = systemData.ringIndex
                     });
                     entityManager.SetComponentData(entity, LocalTransform.FromPosition(ToFloat3(systemData.position)));
+
+                    if (systemData.traits != null && systemData.traits.Length > 0)
+                    {
+                        var buffer = entityManager.AddBuffer<Space4XSystemTrait>(entity);
+                        for (int i = 0; i < systemData.traits.Length; i++)
+                        {
+                            var trait = systemData.traits[i];
+                            buffer.Add(new Space4XSystemTrait
+                            {
+                                Kind = (GalaxySystemTraitKind)trait.kind,
+                                Intensity = (half)math.saturate(trait.intensity)
+                            });
+                        }
+                    }
                 }
             }
 
@@ -668,9 +1142,9 @@ namespace Space4X.SimServer
                         typeof(LocalTransform),
                         typeof(SpatialIndexedTag),
                         typeof(Asteroid),
-                        typeof(ResourceSourceState),
-                        typeof(ResourceSourceConfig),
-                        typeof(ResourceTypeId),
+                        typeof(Space4XResourceSourceState),
+                        typeof(Space4XResourceSourceConfig),
+                        typeof(Space4XResourceTypeId),
                         typeof(RewindableTag),
                         typeof(LastRecordedTick),
                         typeof(HistoryTier),
@@ -687,19 +1161,19 @@ namespace Space4X.SimServer
                         MaxResourceAmount = resourceData.maxResourceAmount,
                         MiningRate = resourceData.miningRate
                     });
-                    entityManager.SetComponentData(entity, new ResourceSourceState
+                    entityManager.SetComponentData(entity, new Space4XResourceSourceState
                     {
                         UnitsRemaining = resourceData.unitsRemaining,
                         LastHarvestTick = resourceData.lastHarvestTick
                     });
-                    entityManager.SetComponentData(entity, new ResourceSourceConfig
+                    entityManager.SetComponentData(entity, new Space4XResourceSourceConfig
                     {
                         GatherRatePerWorker = resourceData.gatherRatePerWorker,
                         MaxSimultaneousWorkers = resourceData.maxWorkers,
                         RespawnSeconds = resourceData.respawnSeconds,
                         Flags = resourceData.flags
                     });
-                    entityManager.SetComponentData(entity, new ResourceTypeId
+                    entityManager.SetComponentData(entity, new Space4XResourceTypeId
                     {
                         Value = new FixedString64Bytes(resourceData.resourceTypeId ?? string.Empty)
                     });
@@ -769,11 +1243,129 @@ namespace Space4X.SimServer
                 }
             }
 
+            var colonyById = BuildColonyIdMap(ref state);
+            var asteroidById = BuildAsteroidIdMap(ref state);
+            var anomalyById = BuildAnomalyIdMap(ref state);
+            var systemById = BuildSystemIdMap(ref state);
+            var poiByKey = BuildPoiKeyMap(ref state);
+            var carrierById = BuildCarrierIdMap(ref state);
+            var vesselById = BuildVesselIdMap(ref state);
+            var offerEntities = new Dictionary<uint, Entity>();
+
+            if (data.missionOffers != null)
+            {
+                foreach (var offerData in data.missionOffers)
+                {
+                    var targetEntity = ResolveTargetEntity(offerData.targetKind, offerData.targetId, offerData.targetSystemId, offerData.targetRingIndex,
+                        offerData.targetPoiKind, colonyById, asteroidById, anomalyById, systemById, poiByKey);
+                    var targetPosition = ResolveTargetPosition(entityManager, targetEntity, offerData.targetPosition);
+                    var issuer = ResolveFactionEntity(factionMap, offerData.issuerFactionId, Entity.Null);
+
+                    var offerEntity = entityManager.CreateEntity(typeof(Space4XMissionOffer));
+                    entityManager.SetComponentData(offerEntity, new Space4XMissionOffer
+                    {
+                        OfferId = offerData.offerId,
+                        Type = (Space4XMissionType)offerData.type,
+                        Status = (Space4XMissionStatus)offerData.status,
+                        Issuer = issuer,
+                        IssuerFactionId = offerData.issuerFactionId,
+                        TargetEntity = targetEntity,
+                        TargetPosition = targetPosition,
+                        ResourceTypeIndex = offerData.resourceTypeIndex,
+                        Units = offerData.units,
+                        RewardCredits = offerData.rewardCredits,
+                        RewardStanding = offerData.rewardStanding,
+                        RewardLp = offerData.rewardLp,
+                        Risk = offerData.risk,
+                        Priority = offerData.priority,
+                        CreatedTick = offerData.createdTick,
+                        ExpiryTick = offerData.expiryTick,
+                        AssignedTick = offerData.assignedTick,
+                        CompletedTick = offerData.completedTick,
+                        AssignedEntity = Entity.Null
+                    });
+
+                    if (offerData.offerId != 0)
+                    {
+                        offerEntities[offerData.offerId] = offerEntity;
+                    }
+                }
+            }
+
+            if (data.missionAssignments != null)
+            {
+                foreach (var assignmentData in data.missionAssignments)
+                {
+                    var agent = ResolveAssignedEntity(assignmentData, carrierById, vesselById);
+                    if (agent == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    var targetEntity = ResolveTargetEntity(assignmentData.targetKind, assignmentData.targetId, assignmentData.targetSystemId, assignmentData.targetRingIndex,
+                        assignmentData.targetPoiKind, colonyById, asteroidById, anomalyById, systemById, poiByKey);
+                    var sourceEntity = ResolveTargetEntity(assignmentData.sourceKind, assignmentData.sourceId, assignmentData.sourceSystemId, assignmentData.sourceRingIndex,
+                        assignmentData.sourcePoiKind, colonyById, asteroidById, anomalyById, systemById, poiByKey);
+                    var offerEntity = assignmentData.offerId != 0 && offerEntities.TryGetValue(assignmentData.offerId, out var offerRef)
+                        ? offerRef
+                        : Entity.Null;
+
+                    var assignmentComponent = new Space4XMissionAssignment
+                    {
+                        OfferEntity = offerEntity,
+                        OfferId = assignmentData.offerId,
+                        Type = (Space4XMissionType)assignmentData.type,
+                        Status = (Space4XMissionStatus)assignmentData.status,
+                        TargetEntity = targetEntity,
+                        TargetPosition = ToFloat3(assignmentData.targetPosition),
+                        SourceEntity = sourceEntity,
+                        SourcePosition = ToFloat3(assignmentData.sourcePosition),
+                        DestinationPosition = ToFloat3(assignmentData.destinationPosition),
+                        Phase = (Space4XMissionPhase)assignmentData.phase,
+                        CargoState = (Space4XMissionCargoState)assignmentData.cargoState,
+                        ResourceTypeIndex = assignmentData.resourceTypeIndex,
+                        Units = assignmentData.units,
+                        CargoUnits = assignmentData.cargoUnits,
+                        RewardCredits = assignmentData.rewardCredits,
+                        RewardStanding = assignmentData.rewardStanding,
+                        RewardLp = assignmentData.rewardLp,
+                        IssuerFactionId = assignmentData.issuerFactionId,
+                        StartedTick = assignmentData.startedTick,
+                        DueTick = assignmentData.dueTick,
+                        CompletedTick = assignmentData.completedTick,
+                        AutoComplete = assignmentData.autoComplete
+                    };
+
+                    if (entityManager.HasComponent<Space4XMissionAssignment>(agent))
+                    {
+                        entityManager.SetComponentData(agent, assignmentComponent);
+                    }
+                    else
+                    {
+                        entityManager.AddComponentData(agent, assignmentComponent);
+                    }
+
+                    if (entityManager.HasComponent<CaptainOrder>(agent))
+                    {
+                        var order = entityManager.GetComponentData<CaptainOrder>(agent);
+                        order.Type = ResolveMissionOrderType((Space4XMissionType)assignmentData.type);
+                        order.Status = CaptainOrderStatus.Received;
+                        order.TargetEntity = assignmentComponent.TargetEntity;
+                        order.TargetPosition = assignmentComponent.TargetPosition;
+                        order.IssuedTick = assignmentComponent.StartedTick;
+                        order.TimeoutTick = assignmentComponent.DueTick;
+                        entityManager.SetComponentData(agent, order);
+                    }
+                }
+            }
+
             ApplyTimeState(ref state, data);
+
+            EnsureMissionBoardState(ref state, data);
             return true;
         }
 
-        private static Entity CreateFactionEntity(EntityManager entityManager, FactionData data)
+        private Entity CreateFactionEntity(EntityManager entityManager, FactionData data)
         {
             var entity = entityManager.CreateEntity(
                 typeof(AffiliationRelation),
@@ -783,11 +1375,12 @@ namespace Space4X.SimServer
                 typeof(TechLevel),
                 typeof(TechDiffusionState),
                 typeof(Space4XFactionDirective),
+                typeof(Space4XFactionDirectiveBaseline),
                 typeof(Space4XSimServerTag));
 
             var faction = new Space4XFaction
             {
-                Type = (FactionType)data.type,
+                Type = (Space4X.Registry.FactionType)data.type,
                 Outlook = (FactionOutlook)data.outlook,
                 FactionId = data.factionId,
                 Aggression = (half)data.aggression,
@@ -838,8 +1431,64 @@ namespace Space4X.SimServer
                     Diplomacy = 0.5f,
                     Production = (float)faction.TradeFocus,
                     Food = 0.5f,
+                    Priority = 0.25f,
                     LastUpdatedTick = 0,
+                    ExpiresAtTick = 0,
                     DirectiveId = new FixedString64Bytes("default")
+                });
+            }
+
+            if (data.directiveBaseline != null)
+            {
+                entityManager.SetComponentData(entity, data.directiveBaseline.ToComponent());
+            }
+            else
+            {
+                var directive = entityManager.GetComponentData<Space4XFactionDirective>(entity);
+                entityManager.SetComponentData(entity, new Space4XFactionDirectiveBaseline
+                {
+                    Security = directive.Security,
+                    Economy = directive.Economy,
+                    Research = directive.Research,
+                    Expansion = directive.Expansion,
+                    Diplomacy = directive.Diplomacy,
+                    Production = directive.Production,
+                    Food = directive.Food,
+                    Aggression = (float)faction.Aggression,
+                    RiskTolerance = (float)faction.RiskTolerance
+                });
+            }
+
+            if (data.directiveOrders != null && data.directiveOrders.Length > 0)
+            {
+                var orders = entityManager.AddBuffer<Space4XFactionOrder>(entity);
+                orders.Clear();
+                foreach (var orderData in data.directiveOrders)
+                {
+                    orders.Add(orderData.ToComponent());
+                }
+            }
+            else if (data.directive != null && (!string.IsNullOrWhiteSpace(data.directive.directiveId) || data.directive.expiresAtTick != 0))
+            {
+                var orders = entityManager.AddBuffer<Space4XFactionOrder>(entity);
+                orders.Clear();
+                orders.Add(new Space4XFactionOrder
+                {
+                    OrderId = new FixedString64Bytes(data.directive.directiveId ?? string.Empty),
+                    Source = Space4XDirectiveSource.Scripted,
+                    Mode = Space4XDirectiveMode.Override,
+                    Priority = data.directive.priority,
+                    IssuedTick = data.directive.lastUpdatedTick,
+                    ExpiresAtTick = data.directive.expiresAtTick,
+                    Security = data.directive.security,
+                    Economy = data.directive.economy,
+                    Research = data.directive.research,
+                    Expansion = data.directive.expansion,
+                    Diplomacy = data.directive.diplomacy,
+                    Production = data.directive.production,
+                    Food = data.directive.food,
+                    Aggression = -1f,
+                    RiskTolerance = -1f
                 });
             }
 
@@ -848,15 +1497,262 @@ namespace Space4X.SimServer
                 entityManager.AddBuffer<FactionRelationEntry>(entity);
             }
 
+            EnsureFactionLeadership(entityManager, entity, data, faction);
+
             return entity;
         }
 
-        private static Entity ResolveFactionEntity(Dictionary<ushort, Entity> map, ushort id, Entity fallback)
+        private void EnsureFactionLeadership(EntityManager entityManager, Entity factionEntity, FactionData data, in Space4XFaction faction)
+        {
+            if (entityManager.HasComponent<AuthorityBody>(factionEntity))
+            {
+                return;
+            }
+
+            var directive = entityManager.GetComponentData<Space4XFactionDirective>(factionEntity);
+            var seats = entityManager.AddBuffer<AuthoritySeatRef>(factionEntity);
+
+            var leaderSeat = entityManager.CreateEntity(
+                typeof(AuthoritySeat),
+                typeof(AuthoritySeatOccupant),
+                typeof(Space4XSimServerTag));
+
+            var roleId = new FixedString64Bytes("faction.leader");
+            entityManager.SetComponentData(leaderSeat, AuthoritySeatDefaults.CreateExecutive(factionEntity, roleId, AgencyDomain.Governance));
+            entityManager.SetComponentData(leaderSeat, AuthoritySeatDefaults.Vacant(0u));
+
+            var leader = entityManager.CreateEntity(typeof(SimIndividualTag), typeof(Space4XSimServerTag));
+            ApplyLeaderSnapshot(entityManager, leader, data?.leader, faction, directive);
+
+            var affiliations = entityManager.AddBuffer<AffiliationTag>(leader);
+            affiliations.Add(new AffiliationTag
+            {
+                Type = AffiliationType.Faction,
+                Target = factionEntity,
+                Loyalty = (half)1f
+            });
+
+            entityManager.SetComponentData(leaderSeat, new AuthoritySeatOccupant
+            {
+                OccupantEntity = leader,
+                AssignedTick = 0,
+                LastChangedTick = 0,
+                IsActing = 0
+            });
+
+            entityManager.AddComponentData(factionEntity, new AuthorityBody
+            {
+                Mode = AuthorityBodyMode.SingleExecutive,
+                ExecutiveSeat = leaderSeat,
+                CreatedTick = 0
+            });
+
+            seats.Add(new AuthoritySeatRef { SeatEntity = leaderSeat });
+        }
+
+        private void ApplyReverseEngineeringLoad(EntityManager entityManager, Entity factionEntity, FactionData data)
+        {
+            if (data == null)
+            {
+                return;
+            }
+
+            if (data.reverseEngineeringState != null)
+            {
+                if (entityManager.HasComponent<ReverseEngineeringState>(factionEntity))
+                {
+                    entityManager.SetComponentData(factionEntity, data.reverseEngineeringState.ToComponent());
+                }
+                else
+                {
+                    entityManager.AddComponentData(factionEntity, data.reverseEngineeringState.ToComponent());
+                }
+            }
+            else if (!entityManager.HasComponent<ReverseEngineeringState>(factionEntity))
+            {
+                entityManager.AddComponentData(factionEntity, new ReverseEngineeringState
+                {
+                    NextTaskId = 1,
+                    NextVariantId = 1
+                });
+            }
+
+            var evidenceBuffer = entityManager.HasBuffer<ReverseEngineeringEvidence>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringEvidence>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringEvidence>(factionEntity);
+            evidenceBuffer.Clear();
+            if (data.reverseEngineeringEvidence != null)
+            {
+                foreach (var entry in data.reverseEngineeringEvidence)
+                {
+                    evidenceBuffer.Add(entry.ToBuffer());
+                }
+            }
+
+            var taskBuffer = entityManager.HasBuffer<ReverseEngineeringTask>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringTask>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringTask>(factionEntity);
+            taskBuffer.Clear();
+            if (data.reverseEngineeringTasks != null)
+            {
+                foreach (var entry in data.reverseEngineeringTasks)
+                {
+                    taskBuffer.Add(entry.ToBuffer());
+                }
+            }
+
+            var variantBuffer = entityManager.HasBuffer<ReverseEngineeringBlueprintVariant>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringBlueprintVariant>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringBlueprintVariant>(factionEntity);
+            variantBuffer.Clear();
+            if (data.reverseEngineeringVariants != null)
+            {
+                foreach (var entry in data.reverseEngineeringVariants)
+                {
+                    variantBuffer.Add(entry.ToBuffer());
+                }
+            }
+
+            var progressBuffer = entityManager.HasBuffer<ReverseEngineeringBlueprintProgress>(factionEntity)
+                ? entityManager.GetBuffer<ReverseEngineeringBlueprintProgress>(factionEntity)
+                : entityManager.AddBuffer<ReverseEngineeringBlueprintProgress>(factionEntity);
+            progressBuffer.Clear();
+            if (data.reverseEngineeringProgress != null)
+            {
+                foreach (var entry in data.reverseEngineeringProgress)
+                {
+                    progressBuffer.Add(entry.ToBuffer());
+                }
+            }
+        }
+
+        private void ApplyLeaderSnapshot(
+            EntityManager entityManager,
+            Entity leader,
+            LeaderData data,
+            in Space4XFaction faction,
+            in Space4XFactionDirective directive)
+        {
+            var leaderId = data != null && data.id != 0 ? data.id : faction.FactionId * 1000 + 1;
+            entityManager.AddComponentData(leader, new IndividualId { Value = leaderId });
+
+            var name = data?.name;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                name = $"Leader-{faction.FactionId:00}";
+            }
+            entityManager.AddComponentData(leader, new IndividualName { Name = new FixedString64Bytes(name) });
+
+            if (data != null && data.hasAlignment != 0)
+            {
+                entityManager.AddComponentData(leader, Space4XAlignmentTriplet.FromFloats(data.law, data.good, data.integrity));
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, Space4XAlignmentTriplet.FromFloats(0f, 0f, 0f));
+            }
+
+            if (data != null && data.hasStats != 0)
+            {
+                entityManager.AddComponentData(leader, new Space4XIndividualStats
+                {
+                    Command = (half)math.clamp(data.command, 0f, 100f),
+                    Tactics = (half)math.clamp(data.tactics, 0f, 100f),
+                    Logistics = (half)math.clamp(data.logistics, 0f, 100f),
+                    Diplomacy = (half)math.clamp(data.diplomacy, 0f, 100f),
+                    Engineering = (half)math.clamp(data.engineering, 0f, 100f),
+                    Resolve = (half)math.clamp(data.resolve, 0f, 100f)
+                });
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, new Space4XIndividualStats
+                {
+                    Command = (half)65f,
+                    Tactics = (half)60f,
+                    Logistics = (half)60f,
+                    Diplomacy = (half)55f,
+                    Engineering = (half)50f,
+                    Resolve = (half)60f
+                });
+            }
+
+            if (data != null && data.hasPhysique != 0)
+            {
+                entityManager.AddComponentData(leader, new PhysiqueFinesseWill
+                {
+                    Physique = (half)math.clamp(data.physique, 0f, 100f),
+                    Finesse = (half)math.clamp(data.finesse, 0f, 100f),
+                    Will = (half)math.clamp(data.will, 0f, 100f),
+                    PhysiqueInclination = data.physiqueInclination,
+                    FinesseInclination = data.finesseInclination,
+                    WillInclination = data.willInclination,
+                    GeneralXP = data.generalXp
+                });
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, new PhysiqueFinesseWill
+                {
+                    Physique = (half)50f,
+                    Finesse = (half)50f,
+                    Will = (half)50f,
+                    PhysiqueInclination = 5,
+                    FinesseInclination = 5,
+                    WillInclination = 5,
+                    GeneralXP = 0f
+                });
+            }
+
+            if (data != null && data.hasPersonality != 0)
+            {
+                entityManager.AddComponentData(leader, PersonalityAxes.FromValues(
+                    data.boldness,
+                    data.vengefulness,
+                    data.personalityRisk,
+                    data.selflessness,
+                    data.conviction));
+            }
+            else
+            {
+                entityManager.AddComponentData(leader, PersonalityAxes.FromValues(0f, 0f, 0f, 0f, 0f));
+            }
+
+            if (data != null && data.hasPreordain != 0)
+            {
+                entityManager.AddComponentData(leader, new PreordainProfile
+                {
+                    Track = (PreordainTrack)data.preordainTrack
+                });
+            }
+
+            var disposition = data != null && data.hasBehavior != 0
+                ? BehaviorDisposition.FromValues(
+                    data.compliance,
+                    data.caution,
+                    data.formationAdherence,
+                    data.riskTolerance,
+                    data.aggression,
+                    data.patience)
+                : Space4XSimServerProfileUtility.BuildLeaderDisposition(
+                    directive.Security,
+                    directive.Economy,
+                    directive.Research,
+                    directive.Expansion,
+                    directive.Diplomacy,
+                    math.saturate((float)faction.Aggression),
+                    math.saturate((float)faction.RiskTolerance),
+                    directive.Food);
+
+            entityManager.AddComponentData(leader, disposition);
+        }
+
+        private Entity ResolveFactionEntity(Dictionary<ushort, Entity> map, ushort id, Entity fallback)
         {
             return id != 0 && map.TryGetValue(id, out var entity) ? entity : fallback;
         }
 
-        private static void ApplyTimeState(ref SystemState state, SimSaveData data)
+        private void ApplyTimeState(ref SystemState state, SimSaveData data)
         {
             var timeData = data.time ?? new SimTimeData();
             var fixedDelta = timeData.fixedDeltaTime > 0f ? timeData.fixedDeltaTime : 0.016f;
@@ -922,7 +1818,216 @@ namespace Space4X.SimServer
             }
         }
 
-        private static float ResolveTimeScale(SimTimeData timeData)
+        private void EnsureMissionBoardState(ref SystemState state, SimSaveData data)
+        {
+            var maxOfferId = 0u;
+            if (data.missionOffers != null)
+            {
+                for (int i = 0; i < data.missionOffers.Length; i++)
+                {
+                    maxOfferId = math.max(maxOfferId, data.missionOffers[i].offerId);
+                }
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XMissionBoardConfig>(out var configEntity))
+            {
+                configEntity = state.EntityManager.CreateEntity(typeof(Space4XMissionBoardConfig), typeof(Space4XMissionBoardState));
+                state.EntityManager.SetComponentData(configEntity, Space4XMissionBoardConfig.Default);
+                state.EntityManager.SetComponentData(configEntity, new Space4XMissionBoardState
+                {
+                    LastGenerationTick = data.time?.tick ?? 0u,
+                    NextOfferId = maxOfferId + 1u
+                });
+                return;
+            }
+
+            if (!state.EntityManager.HasComponent<Space4XMissionBoardState>(configEntity))
+            {
+                state.EntityManager.AddComponentData(configEntity, new Space4XMissionBoardState
+                {
+                    LastGenerationTick = data.time?.tick ?? 0u,
+                    NextOfferId = maxOfferId + 1u
+                });
+                return;
+            }
+
+            var boardState = state.EntityManager.GetComponentData<Space4XMissionBoardState>(configEntity);
+            boardState.LastGenerationTick = data.time?.tick ?? boardState.LastGenerationTick;
+            boardState.NextOfferId = math.max(boardState.NextOfferId, maxOfferId + 1u);
+            state.EntityManager.SetComponentData(configEntity, boardState);
+        }
+
+        private Dictionary<string, Entity> BuildColonyIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (colony, entity) in SystemAPI.Query<RefRO<Space4XColony>>().WithEntityAccess())
+            {
+                map[colony.ValueRO.ColonyId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildAsteroidIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (asteroid, entity) in SystemAPI.Query<RefRO<Asteroid>>().WithEntityAccess())
+            {
+                map[asteroid.ValueRO.AsteroidId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildAnomalyIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (anomaly, entity) in SystemAPI.Query<RefRO<Space4XAnomaly>>().WithEntityAccess())
+            {
+                map[anomaly.ValueRO.AnomalyId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<ushort, Entity> BuildSystemIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<ushort, Entity>();
+            foreach (var (system, entity) in SystemAPI.Query<RefRO<Space4XStarSystem>>().WithEntityAccess())
+            {
+                map[system.ValueRO.SystemId] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<int, Entity> BuildPoiKeyMap(ref SystemState state)
+        {
+            var map = new Dictionary<int, Entity>();
+            foreach (var (poi, entity) in SystemAPI.Query<RefRO<Space4XPoi>>().WithEntityAccess())
+            {
+                var key = BuildPoiKey(poi.ValueRO.SystemId, poi.ValueRO.RingIndex, (byte)poi.ValueRO.Kind);
+                if (!map.ContainsKey(key))
+                {
+                    map[key] = entity;
+                }
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildCarrierIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (carrier, entity) in SystemAPI.Query<RefRO<Carrier>>().WithEntityAccess())
+            {
+                map[carrier.ValueRO.CarrierId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private Dictionary<string, Entity> BuildVesselIdMap(ref SystemState state)
+        {
+            var map = new Dictionary<string, Entity>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (vessel, entity) in SystemAPI.Query<RefRO<MiningVessel>>().WithEntityAccess())
+            {
+                map[vessel.ValueRO.VesselId.ToString()] = entity;
+            }
+            return map;
+        }
+
+        private static int BuildPoiKey(ushort systemId, byte ringIndex, byte poiKind)
+        {
+            return (systemId << 16) ^ (ringIndex << 8) ^ poiKind;
+        }
+
+        private static Entity ResolveTargetEntity(byte kindValue, string targetId, ushort systemId, byte ringIndex, byte poiKind,
+            Dictionary<string, Entity> colonyMap,
+            Dictionary<string, Entity> asteroidMap,
+            Dictionary<string, Entity> anomalyMap,
+            Dictionary<ushort, Entity> systemMap,
+            Dictionary<int, Entity> poiMap)
+        {
+            var kind = (MissionTargetKind)kindValue;
+            switch (kind)
+            {
+                case MissionTargetKind.Colony:
+                    if (!string.IsNullOrWhiteSpace(targetId) && colonyMap.TryGetValue(targetId, out var colony))
+                    {
+                        return colony;
+                    }
+                    break;
+                case MissionTargetKind.Asteroid:
+                    if (!string.IsNullOrWhiteSpace(targetId) && asteroidMap.TryGetValue(targetId, out var asteroid))
+                    {
+                        return asteroid;
+                    }
+                    break;
+                case MissionTargetKind.Anomaly:
+                    if (!string.IsNullOrWhiteSpace(targetId) && anomalyMap.TryGetValue(targetId, out var anomaly))
+                    {
+                        return anomaly;
+                    }
+                    break;
+                case MissionTargetKind.System:
+                    if (systemId != 0 && systemMap.TryGetValue(systemId, out var system))
+                    {
+                        return system;
+                    }
+                    break;
+                case MissionTargetKind.Poi:
+                    var key = BuildPoiKey(systemId, ringIndex, poiKind);
+                    if (poiMap.TryGetValue(key, out var poi))
+                    {
+                        return poi;
+                    }
+                    break;
+            }
+
+            return Entity.Null;
+        }
+
+        private float3 ResolveTargetPosition(EntityManager entityManager, Entity targetEntity, Vector3 fallback)
+        {
+            if (targetEntity != Entity.Null && entityManager.Exists(targetEntity) && entityManager.HasComponent<LocalTransform>(targetEntity))
+            {
+                return entityManager.GetComponentData<LocalTransform>(targetEntity).Position;
+            }
+
+            return ToFloat3(fallback);
+        }
+
+        private static Entity ResolveAssignedEntity(MissionAssignmentData assignmentData, Dictionary<string, Entity> carrierMap, Dictionary<string, Entity> vesselMap)
+        {
+            if (string.IsNullOrWhiteSpace(assignmentData.assignedEntityId))
+            {
+                return Entity.Null;
+            }
+
+            if (assignmentData.assignedEntityKind == 1 && carrierMap.TryGetValue(assignmentData.assignedEntityId, out var carrier))
+            {
+                return carrier;
+            }
+
+            if (assignmentData.assignedEntityKind == 2 && vesselMap.TryGetValue(assignmentData.assignedEntityId, out var vessel))
+            {
+                return vessel;
+            }
+
+            return Entity.Null;
+        }
+
+        private static CaptainOrderType ResolveMissionOrderType(Space4XMissionType type)
+        {
+            return type switch
+            {
+                Space4XMissionType.Scout => CaptainOrderType.Survey,
+                Space4XMissionType.Mine => CaptainOrderType.Mine,
+                Space4XMissionType.HaulDelivery => CaptainOrderType.Haul,
+                Space4XMissionType.HaulProcure => CaptainOrderType.Haul,
+                Space4XMissionType.Patrol => CaptainOrderType.Patrol,
+                Space4XMissionType.Intercept => CaptainOrderType.Intercept,
+                Space4XMissionType.BuildStation => CaptainOrderType.Construct,
+                _ => CaptainOrderType.MoveTo
+            };
+        }
+
+        private float ResolveTimeScale(SimTimeData timeData)
         {
             var scale = timeData.timeScale;
             if (scale <= math.FLT_MIN_NORMAL)
@@ -938,12 +2043,12 @@ namespace Space4X.SimServer
             return math.clamp(scale, 0.01f, 16f);
         }
 
-        private static Vector3 ToVector3(float3 value)
+        private Vector3 ToVector3(float3 value)
         {
             return new Vector3(value.x, value.y, value.z);
         }
 
-        private static float3 ToFloat3(Vector3 value)
+        private float3 ToFloat3(Vector3 value)
         {
             return new float3(value.x, value.y, value.z);
         }
@@ -1013,6 +2118,8 @@ namespace Space4X.SimServer
             public ColonyData[] colonies;
             public ResourceData[] resources;
             public AnomalyData[] anomalies;
+            public MissionOfferData[] missionOffers;
+            public MissionAssignmentData[] missionAssignments;
         }
 
         [Serializable]
@@ -1044,6 +2151,18 @@ namespace Space4X.SimServer
             public float targetTicksPerSecond;
             public ushort httpPort;
             public float autosaveSeconds;
+            public ushort traitMask;
+            public ushort poiMask;
+            public byte maxTraitsPerSystem;
+            public byte maxPoisPerSystem;
+            public float traitChanceBase;
+            public float traitChancePerRing;
+            public float traitChanceMax;
+            public float poiChanceBase;
+            public float poiChancePerRing;
+            public float poiChanceMax;
+            public float poiOffsetMin;
+            public float poiOffsetMax;
 
             public static SimConfigData FromConfig(Space4XSimServerConfig config)
             {
@@ -1060,12 +2179,41 @@ namespace Space4X.SimServer
                     techDiffusionDurationSeconds = config.TechDiffusionDurationSeconds,
                     targetTicksPerSecond = config.TargetTicksPerSecond,
                     httpPort = config.HttpPort,
-                    autosaveSeconds = config.AutosaveSeconds
+                    autosaveSeconds = config.AutosaveSeconds,
+                    traitMask = (ushort)config.TraitMask,
+                    poiMask = (ushort)config.PoiMask,
+                    maxTraitsPerSystem = config.MaxTraitsPerSystem,
+                    maxPoisPerSystem = config.MaxPoisPerSystem,
+                    traitChanceBase = config.TraitChanceBase,
+                    traitChancePerRing = config.TraitChancePerRing,
+                    traitChanceMax = config.TraitChanceMax,
+                    poiChanceBase = config.PoiChanceBase,
+                    poiChancePerRing = config.PoiChancePerRing,
+                    poiChanceMax = config.PoiChanceMax,
+                    poiOffsetMin = config.PoiOffsetMin,
+                    poiOffsetMax = config.PoiOffsetMax
                 };
             }
 
             public Space4XSimServerConfig ToConfig()
             {
+                var resolvedTraitMask = traitMask == 0 ? GalaxySystemTraitMask.All : (GalaxySystemTraitMask)traitMask;
+                var resolvedPoiMask = poiMask == 0 ? GalaxyPoiMask.All : (GalaxyPoiMask)poiMask;
+
+                var resolvedMaxTraits = maxTraitsPerSystem == 0 ? (byte)1 : maxTraitsPerSystem;
+                var resolvedMaxPois = maxPoisPerSystem == 0 ? (byte)1 : maxPoisPerSystem;
+
+                var resolvedTraitChanceBase = traitChanceBase <= 0f ? 0.35f : traitChanceBase;
+                var resolvedTraitChancePerRing = traitChancePerRing <= 0f ? 0.1f : traitChancePerRing;
+                var resolvedTraitChanceMax = traitChanceMax <= 0f ? 0.8f : traitChanceMax;
+
+                var resolvedPoiChanceBase = poiChanceBase <= 0f ? 0.25f : poiChanceBase;
+                var resolvedPoiChancePerRing = poiChancePerRing <= 0f ? 0.12f : poiChancePerRing;
+                var resolvedPoiChanceMax = poiChanceMax <= 0f ? 0.75f : poiChanceMax;
+
+                var resolvedPoiOffsetMin = poiOffsetMin <= 0f ? 450f : poiOffsetMin;
+                var resolvedPoiOffsetMax = poiOffsetMax <= 0f ? 900f : poiOffsetMax;
+
                 return new Space4XSimServerConfig
                 {
                     Seed = seed,
@@ -1079,7 +2227,19 @@ namespace Space4X.SimServer
                     TechDiffusionDurationSeconds = techDiffusionDurationSeconds,
                     TargetTicksPerSecond = targetTicksPerSecond,
                     HttpPort = httpPort,
-                    AutosaveSeconds = autosaveSeconds
+                    AutosaveSeconds = autosaveSeconds,
+                    TraitMask = resolvedTraitMask,
+                    PoiMask = resolvedPoiMask,
+                    MaxTraitsPerSystem = resolvedMaxTraits,
+                    MaxPoisPerSystem = resolvedMaxPois,
+                    TraitChanceBase = resolvedTraitChanceBase,
+                    TraitChancePerRing = resolvedTraitChancePerRing,
+                    TraitChanceMax = resolvedTraitChanceMax,
+                    PoiChanceBase = resolvedPoiChanceBase,
+                    PoiChancePerRing = resolvedPoiChancePerRing,
+                    PoiChanceMax = resolvedPoiChanceMax,
+                    PoiOffsetMin = resolvedPoiOffsetMin,
+                    PoiOffsetMax = resolvedPoiOffsetMax
                 };
             }
         }
@@ -1101,7 +2261,57 @@ namespace Space4X.SimServer
             public TechLevelData tech;
             public TechDiffusionData diffusion;
             public DirectiveData directive;
+            public DirectiveBaselineData directiveBaseline;
+            public DirectiveOrderData[] directiveOrders;
+            public LeaderData leader;
             public RelationData[] relations;
+            public ContactData[] contacts;
+            public ReverseEngineeringStateData reverseEngineeringState;
+            public ReverseEngineeringEvidenceData[] reverseEngineeringEvidence;
+            public ReverseEngineeringTaskData[] reverseEngineeringTasks;
+            public ReverseEngineeringVariantData[] reverseEngineeringVariants;
+            public ReverseEngineeringProgressData[] reverseEngineeringProgress;
+        }
+
+        [Serializable]
+        private sealed class LeaderData
+        {
+            public int id;
+            public string name;
+            public byte hasAlignment;
+            public float law;
+            public float good;
+            public float integrity;
+            public byte hasBehavior;
+            public float compliance;
+            public float caution;
+            public float formationAdherence;
+            public float riskTolerance;
+            public float aggression;
+            public float patience;
+            public byte hasStats;
+            public float command;
+            public float tactics;
+            public float logistics;
+            public float diplomacy;
+            public float engineering;
+            public float resolve;
+            public byte hasPhysique;
+            public float physique;
+            public float finesse;
+            public float will;
+            public byte physiqueInclination;
+            public byte finesseInclination;
+            public byte willInclination;
+            public float generalXp;
+            public byte hasPersonality;
+            public float boldness;
+            public float vengefulness;
+            public float personalityRisk;
+            public float selflessness;
+            public float conviction;
+            public byte hasPreordain;
+            public byte preordainTrack;
         }
 
         [Serializable]
@@ -1276,7 +2486,9 @@ namespace Space4X.SimServer
             public float diplomacy;
             public float production;
             public float food;
+            public float priority;
             public uint lastUpdatedTick;
+            public uint expiresAtTick;
             public string directiveId;
 
             public static DirectiveData From(Space4XFactionDirective directive)
@@ -1290,7 +2502,9 @@ namespace Space4X.SimServer
                     diplomacy = directive.Diplomacy,
                     production = directive.Production,
                     food = directive.Food,
+                    priority = directive.Priority,
                     lastUpdatedTick = directive.LastUpdatedTick,
+                    expiresAtTick = directive.ExpiresAtTick,
                     directiveId = directive.DirectiveId.ToString()
                 };
             }
@@ -1306,8 +2520,120 @@ namespace Space4X.SimServer
                     Diplomacy = diplomacy,
                     Production = production,
                     Food = food,
+                    Priority = priority,
                     LastUpdatedTick = lastUpdatedTick,
+                    ExpiresAtTick = expiresAtTick,
                     DirectiveId = new FixedString64Bytes(directiveId ?? string.Empty)
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class DirectiveBaselineData
+        {
+            public float security;
+            public float economy;
+            public float research;
+            public float expansion;
+            public float diplomacy;
+            public float production;
+            public float food;
+            public float aggression;
+            public float riskTolerance;
+
+            public static DirectiveBaselineData From(Space4XFactionDirectiveBaseline baseline)
+            {
+                return new DirectiveBaselineData
+                {
+                    security = baseline.Security,
+                    economy = baseline.Economy,
+                    research = baseline.Research,
+                    expansion = baseline.Expansion,
+                    diplomacy = baseline.Diplomacy,
+                    production = baseline.Production,
+                    food = baseline.Food,
+                    aggression = baseline.Aggression,
+                    riskTolerance = baseline.RiskTolerance
+                };
+            }
+
+            public Space4XFactionDirectiveBaseline ToComponent()
+            {
+                return new Space4XFactionDirectiveBaseline
+                {
+                    Security = security,
+                    Economy = economy,
+                    Research = research,
+                    Expansion = expansion,
+                    Diplomacy = diplomacy,
+                    Production = production,
+                    Food = food,
+                    Aggression = aggression,
+                    RiskTolerance = riskTolerance
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class DirectiveOrderData
+        {
+            public string orderId;
+            public byte source;
+            public byte mode;
+            public float priority;
+            public uint issuedTick;
+            public uint expiresAtTick;
+            public float security;
+            public float economy;
+            public float research;
+            public float expansion;
+            public float diplomacy;
+            public float production;
+            public float food;
+            public float aggression;
+            public float riskTolerance;
+
+            public static DirectiveOrderData From(Space4XFactionOrder order)
+            {
+                return new DirectiveOrderData
+                {
+                    orderId = order.OrderId.ToString(),
+                    source = (byte)order.Source,
+                    mode = (byte)order.Mode,
+                    priority = order.Priority,
+                    issuedTick = order.IssuedTick,
+                    expiresAtTick = order.ExpiresAtTick,
+                    security = order.Security,
+                    economy = order.Economy,
+                    research = order.Research,
+                    expansion = order.Expansion,
+                    diplomacy = order.Diplomacy,
+                    production = order.Production,
+                    food = order.Food,
+                    aggression = order.Aggression,
+                    riskTolerance = order.RiskTolerance
+                };
+            }
+
+            public Space4XFactionOrder ToComponent()
+            {
+                return new Space4XFactionOrder
+                {
+                    OrderId = new FixedString64Bytes(orderId ?? string.Empty),
+                    Source = (Space4XDirectiveSource)source,
+                    Mode = (Space4XDirectiveMode)mode,
+                    Priority = priority,
+                    IssuedTick = issuedTick,
+                    ExpiresAtTick = expiresAtTick,
+                    Security = security,
+                    Economy = economy,
+                    Research = research,
+                    Expansion = expansion,
+                    Diplomacy = diplomacy,
+                    Production = production,
+                    Food = food,
+                    Aggression = aggression,
+                    RiskTolerance = riskTolerance
                 };
             }
         }
@@ -1363,6 +2689,14 @@ namespace Space4X.SimServer
             public ushort ownerFactionId;
             public byte ringIndex;
             public Vector3 position;
+            public SystemTraitData[] traits;
+        }
+
+        [Serializable]
+        private sealed class SystemTraitData
+        {
+            public byte kind;
+            public float intensity;
         }
 
         [Serializable]
@@ -1420,6 +2754,294 @@ namespace Space4X.SimServer
             public float instability;
             public int sectorId;
             public Vector3 position;
+        }
+
+        private enum MissionTargetKind : byte
+        {
+            None = 0,
+            Colony = 1,
+            Asteroid = 2,
+            Anomaly = 3,
+            System = 4,
+            Poi = 5,
+            Unknown = 250
+        }
+
+        [Serializable]
+        private sealed class MissionOfferData
+        {
+            public uint offerId;
+            public byte type;
+            public byte status;
+            public ushort issuerFactionId;
+            public byte targetKind;
+            public string targetId;
+            public ushort targetSystemId;
+            public byte targetRingIndex;
+            public byte targetPoiKind;
+            public Vector3 targetPosition;
+            public ushort resourceTypeIndex;
+            public float units;
+            public float rewardCredits;
+            public float rewardStanding;
+            public float rewardLp;
+            public float risk;
+            public byte priority;
+            public uint createdTick;
+            public uint expiryTick;
+            public uint assignedTick;
+            public uint completedTick;
+        }
+
+        [Serializable]
+        private sealed class MissionAssignmentData
+        {
+            public uint offerId;
+            public byte type;
+            public byte status;
+            public byte phase;
+            public byte cargoState;
+            public ushort issuerFactionId;
+            public ushort resourceTypeIndex;
+            public float units;
+            public float cargoUnits;
+            public float rewardCredits;
+            public float rewardStanding;
+            public float rewardLp;
+            public uint startedTick;
+            public uint dueTick;
+            public uint completedTick;
+            public byte autoComplete;
+            public byte targetKind;
+            public string targetId;
+            public ushort targetSystemId;
+            public byte targetRingIndex;
+            public byte targetPoiKind;
+            public Vector3 targetPosition;
+            public byte sourceKind;
+            public string sourceId;
+            public ushort sourceSystemId;
+            public byte sourceRingIndex;
+            public byte sourcePoiKind;
+            public Vector3 sourcePosition;
+            public Vector3 destinationPosition;
+            public string assignedEntityId;
+            public byte assignedEntityKind;
+        }
+
+        [Serializable]
+        private sealed class ContactData
+        {
+            public ushort contactFactionId;
+            public float standing;
+            public float loyaltyPoints;
+            public byte tier;
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringStateData
+        {
+            public uint nextTaskId;
+            public uint nextVariantId;
+
+            public static ReverseEngineeringStateData From(ReverseEngineeringState state)
+            {
+                return new ReverseEngineeringStateData
+                {
+                    nextTaskId = state.NextTaskId,
+                    nextVariantId = state.NextVariantId
+                };
+            }
+
+            public ReverseEngineeringState ToComponent()
+            {
+                return new ReverseEngineeringState
+                {
+                    NextTaskId = nextTaskId,
+                    NextVariantId = nextVariantId
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringEvidenceData
+        {
+            public ushort blueprintId;
+            public byte stage;
+            public byte fidelity;
+            public byte integrity;
+            public byte coverageEfficiency;
+            public byte coverageReliability;
+            public byte coverageMass;
+            public byte coveragePower;
+            public byte coverageSignature;
+            public byte coverageDurability;
+            public uint evidenceSeed;
+            public uint sourceTick;
+
+            public static ReverseEngineeringEvidenceData From(ReverseEngineeringEvidence evidence)
+            {
+                return new ReverseEngineeringEvidenceData
+                {
+                    blueprintId = evidence.BlueprintId,
+                    stage = evidence.Stage,
+                    fidelity = evidence.Fidelity,
+                    integrity = evidence.Integrity,
+                    coverageEfficiency = evidence.CoverageEfficiency,
+                    coverageReliability = evidence.CoverageReliability,
+                    coverageMass = evidence.CoverageMass,
+                    coveragePower = evidence.CoveragePower,
+                    coverageSignature = evidence.CoverageSignature,
+                    coverageDurability = evidence.CoverageDurability,
+                    evidenceSeed = evidence.EvidenceSeed,
+                    sourceTick = evidence.SourceTick
+                };
+            }
+
+            public ReverseEngineeringEvidence ToBuffer()
+            {
+                return new ReverseEngineeringEvidence
+                {
+                    BlueprintId = blueprintId,
+                    Stage = stage,
+                    Fidelity = fidelity,
+                    Integrity = integrity,
+                    CoverageEfficiency = coverageEfficiency,
+                    CoverageReliability = coverageReliability,
+                    CoverageMass = coverageMass,
+                    CoveragePower = coveragePower,
+                    CoverageSignature = coverageSignature,
+                    CoverageDurability = coverageDurability,
+                    EvidenceSeed = evidenceSeed,
+                    SourceTick = sourceTick
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringTaskData
+        {
+            public uint taskId;
+            public byte type;
+            public ushort blueprintId;
+            public byte evidenceNeeded;
+            public uint evidenceHash;
+            public float durationSeconds;
+            public float progress;
+            public uint attemptIndex;
+            public uint teamHash;
+
+            public static ReverseEngineeringTaskData From(ReverseEngineeringTask task)
+            {
+                return new ReverseEngineeringTaskData
+                {
+                    taskId = task.TaskId,
+                    type = (byte)task.Type,
+                    blueprintId = task.BlueprintId,
+                    evidenceNeeded = task.EvidenceNeeded,
+                    evidenceHash = task.EvidenceHash,
+                    durationSeconds = task.DurationSeconds,
+                    progress = task.Progress,
+                    attemptIndex = task.AttemptIndex,
+                    teamHash = task.TeamHash
+                };
+            }
+
+            public ReverseEngineeringTask ToBuffer()
+            {
+                return new ReverseEngineeringTask
+                {
+                    TaskId = taskId,
+                    Type = (ReverseEngineeringTaskType)type,
+                    BlueprintId = blueprintId,
+                    EvidenceNeeded = evidenceNeeded,
+                    EvidenceHash = evidenceHash,
+                    DurationSeconds = durationSeconds,
+                    Progress = progress,
+                    AttemptIndex = attemptIndex,
+                    TeamHash = teamHash
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringVariantData
+        {
+            public uint variantId;
+            public ushort blueprintId;
+            public byte quality;
+            public byte remainingRuns;
+            public float efficiencyScalar;
+            public float reliabilityScalar;
+            public float massScalar;
+            public float powerScalar;
+            public float signatureScalar;
+            public float durabilityScalar;
+            public uint evidenceHash;
+            public uint seed;
+
+            public static ReverseEngineeringVariantData From(ReverseEngineeringBlueprintVariant variant)
+            {
+                return new ReverseEngineeringVariantData
+                {
+                    variantId = variant.VariantId,
+                    blueprintId = variant.BlueprintId,
+                    quality = variant.Quality,
+                    remainingRuns = variant.RemainingRuns,
+                    efficiencyScalar = variant.EfficiencyScalar,
+                    reliabilityScalar = variant.ReliabilityScalar,
+                    massScalar = variant.MassScalar,
+                    powerScalar = variant.PowerScalar,
+                    signatureScalar = variant.SignatureScalar,
+                    durabilityScalar = variant.DurabilityScalar,
+                    evidenceHash = variant.EvidenceHash,
+                    seed = variant.Seed
+                };
+            }
+
+            public ReverseEngineeringBlueprintVariant ToBuffer()
+            {
+                return new ReverseEngineeringBlueprintVariant
+                {
+                    VariantId = variantId,
+                    BlueprintId = blueprintId,
+                    Quality = quality,
+                    RemainingRuns = remainingRuns,
+                    EfficiencyScalar = efficiencyScalar,
+                    ReliabilityScalar = reliabilityScalar,
+                    MassScalar = massScalar,
+                    PowerScalar = powerScalar,
+                    SignatureScalar = signatureScalar,
+                    DurabilityScalar = durabilityScalar,
+                    EvidenceHash = evidenceHash,
+                    Seed = seed
+                };
+            }
+        }
+
+        [Serializable]
+        private sealed class ReverseEngineeringProgressData
+        {
+            public ushort blueprintId;
+            public uint attemptCount;
+
+            public static ReverseEngineeringProgressData From(ReverseEngineeringBlueprintProgress progress)
+            {
+                return new ReverseEngineeringProgressData
+                {
+                    blueprintId = progress.BlueprintId,
+                    attemptCount = progress.AttemptCount
+                };
+            }
+
+            public ReverseEngineeringBlueprintProgress ToBuffer()
+            {
+                return new ReverseEngineeringBlueprintProgress
+                {
+                    BlueprintId = blueprintId,
+                    AttemptCount = attemptCount
+                };
+            }
         }
 
         private sealed class PendingFaction

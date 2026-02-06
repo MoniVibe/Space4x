@@ -404,6 +404,7 @@ namespace Space4X.Registry
         public float EnergyCost;
         public float HeatCost;
         public float LeadBias; // 0..1 (aiming hint)
+        public Space4XDamageType DamageType; // Optional override for damage type
         public FixedString32Bytes ProjectileId; // References ProjectileSpec
     }
 
@@ -420,6 +421,7 @@ namespace Space4X.Registry
         public float ChainRange; // chaining arcs (0 = none)
         public float AoERadius; // explosion radius
         public DamageModel Damage;
+        public Space4XDamageType DamageType; // Optional override for damage type
         public BlobArray<EffectOp> OnHit; // e.g., status, knockback, spawn subprojectile
     }
 

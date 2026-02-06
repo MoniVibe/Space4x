@@ -249,6 +249,12 @@ namespace Space4X.SimServer
   <div>
     <div><label>Faction Id</label><input id='factionId' value='1'/></div>
     <div><label>Directive</label><input id='directiveId' value='secure_resources'/></div>
+    <div><label>Priority</label><input id='priority' value='0.5'/></div>
+    <div><label>Mode</label><input id='mode' value='blend'/></div>
+    <div><label>Replace</label><input id='replaceOrders' value='false'/></div>
+    <div><label>Duration (s)</label><input id='durationSeconds' value='0'/></div>
+    <div><label>Duration (ticks)</label><input id='durationTicks' value='0'/></div>
+    <div><label>Expires At</label><input id='expiresAtTick' value='0'/></div>
     <div><label>Security</label><input id='wSecurity' value='-1'/></div>
     <div><label>Economy</label><input id='wEconomy' value='-1'/></div>
     <div><label>Research</label><input id='wResearch' value='-1'/></div>
@@ -266,6 +272,12 @@ namespace Space4X.SimServer
       const payload = {
         faction_id: parseInt(document.getElementById('factionId').value || '0'),
         directive_id: document.getElementById('directiveId').value,
+        priority: parseFloat(document.getElementById('priority').value || '0.5'),
+        mode: document.getElementById('mode').value,
+        replace_orders: document.getElementById('replaceOrders').value === 'true',
+        duration_seconds: parseFloat(document.getElementById('durationSeconds').value || '0'),
+        duration_ticks: parseInt(document.getElementById('durationTicks').value || '0'),
+        expires_at_tick: parseInt(document.getElementById('expiresAtTick').value || '0'),
         weights: {
           security: parseFloat(document.getElementById('wSecurity').value || '-1'),
           economy: parseFloat(document.getElementById('wEconomy').value || '-1'),
