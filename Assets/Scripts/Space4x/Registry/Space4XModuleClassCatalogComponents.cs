@@ -31,7 +31,14 @@ namespace Space4X.Registry
         public float ArcDegrees;
         public float KineticResist;
         public float EnergyResist;
+        public float ThermalResist;
+        public float EMResist;
+        public float RadiationResist;
         public float ExplosiveResist;
+        public float CausticResist;
+        public Space4XDamageType HardenedType;
+        public float HardenedBonus;
+        public float HardenedPenalty;
     }
 
     public struct SensorModuleSpec
@@ -51,8 +58,15 @@ namespace Space4X.Registry
         public float DamageReduction;
         public float KineticResist;
         public float EnergyResist;
+        public float ThermalResist;
+        public float EMResist;
+        public float RadiationResist;
         public float ExplosiveResist;
+        public float CausticResist;
         public float RepairRateMultiplier;
+        public Space4XDamageType HardenedType;
+        public float HardenedBonus;
+        public float HardenedPenalty;
     }
 
     public struct WeaponModuleSpec

@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.WorldGen;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -17,6 +18,18 @@ namespace Space4X.SimServer
         public float TargetTicksPerSecond;
         public ushort HttpPort;
         public float AutosaveSeconds;
+        public GalaxySystemTraitMask TraitMask;
+        public GalaxyPoiMask PoiMask;
+        public byte MaxTraitsPerSystem;
+        public byte MaxPoisPerSystem;
+        public float TraitChanceBase;
+        public float TraitChancePerRing;
+        public float TraitChanceMax;
+        public float PoiChanceBase;
+        public float PoiChancePerRing;
+        public float PoiChanceMax;
+        public float PoiOffsetMin;
+        public float PoiOffsetMax;
     }
 
     public struct Space4XSimServerTag : IComponentData { }
@@ -39,7 +52,56 @@ namespace Space4X.SimServer
         public float Diplomacy;
         public float Production;
         public float Food;
+        public float Priority;
         public uint LastUpdatedTick;
+        public uint ExpiresAtTick;
         public FixedString64Bytes DirectiveId;
+    }
+
+    public enum Space4XDirectiveSource : byte
+    {
+        Unknown = 0,
+        Player = 1,
+        AI = 2,
+        Scripted = 3
+    }
+
+    public enum Space4XDirectiveMode : byte
+    {
+        Blend = 0,
+        Override = 1
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct Space4XFactionOrder : IBufferElementData
+    {
+        public FixedString64Bytes OrderId;
+        public Space4XDirectiveSource Source;
+        public Space4XDirectiveMode Mode;
+        public float Priority;
+        public uint IssuedTick;
+        public uint ExpiresAtTick;
+        public float Security;
+        public float Economy;
+        public float Research;
+        public float Expansion;
+        public float Diplomacy;
+        public float Production;
+        public float Food;
+        public float Aggression;
+        public float RiskTolerance;
+    }
+
+    public struct Space4XFactionDirectiveBaseline : IComponentData
+    {
+        public float Security;
+        public float Economy;
+        public float Research;
+        public float Expansion;
+        public float Diplomacy;
+        public float Production;
+        public float Food;
+        public float Aggression;
+        public float RiskTolerance;
     }
 }

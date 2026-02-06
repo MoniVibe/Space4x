@@ -1,4 +1,5 @@
 using PureDOTS.Runtime;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Time;
 using Unity.Entities;
@@ -44,7 +45,7 @@ namespace Space4X.SimServer
             _configured = true;
         }
 
-        private static void EnsureConfigEntity(ref SystemState state, Space4XSimServerConfig config)
+        private void EnsureConfigEntity(ref SystemState state, Space4XSimServerConfig config)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XSimServerConfig>(out var entity))
             {
@@ -54,7 +55,7 @@ namespace Space4X.SimServer
             state.EntityManager.SetComponentData(entity, config);
         }
 
-        private static void ApplyScenarioFlags(ref SystemState state)
+        private void ApplyScenarioFlags(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingletonEntity<ScenarioState>(out var entity))
             {
@@ -71,7 +72,7 @@ namespace Space4X.SimServer
             state.EntityManager.SetComponentData(entity, scenario);
         }
 
-        private static void ApplyTickRate(ref SystemState state, float targetTicksPerSecond)
+        private void ApplyTickRate(ref SystemState state, float targetTicksPerSecond)
         {
             if (!SystemAPI.TryGetSingletonEntity<TickTimeState>(out var timeEntity))
             {
@@ -104,7 +105,7 @@ namespace Space4X.SimServer
             config.DefaultScale = desiredScale;
             state.EntityManager.SetComponentData(configEntity, config);
 
-            Debug.Log($"[Space4XSimServer] Target ticks/sec={targetTicksPerSecond:0.##} fixedDt={fixedDt:0.####} timeScale={desiredScale:0.###}");
+            UnityEngine.Debug.Log($"[Space4XSimServer] Target ticks/sec={targetTicksPerSecond:0.##} fixedDt={fixedDt:0.####} timeScale={desiredScale:0.###}");
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using PureDOTS.Runtime.WorldGen;
 using UnityEngine;
 
 namespace Space4X.SimServer
@@ -28,7 +29,7 @@ namespace Space4X.SimServer
 
         internal static string ResolveHost()
         {
-            var host = Environment.GetEnvironmentVariable(HostEnv);
+            var host = System.Environment.GetEnvironmentVariable(HostEnv);
             if (string.IsNullOrWhiteSpace(host))
             {
                 return "localhost";
@@ -50,15 +51,27 @@ namespace Space4X.SimServer
                 ResourceBaseUnits = ReadFloat(ResourceBaseEnv, 800f),
                 ResourceRichnessGradient = ReadFloat(ResourceGradientEnv, 0.2f),
                 TechDiffusionDurationSeconds = ReadFloat(TechDurationEnv, 14400f),
-                TargetTicksPerSecond = Mathf.Clamp(ReadFloat(TargetTpsEnv, 5f), 0.5f, 120f),
+                TargetTicksPerSecond = Mathf.Clamp(ReadFloat(TargetTpsEnv, 2f), 0.5f, 120f),
                 HttpPort = (ushort)Mathf.Clamp(ReadInt(PortEnv, 45100), 1024, 65535),
-                AutosaveSeconds = Mathf.Max(0f, ReadFloat(AutosaveEnv, 0f))
+                AutosaveSeconds = Mathf.Max(0f, ReadFloat(AutosaveEnv, 0f)),
+                TraitMask = GalaxySystemTraitMask.All,
+                PoiMask = GalaxyPoiMask.All,
+                MaxTraitsPerSystem = 1,
+                MaxPoisPerSystem = 1,
+                TraitChanceBase = 0.35f,
+                TraitChancePerRing = 0.1f,
+                TraitChanceMax = 0.8f,
+                PoiChanceBase = 0.25f,
+                PoiChancePerRing = 0.12f,
+                PoiChanceMax = 0.75f,
+                PoiOffsetMin = 450f,
+                PoiOffsetMax = 900f
             };
         }
 
         private static bool EnvIsTruthy(string key)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return string.Equals(v, "1", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase);
@@ -66,7 +79,7 @@ namespace Space4X.SimServer
 
         private static bool HasArg(string key)
         {
-            var args = Environment.GetCommandLineArgs();
+            var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
                 if (string.Equals(args[i], key, StringComparison.OrdinalIgnoreCase))
@@ -79,13 +92,13 @@ namespace Space4X.SimServer
 
         private static int ReadInt(string key, int fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return int.TryParse(v, out var parsed) ? parsed : fallback;
         }
 
         private static float ReadFloat(string key, float fallback)
         {
-            var v = Environment.GetEnvironmentVariable(key);
+            var v = System.Environment.GetEnvironmentVariable(key);
             return float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : fallback;

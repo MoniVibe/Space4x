@@ -1,6 +1,6 @@
 using PureDOTS.Rendering;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
-using PureDOTS.Runtime.Hand;
 using PureDOTS.Runtime.Interaction;
 using Unity.Burst;
 using Unity.Collections;
@@ -62,7 +62,7 @@ namespace Space4X.Presentation
                     ApplyGhost(ref ecb, entity, ref tint.ValueRW);
                 }
 
-                foreach (var (tint, entity) in SystemAPI.Query<RefRW<RenderTint>, RefRO<HeldByPlayer>>()
+                foreach (var (tint, _, entity) in SystemAPI.Query<RefRW<RenderTint>, RefRO<HeldByPlayer>>()
                              .WithEntityAccess())
                 {
                     if (!_heldByPlayerLookup.IsComponentEnabled(entity))

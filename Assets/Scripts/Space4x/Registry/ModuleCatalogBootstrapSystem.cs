@@ -73,6 +73,21 @@ namespace Space4X.Registry
                 CreateDefaultAmmoModuleCatalog(ref state);
             }
 
+            if (!SystemAPI.TryGetSingletonEntity<ModuleLimbCatalogSingleton>(out _))
+            {
+                CreateDefaultModuleLimbCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<WeaponCatalogSingleton>(out _))
+            {
+                CreateDefaultWeaponCatalog(ref state);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<ProjectileCatalogSingleton>(out _))
+            {
+                CreateDefaultProjectileCatalog(ref state);
+            }
+
             state.Enabled = false;
         }
 
@@ -174,6 +189,33 @@ namespace Space4X.Registry
                 {
                     ammoCatalogRef.ValueRO.Catalog.Dispose();
                     ammoCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var limbCatalogRef in SystemAPI.Query<RefRW<ModuleLimbCatalogSingleton>>())
+            {
+                if (limbCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    limbCatalogRef.ValueRO.Catalog.Dispose();
+                    limbCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var weaponCatalogRef in SystemAPI.Query<RefRW<WeaponCatalogSingleton>>())
+            {
+                if (weaponCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    weaponCatalogRef.ValueRO.Catalog.Dispose();
+                    weaponCatalogRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var projectileCatalogRef in SystemAPI.Query<RefRW<ProjectileCatalogSingleton>>())
+            {
+                if (projectileCatalogRef.ValueRO.Catalog.IsCreated)
+                {
+                    projectileCatalogRef.ValueRO.Catalog.Dispose();
+                    projectileCatalogRef.ValueRW.Catalog = default;
                 }
             }
         }
@@ -347,7 +389,14 @@ namespace Space4X.Registry
                 ArcDegrees = 360f,
                 KineticResist = 1f,
                 EnergyResist = 1f,
-                ExplosiveResist = 1f
+                ThermalResist = 1f,
+                EMResist = 1f,
+                RadiationResist = 1f,
+                ExplosiveResist = 1f,
+                CausticResist = 1f,
+                HardenedType = Space4XDamageType.Unknown,
+                HardenedBonus = 0f,
+                HardenedPenalty = 0f
             };
 
             moduleArray[1] = new ShieldModuleSpec
@@ -359,7 +408,14 @@ namespace Space4X.Registry
                 ArcDegrees = 360f,
                 KineticResist = 1f,
                 EnergyResist = 1f,
-                ExplosiveResist = 1f
+                ThermalResist = 1f,
+                EMResist = 1f,
+                RadiationResist = 1f,
+                ExplosiveResist = 1f,
+                CausticResist = 1f,
+                HardenedType = Space4XDamageType.Unknown,
+                HardenedBonus = 0f,
+                HardenedPenalty = 0f
             };
 
             var blobAsset = builder.CreateBlobAssetReference<ShieldModuleCatalogBlob>(Allocator.Persistent);
@@ -401,8 +457,15 @@ namespace Space4X.Registry
                 DamageReduction = 0.25f,
                 KineticResist = 1f,
                 EnergyResist = 1f,
+                ThermalResist = 1f,
+                EMResist = 1f,
+                RadiationResist = 1f,
                 ExplosiveResist = 1f,
-                RepairRateMultiplier = 1f
+                CausticResist = 1f,
+                RepairRateMultiplier = 1f,
+                HardenedType = Space4XDamageType.Unknown,
+                HardenedBonus = 0f,
+                HardenedPenalty = 0f
             };
 
             var blobAsset = builder.CreateBlobAssetReference<ArmorModuleCatalogBlob>(Allocator.Persistent);
@@ -513,6 +576,245 @@ namespace Space4X.Registry
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new AmmoModuleCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultModuleLimbCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<ModuleLimbCatalogBlob>();
+            var moduleArray = builder.Allocate(ref catalogBlob.Modules, 17);
+
+            moduleArray[0] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("reactor-mk1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.7f, Structural = 0.6f, Power = 0.85f }
+            };
+            moduleArray[1] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("engine-mk1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.55f, Actuator = 0.5f, Structural = 0.4f }
+            };
+            moduleArray[2] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("laser-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.6f, Sensors = 0.45f, Lensing = 0.7f, Power = 0.4f }
+            };
+            moduleArray[3] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("pd-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.55f, Sensors = 0.55f, Lensing = 0.45f, Guidance = 0.5f, Power = 0.35f }
+            };
+            moduleArray[4] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("missile-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.45f, Sensors = 0.4f, Guidance = 0.6f, Power = 0.35f }
+            };
+            moduleArray[5] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("shield-s-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.5f, Projector = 0.6f, Structural = 0.5f, Power = 0.45f }
+            };
+            moduleArray[6] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("armor-s-1"),
+                Profile = new ModuleLimbProfile { Structural = 0.8f }
+            };
+            moduleArray[7] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("hangar-s-1"),
+                Profile = new ModuleLimbProfile { Actuator = 0.5f, Structural = 0.6f }
+            };
+            moduleArray[8] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("repair-s-1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.4f, Guidance = 0.4f, Cooling = 0.35f }
+            };
+            moduleArray[9] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("scanner-s-1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.9f, Cooling = 0.3f }
+            };
+            moduleArray[10] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("reactor-mk2"),
+                Profile = new ModuleLimbProfile { Cooling = 0.75f, Structural = 0.65f, Power = 0.9f }
+            };
+            moduleArray[11] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("engine-mk2"),
+                Profile = new ModuleLimbProfile { Cooling = 0.6f, Actuator = 0.55f, Structural = 0.45f }
+            };
+            moduleArray[12] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("missile-m-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.4f, Sensors = 0.35f, Guidance = 0.65f, Power = 0.4f }
+            };
+            moduleArray[13] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("shield-m-1"),
+                Profile = new ModuleLimbProfile { Cooling = 0.55f, Projector = 0.7f, Structural = 0.55f, Power = 0.5f }
+            };
+            moduleArray[14] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("bridge-mk1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.6f, Actuator = 0.4f, Structural = 0.4f, Power = 0.25f }
+            };
+            moduleArray[15] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("cockpit-mk1"),
+                Profile = new ModuleLimbProfile { Sensors = 0.55f, Actuator = 0.45f, Structural = 0.35f, Power = 0.2f }
+            };
+            moduleArray[16] = new ModuleLimbSpec
+            {
+                ModuleId = new FixedString64Bytes("ammo-bay-s-1"),
+                Profile = new ModuleLimbProfile { Structural = 0.45f }
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<ModuleLimbCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new ModuleLimbCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultWeaponCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<WeaponCatalogBlob>();
+            var weaponArray = builder.Allocate(ref catalogBlob.Weapons, 4);
+
+            weaponArray[0] = new WeaponSpec
+            {
+                Id = new FixedString64Bytes("laser-s-1"),
+                Class = WeaponClass.Laser,
+                FireRate = 2f,
+                BurstCount = 1,
+                SpreadDeg = 0f,
+                EnergyCost = 5f,
+                HeatCost = 1f,
+                LeadBias = 0.6f,
+                DamageType = Space4XDamageType.Energy,
+                ProjectileId = new FixedString32Bytes("laser-bolt-s-1")
+            };
+
+            weaponArray[1] = new WeaponSpec
+            {
+                Id = new FixedString64Bytes("pd-s-1"),
+                Class = WeaponClass.Kinetic,
+                FireRate = 5f,
+                BurstCount = 1,
+                SpreadDeg = 1.5f,
+                EnergyCost = 2f,
+                HeatCost = 0.5f,
+                LeadBias = 0.7f,
+                DamageType = Space4XDamageType.Kinetic,
+                ProjectileId = new FixedString32Bytes("pd-round-s-1")
+            };
+
+            weaponArray[2] = new WeaponSpec
+            {
+                Id = new FixedString64Bytes("missile-s-1"),
+                Class = WeaponClass.Missile,
+                FireRate = 0.8f,
+                BurstCount = 1,
+                SpreadDeg = 0f,
+                EnergyCost = 3f,
+                HeatCost = 1f,
+                LeadBias = 0.35f,
+                DamageType = Space4XDamageType.Explosive,
+                ProjectileId = new FixedString32Bytes("missile-s-1")
+            };
+
+            weaponArray[3] = new WeaponSpec
+            {
+                Id = new FixedString64Bytes("missile-m-1"),
+                Class = WeaponClass.Missile,
+                FireRate = 0.6f,
+                BurstCount = 1,
+                SpreadDeg = 0f,
+                EnergyCost = 4f,
+                HeatCost = 1.2f,
+                LeadBias = 0.3f,
+                DamageType = Space4XDamageType.Explosive,
+                ProjectileId = new FixedString32Bytes("missile-m-1")
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<WeaponCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new WeaponCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultProjectileCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<ProjectileCatalogBlob>();
+            var projectileArray = builder.Allocate(ref catalogBlob.Projectiles, 4);
+
+            projectileArray[0] = new ProjectileSpec
+            {
+                Id = new FixedString64Bytes("laser-bolt-s-1"),
+                Kind = ProjectileKind.BeamTick,
+                Speed = 0f,
+                Lifetime = 0.2f,
+                Gravity = 0f,
+                TurnRateDeg = 0f,
+                SeekRadius = 0f,
+                Pierce = 0f,
+                ChainRange = 0f,
+                AoERadius = 0f,
+                Damage = new DamageModel { Energy = 12f, Kinetic = 0f, Explosive = 0f },
+                DamageType = Space4XDamageType.Energy
+            };
+
+            projectileArray[1] = new ProjectileSpec
+            {
+                Id = new FixedString64Bytes("pd-round-s-1"),
+                Kind = ProjectileKind.Ballistic,
+                Speed = 350f,
+                Lifetime = 2.5f,
+                Gravity = 0f,
+                TurnRateDeg = 0f,
+                SeekRadius = 0f,
+                Pierce = 0f,
+                ChainRange = 0f,
+                AoERadius = 0f,
+                Damage = new DamageModel { Energy = 0f, Kinetic = 8f, Explosive = 0f },
+                DamageType = Space4XDamageType.Kinetic
+            };
+
+            projectileArray[2] = new ProjectileSpec
+            {
+                Id = new FixedString64Bytes("missile-s-1"),
+                Kind = ProjectileKind.Missile,
+                Speed = 160f,
+                Lifetime = 6f,
+                Gravity = 0f,
+                TurnRateDeg = 45f,
+                SeekRadius = 300f,
+                Pierce = 0f,
+                ChainRange = 0f,
+                AoERadius = 8f,
+                Damage = new DamageModel { Energy = 0f, Kinetic = 0f, Explosive = 30f },
+                DamageType = Space4XDamageType.Explosive
+            };
+
+            projectileArray[3] = new ProjectileSpec
+            {
+                Id = new FixedString64Bytes("missile-m-1"),
+                Kind = ProjectileKind.Missile,
+                Speed = 140f,
+                Lifetime = 7.5f,
+                Gravity = 0f,
+                TurnRateDeg = 35f,
+                SeekRadius = 320f,
+                Pierce = 0f,
+                ChainRange = 0f,
+                AoERadius = 12f,
+                Damage = new DamageModel { Energy = 0f, Kinetic = 0f, Explosive = 45f },
+                DamageType = Space4XDamageType.Explosive
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<ProjectileCatalogBlob>(Allocator.Persistent);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new ProjectileCatalogSingleton { Catalog = blobAsset });
         }
     }
 }
