@@ -20,7 +20,7 @@
       "hash": "4c9beaffdefadee03c07f00eb3e3b6c5294fc99d"
     },
     "com.moni.puredots": {
-      "version": "file:../puredots/Packages/com.moni.puredots",
+      "version": "file:../../puredots/Packages/com.moni.puredots",
       "depth": 0,
       "source": "local",
       "dependencies": {
