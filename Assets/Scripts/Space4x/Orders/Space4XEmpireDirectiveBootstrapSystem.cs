@@ -1,5 +1,5 @@
-using PureDOTS.Runtime.Components;
 using Space4X.Registry;
+using TimeState = PureDOTS.Runtime.Components.TimeState;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;

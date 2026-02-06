@@ -48,7 +48,7 @@ namespace Space4X.Headless
             RequireForUpdate<Space4XScenarioRuntime>();
             RequireForUpdate<TerrainModificationQueue>();
 
-            var miningProof = Environment.GetEnvironmentVariable(MiningProofEnv);
+            var miningProof = System.Environment.GetEnvironmentVariable(MiningProofEnv);
             if (string.IsNullOrWhiteSpace(miningProof) ||
                 miningProof.Trim().Equals("0", StringComparison.OrdinalIgnoreCase) ||
                 miningProof.Trim().Equals("false", StringComparison.OrdinalIgnoreCase))
