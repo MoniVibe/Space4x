@@ -7,6 +7,7 @@ Quick pointers to the active documentation:
 - Ops bus protocol: `../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`
 - MCP tools: `Docs/MCP_Tools_Usage.md`, `Docs/MCP_Tools_Debugging.md`
 - PureDOTS time/rewind: `Docs/PureDOTS_TimeIntegration.md`
+- Galaxy tamagotchi (2 TPS sim): `Docs/Conceptualization/Mechanics/GalaxyTamagotchi.md`
 - Scenario runner wiring: `Docs/PureDOTS_ScenarioRunner_Wiring.md`
 - Concept vision: `Docs/Conceptualization/GameVision.md`, `Docs/Conceptualization/CorePillars.md`, `Docs/Conceptualization/DesignPrinciples.md`
 - Profile glossary (locked terms): `../../puredots/Docs/Concepts/Core/Entity_Profile_Glossary.md`
