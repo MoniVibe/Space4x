@@ -7,6 +7,7 @@ using PureDOTS.Runtime.Authority;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 using Space4X.Registry;
 
