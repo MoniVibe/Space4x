@@ -6,11 +6,9 @@ using Unity.Entities;
 
 namespace Space4X.SimServer
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XSimServerFactionProfileBootstrapSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             if (!Space4XSimServerSettings.IsEnabled())

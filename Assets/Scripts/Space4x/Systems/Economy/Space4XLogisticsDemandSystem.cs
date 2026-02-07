@@ -18,6 +18,8 @@ namespace Space4X.Systems.Economy
     [UpdateBefore(typeof(Space4X.Systems.AI.Space4XAIMissionBoardSystem))]
     public partial struct Space4XLogisticsDemandSystem : ISystem
     {
+        private static readonly FixedString64Bytes LogisticsBoardId = BuildLogisticsBoardId();
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -90,6 +92,25 @@ namespace Space4X.Systems.Economy
             state.EntityManager.SetComponentData(boardEntity, board);
         }
 
+        private static FixedString64Bytes BuildLogisticsBoardId()
+        {
+            var id = new FixedString64Bytes();
+            id.Append('l');
+            id.Append('o');
+            id.Append('g');
+            id.Append('i');
+            id.Append('s');
+            id.Append('t');
+            id.Append('i');
+            id.Append('c');
+            id.Append('s');
+            id.Append('.');
+            id.Append('s');
+            id.Append('i');
+            id.Append('m');
+            return id;
+        }
+
         private Entity EnsureBoard(ref SystemState state, out LogisticsBoardConfig config)
         {
             if (SystemAPI.TryGetSingletonEntity<LogisticsBoard>(out var entity))
@@ -98,17 +119,17 @@ namespace Space4X.Systems.Economy
                 return entity;
             }
 
-            entity = state.EntityManager.CreateEntity(typeof(LogisticsBoard), typeof(LogisticsBoardConfig));
+            entity = state.EntityManager.CreateEntity();
             config = LogisticsBoardConfig.Default;
 
-            state.EntityManager.SetComponentData(entity, new LogisticsBoard
+            state.EntityManager.AddComponentData(entity, new LogisticsBoard
             {
-                BoardId = new FixedString64Bytes("logistics.sim"),
+                BoardId = LogisticsBoardId,
                 AuthorityEntity = Entity.Null,
                 DomainEntity = Entity.Null,
                 LastUpdateTick = 0
             });
-            state.EntityManager.SetComponentData(entity, config);
+            state.EntityManager.AddComponentData(entity, config);
             state.EntityManager.AddBuffer<LogisticsDemandEntry>(entity);
             state.EntityManager.AddBuffer<LogisticsReservationEntry>(entity);
             state.EntityManager.AddBuffer<LogisticsClaimRequest>(entity);
