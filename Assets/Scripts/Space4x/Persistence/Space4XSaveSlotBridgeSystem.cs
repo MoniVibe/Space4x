@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Persistence;
 using PureDOTS.Runtime.Time;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Space4XSaveSlotRequest = Space4X.Runtime.SaveSlotRequest;
 
@@ -15,6 +16,21 @@ namespace Space4x.Persistence
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XSaveSlotBridgeSystem : ISystem
     {
+        private static readonly FixedString64Bytes SaveLabel = BuildSaveLabel();
+
+        private static FixedString64Bytes BuildSaveLabel()
+        {
+            FixedString64Bytes label = default;
+            label.Append('s');
+            label.Append('p');
+            label.Append('a');
+            label.Append('c');
+            label.Append('e');
+            label.Append('4');
+            label.Append('x');
+            return label;
+        }
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -50,7 +66,7 @@ namespace Space4x.Persistence
                     Action = action,
                     Flags = SaveSlotRequestFlags.None,
                     RequestedTick = tick,
-                    Label = new Unity.Collections.FixedString64Bytes("space4x")
+                    Label = SaveLabel
                 });
 
                 state.EntityManager.RemoveComponent<Space4XSaveSlotRequest>(entity);

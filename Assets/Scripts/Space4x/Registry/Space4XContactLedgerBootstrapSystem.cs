@@ -43,8 +43,8 @@ namespace Space4X.Registry
                 return;
             }
 
-            var entity = state.EntityManager.CreateEntity(typeof(Space4XContactTierConfig));
-            state.EntityManager.SetComponentData(entity, Space4XContactTierConfig.Default);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, Space4XContactTierConfig.Default);
         }
     }
 }

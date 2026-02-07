@@ -19,6 +19,22 @@ namespace Space4X.Systems.Economy
     [UpdateBefore(typeof(Space4XColonyIndustryTransferSystem))]
     public partial struct Space4XProductionVariantIntegrationSystem : ISystem
     {
+        private static readonly FixedString64Bytes IdLcvSparrow = BuildIdLcvSparrow();
+        private static readonly FixedString64Bytes IdCvMule = BuildIdCvMule();
+        private static readonly FixedString64Bytes IdEngineMk1 = BuildIdEngineMk1();
+        private static readonly FixedString64Bytes IdEngineMk2 = BuildIdEngineMk2();
+        private static readonly FixedString64Bytes IdShieldS1 = BuildIdShieldS1();
+        private static readonly FixedString64Bytes IdShieldM1 = BuildIdShieldM1();
+        private static readonly FixedString64Bytes IdLaserS1 = BuildIdLaserS1();
+        private static readonly FixedString64Bytes IdMissileM1 = BuildIdMissileM1();
+        private static readonly FixedString64Bytes IdMissileS1 = BuildIdMissileS1();
+        private static readonly FixedString64Bytes IdPdS1 = BuildIdPdS1();
+        private static readonly FixedString64Bytes IdBridgeMk1 = BuildIdBridgeMk1();
+        private static readonly FixedString64Bytes IdCockpitMk1 = BuildIdCockpitMk1();
+        private static readonly FixedString64Bytes IdArmorS1 = BuildIdArmorS1();
+        private static readonly FixedString64Bytes IdAmmoBayS1 = BuildIdAmmoBayS1();
+        private static readonly FixedString64Bytes IdReactorMk2 = BuildIdReactorMk2();
+
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
         private ComponentLookup<ColonyFacilityLink> _facilityLinkLookup;
@@ -170,42 +186,42 @@ namespace Space4X.Systems.Economy
                 return 0;
             }
 
-            if (itemId.Equals("lcv-sparrow") || itemId.Equals("cv-mule"))
+            if (itemId.Equals(IdLcvSparrow) || itemId.Equals(IdCvMule))
             {
                 return ReverseEngineeringBlueprintFamily.Hull;
             }
 
-            if (itemId.Equals("engine-mk1") || itemId.Equals("engine-mk2"))
+            if (itemId.Equals(IdEngineMk1) || itemId.Equals(IdEngineMk2))
             {
                 return ReverseEngineeringBlueprintFamily.Engine;
             }
 
-            if (itemId.Equals("shield-s-1") || itemId.Equals("shield-m-1"))
+            if (itemId.Equals(IdShieldS1) || itemId.Equals(IdShieldM1))
             {
                 return ReverseEngineeringBlueprintFamily.Shield;
             }
 
-            if (itemId.Equals("laser-s-1") || itemId.Equals("missile-m-1") || itemId.Equals("missile-s-1") || itemId.Equals("pd-s-1"))
+            if (itemId.Equals(IdLaserS1) || itemId.Equals(IdMissileM1) || itemId.Equals(IdMissileS1) || itemId.Equals(IdPdS1))
             {
                 return ReverseEngineeringBlueprintFamily.Weapon;
             }
 
-            if (itemId.Equals("bridge-mk1") || itemId.Equals("cockpit-mk1"))
+            if (itemId.Equals(IdBridgeMk1) || itemId.Equals(IdCockpitMk1))
             {
                 return ReverseEngineeringBlueprintFamily.Command;
             }
 
-            if (itemId.Equals("armor-s-1"))
+            if (itemId.Equals(IdArmorS1))
             {
                 return ReverseEngineeringBlueprintFamily.Armor;
             }
 
-            if (itemId.Equals("ammo-bay-s-1"))
+            if (itemId.Equals(IdAmmoBayS1))
             {
                 return ReverseEngineeringBlueprintFamily.Ammo;
             }
 
-            if (itemId.Equals("reactor-mk2"))
+            if (itemId.Equals(IdReactorMk2))
             {
                 return ReverseEngineeringBlueprintFamily.Reactor;
             }
@@ -246,6 +262,244 @@ namespace Space4X.Systems.Economy
         private static float ResolveDurabilityMultiplier(in ReverseEngineeringBlueprintVariant variant)
         {
             return math.clamp(variant.DurabilityScalar, 0.7f, 1.3f);
+        }
+
+        private static FixedString64Bytes BuildIdLcvSparrow()
+        {
+            FixedString64Bytes value = default;
+            value.Append('l');
+            value.Append('c');
+            value.Append('v');
+            value.Append('-');
+            value.Append('s');
+            value.Append('p');
+            value.Append('a');
+            value.Append('r');
+            value.Append('r');
+            value.Append('o');
+            value.Append('w');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdCvMule()
+        {
+            FixedString64Bytes value = default;
+            value.Append('c');
+            value.Append('v');
+            value.Append('-');
+            value.Append('m');
+            value.Append('u');
+            value.Append('l');
+            value.Append('e');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdEngineMk1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('e');
+            value.Append('n');
+            value.Append('g');
+            value.Append('i');
+            value.Append('n');
+            value.Append('e');
+            value.Append('-');
+            value.Append('m');
+            value.Append('k');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdEngineMk2()
+        {
+            FixedString64Bytes value = default;
+            value.Append('e');
+            value.Append('n');
+            value.Append('g');
+            value.Append('i');
+            value.Append('n');
+            value.Append('e');
+            value.Append('-');
+            value.Append('m');
+            value.Append('k');
+            value.Append('2');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdShieldS1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('s');
+            value.Append('h');
+            value.Append('i');
+            value.Append('e');
+            value.Append('l');
+            value.Append('d');
+            value.Append('-');
+            value.Append('s');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdShieldM1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('s');
+            value.Append('h');
+            value.Append('i');
+            value.Append('e');
+            value.Append('l');
+            value.Append('d');
+            value.Append('-');
+            value.Append('m');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdLaserS1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('l');
+            value.Append('a');
+            value.Append('s');
+            value.Append('e');
+            value.Append('r');
+            value.Append('-');
+            value.Append('s');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdMissileM1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('m');
+            value.Append('i');
+            value.Append('s');
+            value.Append('s');
+            value.Append('i');
+            value.Append('l');
+            value.Append('e');
+            value.Append('-');
+            value.Append('m');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdMissileS1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('m');
+            value.Append('i');
+            value.Append('s');
+            value.Append('s');
+            value.Append('i');
+            value.Append('l');
+            value.Append('e');
+            value.Append('-');
+            value.Append('s');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdPdS1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('p');
+            value.Append('d');
+            value.Append('-');
+            value.Append('s');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdBridgeMk1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('b');
+            value.Append('r');
+            value.Append('i');
+            value.Append('d');
+            value.Append('g');
+            value.Append('e');
+            value.Append('-');
+            value.Append('m');
+            value.Append('k');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdCockpitMk1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('c');
+            value.Append('o');
+            value.Append('c');
+            value.Append('k');
+            value.Append('p');
+            value.Append('i');
+            value.Append('t');
+            value.Append('-');
+            value.Append('m');
+            value.Append('k');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdArmorS1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('a');
+            value.Append('r');
+            value.Append('m');
+            value.Append('o');
+            value.Append('r');
+            value.Append('-');
+            value.Append('s');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdAmmoBayS1()
+        {
+            FixedString64Bytes value = default;
+            value.Append('a');
+            value.Append('m');
+            value.Append('m');
+            value.Append('o');
+            value.Append('-');
+            value.Append('b');
+            value.Append('a');
+            value.Append('y');
+            value.Append('-');
+            value.Append('s');
+            value.Append('-');
+            value.Append('1');
+            return value;
+        }
+
+        private static FixedString64Bytes BuildIdReactorMk2()
+        {
+            FixedString64Bytes value = default;
+            value.Append('r');
+            value.Append('e');
+            value.Append('a');
+            value.Append('c');
+            value.Append('t');
+            value.Append('o');
+            value.Append('r');
+            value.Append('-');
+            value.Append('m');
+            value.Append('k');
+            value.Append('2');
+            return value;
         }
     }
 }
