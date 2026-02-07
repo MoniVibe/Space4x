@@ -3,7 +3,6 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
 using Space4X.Registry;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -13,7 +12,6 @@ namespace Space4X.Systems.Economy
     /// <summary>
     /// Applies reverse engineering variants to freshly produced inventory items.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     [UpdateBefore(typeof(Space4XColonyIndustryTransferSystem))]
@@ -40,7 +38,6 @@ namespace Space4X.Systems.Economy
             _variantLookup = state.GetBufferLookup<ReverseEngineeringBlueprintVariant>(false);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton(out ScenarioState scenario) ||

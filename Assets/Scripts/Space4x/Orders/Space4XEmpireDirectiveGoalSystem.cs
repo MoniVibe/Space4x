@@ -1,6 +1,5 @@
 using Space4X.Registry;
 using TimeState = PureDOTS.Runtime.Components.TimeState;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -10,19 +9,16 @@ namespace Space4X.Orders
     /// <summary>
     /// Applies empire directives to faction goals.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4X.Registry.Space4XFactionGoalSystem))]
     public partial struct Space4XEmpireDirectiveGoalSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XFaction>();
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             uint currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
