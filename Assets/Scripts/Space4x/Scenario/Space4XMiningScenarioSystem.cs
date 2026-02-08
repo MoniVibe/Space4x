@@ -1223,6 +1223,10 @@ namespace Space4x.Scenario
             else
             {
                 // Default storage
+                storageBuffer.Add(ResourceStorage.Create(ResourceType.Food, 10000f));
+                storageBuffer.Add(ResourceStorage.Create(ResourceType.Water, 10000f));
+                storageBuffer.Add(ResourceStorage.Create(ResourceType.Supplies, 10000f));
+                storageBuffer.Add(ResourceStorage.Create(ResourceType.Fuel, 10000f));
                 storageBuffer.Add(ResourceStorage.Create(ResourceType.Minerals, 10000f));
                 storageBuffer.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
             }
@@ -3401,12 +3405,46 @@ namespace Space4x.Scenario
 
         private ResourceType ParseResourceType(string type)
         {
-            return type switch
+            if (string.IsNullOrWhiteSpace(type))
             {
-                "Minerals" => ResourceType.Minerals,
-                "RareMetals" => ResourceType.RareMetals,
-                "EnergyCrystals" => ResourceType.EnergyCrystals,
-                "OrganicMatter" => ResourceType.OrganicMatter,
+                return ResourceType.Minerals;
+            }
+
+            var normalized = type.Trim()
+                .Replace("_", string.Empty)
+                .Replace(" ", string.Empty)
+                .Replace("-", string.Empty)
+                .Replace(".", string.Empty)
+                .ToLowerInvariant();
+
+            if (normalized.StartsWith("space4xresource"))
+            {
+                normalized = normalized.Substring("space4xresource".Length);
+            }
+
+            return normalized switch
+            {
+                "minerals" => ResourceType.Minerals,
+                "raremetals" => ResourceType.RareMetals,
+                "energycrystals" => ResourceType.EnergyCrystals,
+                "organicmatter" => ResourceType.OrganicMatter,
+                "ore" => ResourceType.Ore,
+                "volatiles" => ResourceType.Volatiles,
+                "transplutonicore" => ResourceType.TransplutonicOre,
+                "exoticgases" => ResourceType.ExoticGases,
+                "volatilemotes" => ResourceType.VolatileMotes,
+                "industrialcrystals" => ResourceType.IndustrialCrystals,
+                "isotopes" => ResourceType.Isotopes,
+                "heavywater" => ResourceType.HeavyWater,
+                "liquidozone" => ResourceType.LiquidOzone,
+                "strontiumclathrates" => ResourceType.StrontiumClathrates,
+                "salvagecomponents" => ResourceType.SalvageComponents,
+                "boostergas" => ResourceType.BoosterGas,
+                "relicdata" => ResourceType.RelicData,
+                "food" => ResourceType.Food,
+                "water" => ResourceType.Water,
+                "supplies" => ResourceType.Supplies,
+                "fuel" => ResourceType.Fuel,
                 _ => ResourceType.Minerals
             };
         }
@@ -4008,5 +4046,3 @@ namespace Space4x.Scenario
         public string json;
     }
 }
-
-

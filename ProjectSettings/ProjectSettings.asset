@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!129 &1
 PlayerSettings:
@@ -835,7 +835,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Standalone: APP_UI_EDITOR_ONLY
+    Standalone: APP_UI_EDITOR_ONLY;HYBRID_RENDERER_DISABLED
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

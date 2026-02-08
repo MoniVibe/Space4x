@@ -390,7 +390,13 @@ namespace Space4X.Scenario
                         CurrentSmallCraft = 0
                     });
 
-                    ecb.AddBuffer<ResourceStorage>(carrier);
+                    var storage = ecb.AddBuffer<ResourceStorage>(carrier);
+                    storage.Add(ResourceStorage.Create(ResourceType.Food, 10000f));
+                    storage.Add(ResourceStorage.Create(ResourceType.Water, 10000f));
+                    storage.Add(ResourceStorage.Create(ResourceType.Supplies, 10000f));
+                    storage.Add(ResourceStorage.Create(ResourceType.Fuel, 10000f));
+                    storage.Add(ResourceStorage.Create(ResourceType.Minerals, 10000f));
+                    storage.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
                 }
             }
         }

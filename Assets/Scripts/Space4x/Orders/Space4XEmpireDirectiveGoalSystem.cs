@@ -1,7 +1,5 @@
 using Space4X.Registry;
 using TimeState = PureDOTS.Runtime.Components.TimeState;
-using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -10,19 +8,16 @@ namespace Space4X.Orders
     /// <summary>
     /// Applies empire directives to faction goals.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4X.Registry.Space4XFactionGoalSystem))]
     public partial struct Space4XEmpireDirectiveGoalSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XFaction>();
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             uint currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
@@ -48,29 +43,29 @@ namespace Space4X.Orders
             }
         }
 
-        private static bool TryMapDirectiveToGoal(in FixedString32Bytes directiveType, out FactionGoalType goalType)
+        private static bool TryMapDirectiveToGoal(EmpireDirectiveType directiveType, out FactionGoalType goalType)
         {
-            if (directiveType.Equals(EmpireDirectiveKeys.SecureResources))
+            if (directiveType == EmpireDirectiveType.SecureResources)
             {
                 goalType = FactionGoalType.ExploitResource;
                 return true;
             }
-            if (directiveType.Equals(EmpireDirectiveKeys.Expand))
+            if (directiveType == EmpireDirectiveType.Expand)
             {
                 goalType = FactionGoalType.ColonizeSystem;
                 return true;
             }
-            if (directiveType.Equals(EmpireDirectiveKeys.ResearchFocus))
+            if (directiveType == EmpireDirectiveType.ResearchFocus)
             {
                 goalType = FactionGoalType.ResearchTech;
                 return true;
             }
-            if (directiveType.Equals(EmpireDirectiveKeys.MilitaryPosture))
+            if (directiveType == EmpireDirectiveType.MilitaryPosture)
             {
                 goalType = FactionGoalType.DefendTerritory;
                 return true;
             }
-            if (directiveType.Equals(EmpireDirectiveKeys.TradeBias))
+            if (directiveType == EmpireDirectiveType.TradeBias)
             {
                 goalType = FactionGoalType.EstablishRoute;
                 return true;

@@ -17,6 +17,9 @@ namespace Space4X.Registry
         public float OreReserve;
         public float SuppliesReserve;
         public float ResearchReserve;
+        public float FoodReserve;
+        public float WaterReserve;
+        public float FuelReserve;
         public uint LastUpdateTick;
     }
 

@@ -8,12 +8,10 @@ namespace Space4X
     /// <summary>
     /// Ensures a baseline RewindState exists in the Default world for Space4X.
     /// </summary>
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     public partial struct Space4XRewindBootstrapSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             // If a baked RewindState already exists, do nothing.
@@ -47,7 +45,6 @@ namespace Space4X
             });
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!Application.isPlaying)
@@ -57,8 +54,6 @@ namespace Space4X
             state.Enabled = false;
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state) { }
     }
 }
-

@@ -19,6 +19,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
         private ComponentLookup<VesselPilotLink> _vesselPilotLookup;
+        private ComponentLookup<GroupStanceState> _groupStanceLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -31,6 +33,8 @@ namespace Space4X.Systems.AI
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
             _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _vesselPilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
+            _groupStanceLookup = state.GetComponentLookup<GroupStanceState>(false);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -57,6 +61,8 @@ namespace Space4X.Systems.AI
             _alignmentLookup.Update(ref state);
             _strikePilotLookup.Update(ref state);
             _vesselPilotLookup.Update(ref state);
+            _groupStanceLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             foreach (var (intent, summary, meta, planner, entity) in SystemAPI
                          .Query<RefRW<EngagementIntent>, RefRO<EngagementThreatSummary>, RefRO<GroupMeta>, RefRW<EngagementPlannerState>>()
@@ -75,10 +81,14 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                var leader = meta.ValueRO.Leader != Entity.Null && state.EntityManager.Exists(meta.ValueRO.Leader)
+                var leader = IsValidEntity(meta.ValueRO.Leader)
                     ? meta.ValueRO.Leader
                     : entity;
                 var profileEntity = ResolveProfileEntity(leader);
+                if (!IsValidEntity(profileEntity))
+                {
+                    profileEntity = entity;
+                }
 
                 var disposition = _dispositionLookup.HasComponent(profileEntity)
                     ? _dispositionLookup[profileEntity]
@@ -155,14 +165,14 @@ namespace Space4X.Systems.AI
 
                 planner.ValueRW.LastIntentTick = timeState.Tick;
 
-                if (state.EntityManager.HasComponent<GroupStanceState>(entity))
+                if (_groupStanceLookup.HasComponent(entity))
                 {
-                    var stance = state.EntityManager.GetComponentData<GroupStanceState>(entity);
+                    var stance = _groupStanceLookup[entity];
                     stance.Stance = MapIntentToStance(desired);
                     stance.PrimaryTarget = summary.ValueRO.PrimaryThreat;
                     stance.Aggression = math.clamp((aggression * 2f) - 1f, -1f, 1f);
                     stance.Discipline = discipline;
-                    state.EntityManager.SetComponentData(entity, stance);
+                    _groupStanceLookup[entity] = stance;
                 }
             }
         }
@@ -172,7 +182,7 @@ namespace Space4X.Systems.AI
             if (_strikePilotLookup.HasComponent(leader))
             {
                 var pilot = _strikePilotLookup[leader].Pilot;
-                if (pilot != Entity.Null)
+                if (IsValidEntity(pilot))
                 {
                     return pilot;
                 }
@@ -181,13 +191,18 @@ namespace Space4X.Systems.AI
             if (_vesselPilotLookup.HasComponent(leader))
             {
                 var pilot = _vesselPilotLookup[leader].Pilot;
-                if (pilot != Entity.Null)
+                if (IsValidEntity(pilot))
                 {
                     return pilot;
                 }
             }
 
             return leader;
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
 
         private static GroupStance MapIntentToStance(EngagementIntentKind intent)

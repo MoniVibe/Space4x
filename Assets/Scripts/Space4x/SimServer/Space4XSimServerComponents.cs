@@ -14,10 +14,15 @@ namespace Space4X.SimServer
         public float SystemSpacing;
         public float ResourceBaseUnits;
         public float ResourceRichnessGradient;
+        public float ResourceBiasChance;
         public float TechDiffusionDurationSeconds;
         public float TargetTicksPerSecond;
         public ushort HttpPort;
         public float AutosaveSeconds;
+        public float FoodPerPopPerSecond;
+        public float WaterPerPopPerSecond;
+        public float FuelPerPopPerSecond;
+        public float SuppliesConsumptionPerPopPerSecond;
         public GalaxySystemTraitMask TraitMask;
         public GalaxyPoiMask PoiMask;
         public byte MaxTraitsPerSystem;

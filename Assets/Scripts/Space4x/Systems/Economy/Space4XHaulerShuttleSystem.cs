@@ -38,6 +38,7 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<Space4XColony> _colonyLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<HaulerCapacity> _capacityLookup;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -65,6 +66,7 @@ namespace Space4X.Systems.Economy
             _colonyLookup = state.GetComponentLookup<Space4XColony>(false);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _capacityLookup = state.GetComponentLookup<HaulerCapacity>(true);
+            _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -111,6 +113,7 @@ namespace Space4X.Systems.Economy
             _colonyLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _capacityLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             if (!_missingStateQuery.IsEmptyIgnoreFilter)
             {
@@ -168,7 +171,7 @@ namespace Space4X.Systems.Economy
                 {
                     activeHaulers++;
                     toCarrierCount++;
-                    if (shuttle.TargetCarrier == Entity.Null ||
+                    if (!IsValidEntity(shuttle.TargetCarrier) ||
                         !_transformLookup.HasComponent(shuttle.TargetCarrier) ||
                         !_storageLookup.HasBuffer(shuttle.TargetCarrier))
                     {
@@ -223,9 +226,9 @@ namespace Space4X.Systems.Economy
                 {
                     activeHaulers++;
                     toColonyCount++;
-                    if (shuttle.TargetColony == Entity.Null || !_transformLookup.HasComponent(shuttle.TargetColony))
+                    if (!IsValidEntity(shuttle.TargetColony) || !_transformLookup.HasComponent(shuttle.TargetColony))
                     {
-                        var carrierRef = shuttle.TargetCarrier != Entity.Null ? shuttle.TargetCarrier : Entity.Null;
+                        var carrierRef = IsValidEntity(shuttle.TargetCarrier) ? shuttle.TargetCarrier : Entity.Null;
                         var resolvedColony = ResolveTargetColony(carrierRef, position, colonies);
                         if (resolvedColony != Entity.Null)
                         {
@@ -266,7 +269,13 @@ namespace Space4X.Systems.Economy
                             if (_colonyLookup.HasComponent(shuttle.TargetColony))
                             {
                                 var colony = _colonyLookup[shuttle.TargetColony];
-                                colony.StoredResources = math.max(0f, stock.OreReserve + stock.SuppliesReserve + stock.ResearchReserve);
+                                colony.StoredResources = math.max(0f,
+                                    stock.OreReserve
+                                    + stock.SuppliesReserve
+                                    + stock.ResearchReserve
+                                    + stock.FoodReserve
+                                    + stock.WaterReserve
+                                    + stock.FuelReserve);
                                 _colonyLookup[shuttle.TargetColony] = colony;
                             }
                         }
@@ -321,7 +330,7 @@ namespace Space4X.Systems.Economy
             for (int i = 0; i < carriers.Length; i++)
             {
                 var candidate = carriers[i];
-                if (candidate == Entity.Null || !_transformLookup.HasComponent(candidate) || !_storageLookup.HasBuffer(candidate))
+                if (!IsValidEntity(candidate) || !_transformLookup.HasComponent(candidate) || !_storageLookup.HasBuffer(candidate))
                 {
                     continue;
                 }
@@ -401,7 +410,7 @@ namespace Space4X.Systems.Economy
         private Entity ResolveTargetColony(Entity carrier, float3 carrierPosition, NativeArray<Entity> colonies)
         {
             var affiliationTarget = Entity.Null;
-            if (_affiliationLookup.HasBuffer(carrier))
+            if (IsValidEntity(carrier) && _affiliationLookup.HasBuffer(carrier))
             {
                 var affiliations = _affiliationLookup[carrier];
                 for (int i = 0; i < affiliations.Length; i++)
@@ -435,7 +444,7 @@ namespace Space4X.Systems.Economy
             for (int i = 0; i < colonies.Length; i++)
             {
                 var colony = colonies[i];
-                if (colony == Entity.Null || !_transformLookup.HasComponent(colony))
+                if (!IsValidEntity(colony) || !_transformLookup.HasComponent(colony))
                 {
                     continue;
                 }
@@ -474,6 +483,11 @@ namespace Space4X.Systems.Economy
             }
 
             return best;
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
         }
 
         private float ResolveCapacity(Entity hauler)
@@ -536,11 +550,35 @@ namespace Space4X.Systems.Economy
                 case ResourceType.Minerals:
                 case ResourceType.RareMetals:
                 case ResourceType.Ore:
+                case ResourceType.TransplutonicOre:
+                case ResourceType.IndustrialCrystals:
+                case ResourceType.SalvageComponents:
                     stock.OreReserve += amount;
                     return true;
                 case ResourceType.EnergyCrystals:
                 case ResourceType.OrganicMatter:
+                case ResourceType.Volatiles:
+                case ResourceType.ExoticGases:
+                case ResourceType.VolatileMotes:
+                case ResourceType.Isotopes:
+                case ResourceType.HeavyWater:
+                case ResourceType.LiquidOzone:
+                case ResourceType.StrontiumClathrates:
+                case ResourceType.BoosterGas:
+                case ResourceType.Supplies:
                     stock.SuppliesReserve += amount;
+                    return true;
+                case ResourceType.Food:
+                    stock.FoodReserve += amount;
+                    return true;
+                case ResourceType.Water:
+                    stock.WaterReserve += amount;
+                    return true;
+                case ResourceType.Fuel:
+                    stock.FuelReserve += amount;
+                    return true;
+                case ResourceType.RelicData:
+                    stock.ResearchReserve += amount;
                     return true;
                 default:
                     return false;

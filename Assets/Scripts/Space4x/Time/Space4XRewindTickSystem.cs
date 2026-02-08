@@ -14,12 +14,10 @@ namespace Space4X
         public RewindMode Mode;
     }
 
-    [BurstCompile]
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     public partial struct Space4XRewindTickSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<RewindState>();
@@ -38,7 +36,6 @@ namespace Space4X
             }
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!Application.isPlaying)
@@ -56,8 +53,6 @@ namespace Space4X
             };
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state) { }
     }
 }
-

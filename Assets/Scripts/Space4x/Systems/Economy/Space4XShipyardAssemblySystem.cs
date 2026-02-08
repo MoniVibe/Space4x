@@ -20,6 +20,7 @@ namespace Space4X.Systems.Economy
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XBusinessAssetOwnershipSystem))]
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     public partial struct Space4XShipyardAssemblySystem : ISystem
     {
@@ -31,6 +32,9 @@ namespace Space4X.Systems.Economy
         private BufferLookup<InventoryItem> _itemsLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<TechLevel> _techLookup;
+        private ComponentLookup<Space4XBusinessAssetOwner> _assetOwnerLookup;
+        private BufferLookup<Space4XBusinessAssetLink> _assetLinkLookup;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -43,6 +47,9 @@ namespace Space4X.Systems.Economy
             _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _techLookup = state.GetComponentLookup<TechLevel>(true);
+            _assetOwnerLookup = state.GetComponentLookup<Space4XBusinessAssetOwner>(true);
+            _assetLinkLookup = state.GetBufferLookup<Space4XBusinessAssetLink>(false);
+            _entityLookup = state.GetEntityStorageInfoLookup();
 
         }
 
@@ -72,6 +79,9 @@ namespace Space4X.Systems.Economy
             _itemsLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _techLookup.Update(ref state);
+            _assetOwnerLookup.Update(ref state);
+            _assetLinkLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var spawnCount = 0;
@@ -90,13 +100,13 @@ namespace Space4X.Systems.Economy
                     break;
                 }
 
-                if (!_inventoryLookup.HasComponent(facility))
+                if (!IsValidEntity(facility) || !_inventoryLookup.HasComponent(facility))
                 {
                     continue;
                 }
 
                 var inventoryEntity = _inventoryLookup[facility].InventoryEntity;
-                if (inventoryEntity == Entity.Null || !_itemsLookup.HasBuffer(inventoryEntity))
+                if (!IsValidEntity(inventoryEntity) || !_itemsLookup.HasBuffer(inventoryEntity))
                 {
                     continue;
                 }
@@ -104,7 +114,7 @@ namespace Space4X.Systems.Economy
                 var items = _itemsLookup[inventoryEntity];
 
                 var colony = link.ValueRO.Colony;
-                var tech = _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
+                var tech = IsValidEntity(colony) && _techLookup.HasComponent(colony) ? _techLookup[colony] : default;
                 var preferCarrier = ResolveShipClassTier(tech) >= 2;
                 var consumedHull = HullItemIdLight;
                 var hullQuality = 1f;
@@ -255,12 +265,32 @@ namespace Space4X.Systems.Economy
                 ecb.AddComponent(ship, new ColonyTechLink { Colony = colony });
 
                 var affiliations = ecb.AddBuffer<AffiliationTag>(ship);
-                affiliations.Add(new AffiliationTag
+                if (IsValidEntity(colony))
                 {
-                    Type = AffiliationType.Colony,
-                    Target = colony,
-                    Loyalty = (half)1f
-                });
+                    affiliations.Add(new AffiliationTag
+                    {
+                        Type = AffiliationType.Colony,
+                        Target = colony,
+                        Loyalty = (half)1f
+                    });
+                }
+
+                if (_assetOwnerLookup.HasComponent(facility))
+                {
+                    var businessOwner = _assetOwnerLookup[facility];
+                    if (IsValidEntity(businessOwner.Business))
+                    {
+                        ecb.AddComponent(ship, new Space4XBusinessAssetOwner
+                        {
+                            Business = businessOwner.Business,
+                            AssetType = Space4XBusinessAssetType.Ship,
+                            AssignedTick = tickTime.Tick,
+                            CatalogId = consumedHull
+                        });
+
+                        EnsureBusinessLink(ref ecb, businessOwner.Business, ship, Space4XBusinessAssetType.Ship, tickTime.Tick, consumedHull);
+                    }
+                }
 
                 spawnCount++;
             }
@@ -362,6 +392,62 @@ namespace Space4X.Systems.Economy
             {
                 id.Append(digits[i]);
             }
+        }
+
+        private void EnsureBusinessLink(
+            ref EntityCommandBuffer ecb,
+            Entity business,
+            Entity asset,
+            Space4XBusinessAssetType assetType,
+            uint tick,
+            FixedString64Bytes catalogId)
+        {
+            if (!IsValidEntity(business) || !IsValidEntity(asset))
+            {
+                return;
+            }
+
+            if (_assetLinkLookup.HasBuffer(business))
+            {
+                var links = _assetLinkLookup[business];
+                for (int i = 0; i < links.Length; i++)
+                {
+                    if (links[i].Asset == asset)
+                    {
+                        if (links[i].CatalogId.IsEmpty && !catalogId.IsEmpty)
+                        {
+                            var existing = links[i];
+                            existing.CatalogId = catalogId;
+                            links[i] = existing;
+                        }
+                        return;
+                    }
+                }
+
+                links.Add(new Space4XBusinessAssetLink
+                {
+                    Asset = asset,
+                    AssetType = assetType,
+                    AssignedTick = tick,
+                    CatalogId = catalogId
+                });
+            }
+            else
+            {
+                var links = ecb.AddBuffer<Space4XBusinessAssetLink>(business);
+                links.Add(new Space4XBusinessAssetLink
+                {
+                    Asset = asset,
+                    AssetType = assetType,
+                    AssignedTick = tick,
+                    CatalogId = catalogId
+                });
+            }
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
         }
     }
 }

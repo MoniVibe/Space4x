@@ -25,6 +25,7 @@ namespace Space4X.Registry
         private BufferLookup<Space4XActiveFocusAbility> _abilityLookup;
         private ComponentLookup<FocusAbilityRequest> _requestLookup;
         private ComponentLookup<FocusAbilityDeactivateRequest> _deactivateLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -39,6 +40,7 @@ namespace Space4X.Registry
             _abilityLookup = state.GetBufferLookup<Space4XActiveFocusAbility>(true);
             _requestLookup = state.GetComponentLookup<FocusAbilityRequest>(true);
             _deactivateLookup = state.GetComponentLookup<FocusAbilityDeactivateRequest>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -54,12 +56,13 @@ namespace Space4X.Registry
             _abilityLookup.Update(ref state);
             _requestLookup.Update(ref state);
             _deactivateLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var seatOccupants = new NativeParallelHashSet<Entity>(128, Allocator.Temp);
             foreach (var occupant in SystemAPI.Query<RefRO<AuthoritySeatOccupant>>())
             {
                 var occupantEntity = occupant.ValueRO.OccupantEntity;
-                if (occupantEntity != Entity.Null)
+                if (occupantEntity != Entity.Null && _entityInfoLookup.Exists(occupantEntity))
                 {
                     seatOccupants.Add(occupantEntity);
                 }
@@ -166,7 +169,7 @@ namespace Space4X.Registry
             if (_pilotLookup.HasComponent(shipEntity))
             {
                 var pilot = _pilotLookup[shipEntity].Pilot;
-                if (pilot != Entity.Null)
+                if (pilot != Entity.Null && _entityInfoLookup.Exists(pilot))
                 {
                     return pilot;
                 }
@@ -175,7 +178,7 @@ namespace Space4X.Registry
             if (_strikePilotLookup.HasComponent(shipEntity))
             {
                 var pilot = _strikePilotLookup[shipEntity].Pilot;
-                if (pilot != Entity.Null)
+                if (pilot != Entity.Null && _entityInfoLookup.Exists(pilot))
                 {
                     return pilot;
                 }

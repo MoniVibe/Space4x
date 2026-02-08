@@ -123,6 +123,22 @@ namespace Space4X.Presentation
         public static ResourceTypeColor EnergyCrystals => new ResourceTypeColor { Value = new float4(0.2f, 0.8f, 1f, 1f) };
         public static ResourceTypeColor OrganicMatter => new ResourceTypeColor { Value = new float4(0.2f, 0.8f, 0.3f, 1f) };
         public static ResourceTypeColor Ore => new ResourceTypeColor { Value = new float4(0.5f, 0.3f, 0.2f, 1f) };
+        public static ResourceTypeColor Volatiles => new ResourceTypeColor { Value = new float4(0.95f, 0.55f, 0.15f, 1f) };
+        public static ResourceTypeColor TransplutonicOre => new ResourceTypeColor { Value = new float4(0.35f, 0.35f, 0.42f, 1f) };
+        public static ResourceTypeColor ExoticGases => new ResourceTypeColor { Value = new float4(0.1f, 0.7f, 0.6f, 1f) };
+        public static ResourceTypeColor VolatileMotes => new ResourceTypeColor { Value = new float4(0.9f, 0.2f, 0.2f, 1f) };
+        public static ResourceTypeColor IndustrialCrystals => new ResourceTypeColor { Value = new float4(0.3f, 0.9f, 0.9f, 1f) };
+        public static ResourceTypeColor Isotopes => new ResourceTypeColor { Value = new float4(0.7f, 0.9f, 0.3f, 1f) };
+        public static ResourceTypeColor HeavyWater => new ResourceTypeColor { Value = new float4(0.15f, 0.45f, 0.9f, 1f) };
+        public static ResourceTypeColor LiquidOzone => new ResourceTypeColor { Value = new float4(0.25f, 0.55f, 1f, 1f) };
+        public static ResourceTypeColor StrontiumClathrates => new ResourceTypeColor { Value = new float4(0.8f, 0.45f, 0.8f, 1f) };
+        public static ResourceTypeColor SalvageComponents => new ResourceTypeColor { Value = new float4(0.6f, 0.4f, 0.3f, 1f) };
+        public static ResourceTypeColor BoosterGas => new ResourceTypeColor { Value = new float4(0.9f, 0.3f, 0.7f, 1f) };
+        public static ResourceTypeColor RelicData => new ResourceTypeColor { Value = new float4(0.6f, 0.75f, 0.95f, 1f) };
+        public static ResourceTypeColor Food => new ResourceTypeColor { Value = new float4(0.85f, 0.7f, 0.2f, 1f) };
+        public static ResourceTypeColor Water => new ResourceTypeColor { Value = new float4(0.2f, 0.6f, 1f, 1f) };
+        public static ResourceTypeColor Supplies => new ResourceTypeColor { Value = new float4(0.7f, 0.7f, 0.7f, 1f) };
+        public static ResourceTypeColor Fuel => new ResourceTypeColor { Value = new float4(0.95f, 0.45f, 0.1f, 1f) };
     }
 
     /// <summary>

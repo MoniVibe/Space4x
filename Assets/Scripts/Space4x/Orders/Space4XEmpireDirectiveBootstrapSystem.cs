@@ -1,7 +1,5 @@
 using Space4X.Registry;
 using TimeState = PureDOTS.Runtime.Components.TimeState;
-using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -10,18 +8,15 @@ namespace Space4X.Orders
     /// <summary>
     /// Ensures empire factions have directive buffers with baseline directives.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XEmpireDirectiveBootstrapSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XFaction>();
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             uint currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
@@ -40,15 +35,15 @@ namespace Space4X.Orders
                 if (directives.Length > 0)
                     continue;
 
-                AddDirective(ref directives, EmpireDirectiveKeys.SecureResources, math.clamp((float)faction.ValueRO.TradeFocus * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveKeys.Expand, math.clamp((float)faction.ValueRO.ExpansionDrive * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveKeys.ResearchFocus, math.clamp((float)faction.ValueRO.ResearchFocus * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveKeys.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveKeys.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
+                AddDirective(ref directives, EmpireDirectiveType.SecureResources, math.clamp((float)faction.ValueRO.TradeFocus * 100f, 0f, 100f), currentTick);
+                AddDirective(ref directives, EmpireDirectiveType.Expand, math.clamp((float)faction.ValueRO.ExpansionDrive * 100f, 0f, 100f), currentTick);
+                AddDirective(ref directives, EmpireDirectiveType.ResearchFocus, math.clamp((float)faction.ValueRO.ResearchFocus * 100f, 0f, 100f), currentTick);
+                AddDirective(ref directives, EmpireDirectiveType.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
+                AddDirective(ref directives, EmpireDirectiveType.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
             }
         }
 
-        private static void AddDirective(ref DynamicBuffer<EmpireDirective> directives, FixedString32Bytes directiveType, float basePriority, uint currentTick)
+        private static void AddDirective(ref DynamicBuffer<EmpireDirective> directives, EmpireDirectiveType directiveType, float basePriority, uint currentTick)
         {
             if (basePriority <= 0f)
                 return;

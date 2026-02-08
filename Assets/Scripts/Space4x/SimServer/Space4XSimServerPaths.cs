@@ -51,6 +51,8 @@ namespace Space4X.SimServer
 
         internal static string StatusDir => Path.Combine(BaseDir, "status");
 
+        internal static string ConfigFile => Path.Combine(BaseDir, "sim_config.json");
+
         internal static string StatusFile => Path.Combine(StatusDir, "status.json");
 
         internal static string StatusLogFile => Path.Combine(StatusDir, "status.jsonl");

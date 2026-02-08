@@ -8,14 +8,20 @@ namespace Space4X.Systems.AI
 {
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XSwarmDemoSystem))]
+    [BurstCompile]
     public partial struct Space4XSwarmOrderExecutionSystem : ISystem
     {
+        private EntityStorageInfoLookup _entityInfoLookup;
+
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<ControlOrderState>();
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -23,6 +29,8 @@ namespace Space4X.Systems.AI
             {
                 return;
             }
+
+            _entityInfoLookup.Update(ref state);
 
             foreach (var (order, behavior) in SystemAPI.Query<RefRO<ControlOrderState>, RefRW<SwarmBehavior>>()
                          .WithAll<DroneTag>())
@@ -36,7 +44,9 @@ namespace Space4X.Systems.AI
                         break;
                     case ControlOrderKind.Attack:
                         updated.Mode = SwarmMode.Attack;
-                        updated.Target = order.ValueRO.TargetEntity;
+                        updated.Target = _entityInfoLookup.Exists(order.ValueRO.TargetEntity)
+                            ? order.ValueRO.TargetEntity
+                            : Entity.Null;
                         break;
                     case ControlOrderKind.Return:
                         updated.Mode = SwarmMode.Return;

@@ -1,16 +1,13 @@
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Authority;
 using Space4X.Registry;
-using Unity.Burst;
 using Unity.Entities;
 
 namespace Space4X.SimServer
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XSimServerFactionProfileBootstrapSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             if (!Space4XSimServerSettings.IsEnabled())
@@ -22,7 +19,6 @@ namespace Space4X.SimServer
             state.RequireForUpdate<Space4XFaction>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var em = state.EntityManager;

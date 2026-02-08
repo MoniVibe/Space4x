@@ -18,6 +18,7 @@ namespace Space4X.SimServer
         private const string SystemSpacingEnv = "SPACE4X_SIM_SYSTEM_SPACING";
         private const string ResourceBaseEnv = "SPACE4X_SIM_RESOURCE_BASE";
         private const string ResourceGradientEnv = "SPACE4X_SIM_RESOURCE_GRADIENT";
+        private const string ResourceBiasChanceEnv = "SPACE4X_SIM_RESOURCE_BIAS_CHANCE";
         private const string TargetTpsEnv = "SPACE4X_SIM_TPS";
         private const string TechDurationEnv = "SPACE4X_SIM_TECH_DURATION";
         private const string AutosaveEnv = "SPACE4X_SIM_AUTOSAVE_SECONDS";
@@ -40,20 +41,25 @@ namespace Space4X.SimServer
 
         internal static Space4XSimServerConfig ResolveConfig()
         {
-            return new Space4XSimServerConfig
+            var config = new Space4XSimServerConfig
             {
-                Seed = (uint)ReadInt(SeedEnv, 1337),
-                FactionCount = (ushort)Mathf.Clamp(ReadInt(FactionsEnv, 4), 1, 32),
-                SystemsPerFaction = (ushort)Mathf.Clamp(ReadInt(SystemsPerFactionEnv, 3), 1, 16),
-                ResourcesPerSystem = (ushort)Mathf.Clamp(ReadInt(ResourcesPerSystemEnv, 6), 1, 64),
-                StartRadius = ReadFloat(StartRadiusEnv, 5000f),
-                SystemSpacing = ReadFloat(SystemSpacingEnv, 2000f),
-                ResourceBaseUnits = ReadFloat(ResourceBaseEnv, 800f),
-                ResourceRichnessGradient = ReadFloat(ResourceGradientEnv, 0.2f),
-                TechDiffusionDurationSeconds = ReadFloat(TechDurationEnv, 14400f),
-                TargetTicksPerSecond = Mathf.Clamp(ReadFloat(TargetTpsEnv, 2f), 0.5f, 120f),
-                HttpPort = (ushort)Mathf.Clamp(ReadInt(PortEnv, 45100), 1024, 65535),
-                AutosaveSeconds = Mathf.Max(0f, ReadFloat(AutosaveEnv, 0f)),
+                Seed = 1337u,
+                FactionCount = 4,
+                SystemsPerFaction = 3,
+                ResourcesPerSystem = 6,
+                StartRadius = 5000f,
+                SystemSpacing = 2000f,
+                ResourceBaseUnits = 800f,
+                ResourceRichnessGradient = 0.2f,
+                ResourceBiasChance = -1f,
+                TechDiffusionDurationSeconds = 14400f,
+                TargetTicksPerSecond = 2f,
+                HttpPort = 45100,
+                AutosaveSeconds = 0f,
+                FoodPerPopPerSecond = 0.0003f,
+                WaterPerPopPerSecond = 0.0003f,
+                FuelPerPopPerSecond = 0.00015f,
+                SuppliesConsumptionPerPopPerSecond = 0.0001f,
                 TraitMask = GalaxySystemTraitMask.All,
                 PoiMask = GalaxyPoiMask.All,
                 MaxTraitsPerSystem = 1,
@@ -67,6 +73,16 @@ namespace Space4X.SimServer
                 PoiOffsetMin = 450f,
                 PoiOffsetMax = 900f
             };
+
+            Space4XSimServerUserConfig.EnsureDefaultConfigFileExists();
+            if (Space4XSimServerUserConfig.TryLoad(out var userConfig))
+            {
+                Space4XSimServerUserConfig.ApplyOverrides(ref config, userConfig);
+            }
+
+            ApplyEnvOverrides(ref config);
+            ClampConfig(ref config);
+            return config;
         }
 
         private static bool EnvIsTruthy(string key)
@@ -102,6 +118,53 @@ namespace Space4X.SimServer
             return float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : fallback;
+        }
+
+        internal static void ApplyEnvOverrides(ref Space4XSimServerConfig config)
+        {
+            if (TryReadInt(SeedEnv, out var seed)) config.Seed = (uint)seed;
+            if (TryReadInt(FactionsEnv, out var factions)) config.FactionCount = (ushort)factions;
+            if (TryReadInt(SystemsPerFactionEnv, out var systems)) config.SystemsPerFaction = (ushort)systems;
+            if (TryReadInt(ResourcesPerSystemEnv, out var resources)) config.ResourcesPerSystem = (ushort)resources;
+            if (TryReadFloat(StartRadiusEnv, out var startRadius)) config.StartRadius = startRadius;
+            if (TryReadFloat(SystemSpacingEnv, out var systemSpacing)) config.SystemSpacing = systemSpacing;
+            if (TryReadFloat(ResourceBaseEnv, out var resourceBase)) config.ResourceBaseUnits = resourceBase;
+            if (TryReadFloat(ResourceGradientEnv, out var gradient)) config.ResourceRichnessGradient = gradient;
+            if (TryReadFloat(ResourceBiasChanceEnv, out var biasChance)) config.ResourceBiasChance = biasChance;
+            if (TryReadFloat(TechDurationEnv, out var techDuration)) config.TechDiffusionDurationSeconds = techDuration;
+            if (TryReadFloat(TargetTpsEnv, out var targetTps)) config.TargetTicksPerSecond = targetTps;
+            if (TryReadInt(PortEnv, out var port)) config.HttpPort = (ushort)port;
+            if (TryReadFloat(AutosaveEnv, out var autosave)) config.AutosaveSeconds = autosave;
+        }
+
+        internal static void ClampConfig(ref Space4XSimServerConfig config)
+        {
+            config.FactionCount = (ushort)Mathf.Clamp(config.FactionCount, 1, 32);
+            config.SystemsPerFaction = (ushort)Mathf.Clamp(config.SystemsPerFaction, 1, 16);
+            config.ResourcesPerSystem = (ushort)Mathf.Clamp(config.ResourcesPerSystem, 1, 64);
+            config.TargetTicksPerSecond = Mathf.Clamp(config.TargetTicksPerSecond, 0.5f, 120f);
+            config.HttpPort = (ushort)Mathf.Clamp(config.HttpPort, 1024, 65535);
+            config.AutosaveSeconds = Mathf.Max(0f, config.AutosaveSeconds);
+            config.FoodPerPopPerSecond = Mathf.Max(0f, config.FoodPerPopPerSecond);
+            config.WaterPerPopPerSecond = Mathf.Max(0f, config.WaterPerPopPerSecond);
+            config.FuelPerPopPerSecond = Mathf.Max(0f, config.FuelPerPopPerSecond);
+            config.SuppliesConsumptionPerPopPerSecond = Mathf.Max(0f, config.SuppliesConsumptionPerPopPerSecond);
+            if (config.ResourceBiasChance >= 0f)
+            {
+                config.ResourceBiasChance = Mathf.Clamp01(config.ResourceBiasChance);
+            }
+        }
+
+        private static bool TryReadInt(string key, out int value)
+        {
+            var v = System.Environment.GetEnvironmentVariable(key);
+            return int.TryParse(v, out value);
+        }
+
+        private static bool TryReadFloat(string key, out float value)
+        {
+            var v = System.Environment.GetEnvironmentVariable(key);
+            return float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
         }
     }
 }

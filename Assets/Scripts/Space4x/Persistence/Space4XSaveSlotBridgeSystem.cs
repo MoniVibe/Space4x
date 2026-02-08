@@ -2,7 +2,6 @@ using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Persistence;
 using PureDOTS.Runtime.Time;
-using Unity.Burst;
 using Unity.Entities;
 using Space4XSaveSlotRequest = Space4X.Runtime.SaveSlotRequest;
 
@@ -11,17 +10,14 @@ namespace Space4x.Persistence
     /// <summary>
     /// Bridges Space4x save slot requests into PureDOTS persistence commands.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XSaveSlotBridgeSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton<RewindState>(out var rewindState) ||

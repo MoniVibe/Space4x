@@ -1,6 +1,5 @@
 using PureDOTS.Runtime.Components;
 using Space4X.Runtime;
-using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -20,13 +19,11 @@ namespace Space4X.Scenario
         public float PhaseOffset;
     }
 
-    [BurstCompile]
     [DisableAutoCreation]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateBefore(typeof(TransformSystemGroup))]
     public partial struct Space4XScenarioMotionSystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             // Hard-disabled: legacy motion is a demo-only visualization.
@@ -41,7 +38,6 @@ namespace Space4X.Scenario
             state.RequireForUpdate<Space4XScenarioMarker>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();

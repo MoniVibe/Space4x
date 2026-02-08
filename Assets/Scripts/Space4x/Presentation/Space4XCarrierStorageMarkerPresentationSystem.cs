@@ -315,6 +315,22 @@ namespace Space4X.Presentation
                 ResourceType.EnergyCrystals => new float4(0.2f, 0.8f, 1f, 1f),
                 ResourceType.OrganicMatter => new float4(0.2f, 0.8f, 0.3f, 1f),
                 ResourceType.Ore => new float4(0.5f, 0.3f, 0.2f, 1f),
+                ResourceType.Volatiles => ResourceTypeColor.Volatiles.Value,
+                ResourceType.TransplutonicOre => ResourceTypeColor.TransplutonicOre.Value,
+                ResourceType.ExoticGases => ResourceTypeColor.ExoticGases.Value,
+                ResourceType.VolatileMotes => ResourceTypeColor.VolatileMotes.Value,
+                ResourceType.IndustrialCrystals => ResourceTypeColor.IndustrialCrystals.Value,
+                ResourceType.Isotopes => ResourceTypeColor.Isotopes.Value,
+                ResourceType.HeavyWater => ResourceTypeColor.HeavyWater.Value,
+                ResourceType.LiquidOzone => ResourceTypeColor.LiquidOzone.Value,
+                ResourceType.StrontiumClathrates => ResourceTypeColor.StrontiumClathrates.Value,
+                ResourceType.SalvageComponents => ResourceTypeColor.SalvageComponents.Value,
+                ResourceType.BoosterGas => ResourceTypeColor.BoosterGas.Value,
+                ResourceType.RelicData => ResourceTypeColor.RelicData.Value,
+                ResourceType.Food => ResourceTypeColor.Food.Value,
+                ResourceType.Water => ResourceTypeColor.Water.Value,
+                ResourceType.Supplies => ResourceTypeColor.Supplies.Value,
+                ResourceType.Fuel => ResourceTypeColor.Fuel.Value,
                 _ => new float4(1f, 1f, 1f, 1f)
             };
         }

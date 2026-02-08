@@ -66,6 +66,7 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<ColonyFacilityLink> _facilityLinkLookup;
         private ComponentLookup<Space4XResearchUnlocks> _unlockLookup;
         private ComponentLookup<ProductionQueueCapacity> _queueCapacityLookup;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -81,6 +82,7 @@ namespace Space4X.Systems.Economy
             _facilityLinkLookup = state.GetComponentLookup<ColonyFacilityLink>(true);
             _unlockLookup = state.GetComponentLookup<Space4XResearchUnlocks>(true);
             _queueCapacityLookup = state.GetComponentLookup<ProductionQueueCapacity>(true);
+            _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -111,6 +113,7 @@ namespace Space4X.Systems.Economy
             _facilityLinkLookup.Update(ref state);
             _unlockLookup.Update(ref state);
             _queueCapacityLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -124,7 +127,7 @@ namespace Space4X.Systems.Economy
                 }
 
                 var inventoryEntity = _inventoryLookup[entity].InventoryEntity;
-                if (inventoryEntity == Entity.Null || !_itemsLookup.HasBuffer(inventoryEntity))
+                if (!IsValidEntity(inventoryEntity) || !_itemsLookup.HasBuffer(inventoryEntity))
                 {
                     continue;
                 }
@@ -152,7 +155,7 @@ namespace Space4X.Systems.Economy
                 if (_facilityLinkLookup.HasComponent(entity))
                 {
                     var colony = _facilityLinkLookup[entity].Colony;
-                    if (colony != Entity.Null && _unlockLookup.HasComponent(colony))
+                    if (IsValidEntity(colony) && _unlockLookup.HasComponent(colony))
                     {
                         unlocks = _unlockLookup[colony];
                     }
@@ -173,6 +176,11 @@ namespace Space4X.Systems.Economy
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
         }
 
         private FixedString64Bytes SelectRecipe(FacilityBusinessClass role, DynamicBuffer<InventoryItem> items, float capacity, in Space4XResearchUnlocks unlocks)

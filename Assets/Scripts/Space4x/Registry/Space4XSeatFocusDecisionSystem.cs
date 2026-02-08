@@ -29,6 +29,7 @@ namespace Space4X.Registry
         private ComponentLookup<FocusAbilityRequest> _requestLookup;
         private ComponentLookup<FocusAbilityDeactivateRequest> _deactivateLookup;
         private ComponentLookup<Carrier> _carrierLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         private static readonly FixedString64Bytes RoleCaptain = "ship.captain";
         private static readonly FixedString64Bytes RoleXO = "ship.xo";
@@ -86,6 +87,7 @@ namespace Space4X.Registry
             _requestLookup = state.GetComponentLookup<FocusAbilityRequest>(true);
             _deactivateLookup = state.GetComponentLookup<FocusAbilityDeactivateRequest>(true);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
 
         }
 
@@ -106,6 +108,7 @@ namespace Space4X.Registry
             _requestLookup.Update(ref state);
             _deactivateLookup.Update(ref state);
             _carrierLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -118,7 +121,8 @@ namespace Space4X.Registry
                 }
 
                 var occupantEntity = occupant.ValueRO.OccupantEntity;
-                if (occupantEntity == Entity.Null || !_focusLookup.HasComponent(occupantEntity) || !_profileLookup.HasComponent(occupantEntity))
+                if (occupantEntity == Entity.Null || !_entityInfoLookup.Exists(occupantEntity) ||
+                    !_focusLookup.HasComponent(occupantEntity) || !_profileLookup.HasComponent(occupantEntity))
                 {
                     continue;
                 }
@@ -129,7 +133,7 @@ namespace Space4X.Registry
                 }
 
                 var shipEntity = seat.ValueRO.BodyEntity;
-                if (shipEntity == Entity.Null)
+                if (shipEntity == Entity.Null || !_entityInfoLookup.Exists(shipEntity))
                 {
                     continue;
                 }

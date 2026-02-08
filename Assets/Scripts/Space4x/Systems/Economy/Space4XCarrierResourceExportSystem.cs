@@ -28,6 +28,7 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<Space4XColony> _colonyLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -48,6 +49,7 @@ namespace Space4X.Systems.Economy
             _colonyLookup = state.GetComponentLookup<Space4XColony>(false);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -110,6 +112,7 @@ namespace Space4X.Systems.Economy
             _colonyLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             using var colonyEntities = _colonyQuery.ToEntityArray(Allocator.Temp);
 
@@ -119,6 +122,11 @@ namespace Space4X.Systems.Economy
                          .WithAll<Carrier>()
                          .WithEntityAccess())
             {
+                if (!IsValidEntity(carrier))
+                {
+                    continue;
+                }
+
                 var storageBuffer = storage;
                 if (storageBuffer.Length == 0)
                 {
@@ -126,7 +134,7 @@ namespace Space4X.Systems.Economy
                 }
 
                 var targetColony = ResolveTargetColony(carrier, transform.ValueRO.Position, maxDistanceSq, colonyEntities);
-                if (targetColony == Entity.Null || !_stockLookup.HasComponent(targetColony))
+                if (!IsValidEntity(targetColony) || !_stockLookup.HasComponent(targetColony))
                 {
                     continue;
                 }
@@ -172,7 +180,13 @@ namespace Space4X.Systems.Economy
                 if (_colonyLookup.HasComponent(targetColony))
                 {
                     var colony = _colonyLookup[targetColony];
-                    colony.StoredResources = math.max(0f, stock.OreReserve + stock.SuppliesReserve + stock.ResearchReserve);
+                    colony.StoredResources = math.max(0f,
+                        stock.OreReserve
+                        + stock.SuppliesReserve
+                        + stock.ResearchReserve
+                        + stock.FoodReserve
+                        + stock.WaterReserve
+                        + stock.FuelReserve);
                     _colonyLookup[targetColony] = colony;
                 }
             }
@@ -194,7 +208,7 @@ namespace Space4X.Systems.Economy
         private Entity ResolveTargetColony(Entity carrier, float3 carrierPosition, float maxDistanceSq, NativeArray<Entity> colonies)
         {
             var affiliationTarget = Entity.Null;
-            var hasAffiliations = _affiliationLookup.HasBuffer(carrier);
+            var hasAffiliations = IsValidEntity(carrier) && _affiliationLookup.HasBuffer(carrier);
             if (hasAffiliations)
             {
                 var affiliations = _affiliationLookup[carrier];
@@ -236,7 +250,7 @@ namespace Space4X.Systems.Economy
             for (int i = 0; i < colonies.Length; i++)
             {
                 var colony = colonies[i];
-                if (colony == Entity.Null)
+                if (!IsValidEntity(colony))
                 {
                     continue;
                 }
@@ -284,6 +298,11 @@ namespace Space4X.Systems.Economy
         private bool IsWithinRange(Entity colony, float3 carrierPosition, float maxDistanceSq, out float distanceSq)
         {
             distanceSq = 0f;
+            if (!IsValidEntity(colony))
+            {
+                return false;
+            }
+
             if (_transformLookup.HasComponent(colony))
             {
                 distanceSq = math.distancesq(_transformLookup[colony].Position, carrierPosition);
@@ -298,6 +317,11 @@ namespace Space4X.Systems.Economy
             return maxDistanceSq <= 0f;
         }
 
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
+        }
+
         private static bool TryApplyToStock(ref ColonyIndustryStock stock, ResourceType type, float amount)
         {
             switch (type)
@@ -305,11 +329,35 @@ namespace Space4X.Systems.Economy
                 case ResourceType.Minerals:
                 case ResourceType.RareMetals:
                 case ResourceType.Ore:
+                case ResourceType.TransplutonicOre:
+                case ResourceType.IndustrialCrystals:
+                case ResourceType.SalvageComponents:
                     stock.OreReserve += amount;
                     return true;
                 case ResourceType.EnergyCrystals:
                 case ResourceType.OrganicMatter:
+                case ResourceType.Volatiles:
+                case ResourceType.ExoticGases:
+                case ResourceType.VolatileMotes:
+                case ResourceType.Isotopes:
+                case ResourceType.HeavyWater:
+                case ResourceType.LiquidOzone:
+                case ResourceType.StrontiumClathrates:
+                case ResourceType.BoosterGas:
+                case ResourceType.Supplies:
                     stock.SuppliesReserve += amount;
+                    return true;
+                case ResourceType.Food:
+                    stock.FoodReserve += amount;
+                    return true;
+                case ResourceType.Water:
+                    stock.WaterReserve += amount;
+                    return true;
+                case ResourceType.Fuel:
+                    stock.FuelReserve += amount;
+                    return true;
+                case ResourceType.RelicData:
+                    stock.ResearchReserve += amount;
                     return true;
                 default:
                     return false;

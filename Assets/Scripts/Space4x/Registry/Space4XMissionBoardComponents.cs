@@ -12,7 +12,17 @@ namespace Space4X.Registry
         HaulProcure = 3,
         Patrol = 4,
         Intercept = 5,
-        BuildStation = 6
+        BuildStation = 6,
+        Salvage = 7,
+        Escort = 8,
+        Resupply = 9,
+        Trade = 10,
+        Repair = 11,
+        Survey = 12,
+        Expedition = 13,
+        Raid = 14,
+        Destroy = 15,
+        Acquire = 16
     }
 
     public enum Space4XMissionStatus : byte

@@ -496,6 +496,30 @@ namespace Space4X.SimServer
                 return false;
             }
 
+            var factionLookup = state.GetComponentLookup<Space4XFaction>(true);
+            var empireLookup = state.GetComponentLookup<EmpireMembership>(true);
+            var carrierLookup = state.GetComponentLookup<Carrier>(true);
+            var affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            var contactLookup = state.GetBufferLookup<Space4XContactStanding>(true);
+            var relationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
+            var raceLookup = state.GetBufferLookup<RacePresence>(true);
+            var cultureLookup = state.GetBufferLookup<CulturePresence>(true);
+
+            if (!Space4XStandingUtility.PassesMissionStandingGate(
+                    agent,
+                    offer,
+                    factionLookup,
+                    empireLookup,
+                    carrierLookup,
+                    affiliationLookup,
+                    contactLookup,
+                    relationLookup,
+                    raceLookup,
+                    cultureLookup))
+            {
+                return false;
+            }
+
             if (state.EntityManager.HasComponent<Space4XMissionAssignment>(agent))
             {
                 return false;
@@ -506,7 +530,10 @@ namespace Space4X.SimServer
                 return false;
             }
 
-            var isHaul = offer.Type == Space4XMissionType.HaulDelivery || offer.Type == Space4XMissionType.HaulProcure;
+            var isHaul = offer.Type == Space4XMissionType.HaulDelivery
+                         || offer.Type == Space4XMissionType.HaulProcure
+                         || offer.Type == Space4XMissionType.Resupply
+                         || offer.Type == Space4XMissionType.Trade;
             var sourceEntity = offer.TargetEntity;
             var sourcePos = offer.TargetPosition;
             var destPos = offer.TargetPosition;
@@ -644,6 +671,15 @@ namespace Space4X.SimServer
                 }
             }
 
+            var factionLookup = state.GetComponentLookup<Space4XFaction>(true);
+            var empireLookup = state.GetComponentLookup<EmpireMembership>(true);
+            var carrierLookup = state.GetComponentLookup<Carrier>(true);
+            var affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            var contactLookup = state.GetBufferLookup<Space4XContactStanding>(true);
+            var relationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
+            var raceLookup = state.GetBufferLookup<RacePresence>(true);
+            var cultureLookup = state.GetBufferLookup<CulturePresence>(true);
+
             var factionId = request.ResolveAssigneeFactionId();
             foreach (var (order, transform, entity) in SystemAPI.Query<RefRO<CaptainOrder>, RefRO<LocalTransform>>().WithNone<Space4XMissionAssignment>().WithEntityAccess())
             {
@@ -653,6 +689,21 @@ namespace Space4X.SimServer
                 }
 
                 if (factionId != 0 && !MatchesFactionId(ref state, entity, factionId))
+                {
+                    continue;
+                }
+
+                if (!Space4XStandingUtility.PassesMissionStandingGate(
+                        entity,
+                        offer,
+                        factionLookup,
+                        empireLookup,
+                        carrierLookup,
+                        affiliationLookup,
+                        contactLookup,
+                        relationLookup,
+                        raceLookup,
+                        cultureLookup))
                 {
                     continue;
                 }
@@ -701,14 +752,37 @@ namespace Space4X.SimServer
                        || (dispositionLookup.HasComponent(entity) && (dispositionLookup[entity].Flags & EntityDispositionFlags.Mining) != 0);
             }
 
-            if (type == Space4XMissionType.HaulDelivery || type == Space4XMissionType.HaulProcure)
+            if (type == Space4XMissionType.HaulDelivery
+                || type == Space4XMissionType.HaulProcure
+                || type == Space4XMissionType.Resupply
+                || type == Space4XMissionType.Trade)
             {
-                return !dispositionLookup.HasComponent(entity) || (dispositionLookup[entity].Flags & EntityDispositionFlags.Hauler) != 0;
+                if (!dispositionLookup.HasComponent(entity))
+                {
+                    return true;
+                }
+
+                var flags = dispositionLookup[entity].Flags;
+                return (flags & (EntityDispositionFlags.Hauler | EntityDispositionFlags.Trader | EntityDispositionFlags.Support)) != 0;
             }
 
-            if (type == Space4XMissionType.Patrol || type == Space4XMissionType.Intercept)
+            if (type == Space4XMissionType.Patrol
+                || type == Space4XMissionType.Intercept
+                || type == Space4XMissionType.Raid
+                || type == Space4XMissionType.Destroy
+                || type == Space4XMissionType.Escort)
             {
                 return !dispositionLookup.HasComponent(entity) || EntityDispositionUtility.IsCombatant(dispositionLookup[entity].Flags);
+            }
+
+            if (type == Space4XMissionType.Repair)
+            {
+                if (!dispositionLookup.HasComponent(entity))
+                {
+                    return true;
+                }
+
+                return (dispositionLookup[entity].Flags & EntityDispositionFlags.Support) != 0;
             }
 
             return true;
@@ -725,6 +799,16 @@ namespace Space4X.SimServer
                 Space4XMissionType.Patrol => CaptainOrderType.Patrol,
                 Space4XMissionType.Intercept => CaptainOrderType.Intercept,
                 Space4XMissionType.BuildStation => CaptainOrderType.Construct,
+                Space4XMissionType.Salvage => CaptainOrderType.Rescue,
+                Space4XMissionType.Escort => CaptainOrderType.Escort,
+                Space4XMissionType.Resupply => CaptainOrderType.Resupply,
+                Space4XMissionType.Trade => CaptainOrderType.Trade,
+                Space4XMissionType.Repair => CaptainOrderType.Repair,
+                Space4XMissionType.Survey => CaptainOrderType.Survey,
+                Space4XMissionType.Expedition => CaptainOrderType.Survey,
+                Space4XMissionType.Raid => CaptainOrderType.Attack,
+                Space4XMissionType.Destroy => CaptainOrderType.Attack,
+                Space4XMissionType.Acquire => CaptainOrderType.MoveTo,
                 _ => CaptainOrderType.None
             };
         }
@@ -741,6 +825,16 @@ namespace Space4X.SimServer
                 Space4XMissionType.Patrol => 1.5f,
                 Space4XMissionType.Intercept => 1.0f,
                 Space4XMissionType.BuildStation => 2.0f,
+                Space4XMissionType.Salvage => 1.3f,
+                Space4XMissionType.Escort => 1.2f,
+                Space4XMissionType.Resupply => 1.1f,
+                Space4XMissionType.Trade => 1.1f,
+                Space4XMissionType.Repair => 1.3f,
+                Space4XMissionType.Survey => 1.1f,
+                Space4XMissionType.Expedition => 2.2f,
+                Space4XMissionType.Raid => 1.2f,
+                Space4XMissionType.Destroy => 1.3f,
+                Space4XMissionType.Acquire => 1.2f,
                 _ => 1.0f
             };
 
@@ -791,7 +885,9 @@ namespace Space4X.SimServer
                 }
             }
 
-            var preferIssuer = offer.Type == Space4XMissionType.HaulDelivery;
+            var preferIssuer = offer.Type == Space4XMissionType.HaulDelivery
+                               || offer.Type == Space4XMissionType.Resupply
+                               || offer.Type == Space4XMissionType.Trade;
             var bestIndex = -1;
             var bestScore = -1f;
 

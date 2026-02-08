@@ -16,12 +16,18 @@ namespace Space4X.Systems.AI
     [UpdateInGroup(typeof(AISystemGroup))]
     public partial struct Space4XCommDecisionBridgeSystem : ISystem
     {
+        private ComponentLookup<Space4XCommOrderIntent> _intentLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<CommDecision>();
             state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
+
+            _intentLookup = state.GetComponentLookup<Space4XCommOrderIntent>(false);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -40,6 +46,9 @@ namespace Space4X.Systems.AI
 
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
+
+            _intentLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             foreach (var (decisions, entity) in SystemAPI.Query<DynamicBuffer<CommDecision>>()
                          .WithAny<VesselAIState, Carrier>()
@@ -77,8 +86,8 @@ namespace Space4X.Systems.AI
                     var intent = new Space4XCommOrderIntent
                     {
                         Verb = decision.OrderVerb,
-                        Sender = decision.Sender,
-                        Target = decision.OrderTarget,
+                        Sender = IsValidEntity(decision.Sender) ? decision.Sender : Entity.Null,
+                        Target = IsValidEntity(decision.OrderTarget) ? decision.OrderTarget : Entity.Null,
                         TargetPosition = decision.OrderTargetPosition,
                         Side = decision.OrderSide,
                         Priority = decision.OrderPriority,
@@ -90,9 +99,9 @@ namespace Space4X.Systems.AI
                         Inferred = decision.Inferred
                     };
 
-                    if (state.EntityManager.HasComponent<Space4XCommOrderIntent>(entity))
+                    if (_intentLookup.HasComponent(entity))
                     {
-                        state.EntityManager.SetComponentData(entity, intent);
+                        _intentLookup[entity] = intent;
                     }
                     else
                     {
@@ -102,6 +111,11 @@ namespace Space4X.Systems.AI
 
                 decisions.Clear();
             }
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
     }
 }

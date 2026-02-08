@@ -441,12 +441,15 @@ namespace Space4X.Registry
     [UpdateBefore(typeof(Space4XTargetPrioritySystem))]
     public partial struct Space4XTargetProfileUpdateSystem : ISystem
     {
+        private ComponentLookup<CaptainState> _captainLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TargetSelectionProfile>();
             state.RequireForUpdate<AlignmentTriplet>();
             state.RequireForUpdate<TimeState>();
+            _captainLookup = state.GetComponentLookup<CaptainState>(true);
         }
 
         [BurstCompile]
@@ -465,15 +468,17 @@ namespace Space4X.Registry
                 return;
             }
 
+            _captainLookup.Update(ref state);
+
             foreach (var (profile, alignment, entity) in
                 SystemAPI.Query<RefRW<TargetSelectionProfile>, RefRO<AlignmentTriplet>>()
                     .WithEntityAccess())
             {
                 // Get captain autonomy if present
                 var autonomy = CaptainAutonomy.Tactical;
-                if (SystemAPI.HasComponent<CaptainState>(entity))
+                if (_captainLookup.HasComponent(entity))
                 {
-                    autonomy = SystemAPI.GetComponent<CaptainState>(entity).Autonomy;
+                    autonomy = _captainLookup[entity].Autonomy;
                 }
 
                 // Only update profile if captain has autonomy to do so

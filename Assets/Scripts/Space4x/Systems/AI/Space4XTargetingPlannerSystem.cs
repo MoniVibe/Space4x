@@ -89,7 +89,7 @@ namespace Space4X.Systems.AI
                     }
 
                     var memberEntity = member.MemberEntity;
-                    if (memberEntity == Entity.Null || !state.EntityManager.Exists(memberEntity))
+                    if (!IsValidEntity(memberEntity))
                     {
                         continue;
                     }
@@ -121,10 +121,7 @@ namespace Space4X.Systems.AI
                     }
                     else
                     {
-                        if (_entityInfoLookup.Exists(memberEntity) && _entityInfoLookup[memberEntity].Chunk.Capacity > 1)
-                        {
-                            ecb.AddComponent(memberEntity, new ModuleTargetPolicy { Kind = policy });
-                        }
+                        ecb.AddComponent(memberEntity, new ModuleTargetPolicy { Kind = policy });
                     }
                 }
 
@@ -164,6 +161,11 @@ namespace Space4X.Systems.AI
                 EngagementIntentKind.Rescue => ModuleTargetPolicyKind.DisableFighting,
                 _ => ModuleTargetPolicyKind.Default
             };
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
     }
 }

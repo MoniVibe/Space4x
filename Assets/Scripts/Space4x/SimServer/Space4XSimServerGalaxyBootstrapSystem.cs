@@ -61,7 +61,9 @@ namespace Space4X.SimServer
             }
             var contentRng = new Unity.Mathematics.Random(contentSeed);
             var entityManager = state.EntityManager;
-            const ushort resourceKindCount = (ushort)(ResourceType.Ore + 1);
+            const ushort resourceKindCount = (ushort)ResourceType.Count;
+            Space4XSimServerUserConfig.TryLoad(out var userConfig);
+            EnsureResourceDistribution(ref state, config.ResourceBiasChance, userConfig, out var resourceDistributionConfig, out var resourceWeights);
 
             var generationConfig = GalaxyGenerationConfig.FromBase(
                 config.Seed,
@@ -225,13 +227,12 @@ namespace Space4X.SimServer
                 SpawnSystemContent(entityManager, seed, ref contentRng, factionEntities);
             }
 
-            var maxResourceKind = (ushort)ResourceType.Ore;
-            var resourceKindModulo = (ushort)(maxResourceKind + 1);
+            var traitArray = traitSeeds.AsArray();
+            var poiArray = poiSeeds.AsArray();
             for (int i = 0; i < resourceSeeds.Length; i++)
             {
                 var seed = resourceSeeds[i];
-                var kindIndex = (ushort)(seed.KindIndex % resourceKindModulo);
-                var resourceType = (ResourceType)kindIndex;
+                var resourceType = ResolveResourceKind(config.Seed, seed, traitArray, poiArray, resourceDistributionConfig, resourceWeights);
                 var resourceId = resourceType.ToString();
                 var asteroidId = $"ast-{seed.RingIndex}-{seed.LocalIndex}-{seed.RandomSuffix:0000}";
                 CreateResourceDeposit(entityManager, seed.Position, resourceType, resourceId, asteroidId, seed.Units);
@@ -475,6 +476,258 @@ namespace Space4X.SimServer
                         break;
                 }
             }
+        }
+
+        private static ResourceType ResolveResourceKind(
+            uint worldSeed,
+            in GalaxyResourceSeed seed,
+            NativeArray<GalaxySystemTraitSeed> traitSeeds,
+            NativeArray<GalaxyPoiSeed> poiSeeds,
+            in Space4XResourceDistributionConfig distributionConfig,
+            DynamicBuffer<Space4XResourceWeightEntry> weights)
+        {
+            var hash = (uint)math.hash(new uint4(worldSeed, seed.SystemId, seed.LocalIndex, seed.RandomSuffix));
+            if (hash == 0u)
+            {
+                hash = 1u;
+            }
+
+            var rng = new Unity.Mathematics.Random(hash);
+            var biasMask = ResolveResourceBias(seed.SystemId, traitSeeds, poiSeeds);
+            var biasChance = math.saturate(distributionConfig.BiasChance);
+            if (biasMask != ResourceBiasMask.None && biasChance > 0f && rng.NextFloat() < biasChance)
+            {
+                var bias = PickBias(ref rng, biasMask);
+                var band = ResolveBiasBand(bias);
+                return Space4XResourceDistributionUtility.RollResource(band, weights, ref rng);
+            }
+
+            var ringBand = ResolveRingBand(seed.RingIndex);
+            return Space4XResourceDistributionUtility.RollResource(ringBand, weights, ref rng);
+        }
+
+        private static Space4XResourceBand ResolveRingBand(byte ringIndex)
+        {
+            if (ringIndex <= 2)
+            {
+                return Space4XResourceBand.Inner;
+            }
+
+            if (ringIndex <= 5)
+            {
+                return Space4XResourceBand.Mid;
+            }
+
+            return Space4XResourceBand.Outer;
+        }
+
+        [System.Flags]
+        private enum ResourceBiasMask : byte
+        {
+            None = 0,
+            Nebula = 1 << 0,
+            AncientCore = 1 << 1,
+            BlackHole = 1 << 2,
+            Neutron = 1 << 3,
+            Hazard = 1 << 4,
+            SuperResource = 1 << 5,
+            AncientRuins = 1 << 6,
+            GateFragment = 1 << 7
+        }
+
+        private static ResourceBiasMask ResolveResourceBias(
+            ushort systemId,
+            NativeArray<GalaxySystemTraitSeed> traitSeeds,
+            NativeArray<GalaxyPoiSeed> poiSeeds)
+        {
+            var mask = ResourceBiasMask.None;
+            for (int i = 0; i < traitSeeds.Length; i++)
+            {
+                var seed = traitSeeds[i];
+                if (seed.SystemId != systemId)
+                {
+                    continue;
+                }
+
+                switch (seed.Kind)
+                {
+                    case GalaxySystemTraitKind.Nebula:
+                        mask |= ResourceBiasMask.Nebula;
+                        break;
+                    case GalaxySystemTraitKind.AncientCore:
+                        mask |= ResourceBiasMask.AncientCore;
+                        break;
+                    case GalaxySystemTraitKind.BlackHole:
+                        mask |= ResourceBiasMask.BlackHole;
+                        break;
+                    case GalaxySystemTraitKind.Neutron:
+                        mask |= ResourceBiasMask.Neutron;
+                        break;
+                }
+            }
+
+            for (int i = 0; i < poiSeeds.Length; i++)
+            {
+                var seed = poiSeeds[i];
+                if (seed.SystemId != systemId)
+                {
+                    continue;
+                }
+
+                switch (seed.Kind)
+                {
+                    case GalaxyPoiKind.HazardZone:
+                        mask |= ResourceBiasMask.Hazard;
+                        break;
+                    case GalaxyPoiKind.SuperResource:
+                        mask |= ResourceBiasMask.SuperResource;
+                        break;
+                    case GalaxyPoiKind.AncientRuins:
+                    case GalaxyPoiKind.AlienShrine:
+                        mask |= ResourceBiasMask.AncientRuins;
+                        break;
+                    case GalaxyPoiKind.GateFragment:
+                        mask |= ResourceBiasMask.GateFragment;
+                        break;
+                }
+            }
+
+            return mask;
+        }
+
+        private static ResourceBiasMask PickBias(ref Unity.Mathematics.Random rng, ResourceBiasMask mask)
+        {
+            var count = 0;
+            if ((mask & ResourceBiasMask.Nebula) != 0) count++;
+            if ((mask & ResourceBiasMask.AncientCore) != 0) count++;
+            if ((mask & ResourceBiasMask.BlackHole) != 0) count++;
+            if ((mask & ResourceBiasMask.Neutron) != 0) count++;
+            if ((mask & ResourceBiasMask.Hazard) != 0) count++;
+            if ((mask & ResourceBiasMask.SuperResource) != 0) count++;
+            if ((mask & ResourceBiasMask.AncientRuins) != 0) count++;
+            if ((mask & ResourceBiasMask.GateFragment) != 0) count++;
+
+            if (count <= 1)
+            {
+                return mask;
+            }
+
+            var pick = rng.NextInt(0, count);
+            if ((mask & ResourceBiasMask.Nebula) != 0 && pick-- == 0) return ResourceBiasMask.Nebula;
+            if ((mask & ResourceBiasMask.AncientCore) != 0 && pick-- == 0) return ResourceBiasMask.AncientCore;
+            if ((mask & ResourceBiasMask.BlackHole) != 0 && pick-- == 0) return ResourceBiasMask.BlackHole;
+            if ((mask & ResourceBiasMask.Neutron) != 0 && pick-- == 0) return ResourceBiasMask.Neutron;
+            if ((mask & ResourceBiasMask.Hazard) != 0 && pick-- == 0) return ResourceBiasMask.Hazard;
+            if ((mask & ResourceBiasMask.SuperResource) != 0 && pick-- == 0) return ResourceBiasMask.SuperResource;
+            if ((mask & ResourceBiasMask.AncientRuins) != 0 && pick-- == 0) return ResourceBiasMask.AncientRuins;
+            return ResourceBiasMask.GateFragment;
+        }
+
+        private static Space4XResourceBand ResolveBiasBand(ResourceBiasMask bias)
+        {
+            if (bias.HasFlag(ResourceBiasMask.Nebula))
+            {
+                return Space4XResourceBand.Nebula;
+            }
+            if (bias.HasFlag(ResourceBiasMask.AncientCore))
+            {
+                return Space4XResourceBand.AncientCore;
+            }
+            if (bias.HasFlag(ResourceBiasMask.BlackHole))
+            {
+                return Space4XResourceBand.BlackHole;
+            }
+            if (bias.HasFlag(ResourceBiasMask.Neutron))
+            {
+                return Space4XResourceBand.Neutron;
+            }
+            if (bias.HasFlag(ResourceBiasMask.Hazard))
+            {
+                return Space4XResourceBand.Hazard;
+            }
+            if (bias.HasFlag(ResourceBiasMask.SuperResource))
+            {
+                return Space4XResourceBand.SuperResource;
+            }
+            if (bias.HasFlag(ResourceBiasMask.AncientRuins))
+            {
+                return Space4XResourceBand.Ruins;
+            }
+            return Space4XResourceBand.Gate;
+        }
+
+        private void EnsureResourceDistribution(
+            ref SystemState state,
+            float overrideBiasChance,
+            Space4XSimServerUserConfigFile userConfig,
+            out Space4XResourceDistributionConfig config,
+            out DynamicBuffer<Space4XResourceWeightEntry> weights)
+        {
+            var entityManager = state.EntityManager;
+            if (!SystemAPI.TryGetSingletonEntity<Space4XResourceDistributionConfig>(out var entity))
+            {
+                entity = entityManager.CreateEntity(typeof(Space4XResourceDistributionConfig));
+                config = Space4XResourceDistributionConfig.Default;
+                entityManager.SetComponentData(entity, config);
+                weights = entityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+                Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+                entityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
+                {
+                    BiasChance = config.BiasChance
+                });
+                var baselineWeightsInit = entityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
+                Space4XResourceDistributionBaselines.CopyWeightsToBaseline(weights, ref baselineWeightsInit);
+                if (userConfig != null)
+                {
+                    Space4XSimServerUserConfig.ApplyResourceDistributionOverrides(ref config, ref weights, userConfig);
+                }
+                if (overrideBiasChance >= 0f)
+                {
+                    config.BiasChance = math.saturate(overrideBiasChance);
+                }
+                entityManager.SetComponentData(entity, config);
+                return;
+            }
+
+            config = entityManager.GetComponentData<Space4XResourceDistributionConfig>(entity);
+            if (!entityManager.HasBuffer<Space4XResourceWeightEntry>(entity))
+            {
+                weights = entityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+                Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+            }
+            else
+            {
+                weights = entityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
+                if (weights.Length != (int)ResourceType.Count)
+                {
+                    Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+                }
+            }
+
+            if (!entityManager.HasComponent<Space4XResourceDistributionBaselineConfig>(entity))
+            {
+                entityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
+                {
+                    BiasChance = config.BiasChance
+                });
+            }
+            var baselineWeights = entityManager.HasBuffer<Space4XResourceWeightBaselineEntry>(entity)
+                ? entityManager.GetBuffer<Space4XResourceWeightBaselineEntry>(entity)
+                : entityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
+            if (baselineWeights.Length != weights.Length)
+            {
+                Space4XResourceDistributionBaselines.CopyWeightsToBaseline(weights, ref baselineWeights);
+            }
+
+            if (userConfig != null)
+            {
+                Space4XSimServerUserConfig.ApplyResourceDistributionOverrides(ref config, ref weights, userConfig);
+            }
+            if (overrideBiasChance >= 0f)
+            {
+                config.BiasChance = math.saturate(overrideBiasChance);
+            }
+            entityManager.SetComponentData(entity, config);
         }
 
         private static void CreatePointOfInterest(EntityManager entityManager, in GalaxyPoiSeed seed)

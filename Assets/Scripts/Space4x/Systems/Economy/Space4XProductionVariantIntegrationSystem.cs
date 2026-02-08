@@ -3,7 +3,6 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Economy.Production;
 using PureDOTS.Runtime.Economy.Resources;
 using Space4X.Registry;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -13,7 +12,6 @@ namespace Space4X.Systems.Economy
     /// <summary>
     /// Applies reverse engineering variants to freshly produced inventory items.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Runtime.Economy.Production.ProductionJobCompletionSystem))]
     [UpdateBefore(typeof(Space4XColonyIndustryTransferSystem))]
@@ -25,6 +23,22 @@ namespace Space4X.Systems.Economy
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<Space4XFaction> _factionLookup;
         private BufferLookup<ReverseEngineeringBlueprintVariant> _variantLookup;
+        private EntityStorageInfoLookup _entityLookup;
+        private FixedString64Bytes _lcvSparrowId;
+        private FixedString64Bytes _cvMuleId;
+        private FixedString64Bytes _engineMk1Id;
+        private FixedString64Bytes _engineMk2Id;
+        private FixedString64Bytes _shieldS1Id;
+        private FixedString64Bytes _shieldM1Id;
+        private FixedString64Bytes _laserS1Id;
+        private FixedString64Bytes _missileM1Id;
+        private FixedString64Bytes _missileS1Id;
+        private FixedString64Bytes _pdS1Id;
+        private FixedString64Bytes _bridgeMk1Id;
+        private FixedString64Bytes _cockpitMk1Id;
+        private FixedString64Bytes _armorS1Id;
+        private FixedString64Bytes _ammoBayS1Id;
+        private FixedString64Bytes _reactorMk2Id;
 
         public void OnCreate(ref SystemState state)
         {
@@ -38,9 +52,25 @@ namespace Space4X.Systems.Economy
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
             _variantLookup = state.GetBufferLookup<ReverseEngineeringBlueprintVariant>(false);
+            _entityLookup = state.GetEntityStorageInfoLookup();
+
+            _lcvSparrowId = new FixedString64Bytes("lcv-sparrow");
+            _cvMuleId = new FixedString64Bytes("cv-mule");
+            _engineMk1Id = new FixedString64Bytes("engine-mk1");
+            _engineMk2Id = new FixedString64Bytes("engine-mk2");
+            _shieldS1Id = new FixedString64Bytes("shield-s-1");
+            _shieldM1Id = new FixedString64Bytes("shield-m-1");
+            _laserS1Id = new FixedString64Bytes("laser-s-1");
+            _missileM1Id = new FixedString64Bytes("missile-m-1");
+            _missileS1Id = new FixedString64Bytes("missile-s-1");
+            _pdS1Id = new FixedString64Bytes("pd-s-1");
+            _bridgeMk1Id = new FixedString64Bytes("bridge-mk1");
+            _cockpitMk1Id = new FixedString64Bytes("cockpit-mk1");
+            _armorS1Id = new FixedString64Bytes("armor-s-1");
+            _ammoBayS1Id = new FixedString64Bytes("ammo-bay-s-1");
+            _reactorMk2Id = new FixedString64Bytes("reactor-mk2");
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton(out ScenarioState scenario) ||
@@ -68,6 +98,7 @@ namespace Space4X.Systems.Economy
             _affiliationLookup.Update(ref state);
             _factionLookup.Update(ref state);
             _variantLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             var tick = tickTime.Tick;
 
@@ -75,8 +106,13 @@ namespace Space4X.Systems.Economy
                          .Query<RefRO<BusinessInventory>, RefRO<ColonyFacilityLink>>()
                          .WithEntityAccess())
             {
+                if (!IsValidEntity(facility))
+                {
+                    continue;
+                }
+
                 var inventoryEntity = inventory.ValueRO.InventoryEntity;
-                if (inventoryEntity == Entity.Null || !_itemsLookup.HasBuffer(inventoryEntity))
+                if (!IsValidEntity(inventoryEntity) || !_itemsLookup.HasBuffer(inventoryEntity))
                 {
                     continue;
                 }
@@ -139,19 +175,19 @@ namespace Space4X.Systems.Economy
 
         private bool TryResolveFaction(Entity colony, out Entity factionEntity)
         {
-            if (colony != Entity.Null && _factionLookup.HasComponent(colony))
+            if (IsValidEntity(colony) && _factionLookup.HasComponent(colony))
             {
                 factionEntity = colony;
                 return true;
             }
 
-            if (colony != Entity.Null && _affiliationLookup.HasBuffer(colony))
+            if (IsValidEntity(colony) && _affiliationLookup.HasBuffer(colony))
             {
                 var affiliations = _affiliationLookup[colony];
                 for (int i = 0; i < affiliations.Length; i++)
                 {
                     var target = affiliations[i].Target;
-                    if (target != Entity.Null && _factionLookup.HasComponent(target))
+                    if (IsValidEntity(target) && _factionLookup.HasComponent(target))
                     {
                         factionEntity = target;
                         return true;
@@ -163,49 +199,54 @@ namespace Space4X.Systems.Economy
             return false;
         }
 
-        private static ushort ResolveBlueprintFamily(in FixedString64Bytes itemId)
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
+        }
+
+        private ushort ResolveBlueprintFamily(in FixedString64Bytes itemId)
         {
             if (itemId.IsEmpty)
             {
                 return 0;
             }
 
-            if (itemId.Equals("lcv-sparrow") || itemId.Equals("cv-mule"))
+            if (itemId.Equals(_lcvSparrowId) || itemId.Equals(_cvMuleId))
             {
                 return ReverseEngineeringBlueprintFamily.Hull;
             }
 
-            if (itemId.Equals("engine-mk1") || itemId.Equals("engine-mk2"))
+            if (itemId.Equals(_engineMk1Id) || itemId.Equals(_engineMk2Id))
             {
                 return ReverseEngineeringBlueprintFamily.Engine;
             }
 
-            if (itemId.Equals("shield-s-1") || itemId.Equals("shield-m-1"))
+            if (itemId.Equals(_shieldS1Id) || itemId.Equals(_shieldM1Id))
             {
                 return ReverseEngineeringBlueprintFamily.Shield;
             }
 
-            if (itemId.Equals("laser-s-1") || itemId.Equals("missile-m-1") || itemId.Equals("missile-s-1") || itemId.Equals("pd-s-1"))
+            if (itemId.Equals(_laserS1Id) || itemId.Equals(_missileM1Id) || itemId.Equals(_missileS1Id) || itemId.Equals(_pdS1Id))
             {
                 return ReverseEngineeringBlueprintFamily.Weapon;
             }
 
-            if (itemId.Equals("bridge-mk1") || itemId.Equals("cockpit-mk1"))
+            if (itemId.Equals(_bridgeMk1Id) || itemId.Equals(_cockpitMk1Id))
             {
                 return ReverseEngineeringBlueprintFamily.Command;
             }
 
-            if (itemId.Equals("armor-s-1"))
+            if (itemId.Equals(_armorS1Id))
             {
                 return ReverseEngineeringBlueprintFamily.Armor;
             }
 
-            if (itemId.Equals("ammo-bay-s-1"))
+            if (itemId.Equals(_ammoBayS1Id))
             {
                 return ReverseEngineeringBlueprintFamily.Ammo;
             }
 
-            if (itemId.Equals("reactor-mk2"))
+            if (itemId.Equals(_reactorMk2Id))
             {
                 return ReverseEngineeringBlueprintFamily.Reactor;
             }

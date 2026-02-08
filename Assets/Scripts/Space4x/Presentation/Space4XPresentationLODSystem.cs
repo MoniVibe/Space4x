@@ -81,6 +81,7 @@ namespace Space4X.Presentation
             }.ScheduleParallel();
         }
 
+        [BurstCompile]
         private partial struct UpdateLODJob : IJobEntity
         {
             public float3 CameraPosition;
@@ -234,6 +235,7 @@ namespace Space4X.Presentation
         {
         }
 
+        [BurstCompile]
         public partial struct UpdatePresentationModeJob : IJobEntity
         {
             public void Execute(in RenderLODData lodData,

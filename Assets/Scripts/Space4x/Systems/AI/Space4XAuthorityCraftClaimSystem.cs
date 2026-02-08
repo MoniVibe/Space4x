@@ -25,6 +25,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AuthoritySeatOccupant> _occupantLookup;
         private ComponentLookup<AuthorityCraftClaimConfig> _configLookup;
         private ComponentLookup<ChildVesselTether> _tetherLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -39,6 +40,7 @@ namespace Space4X.Systems.AI
             _occupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _configLookup = state.GetComponentLookup<AuthorityCraftClaimConfig>(true);
             _tetherLookup = state.GetComponentLookup<ChildVesselTether>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -68,24 +70,24 @@ namespace Space4X.Systems.AI
             _occupantLookup.Update(ref state);
             _configLookup.Update(ref state);
             _tetherLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var tick = time.Tick;
-            var em = state.EntityManager;
             var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
 
             foreach (var (profile, entity) in SystemAPI.Query<RefRO<StrikeCraftProfile>>().WithEntityAccess())
             {
                 var carrier = ResolveCarrier(profile.ValueRO.Carrier, entity);
-                ApplyAuthorityClaims(entity, carrier, AuthorityCraftTarget.StrikeCraft, tick, em, ref ecb);
+                ApplyAuthorityClaims(entity, carrier, AuthorityCraftTarget.StrikeCraft, tick, ref ecb);
             }
 
             foreach (var (vessel, entity) in SystemAPI.Query<RefRO<MiningVessel>>().WithEntityAccess())
             {
                 var carrier = ResolveCarrier(vessel.ValueRO.CarrierEntity, entity);
-                ApplyAuthorityClaims(entity, carrier, AuthorityCraftTarget.MiningVessel, tick, em, ref ecb);
+                ApplyAuthorityClaims(entity, carrier, AuthorityCraftTarget.MiningVessel, tick, ref ecb);
             }
 
-            ecb.Playback(em);
+            ecb.Playback(state.EntityManager);
         }
 
         private Entity ResolveCarrier(Entity declaredCarrier, Entity craftEntity)
@@ -112,10 +114,9 @@ namespace Space4X.Systems.AI
             Entity carrierEntity,
             AuthorityCraftTarget target,
             uint tick,
-            EntityManager em,
             ref EntityCommandBuffer ecb)
         {
-            if (carrierEntity == Entity.Null || !em.Exists(carrierEntity))
+            if (carrierEntity == Entity.Null || !_entityInfoLookup.Exists(carrierEntity))
             {
                 return;
             }
@@ -183,7 +184,7 @@ namespace Space4X.Systems.AI
                 }
 
                 var occupant = _occupantLookup[seatEntity];
-                if (occupant.OccupantEntity == Entity.Null || !em.Exists(occupant.OccupantEntity))
+                if (occupant.OccupantEntity == Entity.Null || !_entityInfoLookup.Exists(occupant.OccupantEntity))
                 {
                     continue;
                 }

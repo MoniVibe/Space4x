@@ -77,6 +77,10 @@ namespace Space4X.Authoring
         [Tooltip("Resource storage configurations")]
         public ResourceStorageConfig[] resourceStorages = new ResourceStorageConfig[]
         {
+            new ResourceStorageConfig { type = ResourceType.Food, capacity = 10000f },
+            new ResourceStorageConfig { type = ResourceType.Water, capacity = 10000f },
+            new ResourceStorageConfig { type = ResourceType.Supplies, capacity = 10000f },
+            new ResourceStorageConfig { type = ResourceType.Fuel, capacity = 10000f },
             new ResourceStorageConfig { type = ResourceType.Minerals, capacity = 10000f },
             new ResourceStorageConfig { type = ResourceType.RareMetals, capacity = 10000f },
             new ResourceStorageConfig { type = ResourceType.EnergyCrystals, capacity = 10000f },

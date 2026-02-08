@@ -328,7 +328,13 @@ namespace Space4X.Authoring
                 });
 
                 // Resources
-                AddBuffer<ResourceStorage>(entity);
+                var storage = AddBuffer<ResourceStorage>(entity);
+                storage.Add(ResourceStorage.Create(ResourceType.Food, 10000f));
+                storage.Add(ResourceStorage.Create(ResourceType.Water, 10000f));
+                storage.Add(ResourceStorage.Create(ResourceType.Supplies, 10000f));
+                storage.Add(ResourceStorage.Create(ResourceType.Fuel, 10000f));
+                storage.Add(ResourceStorage.Create(ResourceType.Minerals, 10000f));
+                storage.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
 
                 var lawfulness = factionId == "enemy" ? -0.6f : 0.6f;
                 AddCarrierCrew(entity, lawfulness);
@@ -772,7 +778,6 @@ namespace Space4X.Authoring
         public byte EnemyFleetSpawned;
     }
 }
-
 
 
 

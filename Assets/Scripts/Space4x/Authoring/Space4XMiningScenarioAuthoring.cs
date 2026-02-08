@@ -808,7 +808,12 @@ namespace Space4X.Registry
 
                     // Add ResourceStorage buffer for the carrier
                     var resourceBuffer = AddBuffer<ResourceStorage>(entity);
-                    // Buffer starts empty, will be populated by mining vessels
+                    resourceBuffer.Add(ResourceStorage.Create(ResourceType.Food, 10000f));
+                    resourceBuffer.Add(ResourceStorage.Create(ResourceType.Water, 10000f));
+                    resourceBuffer.Add(ResourceStorage.Create(ResourceType.Supplies, 10000f));
+                    resourceBuffer.Add(ResourceStorage.Create(ResourceType.Fuel, 10000f));
+                    resourceBuffer.Add(ResourceStorage.Create(ResourceType.Minerals, 10000f));
+                    resourceBuffer.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
 
                     // Add combat components if configured
                     if (carrier.IsHostile || !string.IsNullOrWhiteSpace(carrier.FleetId) || carrier.CanIntercept)
@@ -2000,6 +2005,40 @@ namespace Space4X.Registry
                         return new FixedString64Bytes("space4x.resource.energy_crystals");
                     case ResourceType.OrganicMatter:
                         return new FixedString64Bytes("space4x.resource.organic_matter");
+                    case ResourceType.Ore:
+                        return new FixedString64Bytes("space4x.resource.ore");
+                    case ResourceType.Volatiles:
+                        return new FixedString64Bytes("space4x.resource.volatiles");
+                    case ResourceType.TransplutonicOre:
+                        return new FixedString64Bytes("space4x.resource.transplutonic_ore");
+                    case ResourceType.ExoticGases:
+                        return new FixedString64Bytes("space4x.resource.exotic_gases");
+                    case ResourceType.VolatileMotes:
+                        return new FixedString64Bytes("space4x.resource.volatile_motes");
+                    case ResourceType.IndustrialCrystals:
+                        return new FixedString64Bytes("space4x.resource.industrial_crystals");
+                    case ResourceType.Isotopes:
+                        return new FixedString64Bytes("space4x.resource.isotopes");
+                    case ResourceType.HeavyWater:
+                        return new FixedString64Bytes("space4x.resource.heavy_water");
+                    case ResourceType.LiquidOzone:
+                        return new FixedString64Bytes("space4x.resource.liquid_ozone");
+                    case ResourceType.StrontiumClathrates:
+                        return new FixedString64Bytes("space4x.resource.strontium_clathrates");
+                    case ResourceType.SalvageComponents:
+                        return new FixedString64Bytes("space4x.resource.salvage_components");
+                    case ResourceType.BoosterGas:
+                        return new FixedString64Bytes("space4x.resource.booster_gas");
+                    case ResourceType.RelicData:
+                        return new FixedString64Bytes("space4x.resource.relic_data");
+                    case ResourceType.Food:
+                        return new FixedString64Bytes("space4x.resource.food");
+                    case ResourceType.Water:
+                        return new FixedString64Bytes("space4x.resource.water");
+                    case ResourceType.Supplies:
+                        return new FixedString64Bytes("space4x.resource.supplies");
+                    case ResourceType.Fuel:
+                        return new FixedString64Bytes("space4x.resource.fuel");
                     default:
                         return new FixedString64Bytes("space4x.resource.unknown");
                 }
@@ -2007,6 +2046,3 @@ namespace Space4X.Registry
         }
     }
 }
-
-
-

@@ -20,6 +20,10 @@ namespace Space4X.Registry
     public partial struct Space4XStrikeCraftSystem : ISystem
     {
         private uint _lastTick;
+        private ComponentLookup<PatrolStance> _patrolStanceLookup;
+        private ComponentLookup<OnSortieTag> _onSortieLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<RecallState> _recallLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -27,6 +31,10 @@ namespace Space4X.Registry
             state.RequireForUpdate<StrikeCraftProfile>();
             state.RequireForUpdate<TimeState>();
             _lastTick = 0;
+            _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
+            _onSortieLookup = state.GetComponentLookup<OnSortieTag>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _recallLookup = state.GetComponentLookup<RecallState>(true);
         }
 
         [BurstCompile]
@@ -45,6 +53,11 @@ namespace Space4X.Registry
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
 
+            _patrolStanceLookup.Update(ref state);
+            _onSortieLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _recallLookup.Update(ref state);
+
             foreach (var (craftState, config, transform, entity) in
                 SystemAPI.Query<RefRW<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>>()
                     .WithNone<StrikeCraftDogfightTag>()
@@ -54,20 +67,20 @@ namespace Space4X.Registry
 
                 // Get stance from carrier or self
                 VesselStanceMode stance = VesselStanceMode.Balanced;
-                if (SystemAPI.HasComponent<PatrolStance>(craftState.ValueRO.Carrier))
+                if (_patrolStanceLookup.HasComponent(craftState.ValueRO.Carrier))
                 {
-                    stance = SystemAPI.GetComponent<PatrolStance>(craftState.ValueRO.Carrier).Stance;
+                    stance = _patrolStanceLookup[craftState.ValueRO.Carrier].Stance;
                 }
-                else if (SystemAPI.HasComponent<PatrolStance>(entity))
+                else if (_patrolStanceLookup.HasComponent(entity))
                 {
-                    stance = SystemAPI.GetComponent<PatrolStance>(entity).Stance;
+                    stance = _patrolStanceLookup[entity].Stance;
                 }
 
-                ProcessPhase(ref craftState.ValueRW, config.ValueRO, ref transform.ValueRW, stance, deltaTime, entity, ref state, tickDelta);
+                ProcessPhase(ref craftState.ValueRW, config.ValueRO, ref transform.ValueRW, stance, deltaTime, entity, tickDelta);
 
                 if (previousPhase == AttackRunPhase.Docked && craftState.ValueRO.Phase != AttackRunPhase.Docked)
                 {
-                    if (!SystemAPI.HasComponent<OnSortieTag>(entity))
+                    if (!_onSortieLookup.HasComponent(entity))
                     {
                         ecb.AddComponent<OnSortieTag>(entity);
                     }
@@ -82,7 +95,6 @@ namespace Space4X.Registry
             VesselStanceMode stance,
             float deltaTime,
             Entity entity,
-            ref SystemState systemState,
             uint tickDelta)
         {
             // Decrement phase timer
@@ -120,9 +132,9 @@ namespace Space4X.Registry
 
                 case AttackRunPhase.Approach:
                     // Check distance to target
-                    if (craftState.Target != Entity.Null && SystemAPI.HasComponent<LocalTransform>(craftState.Target))
+                    if (craftState.Target != Entity.Null && _transformLookup.HasComponent(craftState.Target))
                     {
-                        var targetTransform = SystemAPI.GetComponent<LocalTransform>(craftState.Target);
+                        var targetTransform = _transformLookup[craftState.Target];
                         float distance = math.distance(transform.Position, targetTransform.Position);
 
                         if (distance <= config.AttackRange)
@@ -152,9 +164,9 @@ namespace Space4X.Registry
                                          craftState.WeaponsExpended == 0;
 
                     // Check recall thresholds
-                    if (SystemAPI.HasComponent<RecallState>(entity))
+                    if (_recallLookup.HasComponent(entity))
                     {
-                        var recallState = SystemAPI.GetComponent<RecallState>(entity);
+                        var recallState = _recallLookup[entity];
                         if (recallState.IsRecalling == 1)
                         {
                             shouldReattack = false;
@@ -173,9 +185,9 @@ namespace Space4X.Registry
 
                 case AttackRunPhase.Return:
                     // Check distance to carrier
-                    if (craftState.Carrier != Entity.Null && SystemAPI.HasComponent<LocalTransform>(craftState.Carrier))
+                    if (craftState.Carrier != Entity.Null && _transformLookup.HasComponent(craftState.Carrier))
                     {
-                        var carrierTransform = SystemAPI.GetComponent<LocalTransform>(craftState.Carrier);
+                        var carrierTransform = _transformLookup[craftState.Carrier];
                         float distance = math.distance(transform.Position, carrierTransform.Position);
 
                         if (distance < 50f)
@@ -214,18 +226,24 @@ namespace Space4X.Registry
     public partial struct Space4XStrikeCraftFormationSystem : ISystem
     {
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
+        private ComponentLookup<PatrolStance> _patrolStanceLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<StrikeCraftProfile>();
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
+            _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             _alignmentLookup.Update(ref state);
+            _patrolStanceLookup.Update(ref state);
+            _transformLookup.Update(ref state);
             var stanceConfig = Space4XStanceTuningConfig.Default;
             if (SystemAPI.TryGetSingleton<Space4XStanceTuningConfig>(out var stanceConfigSingleton))
             {
@@ -248,9 +266,9 @@ namespace Space4X.Registry
 
                 // Get stance
                 VesselStanceMode stance = VesselStanceMode.Balanced;
-                if (SystemAPI.HasComponent<PatrolStance>(craftState.ValueRO.Carrier))
+                if (_patrolStanceLookup.HasComponent(craftState.ValueRO.Carrier))
                 {
-                    stance = SystemAPI.GetComponent<PatrolStance>(craftState.ValueRO.Carrier).Stance;
+                    stance = _patrolStanceLookup[craftState.ValueRO.Carrier].Stance;
                 }
 
                 var tuning = stanceConfig.Resolve(stance);
@@ -273,12 +291,12 @@ namespace Space4X.Registry
                 }
 
                 // Get wing leader position
-                if (!SystemAPI.HasComponent<LocalTransform>(craftState.ValueRO.WingLeader))
+                if (!_transformLookup.HasComponent(craftState.ValueRO.WingLeader))
                 {
                     continue;
                 }
 
-                var leaderTransform = SystemAPI.GetComponent<LocalTransform>(craftState.ValueRO.WingLeader);
+                var leaderTransform = _transformLookup[craftState.ValueRO.WingLeader];
 
                 // Calculate formation offset
                 var spacing = config.ValueRO.FormationSpacing * math.lerp(1.5f, 0.75f, lawfulness);
@@ -324,6 +342,7 @@ namespace Space4X.Registry
         private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
         private uint _lastTick;
         private const float PnNavConstant = 3.5f;
 
@@ -340,6 +359,7 @@ namespace Space4X.Registry
             _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         [BurstCompile]
@@ -374,6 +394,7 @@ namespace Space4X.Registry
             _pilotProficiencyLookup.Update(ref state);
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
+            _transformLookup.Update(ref state);
 
             foreach (var (craftState, config, transform, kinematics, entity) in
                 SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>, RefRW<StrikeCraftKinematics>>()
@@ -408,9 +429,9 @@ namespace Space4X.Registry
                     case AttackRunPhase.Approach:
                         // Move toward target
                         if (craftState.ValueRO.Target != Entity.Null &&
-                            SystemAPI.HasComponent<LocalTransform>(craftState.ValueRO.Target))
+                            _transformLookup.HasComponent(craftState.ValueRO.Target))
                         {
-                            var targetTransform = SystemAPI.GetComponent<LocalTransform>(craftState.ValueRO.Target);
+                            var targetTransform = _transformLookup[craftState.ValueRO.Target];
                             float3 direction = StrikeCraftUtility.CalculateApproachVector(
                                 config.ValueRO.ApproachVector,
                                 targetTransform.Position,
@@ -463,9 +484,9 @@ namespace Space4X.Registry
                     case AttackRunPhase.Return:
                         // Return to carrier
                         if (craftState.ValueRO.Carrier != Entity.Null &&
-                            SystemAPI.HasComponent<LocalTransform>(craftState.ValueRO.Carrier))
+                            _transformLookup.HasComponent(craftState.ValueRO.Carrier))
                         {
-                            var carrierTransform = SystemAPI.GetComponent<LocalTransform>(craftState.ValueRO.Carrier);
+                            var carrierTransform = _transformLookup[craftState.ValueRO.Carrier];
                             var toCarrier = carrierTransform.Position - transform.ValueRO.Position;
                             var distance = math.length(toCarrier);
                             var direction = math.normalizesafe(toCarrier);
@@ -483,9 +504,9 @@ namespace Space4X.Registry
 
                     case AttackRunPhase.CombatAirPatrol:
                         if (craftState.ValueRO.Carrier != Entity.Null &&
-                            SystemAPI.HasComponent<LocalTransform>(craftState.ValueRO.Carrier))
+                            _transformLookup.HasComponent(craftState.ValueRO.Carrier))
                         {
-                            var carrierTransform = SystemAPI.GetComponent<LocalTransform>(craftState.ValueRO.Carrier);
+                            var carrierTransform = _transformLookup[craftState.ValueRO.Carrier];
                             var role = craftState.ValueRO.Role;
                             var isNonCombat = role == StrikeCraftRole.Recon || role == StrikeCraftRole.EWar;
                             var baseRadius = isNonCombat ? 25f : 65f;
@@ -716,10 +737,13 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(LateSimulationSystemGroup))]
     public partial struct Space4XStrikeCraftExperienceSystem : ISystem
     {
+        private ComponentLookup<OnSortieTag> _onSortieLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<StrikeCraftExperience>();
+            _onSortieLookup = state.GetComponentLookup<OnSortieTag>(true);
         }
 
         [BurstCompile]
@@ -727,6 +751,8 @@ namespace Space4X.Registry
         {
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
+
+            _onSortieLookup.Update(ref state);
 
             foreach (var (craftState, experience, entity) in
                 SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRW<StrikeCraftExperience>>()
@@ -737,7 +763,7 @@ namespace Space4X.Registry
                 if (craftState.ValueRO.Phase == AttackRunPhase.Docked)
                 {
                     // Check for OnSortieTag removal (sortie just completed)
-                    bool wasOnSortie = SystemAPI.HasComponent<OnSortieTag>(entity);
+                    bool wasOnSortie = _onSortieLookup.HasComponent(entity);
                     if (!wasOnSortie)
                     {
                         continue;

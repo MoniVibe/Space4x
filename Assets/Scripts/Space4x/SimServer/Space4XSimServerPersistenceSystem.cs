@@ -294,9 +294,11 @@ namespace Space4X.SimServer
                 time = CaptureTime(ref state)
             };
 
+            data.resourceDistribution = CaptureResourceDistribution(ref state);
             data.factions = CaptureFactions(ref state);
             data.systems = CaptureSystems(ref state);
             data.colonies = CaptureColonies(ref state);
+            data.businesses = CaptureBusinesses(ref state);
             data.resources = CaptureResources(ref state);
             data.anomalies = CaptureAnomalies(ref state);
             data.missionOffers = CaptureMissionOffers(ref state);
@@ -321,6 +323,60 @@ namespace Space4X.SimServer
                 deltaSeconds = timeState.DeltaSeconds,
                 isPaused = timeState.IsPaused,
                 timeScale = scalars.TimeScale
+            };
+        }
+
+        private ResourceDistributionData CaptureResourceDistribution(ref SystemState state)
+        {
+            var entityManager = state.EntityManager;
+            if (!SystemAPI.TryGetSingletonEntity<Space4XResourceDistributionConfig>(out var entity))
+            {
+                entity = entityManager.CreateEntity(typeof(Space4XResourceDistributionConfig));
+                entityManager.SetComponentData(entity, Space4XResourceDistributionConfig.Default);
+            }
+
+            var config = entityManager.GetComponentData<Space4XResourceDistributionConfig>(entity);
+            DynamicBuffer<Space4XResourceWeightEntry> weights;
+            if (!entityManager.HasBuffer<Space4XResourceWeightEntry>(entity))
+            {
+                weights = entityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+                Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+            }
+            else
+            {
+                weights = entityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
+                if (weights.Length != (int)ResourceType.Count)
+                {
+                    Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+                }
+            }
+
+            var weightData = new ResourceWeightData[weights.Length];
+            for (int i = 0; i < weights.Length; i++)
+            {
+                var entry = weights[i];
+                weightData[i] = new ResourceWeightData
+                {
+                    type = entry.Type.ToString(),
+                    innerWeight = entry.InnerWeight,
+                    midWeight = entry.MidWeight,
+                    outerWeight = entry.OuterWeight,
+                    logisticsWeight = entry.LogisticsWeight,
+                    nebulaWeight = entry.NebulaWeight,
+                    ancientCoreWeight = entry.AncientCoreWeight,
+                    blackHoleWeight = entry.BlackHoleWeight,
+                    neutronWeight = entry.NeutronWeight,
+                    hazardWeight = entry.HazardWeight,
+                    superResourceWeight = entry.SuperResourceWeight,
+                    ruinsWeight = entry.RuinsWeight,
+                    gateWeight = entry.GateWeight
+                };
+            }
+
+            return new ResourceDistributionData
+            {
+                biasChance = config.BiasChance,
+                weights = weightData
             };
         }
         private FactionData[] CaptureFactions(ref SystemState state)
@@ -585,6 +641,206 @@ namespace Space4X.SimServer
             }
 
             return list.ToArray();
+        }
+
+        private BusinessData[] CaptureBusinesses(ref SystemState state)
+        {
+            var list = new List<BusinessData>(32);
+            var entityManager = state.EntityManager;
+            var factionLookup = state.GetComponentLookup<Space4XFaction>(true);
+            var affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+
+            foreach (var (business, storage, businessEntity) in SystemAPI.Query<RefRO<Space4XBusinessState>, DynamicBuffer<ResourceStorage>>()
+                         .WithEntityAccess())
+            {
+                if (business.ValueRO.Colony == Entity.Null || !entityManager.HasComponent<Space4XColony>(business.ValueRO.Colony))
+                {
+                    continue;
+                }
+
+                var colonyId = entityManager.GetComponentData<Space4XColony>(business.ValueRO.Colony).ColonyId.ToString();
+                var ownerFactionId = ResolveOwnerFactionId(business.ValueRO.Owner, business.ValueRO.Colony, in factionLookup, in affiliationLookup);
+
+                var data = new BusinessData
+                {
+                    colonyId = colonyId,
+                    kind = (byte)business.ValueRO.Kind,
+                    ownerKind = (byte)business.ValueRO.OwnerKind,
+                    ownerFactionId = ownerFactionId,
+                    facilityClass = (byte)business.ValueRO.FacilityClass,
+                    credits = business.ValueRO.Credits,
+                    activeJobId = business.ValueRO.ActiveJobId.ToString(),
+                    lastJobTick = business.ValueRO.LastJobTick,
+                    nextJobTick = business.ValueRO.NextJobTick
+                };
+
+                if (storage.Length > 0)
+                {
+                    var resources = new BusinessResourceData[storage.Length];
+                    for (int i = 0; i < storage.Length; i++)
+                    {
+                        resources[i] = new BusinessResourceData
+                        {
+                            type = (byte)storage[i].Type,
+                            amount = storage[i].Amount,
+                            capacity = storage[i].Capacity
+                        };
+                    }
+
+                    data.resources = resources;
+                }
+
+                var assets = CaptureBusinessAssets(entityManager, businessEntity);
+                if (assets != null && assets.Length > 0)
+                {
+                    data.assets = assets;
+                }
+
+                list.Add(data);
+            }
+
+            return list.ToArray();
+        }
+
+        private BusinessAssetData[] CaptureBusinessAssets(EntityManager entityManager, Entity businessEntity)
+        {
+            if (!entityManager.HasBuffer<Space4XBusinessAssetLink>(businessEntity))
+            {
+                return null;
+            }
+
+            var links = entityManager.GetBuffer<Space4XBusinessAssetLink>(businessEntity);
+            if (links.Length == 0)
+            {
+                return null;
+            }
+
+            var assets = new List<BusinessAssetData>(links.Length);
+            for (int i = 0; i < links.Length; i++)
+            {
+                var link = links[i];
+                if (link.Asset == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (!TryEncodeBusinessAsset(entityManager, link, out var assetData))
+                {
+                    continue;
+                }
+
+                assets.Add(assetData);
+            }
+
+            return assets.Count > 0 ? assets.ToArray() : null;
+        }
+
+        private bool TryEncodeBusinessAsset(
+            EntityManager entityManager,
+            Space4XBusinessAssetLink link,
+            out BusinessAssetData data)
+        {
+            data = null;
+            var asset = link.Asset;
+            if (asset == Entity.Null)
+            {
+                return false;
+            }
+
+            var catalogId = link.CatalogId;
+            if (catalogId.IsEmpty && entityManager.HasComponent<Space4XBusinessAssetOwner>(asset))
+            {
+                var owner = entityManager.GetComponentData<Space4XBusinessAssetOwner>(asset);
+                if (!owner.CatalogId.IsEmpty)
+                {
+                    catalogId = owner.CatalogId;
+                }
+            }
+
+            switch (link.AssetType)
+            {
+                case Space4XBusinessAssetType.Facility:
+                    if (!entityManager.HasComponent<ColonyFacilityLink>(asset))
+                    {
+                        return false;
+                    }
+                    var facilityLink = entityManager.GetComponentData<ColonyFacilityLink>(asset);
+                    if (facilityLink.Colony == Entity.Null || !entityManager.HasComponent<Space4XColony>(facilityLink.Colony))
+                    {
+                        return false;
+                    }
+                    data = new BusinessAssetData
+                    {
+                        assetType = (byte)link.AssetType,
+                        assetId = entityManager.GetComponentData<Space4XColony>(facilityLink.Colony).ColonyId.ToString(),
+                        facilityClass = (byte)facilityLink.FacilityClass,
+                        catalogId = catalogId.ToString(),
+                        assignedTick = link.AssignedTick
+                    };
+                    return true;
+                case Space4XBusinessAssetType.Market:
+                    if (!entityManager.HasComponent<Space4XColony>(asset))
+                    {
+                        return false;
+                    }
+                    data = new BusinessAssetData
+                    {
+                        assetType = (byte)link.AssetType,
+                        assetId = entityManager.GetComponentData<Space4XColony>(asset).ColonyId.ToString(),
+                        facilityClass = 0,
+                        catalogId = catalogId.ToString(),
+                        assignedTick = link.AssignedTick
+                    };
+                    return true;
+                case Space4XBusinessAssetType.Ship:
+                    if (!entityManager.HasComponent<Carrier>(asset))
+                    {
+                        return false;
+                    }
+                    data = new BusinessAssetData
+                    {
+                        assetType = (byte)link.AssetType,
+                        assetId = entityManager.GetComponentData<Carrier>(asset).CarrierId.ToString(),
+                        facilityClass = 0,
+                        catalogId = catalogId.ToString(),
+                        assignedTick = link.AssignedTick
+                    };
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static ushort ResolveOwnerFactionId(
+            Entity owner,
+            Entity colony,
+            in ComponentLookup<Space4XFaction> factionLookup,
+            in BufferLookup<AffiliationTag> affiliationLookup)
+        {
+            if (owner != Entity.Null && factionLookup.HasComponent(owner))
+            {
+                return factionLookup[owner].FactionId;
+            }
+
+            if (colony != Entity.Null && affiliationLookup.HasBuffer(colony))
+            {
+                var affiliations = affiliationLookup[colony];
+                for (int i = 0; i < affiliations.Length; i++)
+                {
+                    var tag = affiliations[i];
+                    if (tag.Type != AffiliationType.Faction || tag.Target == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    if (factionLookup.HasComponent(tag.Target))
+                    {
+                        return factionLookup[tag.Target].FactionId;
+                    }
+                }
+            }
+
+            return 0;
         }
 
         private ResourceData[] CaptureResources(ref SystemState state)
@@ -994,8 +1250,14 @@ namespace Space4X.SimServer
             {
                 restoredConfig.AutosaveSeconds = runtimeConfig.AutosaveSeconds;
             }
+            if (runtimeConfig.ResourceBiasChance >= 0f)
+            {
+                restoredConfig.ResourceBiasChance = runtimeConfig.ResourceBiasChance;
+            }
             entityManager.SetComponentData(configEntity, restoredConfig);
 
+            ApplyResourceDistributionLoad(ref state, data);
+            ApplyBusinessFleetSeedConfigLoad(ref state);
             entityManager.CreateEntity(typeof(Space4XSimServerGalaxyBootstrapped), typeof(Space4XSimServerTag));
 
             var factionMap = new Dictionary<ushort, Entity>();
@@ -1133,6 +1395,8 @@ namespace Space4X.SimServer
                     }
                 }
             }
+
+            ApplyBusinessLoad(ref state, data, factionMap);
 
             if (data.resources != null)
             {
@@ -1363,6 +1627,359 @@ namespace Space4X.SimServer
 
             EnsureMissionBoardState(ref state, data);
             return true;
+        }
+
+        private void ApplyBusinessLoad(ref SystemState state, SimSaveData data, Dictionary<ushort, Entity> factionMap)
+        {
+            if (data?.businesses == null || data.businesses.Length == 0)
+            {
+                return;
+            }
+
+            var entityManager = state.EntityManager;
+            var colonyMap = BuildColonyIdMap(ref state);
+            var facilityMap = BuildFacilityMap(ref state);
+            var carrierMap = BuildCarrierIdMap(ref state);
+            var touchedColonies = new HashSet<Entity>();
+            var tick = data.time?.tick ?? 0u;
+
+            foreach (var business in data.businesses)
+            {
+                if (business == null || string.IsNullOrWhiteSpace(business.colonyId))
+                {
+                    continue;
+                }
+
+                if (!colonyMap.TryGetValue(business.colonyId, out var colonyEntity))
+                {
+                    continue;
+                }
+
+                var facilityClass = (FacilityBusinessClass)business.facilityClass;
+                var facilityEntity = ResolveFacilityEntity(colonyEntity, facilityClass, facilityMap);
+
+                var ownerEntity = ResolveBusinessOwner(ref state, business, colonyEntity, factionMap, out var isPlaceholderOwner);
+
+                var businessEntity = entityManager.CreateEntity(typeof(Space4XBusinessState), typeof(Space4XSimServerTag));
+                entityManager.SetComponentData(businessEntity, new Space4XBusinessState
+                {
+                    Kind = (Space4XBusinessKind)business.kind,
+                    OwnerKind = (Space4XBusinessOwnerKind)business.ownerKind,
+                    Owner = ownerEntity,
+                    Colony = colonyEntity,
+                    Facility = facilityEntity,
+                    FacilityClass = facilityClass,
+                    ActiveJobId = new FixedString64Bytes(business.activeJobId ?? string.Empty),
+                    LastJobTick = business.lastJobTick,
+                    NextJobTick = business.nextJobTick,
+                    Credits = business.credits
+                });
+
+                var storage = entityManager.AddBuffer<ResourceStorage>(businessEntity);
+                if (business.resources != null && business.resources.Length > 0)
+                {
+                    for (int i = 0; i < business.resources.Length; i++)
+                    {
+                        var resource = business.resources[i];
+                        storage.Add(new ResourceStorage
+                        {
+                            Type = (ResourceType)resource.type,
+                            Amount = resource.amount,
+                            Capacity = resource.capacity
+                        });
+                    }
+                }
+
+                ApplyBusinessAssetLoad(
+                    entityManager,
+                    businessEntity,
+                    business.assets,
+                    colonyMap,
+                    facilityMap,
+                    carrierMap,
+                    tick);
+
+                if (ownerEntity != Entity.Null && isPlaceholderOwner)
+                {
+                    var assignment = new Space4XJobRoleAssignment
+                    {
+                        JobId = new FixedString64Bytes(business.activeJobId ?? string.Empty),
+                        Business = businessEntity,
+                        AssignedTick = tick,
+                        NextEvaluateTick = business.nextJobTick
+                    };
+
+                    if (entityManager.HasComponent<Space4XJobRoleAssignment>(ownerEntity))
+                    {
+                        entityManager.SetComponentData(ownerEntity, assignment);
+                    }
+                    else
+                    {
+                        entityManager.AddComponentData(ownerEntity, assignment);
+                    }
+                }
+
+                touchedColonies.Add(colonyEntity);
+            }
+
+            foreach (var colony in touchedColonies)
+            {
+                if (!entityManager.HasComponent<Space4XBusinessSpawnTag>(colony))
+                {
+                    entityManager.AddComponent<Space4XBusinessSpawnTag>(colony);
+                }
+            }
+        }
+
+        private void ApplyBusinessAssetLoad(
+            EntityManager entityManager,
+            Entity businessEntity,
+            BusinessAssetData[] assets,
+            Dictionary<string, Entity> colonyMap,
+            Dictionary<Entity, Dictionary<FacilityBusinessClass, Entity>> facilityMap,
+            Dictionary<string, Entity> carrierMap,
+            uint tick)
+        {
+            if (assets == null || assets.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < assets.Length; i++)
+            {
+                var asset = assets[i];
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                var assetType = (Space4XBusinessAssetType)asset.assetType;
+                if (!TryResolveBusinessAssetEntity(asset, assetType, colonyMap, facilityMap, carrierMap, out var assetEntity))
+                {
+                    continue;
+                }
+
+                var catalogId = string.IsNullOrWhiteSpace(asset.catalogId)
+                    ? default
+                    : new FixedString64Bytes(asset.catalogId);
+                var assignedTick = asset.assignedTick == 0u ? tick : asset.assignedTick;
+
+                AssignBusinessAssetOwner(entityManager, businessEntity, assetEntity, assetType, assignedTick, catalogId);
+            }
+        }
+
+        private static bool TryResolveBusinessAssetEntity(
+            BusinessAssetData asset,
+            Space4XBusinessAssetType assetType,
+            Dictionary<string, Entity> colonyMap,
+            Dictionary<Entity, Dictionary<FacilityBusinessClass, Entity>> facilityMap,
+            Dictionary<string, Entity> carrierMap,
+            out Entity assetEntity)
+        {
+            assetEntity = Entity.Null;
+            if (asset == null || string.IsNullOrWhiteSpace(asset.assetId))
+            {
+                return false;
+            }
+
+            switch (assetType)
+            {
+                case Space4XBusinessAssetType.Facility:
+                    if (!colonyMap.TryGetValue(asset.assetId, out var colonyEntity))
+                    {
+                        return false;
+                    }
+
+                    assetEntity = ResolveFacilityEntity(colonyEntity, (FacilityBusinessClass)asset.facilityClass, facilityMap);
+                    return assetEntity != Entity.Null;
+                case Space4XBusinessAssetType.Market:
+                    return colonyMap.TryGetValue(asset.assetId, out assetEntity);
+                case Space4XBusinessAssetType.Ship:
+                    return carrierMap.TryGetValue(asset.assetId, out assetEntity);
+                default:
+                    return false;
+            }
+        }
+
+        private static void AssignBusinessAssetOwner(
+            EntityManager entityManager,
+            Entity businessEntity,
+            Entity assetEntity,
+            Space4XBusinessAssetType assetType,
+            uint assignedTick,
+            FixedString64Bytes catalogId)
+        {
+            if (businessEntity == Entity.Null || assetEntity == Entity.Null)
+            {
+                return;
+            }
+
+            if (entityManager.HasComponent<Space4XBusinessAssetOwner>(assetEntity))
+            {
+                var owner = entityManager.GetComponentData<Space4XBusinessAssetOwner>(assetEntity);
+                owner.Business = businessEntity;
+                owner.AssetType = assetType;
+                owner.AssignedTick = assignedTick;
+                if (!catalogId.IsEmpty)
+                {
+                    owner.CatalogId = catalogId;
+                }
+                entityManager.SetComponentData(assetEntity, owner);
+            }
+            else
+            {
+                entityManager.AddComponentData(assetEntity, new Space4XBusinessAssetOwner
+                {
+                    Business = businessEntity,
+                    AssetType = assetType,
+                    AssignedTick = assignedTick,
+                    CatalogId = catalogId
+                });
+            }
+
+            DynamicBuffer<Space4XBusinessAssetLink> links;
+            if (entityManager.HasBuffer<Space4XBusinessAssetLink>(businessEntity))
+            {
+                links = entityManager.GetBuffer<Space4XBusinessAssetLink>(businessEntity);
+                for (int i = 0; i < links.Length; i++)
+                {
+                    if (links[i].Asset == assetEntity)
+                    {
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                links = entityManager.AddBuffer<Space4XBusinessAssetLink>(businessEntity);
+            }
+
+            links.Add(new Space4XBusinessAssetLink
+            {
+                Asset = assetEntity,
+                AssetType = assetType,
+                AssignedTick = assignedTick,
+                CatalogId = catalogId
+            });
+        }
+
+        private Dictionary<Entity, Dictionary<FacilityBusinessClass, Entity>> BuildFacilityMap(ref SystemState state)
+        {
+            var map = new Dictionary<Entity, Dictionary<FacilityBusinessClass, Entity>>();
+            foreach (var (link, facility) in SystemAPI.Query<RefRO<ColonyFacilityLink>>().WithEntityAccess())
+            {
+                if (link.ValueRO.Colony == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (!map.TryGetValue(link.ValueRO.Colony, out var facilities))
+                {
+                    facilities = new Dictionary<FacilityBusinessClass, Entity>();
+                    map[link.ValueRO.Colony] = facilities;
+                }
+
+                if (!facilities.ContainsKey(link.ValueRO.FacilityClass))
+                {
+                    facilities[link.ValueRO.FacilityClass] = facility;
+                }
+            }
+
+            return map;
+        }
+
+        private static Entity ResolveFacilityEntity(
+            Entity colony,
+            FacilityBusinessClass facilityClass,
+            Dictionary<Entity, Dictionary<FacilityBusinessClass, Entity>> facilityMap)
+        {
+            if (facilityClass == FacilityBusinessClass.None)
+            {
+                return Entity.Null;
+            }
+
+            if (facilityMap.TryGetValue(colony, out var facilities) &&
+                facilities.TryGetValue(facilityClass, out var facility))
+            {
+                return facility;
+            }
+
+            return Entity.Null;
+        }
+
+        private Entity ResolveBusinessOwner(
+            ref SystemState state,
+            BusinessData business,
+            Entity colonyEntity,
+            Dictionary<ushort, Entity> factionMap,
+            out bool placeholderOwner)
+        {
+            placeholderOwner = false;
+
+            var ownerKind = (Space4XBusinessOwnerKind)business.ownerKind;
+            var ownerFactionId = business.ownerFactionId;
+            var colonyFaction = ResolveColonyFaction(colonyEntity, ownerFactionId, factionMap, state.EntityManager);
+
+            switch (ownerKind)
+            {
+                case Space4XBusinessOwnerKind.Faction:
+                case Space4XBusinessOwnerKind.Empire:
+                    return colonyFaction;
+                case Space4XBusinessOwnerKind.Group:
+                case Space4XBusinessOwnerKind.Individual:
+                    var owner = state.EntityManager.CreateEntity(typeof(Space4XBusinessOwner), typeof(Space4XSimServerTag));
+                    state.EntityManager.SetComponentData(owner, new Space4XBusinessOwner
+                    {
+                        Kind = ownerKind,
+                        HomeColony = colonyEntity,
+                        CreatedTick = business.lastJobTick
+                    });
+
+                    if (colonyFaction != Entity.Null)
+                    {
+                        var affiliations = state.EntityManager.AddBuffer<AffiliationTag>(owner);
+                        affiliations.Add(new AffiliationTag
+                        {
+                            Type = AffiliationType.Faction,
+                            Target = colonyFaction,
+                            Loyalty = (half)0.5f
+                        });
+                    }
+
+                    placeholderOwner = true;
+                    return owner;
+            }
+
+            return Entity.Null;
+        }
+
+        private static Entity ResolveColonyFaction(
+            Entity colonyEntity,
+            ushort fallbackFactionId,
+            Dictionary<ushort, Entity> factionMap,
+            EntityManager entityManager)
+        {
+            if (fallbackFactionId != 0 && factionMap.TryGetValue(fallbackFactionId, out var factionEntity))
+            {
+                return factionEntity;
+            }
+
+            if (entityManager.HasBuffer<AffiliationTag>(colonyEntity))
+            {
+                var affiliations = entityManager.GetBuffer<AffiliationTag>(colonyEntity);
+                for (int i = 0; i < affiliations.Length; i++)
+                {
+                    var tag = affiliations[i];
+                    if (tag.Type != AffiliationType.Faction || tag.Target == Entity.Null)
+                    {
+                        continue;
+                    }
+
+                    return tag.Target;
+                }
+            }
+
+            return Entity.Null;
         }
 
         private Entity CreateFactionEntity(EntityManager entityManager, FactionData data)
@@ -1818,6 +2435,137 @@ namespace Space4X.SimServer
             }
         }
 
+        private void ApplyResourceDistributionLoad(ref SystemState state, SimSaveData data)
+        {
+            var entityManager = state.EntityManager;
+            var config = Space4XResourceDistributionConfig.Default;
+            var distribution = data.resourceDistribution;
+            if (distribution != null)
+            {
+                config.BiasChance = math.saturate(distribution.biasChance);
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XResourceDistributionConfig>(out var entity))
+            {
+                entity = entityManager.CreateEntity(typeof(Space4XResourceDistributionConfig));
+            }
+
+            var weights = entityManager.HasBuffer<Space4XResourceWeightEntry>(entity)
+                ? entityManager.GetBuffer<Space4XResourceWeightEntry>(entity)
+                : entityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+
+            Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+
+            if (distribution?.weights != null && distribution.weights.Length > 0)
+            {
+                ApplyWeightOverrides(ref weights, distribution.weights);
+            }
+
+            if (!entityManager.HasComponent<Space4XResourceDistributionBaselineConfig>(entity))
+            {
+                entityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
+                {
+                    BiasChance = config.BiasChance
+                });
+            }
+            else
+            {
+                entityManager.SetComponentData(entity, new Space4XResourceDistributionBaselineConfig
+                {
+                    BiasChance = config.BiasChance
+                });
+            }
+
+            var baselineWeights = entityManager.HasBuffer<Space4XResourceWeightBaselineEntry>(entity)
+                ? entityManager.GetBuffer<Space4XResourceWeightBaselineEntry>(entity)
+                : entityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
+            Space4XResourceDistributionBaselines.CopyWeightsToBaseline(weights, ref baselineWeights);
+
+            if (Space4XSimServerUserConfig.TryLoad(out var userConfig))
+            {
+                Space4XSimServerUserConfig.ApplyResourceDistributionOverrides(ref config, ref weights, userConfig);
+            }
+
+            if (SystemAPI.TryGetSingleton(out Space4XSimServerConfig simConfig) && simConfig.ResourceBiasChance >= 0f)
+            {
+                config.BiasChance = math.saturate(simConfig.ResourceBiasChance);
+            }
+
+            entityManager.SetComponentData(entity, config);
+        }
+
+        private void ApplyBusinessFleetSeedConfigLoad(ref SystemState state)
+        {
+            var entityManager = state.EntityManager;
+            if (!SystemAPI.TryGetSingletonEntity<Space4XBusinessFleetSeedConfig>(out var entity))
+            {
+                entity = entityManager.CreateEntity(typeof(Space4XBusinessFleetSeedConfig));
+            }
+
+            var config = entityManager.GetComponentData<Space4XBusinessFleetSeedConfig>(entity);
+            var overrides = entityManager.HasBuffer<Space4XBusinessFleetSeedOverride>(entity)
+                ? entityManager.GetBuffer<Space4XBusinessFleetSeedOverride>(entity)
+                : entityManager.AddBuffer<Space4XBusinessFleetSeedOverride>(entity);
+
+            Space4XBusinessFleetSeedDefaults.ApplyDefaults(ref config, ref overrides);
+
+            if (Space4XSimServerUserConfig.TryLoad(out var userConfig))
+            {
+                Space4XSimServerUserConfig.ApplyBusinessFleetOverrides(ref config, ref overrides, userConfig);
+            }
+
+            entityManager.SetComponentData(entity, config);
+        }
+
+        private static void ApplyWeightOverrides(ref DynamicBuffer<Space4XResourceWeightEntry> weights, ResourceWeightData[] overrides)
+        {
+            if (overrides == null || overrides.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < overrides.Length; i++)
+            {
+                var entryData = overrides[i];
+                if (!TryParseResourceType(entryData.type, out var type))
+                {
+                    continue;
+                }
+
+                var index = (int)type;
+                if (index < 0 || index >= weights.Length)
+                {
+                    continue;
+                }
+
+                var entry = weights[index];
+                entry.InnerWeight = entryData.innerWeight;
+                entry.MidWeight = entryData.midWeight;
+                entry.OuterWeight = entryData.outerWeight;
+                entry.LogisticsWeight = entryData.logisticsWeight;
+                entry.NebulaWeight = entryData.nebulaWeight;
+                entry.AncientCoreWeight = entryData.ancientCoreWeight;
+                entry.BlackHoleWeight = entryData.blackHoleWeight;
+                entry.NeutronWeight = entryData.neutronWeight;
+                entry.HazardWeight = entryData.hazardWeight;
+                entry.SuperResourceWeight = entryData.superResourceWeight;
+                entry.RuinsWeight = entryData.ruinsWeight;
+                entry.GateWeight = entryData.gateWeight;
+                weights[index] = entry;
+            }
+        }
+
+        private static bool TryParseResourceType(string value, out ResourceType type)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                type = default;
+                return false;
+            }
+
+            return Enum.TryParse(value, true, out type);
+        }
+
         private void EnsureMissionBoardState(ref SystemState state, SimSaveData data)
         {
             var maxOfferId = 0u;
@@ -2023,6 +2771,16 @@ namespace Space4X.SimServer
                 Space4XMissionType.Patrol => CaptainOrderType.Patrol,
                 Space4XMissionType.Intercept => CaptainOrderType.Intercept,
                 Space4XMissionType.BuildStation => CaptainOrderType.Construct,
+                Space4XMissionType.Salvage => CaptainOrderType.Rescue,
+                Space4XMissionType.Escort => CaptainOrderType.Escort,
+                Space4XMissionType.Resupply => CaptainOrderType.Resupply,
+                Space4XMissionType.Trade => CaptainOrderType.Trade,
+                Space4XMissionType.Repair => CaptainOrderType.Repair,
+                Space4XMissionType.Survey => CaptainOrderType.Survey,
+                Space4XMissionType.Expedition => CaptainOrderType.Survey,
+                Space4XMissionType.Raid => CaptainOrderType.Attack,
+                Space4XMissionType.Destroy => CaptainOrderType.Attack,
+                Space4XMissionType.Acquire => CaptainOrderType.MoveTo,
                 _ => CaptainOrderType.MoveTo
             };
         }
@@ -2113,9 +2871,11 @@ namespace Space4X.SimServer
             public string createdUtc;
             public SimTimeData time;
             public SimConfigData config;
+            public ResourceDistributionData resourceDistribution;
             public FactionData[] factions;
             public SystemData[] systems;
             public ColonyData[] colonies;
+            public BusinessData[] businesses;
             public ResourceData[] resources;
             public AnomalyData[] anomalies;
             public MissionOfferData[] missionOffers;
@@ -2147,10 +2907,15 @@ namespace Space4X.SimServer
             public float systemSpacing;
             public float resourceBaseUnits;
             public float resourceRichnessGradient;
+            public float resourceBiasChance;
             public float techDiffusionDurationSeconds;
             public float targetTicksPerSecond;
             public ushort httpPort;
             public float autosaveSeconds;
+            public float foodPerPopPerSecond;
+            public float waterPerPopPerSecond;
+            public float fuelPerPopPerSecond;
+            public float suppliesConsumptionPerPopPerSecond;
             public ushort traitMask;
             public ushort poiMask;
             public byte maxTraitsPerSystem;
@@ -2176,10 +2941,15 @@ namespace Space4X.SimServer
                     systemSpacing = config.SystemSpacing,
                     resourceBaseUnits = config.ResourceBaseUnits,
                     resourceRichnessGradient = config.ResourceRichnessGradient,
+                    resourceBiasChance = config.ResourceBiasChance,
                     techDiffusionDurationSeconds = config.TechDiffusionDurationSeconds,
                     targetTicksPerSecond = config.TargetTicksPerSecond,
                     httpPort = config.HttpPort,
                     autosaveSeconds = config.AutosaveSeconds,
+                    foodPerPopPerSecond = config.FoodPerPopPerSecond,
+                    waterPerPopPerSecond = config.WaterPerPopPerSecond,
+                    fuelPerPopPerSecond = config.FuelPerPopPerSecond,
+                    suppliesConsumptionPerPopPerSecond = config.SuppliesConsumptionPerPopPerSecond,
                     traitMask = (ushort)config.TraitMask,
                     poiMask = (ushort)config.PoiMask,
                     maxTraitsPerSystem = config.MaxTraitsPerSystem,
@@ -2214,6 +2984,11 @@ namespace Space4X.SimServer
                 var resolvedPoiOffsetMin = poiOffsetMin <= 0f ? 450f : poiOffsetMin;
                 var resolvedPoiOffsetMax = poiOffsetMax <= 0f ? 900f : poiOffsetMax;
 
+                var resolvedFoodPerPop = foodPerPopPerSecond <= 0f ? 0.0003f : foodPerPopPerSecond;
+                var resolvedWaterPerPop = waterPerPopPerSecond <= 0f ? 0.0003f : waterPerPopPerSecond;
+                var resolvedFuelPerPop = fuelPerPopPerSecond <= 0f ? 0.00015f : fuelPerPopPerSecond;
+                var resolvedSuppliesConsumption = suppliesConsumptionPerPopPerSecond <= 0f ? 0.0001f : suppliesConsumptionPerPopPerSecond;
+
                 return new Space4XSimServerConfig
                 {
                     Seed = seed,
@@ -2224,10 +2999,15 @@ namespace Space4X.SimServer
                     SystemSpacing = systemSpacing,
                     ResourceBaseUnits = resourceBaseUnits,
                     ResourceRichnessGradient = resourceRichnessGradient,
+                    ResourceBiasChance = resourceBiasChance,
                     TechDiffusionDurationSeconds = techDiffusionDurationSeconds,
                     TargetTicksPerSecond = targetTicksPerSecond,
                     HttpPort = httpPort,
                     AutosaveSeconds = autosaveSeconds,
+                    FoodPerPopPerSecond = resolvedFoodPerPop,
+                    WaterPerPopPerSecond = resolvedWaterPerPop,
+                    FuelPerPopPerSecond = resolvedFuelPerPop,
+                    SuppliesConsumptionPerPopPerSecond = resolvedSuppliesConsumption,
                     TraitMask = resolvedTraitMask,
                     PoiMask = resolvedPoiMask,
                     MaxTraitsPerSystem = resolvedMaxTraits,
@@ -2243,6 +3023,32 @@ namespace Space4X.SimServer
                 };
             }
         }
+
+        [Serializable]
+        private sealed class ResourceDistributionData
+        {
+            public float biasChance;
+            public ResourceWeightData[] weights;
+        }
+
+        [Serializable]
+        private sealed class ResourceWeightData
+        {
+            public string type;
+            public float innerWeight;
+            public float midWeight;
+            public float outerWeight;
+            public float logisticsWeight;
+            public float nebulaWeight;
+            public float ancientCoreWeight;
+            public float blackHoleWeight;
+            public float neutronWeight;
+            public float hazardWeight;
+            public float superResourceWeight;
+            public float ruinsWeight;
+            public float gateWeight;
+        }
+
         [Serializable]
         private sealed class FactionData
         {
@@ -2710,6 +3516,40 @@ namespace Space4X.SimServer
             public Vector3 position;
             public ushort factionId;
             public float loyalty;
+        }
+
+        [Serializable]
+        private sealed class BusinessData
+        {
+            public string colonyId;
+            public byte kind;
+            public byte ownerKind;
+            public ushort ownerFactionId;
+            public byte facilityClass;
+            public float credits;
+            public string activeJobId;
+            public uint lastJobTick;
+            public uint nextJobTick;
+            public BusinessResourceData[] resources;
+            public BusinessAssetData[] assets;
+        }
+
+        [Serializable]
+        private sealed class BusinessResourceData
+        {
+            public byte type;
+            public float amount;
+            public float capacity;
+        }
+
+        [Serializable]
+        private sealed class BusinessAssetData
+        {
+            public byte assetType;
+            public string assetId;
+            public byte facilityClass;
+            public string catalogId;
+            public uint assignedTick;
         }
 
         [Serializable]

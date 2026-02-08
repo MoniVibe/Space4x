@@ -13,23 +13,27 @@ namespace Space4X.Systems.Power
     [UpdateInGroup(typeof(AISystemGroup))]
     public partial struct Space4XShipPowerFocusCommandSystem : ISystem
     {
+        private ComponentLookup<ShipPowerFocus> _focusLookup;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<ShipPowerFocusCommand>();
+            _focusLookup = state.GetComponentLookup<ShipPowerFocus>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            _focusLookup.Update(ref state);
 
             foreach (var (command, entity) in SystemAPI.Query<RefRO<ShipPowerFocusCommand>>().WithEntityAccess())
             {
-                if (SystemAPI.HasComponent<ShipPowerFocus>(entity))
+                if (_focusLookup.HasComponent(entity))
                 {
-                    var focus = SystemAPI.GetComponent<ShipPowerFocus>(entity);
+                    var focus = _focusLookup[entity];
                     focus.Mode = command.ValueRO.Mode;
-                    SystemAPI.SetComponent(entity, focus);
+                    _focusLookup[entity] = focus;
                 }
                 else
                 {

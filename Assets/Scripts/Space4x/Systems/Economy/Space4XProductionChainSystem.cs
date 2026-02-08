@@ -18,6 +18,7 @@ namespace Space4X.Systems.Economy
         private BufferLookup<NeedRequest> _needRequestLookup;
         private Entity _requestIdGeneratorEntity;
         private EntityQuery _requestIdGeneratorQuery;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -33,6 +34,7 @@ namespace Space4X.Systems.Economy
             _requestIdGeneratorQuery = SystemAPI.QueryBuilder()
                 .WithAll<ResourceRequestIdGenerator>()
                 .Build();
+            _entityLookup = state.GetEntityStorageInfoLookup();
             EnsureRequestIdGeneratorExists(ref state);
         }
 
@@ -79,6 +81,7 @@ namespace Space4X.Systems.Economy
 
             _jobLookup.Update(ref state);
             _needRequestLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
@@ -89,6 +92,11 @@ namespace Space4X.Systems.Economy
                          DynamicBuffer<StorehouseReservationItem>, DynamicBuffer<ProcessingQueueEntry>>()
                          .WithEntityAccess())
             {
+                if (!IsValidEntity(entity))
+                {
+                    continue;
+                }
+
                 if (facility.ValueRO.IsActive == 0)
                 {
                     continue;
@@ -193,6 +201,11 @@ namespace Space4X.Systems.Economy
 
             generator.NextRequestId = nextRequestId;
             state.EntityManager.SetComponentData(_requestIdGeneratorEntity, generator);
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
         }
 
         private static void UpdateActiveJob(

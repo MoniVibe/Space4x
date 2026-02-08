@@ -19,6 +19,7 @@ namespace Space4X.Systems.Economy
     public partial struct Space4XColonyIndustryBootstrapSystem : ISystem
     {
         private EntityQuery _colonyQuery;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -29,6 +30,7 @@ namespace Space4X.Systems.Economy
                 .WithAll<Space4XColony>()
                 .WithNone<ColonyIndustryBootstrapTag>()
                 .Build();
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -47,12 +49,19 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
+            _entityInfoLookup.Update(ref state);
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (colony, entity) in SystemAPI.Query<RefRO<Space4XColony>>()
                          .WithNone<ColonyIndustryBootstrapTag>()
                          .WithEntityAccess())
             {
+                if (!IsValidEntity(entity))
+                {
+                    continue;
+                }
+
                 var position = float3.zero;
                 if (SystemAPI.HasComponent<LocalTransform>(entity))
                 {
@@ -90,9 +99,12 @@ namespace Space4X.Systems.Economy
                     var seed = math.max(0f, colony.ValueRO.StoredResources);
                     ecb.AddComponent(entity, new ColonyIndustryStock
                     {
-                        OreReserve = seed * 0.25f,
-                        SuppliesReserve = seed * 0.15f,
+                        OreReserve = seed * 0.2f,
+                        SuppliesReserve = seed * 0.1f,
                         ResearchReserve = seed * 0.05f,
+                        FoodReserve = seed * 0.25f,
+                        WaterReserve = seed * 0.2f,
+                        FuelReserve = seed * 0.2f,
                         LastUpdateTick = 0u
                     });
                 }
@@ -141,6 +153,11 @@ namespace Space4X.Systems.Economy
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
 
         private static void CreateFacility(

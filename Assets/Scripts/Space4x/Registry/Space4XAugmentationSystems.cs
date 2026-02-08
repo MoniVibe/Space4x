@@ -14,9 +14,14 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XAugmentationAggregationSystem : ISystem
     {
+        private ComponentLookup<AugmentationStats> _statsLookup;
+        private ComponentLookup<AugmentationSummary> _summaryLookup;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<InstalledAugmentation>();
+            _statsLookup = state.GetComponentLookup<AugmentationStats>(false);
+            _summaryLookup = state.GetComponentLookup<AugmentationSummary>(false);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -28,20 +33,23 @@ namespace Space4X.Registry
             }
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            _statsLookup.Update(ref state);
+            _summaryLookup.Update(ref state);
 
             foreach (var (augments, entity) in SystemAPI.Query<DynamicBuffer<InstalledAugmentation>>().WithEntityAccess())
             {
                 var summary = AggregateAugments(augments);
 
-                if (SystemAPI.HasComponent<AugmentationStats>(entity))
+                if (_statsLookup.HasComponent(entity))
                 {
-                    var stats = SystemAPI.GetComponentRW<AugmentationStats>(entity);
-                    stats.ValueRW.PhysiqueModifier = summary.PhysiqueModifier;
-                    stats.ValueRW.FinesseModifier = summary.FinesseModifier;
-                    stats.ValueRW.WillModifier = summary.WillModifier;
-                    stats.ValueRW.GeneralModifier = summary.GeneralModifier;
-                    stats.ValueRW.TotalUpkeepCost = summary.TotalUpkeepCost;
-                    stats.ValueRW.AggregatedRiskFactor = summary.RiskFactor;
+                    var stats = _statsLookup[entity];
+                    stats.PhysiqueModifier = summary.PhysiqueModifier;
+                    stats.FinesseModifier = summary.FinesseModifier;
+                    stats.WillModifier = summary.WillModifier;
+                    stats.GeneralModifier = summary.GeneralModifier;
+                    stats.TotalUpkeepCost = summary.TotalUpkeepCost;
+                    stats.AggregatedRiskFactor = summary.RiskFactor;
+                    _statsLookup[entity] = stats;
                 }
                 else
                 {
@@ -56,9 +64,9 @@ namespace Space4X.Registry
                     });
                 }
 
-                if (SystemAPI.HasComponent<AugmentationSummary>(entity))
+                if (_summaryLookup.HasComponent(entity))
                 {
-                    ecb.SetComponent(entity, summary);
+                    _summaryLookup[entity] = summary;
                 }
                 else
                 {

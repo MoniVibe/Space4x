@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Systems;
 using Space4X.Registry;
+using Unity.Burst;
 using Unity.Entities;
 
 namespace Space4X.Systems.AI
@@ -13,12 +14,15 @@ namespace Space4X.Systems.AI
     /// </summary>
     [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateAfter(typeof(Space4XStrikeCraftBehaviorSystem))]
+    [BurstCompile]
     public partial struct Space4XStrikeCraftOrderDecisionEventSystem : ISystem
     {
+        private EntityStorageInfoLookup _entityLookup;
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
         private ComponentLookup<IssuedByAuthority> _issuedByLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<StrikeCraftOrderDecision>();
@@ -27,11 +31,13 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
 
+            _entityLookup = state.GetEntityStorageInfoLookup();
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
             _issuedByLookup = state.GetComponentLookup<IssuedByAuthority>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -51,6 +57,7 @@ namespace Space4X.Systems.AI
                 return;
             }
 
+            _entityLookup.Update(ref state);
             _profileLookup.Update(ref state);
             _issuedByLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
@@ -76,6 +83,10 @@ namespace Space4X.Systems.AI
 
                 var actor = ResolveActor(entity, pilotLink.ValueRO.Pilot);
                 var issuedBy = ResolveIssuedByAuthority(entity);
+                if (actor == Entity.Null || !_entityLookup.Exists(actor))
+                {
+                    actor = entity;
+                }
 
                 var actionEvent = new ProfileActionEvent
                 {
@@ -103,7 +114,8 @@ namespace Space4X.Systems.AI
             if (_profileLookup.HasComponent(craftEntity))
             {
                 var profile = _profileLookup[craftEntity];
-                if (profile.Carrier != Entity.Null && _issuedByLookup.HasComponent(profile.Carrier))
+                if (profile.Carrier != Entity.Null && _entityLookup.Exists(profile.Carrier) &&
+                    _issuedByLookup.HasComponent(profile.Carrier))
                 {
                     return _issuedByLookup[profile.Carrier];
                 }
@@ -116,10 +128,20 @@ namespace Space4X.Systems.AI
         {
             if (TryResolveController(craftEntity, AgencyDomain.FlightOps, out var controller))
             {
-                return controller != Entity.Null ? controller : craftEntity;
+                if (controller != Entity.Null && _entityLookup.Exists(controller))
+                {
+                    return controller;
+                }
+
+                return craftEntity;
             }
 
-            return fallbackPilot != Entity.Null ? fallbackPilot : craftEntity;
+            if (fallbackPilot != Entity.Null && _entityLookup.Exists(fallbackPilot))
+            {
+                return fallbackPilot;
+            }
+
+            return craftEntity;
         }
 
         private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)

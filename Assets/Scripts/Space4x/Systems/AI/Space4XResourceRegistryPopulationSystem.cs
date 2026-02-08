@@ -50,7 +50,6 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (_registryQuery.IsEmptyIgnoreFilter)
@@ -61,49 +60,70 @@ namespace Space4X.Systems.AI
             var registryEntity = _registryQuery.GetSingletonEntity();
             var registryBuffer = state.EntityManager.GetBuffer<ResourceRegistryEntry>(registryEntity);
             registryBuffer.Clear();
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             if (_asteroidQuery.IsEmptyIgnoreFilter)
             {
-                ecb.Dispose();
                 return;
             }
 
-            foreach (var (transform, resourceType, resourceState, entity) in SystemAPI
-                         .Query<RefRO<LocalTransform>, RefRO<Space4X.Registry.ResourceTypeId>, RefRO<Space4X.Registry.ResourceSourceState>>()
-                         .WithAll<Space4X.Registry.Asteroid>()
-                         .WithEntityAccess())
+            var asteroidCount = _asteroidQuery.CalculateEntityCount();
+            var entries = new NativeList<ResourceRegistryEntry>(math.max(1, asteroidCount), Allocator.TempJob);
+            var ecb = new EntityCommandBuffer(Allocator.TempJob);
+
+            var job = new PopulateRegistryJob
             {
-                
-                // Only register if resource still exists
-                if (resourceState.ValueRO.UnitsRemaining <= 0f)
-                {
-                    continue;
-                }
+                Entries = entries.AsParallelWriter(),
+                RegisteredLookup = state.GetComponentLookup<ResourceRegistryRegisteredTag>(true),
+                Ecb = ecb.AsParallelWriter()
+            };
 
-                // Convert ResourceTypeId (FixedString64Bytes) to ResourceType enum using utility
-                // Note: Space4XMiningResourceUtility.MapToResourceType is not Burst-compatible
-                // because it uses Append() calls. We'll use a Burst-compatible mapping instead.
-                Space4X.Registry.ResourceType resourceTypeEnum = MapResourceTypeIdToEnum(in resourceType.ValueRO.Value);
-                ushort resourceTypeIndex = (ushort)resourceTypeEnum;
-                
-                var entry = new ResourceRegistryEntry
-                {
-                    SourceEntity = entity,
-                    Position = transform.ValueRO.Position,
-                    ResourceTypeIndex = resourceTypeIndex,
-                    Tier = ResourceTier.Raw
-                };
-                registryBuffer.Add(entry);
+            state.Dependency = job.ScheduleParallel(state.Dependency);
+            state.Dependency.Complete();
 
-                if (!state.EntityManager.HasComponent<ResourceRegistryRegisteredTag>(entity))
-                {
-                    ecb.AddComponent<ResourceRegistryRegisteredTag>(entity);
-                }
+            if (entries.Length > 0)
+            {
+                registryBuffer.AddRange(entries.AsArray());
             }
 
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+            entries.Dispose();
+        }
+
+        [BurstCompile]
+        private partial struct PopulateRegistryJob : IJobEntity
+        {
+            public NativeList<ResourceRegistryEntry>.ParallelWriter Entries;
+            [ReadOnly] public ComponentLookup<ResourceRegistryRegisteredTag> RegisteredLookup;
+            public EntityCommandBuffer.ParallelWriter Ecb;
+
+            public void Execute([EntityIndexInQuery] int sortKey,
+                in LocalTransform transform,
+                in Space4X.Registry.ResourceTypeId resourceType,
+                in Space4X.Registry.ResourceSourceState resourceState,
+                Entity entity)
+            {
+                if (resourceState.UnitsRemaining <= 0f)
+                {
+                    return;
+                }
+
+                var resourceTypeEnum = MapResourceTypeIdToEnum(in resourceType.Value);
+                ushort resourceTypeIndex = (ushort)resourceTypeEnum;
+
+                Entries.AddNoResize(new ResourceRegistryEntry
+                {
+                    SourceEntity = entity,
+                    Position = transform.Position,
+                    ResourceTypeIndex = resourceTypeIndex,
+                    Tier = ResourceTier.Raw
+                });
+
+                if (!RegisteredLookup.HasComponent(entity))
+                {
+                    Ecb.AddComponent<ResourceRegistryRegisteredTag>(sortKey, entity);
+                }
+            }
         }
 
         [BurstCompile]

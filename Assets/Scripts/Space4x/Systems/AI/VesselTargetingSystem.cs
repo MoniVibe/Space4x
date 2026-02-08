@@ -30,6 +30,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<MiningState> _miningStateLookup;
         private BufferLookup<ResourceRegistryEntry> _resourceEntriesLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
         private EntityQuery _resourceRegistryQuery;
 
         public void OnCreate(ref SystemState state)
@@ -43,6 +44,7 @@ namespace Space4X.Systems.AI
             _miningStateLookup = state.GetComponentLookup<MiningState>(true);
             _resourceEntriesLookup = state.GetBufferLookup<ResourceRegistryEntry>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
 
             _resourceRegistryQuery = SystemAPI.QueryBuilder()
                 .WithAll<ResourceRegistry, ResourceRegistryEntry>()
@@ -74,6 +76,7 @@ namespace Space4X.Systems.AI
             _physicalLookup.Update(ref state);
             _miningStateLookup.Update(ref state);
             _statsLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var latchConfig = Space4XMiningLatchConfig.Default;
             if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var latchConfigSingleton))
@@ -118,6 +121,7 @@ namespace Space4X.Systems.AI
                 PhysicalLookup = _physicalLookup,
                 MiningStateLookup = _miningStateLookup,
                 StatsLookup = _statsLookup,
+                EntityInfoLookup = _entityInfoLookup,
                 ResourceEntries = resourceEntries,
                 HasResourceEntries = hasResourceEntries,
                 LatchRegionCount = latchRegionCount
@@ -137,6 +141,7 @@ namespace Space4X.Systems.AI
             }
         }
 
+        [BurstCompile]
         [WithNone(typeof(SimulationDisabledTag))]
         public partial struct ResolveVesselTargetPositionsJob : IJobEntity
         {
@@ -148,6 +153,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<VesselPhysicalProperties> PhysicalLookup;
             [ReadOnly] public ComponentLookup<MiningState> MiningStateLookup;
             [ReadOnly] public ComponentLookup<IndividualStats> StatsLookup;
+            [ReadOnly] public EntityStorageInfoLookup EntityInfoLookup;
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;
             public bool HasResourceEntries;
             public int LatchRegionCount;
@@ -161,6 +167,13 @@ namespace Space4X.Systems.AI
 
                 if (aiState.TargetEntity == Entity.Null)
                 {
+                    aiState.TargetPosition = float3.zero;
+                    return;
+                }
+
+                if (!EntityInfoLookup.Exists(aiState.TargetEntity))
+                {
+                    aiState.TargetEntity = Entity.Null;
                     aiState.TargetPosition = float3.zero;
                     return;
                 }
@@ -256,8 +269,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
-
 
 
 

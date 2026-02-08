@@ -26,6 +26,7 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<ColonyIndustryInventory> _colonyInventoryLookup;
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -37,6 +38,7 @@ namespace Space4X.Systems.Economy
             _colonyInventoryLookup = state.GetComponentLookup<ColonyIndustryInventory>(true);
             _inventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
             _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
+            _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -64,11 +66,17 @@ namespace Space4X.Systems.Economy
             _colonyInventoryLookup.Update(ref state);
             _inventoryLookup.Update(ref state);
             _itemsLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             foreach (var (colonyInventory, colonyEntity) in SystemAPI.Query<RefRO<ColonyIndustryInventory>>().WithEntityAccess())
             {
+                if (!IsValidEntity(colonyEntity))
+                {
+                    continue;
+                }
+
                 var poolEntity = colonyInventory.ValueRO.InventoryEntity;
-                if (poolEntity == Entity.Null || !_itemsLookup.HasBuffer(poolEntity))
+                if (!IsValidEntity(poolEntity) || !_itemsLookup.HasBuffer(poolEntity))
                 {
                     continue;
                 }
@@ -83,13 +91,13 @@ namespace Space4X.Systems.Economy
                         continue;
                     }
 
-                    if (!_inventoryLookup.HasComponent(facility))
+                    if (!IsValidEntity(facility) || !_inventoryLookup.HasComponent(facility))
                     {
                         continue;
                     }
 
                     var facilityInventory = _inventoryLookup[facility].InventoryEntity;
-                    if (facilityInventory == Entity.Null || !_itemsLookup.HasBuffer(facilityInventory))
+                    if (!IsValidEntity(facilityInventory) || !_itemsLookup.HasBuffer(facilityInventory))
                     {
                         continue;
                     }
@@ -116,13 +124,13 @@ namespace Space4X.Systems.Economy
                         continue;
                     }
 
-                    if (!_inventoryLookup.HasComponent(facility))
+                    if (!IsValidEntity(facility) || !_inventoryLookup.HasComponent(facility))
                     {
                         continue;
                     }
 
                     var facilityInventory = _inventoryLookup[facility].InventoryEntity;
-                    if (facilityInventory == Entity.Null || !_itemsLookup.HasBuffer(facilityInventory))
+                    if (!IsValidEntity(facilityInventory) || !_itemsLookup.HasBuffer(facilityInventory))
                     {
                         continue;
                     }
@@ -146,6 +154,11 @@ namespace Space4X.Systems.Economy
                     }
                 }
             }
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
         }
 
         private static void TransferAll(ref DynamicBuffer<InventoryItem> source, ref DynamicBuffer<InventoryItem> destination, in FixedString64Bytes itemId)

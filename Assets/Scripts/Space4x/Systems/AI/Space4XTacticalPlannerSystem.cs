@@ -22,6 +22,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
         private ComponentLookup<VesselPilotLink> _vesselPilotLookup;
         private ComponentLookup<SquadCohesionState> _cohesionLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -34,6 +35,7 @@ namespace Space4X.Systems.AI
             _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _vesselPilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _cohesionLookup = state.GetComponentLookup<SquadCohesionState>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -66,6 +68,7 @@ namespace Space4X.Systems.AI
             _strikePilotLookup.Update(ref state);
             _vesselPilotLookup.Update(ref state);
             _cohesionLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             foreach (var (meta, intent, summary, tactic, planner, entity) in SystemAPI
                          .Query<RefRO<GroupMeta>, RefRO<EngagementIntent>, RefRO<EngagementThreatSummary>, RefRW<SquadTacticOrder>, RefRW<EngagementPlannerState>>()
@@ -79,7 +82,7 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                var leader = meta.ValueRO.Leader != Entity.Null && state.EntityManager.Exists(meta.ValueRO.Leader)
+                var leader = meta.ValueRO.Leader != Entity.Null && _entityInfoLookup.Exists(meta.ValueRO.Leader)
                     ? meta.ValueRO.Leader
                     : entity;
                 var profileEntity = ResolveProfileEntity(leader);
@@ -128,7 +131,9 @@ namespace Space4X.Systems.AI
 
                 tactic.ValueRW.Kind = newKind;
                 tactic.ValueRW.Issuer = entity;
-                tactic.ValueRW.Target = summary.ValueRO.PrimaryThreat;
+                tactic.ValueRW.Target = IsValidEntity(summary.ValueRO.PrimaryThreat)
+                    ? summary.ValueRO.PrimaryThreat
+                    : Entity.Null;
                 tactic.ValueRW.FocusBudgetCost = 0f;
                 tactic.ValueRW.DisciplineRequired = defaults.DisciplineRequired;
                 tactic.ValueRW.AckMode = ackMode;
@@ -143,7 +148,7 @@ namespace Space4X.Systems.AI
             if (_strikePilotLookup.HasComponent(leader))
             {
                 var pilot = _strikePilotLookup[leader].Pilot;
-                if (pilot != Entity.Null)
+                if (pilot != Entity.Null && _entityInfoLookup.Exists(pilot))
                 {
                     return pilot;
                 }
@@ -152,13 +157,18 @@ namespace Space4X.Systems.AI
             if (_vesselPilotLookup.HasComponent(leader))
             {
                 var pilot = _vesselPilotLookup[leader].Pilot;
-                if (pilot != Entity.Null)
+                if (pilot != Entity.Null && _entityInfoLookup.Exists(pilot))
                 {
                     return pilot;
                 }
             }
 
             return leader;
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
 
         private static SquadTacticKind ResolveTacticKind(

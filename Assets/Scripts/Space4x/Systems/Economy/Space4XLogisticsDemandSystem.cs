@@ -1,7 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Transport;
 using Space4X.Registry;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -13,19 +12,19 @@ namespace Space4X.Systems.Economy
     /// <summary>
     /// Populates logistics board demand entries based on colony resource shortfalls.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SpatialSystemGroup))]
     [UpdateBefore(typeof(Space4X.Systems.AI.Space4XAIMissionBoardSystem))]
     public partial struct Space4XLogisticsDemandSystem : ISystem
     {
-        [BurstCompile]
+        private EntityStorageInfoLookup _entityInfoLookup;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<Space4XColony>();
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var time = SystemAPI.GetSingleton<TimeState>();
@@ -46,22 +45,81 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
+            _entityInfoLookup.Update(ref state);
+
             var demandBuffer = state.EntityManager.GetBuffer<LogisticsDemandEntry>(boardEntity);
             demandBuffer.Clear();
 
-            var resourceKindCount = (ushort)(ResourceType.Ore + 1);
+            var hasWeights = TryGetResourceWeights(ref state, out var resourceWeights);
             var tick = time.Tick;
+            var stockLookup = state.GetComponentLookup<ColonyIndustryStock>(true);
+            stockLookup.Update(ref state);
 
             foreach (var (colony, entity) in SystemAPI.Query<RefRO<Space4XColony>>().WithEntityAccess())
             {
-                var desired = math.max(200f, colony.ValueRO.Population * 0.002f);
-                var shortage = desired - colony.ValueRO.StoredResources;
-                if (shortage <= 10f)
+                if (!IsValidEntity(entity))
                 {
                     continue;
                 }
 
-                var resourceIndex = (ushort)(((uint)colony.ValueRO.Population / 100000u) % resourceKindCount);
+                var desired = math.max(200f, colony.ValueRO.Population * 0.002f);
+                var shortage = desired - colony.ValueRO.StoredResources;
+                var resourceType = ResourceType.Minerals;
+                var resourceIndex = (ushort)resourceType;
+                var useEssentials = false;
+
+                if (stockLookup.HasComponent(entity))
+                {
+                    var stock = stockLookup[entity];
+                    var perEssential = desired * 0.25f;
+                    var shortageFood = perEssential - stock.FoodReserve;
+                    var shortageWater = perEssential - stock.WaterReserve;
+                    var shortageSupplies = perEssential - stock.SuppliesReserve;
+                    var shortageFuel = perEssential - stock.FuelReserve;
+
+                    var maxShortage = 0f;
+                    if (shortageFood > maxShortage)
+                    {
+                        maxShortage = shortageFood;
+                        resourceType = ResourceType.Food;
+                    }
+                    if (shortageWater > maxShortage)
+                    {
+                        maxShortage = shortageWater;
+                        resourceType = ResourceType.Water;
+                    }
+                    if (shortageSupplies > maxShortage)
+                    {
+                        maxShortage = shortageSupplies;
+                        resourceType = ResourceType.Supplies;
+                    }
+                    if (shortageFuel > maxShortage)
+                    {
+                        maxShortage = shortageFuel;
+                        resourceType = ResourceType.Fuel;
+                    }
+
+                    if (maxShortage > 10f)
+                    {
+                        shortage = maxShortage;
+                        resourceIndex = (ushort)resourceType;
+                        useEssentials = true;
+                    }
+                }
+
+                if (!useEssentials)
+                {
+                    if (shortage <= 10f)
+                    {
+                        continue;
+                    }
+
+                    var seedHash = (uint)math.hash(new uint3((uint)entity.Index, (uint)colony.ValueRO.Population, tick));
+                    resourceType = hasWeights
+                        ? Space4XResourceDistributionUtility.RollResource(Space4XResourceBand.Logistics, resourceWeights, seedHash)
+                        : Space4XResourceSelection.SelectLogisticsResource(seedHash);
+                    resourceIndex = (ushort)resourceType;
+                }
                 var priority = colony.ValueRO.Status switch
                 {
                     Space4XColonyStatus.InCrisis => (byte)5,
@@ -70,7 +128,7 @@ namespace Space4X.Systems.Economy
                     _ => (byte)2
                 };
 
-                var contextHash = math.hash(new uint3((uint)entity.Index, resourceIndex, 0u));
+                var contextHash = math.hash(new uint3((uint)entity.Index, resourceIndex, tick));
 
                 demandBuffer.Add(new LogisticsDemandEntry
                 {
@@ -88,6 +146,33 @@ namespace Space4X.Systems.Economy
 
             board.LastUpdateTick = tick;
             state.EntityManager.SetComponentData(boardEntity, board);
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
+        }
+
+        private bool TryGetResourceWeights(ref SystemState state, out DynamicBuffer<Space4XResourceWeightEntry> weights)
+        {
+            weights = default;
+            if (!SystemAPI.TryGetSingletonEntity<Space4XResourceDistributionConfig>(out var entity))
+            {
+                return false;
+            }
+
+            if (!state.EntityManager.HasBuffer<Space4XResourceWeightEntry>(entity))
+            {
+                return false;
+            }
+
+            weights = state.EntityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
+            if (weights.Length != (int)ResourceType.Count)
+            {
+                Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
+            }
+
+            return weights.Length > 0;
         }
 
         private Entity EnsureBoard(ref SystemState state, out LogisticsBoardConfig config)

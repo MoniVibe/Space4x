@@ -21,12 +21,15 @@ namespace Space4X.Systems.AI
         private const byte WingModeFormUp = 0;
         private const byte WingModeBreak = 1;
 
+        private EntityStorageInfoLookup _entityLookup;
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
         private ComponentLookup<PatrolStance> _patrolStanceLookup;
         private ComponentLookup<StrikeCraftProfile> _profileLookup;
         private ComponentLookup<StrikeCraftPilotLink> _pilotLinkLookup;
         private ComponentLookup<IssuedByAuthority> _issuedByLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
+        private ComponentLookup<StrikeCraftWingDirective> _wingDirectiveLookup;
+        private ComponentLookup<StrikeCraftOrderDecision> _orderDecisionLookup;
         private BufferLookup<TopStance> _outlookLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
 
@@ -36,12 +39,15 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
 
+            _entityLookup = state.GetEntityStorageInfoLookup();
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
             _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
             _profileLookup = state.GetComponentLookup<StrikeCraftProfile>(false);
             _pilotLinkLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
             _issuedByLookup = state.GetComponentLookup<IssuedByAuthority>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
+            _wingDirectiveLookup = state.GetComponentLookup<StrikeCraftWingDirective>(false);
+            _orderDecisionLookup = state.GetComponentLookup<StrikeCraftOrderDecision>(true);
             _outlookLookup = state.GetBufferLookup<TopStance>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
         }
@@ -60,12 +66,15 @@ namespace Space4X.Systems.AI
                 return;
             }
 
+            _entityLookup.Update(ref state);
             _alignmentLookup.Update(ref state);
             _patrolStanceLookup.Update(ref state);
             _profileLookup.Update(ref state);
             _pilotLinkLookup.Update(ref state);
             _issuedByLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
+            _wingDirectiveLookup.Update(ref state);
+            _orderDecisionLookup.Update(ref state);
             _outlookLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
 
@@ -96,7 +105,29 @@ namespace Space4X.Systems.AI
 
             foreach (var (profile, entity) in SystemAPI.Query<RefRW<StrikeCraftProfile>>().WithEntityAccess())
             {
-                if (!SystemAPI.HasComponent<StrikeCraftWingDirective>(entity))
+                var profileValue = profile.ValueRO;
+                var dirty = false;
+                if (profileValue.Carrier != Entity.Null && !IsValidEntity(profileValue.Carrier))
+                {
+                    profileValue.Carrier = Entity.Null;
+                    profileValue.WingLeader = Entity.Null;
+                    profileValue.WingPosition = 0;
+                    dirty = true;
+                }
+
+                if (profileValue.WingLeader != Entity.Null && !IsValidEntity(profileValue.WingLeader))
+                {
+                    profileValue.WingLeader = Entity.Null;
+                    profileValue.WingPosition = 0;
+                    dirty = true;
+                }
+
+                if (dirty)
+                {
+                    profile.ValueRW = profileValue;
+                }
+
+                if (!_wingDirectiveLookup.HasComponent(entity))
                 {
                     ecb.AddComponent(entity, new StrikeCraftWingDirective
                     {
@@ -106,7 +137,7 @@ namespace Space4X.Systems.AI
                     });
                 }
 
-                if (!SystemAPI.HasComponent<StrikeCraftOrderDecision>(entity))
+                if (!_orderDecisionLookup.HasComponent(entity))
                 {
                     ecb.AddComponent(entity, new StrikeCraftOrderDecision
                     {
@@ -117,50 +148,60 @@ namespace Space4X.Systems.AI
                     });
                 }
 
-                if (profile.ValueRO.Carrier == Entity.Null)
+                if (profileValue.Carrier == Entity.Null)
                 {
                     continue;
                 }
 
-                if (profile.ValueRO.WingLeader != Entity.Null)
+                if (profileValue.WingLeader != Entity.Null)
                 {
-                    wingMembers.Add(profile.ValueRO.WingLeader, entity);
+                    wingMembers.Add(profileValue.WingLeader, entity);
                     continue;
                 }
 
-                if (profile.ValueRO.WingPosition != 0)
+                if (profileValue.WingPosition != 0)
                 {
-                    profile.ValueRW.WingPosition = 0;
+                    profileValue.WingPosition = 0;
+                    profile.ValueRW = profileValue;
                 }
 
                 leaders.Add(entity);
-                unassignedByCarrier.Add(profile.ValueRO.Carrier, entity);
+                unassignedByCarrier.Add(profileValue.Carrier, entity);
             }
 
             for (var i = 0; i < leaders.Length; i++)
             {
                 var leader = leaders[i];
-                if (!_profileLookup.HasComponent(leader) || !SystemAPI.HasComponent<StrikeCraftWingDirective>(leader))
+                if (!IsValidEntity(leader))
+                {
+                    continue;
+                }
+
+                if (!_profileLookup.HasComponent(leader) || !_wingDirectiveLookup.HasComponent(leader))
                 {
                     continue;
                 }
 
                 var leaderProfile = _profileLookup[leader];
-                if (leaderProfile.Carrier == Entity.Null)
+                if (leaderProfile.Carrier == Entity.Null || !IsValidEntity(leaderProfile.Carrier))
                 {
                     continue;
                 }
 
-                var directive = SystemAPI.GetComponentRW<StrikeCraftWingDirective>(leader);
-                if (time.Tick < directive.ValueRO.NextDecisionTick)
+                var directive = _wingDirectiveLookup[leader];
+                if (time.Tick < directive.NextDecisionTick)
                 {
                     continue;
                 }
 
                 var profileEntity = ResolveProfileEntity(leader);
+                if (profileEntity == Entity.Null)
+                {
+                    profileEntity = leader;
+                }
                 var lawfulness = 0.5f;
                 var chaos = 0.5f;
-                if (_alignmentLookup.HasComponent(profileEntity))
+                if (IsValidEntity(profileEntity) && _alignmentLookup.HasComponent(profileEntity))
                 {
                     var alignment = _alignmentLookup[profileEntity];
                     lawfulness = AlignmentMath.Lawfulness(alignment);
@@ -168,7 +209,7 @@ namespace Space4X.Systems.AI
                 }
 
                 var discipline = 0.5f;
-                if (_outlookLookup.HasBuffer(profileEntity))
+                if (IsValidEntity(profileEntity) && _outlookLookup.HasBuffer(profileEntity))
                 {
                     discipline = ComputeDiscipline(_outlookLookup[profileEntity]);
                 }
@@ -184,7 +225,7 @@ namespace Space4X.Systems.AI
                 discipline = math.saturate(math.lerp(discipline, (compliance + formationAdherence) * 0.5f, 0.55f));
 
                 var stance = VesselStanceMode.Balanced;
-                if (_patrolStanceLookup.HasComponent(leaderProfile.Carrier))
+                if (IsValidEntity(leaderProfile.Carrier) && _patrolStanceLookup.HasComponent(leaderProfile.Carrier))
                 {
                     stance = _patrolStanceLookup[leaderProfile.Carrier].Stance;
                 }
@@ -228,10 +269,10 @@ namespace Space4X.Systems.AI
                     desiredMode = WingModeFormUp;
                 }
 
-                if (directive.ValueRO.Mode != desiredMode)
+                if (directive.Mode != desiredMode)
                 {
-                    directive.ValueRW.Mode = desiredMode;
-                    directive.ValueRW.LastDecisionTick = time.Tick;
+                    directive.Mode = desiredMode;
+                    directive.LastDecisionTick = time.Tick;
 
                     if (canEmitActions)
                     {
@@ -255,7 +296,8 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                directive.ValueRW.NextDecisionTick = time.Tick + ResolveDecisionCooldown(config.DecisionCooldownTicks, patience);
+                directive.NextDecisionTick = time.Tick + ResolveDecisionCooldown(config.DecisionCooldownTicks, patience);
+                _wingDirectiveLookup[leader] = directive;
 
                 if (desiredMode == WingModeBreak)
                 {
@@ -335,15 +377,25 @@ namespace Space4X.Systems.AI
 
         private Entity ResolveProfileEntity(Entity craftEntity)
         {
+            if (!IsValidEntity(craftEntity))
+            {
+                return Entity.Null;
+            }
+
             if (TryResolveController(craftEntity, AgencyDomain.FlightOps, out var controller))
             {
-                return controller != Entity.Null ? controller : craftEntity;
+                if (IsValidEntity(controller))
+                {
+                    return controller;
+                }
+
+                return craftEntity;
             }
 
             if (_pilotLinkLookup.HasComponent(craftEntity))
             {
                 var link = _pilotLinkLookup[craftEntity];
-                if (link.Pilot != Entity.Null)
+                if (IsValidEntity(link.Pilot))
                 {
                     return link.Pilot;
                 }
@@ -355,6 +407,11 @@ namespace Space4X.Systems.AI
         private bool TryResolveController(Entity craftEntity, AgencyDomain domain, out Entity controller)
         {
             controller = Entity.Null;
+            if (!IsValidEntity(craftEntity))
+            {
+                return false;
+            }
+
             if (!_resolvedControlLookup.HasBuffer(craftEntity))
             {
                 return false;
@@ -375,7 +432,7 @@ namespace Space4X.Systems.AI
 
         private IssuedByAuthority ResolveIssuedByAuthority(Entity carrier)
         {
-            if (carrier != Entity.Null && _issuedByLookup.HasComponent(carrier))
+            if (IsValidEntity(carrier) && _issuedByLookup.HasComponent(carrier))
             {
                 return _issuedByLookup[carrier];
             }
@@ -385,12 +442,12 @@ namespace Space4X.Systems.AI
 
         private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity craftEntity)
         {
-            if (_behaviorDispositionLookup.HasComponent(profileEntity))
+            if (IsValidEntity(profileEntity) && _behaviorDispositionLookup.HasComponent(profileEntity))
             {
                 return _behaviorDispositionLookup[profileEntity];
             }
 
-            if (_behaviorDispositionLookup.HasComponent(craftEntity))
+            if (IsValidEntity(craftEntity) && _behaviorDispositionLookup.HasComponent(craftEntity))
             {
                 return _behaviorDispositionLookup[craftEntity];
             }
@@ -430,6 +487,10 @@ namespace Space4X.Systems.AI
 
             return math.saturate(discipline);
         }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
+        }
     }
 }
-

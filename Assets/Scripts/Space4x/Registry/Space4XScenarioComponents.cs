@@ -13,7 +13,24 @@ namespace Space4X.Registry
         RareMetals = 1,
         EnergyCrystals = 2,
         OrganicMatter = 3,
-        Ore = 4
+        Ore = 4,
+        Volatiles = 5,
+        TransplutonicOre = 6,
+        ExoticGases = 7,
+        VolatileMotes = 8,
+        IndustrialCrystals = 9,
+        Isotopes = 10,
+        HeavyWater = 11,
+        LiquidOzone = 12,
+        StrontiumClathrates = 13,
+        SalvageComponents = 14,
+        BoosterGas = 15,
+        RelicData = 16,
+        Food = 17,
+        Water = 18,
+        Supplies = 19,
+        Fuel = 20,
+        Count = 21
     }
 
     /// <summary>
@@ -258,8 +275,6 @@ namespace Space4X.Registry
     /// </summary>
     public struct Space4XLegacyMiningDisabledTag : IComponentData { }
 }
-
-
 
 
 

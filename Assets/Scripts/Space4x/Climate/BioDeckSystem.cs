@@ -65,26 +65,30 @@ namespace Space4X.Climate.Systems
     [UpdateInGroup(typeof(GameplaySystemGroup))]
     public partial struct BioDeckClimateControlSystem : ISystem
     {
+        private BufferLookup<BioDeckCell> _cellLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<BioDeckModule>();
+            _cellLookup = state.GetBufferLookup<BioDeckCell>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.TempJob);
+            _cellLookup.Update(ref state);
 
             foreach (var (module, transform, moduleEntity) in SystemAPI.Query<RefRO<BioDeckModule>, RefRO<LocalTransform>>()
                          .WithEntityAccess())
             {
-                if (!SystemAPI.HasBuffer<BioDeckCell>(moduleEntity))
+                if (!_cellLookup.HasBuffer(moduleEntity))
                 {
                     continue;
                 }
 
-                var cells = SystemAPI.GetBuffer<BioDeckCell>(moduleEntity);
+                var cells = _cellLookup[moduleEntity];
                 var worldPos = transform.ValueRO.Position;
 
                 // Create climate control sources for each biodeck cell that has a target climate
@@ -116,4 +120,3 @@ namespace Space4X.Climate.Systems
         }
     }
 }
-

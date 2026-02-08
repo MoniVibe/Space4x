@@ -20,6 +20,16 @@ namespace Space4X.Systems.AI
     [UpdateBefore(typeof(PureDOTS.Runtime.Systems.Formation.FormationSlotUpdateSystem))]
     public partial struct Space4XWingFormationPlannerSystem : ISystem
     {
+        private EntityStorageInfoLookup _entityInfoLookup;
+        private ComponentLookup<GroupMeta> _groupMetaLookup;
+        private ComponentLookup<GroupFormation> _groupFormationLookup;
+        private ComponentLookup<WingFormationState> _wingStateLookup;
+        private ComponentLookup<SquadTacticOrder> _tacticLookup;
+        private ComponentLookup<WingFormationAnchor> _wingAnchorLookup;
+        private ComponentLookup<FormationState> _formationStateLookup;
+        private BufferLookup<GroupMember> _groupMemberLookup;
+        private BufferLookup<WingFormationAnchorRef> _anchorRefLookup;
+        private BufferLookup<FormationSlot> _formationSlotLookup;
         private ComponentLookup<StrikeCraftWingDirective> _wingDirectiveLookup;
         private ComponentLookup<StrikeCraftProfile> _strikeProfileLookup;
         private ComponentLookup<StrikeCraftState> _strikeStateLookup;
@@ -36,6 +46,16 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<GroupFormation>();
 
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
+            _groupMetaLookup = state.GetComponentLookup<GroupMeta>(true);
+            _groupFormationLookup = state.GetComponentLookup<GroupFormation>(false);
+            _wingStateLookup = state.GetComponentLookup<WingFormationState>(false);
+            _tacticLookup = state.GetComponentLookup<SquadTacticOrder>(false);
+            _wingAnchorLookup = state.GetComponentLookup<WingFormationAnchor>(false);
+            _formationStateLookup = state.GetComponentLookup<FormationState>(false);
+            _groupMemberLookup = state.GetBufferLookup<GroupMember>(true);
+            _anchorRefLookup = state.GetBufferLookup<WingFormationAnchorRef>(false);
+            _formationSlotLookup = state.GetBufferLookup<FormationSlot>(false);
             _wingDirectiveLookup = state.GetComponentLookup<StrikeCraftWingDirective>(true);
             _strikeProfileLookup = state.GetComponentLookup<StrikeCraftProfile>(true);
             _strikeStateLookup = state.GetComponentLookup<StrikeCraftState>(true);
@@ -67,6 +87,16 @@ namespace Space4X.Systems.AI
                 formationConfig = formationSingleton;
             }
 
+            _entityInfoLookup.Update(ref state);
+            _groupMetaLookup.Update(ref state);
+            _groupFormationLookup.Update(ref state);
+            _wingStateLookup.Update(ref state);
+            _tacticLookup.Update(ref state);
+            _wingAnchorLookup.Update(ref state);
+            _formationStateLookup.Update(ref state);
+            _groupMemberLookup.Update(ref state);
+            _anchorRefLookup.Update(ref state);
+            _formationSlotLookup.Update(ref state);
             _wingDirectiveLookup.Update(ref state);
             _strikeProfileLookup.Update(ref state);
             _strikeStateLookup.Update(ref state);
@@ -88,12 +118,12 @@ namespace Space4X.Systems.AI
             for (int i = 0; i < groups.Length; i++)
             {
                 var groupEntity = groups[i];
-                if (!state.EntityManager.HasComponent<GroupMeta>(groupEntity))
+                if (!_groupMetaLookup.HasComponent(groupEntity))
                 {
                     continue;
                 }
 
-                var meta = state.EntityManager.GetComponentData<GroupMeta>(groupEntity);
+                var meta = _groupMetaLookup[groupEntity];
                 if (meta.Kind != GroupKind.StrikeWing && meta.Kind != GroupKind.MiningWing)
                 {
                     continue;
@@ -104,12 +134,12 @@ namespace Space4X.Systems.AI
                     : formationConfig.MiningDefaults;
 
                 var tactic = EnsureTacticOrder(groupEntity, defaults, timeState.Tick, ref state);
-                if (!state.EntityManager.HasBuffer<GroupMember>(groupEntity))
+                if (!_groupMemberLookup.HasBuffer(groupEntity))
                 {
                     continue;
                 }
 
-                var membersBuffer = state.EntityManager.GetBuffer<GroupMember>(groupEntity);
+                var membersBuffer = _groupMemberLookup[groupEntity];
                 if (membersBuffer.Length == 0)
                 {
                     continue;
@@ -119,7 +149,6 @@ namespace Space4X.Systems.AI
                 var ackRatio = ComputeAckRatio(
                     tactic,
                     membersBuffer,
-                    state.EntityManager,
                     out var activeCount,
                     out var memberHash,
                     out var avgCompliance,
@@ -152,12 +181,12 @@ namespace Space4X.Systems.AI
                     : defaults.LooseFacingWeight;
                 var formationType = tightActive ? defaults.TightFormation : defaults.LooseFormation;
 
-                var groupFormation = state.EntityManager.GetComponentData<GroupFormation>(groupEntity);
+                var groupFormation = _groupFormationLookup[groupEntity];
                 groupFormation.Spacing = spacing;
                 groupFormation.Cohesion = cohesion;
                 groupFormation.FacingWeight = facing;
                 groupFormation.Type = tightActive ? PureDOTS.Runtime.Groups.FormationType.Line : PureDOTS.Runtime.Groups.FormationType.Swarm;
-                state.EntityManager.SetComponentData(groupEntity, groupFormation);
+                _groupFormationLookup[groupEntity] = groupFormation;
 
                 byte splitCount = 1;
                 if (acked && IsSplitTactic(tactic.Kind))
@@ -168,7 +197,7 @@ namespace Space4X.Systems.AI
 
                 splitCount = (byte)math.clamp(splitCount, 1, math.min(activeCount, 255));
 
-                var wingState = state.EntityManager.GetComponentData<WingFormationState>(groupEntity);
+                var wingState = _wingStateLookup[groupEntity];
                 var ackedByte = (byte)(acked ? 1 : 0);
                 var memberCount = (ushort)math.min(activeCount, ushort.MaxValue);
                 var shouldRebuild = wingState.LastDecisionTick != tactic.IssueTick
@@ -185,9 +214,10 @@ namespace Space4X.Systems.AI
                 wingState.LastMemberCount = memberCount;
                 wingState.LastAcked = ackedByte;
                 wingState.LastMemberHash = memberHash;
-                state.EntityManager.SetComponentData(groupEntity, wingState);
+                _wingStateLookup[groupEntity] = wingState;
 
-                var anchorRefs = EnsureAnchorRefs(groupEntity, splitCount, ref state);
+                var formationStructuralChange = false;
+                var anchorRefs = EnsureAnchorRefs(groupEntity, splitCount, ref state, ref formationStructuralChange);
                 var anchorEntities = new NativeArray<Entity>(splitCount, Allocator.Temp);
                 anchorEntities[0] = groupEntity;
                 for (int a = 1; a < splitCount; a++)
@@ -201,7 +231,6 @@ namespace Space4X.Systems.AI
                 var leaderPosition = leaderTransform.Position;
                 var anchorRotation = ResolveAnchorRotation(groupEntity, leaderPosition, leaderTransform.Rotation);
 
-                var formationStructuralChange = false;
                 for (int a = 0; a < splitCount; a++)
                 {
                     var anchorEntity = anchorEntities[a];
@@ -211,13 +240,23 @@ namespace Space4X.Systems.AI
 
                     if (shouldRebuild)
                     {
-                        var slots = state.EntityManager.GetBuffer<FormationSlot>(anchorEntity);
+                        var slots = _formationSlotLookup[anchorEntity];
                         slots.Clear();
                     }
                 }
 
                 if (formationStructuralChange)
                 {
+                    _entityInfoLookup.Update(ref state);
+                    _groupMetaLookup.Update(ref state);
+                    _groupFormationLookup.Update(ref state);
+                    _wingStateLookup.Update(ref state);
+                    _tacticLookup.Update(ref state);
+                    _wingAnchorLookup.Update(ref state);
+                    _formationStateLookup.Update(ref state);
+                    _groupMemberLookup.Update(ref state);
+                    _anchorRefLookup.Update(ref state);
+                    _formationSlotLookup.Update(ref state);
                     _wingDirectiveLookup.Update(ref state);
                     _strikeProfileLookup.Update(ref state);
                     _strikeStateLookup.Update(ref state);
@@ -243,7 +282,7 @@ namespace Space4X.Systems.AI
                         }
 
                         var memberEntity = member.MemberEntity;
-                        if (memberEntity == Entity.Null || !state.EntityManager.Exists(memberEntity))
+                        if (memberEntity == Entity.Null || !_entityInfoLookup.Exists(memberEntity))
                         {
                             continue;
                         }
@@ -256,7 +295,7 @@ namespace Space4X.Systems.AI
 
                         AssignFormationMember(memberEntity, anchorEntity, slotIndex, arrivalThreshold, timeState.Tick, ref state, ref ecb);
 
-                        var slots = state.EntityManager.GetBuffer<FormationSlot>(anchorEntity);
+                        var slots = _formationSlotLookup[anchorEntity];
                         slots.Add(new FormationSlot
                         {
                             SlotIndex = (byte)slotIndex,
@@ -284,7 +323,7 @@ namespace Space4X.Systems.AI
         {
             SquadTacticOrder tactic;
             var added = false;
-            if (!state.EntityManager.HasComponent<SquadTacticOrder>(groupEntity))
+            if (!_tacticLookup.HasComponent(groupEntity))
             {
                 tactic = new SquadTacticOrder
                 {
@@ -301,11 +340,12 @@ namespace Space4X.Systems.AI
             }
             else
             {
-                tactic = state.EntityManager.GetComponentData<SquadTacticOrder>(groupEntity);
+                tactic = _tacticLookup[groupEntity];
             }
 
             if (added)
             {
+                _tacticLookup.Update(ref state);
                 _wingDirectiveLookup.Update(ref state);
                 _strikeProfileLookup.Update(ref state);
                 _strikeStateLookup.Update(ref state);
@@ -319,9 +359,9 @@ namespace Space4X.Systems.AI
             var desiredKind = tactic.Kind;
             var ackMode = tactic.AckMode;
 
-            if (state.EntityManager.HasComponent<GroupMeta>(groupEntity))
+            if (_groupMetaLookup.HasComponent(groupEntity))
             {
-                var meta = state.EntityManager.GetComponentData<GroupMeta>(groupEntity);
+                var meta = _groupMetaLookup[groupEntity];
                 if (meta.Kind == GroupKind.StrikeWing && _wingDirectiveLookup.HasComponent(groupEntity))
                 {
                     var directive = _wingDirectiveLookup[groupEntity];
@@ -340,7 +380,7 @@ namespace Space4X.Systems.AI
                 tactic.DisciplineRequired = defaults.DisciplineRequired;
                 tactic.AckMode = ackMode;
                 tactic.IssueTick = tick;
-                state.EntityManager.SetComponentData(groupEntity, tactic);
+                _tacticLookup[groupEntity] = tactic;
             }
 
             return tactic;
@@ -349,7 +389,6 @@ namespace Space4X.Systems.AI
         private float ComputeAckRatio(
             in SquadTacticOrder tactic,
             DynamicBuffer<GroupMember> members,
-            EntityManager entityManager,
             out int activeCount,
             out uint memberHash,
             out float avgCompliance,
@@ -377,7 +416,7 @@ namespace Space4X.Systems.AI
                 }
 
                 var memberEntity = member.MemberEntity;
-                if (memberEntity == Entity.Null || !entityManager.Exists(memberEntity))
+                if (memberEntity == Entity.Null || !_entityInfoLookup.Exists(memberEntity))
                 {
                     continue;
                 }
@@ -495,17 +534,25 @@ namespace Space4X.Systems.AI
             return baseCount + (anchorIndex < remainder ? 1 : 0);
         }
 
-        private DynamicBuffer<WingFormationAnchorRef> EnsureAnchorRefs(Entity groupEntity, int splitCount, ref SystemState state)
+        private DynamicBuffer<WingFormationAnchorRef> EnsureAnchorRefs(
+            Entity groupEntity,
+            int splitCount,
+            ref SystemState state,
+            ref bool structuralChange)
         {
-            if (!state.EntityManager.HasBuffer<WingFormationAnchorRef>(groupEntity))
+            var anchorStructuralChange = false;
+            var refreshNeeded = false;
+            if (!_anchorRefLookup.HasBuffer(groupEntity))
             {
                 state.EntityManager.AddBuffer<WingFormationAnchorRef>(groupEntity);
+                _anchorRefLookup.Update(ref state);
+                anchorStructuralChange = true;
             }
 
-            var anchors = state.EntityManager.GetBuffer<WingFormationAnchorRef>(groupEntity);
+            var anchors = _anchorRefLookup[groupEntity];
             for (int i = anchors.Length - 1; i >= 0; i--)
             {
-                if (anchors[i].Anchor == Entity.Null || !state.EntityManager.Exists(anchors[i].Anchor))
+                if (anchors[i].Anchor == Entity.Null || !_entityInfoLookup.Exists(anchors[i].Anchor))
                 {
                     anchors.RemoveAt(i);
                 }
@@ -514,9 +561,11 @@ namespace Space4X.Systems.AI
             var needed = math.max(0, splitCount - 1);
             for (int i = anchors.Length - 1; i >= needed; i--)
             {
-                if (state.EntityManager.Exists(anchors[i].Anchor))
+                if (_entityInfoLookup.Exists(anchors[i].Anchor))
                 {
                     state.EntityManager.DestroyEntity(anchors[i].Anchor);
+                    anchorStructuralChange = true;
+                    refreshNeeded = true;
                 }
 
                 anchors.RemoveAt(i);
@@ -525,6 +574,8 @@ namespace Space4X.Systems.AI
             for (int i = anchors.Length; i < needed; i++)
             {
                 var anchorEntity = state.EntityManager.CreateEntity();
+                anchorStructuralChange = true;
+                refreshNeeded = true;
                 state.EntityManager.AddComponentData(anchorEntity, new WingFormationAnchor
                 {
                     WingGroup = groupEntity,
@@ -535,15 +586,23 @@ namespace Space4X.Systems.AI
                 anchors.Add(new WingFormationAnchorRef { Anchor = anchorEntity });
             }
 
+            if (refreshNeeded)
+            {
+                _entityInfoLookup.Update(ref state);
+                _wingAnchorLookup.Update(ref state);
+                _formationSlotLookup.Update(ref state);
+                refreshNeeded = false;
+            }
+
             for (int i = 0; i < anchors.Length; i++)
             {
                 var anchorEntity = anchors[i].Anchor;
-                if (anchorEntity == Entity.Null || !state.EntityManager.Exists(anchorEntity))
+                if (anchorEntity == Entity.Null || !_entityInfoLookup.Exists(anchorEntity))
                 {
                     continue;
                 }
 
-                if (!state.EntityManager.HasComponent<WingFormationAnchor>(anchorEntity))
+                if (!_wingAnchorLookup.HasComponent(anchorEntity))
                 {
                     state.EntityManager.AddComponentData(anchorEntity, new WingFormationAnchor
                     {
@@ -551,17 +610,34 @@ namespace Space4X.Systems.AI
                         AnchorIndex = (byte)(i + 1),
                         AnchorCount = (byte)splitCount
                     });
+                    anchorStructuralChange = true;
+                    refreshNeeded = true;
                 }
                 else
                 {
-                    var anchor = state.EntityManager.GetComponentData<WingFormationAnchor>(anchorEntity);
+                    var anchor = _wingAnchorLookup[anchorEntity];
                     anchor.WingGroup = groupEntity;
                     anchor.AnchorIndex = (byte)(i + 1);
                     anchor.AnchorCount = (byte)splitCount;
-                    state.EntityManager.SetComponentData(anchorEntity, anchor);
+                    _wingAnchorLookup[anchorEntity] = anchor;
+                }
+
+                if (!_formationSlotLookup.HasBuffer(anchorEntity))
+                {
+                    state.EntityManager.AddBuffer<FormationSlot>(anchorEntity);
+                    anchorStructuralChange = true;
+                    refreshNeeded = true;
                 }
             }
 
+            if (refreshNeeded)
+            {
+                _entityInfoLookup.Update(ref state);
+                _wingAnchorLookup.Update(ref state);
+                _formationSlotLookup.Update(ref state);
+            }
+
+            structuralChange |= anchorStructuralChange;
             return anchors;
         }
 
@@ -577,7 +653,8 @@ namespace Space4X.Systems.AI
             ref bool structuralChange)
         {
             var clampedSlots = (byte)math.clamp(maxSlots, 0, 255);
-            if (!state.EntityManager.HasComponent<FormationState>(anchorEntity))
+            var refreshNeeded = false;
+            if (!_formationStateLookup.HasComponent(anchorEntity))
             {
                 state.EntityManager.AddComponentData(anchorEntity, new FormationState
                 {
@@ -592,10 +669,11 @@ namespace Space4X.Systems.AI
                     LastUpdateTick = tick
                 });
                 structuralChange = true;
+                refreshNeeded = true;
             }
             else
             {
-                var formation = state.EntityManager.GetComponentData<FormationState>(anchorEntity);
+                var formation = _formationStateLookup[anchorEntity];
                 formation.Type = formationType;
                 formation.AnchorPosition = position;
                 formation.AnchorRotation = rotation;
@@ -604,13 +682,20 @@ namespace Space4X.Systems.AI
                 formation.MaxSlots = clampedSlots;
                 formation.FilledSlots = clampedSlots;
                 formation.LastUpdateTick = tick;
-                state.EntityManager.SetComponentData(anchorEntity, formation);
+                _formationStateLookup[anchorEntity] = formation;
             }
 
-            if (!state.EntityManager.HasBuffer<FormationSlot>(anchorEntity))
+            if (!_formationSlotLookup.HasBuffer(anchorEntity))
             {
                 state.EntityManager.AddBuffer<FormationSlot>(anchorEntity);
                 structuralChange = true;
+                refreshNeeded = true;
+            }
+
+            if (refreshNeeded)
+            {
+                _formationStateLookup.Update(ref state);
+                _formationSlotLookup.Update(ref state);
             }
         }
 

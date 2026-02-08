@@ -19,6 +19,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<HullIntegrity> _hullLookup;
         private ComponentLookup<TargetPriority> _priorityLookup;
         private BufferLookup<TargetCandidate> _candidateLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -31,6 +32,7 @@ namespace Space4X.Systems.AI
             _hullLookup = state.GetComponentLookup<HullIntegrity>(true);
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
             _candidateLookup = state.GetBufferLookup<TargetCandidate>(true);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -57,6 +59,7 @@ namespace Space4X.Systems.AI
             _hullLookup.Update(ref state);
             _priorityLookup.Update(ref state);
             _candidateLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             foreach (var (summary, meta, members, transform, entity) in SystemAPI
                          .Query<RefRW<EngagementThreatSummary>, RefRO<GroupMeta>, DynamicBuffer<GroupMember>, RefRO<LocalTransform>>()
@@ -88,7 +91,7 @@ namespace Space4X.Systems.AI
                     }
 
                     var memberEntity = member.MemberEntity;
-                    if (memberEntity == Entity.Null || !state.EntityManager.Exists(memberEntity))
+                    if (memberEntity == Entity.Null || !_entityInfoLookup.Exists(memberEntity))
                     {
                         continue;
                     }
@@ -113,12 +116,15 @@ namespace Space4X.Systems.AI
                 if (_priorityLookup.HasComponent(entity))
                 {
                     var priority = _priorityLookup[entity];
-                    primaryThreat = priority.CurrentTarget;
+                    if (IsValidEntity(priority.CurrentTarget))
+                    {
+                        primaryThreat = priority.CurrentTarget;
+                    }
                 }
 
                 float primaryThreatDistance = float.MaxValue;
                 float primaryThreatHullRatio = 0f;
-                if (primaryThreat != Entity.Null && _transformLookup.HasComponent(primaryThreat))
+                if (IsValidEntity(primaryThreat) && _transformLookup.HasComponent(primaryThreat))
                 {
                     primaryThreatDistance = math.distance(transform.ValueRO.Position, _transformLookup[primaryThreat].Position);
                     if (_hullLookup.HasComponent(primaryThreat))
@@ -138,7 +144,7 @@ namespace Space4X.Systems.AI
                     for (int i = 0; i < candidates.Length && threatCount < limit; i++)
                     {
                         var candidate = candidates[i];
-                        if (candidate.Entity == Entity.Null || !state.EntityManager.Exists(candidate.Entity))
+                        if (candidate.Entity == Entity.Null || !_entityInfoLookup.Exists(candidate.Entity))
                         {
                             continue;
                         }
@@ -158,7 +164,7 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                if (threatCount == 0 && primaryThreat != Entity.Null)
+                if (threatCount == 0 && IsValidEntity(primaryThreat))
                 {
                     threatCount = 1;
                     if (_hullLookup.HasComponent(primaryThreat))
@@ -180,7 +186,7 @@ namespace Space4X.Systems.AI
                 float advantageRatio = threatStrength > 0f ? friendlyStrength / threatStrength : 1f;
 
                 float escapeProbability = 1f;
-                if (primaryThreat != Entity.Null && primaryThreatDistance < float.MaxValue)
+                if (IsValidEntity(primaryThreat) && primaryThreatDistance < float.MaxValue)
                 {
                     escapeProbability = math.saturate(primaryThreatDistance / math.max(1f, config.EscapeDistance));
                 }
@@ -199,6 +205,11 @@ namespace Space4X.Systems.AI
                 summary.ValueRW.EscapeProbability = escapeProbability;
                 summary.ValueRW.LastUpdateTick = timeState.Tick;
             }
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
     }
 }

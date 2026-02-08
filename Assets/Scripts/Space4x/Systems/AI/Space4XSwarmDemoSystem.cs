@@ -18,6 +18,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<SwarmThrustState> _swarmThrustLookup;
         private ComponentLookup<Space4XShipCapabilityState> _capabilityLookup;
         private ComponentLookup<PureDOTS.Runtime.Agency.ControlLinkState> _controlLinkLookup;
+        private ComponentLookup<Space4XTowRescueRequest> _towRescueLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
         private const uint OrderLeaseTicks = 120;
         private const uint RescueReissueTicks = 60;
 
@@ -29,6 +31,8 @@ namespace Space4X.Systems.AI
             _swarmThrustLookup = state.GetComponentLookup<SwarmThrustState>(false);
             _capabilityLookup = state.GetComponentLookup<Space4XShipCapabilityState>(true);
             _controlLinkLookup = state.GetComponentLookup<PureDOTS.Runtime.Agency.ControlLinkState>(true);
+            _towRescueLookup = state.GetComponentLookup<Space4XTowRescueRequest>(false);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -43,6 +47,8 @@ namespace Space4X.Systems.AI
             _swarmThrustLookup.Update(ref state);
             _capabilityLookup.Update(ref state);
             _controlLinkLookup.Update(ref state);
+            _towRescueLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var tick = timeState.Tick;
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
@@ -99,6 +105,11 @@ namespace Space4X.Systems.AI
 
         private void ApplyPhase(ref SystemState state, Entity anchorEntity, Space4XSwarmDemoPhase phase, bool canTug, in Space4XSwarmDemoState demo, uint tick)
         {
+            if (!IsValidEntity(anchorEntity))
+            {
+                return;
+            }
+
             ToggleSwarmThrust(anchorEntity, phase, canTug, demo, ref state);
 
             foreach (var (orderState, droneOrbit, droneEntity) in SystemAPI.Query<RefRW<PureDOTS.Runtime.Agency.ControlOrderState>, RefRO<DroneOrbit>>()
@@ -124,7 +135,9 @@ namespace Space4X.Systems.AI
                     Space4XSwarmDemoPhase.Return => PureDOTS.Runtime.Agency.ControlOrderKind.Return,
                     _ => PureDOTS.Runtime.Agency.ControlOrderKind.Screen
                 };
-                updated.TargetEntity = updated.Kind == PureDOTS.Runtime.Agency.ControlOrderKind.Attack ? demo.AttackTarget : Entity.Null;
+                updated.TargetEntity = updated.Kind == PureDOTS.Runtime.Agency.ControlOrderKind.Attack && IsValidEntity(demo.AttackTarget)
+                    ? demo.AttackTarget
+                    : Entity.Null;
                 updated.AnchorEntity = anchorEntity;
                 updated.AnchorPosition = float3.zero;
                 updated.IssuedTick = tick;
@@ -180,7 +193,7 @@ namespace Space4X.Systems.AI
 
         private float3 ResolveTugDirection(float3 anchorPos, Entity attackTarget)
         {
-            if (attackTarget != Entity.Null && _transformLookup.HasComponent(attackTarget))
+            if (IsValidEntity(attackTarget) && _transformLookup.HasComponent(attackTarget))
             {
                 var targetPos = _transformLookup[attackTarget].Position;
                 return math.normalizesafe(anchorPos - targetPos, new float3(1f, 0f, 0f));
@@ -191,6 +204,11 @@ namespace Space4X.Systems.AI
 
         private Entity FindRescueTarget(Entity anchorEntity, ref SystemState state)
         {
+            if (!IsValidEntity(anchorEntity))
+            {
+                return Entity.Null;
+            }
+
             if (_capabilityLookup.HasComponent(anchorEntity))
             {
                 var capability = _capabilityLookup[anchorEntity];
@@ -205,9 +223,14 @@ namespace Space4X.Systems.AI
 
         private void UpdateRescueRequest(Entity anchorEntity, Entity target, uint tick, ref SystemState state)
         {
-            if (target == Entity.Null || !state.EntityManager.Exists(target))
+            if (!IsValidEntity(anchorEntity))
             {
-                if (state.EntityManager.HasComponent<Space4XTowRescueRequest>(anchorEntity))
+                return;
+            }
+
+            if (target == Entity.Null || !_entityInfoLookup.Exists(target))
+            {
+                if (_towRescueLookup.HasComponent(anchorEntity))
                 {
                     state.EntityManager.RemoveComponent<Space4XTowRescueRequest>(anchorEntity);
                 }
@@ -216,7 +239,7 @@ namespace Space4X.Systems.AI
 
             if (!_capabilityLookup.HasComponent(target))
             {
-                if (state.EntityManager.HasComponent<Space4XTowRescueRequest>(anchorEntity))
+                if (_towRescueLookup.HasComponent(anchorEntity))
                 {
                     state.EntityManager.RemoveComponent<Space4XTowRescueRequest>(anchorEntity);
                 }
@@ -226,7 +249,7 @@ namespace Space4X.Systems.AI
             var capability = _capabilityLookup[target];
             if (capability.IsAlive == 0 || capability.IsMobile != 0)
             {
-                if (state.EntityManager.HasComponent<Space4XTowRescueRequest>(anchorEntity))
+                if (_towRescueLookup.HasComponent(anchorEntity))
                 {
                     state.EntityManager.RemoveComponent<Space4XTowRescueRequest>(anchorEntity);
                 }
@@ -236,23 +259,23 @@ namespace Space4X.Systems.AI
             EmitTowRescueRequest(anchorEntity, target, tick, ref state);
         }
 
-        private static void EmitTowRescueRequest(Entity anchorEntity, Entity target, uint tick, ref SystemState state)
+        private void EmitTowRescueRequest(Entity anchorEntity, Entity target, uint tick, ref SystemState state)
         {
-            if (state.EntityManager.HasComponent<Space4XTowRescueRequest>(anchorEntity))
+            if (_towRescueLookup.HasComponent(anchorEntity))
             {
-                var request = state.EntityManager.GetComponentData<Space4XTowRescueRequest>(anchorEntity);
+                var request = _towRescueLookup[anchorEntity];
                 if (request.Target != target || tick >= request.LastUpdatedTick + RescueReissueTicks)
                 {
                     request.Target = target;
                     request.Priority = 1;
                     request.LastUpdatedTick = tick;
                     request.ExpireTick = tick + RescueReissueTicks;
-                    state.EntityManager.SetComponentData(anchorEntity, request);
+                    _towRescueLookup[anchorEntity] = request;
                 }
                 else if (tick >= request.ExpireTick)
                 {
                     request.ExpireTick = tick + RescueReissueTicks;
-                    state.EntityManager.SetComponentData(anchorEntity, request);
+                    _towRescueLookup[anchorEntity] = request;
                 }
 
                 return;
@@ -277,14 +300,15 @@ namespace Space4X.Systems.AI
                          .WithEntityAccess())
             {
                 float distance = math.distance(anchorPos, transform.ValueRO.Position);
-                if (distance < bestDistance || (math.abs(distance - bestDistance) < 0.01f && entity.Index < nearest.Index))
+                if (distance < bestDistance ||
+                    (math.abs(distance - bestDistance) < 0.01f && (nearest == Entity.Null || entity.Index < nearest.Index)))
                 {
                     bestDistance = distance;
                     nearest = entity;
                 }
             }
 
-            if (nearest != Entity.Null && _transformLookup.HasComponent(nearest))
+            if (IsValidEntity(nearest) && _transformLookup.HasComponent(nearest))
             {
                 var targetPos = _transformLookup[nearest].Position;
                 return math.normalizesafe(anchorPos - targetPos, new float3(1f, 0f, 0f));
@@ -319,6 +343,11 @@ namespace Space4X.Systems.AI
                 Space4XSwarmDemoPhase.Attack => Space4XSwarmDemoPhase.Return,
                 _ => Space4XSwarmDemoPhase.Screen
             };
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
     }
 }

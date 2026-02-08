@@ -17,6 +17,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Space4XShipCapabilityState> _capabilityLookup;
         private ComponentLookup<SwarmThrustState> _swarmThrustLookup;
+        private EntityStorageInfoLookup _entityInfoLookup;
 
         public void OnCreate(ref SystemState state)
         {
@@ -24,6 +25,7 @@ namespace Space4X.Systems.AI
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _capabilityLookup = state.GetComponentLookup<Space4XShipCapabilityState>(true);
             _swarmThrustLookup = state.GetComponentLookup<SwarmThrustState>(false);
+            _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -37,6 +39,7 @@ namespace Space4X.Systems.AI
             _transformLookup.Update(ref state);
             _capabilityLookup.Update(ref state);
             _swarmThrustLookup.Update(ref state);
+            _entityInfoLookup.Update(ref state);
 
             var tick = timeState.Tick;
 
@@ -63,7 +66,7 @@ namespace Space4X.Systems.AI
 
         private bool IsRequestValid(in Space4XTowRescueRequest request, uint tick, ref SystemState state)
         {
-            if (request.Target == Entity.Null || !state.EntityManager.Exists(request.Target))
+            if (!IsValidEntity(request.Target))
             {
                 return false;
             }
@@ -96,20 +99,26 @@ namespace Space4X.Systems.AI
                          .WithEntityAccess())
             {
                 float distance = math.distance(anchorPos, transform.ValueRO.Position);
-                if (distance < bestDistance || (math.abs(distance - bestDistance) < 0.01f && entity.Index < nearest.Index))
+                if (distance < bestDistance ||
+                    (math.abs(distance - bestDistance) < 0.01f && (nearest == Entity.Null || entity.Index < nearest.Index)))
                 {
                     bestDistance = distance;
                     nearest = entity;
                 }
             }
 
-            if (nearest != Entity.Null && _transformLookup.HasComponent(nearest))
+            if (IsValidEntity(nearest) && _transformLookup.HasComponent(nearest))
             {
                 var targetPos = _transformLookup[nearest].Position;
                 return math.normalizesafe(anchorPos - targetPos, new float3(1f, 0f, 0f));
             }
 
             return new float3(1f, 0f, 0f);
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityInfoLookup.Exists(entity);
         }
     }
 }

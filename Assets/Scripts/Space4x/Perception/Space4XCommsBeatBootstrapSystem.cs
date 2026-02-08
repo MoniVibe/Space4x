@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Perception;
 using Space4X.Registry;
 using Space4X.Runtime;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -12,16 +13,19 @@ namespace Space4X.Perception
 {
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(Space4x.Scenario.Space4XMiningScenarioSystem))]
+    [BurstCompile]
     public partial struct Space4XCommsBeatBootstrapSystem : ISystem
     {
         private ComponentLookup<Carrier> _carrierLookup;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XCommsBeatConfig>();
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var config = SystemAPI.GetSingleton<Space4XCommsBeatConfig>();

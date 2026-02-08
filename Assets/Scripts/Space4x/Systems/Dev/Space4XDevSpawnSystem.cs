@@ -230,7 +230,13 @@ namespace Space4X.Systems.Dev
             ecb.AddBuffer<MoraleModifier>(entity);
 
             // Resource storage
-            ecb.AddBuffer<ResourceStorage>(entity);
+            var storage = ecb.AddBuffer<ResourceStorage>(entity);
+            storage.Add(ResourceStorage.Create(ResourceType.Food, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Water, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Supplies, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Fuel, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Minerals, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
 
             UnityDebug.Log($"[DevSpawnSystem] Created carrier {carrierId} at {position}");
         }
@@ -608,7 +614,13 @@ namespace Space4X.Systems.Dev
             AddFactionTag(ref state, ref ecb, entity, factionId);
 
             // Resources
-            ecb.AddBuffer<ResourceStorage>(entity);
+            var storage = ecb.AddBuffer<ResourceStorage>(entity);
+            storage.Add(ResourceStorage.Create(ResourceType.Food, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Water, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Supplies, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Fuel, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.Minerals, 10000f));
+            storage.Add(ResourceStorage.Create(ResourceType.RareMetals, 10000f));
 
             UnityDebug.Log($"[DevSpawnSystem] Created station {stationId} ({templateId}) at {position}");
         }
@@ -761,4 +773,3 @@ namespace Space4X.Systems.Dev
         }
     }
 }
-

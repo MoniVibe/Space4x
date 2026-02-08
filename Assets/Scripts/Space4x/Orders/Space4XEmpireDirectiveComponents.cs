@@ -1,16 +1,16 @@
 using System;
-using Unity.Collections;
 using Unity.Entities;
 
 namespace Space4X.Orders
 {
-    public static class EmpireDirectiveKeys
+    public enum EmpireDirectiveType : byte
     {
-        public static readonly FixedString32Bytes SecureResources = new FixedString32Bytes("SECURE_RESOURCES");
-        public static readonly FixedString32Bytes Expand = new FixedString32Bytes("EXPAND");
-        public static readonly FixedString32Bytes ResearchFocus = new FixedString32Bytes("RESEARCH_FOCUS");
-        public static readonly FixedString32Bytes MilitaryPosture = new FixedString32Bytes("MILITARY_POSTURE");
-        public static readonly FixedString32Bytes TradeBias = new FixedString32Bytes("TRADE_BIAS");
+        Unknown = 0,
+        SecureResources = 1,
+        Expand = 2,
+        ResearchFocus = 3,
+        MilitaryPosture = 4,
+        TradeBias = 5
     }
 
     public enum DirectiveScope : byte
@@ -41,7 +41,7 @@ namespace Space4X.Orders
 
     public struct EmpireDirective : IBufferElementData
     {
-        public FixedString32Bytes DirectiveType;
+        public EmpireDirectiveType DirectiveType;
         public float BasePriority;
         public float PriorityWeight;
         public uint IssuedTick;
@@ -53,4 +53,3 @@ namespace Space4X.Orders
         public DirectiveFlags Flags;
     }
 }
-

@@ -50,6 +50,13 @@ namespace Space4X.Registry
         private ComponentLookup<ModuleTarget> _moduleTargetLookup;
         private BufferLookup<PDCarrierModuleSlot> _moduleSlotLookup;
         private ComponentLookup<PDShipModule> _moduleLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<Space4XEngagement> _engagementLookup;
+        private ComponentLookup<Space4XShield> _shieldLookup;
+        private ComponentLookup<Space4XArmor> _armorLookup;
+        private ComponentLookup<HullIntegrity> _hullLookup;
+        private BufferLookup<DamageEvent> _damageEventLookup;
+        private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -81,6 +88,13 @@ namespace Space4X.Registry
             _moduleTargetLookup = state.GetComponentLookup<ModuleTarget>(true);
             _moduleSlotLookup = state.GetBufferLookup<PDCarrierModuleSlot>(true);
             _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _engagementLookup = state.GetComponentLookup<Space4XEngagement>(false);
+            _shieldLookup = state.GetComponentLookup<Space4XShield>(false);
+            _armorLookup = state.GetComponentLookup<Space4XArmor>(true);
+            _hullLookup = state.GetComponentLookup<HullIntegrity>(false);
+            _damageEventLookup = state.GetBufferLookup<DamageEvent>(false);
+            _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
@@ -119,6 +133,19 @@ namespace Space4X.Registry
             _moduleTargetLookup.Update(ref state);
             _moduleSlotLookup.Update(ref state);
             _moduleLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _engagementLookup.Update(ref state);
+            _shieldLookup.Update(ref state);
+            _armorLookup.Update(ref state);
+            _hullLookup.Update(ref state);
+            _damageEventLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _engagementLookup.Update(ref state);
+            _shieldLookup.Update(ref state);
+            _armorLookup.Update(ref state);
+            _hullLookup.Update(ref state);
+            _damageEventLookup.Update(ref state);
+            _entityLookup.Update(ref state);
 
             var dogfightConfig = StrikeCraftDogfightConfig.Default;
             if (SystemAPI.TryGetSingleton<StrikeCraftDogfightConfig>(out var dogfightConfigSingleton))
@@ -181,7 +208,7 @@ namespace Space4X.Registry
                 }
 
                 Entity target = engagement.ValueRO.PrimaryTarget;
-                if (target == Entity.Null || !SystemAPI.Exists(target))
+                if (target == Entity.Null || !_entityLookup.Exists(target))
                 {
                     continue;
                 }
@@ -189,11 +216,11 @@ namespace Space4X.Registry
                 var rangeScale = ResolveRangeScale(entity);
 
                 // Get target position
-                if (!SystemAPI.HasComponent<LocalTransform>(target))
+                if (!_transformLookup.HasComponent(target))
                 {
                     continue;
                 }
-                var targetTransform = SystemAPI.GetComponent<LocalTransform>(target);
+                var targetTransform = _transformLookup[target];
                 float3 toTarget = targetTransform.Position - transform.ValueRO.Position;
                 float distance = math.length(toTarget);
 
@@ -688,6 +715,12 @@ namespace Space4X.Registry
         private ComponentLookup<ModuleTarget> _moduleTargetLookup;
         private BufferLookup<PDCarrierModuleSlot> _moduleSlotLookup;
         private ComponentLookup<PDShipModule> _moduleLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<Space4XEngagement> _engagementLookup;
+        private ComponentLookup<Space4XShield> _shieldLookup;
+        private ComponentLookup<Space4XArmor> _armorLookup;
+        private ComponentLookup<HullIntegrity> _hullLookup;
+        private BufferLookup<DamageEvent> _damageEventLookup;
         private const float SubsystemDamageFraction = 0.25f;
         private const float AntiSubsystemDamageMultiplier = 1.5f;
         private const float CriticalSubsystemDamageMultiplier = 1.25f;
@@ -724,6 +757,12 @@ namespace Space4X.Registry
             _moduleTargetLookup = state.GetComponentLookup<ModuleTarget>(true);
             _moduleSlotLookup = state.GetBufferLookup<PDCarrierModuleSlot>(true);
             _moduleLookup = state.GetComponentLookup<PDShipModule>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _engagementLookup = state.GetComponentLookup<Space4XEngagement>(false);
+            _shieldLookup = state.GetComponentLookup<Space4XShield>(false);
+            _armorLookup = state.GetComponentLookup<Space4XArmor>(true);
+            _hullLookup = state.GetComponentLookup<HullIntegrity>(false);
+            _damageEventLookup = state.GetBufferLookup<DamageEvent>(false);
         }
 
         [BurstCompile]
@@ -787,25 +826,25 @@ namespace Space4X.Registry
                 }
 
                 Entity target = engagement.ValueRO.PrimaryTarget;
-                if (target == Entity.Null || !SystemAPI.Exists(target))
+                if (target == Entity.Null || !_entityLookup.Exists(target))
                 {
                     continue;
                 }
 
                 // Get target components
-                if (!SystemAPI.HasComponent<LocalTransform>(target))
+                if (!_transformLookup.HasComponent(target))
                 {
                     continue;
                 }
 
-                var targetTransform = SystemAPI.GetComponent<LocalTransform>(target);
+                var targetTransform = _transformLookup[target];
                 float distance = math.distance(transform.ValueRO.Position, targetTransform.Position);
 
                 // Get target evasion
                 float evasion = 0f;
-                if (SystemAPI.HasComponent<Space4XEngagement>(target))
+                if (_engagementLookup.HasComponent(target))
                 {
-                    evasion = (float)SystemAPI.GetComponent<Space4XEngagement>(target).EvasionModifier;
+                    evasion = (float)_engagementLookup[target].EvasionModifier;
                 }
 
                 var focusAccuracyBonus = 0f;
@@ -896,10 +935,10 @@ namespace Space4X.Registry
                     }
 
                     // Apply 3D advantage multiplier (high ground, flanking bonuses)
-                    if (_advantageLookup.HasComponent(entity) && SystemAPI.HasComponent<LocalTransform>(entity) && SystemAPI.HasComponent<LocalTransform>(target))
+                    if (_advantageLookup.HasComponent(entity))
                     {
-                        var attackerPos = SystemAPI.GetComponent<LocalTransform>(entity).Position;
-                        var targetPos = SystemAPI.GetComponent<LocalTransform>(target).Position;
+                        var attackerPos = transform.ValueRO.Position;
+                        var targetPos = targetTransform.Position;
                         var advantageMultiplier = Formation3DService.Get3DAdvantageMultiplier(
                             _entityLookup,
                             _advantageLookup,
@@ -911,7 +950,7 @@ namespace Space4X.Registry
                     }
 
                     // Apply damage to target
-                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb, ref state);
+                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb);
 
                     engagement.ValueRW.DamageDealt += rawDamage;
                 }
@@ -930,8 +969,7 @@ namespace Space4X.Registry
             uint tick,
             in LocalTransform sourceTransform,
             in LocalTransform targetTransform,
-            ref EntityCommandBuffer ecb,
-            ref SystemState state)
+            ref EntityCommandBuffer ecb)
         {
             float remainingDamage = rawDamage;
             float shieldDamage = 0f;
@@ -940,9 +978,9 @@ namespace Space4X.Registry
             var damageType = Space4XWeapon.ResolveDamageType(weapon.Type, weapon.DamageType);
 
             // Shield absorption
-            if (SystemAPI.HasComponent<Space4XShield>(target))
+            if (_shieldLookup.HasComponent(target))
             {
-                var shield = SystemAPI.GetComponent<Space4XShield>(target);
+                var shield = _shieldLookup[target];
 
                 if (shield.Current > 0)
                 {
@@ -955,14 +993,14 @@ namespace Space4X.Registry
 
                     remainingDamage = math.max(0, effectiveDamage - shieldDamage);
 
-                    SystemAPI.SetComponent(target, shield);
+                    _shieldLookup[target] = shield;
                 }
             }
 
             // Armor mitigation
-            if (remainingDamage > 0 && SystemAPI.HasComponent<Space4XArmor>(target))
+            if (remainingDamage > 0 && _armorLookup.HasComponent(target))
             {
-                var armor = SystemAPI.GetComponent<Space4XArmor>(target);
+                var armor = _armorLookup[target];
                 float resistance = CombatMath.GetArmorResistance(damageType, armor);
 
                 float mitigatedDamage = CombatMath.CalculateArmorDamage(
@@ -977,12 +1015,12 @@ namespace Space4X.Registry
             }
 
             // Hull damage
-            if (remainingDamage > 0 && SystemAPI.HasComponent<HullIntegrity>(target))
+            if (remainingDamage > 0 && _hullLookup.HasComponent(target))
             {
-                var hull = SystemAPI.GetComponent<HullIntegrity>(target);
+                var hull = _hullLookup[target];
                 hullDamage = remainingDamage;
                 hull.Current = (half)math.max(0f, (float)hull.Current - hullDamage);
-                SystemAPI.SetComponent(target, hull);
+                _hullLookup[target] = hull;
             }
 
             if (armorDamage > 0f || hullDamage > 0f)
@@ -997,9 +1035,9 @@ namespace Space4X.Registry
             }
 
             // Log damage event
-            if (SystemAPI.HasBuffer<DamageEvent>(target))
+            if (_damageEventLookup.HasBuffer(target))
             {
-                var events = SystemAPI.GetBuffer<DamageEvent>(target);
+                var events = _damageEventLookup[target];
                 if (events.Length < events.Capacity)
                 {
                     events.Add(new DamageEvent
@@ -1017,11 +1055,11 @@ namespace Space4X.Registry
             }
 
             // Update target engagement
-            if (SystemAPI.HasComponent<Space4XEngagement>(target))
+            if (_engagementLookup.HasComponent(target))
             {
-                var targetEngagement = SystemAPI.GetComponent<Space4XEngagement>(target);
+                var targetEngagement = _engagementLookup[target];
                 targetEngagement.DamageReceived += rawDamage;
-                SystemAPI.SetComponent(target, targetEngagement);
+                _engagementLookup[target] = targetEngagement;
             }
         }
 
@@ -1465,10 +1503,13 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XDamageResolutionSystem))]
     public partial struct Space4XSubsystemStatusSystem : ISystem
     {
+        private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SubsystemHealth>();
+            _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(false);
         }
 
         [BurstCompile]
@@ -1489,14 +1530,16 @@ namespace Space4X.Registry
                 currentTick = (uint)SystemAPI.Time.ElapsedTime;
             }
 
+            _subsystemDisabledLookup.Update(ref state);
+
             foreach (var (subsystems, entity) in SystemAPI.Query<DynamicBuffer<SubsystemHealth>>().WithEntityAccess())
             {
                 var subsystemsBuffer = subsystems;
-                var hasDisabled = SystemAPI.HasBuffer<SubsystemDisabled>(entity);
+                var hasDisabled = _subsystemDisabledLookup.HasBuffer(entity);
                 DynamicBuffer<SubsystemDisabled> disabled = default;
                 if (hasDisabled)
                 {
-                    disabled = SystemAPI.GetBuffer<SubsystemDisabled>(entity);
+                    disabled = _subsystemDisabledLookup[entity];
                 }
 
                 for (int i = 0; i < subsystems.Length; i++)
@@ -1588,16 +1631,30 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XDamageResolutionSystem))]
     public partial struct Space4XEngagementStateSystem : ISystem
     {
+        private ComponentLookup<InCombatTag> _inCombatTagLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<HullIntegrity> _hullLookup;
+        private EntityStorageInfoLookup _entityLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XEngagement>();
             state.RequireForUpdate<TimeState>();
+            _inCombatTagLookup = state.GetComponentLookup<InCombatTag>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _hullLookup = state.GetComponentLookup<HullIntegrity>(true);
+            _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _inCombatTagLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _hullLookup.Update(ref state);
+            _entityLookup.Update(ref state);
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (engagement, hull, transform, entity) in
@@ -1608,7 +1665,7 @@ namespace Space4X.Registry
                 if ((float)hull.ValueRO.Current <= 0)
                 {
                     engagement.ValueRW.Phase = EngagementPhase.Destroyed;
-                    if (SystemAPI.HasComponent<InCombatTag>(entity))
+                    if (_inCombatTagLookup.HasComponent(entity))
                     {
                         ecb.RemoveComponent<InCombatTag>(entity);
                     }
@@ -1624,23 +1681,23 @@ namespace Space4X.Registry
 
                 // Update target distance
                 if (engagement.ValueRO.PrimaryTarget != Entity.Null &&
-                    SystemAPI.HasComponent<LocalTransform>(engagement.ValueRO.PrimaryTarget))
+                    _transformLookup.HasComponent(engagement.ValueRO.PrimaryTarget))
                 {
-                    var targetTransform = SystemAPI.GetComponent<LocalTransform>(engagement.ValueRO.PrimaryTarget);
+                    var targetTransform = _transformLookup[engagement.ValueRO.PrimaryTarget];
                     engagement.ValueRW.TargetDistance = math.distance(transform.ValueRO.Position, targetTransform.Position);
                 }
 
                 // Check if target destroyed
                 if (engagement.ValueRO.PrimaryTarget != Entity.Null)
                 {
-                    if (!SystemAPI.Exists(engagement.ValueRO.PrimaryTarget))
+                    if (!_entityLookup.Exists(engagement.ValueRO.PrimaryTarget))
                     {
                         engagement.ValueRW.Phase = EngagementPhase.Victorious;
                         engagement.ValueRW.PrimaryTarget = Entity.Null;
                     }
-                    else if (SystemAPI.HasComponent<HullIntegrity>(engagement.ValueRO.PrimaryTarget))
+                    else if (_hullLookup.HasComponent(engagement.ValueRO.PrimaryTarget))
                     {
-                        var targetHull = SystemAPI.GetComponent<HullIntegrity>(engagement.ValueRO.PrimaryTarget);
+                        var targetHull = _hullLookup[engagement.ValueRO.PrimaryTarget];
                         if ((float)targetHull.Current <= 0)
                         {
                             engagement.ValueRW.Phase = EngagementPhase.Victorious;
@@ -1681,6 +1738,11 @@ namespace Space4X.Registry
         private ComponentLookup<PDModuleHealth> _healthLookup;
         private ComponentLookup<ModuleTargetPolicy> _modulePolicyLookup;
         private ComponentLookup<ModuleTargetPolicyOverride> _modulePolicyOverrideLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<ModuleTarget> _moduleTargetLookup;
+        private ComponentLookup<PatrolStance> _patrolStanceLookup;
+        private ComponentLookup<InCombatTag> _inCombatTagLookup;
+        private BufferLookup<WeaponMount> _weaponLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -1701,6 +1763,11 @@ namespace Space4X.Registry
             _healthLookup = state.GetComponentLookup<PDModuleHealth>(true);
             _modulePolicyLookup = state.GetComponentLookup<ModuleTargetPolicy>(true);
             _modulePolicyOverrideLookup = state.GetComponentLookup<ModuleTargetPolicyOverride>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _moduleTargetLookup = state.GetComponentLookup<ModuleTarget>(true);
+            _patrolStanceLookup = state.GetComponentLookup<PatrolStance>(true);
+            _inCombatTagLookup = state.GetComponentLookup<InCombatTag>(true);
+            _weaponLookup = state.GetBufferLookup<WeaponMount>(true);
         }
 
         [BurstCompile]
@@ -1724,6 +1791,11 @@ namespace Space4X.Registry
             _healthLookup.Update(ref state);
             _modulePolicyLookup.Update(ref state);
             _modulePolicyOverrideLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _moduleTargetLookup.Update(ref state);
+            _patrolStanceLookup.Update(ref state);
+            _inCombatTagLookup.Update(ref state);
+            _weaponLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -1745,21 +1817,21 @@ namespace Space4X.Registry
                 }
 
                 // Check if target is in weapon range
-                if (!SystemAPI.HasComponent<LocalTransform>(priority.ValueRO.CurrentTarget))
+                if (!_transformLookup.HasComponent(priority.ValueRO.CurrentTarget))
                 {
                     continue;
                 }
 
-                var targetTransform = SystemAPI.GetComponent<LocalTransform>(priority.ValueRO.CurrentTarget);
+                var targetTransform = _transformLookup[priority.ValueRO.CurrentTarget];
                 float distance = math.distance(transform.ValueRO.Position, targetTransform.Position);
 
                 var rangeScale = ResolveRangeScale(entity);
 
                 // Get max weapon range
                 float maxRange = 500f; // Default
-                if (SystemAPI.HasBuffer<WeaponMount>(entity))
+                if (_weaponLookup.HasBuffer(entity))
                 {
-                    var weapons = SystemAPI.GetBuffer<WeaponMount>(entity);
+                    var weapons = _weaponLookup[entity];
                     for (int i = 0; i < weapons.Length; i++)
                     {
                         if (weapons[i].Weapon.MaxRange > maxRange)
@@ -1789,7 +1861,7 @@ namespace Space4X.Registry
                         if (moduleTarget != Entity.Null)
                         {
                             // Add ModuleTarget component to attacker
-                            if (!SystemAPI.HasComponent<ModuleTarget>(entity))
+                            if (!_moduleTargetLookup.HasComponent(entity))
                             {
                                 ecb.AddComponent(entity, new ModuleTarget
                                 {
@@ -1839,14 +1911,14 @@ namespace Space4X.Registry
                     engagement.ValueRW.FormationBonus = (half)formationBonus;
 
                     VesselStanceMode stance = VesselStanceMode.Balanced;
-                    if (SystemAPI.HasComponent<PatrolStance>(entity))
+                    if (_patrolStanceLookup.HasComponent(entity))
                     {
-                        stance = SystemAPI.GetComponent<PatrolStance>(entity).Stance;
+                        stance = _patrolStanceLookup[entity].Stance;
                     }
                     engagement.ValueRW.EvasionModifier = (half)(stance == VesselStanceMode.Evasive ? 0.3f : 0.1f);
 
                     // Add combat tag
-                    if (!SystemAPI.HasComponent<InCombatTag>(entity))
+                    if (!_inCombatTagLookup.HasComponent(entity))
                     {
                         ecb.AddComponent<InCombatTag>(entity);
                     }

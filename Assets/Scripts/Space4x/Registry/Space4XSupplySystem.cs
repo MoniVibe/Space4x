@@ -16,16 +16,20 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XSupplyConsumptionSystem : ISystem
     {
+        private ComponentLookup<SupplyCriticalTag> _criticalLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SupplyStatus>();
+            _criticalLookup = state.GetComponentLookup<SupplyCriticalTag>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            _criticalLookup.Update(ref state);
 
             foreach (var (status, rates, entity) in
                 SystemAPI.Query<RefRW<SupplyStatus>, RefRO<SupplyConsumptionRates>>()
@@ -52,11 +56,11 @@ namespace Space4X.Registry
                                   status.ValueRO.ProvisionsRatio < 0.1f ||
                                   status.ValueRO.LifeSupportRatio < 0.1f;
 
-                if (isCritical && !SystemAPI.HasComponent<SupplyCriticalTag>(entity))
+                if (isCritical && !_criticalLookup.HasComponent(entity))
                 {
                     ecb.AddComponent<SupplyCriticalTag>(entity);
                 }
-                else if (!isCritical && SystemAPI.HasComponent<SupplyCriticalTag>(entity))
+                else if (!isCritical && _criticalLookup.HasComponent(entity))
                 {
                     ecb.RemoveComponent<SupplyCriticalTag>(entity);
                 }
@@ -162,15 +166,26 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XSupplyRouteSystem : ISystem
     {
+        private EntityStorageInfoLookup _entityLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<SupplySource> _sourceLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SupplyRoute>();
+            _entityLookup = state.GetEntityStorageInfoLookup();
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _sourceLookup = state.GetComponentLookup<SupplySource>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _entityLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _sourceLookup.Update(ref state);
+
             foreach (var (route, entity) in
                 SystemAPI.Query<RefRW<SupplyRoute>>()
                     .WithEntityAccess())
@@ -184,25 +199,25 @@ namespace Space4X.Registry
                 }
 
                 // Validate source exists
-                if (route.ValueRO.Source == Entity.Null || !SystemAPI.Exists(route.ValueRO.Source))
+                if (route.ValueRO.Source == Entity.Null || !_entityLookup.Exists(route.ValueRO.Source))
                 {
                     route.ValueRW.Status = SupplyRouteStatus.Disrupted;
                     continue;
                 }
 
                 // Validate destination exists
-                if (route.ValueRO.Destination == Entity.Null || !SystemAPI.Exists(route.ValueRO.Destination))
+                if (route.ValueRO.Destination == Entity.Null || !_entityLookup.Exists(route.ValueRO.Destination))
                 {
                     route.ValueRW.Status = SupplyRouteStatus.Cancelled;
                     continue;
                 }
 
                 // Update distance
-                if (SystemAPI.HasComponent<LocalTransform>(route.ValueRO.Source) &&
-                    SystemAPI.HasComponent<LocalTransform>(route.ValueRO.Destination))
+                if (_transformLookup.HasComponent(route.ValueRO.Source) &&
+                    _transformLookup.HasComponent(route.ValueRO.Destination))
                 {
-                    var sourcePos = SystemAPI.GetComponent<LocalTransform>(route.ValueRO.Source).Position;
-                    var destPos = SystemAPI.GetComponent<LocalTransform>(route.ValueRO.Destination).Position;
+                    var sourcePos = _transformLookup[route.ValueRO.Source].Position;
+                    var destPos = _transformLookup[route.ValueRO.Destination].Position;
                     route.ValueRW.Distance = math.distance(sourcePos, destPos);
 
                     // Estimate ETA based on distance
@@ -210,9 +225,9 @@ namespace Space4X.Registry
                 }
 
                 // Check source availability
-                if (SystemAPI.HasComponent<SupplySource>(route.ValueRO.Source))
+                if (_sourceLookup.HasComponent(route.ValueRO.Source))
                 {
-                    var source = SystemAPI.GetComponent<SupplySource>(route.ValueRO.Source);
+                    var source = _sourceLookup[route.ValueRO.Source];
                     if (source.IsAvailable == 0)
                     {
                         route.ValueRW.Status = SupplyRouteStatus.Disrupted;
@@ -230,15 +245,26 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XSupplyRouteSystem))]
     public partial struct Space4XSupplyDeliverySystem : ISystem
     {
+        private EntityStorageInfoLookup _entityLookup;
+        private ComponentLookup<SupplyStatus> _statusLookup;
+        private ComponentLookup<SupplySource> _sourceLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SupplyRoute>();
+            _entityLookup = state.GetEntityStorageInfoLookup();
+            _statusLookup = state.GetComponentLookup<SupplyStatus>(false);
+            _sourceLookup = state.GetComponentLookup<SupplySource>(false);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _entityLookup.Update(ref state);
+            _statusLookup.Update(ref state);
+            _sourceLookup.Update(ref state);
+
             foreach (var (route, entity) in
                 SystemAPI.Query<RefRW<SupplyRoute>>()
                     .WithEntityAccess())
@@ -248,22 +274,29 @@ namespace Space4X.Registry
                     continue;
                 }
 
+                if (route.ValueRO.Source == Entity.Null || !_entityLookup.Exists(route.ValueRO.Source) ||
+                    route.ValueRO.Destination == Entity.Null || !_entityLookup.Exists(route.ValueRO.Destination))
+                {
+                    route.ValueRW.Status = SupplyRouteStatus.Cancelled;
+                    continue;
+                }
+
                 // Get destination supply status
-                if (!SystemAPI.HasComponent<SupplyStatus>(route.ValueRO.Destination))
+                if (!_statusLookup.HasComponent(route.ValueRO.Destination))
                 {
                     route.ValueRW.Status = SupplyRouteStatus.Cancelled;
                     continue;
                 }
 
                 // Get source info
-                if (!SystemAPI.HasComponent<SupplySource>(route.ValueRO.Source))
+                if (!_sourceLookup.HasComponent(route.ValueRO.Source))
                 {
                     route.ValueRW.Status = SupplyRouteStatus.Cancelled;
                     continue;
                 }
 
-                var source = SystemAPI.GetComponent<SupplySource>(route.ValueRO.Source);
-                var destStatus = SystemAPI.GetComponent<SupplyStatus>(route.ValueRO.Destination);
+                var source = _sourceLookup[route.ValueRO.Source];
+                var destStatus = _statusLookup[route.ValueRO.Destination];
 
                 // Transfer supplies
                 float fuelTransfer = math.min(source.TransferRate, source.AvailableFuel);
@@ -284,14 +317,14 @@ namespace Space4X.Registry
                 destStatus.Provisions += provTransfer;
                 destStatus.TicksSinceResupply = 0;
 
-                SystemAPI.SetComponent(route.ValueRO.Destination, destStatus);
+                _statusLookup[route.ValueRO.Destination] = destStatus;
 
                 // Update source
                 var sourceUpdated = source;
                 sourceUpdated.AvailableFuel -= fuelTransfer;
                 sourceUpdated.AvailableAmmo -= ammoTransfer;
                 sourceUpdated.AvailableProvisions -= provTransfer;
-                SystemAPI.SetComponent(route.ValueRO.Source, sourceUpdated);
+                _sourceLookup[route.ValueRO.Source] = sourceUpdated;
 
                 // Check if delivery complete
                 bool destFull = destStatus.FuelRatio >= 0.95f &&
@@ -317,15 +350,20 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XEmergencyHarvestSystem : ISystem
     {
+        private ComponentLookup<LocalTransform> _transformLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<EmergencyHarvest>();
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            _transformLookup.Update(ref state);
+
             foreach (var (harvest, status, transform, entity) in
                 SystemAPI.Query<RefRW<EmergencyHarvest>, RefRW<SupplyStatus>, RefRO<LocalTransform>>()
                     .WithEntityAccess())
@@ -336,9 +374,9 @@ namespace Space4X.Registry
                 }
 
                 // Check if still near target
-                if (harvest.ValueRO.Target != Entity.Null && SystemAPI.HasComponent<LocalTransform>(harvest.ValueRO.Target))
+                if (harvest.ValueRO.Target != Entity.Null && _transformLookup.HasComponent(harvest.ValueRO.Target))
                 {
-                    var targetPos = SystemAPI.GetComponent<LocalTransform>(harvest.ValueRO.Target).Position;
+                    var targetPos = _transformLookup[harvest.ValueRO.Target].Position;
                     float distance = math.distance(transform.ValueRO.Position, targetPos);
 
                     if (distance > 100f)
@@ -448,6 +486,16 @@ namespace Space4X.Registry
                         });
                     }
                 }
+                else
+                {
+                    for (int i = modifiersBuffer.Length - 1; i >= 0; i--)
+                    {
+                        if (modifiersBuffer[i].Source == MoraleModifierSource.SupplyShortage)
+                        {
+                            modifiersBuffer.RemoveAt(i);
+                        }
+                    }
+                }
             }
         }
     }
@@ -513,4 +561,3 @@ namespace Space4X.Registry
         }
     }
 }
-

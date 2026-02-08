@@ -1,0 +1,34 @@
+{
+  "sim": {
+    "seed": 1337,
+    "factionCount": 4,
+    "systemsPerFaction": 3,
+    "resourcesPerSystem": 6,
+    "resourceBiasChance": 0.35,
+    "targetTicksPerSecond": 2,
+    "autosaveSeconds": 60,
+    "foodPerPopPerSecond": 0.0003,
+    "waterPerPopPerSecond": 0.0003,
+    "fuelPerPopPerSecond": 0.00015,
+    "suppliesConsumptionPerPopPerSecond": 0.0001
+  },
+  "resourceDistribution": {
+    "biasChance": 0.4,
+    "weights": [
+      { "type": "Minerals", "innerWeight": 4, "logisticsWeight": 12 },
+      { "type": "OrganicMatter", "innerWeight": 3, "logisticsWeight": 10 },
+      { "type": "Volatiles", "outerWeight": 2, "hazardWeight": 5 },
+      { "type": "EnergyCrystals", "midWeight": 2, "logisticsWeight": 8 },
+      { "type": "Isotopes", "outerWeight": 2, "logisticsWeight": 8 },
+      { "type": "HeavyWater", "outerWeight": 2, "logisticsWeight": 8 }
+    ]
+  },
+  "businessFleet": {
+    "defaultHullId": "lcv-sparrow",
+    "hulls": [
+      { "businessKind": "MarketHub", "hullId": "cv-mule" },
+      { "businessKind": "Shipwright", "hullId": "cv-mule" },
+      { "businessKind": "DeepCoreSyndicate", "hullId": "cv-mule" }
+    ]
+  }
+}

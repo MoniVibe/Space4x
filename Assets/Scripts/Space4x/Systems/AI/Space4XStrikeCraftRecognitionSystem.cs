@@ -37,6 +37,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<Space4XFaction> _factionLookup;
         private BufferLookup<DiplomaticStatusEntry> _diplomaticStatusLookup;
         private BufferLookup<FactionRelationEntry> _factionRelationLookup;
+        private BufferLookup<TelemetryEvent> _telemetryEventLookup;
         private ComponentLookup<ModuleTargetPolicyOverride> _policyOverrideLookup;
         private ComponentLookup<DisciplinaryRecord> _disciplinaryLookup;
         private EntityStorageInfoLookup _entityLookup;
@@ -61,6 +62,7 @@ namespace Space4X.Systems.AI
             _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
             _diplomaticStatusLookup = state.GetBufferLookup<DiplomaticStatusEntry>(true);
             _factionRelationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
+            _telemetryEventLookup = state.GetBufferLookup<TelemetryEvent>(false);
             _policyOverrideLookup = state.GetComponentLookup<ModuleTargetPolicyOverride>(true);
             _disciplinaryLookup = state.GetComponentLookup<DisciplinaryRecord>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
@@ -91,6 +93,7 @@ namespace Space4X.Systems.AI
             _factionLookup.Update(ref state);
             _diplomaticStatusLookup.Update(ref state);
             _factionRelationLookup.Update(ref state);
+            _telemetryEventLookup.Update(ref state);
             _policyOverrideLookup.Update(ref state);
             _disciplinaryLookup.Update(ref state);
             _entityLookup.Update(ref state);
@@ -265,7 +268,7 @@ namespace Space4X.Systems.AI
         private Entity ResolveProfileEntity(Entity shipEntity)
         {
             var pilot = ResolvePilot(shipEntity);
-            return pilot != Entity.Null ? pilot : shipEntity;
+            return IsValidEntity(pilot) ? pilot : shipEntity;
         }
 
         private Entity ResolvePilot(Entity shipEntity)
@@ -273,7 +276,7 @@ namespace Space4X.Systems.AI
             if (_strikePilotLookup.HasComponent(shipEntity))
             {
                 var pilot = _strikePilotLookup[shipEntity].Pilot;
-                if (pilot != Entity.Null)
+                if (IsValidEntity(pilot))
                 {
                     return pilot;
                 }
@@ -282,7 +285,7 @@ namespace Space4X.Systems.AI
             if (_vesselPilotLookup.HasComponent(shipEntity))
             {
                 var pilot = _vesselPilotLookup[shipEntity].Pilot;
-                if (pilot != Entity.Null)
+                if (IsValidEntity(pilot))
                 {
                     return pilot;
                 }
@@ -315,6 +318,12 @@ namespace Space4X.Systems.AI
 
         private bool TryResolveCultureId(Entity entity, out ushort cultureId)
         {
+            if (!IsValidEntity(entity))
+            {
+                cultureId = 0;
+                return false;
+            }
+
             if (_cultureLookup.HasComponent(entity))
             {
                 cultureId = _cultureLookup[entity].Value;
@@ -327,6 +336,12 @@ namespace Space4X.Systems.AI
 
         private bool TryResolveRaceId(Entity entity, out ushort raceId)
         {
+            if (!IsValidEntity(entity))
+            {
+                raceId = 0;
+                return false;
+            }
+
             if (_raceLookup.HasComponent(entity))
             {
                 raceId = _raceLookup[entity].Value;
@@ -339,6 +354,11 @@ namespace Space4X.Systems.AI
 
         private float ResolveGoodness(Entity profileEntity)
         {
+            if (!IsValidEntity(profileEntity))
+            {
+                return 0.5f;
+            }
+
             if (_alignmentLookup.HasComponent(profileEntity))
             {
                 var alignment = _alignmentLookup[profileEntity];
@@ -353,7 +373,7 @@ namespace Space4X.Systems.AI
             score = 0;
             kind = PersonalRelationKind.None;
 
-            if (self != Entity.Null && _personalRelationLookup.HasBuffer(self))
+            if (IsValidEntity(self) && _personalRelationLookup.HasBuffer(self))
             {
                 var relations = _personalRelationLookup[self];
                 for (int i = 0; i < relations.Length; i++)
@@ -368,7 +388,7 @@ namespace Space4X.Systems.AI
                 }
             }
 
-            if (other != Entity.Null && _personalRelationLookup.HasBuffer(other))
+            if (IsValidEntity(other) && _personalRelationLookup.HasBuffer(other))
             {
                 var relations = _personalRelationLookup[other];
                 for (int i = 0; i < relations.Length; i++)
@@ -389,7 +409,7 @@ namespace Space4X.Systems.AI
         private float ResolveRecognitionSkill(Entity profileEntity, Entity craftEntity)
         {
             float bonus = 0f;
-            if (_statsLookup.HasComponent(profileEntity))
+            if (IsValidEntity(profileEntity) && _statsLookup.HasComponent(profileEntity))
             {
                 var stats = _statsLookup[profileEntity];
                 var diplomacy = math.saturate(stats.Diplomacy);
@@ -398,7 +418,7 @@ namespace Space4X.Systems.AI
                 bonus += (wisdom - 0.5f) * 0.1f;
             }
 
-            if (_experienceLookup.HasComponent(craftEntity))
+            if (IsValidEntity(craftEntity) && _experienceLookup.HasComponent(craftEntity))
             {
                 var experience = _experienceLookup[craftEntity];
                 var normalizedLevel = math.saturate(experience.Level / 5f);
@@ -443,6 +463,11 @@ namespace Space4X.Systems.AI
 
         private Entity ResolveFactionEntity(Entity entity)
         {
+            if (!IsValidEntity(entity))
+            {
+                return Entity.Null;
+            }
+
             if (_affiliationLookup.HasBuffer(entity))
             {
                 var affiliations = _affiliationLookup[entity];
@@ -450,7 +475,7 @@ namespace Space4X.Systems.AI
                 for (int i = 0; i < affiliations.Length; i++)
                 {
                     var tag = affiliations[i];
-                    if (tag.Target == Entity.Null)
+                    if (!IsValidEntity(tag.Target))
                     {
                         continue;
                     }
@@ -476,7 +501,7 @@ namespace Space4X.Systems.AI
                     for (int i = 0; i < nested.Length; i++)
                     {
                         var tag = nested[i];
-                        if (tag.Target == Entity.Null)
+                        if (!IsValidEntity(tag.Target))
                         {
                             continue;
                         }
@@ -516,7 +541,7 @@ namespace Space4X.Systems.AI
             score = 0;
             stance = DiplomaticStance.Neutral;
 
-            if (selfFaction == Entity.Null || targetFaction == Entity.Null)
+            if (!IsValidEntity(selfFaction) || !IsValidEntity(targetFaction))
             {
                 return false;
             }
@@ -594,7 +619,7 @@ namespace Space4X.Systems.AI
 
         private bool IsMercyAllowed(Entity factionEntity)
         {
-            if (factionEntity == Entity.Null || !_factionLookup.HasComponent(factionEntity))
+            if (!IsValidEntity(factionEntity) || !_factionLookup.HasComponent(factionEntity))
             {
                 return true;
             }
@@ -615,7 +640,7 @@ namespace Space4X.Systems.AI
 
         private float ApplyLoyaltyPenalty(Entity profileEntity, Entity factionEntity, float penalty)
         {
-            if (factionEntity == Entity.Null || !_affiliationLookup.HasBuffer(profileEntity))
+            if (!IsValidEntity(profileEntity) || !IsValidEntity(factionEntity) || !_affiliationLookup.HasBuffer(profileEntity))
             {
                 return 0f;
             }
@@ -641,7 +666,7 @@ namespace Space4X.Systems.AI
 
         private void SetDisciplinaryRecord(ref EntityCommandBuffer ecb, Entity profileEntity, Entity factionEntity, float penalty, uint tick)
         {
-            if (profileEntity == Entity.Null)
+            if (!IsValidEntity(profileEntity))
             {
                 return;
             }
@@ -743,12 +768,12 @@ namespace Space4X.Systems.AI
                 return false;
             }
 
-            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryEvent>(telemetryRef.Stream))
+            if (!IsValidEntity(telemetryRef.Stream) || !_telemetryEventLookup.HasBuffer(telemetryRef.Stream))
             {
                 return false;
             }
 
-            buffer = state.EntityManager.GetBuffer<TelemetryEvent>(telemetryRef.Stream);
+            buffer = _telemetryEventLookup[telemetryRef.Stream];
             return true;
         }
 
@@ -756,6 +781,11 @@ namespace Space4X.Systems.AI
         {
             var hash = math.hash(new uint4((uint)actor.Index, (uint)target.Index, tick, salt));
             return (hash & 0xFFFF) / 65535f;
+        }
+
+        private bool IsValidEntity(Entity entity)
+        {
+            return entity != Entity.Null && _entityLookup.Exists(entity);
         }
     }
 }
