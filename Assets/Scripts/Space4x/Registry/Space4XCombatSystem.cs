@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Ships;
 using PureDOTS.Runtime.Steering;
+using PureDOTS.Runtime.Telemetry;
 using Space4X.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -2111,23 +2112,54 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(LateSimulationSystemGroup))]
     public partial struct Space4XCombatTelemetrySystem : ISystem
     {
+        private ComponentLookup<ScenarioSide> _sideLookup;
+
+        private struct SideTally
+        {
+            public int ShipsTotal;
+            public int ShipsDestroyed;
+            public int ShipsEngaged;
+            public int ShipsApproaching;
+            public int ShipsDisabled;
+            public float DamageDealt;
+            public float DamageReceived;
+        }
+
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<Space4XEngagement>();
+            state.RequireForUpdate<TelemetryExportConfig>();
+            _sideLookup = state.GetComponentLookup<ScenarioSide>(true);
         }
 
         public void OnUpdate(ref SystemState state)
         {
+            if (!SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var config) ||
+                config.Enabled == 0 ||
+                (config.Flags & TelemetryExportFlags.IncludeTelemetryMetrics) == 0)
+            {
+                return;
+            }
+
+            if (!TryGetTelemetryMetricBuffer(ref state, out var metricBuffer))
+            {
+                return;
+            }
+
+            _sideLookup.Update(ref state);
+
             var currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
 
             int totalCombatants = 0;
             int engaged = 0;
             int approaching = 0;
             int destroyed = 0;
+            int disabled = 0;
             float totalDamageDealt = 0f;
             float totalDamageReceived = 0f;
 
-            foreach (var engagement in SystemAPI.Query<RefRO<Space4XEngagement>>())
+            var sideStats = new NativeHashMap<byte, SideTally>(8, Allocator.Temp);
+
+            foreach (var (engagement, entity) in SystemAPI.Query<RefRO<Space4XEngagement>>().WithEntityAccess())
             {
                 if (engagement.ValueRO.Phase != EngagementPhase.None)
                 {
@@ -2146,8 +2178,47 @@ namespace Space4X.Registry
                         case EngagementPhase.Destroyed:
                             destroyed++;
                             break;
+                        case EngagementPhase.Disabled:
+                            disabled++;
+                            break;
+                    }
+
+                    if (_sideLookup.HasComponent(entity))
+                    {
+                        var side = _sideLookup[entity].Side;
+                        var tally = sideStats.TryGetValue(side, out var existing) ? existing : default;
+                        tally.DamageDealt += engagement.ValueRO.DamageDealt;
+                        tally.DamageReceived += engagement.ValueRO.DamageReceived;
+                        switch (engagement.ValueRO.Phase)
+                        {
+                            case EngagementPhase.Engaged:
+                                tally.ShipsEngaged++;
+                                break;
+                            case EngagementPhase.Approaching:
+                                tally.ShipsApproaching++;
+                                break;
+                            case EngagementPhase.Disabled:
+                                tally.ShipsDisabled++;
+                                break;
+                            case EngagementPhase.Destroyed:
+                                tally.ShipsDestroyed++;
+                                break;
+                        }
+
+                        sideStats[side] = tally;
                     }
                 }
+            }
+
+            foreach (var (hull, side) in SystemAPI.Query<RefRO<HullIntegrity>, RefRO<ScenarioSide>>())
+            {
+                var tally = sideStats.TryGetValue(side.ValueRO.Side, out var existing) ? existing : default;
+                tally.ShipsTotal++;
+                if ((float)hull.ValueRO.Current <= 0f)
+                {
+                    tally.ShipsDestroyed++;
+                }
+                sideStats[side.ValueRO.Side] = tally;
             }
 
             // Aggregate weapon tracking telemetry.
@@ -2222,6 +2293,11 @@ namespace Space4X.Registry
                             break;
                     }
                 }
+
+                if (damageEvents.Length > 0)
+                {
+                    damageEvents.Clear();
+                }
             }
 
             telemetry.LastProcessedTick = currentTick;
@@ -2250,8 +2326,70 @@ namespace Space4X.Registry
 
             state.EntityManager.SetComponentData(telemetryEntity, telemetry);
 
-            // Would emit to telemetry stream
-            // UnityEngine.Debug.Log($"[Combat] Combatants: {totalCombatants}, Engaged: {engaged}, Approaching: {approaching}, Destroyed: {destroyed}, DmgDealt: {totalDamageDealt:F0}, DmgRecv: {totalDamageReceived:F0}");
+            metricBuffer.AddMetric("space4x.combat.combatants.total", totalCombatants, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.combatants.engaged", engaged, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.combatants.approaching", approaching, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.combatants.destroyed", destroyed, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.combatants.disabled", disabled, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.damage.dealt_total", totalDamageDealt, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.received_total", totalDamageReceived, TelemetryMetricUnit.Custom);
+
+            metricBuffer.AddMetric("space4x.combat.shots.fired_total", telemetry.TotalShotsFired, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.shots.hit_total", telemetry.TotalShotsHit, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.shots.missed_total", telemetry.TotalShotsMissed, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.shots.fired_delta", telemetry.ShotsFiredDelta, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.shots.hit_delta", telemetry.ShotsHitDelta, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.shots.missed_delta", telemetry.ShotsMissedDelta, TelemetryMetricUnit.Count);
+
+            metricBuffer.AddMetric("space4x.combat.damage.energy.total", telemetry.TotalDamageEnergy, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.thermal.total", telemetry.TotalDamageThermal, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.em.total", telemetry.TotalDamageEM, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.radiation.total", telemetry.TotalDamageRadiation, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.caustic.total", telemetry.TotalDamageCaustic, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.kinetic.total", telemetry.TotalDamageKinetic, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.explosive.total", telemetry.TotalDamageExplosive, TelemetryMetricUnit.Custom);
+
+            metricBuffer.AddMetric("space4x.combat.damage.energy.delta", telemetry.DamageEnergyDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.thermal.delta", telemetry.DamageThermalDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.em.delta", telemetry.DamageEMDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.radiation.delta", telemetry.DamageRadiationDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.caustic.delta", telemetry.DamageCausticDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.kinetic.delta", telemetry.DamageKineticDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.combat.damage.explosive.delta", telemetry.DamageExplosiveDelta, TelemetryMetricUnit.Custom);
+
+            using var sidePairs = sideStats.GetKeyValueArrays(Allocator.Temp);
+            metricBuffer.AddMetric("space4x.combat.sides.count", sidePairs.Length, TelemetryMetricUnit.Count);
+            for (int i = 0; i < sidePairs.Length; i++)
+            {
+                var side = sidePairs.Keys[i];
+                var tally = sidePairs.Values[i];
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.total"), tally.ShipsTotal, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.destroyed"), tally.ShipsDestroyed, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.engaged"), tally.ShipsEngaged, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.approaching"), tally.ShipsApproaching, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.disabled"), tally.ShipsDisabled, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt"), tally.DamageDealt, TelemetryMetricUnit.Custom);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received"), tally.DamageReceived, TelemetryMetricUnit.Custom);
+            }
+
+            sideStats.Dispose();
+        }
+
+        private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
+        {
+            buffer = default;
+            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            {
+                return false;
+            }
+
+            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            {
+                return false;
+            }
+
+            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryRef.Stream);
+            return true;
         }
     }
 }
