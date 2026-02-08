@@ -721,6 +721,7 @@ namespace Space4X.Scenario
         {
             var inputId = new FixedString64Bytes("iron_ore");
             var outputId = new FixedString64Bytes("iron_ingot");
+            var energyId = new FixedString64Bytes("refined_fuels");
             var recipeId = new FixedString32Bytes("refine_iron_ingot");
             var storehouseLabel = new FixedString64Bytes("Refinery");
 
@@ -763,6 +764,11 @@ namespace Space4X.Scenario
                     ResourceTypeId = outputId,
                     MaxCapacity = 200f
                 });
+                capacityBuffer.Add(new StorehouseCapacityElement
+                {
+                    ResourceTypeId = energyId,
+                    MaxCapacity = 200f
+                });
 
                 ecb.AddComponent(facility, new StorehouseConfig
                 {
@@ -775,7 +781,7 @@ namespace Space4X.Scenario
                 ecb.AddComponent(facility, new StorehouseInventory
                 {
                     TotalStored = 0f,
-                    TotalCapacity = 400f,
+                    TotalCapacity = 200f * capacityBuffer.Length,
                     ItemTypeCount = capacityBuffer.Length,
                     IsShredding = 0,
                     LastUpdateTick = 0

@@ -100,11 +100,11 @@ namespace Space4X.Systems.AI
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XMissionBoardConfig>(out var entity))
             {
-                entity = state.EntityManager.CreateEntity(typeof(Space4XMissionBoardConfig), typeof(Space4XMissionBoardState));
+                entity = state.EntityManager.CreateEntity();
                 config = Space4XMissionBoardConfig.Default;
                 boardState = new Space4XMissionBoardState { LastGenerationTick = 0, NextOfferId = 1 };
-                state.EntityManager.SetComponentData(entity, config);
-                state.EntityManager.SetComponentData(entity, boardState);
+                state.EntityManager.AddComponentData(entity, config);
+                state.EntityManager.AddComponentData(entity, boardState);
                 return entity;
             }
 
@@ -1299,9 +1299,9 @@ namespace Space4X.Systems.AI
                 return config;
             }
 
-            var entity = state.EntityManager.CreateEntity(typeof(Space4XContactTierConfig));
+            var entity = state.EntityManager.CreateEntity();
             config = Space4XContactTierConfig.Default;
-            state.EntityManager.SetComponentData(entity, config);
+            state.EntityManager.AddComponentData(entity, config);
             return config;
         }
 
