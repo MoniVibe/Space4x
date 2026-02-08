@@ -37,3 +37,9 @@ Pass / Fail
 Notes
 - If ECW is not stubbed, document current behavior explicitly and mark the card as blocked.
 - Add a "no weapons" variant to isolate lock quality without combat noise.
+
+Current Status (2026-02-08)
+- No ECM/ECW/ECCM gameplay systems found in Space4x runtime code.
+- References exist only in focus modifiers and strike-craft role tuning (EWar role),
+  without targeting/lock quality effects.
+- Treat this goal card as blocked until instrumentation and system behavior are added.
