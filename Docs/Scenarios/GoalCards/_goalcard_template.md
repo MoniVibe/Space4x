@@ -51,6 +51,16 @@ Weapon types: <projectiles, beams>
 Firing arcs: <angles and constraints>
 Ammo and heat: <limits>
 
+## Nuance Prompts (fill what applies)
+Perception: <LOS, occlusion, stealth, sensor lag>
+Coordination: <callouts, shared target memory, comms delay>
+Reaction timing: <lock, aim, fire latencies>
+Skill/stat modifiers: <seat-specific effects, fatigue, penalties>
+Morale/discipline: <hold fire, focus fire, panic, misfire>
+Environment/interference: <weather, jamming, obstacles>
+Failure cases: <thrash, oscillation, friendly fire>
+Determinism cues: <seed, logging, reproducibility>
+
 ## Script
 1. <Step 1>
 2. <Step 2>
@@ -77,6 +87,11 @@ Pass gates: <metric thresholds>
 Do not regress: <list>
 Priority work: <2-4 concrete tasks>
 Telemetry IDs: <headless question IDs>
+
+## Branch Plan
+Branch name: <scenarios/goal-cards/<short>>
+Merge criteria: <pass gates + review>
+Owner/Reviewer: <names>
 
 ## Variants
 - <variant A>
