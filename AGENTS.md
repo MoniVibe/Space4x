@@ -42,7 +42,14 @@ Assume NUnit via Unity Test Runner.
 Keep examples short and focused on the system under discussion. Git / PR / DocsOnly suggest commit messages, PR descriptions, or doc sections if requested.
 When asked:
 Use short, descriptive commit messages (optionally with `feat:`, `chore:` prefixes).
-Summarize gameplay/engine impact in a few bullet points. When You’re UnsureIf a detail is ambiguous but not critical, make a reasonable assumption and state it briefly.
+Summarize gameplay/engine impact in a few bullet points.
+
+Git Practices (Branch Hygiene)
+- Keep only `main` as long-lived; use short-lived purpose branches (`feat/*`, `fix/*`, `perf/*`, `infra/*`).
+- One goal per branch; delete branch after merge.
+- Iterate on the same branch until green; avoid spawning nightly/run branches.
+
+When You’re UnsureIf a detail is ambiguous but not critical, make a reasonable assumption and state it briefly.
 If a detail is critical (API choice, breaking change), ask the user once rather than inventing a complex scheme.Remember: this user is a heavy power user; they prefer practical code and minimal fluff over long essays.
 
 ## 6.1. Hard rules
