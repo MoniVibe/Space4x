@@ -2127,7 +2127,6 @@ namespace Space4X.Registry
 
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<Space4XEngagement>();
             state.RequireForUpdate<TelemetryExportConfig>();
             _sideLookup = state.GetComponentLookup<ScenarioSide>(true);
         }
