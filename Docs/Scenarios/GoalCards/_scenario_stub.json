@@ -1,0 +1,25 @@
+{
+  "scenarioId": "space4x_slice_name_micro",
+  "seed": 1,
+  "duration_s": 120,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "presentationScale": 0.75
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.slice.metric",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [],
+  "actions": []
+}
