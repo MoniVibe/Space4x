@@ -73,16 +73,18 @@
       "fallbackActivity": "idle"
     },
     "profilePools": {
-      "outlook_pool": [
-        ["lawful", "good", "cooperative"],
-        ["chaotic", "neutral", "independent"],
-        ["corrupt", "selfish", "opportunist"],
-        ["warlike", "duty_bound", "stoic"]
-      ]
+      "outlook_pool_ref": "puredots.outlook_pool"
     },
     "profileAssignments": {
-      "master_mage": ["pure", "chaotic", "good", "cooperative", "magic", "warlike", "egalitarian"],
-      "students": { "pool": "outlook_pool", "count": 8 }
+      "assignmentMode": "explicit",
+      "entities": {
+        "master_mage": ["pure", "chaotic", "good", "cooperative", "magic", "warlike", "egalitarian"],
+        "student_01": ["outlook_pool:lawful_good_cooperative"],
+        "student_02": ["outlook_pool:chaotic_neutral_independent"]
+      },
+      "notes": [
+        "Use pool refs for consistency; avoid random assignment in scenario definitions."
+      ]
     }
   },
   "spawn": [],
