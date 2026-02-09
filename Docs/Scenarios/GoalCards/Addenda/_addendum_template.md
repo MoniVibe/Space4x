@@ -21,6 +21,14 @@ Status: draft | active | archived
 - Interplay focus: <negotiation | cooperation | rivalry | conflict | environment-driven>
 - Expected expressions: <how profiles show up in behavior>
 
+## Schedule and Regimen Nuances
+- Adherence is probabilistic; profiles bias behavior but do not hard lock.
+- Lawful: high adherence and minimal drift; Chaotic: breaks or reshuffles blocks under stress.
+- Materialist: pedantic timing and checklists; Spiritual: brief ritual pauses when safe.
+- Warlike: preserves duty blocks; may eat on shift when necessary.
+- Corrupt/selfish: opportunistic breaks; Pure: more willing to cover others.
+- Needs overrides: hunger/fatigue/injury can preempt shifts; injury sidelines training.
+
 ## Nuance Budget / Perf Notes (Optional)
 - Budget target: <max expensive decisions per entity per minute>
 - Expensive features: <list>

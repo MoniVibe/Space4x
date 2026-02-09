@@ -16,6 +16,11 @@ Owner: shonh
 - Target selection: elites minimize overkill; rookies retarget frequently.
 - Heat discipline: elites manage heat budgets; rookies overhear.
 
+## Schedule and Regimen Nuances
+- Lawful/materialist crews start on time and respect cooldown windows; chaotic crews drift between blocks under stress.
+- Warlike crews avoid breaking live_fire unless hard needs; may eat on shift if allowed.
+- Needs overrides (hunger/fatigue/injury) can preempt live_fire; log interruptions inside the scoring window.
+
 ## Drone Nuance
 - Repair drones should activate during cooldown windows for pure crews.
 - Suicide drones should only trigger in high-threat target passes.
