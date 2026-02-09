@@ -24,3 +24,9 @@ Owner: shonh
 ## Edge Cases
 - If drones or psionic instruments are stubbed, ensure telemetry still records intended selections.
 - If target motion is too fast, adjust target profiles before interpreting crew skill deltas.
+
+## Nuance Budget / Perf Notes (Optional)
+- Budget target: TBD (use 100v100 stress test as coarse ceiling until costs are measured).
+- Expensive features: drone micro, doctrine-specific targeting, psionic/mana instruments.
+- Fallbacks: reduce drone behaviors to coarse roles; collapse doctrine differences to targeting bias only.
+- Stress-test references: space4x_stress_capital_100_vs_100 (desktop run).
