@@ -2359,18 +2359,44 @@ namespace Space4X.Registry
 
             using var sidePairs = sideStats.GetKeyValueArrays(Allocator.Temp);
             metricBuffer.AddMetric("space4x.combat.sides.count", sidePairs.Length, TelemetryMetricUnit.Count);
+            int winnerSide = -1;
+            int winnerAlive = -1;
+            float winnerRatio = 0f;
+            int totalAlive = 0;
             for (int i = 0; i < sidePairs.Length; i++)
             {
                 var side = sidePairs.Keys[i];
                 var tally = sidePairs.Values[i];
+                var alive = tally.ShipsTotal - tally.ShipsDestroyed;
+                if (alive < 0)
+                {
+                    alive = 0;
+                }
+
+                totalAlive += alive;
+                var aliveRatio = tally.ShipsTotal > 0 ? (float)alive / tally.ShipsTotal : 0f;
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.total"), tally.ShipsTotal, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.destroyed"), tally.ShipsDestroyed, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive"), alive, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive_ratio"), aliveRatio, TelemetryMetricUnit.Ratio);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.engaged"), tally.ShipsEngaged, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.approaching"), tally.ShipsApproaching, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.disabled"), tally.ShipsDisabled, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt"), tally.DamageDealt, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received"), tally.DamageReceived, TelemetryMetricUnit.Custom);
+
+                if (alive > winnerAlive)
+                {
+                    winnerAlive = alive;
+                    winnerSide = side;
+                    winnerRatio = aliveRatio;
+                }
             }
+
+            metricBuffer.AddMetric("space4x.combat.outcome.total_alive", totalAlive, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.outcome.winner_side", winnerSide, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.outcome.winner_alive", winnerAlive < 0 ? 0 : winnerAlive, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.outcome.winner_ratio", winnerRatio, TelemetryMetricUnit.Ratio);
 
             sideStats.Dispose();
         }
