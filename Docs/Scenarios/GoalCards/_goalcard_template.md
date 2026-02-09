@@ -55,6 +55,15 @@ Outcome reporting: <metrics broken down by profile tags>
 Examples: <master_mage: pure, chaotic, good, cooperative, magic, warlike, egalitarian; student_01: outlook_pool:lawful_good_cooperative>
 Notes: Interplay does not have to be conflict; we want entities to express profiles in meaningful, dynamic ways with or against other profiles or the simulation itself.
 
+## Experience and Doctrine Expression
+Experience deltas: <how novice/veteran/elite differ in this scenario>
+Profile x experience nuance: <warlike elites aggressive + tactically sharp; spiritual elites use psionics/mana; materialists deploy drones>
+Doctrine/tooling expression: <materialist drones; corrupt suicide drones; pure repair/support drones; other instruments>
+
+## Addendum (Optional)
+Path: <Docs/Scenarios/GoalCards/Addenda/<scenario>_notes.md>
+Notes: <use for longform "lunacies" or deep nuance without bloating the card>
+
 ## Targeting and Fire Control
 Detection: <sensors, detection time, visibility rules>
 Target selection: <priority rules>
