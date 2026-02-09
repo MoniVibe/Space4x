@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.Time;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using SystemEnv = System.Environment;
@@ -536,6 +537,12 @@ namespace Space4X.Headless
             else
             {
                 UnityDebug.Log($"[ScenarioEntryPoint] Quit exit_code={exitCode}");
+            }
+            if (Application.isBatchMode && PureDOTS.Runtime.Core.RuntimeMode.IsHeadless)
+            {
+                // Defer to headless exit handling to avoid Unity shutdown crash.
+                HeadlessExitUtility.Request(Unity.Entities.World.DefaultGameObjectInjectionWorld.EntityManager, 0, exitCode);
+                return;
             }
             Application.Quit(exitCode);
         }
