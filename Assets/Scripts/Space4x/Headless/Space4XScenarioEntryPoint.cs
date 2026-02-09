@@ -551,9 +551,16 @@ namespace Space4X.Headless
                     HeadlessExitUtility.Request(world.EntityManager, 0, exitCode);
                     return;
                 }
-                UnityDebug.LogWarning("[ScenarioEntryPoint] Default world unavailable during headless exit; falling back to Environment.Exit.");
-                ScheduleExitFallback(exitCode, 2000);
-                ScheduleKillFallback(7000);
+                UnityDebug.LogWarning("[ScenarioEntryPoint] Default world unavailable during headless exit; falling back to immediate Environment.Exit.");
+                try
+                {
+                    SystemEnv.Exit(exitCode);
+                }
+                catch (Exception ex)
+                {
+                    UnityDebug.LogWarning($"[ScenarioEntryPoint] Environment.Exit failed: {ex.Message}. Scheduling kill fallback.");
+                    ScheduleKillFallback(1000);
+                }
                 return;
             }
             Application.Quit(exitCode);
