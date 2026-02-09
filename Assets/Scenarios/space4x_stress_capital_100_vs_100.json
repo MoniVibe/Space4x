@@ -3,6 +3,9 @@
   "id": "space4x_stress_capital_100_vs_100",
   "scenarioId": "space4x_stress_capital_100_vs_100",
   "description": "Stress test: 100 vs 100 capital ships, mixed pilot profiles.",
+  "proofs": {
+    "mining": false
+  },
   "duration_s": 120,
   "ships": [
     {
