@@ -47,6 +47,13 @@ Override rules: <finish current action vs immediate interrupt>
 Profile nuance: <lawful/pure rarely break, chaotic unpredictable, corrupt selfish, warlike duty-bound>
 Examples: <eat on shift if prolonged, injured sidelined, fanatic warlike skips meals>
 
+## Profile Conflicts and Outcomes
+Conflicting profiles: <group A tags vs group B tags>
+Assignment notes: <explicit assignment, pool refs, avoid random>
+Expected outcomes: <who escalates, who converts, surrender/mercy tendencies>
+Outcome reporting: <metrics broken down by profile tags>
+Examples: <master_mage: pure, chaotic, good, cooperative, magic, warlike, egalitarian; student_01: outlook_pool:lawful_good_cooperative>
+
 ## Targeting and Fire Control
 Detection: <sensors, detection time, visibility rules>
 Target selection: <priority rules>
