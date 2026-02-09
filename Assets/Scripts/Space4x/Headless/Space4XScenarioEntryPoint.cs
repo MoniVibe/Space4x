@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
 using UnityEngine;
@@ -30,6 +32,8 @@ namespace Space4X.Headless
         private static bool s_loggedTelemetry;
         private static bool s_loggedPerfTelemetry;
         private static bool s_loggedBuildStamp;
+        private static int s_exitFallbackScheduled;
+        private static int s_killFallbackScheduled;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         static void LoadPresentationSceneIfRequested()
@@ -548,10 +552,61 @@ namespace Space4X.Headless
                     return;
                 }
                 UnityDebug.LogWarning("[ScenarioEntryPoint] Default world unavailable during headless exit; falling back to Environment.Exit.");
-                SystemEnv.Exit(exitCode);
+                ScheduleExitFallback(exitCode, 2000);
+                ScheduleKillFallback(7000);
                 return;
             }
             Application.Quit(exitCode);
         }
+        private static void ScheduleExitFallback(int exitCode, int delayMs)
+        {
+            if (Interlocked.Exchange(ref s_exitFallbackScheduled, 1) != 0)
+            {
+                return;
+            }
+
+            var thread = new Thread(() =>
+            {
+                Thread.Sleep(delayMs);
+                try
+                {
+                    SystemEnv.Exit(exitCode);
+                }
+                catch
+                {
+                }
+            })
+            {
+                IsBackground = true
+            };
+
+            thread.Start();
+        }
+
+        private static void ScheduleKillFallback(int delayMs)
+        {
+            if (Interlocked.Exchange(ref s_killFallbackScheduled, 1) != 0)
+            {
+                return;
+            }
+
+            var thread = new Thread(() =>
+            {
+                Thread.Sleep(delayMs);
+                try
+                {
+                    Process.GetCurrentProcess().Kill();
+                }
+                catch
+                {
+                }
+            })
+            {
+                IsBackground = true
+            };
+
+            thread.Start();
+        }
+
     }
 }
