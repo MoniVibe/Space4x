@@ -33,6 +33,13 @@ Target sharing: <broadcast, local, none>
 Discipline: <hold fire, focus fire, stagger>
 Failure modes: <panic, overfocus, target lock oscillation>
 
+## Schedule Regime
+Time base: <scenario | day | shift>
+Profiles: <role -> schedule profile name>
+Training windows: <session IDs, mentor/trainee pairing>
+Attendance rules: <required overlap, fallback>
+Reuse notes: <other scenarios or slices that can reuse this regime>
+
 ## Targeting and Fire Control
 Detection: <sensors, detection time, visibility rules>
 Target selection: <priority rules>

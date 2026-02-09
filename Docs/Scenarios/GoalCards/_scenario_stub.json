@@ -18,7 +18,33 @@
         "id": "space4x.q.slice.metric",
         "required": true
       }
-    ]
+    ],
+    "schedule": {
+      "timeBase": "scenario",
+      "profiles": {
+        "role_name": [
+          {
+            "label": "Training",
+            "start_s": 0,
+            "duration_s": 60,
+            "activity": "train",
+            "sessionId": "training_session"
+          }
+        ]
+      },
+      "sessions": {
+        "training_session": {
+          "mentorRole": "mentor_role",
+          "traineeRole": "trainee_role",
+          "focus": "skill_slice",
+          "constraints": {
+            "formation": "ring",
+            "allowMovement": false
+          }
+        }
+      },
+      "fallbackActivity": "idle"
+    }
   },
   "spawn": [],
   "actions": []
