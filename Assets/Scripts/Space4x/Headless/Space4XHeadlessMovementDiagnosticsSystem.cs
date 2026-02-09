@@ -618,7 +618,9 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (scenarioPath.EndsWith(DogfightScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 scenarioPath.EndsWith(DogfightScenarioFile, StringComparison.OrdinalIgnoreCase)) ||
+                ScenarioIdMatches(scenarioId, DogfightScenarioFile))
             {
                 // Dogfight headless focuses on combat flow; defer turn bounds to the turnrate micro.
                 _ignoreTurnFailures = true;
