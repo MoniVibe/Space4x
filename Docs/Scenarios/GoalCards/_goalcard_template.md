@@ -47,12 +47,13 @@ Override rules: <finish current action vs immediate interrupt>
 Profile nuance: <lawful/pure rarely break, chaotic unpredictable, corrupt selfish, warlike duty-bound>
 Examples: <eat on shift if prolonged, injured sidelined, fanatic warlike skips meals>
 
-## Profile Conflicts and Outcomes
-Conflicting profiles: <group A tags vs group B tags>
+## Profile Interplay and Outcomes
+Interplay focus: <negotiation | cooperation | rivalry | conflict | environment-driven>
 Assignment notes: <explicit assignment, pool refs, avoid random>
-Expected outcomes: <who escalates, who converts, surrender/mercy tendencies>
+Expected outcomes: <how profiles express themselves against other profiles or the simulation>
 Outcome reporting: <metrics broken down by profile tags>
 Examples: <master_mage: pure, chaotic, good, cooperative, magic, warlike, egalitarian; student_01: outlook_pool:lawful_good_cooperative>
+Notes: Interplay does not have to be conflict; we want entities to express profiles in meaningful, dynamic ways with or against other profiles or the simulation itself.
 
 ## Targeting and Fire Control
 Detection: <sensors, detection time, visibility rules>
