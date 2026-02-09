@@ -40,6 +40,13 @@ Training windows: <session IDs, mentor/trainee pairing>
 Attendance rules: <required overlap, fallback>
 Reuse notes: <other scenarios or slices that can reuse this regime>
 
+## Needs and Shift Overrides
+Needs modeled: <hunger, fatigue, injury, morale>
+Thresholds: <soft vs hard breakpoints>
+Override rules: <finish current action vs immediate interrupt>
+Profile nuance: <lawful/pure rarely break, chaotic unpredictable, corrupt selfish, warlike duty-bound>
+Examples: <eat on shift if prolonged, injured sidelined, fanatic warlike skips meals>
+
 ## Targeting and Fire Control
 Detection: <sensors, detection time, visibility rules>
 Target selection: <priority rules>

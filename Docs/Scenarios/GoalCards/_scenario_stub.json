@@ -46,6 +46,30 @@
           }
         }
       },
+      "needsOverrides": {
+        "needs": {
+          "hunger": { "soft": 0.6, "hard": 0.85, "action": "eat" },
+          "fatigue": { "soft": 0.6, "hard": 0.85, "action": "rest" },
+          "injury": { "soft": 0.3, "hard": 0.6, "action": "medic" }
+        },
+        "interruptPolicy": {
+          "soft": "finish_current_action",
+          "hard": "immediate_interrupt"
+        },
+        "shiftRules": {
+          "allowEatOnShift": true,
+          "allowRestOnShift": false,
+          "sidelinedOnInjury": true
+        }
+      },
+      "profileNuance": {
+        "lawful": { "shiftBreakBias": "low", "dutyBias": "high" },
+        "pure": { "shiftBreakBias": "low", "dutyBias": "medium" },
+        "chaotic": { "shiftBreakBias": "high", "unpredictable": true },
+        "corrupt": { "shiftBreakBias": "selfish", "dutyBias": "low" },
+        "warlike": { "shiftBreakBias": "very_low", "dutyBias": "very_high" },
+        "warlike_fanatic": { "shiftBreakBias": "minimal", "eatOnShift": true }
+      },
       "fallbackActivity": "idle"
     }
   },
