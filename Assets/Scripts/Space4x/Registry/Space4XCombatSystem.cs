@@ -2505,6 +2505,13 @@ namespace Space4X.Registry
 
         private static void EmitSideDamageMetrics(DynamicBuffer<TelemetryMetric> metricBuffer, byte side, SideDamageTally tally)
         {
+            var dealtDelta = tally.DealtEnergy + tally.DealtThermal + tally.DealtEM + tally.DealtRadiation +
+                             tally.DealtCaustic + tally.DealtKinetic + tally.DealtExplosive;
+            var receivedDelta = tally.ReceivedEnergy + tally.ReceivedThermal + tally.ReceivedEM + tally.ReceivedRadiation +
+                                tally.ReceivedCaustic + tally.ReceivedKinetic + tally.ReceivedExplosive;
+
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt_delta"), dealtDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received_delta"), receivedDelta, TelemetryMetricUnit.Custom);
             metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.energy.dealt_delta"), tally.DealtEnergy, TelemetryMetricUnit.Custom);
             metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.thermal.dealt_delta"), tally.DealtThermal, TelemetryMetricUnit.Custom);
             metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.em.dealt_delta"), tally.DealtEM, TelemetryMetricUnit.Custom);
