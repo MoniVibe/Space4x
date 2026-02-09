@@ -77,6 +77,7 @@ Target selection: priority on closest threat, then highest velocity crossing tar
 Lock time: reduced by experience; drones may assist with targeting.
 Track loss: occurs on target occlusion or high angular velocity.
 Firing solution: lead required on crossing targets; aim assist scales with experience.
+PureDOTS note: timing/accuracy/lock model is shared; this scenario only tunes parameters.
 
 ## Movement and Orientation
 Formation: capital ship stationary; drones follow scripted arcs.
