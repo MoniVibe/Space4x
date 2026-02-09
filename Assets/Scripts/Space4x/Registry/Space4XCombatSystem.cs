@@ -2379,8 +2379,12 @@ namespace Space4X.Registry
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.disabled"), tally.ShipsDisabled, TelemetryMetricUnit.Count);
                 var shipsAlive = tally.ShipsAlive > 0 ? tally.ShipsAlive : math.max(0, tally.ShipsTotal - tally.ShipsDestroyed);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive"), shipsAlive, TelemetryMetricUnit.Count);
+                var shipsAliveRatio = tally.ShipsTotal > 0 ? (float)shipsAlive / tally.ShipsTotal : 0f;
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive_ratio"), shipsAliveRatio, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.current_total"), tally.HullCurrent, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.max_total"), tally.HullMax, TelemetryMetricUnit.Custom);
+                var hullRatio = tally.HullMax > 0f ? tally.HullCurrent / tally.HullMax : 0f;
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.ratio"), hullRatio, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt"), tally.DamageDealt, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received"), tally.DamageReceived, TelemetryMetricUnit.Custom);
             }
