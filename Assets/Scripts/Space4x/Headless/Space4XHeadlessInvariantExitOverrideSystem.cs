@@ -45,7 +45,7 @@ namespace Space4X.Headless
             _exitRequested = 1;
         }
 
-        private static uint ResolveTick(ref SystemState state)
+        private uint ResolveTick(ref SystemState state)
         {
             uint tick = 0;
             if (SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState))
