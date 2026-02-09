@@ -71,6 +71,18 @@
         "warlike_fanatic": { "shiftBreakBias": "minimal", "eatOnShift": true }
       },
       "fallbackActivity": "idle"
+    },
+    "profilePools": {
+      "outlook_pool": [
+        ["lawful", "good", "cooperative"],
+        ["chaotic", "neutral", "independent"],
+        ["corrupt", "selfish", "opportunist"],
+        ["warlike", "duty_bound", "stoic"]
+      ]
+    },
+    "profileAssignments": {
+      "master_mage": ["pure", "chaotic", "good", "cooperative", "magic", "warlike", "egalitarian"],
+      "students": { "pool": "outlook_pool", "count": 8 }
     }
   },
   "spawn": [],
