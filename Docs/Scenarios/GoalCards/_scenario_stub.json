@@ -83,7 +83,8 @@
         "student_02": ["outlook_pool:chaotic_neutral_independent"]
       },
       "notes": [
-        "Use pool refs for consistency; avoid random assignment in scenario definitions."
+        "Use pool refs for consistency; avoid random assignment in scenario definitions.",
+        "Match assignments to spawn entityId (Space4x) or entities.id/idPrefix (Godgame)."
       ]
     }
   },
