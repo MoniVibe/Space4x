@@ -118,7 +118,10 @@ Determinism cues: fixed seed, fixed drone paths, fixed loadout.
 
 ## Acceptance
 - Ordering: elite > veteran > experienced >= rookie across composite score.
-- Minimum separation thresholds to avoid ties (TBD).
+- Minimum separation thresholds to avoid ties:
+  - hit_accuracy_pct: elite >= veteran + 0.05, veteran >= experienced + 0.03.
+  - reaction_time_ms: elite <= veteran - 150ms, veteran <= experienced - 100ms.
+  - time_to_kill_ms: elite <= veteran - 10 percent, veteran <= experienced - 7 percent.
 - Drone usage should match doctrine where applicable.
 
 ## Regression Guardrails
@@ -134,7 +137,7 @@ Priority work:
 - Implement gunnery skill scaling and telemetry
 - Add drone tasking interface per doctrine
 - Wire target motion scripts and tracking
-Telemetry IDs: space4x.q.gunnery.capital_range.score
+Telemetry IDs: space4x.q.gunnery.capital_range.score, space4x.q.gunnery.capital_range.hit_rate, space4x.q.gunnery.capital_range.reaction_time, space4x.q.gunnery.capital_range.ttk, space4x.q.gunnery.capital_range.lock_churn, space4x.q.gunnery.capital_range.drone_assist
 
 ## Branch Plan
 Branch name: scenarios/space4x/capital-shooting-range
@@ -150,6 +153,9 @@ Owner/Reviewer: shonh / TBD
 - space4x.q.gunnery.capital_range.score
 - space4x.q.gunnery.capital_range.hit_rate
 - space4x.q.gunnery.capital_range.reaction_time
+- space4x.q.gunnery.capital_range.ttk
+- space4x.q.gunnery.capital_range.lock_churn
+- space4x.q.gunnery.capital_range.drone_assist
 
 ## Dependencies
 - Gunnery skill/experience scaling

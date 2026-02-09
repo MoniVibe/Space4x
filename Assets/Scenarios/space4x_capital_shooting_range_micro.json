@@ -2,6 +2,9 @@
   "scenarioId": "space4x_capital_shooting_range_micro",
   "seed": 2026,
   "duration_s": 120,
+  "proofs": {
+    "mining": false
+  },
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
     "renderFrame": {
@@ -13,7 +16,10 @@
     "headlessQuestions": [
       { "id": "space4x.q.gunnery.capital_range.score", "required": true },
       { "id": "space4x.q.gunnery.capital_range.hit_rate", "required": true },
-      { "id": "space4x.q.gunnery.capital_range.reaction_time", "required": true }
+      { "id": "space4x.q.gunnery.capital_range.reaction_time", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.ttk", "required": false },
+      { "id": "space4x.q.gunnery.capital_range.lock_churn", "required": false },
+      { "id": "space4x.q.gunnery.capital_range.drone_assist", "required": false }
     ],
     "gunneryBeat": {
       "warmup_s": 10,
@@ -95,7 +101,10 @@
       "notes": [
         "Interplay does not have to be conflict; this scenario focuses on profile expression vs environment."
       ]
-    }
+    },
+    "notes": [
+      "ScenarioConfig fields are advisory; loader may ignore unknown keys."
+    ]
   },
   "spawn": [
     {
