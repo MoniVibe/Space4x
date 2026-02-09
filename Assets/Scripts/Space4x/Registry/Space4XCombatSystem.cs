@@ -2121,8 +2121,11 @@ namespace Space4X.Registry
             public int ShipsEngaged;
             public int ShipsApproaching;
             public int ShipsDisabled;
+            public int ShipsAlive;
             public float DamageDealt;
             public float DamageReceived;
+            public float HullCurrent;
+            public float HullMax;
         }
 
         public void OnCreate(ref SystemState state)
@@ -2218,6 +2221,12 @@ namespace Space4X.Registry
                 {
                     tally.ShipsDestroyed++;
                 }
+                else
+                {
+                    tally.ShipsAlive++;
+                }
+                tally.HullCurrent += math.max(0f, hull.ValueRO.Current);
+                tally.HullMax += math.max(0f, hull.ValueRO.Max);
                 sideStats[side.ValueRO.Side] = tally;
             }
 
@@ -2368,6 +2377,10 @@ namespace Space4X.Registry
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.engaged"), tally.ShipsEngaged, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.approaching"), tally.ShipsApproaching, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.disabled"), tally.ShipsDisabled, TelemetryMetricUnit.Count);
+                var shipsAlive = tally.ShipsAlive > 0 ? tally.ShipsAlive : math.max(0, tally.ShipsTotal - tally.ShipsDestroyed);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive"), shipsAlive, TelemetryMetricUnit.Count);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.current_total"), tally.HullCurrent, TelemetryMetricUnit.Custom);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.max_total"), tally.HullMax, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt"), tally.DamageDealt, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received"), tally.DamageReceived, TelemetryMetricUnit.Custom);
             }
