@@ -15,6 +15,7 @@ Demonstrate that crew experience tiers and profile doctrines produce measurable,
 ## Scenario Frame
 Theme: Capital ship training range validating crew experience and doctrine expression.
 Why this scenario matters: It anchors gunnery skill scaling, profile expression, and drone/tooling choices as observable signals.
+Cross-domain mapping: “master mage” equals apex operator/ship; “firing range” equals skill-expression testbed (archers, gunners, pilots). PureDOTS owns the timing/accuracy primitives; games only skin roles and context.
 
 ## Setup
 Map/Scene: Controlled firing range (open space, low clutter).
@@ -36,6 +37,13 @@ Cooperation: coordinated crew; target sharing across seats.
 Target sharing: broadcast to gunnery + tactical.
 Discipline: hold fire during warmup; staggered volleys during live window.
 Failure modes: lock churn, overfire on disabled targets, target switching thrash.
+
+## Relations, Morale, Cohesion
+Crew relations: default cohesive; profile tags bias response to friendly fire.
+Friendly fire penalties: morale drops on own-team hits; chaotic fanatic warlikes may escalate to internal conflict in extreme variants.
+Competition: competitive entities incur morale penalties on losing “race” metrics (time-to-kill, accuracy).
+Cohesion: increases over session if friendly fire is avoided and volleys are coordinated.
+Fleet cohesion: optional secondary for grouped capital ships (shared comms and cross-targeting efficiency).
 
 ## Schedule Regime
 Time base: scenario.
@@ -81,14 +89,16 @@ PureDOTS note: timing/accuracy/lock model is shared; this scenario only tunes pa
 
 ## Movement and Orientation
 Formation: capital ship stationary; drones follow scripted arcs.
-Rotation limits: turret yaw/pitch rates scale with crew skill.
+Rotation limits: turret yaw/pitch rates scale with crew skill; hull rotation limits vary by ship class (slow dreadnought, medium cruiser, fast corvette).
 Facing rules: maintain target tracking in firing arc.
 Speed profile: targets move at low/medium/high speed tiers.
 
 ## Weapons and Arcs
 Weapon types: spinal mount (projectile), optional point defense.
 Firing arcs: 120-180 deg forward arc.
-Ammo and heat: finite heat budget; overheating penalizes cadence.
+Ammo and heat: finite heat/energy budget; overheating or energy dips penalize cadence.
+Energy uses: shots consume capacitor energy; recovery rate scales with ship class and crew skill.
+Ammo uses: optionally tracked for ballistic weapons (magazine size, reload window).
 
 ## Nuance Prompts (fill what applies)
 Perception: sensor lag affects rookies more than elites.
@@ -99,6 +109,7 @@ Morale/discipline: warlike elites ignore soft breaks during live fire.
 Environment/interference: optional jamming variant later.
 Failure cases: friendly fire on drones (if enabled), oscillation on crossing targets.
 Determinism cues: fixed seed, fixed drone paths, fixed loadout.
+Friendly fire escalation: chaotic fanatic warlikes may devolve into a fight in extreme variants (note as non-base run).
 
 ## Script
 1. Spawn capital ship and target drones; warmup (no scoring).
@@ -113,6 +124,11 @@ Determinism cues: fixed seed, fixed drone paths, fixed loadout.
 - energy_spent_per_kill: optional efficiency signal.
 - lock_churn_rate: lost locks / minute.
 - drone_assist_rate: drone-assisted hits / total hits.
+- ammo_spent_per_kill: ballistic efficiency signal.
+- energy_dip_rate: capacitor dips per minute.
+- friendly_fire_rate: friendly hits / total hits.
+- morale_delta: net morale change per crew.
+- cohesion_delta: net cohesion change per crew / fleet.
 
 ## Scoring
 - Score = 0.35 * accuracy + 0.25 * (1 - reaction_time_norm) + 0.25 * (1 - time_to_kill_norm) + 0.15 * efficiency.
@@ -149,6 +165,10 @@ Owner/Reviewer: shonh / TBD
 - Rapid yaw profile with crossing targets
 - High-speed drones with low-visibility pass
 - No-drone baseline
+- Mixed ship classes (rotation limits vary)
+- Stealthed/cloaked drones with intermittent sensor lock
+- Armor vs shield drone sets
+- Engine-speed variance (slow/fast drones)
 
 ## Telemetry/Outputs
 - space4x.q.gunnery.capital_range.score
@@ -163,6 +183,11 @@ Owner/Reviewer: shonh / TBD
 - Drone tasking and doctrine mapping
 - Target drone spawn + scripted motion
 - Telemetry for lock, hit, time-to-kill
+- Ammo and energy tracking (capacitor + reload)
+- Rotation profiles by ship class
+- Friendly fire penalties + morale/cohesion hooks
+- Module seeding for deterministic variation
+- Target drone variant support (armor/shield/engine/stealth)
 
 ## Risks/Notes
 - Gunnery/drone systems may be stubbed; treat as design target until implemented.

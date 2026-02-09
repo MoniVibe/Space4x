@@ -1,0 +1,32 @@
+{
+  "scenarioId": "space4x_hivemind_swarm_micro",
+  "seed": 4242,
+  "duration_s": 180,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.hivemind_destroyed",
+        "required": true
+      },
+      {
+        "id": "space4x.q.cruiser_survives",
+        "required": true
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 300.0,
+    "coneDegrees": 45.0,
+    "navConstantN": 3.5,
+    "breakOffDistance": 22.0,
+    "breakOffTicks": 110,
+    "rejoinRadius": 8.0,
+    "rejoinOffset": [0.0, 0.0, -14.0],
+    "jinkStrength": 0.12
+  }
+}

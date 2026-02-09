@@ -10,6 +10,16 @@ Owner: shonh
 - Corrupt materialists: prefer suicide drones or risky intercepts; accept higher losses for faster kills.
 - Pure materialists: prefer repair/support drones; keep drone losses minimal; repair between waves.
 
+## Cross-Domain Equivalence
+- Master mage maps to apex operator/ship; firing range maps to skill-expression testbed (archers, gunners, pilots).
+- PureDOTS owns the reusable mechanics (timing/accuracy/deflection); game-specific skins should not fork the model.
+
+## Relations, Morale, Cohesion
+- Friendly fire penalties reduce morale; cohesion drops on repeated incidents.
+- Competitive entities lose morale when outperformed in time-to-kill or accuracy.
+- Cohesion increases with clean, coordinated volleys; fleet cohesion can rise for grouped capital ships.
+- Chaotic fanatic warlikes may escalate to internal conflict in extreme variants (non-base run).
+
 ## Experience Delta Expectations
 - Reaction time: elite < veteran < experienced < rookie.
 - Lock stability: elites maintain lock under high angular velocity; rookies churn locks.
@@ -25,10 +35,13 @@ Owner: shonh
 - Repair drones should activate during cooldown windows for pure crews.
 - Suicide drones should only trigger in high-threat target passes.
 - Tactical seat decides drone posture based on profile tags.
+ - Stealthed drones: intermittent lock drop; sensors must reacquire.
+ - Armor vs shield drone sets: different effective time-to-kill and lock persistence.
 
 ## Edge Cases
 - If drones or psionic instruments are stubbed, ensure telemetry still records intended selections.
 - If target motion is too fast, adjust target profiles before interpreting crew skill deltas.
+ - If friendly fire escalation is enabled, separate it into a variant so base metrics remain stable.
 
 ## Nuance Budget / Perf Notes (Optional)
 - Budget target: TBD (use 100v100 stress test as coarse ceiling until costs are measured).

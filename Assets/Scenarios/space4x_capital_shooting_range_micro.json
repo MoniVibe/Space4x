@@ -28,6 +28,44 @@
       "targetProfiles": ["slow_arc", "crossing_fast", "zigzag_mid"],
       "scoringWindow": [10, 110]
     },
+    "resourceUse": {
+      "trackAmmo": true,
+      "trackEnergy": true,
+      "ammoReload_s": 6,
+      "capacitorRecoveryScale": "by_ship_class"
+    },
+    "rotationProfiles": {
+      "applyToFleetId": "RANGE-ALPHA",
+      "shipClasses": {
+        "dreadnought": { "yaw_deg_s": 8, "pitch_deg_s": 6 },
+        "cruiser": { "yaw_deg_s": 12, "pitch_deg_s": 10 },
+        "corvette": { "yaw_deg_s": 18, "pitch_deg_s": 14 }
+      }
+    },
+    "friendlyFire": {
+      "enabled": true,
+      "moralePenaltyPerHit": 0.05,
+      "escalationVariant": "chaotic_warlike"
+    },
+    "moraleCohesion": {
+      "enableMorale": true,
+      "enableCohesion": true,
+      "competitionPenalty": { "metric": "time_to_kill", "penalty": 0.1 },
+      "cohesionGainPerCleanVolley": 0.02,
+      "fleetCohesionEnabled": true
+    },
+    "moduleSeeds": {
+      "seedModules": true,
+      "seedStrategy": "per_run",
+      "seedOffsets": { "drones": 101, "sensors": 202 }
+    },
+    "targetDroneVariants": {
+      "armorTypes": ["light_armor", "heavy_armor"],
+      "shieldTypes": ["none", "light_shield"],
+      "engineProfiles": ["slow", "fast"],
+      "stealthProfiles": ["none", "cloak_burst"],
+      "stealthChance": 0.2
+    },
     "schedule": {
       "timeBase": "scenario",
       "profiles": {

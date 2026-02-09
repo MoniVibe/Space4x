@@ -127,9 +127,10 @@ namespace Space4x.Scenario
             _scenarioPath = scenarioPath;
             _templateRoot = ResolveTemplateRoot(scenarioPath);
 
+            var isCentralSeedScenario = IsCentralSeedScenario(scenarioPath, scenarioInfo);
             var jsonText = File.ReadAllText(scenarioPath);
             _scenarioData = JsonUtility.FromJson<MiningScenarioJson>(jsonText);
-            if (_scenarioData == null || _scenarioData.spawn == null)
+            if (_scenarioData == null || (!isCentralSeedScenario && _scenarioData.spawn == null))
             {
                 Debug.LogError("[Space4XMiningScenario] Failed to parse scenario JSON");
                 Enabled = false;
@@ -158,7 +159,7 @@ namespace Space4x.Scenario
             var scenarioFileName = Path.GetFileName(scenarioPath);
             var isRefitScenario = scenarioFileName.Equals(RefitScenarioFile, StringComparison.OrdinalIgnoreCase);
             var isResearchScenario = scenarioFileName.Equals(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase);
-            var isMiningScenario = !(isRefitScenario || isResearchScenario);
+            var isMiningScenario = !(isRefitScenario || isResearchScenario || isCentralSeedScenario);
             _isCollisionScenario = scenarioFileName.Equals("space4x_collision_micro.json", StringComparison.OrdinalIgnoreCase);
             if (_isCollisionScenario)
             {
@@ -346,6 +347,29 @@ namespace Space4x.Scenario
             }
 
             return scenarioId.StartsWith("space4x_movement", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsCentralSeedScenario(string scenarioPath, ScenarioInfo scenarioInfo)
+        {
+            if (IsCentralSeedScenarioId(scenarioInfo.ScenarioId.ToString()))
+            {
+                return true;
+            }
+
+            var scenarioName = Path.GetFileNameWithoutExtension(scenarioPath);
+            return IsCentralSeedScenarioId(scenarioName);
+        }
+
+        private static bool IsCentralSeedScenarioId(string scenarioId)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                return false;
+            }
+
+            var trimmed = scenarioId.Trim();
+            return trimmed.Equals("space4x_hivemind_swarm_micro", StringComparison.OrdinalIgnoreCase)
+                   || trimmed.Equals("space4x_infected_swarm_hivemind_micro", StringComparison.OrdinalIgnoreCase);
         }
 
         private void ApplySmokeMotionProfile()
@@ -944,6 +968,13 @@ namespace Space4x.Scenario
         private void SpawnEntities(uint currentTick, float fixedDt)
         {
             var spawnCount = _scenarioData?.spawn?.Count ?? 0;
+            if (_scenarioData?.spawn == null || spawnCount == 0)
+            {
+                var emptyLane = _scenarioData?.scenarioConfig?.spawnLane;
+                Debug.Log($"SCENARIO_SPAWN lane={emptyLane ?? "unknown"} spawns=0 carriers_spawned=0");
+                return;
+            }
+
             var carrierCount = 0;
             if (spawnCount > 0)
             {

@@ -12,6 +12,10 @@ Status: draft | active | archived
 - <Tooling/drone nuance>
 - <Edge-case behavior>
 
+## Cross-Domain Equivalence
+- Master mage maps to apex operator/ship; firing range maps to skill-expression testbed (archers, gunners, pilots).
+- PureDOTS owns the timing/accuracy/deflection primitives; game-specific skins should not fork the model.
+
 ## Experience and Doctrine Expression
 - Experience deltas: <rookie vs elite differences>
 - Profile x experience: <warlike elites aggressive; spiritual elites psionics/mana; materialists deploy drones>
