@@ -16,6 +16,13 @@ Variables
 - Orientation/rotation profile (slow drift, rapid yaw, target crossing angles).
 - Target density and speed (low, medium, high).
 
+Schedule Regime
+- Time base: scenario (fixed duration).
+- Profiles: crew roles stay on station; gunnery seat active throughout.
+- Training windows: warm-up (no scoring) first 10s, live-fire scoring window, cooldown last 5s.
+- Attendance rules: if any seat missing, mark run invalid.
+- Reuse notes: apply to other gunnery and target acquisition drills.
+
 Metrics / Telemetry (needs instrumentation)
 - reaction_time_ms: time from target acquisition to first shot.
 - hit_accuracy_pct: hits / shots.

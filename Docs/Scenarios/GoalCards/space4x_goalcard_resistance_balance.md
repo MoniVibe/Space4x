@@ -17,6 +17,13 @@ Variables
 - Resist strength tiers (low, medium, high).
 - Engagement range (short, medium).
 
+Schedule Regime
+- Time base: scenario (fixed duration).
+- Profiles: defender and attacker crews active throughout.
+- Training windows: approach (non-scored), engagement (scored), post-engagement settle.
+- Attendance rules: if a fleet fails to spawn, mark run invalid.
+- Reuse notes: used for other damage-type balance and survivability drills.
+
 Metrics / Telemetry (needs instrumentation)
 - damage_taken_by_type: total and per-target.
 - time_to_disable_ms: mean time to first disable / kill.

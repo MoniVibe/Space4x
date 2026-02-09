@@ -18,6 +18,13 @@ Variables
 - Range band (short, medium, long).
 - Target density (sparse, moderate).
 
+Schedule Regime
+- Time base: scenario, phased by ECM state.
+- Profiles: sensor/operator and gunner stay active throughout.
+- Training windows: baseline (no ECM), ECM on, ECM + ECCM on (equal-length phases).
+- Attendance rules: if module state toggle fails, mark that phase invalid.
+- Reuse notes: applies to other EW lock quality and sensor degradation tests.
+
 Metrics / Telemetry (needs instrumentation)
 - lock_acquisition_time_ms (per target).
 - lock_break_rate (per minute).
