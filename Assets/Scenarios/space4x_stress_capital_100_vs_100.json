@@ -1,0 +1,1813 @@
+{
+  "$schema": "schemas/scenario.schema.json",
+  "id": "space4x_stress_capital_100_vs_100",
+  "scenarioId": "space4x_stress_capital_100_vs_100",
+  "description": "Stress test: 100 vs 100 capital ships, mixed pilot profiles.",
+  "proofs": {
+    "mining": false
+  },
+  "duration_s": 120,
+  "ships": [
+    {
+      "faction": "alpha",
+      "x": 0.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 120.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 240.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 360.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 480.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 600.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 720.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 840.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 960.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 1080.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 1200.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 1320.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 1440.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 1560.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 1680.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 1800.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 1920.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 2040.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 2160.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 2280.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 2400.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 2520.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 2640.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 2760.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 2880.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 3000.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 3120.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 3240.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 3360.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 3480.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 3600.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 3720.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 3840.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 3960.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 4080.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 4200.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 4320.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 4440.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 4560.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 4680.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 4800.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 4920.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 5040.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 5160.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 5280.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 5400.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 5520.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 5640.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 5760.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 5880.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 6000.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 6120.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 6240.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 6360.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 6480.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 6600.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 6720.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 6840.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 6960.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 7080.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 7200.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 7320.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 7440.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 7560.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 7680.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 7800.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 7920.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 8040.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 8160.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 8280.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 8400.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 8520.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 8640.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 8760.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 8880.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 9000.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 9120.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 9240.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 9360.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 9480.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 9600.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 9720.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 9840.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 9960.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 10080.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 10200.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 10320.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 10440.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 10560.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 10680.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 10800.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 10920.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "alpha",
+      "x": 11040.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "alpha",
+      "x": 11160.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "alpha",
+      "x": 11280.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "alpha",
+      "x": 11400.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "alpha",
+      "x": 11520.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "alpha",
+      "x": 11640.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "alpha",
+      "x": 11760.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "alpha",
+      "x": 11880.0,
+      "y": 0.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 0.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 120.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 240.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 360.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 480.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 600.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 720.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 840.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 960.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 1080.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 1200.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 1320.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 1440.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 1560.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 1680.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 1800.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 1920.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 2040.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 2160.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 2280.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 2400.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 2520.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 2640.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 2760.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 2880.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 3000.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 3120.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 3240.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 3360.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 3480.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 3600.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 3720.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 3840.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 3960.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 4080.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 4200.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 4320.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 4440.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 4560.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 4680.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 4800.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 4920.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 5040.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 5160.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 5280.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 5400.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 5520.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 5640.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 5760.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 5880.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 6000.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 6120.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 6240.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 6360.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 6480.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 6600.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 6720.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 6840.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 6960.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 7080.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 7200.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 7320.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 7440.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 7560.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 7680.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 7800.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 7920.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 8040.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 8160.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 8280.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 8400.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 8520.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 8640.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 8760.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 8880.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 9000.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 9120.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 9240.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 9360.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 9480.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 9600.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 9720.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 9840.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 9960.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 10080.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 10200.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 10320.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 10440.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 10560.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 10680.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 10800.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 10920.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    },
+    {
+      "faction": "beta",
+      "x": 11040.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.5"
+    },
+    {
+      "faction": "beta",
+      "x": 11160.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.6"
+    },
+    {
+      "faction": "beta",
+      "x": 11280.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.7"
+    },
+    {
+      "faction": "beta",
+      "x": 11400.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.8"
+    },
+    {
+      "faction": "beta",
+      "x": 11520.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.1"
+    },
+    {
+      "faction": "beta",
+      "x": 11640.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.2"
+    },
+    {
+      "faction": "beta",
+      "x": 11760.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.3"
+    },
+    {
+      "faction": "beta",
+      "x": 11880.0,
+      "y": 40000.0,
+      "isCarrier": true,
+      "strikeCraftCount": 1,
+      "shipTemplateId": "ship.capitalship.v0",
+      "pilotProfileId": "pilot.profile.4"
+    }
+  ],
+  "applyDefaultModuleLoadouts": true
+}

@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.Time;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using SystemEnv = System.Environment;
@@ -29,6 +32,8 @@ namespace Space4X.Headless
         private static bool s_loggedTelemetry;
         private static bool s_loggedPerfTelemetry;
         private static bool s_loggedBuildStamp;
+        private static int s_exitFallbackScheduled;
+        private static int s_killFallbackScheduled;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         static void LoadPresentationSceneIfRequested()
@@ -537,7 +542,78 @@ namespace Space4X.Headless
             {
                 UnityDebug.Log($"[ScenarioEntryPoint] Quit exit_code={exitCode}");
             }
+            if (Application.isBatchMode && PureDOTS.Runtime.Core.RuntimeMode.IsHeadless)
+            {
+                // Defer to headless exit handling to avoid Unity shutdown crash.
+                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+                if (world != null && world.IsCreated)
+                {
+                    HeadlessExitUtility.Request(world.EntityManager, 0, exitCode);
+                    return;
+                }
+                UnityDebug.LogWarning("[ScenarioEntryPoint] Default world unavailable during headless exit; falling back to immediate Environment.Exit.");
+                try
+                {
+                    SystemEnv.Exit(exitCode);
+                }
+                catch (Exception ex)
+                {
+                    UnityDebug.LogWarning($"[ScenarioEntryPoint] Environment.Exit failed: {ex.Message}. Scheduling kill fallback.");
+                    ScheduleKillFallback(1000);
+                }
+                return;
+            }
             Application.Quit(exitCode);
         }
+        private static void ScheduleExitFallback(int exitCode, int delayMs)
+        {
+            if (Interlocked.Exchange(ref s_exitFallbackScheduled, 1) != 0)
+            {
+                return;
+            }
+
+            var thread = new Thread(() =>
+            {
+                Thread.Sleep(delayMs);
+                try
+                {
+                    SystemEnv.Exit(exitCode);
+                }
+                catch
+                {
+                }
+            })
+            {
+                IsBackground = true
+            };
+
+            thread.Start();
+        }
+
+        private static void ScheduleKillFallback(int delayMs)
+        {
+            if (Interlocked.Exchange(ref s_killFallbackScheduled, 1) != 0)
+            {
+                return;
+            }
+
+            var thread = new Thread(() =>
+            {
+                Thread.Sleep(delayMs);
+                try
+                {
+                    Process.GetCurrentProcess().Kill();
+                }
+                catch
+                {
+                }
+            })
+            {
+                IsBackground = true
+            };
+
+            thread.Start();
+        }
+
     }
 }
