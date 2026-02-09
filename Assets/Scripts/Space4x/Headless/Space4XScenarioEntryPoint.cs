@@ -541,7 +541,14 @@ namespace Space4X.Headless
             if (Application.isBatchMode && PureDOTS.Runtime.Core.RuntimeMode.IsHeadless)
             {
                 // Defer to headless exit handling to avoid Unity shutdown crash.
-                HeadlessExitUtility.Request(Unity.Entities.World.DefaultGameObjectInjectionWorld.EntityManager, 0, exitCode);
+                var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
+                if (world != null && world.IsCreated)
+                {
+                    HeadlessExitUtility.Request(world.EntityManager, 0, exitCode);
+                    return;
+                }
+                UnityDebug.LogWarning("[ScenarioEntryPoint] Default world unavailable during headless exit; falling back to Environment.Exit.");
+                SystemEnv.Exit(exitCode);
                 return;
             }
             Application.Quit(exitCode);
