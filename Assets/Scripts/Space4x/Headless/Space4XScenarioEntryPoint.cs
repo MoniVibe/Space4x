@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Time;
+using PureDOTS.Runtime.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using SystemEnv = System.Environment;
@@ -554,6 +555,7 @@ namespace Space4X.Headless
                 UnityDebug.LogWarning("[ScenarioEntryPoint] Default world unavailable during headless exit; falling back to immediate Environment.Exit.");
                 try
                 {
+                    HeadlessExitState.SignalExit("Space4XScenarioEntryPoint.EnvironmentExit");
                     SystemEnv.Exit(exitCode);
                 }
                 catch (Exception ex)
