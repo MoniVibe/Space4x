@@ -88,7 +88,9 @@ namespace Space4X.Headless.Editor
                     throw new BuildFailedException($"Space4X headless build failed: {report.summary.result}. See {reportPath} for details.");
                 }
 
-                CopyScenarioContent(GetPlayerDataFolderPath(buildPlayerOptions.locationPathName));
+                var playerDataFolder = GetPlayerDataFolderPath(buildPlayerOptions.locationPathName);
+                CopyScenarioContent(playerDataFolder);
+                EnsureOptionalManagedAssemblies(playerDataFolder);
                 UnityEngine.Debug.Log($"[Space4XHeadlessBuilder] Headless Linux build created at {absoluteOutput} (report: {reportPath})");
             }
             catch (Exception ex)
@@ -772,6 +774,86 @@ namespace Space4X.Headless.Editor
             var playerDirectory = Path.GetDirectoryName(executablePath) ?? throw new InvalidOperationException("Invalid headless build path.");
             var playerName = Path.GetFileNameWithoutExtension(executablePath);
             return Path.Combine(playerDirectory, $"{playerName}_Data");
+        }
+
+        private static void EnsureOptionalManagedAssemblies(string playerDataFolder)
+        {
+            if (string.IsNullOrWhiteSpace(playerDataFolder))
+            {
+                return;
+            }
+
+            var managedDir = Path.Combine(playerDataFolder, "Managed");
+            if (!Directory.Exists(managedDir))
+            {
+                return;
+            }
+
+            EnsureOptionalManagedAssembly(managedDir, "glTFast.Documentation.Examples.dll");
+        }
+
+        private static void EnsureOptionalManagedAssembly(string managedDir, string assemblyName)
+        {
+            var destination = Path.Combine(managedDir, assemblyName);
+            if (File.Exists(destination))
+            {
+                return;
+            }
+
+            var libraryRoot = Path.Combine(ProjectRoot, "Library");
+            var candidates = new[]
+            {
+                Path.Combine(libraryRoot, "ScriptAssemblies", assemblyName),
+                Path.Combine(libraryRoot, "Bee", "PlayerScriptAssemblies", assemblyName)
+            };
+
+            string sourcePath = string.Empty;
+            foreach (var candidate in candidates)
+            {
+                if (File.Exists(candidate))
+                {
+                    sourcePath = candidate;
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(sourcePath) && Directory.Exists(Path.Combine(libraryRoot, "Bee")))
+            {
+                var beeMatches = Directory.GetFiles(Path.Combine(libraryRoot, "Bee"), assemblyName, SearchOption.AllDirectories);
+                if (beeMatches.Length > 0)
+                {
+                    sourcePath = beeMatches[0];
+                }
+            }
+
+            if (string.IsNullOrEmpty(sourcePath))
+            {
+                UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Optional managed assembly missing: {assemblyName} (no source found).");
+                return;
+            }
+
+            try
+            {
+                File.Copy(sourcePath, destination, true);
+                CopyPdbIfPresent(sourcePath, destination);
+                UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Injected optional managed assembly for headless build: {assemblyName}");
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[Space4XHeadlessBuilder] Failed to inject optional managed assembly {assemblyName}: {ex.Message}");
+            }
+        }
+
+        private static void CopyPdbIfPresent(string sourceDll, string destinationDll)
+        {
+            var sourcePdb = Path.ChangeExtension(sourceDll, ".pdb");
+            if (!File.Exists(sourcePdb))
+            {
+                return;
+            }
+
+            var destinationPdb = Path.ChangeExtension(destinationDll, ".pdb");
+            File.Copy(sourcePdb, destinationPdb, true);
         }
 
         private static string PersistBuildReport(BuildReport? report, string outputDirectory)
