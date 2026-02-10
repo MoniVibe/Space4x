@@ -86,6 +86,51 @@ namespace Space4X.Runtime
         public byte Initialized;
     }
 
+    public struct Space4XMovementObserveState : IComponentData
+    {
+        public Entity LastTargetEntity;
+        public float3 LastTargetPosition;
+        public MoveIntentType LastIntentType;
+        public uint IntentStartTick;
+        public float MinDistance;
+        public float MaxOvershoot;
+        public float PeakLateralSpeed;
+        public uint ReachedTick;
+        public uint SettledTick;
+        public uint TurnDurationTicks;
+        public uint TurnCount;
+        public uint TurnStartTick;
+        public byte HasIntent;
+        public byte Reached;
+        public byte Settled;
+        public byte Turning;
+        public byte Reported;
+    }
+
+    public struct Space4XMovementObserveAccumulator : IComponentData
+    {
+        public uint CarrierCount;
+        public float CarrierTimeToTargetSum;
+        public float CarrierOvershootSum;
+        public float CarrierSettleTimeSum;
+        public float CarrierPeakLateralSum;
+        public float CarrierTurnTimeSum;
+
+        public uint MinerCount;
+        public float MinerTimeToTargetSum;
+        public float MinerOvershootSum;
+        public float MinerSettleTimeSum;
+        public float MinerPeakLateralSum;
+        public float MinerTurnTimeSum;
+
+        public uint StrikeCount;
+        public float StrikeTimeToTargetSum;
+        public float StrikeOvershootSum;
+        public float StrikeSettleTimeSum;
+        public float StrikePeakLateralSum;
+        public float StrikeTurnTimeSum;
+    }
+
     [InternalBufferCapacity(MovementDebugState.TraceCapacity)]
     public struct MoveTraceEvent : IBufferElementData
     {
