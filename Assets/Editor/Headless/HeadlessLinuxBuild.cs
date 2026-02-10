@@ -301,10 +301,33 @@ namespace Tri.BuildTools
             {
                 var relative = file.Substring(root.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var normalized = relative.Replace('\\', '/');
-                sb.Append(normalized);
-                sb.Append(':');
-                sb.Append(HashFile(file));
-                sb.Append('\n');
+                try
+                {
+                    sb.Append(normalized);
+                    sb.Append(':');
+                    sb.Append(HashFile(file));
+                    sb.Append('\n');
+                }
+                catch (FileNotFoundException)
+                {
+                    if (IsOptionalManagedAssembly(file))
+                    {
+                        UnityEngine.Debug.LogWarning($"[HeadlessLinuxBuild] Optional managed assembly missing during hash: {normalized}");
+                        continue;
+                    }
+
+                    throw;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    if (IsOptionalManagedAssembly(file))
+                    {
+                        UnityEngine.Debug.LogWarning($"[HeadlessLinuxBuild] Optional managed assembly path missing during hash: {normalized}");
+                        continue;
+                    }
+
+                    throw;
+                }
             }
 
             return Sha256Hex(sb.ToString());
@@ -348,6 +371,18 @@ namespace Tri.BuildTools
             }
 
             Directory.CreateDirectory(path);
+        }
+
+        private static bool IsOptionalManagedAssembly(string path)
+        {
+            var fileName = Path.GetFileName(path);
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return false;
+            }
+
+            return fileName.Equals("glTFast.Documentation.Examples.dll", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("glTFast.Documentation.Examples.pdb", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void TryWriteFallbackManifest(BuildArgs args, string manifestPath)
