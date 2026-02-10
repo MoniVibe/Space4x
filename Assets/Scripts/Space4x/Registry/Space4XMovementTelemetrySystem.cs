@@ -152,6 +152,8 @@ namespace Space4X.Registry
             var stateFlips = 0u;
             var maxSpeedDelta = 0f;
             var maxTeleport = 0f;
+            var gravitySamples = 0u;
+            var gravityPeakAccel = 0f;
 
             foreach (var debug in SystemAPI.Query<RefRO<MovementDebugState>>())
             {
@@ -166,6 +168,8 @@ namespace Space4X.Registry
                 stateFlips += stateDebug.StateFlipCount;
                 maxSpeedDelta = math.max(maxSpeedDelta, stateDebug.MaxSpeedDelta);
                 maxTeleport = math.max(maxTeleport, stateDebug.MaxTeleportDistance);
+                gravitySamples += stateDebug.GravitySampleCount;
+                gravityPeakAccel = math.max(gravityPeakAccel, stateDebug.GravityPeakAccel);
             }
 
             var movingCount = 0;
@@ -193,6 +197,8 @@ namespace Space4X.Registry
             buffer.AddMetric("space4x.movement.maxTeleport", maxTeleport, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.movement.movingCount", movingCount, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.movement.avgSpeed", avgSpeed, TelemetryMetricUnit.Custom);
+            buffer.AddMetric("space4x.movement.gravitySamples", gravitySamples, TelemetryMetricUnit.Count);
+            buffer.AddMetric("space4x.movement.gravityPeakAccel", gravityPeakAccel, TelemetryMetricUnit.Custom);
 
             var seconds = math.max(0.0001f, accumulator.SampleSeconds);
             var headingScore = accumulator.HeadingFlipCount / seconds;

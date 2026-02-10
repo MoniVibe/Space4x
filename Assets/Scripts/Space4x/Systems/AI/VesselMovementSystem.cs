@@ -7,6 +7,8 @@ using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Power;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Space;
+using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Interaction;
 using PureDOTS.Systems;
 using Space4X.Runtime;
@@ -86,6 +88,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<SpacePhysicsBody> _spacePhysicsBodyLookup;
         private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
+        private ComponentLookup<PlanetGravityField> _planetGravityLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -148,6 +151,7 @@ namespace Space4X.Systems.AI
             _spacePhysicsBodyLookup = state.GetComponentLookup<SpacePhysicsBody>(true);
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
+            _planetGravityLookup = state.GetComponentLookup<PlanetGravityField>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -285,6 +289,25 @@ namespace Space4X.Systems.AI
             _spacePhysicsBodyLookup.Update(ref state);
             _colliderSpecLookup.Update(ref state);
             _movementSuppressedLookup.Update(ref state);
+            _planetGravityLookup.Update(ref state);
+
+            var hasSpatialGrid = SystemAPI.TryGetSingleton<SpatialGridConfig>(out var spatialConfig);
+            NativeArray<SpatialGridCellRange> spatialRanges = default;
+            NativeArray<SpatialGridEntry> spatialEntries = default;
+            if (hasSpatialGrid)
+            {
+                var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
+                if (SystemAPI.HasBuffer<SpatialGridCellRange>(gridEntity) &&
+                    SystemAPI.HasBuffer<SpatialGridEntry>(gridEntity))
+                {
+                    spatialRanges = SystemAPI.GetBuffer<SpatialGridCellRange>(gridEntity).AsNativeArray();
+                    spatialEntries = SystemAPI.GetBuffer<SpatialGridEntry>(gridEntity).AsNativeArray();
+                }
+                else
+                {
+                    hasSpatialGrid = false;
+                }
+            }
 
             var hasPhysicsWorld = SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorld);
 
@@ -373,6 +396,11 @@ namespace Space4X.Systems.AI
                 SpacePhysicsBodyLookup = _spacePhysicsBodyLookup,
                 ColliderSpecLookup = _colliderSpecLookup,
                 MovementSuppressedLookup = _movementSuppressedLookup,
+                PlanetGravityLookup = _planetGravityLookup,
+                HasSpatialGrid = hasSpatialGrid ? (byte)1 : (byte)0,
+                SpatialConfig = spatialConfig,
+                SpatialRanges = spatialRanges,
+                SpatialEntries = spatialEntries,
                 HasPhysicsWorld = hasPhysicsWorld,
                 PhysicsWorld = physicsWorld,
                 SweepSkin = 0.05f,
@@ -448,6 +476,11 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<SpacePhysicsBody> SpacePhysicsBodyLookup;
             [ReadOnly] public ComponentLookup<PhysicsColliderSpec> ColliderSpecLookup;
             [ReadOnly] public ComponentLookup<MovementSuppressed> MovementSuppressedLookup;
+            [ReadOnly] public ComponentLookup<PlanetGravityField> PlanetGravityLookup;
+            public byte HasSpatialGrid;
+            public SpatialGridConfig SpatialConfig;
+            [ReadOnly] public NativeArray<SpatialGridCellRange> SpatialRanges;
+            [ReadOnly] public NativeArray<SpatialGridEntry> SpatialEntries;
             [ReadOnly] public PhysicsWorldSingleton PhysicsWorld;
             public bool HasPhysicsWorld;
             public float SweepSkin;
@@ -631,6 +664,11 @@ namespace Space4X.Systems.AI
                     decisionReason = DecisionReasonCode.NoTarget;
                 }
                 var forceStop = forceHold || noTarget;
+                var idleCoast = inertialEnabled && noTarget;
+                if (idleCoast)
+                {
+                    forceStop = false;
+                }
                 var isAsteroidTarget = false;
                 var asteroidRadius = 0f;
                 var asteroidStandoff = 0f;
@@ -753,17 +791,17 @@ namespace Space4X.Systems.AI
                     pilotProficiency = PilotProficiencyLookup[entity];
                 }
 
-                var controlMult = math.clamp(pilotProficiency.ControlMult, 0.5f, 1.6f);
-                var turnMult = math.clamp(pilotProficiency.TurnRateMult, 0.6f, 1.4f);
-                var energyMult = math.clamp(pilotProficiency.EnergyMult, 0.6f, 1.6f);
-                var reactionSec = math.clamp(pilotProficiency.ReactionSec, 0.1f, 1.2f);
-                var jitter = math.clamp(pilotProficiency.Jitter, 0f, 0.2f);
+                var controlMult = math.clamp(pilotProficiency.ControlMult, 0.4f, 1.8f);
+                var turnMult = math.clamp(pilotProficiency.TurnRateMult, 0.5f, 1.6f);
+                var energyMult = math.clamp(pilotProficiency.EnergyMult, 0.5f, 1.8f);
+                var reactionSec = math.clamp(pilotProficiency.ReactionSec, 0.05f, 1.6f);
+                var jitter = math.clamp(pilotProficiency.Jitter, 0f, 0.35f);
 
-                var controlNorm = math.saturate((controlMult - 0.5f) / 1.0f);
-                var turnNorm = math.saturate((turnMult - 0.7f) / 0.6f);
-                var energyNorm = math.saturate((1.5f - energyMult) / 0.8f);
-                var reactionNorm = math.saturate((1.0f - reactionSec) / 0.9f);
-                var jitterNorm = math.saturate(jitter / 0.1f);
+                var controlNorm = math.saturate((controlMult - 0.4f) / 1.4f);
+                var turnNorm = math.saturate((turnMult - 0.5f) / 1.1f);
+                var energyNorm = math.saturate((1.6f - energyMult) / 1.1f);
+                var reactionNorm = math.saturate((1.3f - reactionSec) / 1.25f);
+                var jitterNorm = math.saturate(jitter / 0.2f);
 
                 var pilotMastery = math.saturate(pilotSkill * 0.55f + controlNorm * 0.25f + crewExploration * 0.2f);
                 var pilotControlMultiplier = math.lerp(0.85f, 1.15f, controlNorm);
@@ -774,12 +812,12 @@ namespace Space4X.Systems.AI
                 var pilotJitter = jitterNorm;
                 var throttleRampScale = math.lerp(1.35f, 0.85f, reactionNorm);
                 throttleRampScale *= math.lerp(1.15f, 0.9f, pilotMastery);
-                var reactionHoldTicks = (uint)math.clamp(math.round(reactionSec / math.max(1e-3f, DeltaTime)), 1f, 18f);
-                var controlErrorStrength = math.lerp(0.14f, 0.02f, pilotMastery);
-                controlErrorStrength *= math.lerp(1.2f, 0.7f, pilotStabilityBias);
-                controlErrorStrength *= math.lerp(1f, 1.6f, pilotJitter);
-                var pilotGain = math.lerp(0.65f, 1.25f, pilotMastery);
-                var pilotBrakeGain = math.lerp(0.7f, 1.15f, pilotMastery);
+                var reactionHoldTicks = (uint)math.clamp(math.round(reactionSec / math.max(1e-3f, DeltaTime)), 1f, 26f);
+                var controlErrorStrength = math.lerp(0.22f, 0.012f, pilotMastery);
+                controlErrorStrength *= math.lerp(1.3f, 0.6f, pilotStabilityBias);
+                controlErrorStrength *= math.lerp(1f, 2.0f, pilotJitter);
+                var pilotGain = math.lerp(0.55f, 1.35f, pilotMastery);
+                var pilotBrakeGain = math.lerp(0.6f, 1.25f, pilotMastery);
                 var focusEvasion = 0f;
                 var focusFormation = 0f;
                 var focusEntity = Entity.Null;
@@ -870,15 +908,23 @@ namespace Space4X.Systems.AI
                 }
                 if (arrivedAndSlow)
                 {
-                    forceStop = true;
-                    if (!noTarget && !forceHold)
+                    if (!idleCoast)
                     {
-                        decisionReason = DecisionReasonCode.Arrived;
+                        forceStop = true;
+                        if (!noTarget && !forceHold)
+                        {
+                            decisionReason = DecisionReasonCode.Arrived;
+                        }
                     }
                 }
 
                 var direction = math.normalizesafe(toTarget, new float3(0f, 0f, 1f));
                 var baseDirection = direction;
+                if (idleCoast && currentSpeedSq > 1e-4f)
+                {
+                    direction = math.normalizesafe(movement.Velocity, direction);
+                    baseDirection = direction;
+                }
                 
                 // Get stance parameters (default to Balanced if no stance component)
                 var stanceType = VesselStanceMode.Balanced;
@@ -1250,52 +1296,60 @@ namespace Space4X.Systems.AI
                         direction = math.normalizesafe(math.lerp(direction, retroDir, retrogradeWeight), retroDir);
                     }
                 }
-
-                direction = ApplyHeadingHold(
-                    direction,
-                    math.forward(transform.Rotation),
-                    ref turnRateState,
-                    CurrentTick,
-                    hasDebug ? debugState.LastIntentChangeTick : 0u,
-                    hasDebug ? debugState.LastPlanChangeTick : 0u,
-                    currentSpeed,
-                    baseSpeed,
-                    combatManeuver,
-                    discipline,
-                    intelligence,
-                    pilotStabilityBias,
-                    pilotResponseMultiplier,
-                    reactionHoldTicks);
-
-                var stabilizedDirection = StabilizeDirection(
-                    direction,
-                    math.forward(transform.Rotation),
-                    ref turnRateState,
-                    discipline,
-                    intelligence,
-                    chaotic,
-                    currentSpeed,
-                    baseSpeed,
-                    DeltaTime,
-                    forceStop,
-                    pilotStabilityBias,
-                    pilotResponseMultiplier,
-                    pilotJitter);
-                if (math.lengthsq(stabilizedDirection - direction) > 1e-6f)
+                if (idleCoast)
                 {
-                    var desiredSpeedMag = math.length(desiredVelocity);
-                    desiredVelocity = stabilizedDirection * desiredSpeedMag;
-                    direction = stabilizedDirection;
+                    desiredSpeed = currentSpeed;
+                    desiredVelocity = movement.Velocity;
                 }
 
-                if (controlErrorStrength > 1e-4f)
+                if (!idleCoast)
                 {
-                    var erroredDirection = ApplyControlError(direction, entity, CurrentTick, controlErrorStrength);
-                    if (math.lengthsq(erroredDirection - direction) > 1e-6f)
+                    direction = ApplyHeadingHold(
+                        direction,
+                        math.forward(transform.Rotation),
+                        ref turnRateState,
+                        CurrentTick,
+                        hasDebug ? debugState.LastIntentChangeTick : 0u,
+                        hasDebug ? debugState.LastPlanChangeTick : 0u,
+                        currentSpeed,
+                        baseSpeed,
+                        combatManeuver,
+                        discipline,
+                        intelligence,
+                        pilotStabilityBias,
+                        pilotResponseMultiplier,
+                        reactionHoldTicks);
+
+                    var stabilizedDirection = StabilizeDirection(
+                        direction,
+                        math.forward(transform.Rotation),
+                        ref turnRateState,
+                        discipline,
+                        intelligence,
+                        chaotic,
+                        currentSpeed,
+                        baseSpeed,
+                        DeltaTime,
+                        forceStop,
+                        pilotStabilityBias,
+                        pilotResponseMultiplier,
+                        pilotJitter);
+                    if (math.lengthsq(stabilizedDirection - direction) > 1e-6f)
                     {
-                        direction = erroredDirection;
                         var desiredSpeedMag = math.length(desiredVelocity);
-                        desiredVelocity = direction * desiredSpeedMag;
+                        desiredVelocity = stabilizedDirection * desiredSpeedMag;
+                        direction = stabilizedDirection;
+                    }
+
+                    if (controlErrorStrength > 1e-4f)
+                    {
+                        var erroredDirection = ApplyControlError(direction, entity, CurrentTick, controlErrorStrength);
+                        if (math.lengthsq(erroredDirection - direction) > 1e-6f)
+                        {
+                            direction = erroredDirection;
+                            var desiredSpeedMag = math.length(desiredVelocity);
+                            desiredVelocity = direction * desiredSpeedMag;
+                        }
                     }
                 }
 
@@ -1344,6 +1398,21 @@ namespace Space4X.Systems.AI
 
                 movement.Velocity += deltaV;
                 movement.CurrentSpeed = math.length(movement.Velocity);
+                if (InertiaConfig.GravityEnabled != 0)
+                {
+                    var gravityAccel = ComputeGravityAcceleration(entity, transform.Position);
+                    if (math.lengthsq(gravityAccel) > 1e-6f)
+                    {
+                        if (hasDebug)
+                        {
+                            var accelMag = math.length(gravityAccel);
+                            debugState.GravitySampleCount += 1;
+                            debugState.GravityPeakAccel = math.max(debugState.GravityPeakAccel, accelMag);
+                        }
+                        movement.Velocity += gravityAccel * DeltaTime;
+                        movement.CurrentSpeed = math.length(movement.Velocity);
+                    }
+                }
 
                 var desiredDelta = movement.Velocity * DeltaTime;
                 var resolvedDelta = desiredDelta;
@@ -1467,6 +1536,10 @@ namespace Space4X.Systems.AI
                 {
                     movement.IsMoving = 1;
                 }
+                if (idleCoast && movement.CurrentSpeed <= 0.01f)
+                {
+                    movement.IsMoving = 0;
+                }
                 movement.LastMoveTick = CurrentTick;
 
                 var intentType = ResolveIntentType(entity, aiState);
@@ -1495,6 +1568,133 @@ namespace Space4X.Systems.AI
                 UpdateMovePlan(entity, planMode, desiredVelocity, planAccel, eta, ref debugState, hasDebug);
                 UpdateDecisionTrace(entity, decisionReason, decisionTarget, 1f, blockerEntity, ref debugState, hasDebug);
                 UpdateMovementInvariants(entity, transform.Position, distanceScaled, movement.CurrentSpeed, baseSpeed, ref debugState, hasDebug);
+            }
+
+            private float3 ComputeGravityAcceleration(Entity entity, float3 position)
+            {
+                if (HasSpatialGrid == 0 || !SpatialRanges.IsCreated || !SpatialEntries.IsCreated)
+                {
+                    return float3.zero;
+                }
+
+                var queryRadius = InertiaConfig.GravityQueryRadius;
+                if (queryRadius <= 0f)
+                {
+                    return float3.zero;
+                }
+
+                var gravityScale = math.max(0f, InertiaConfig.GravityScale);
+                if (gravityScale <= 0f)
+                {
+                    return float3.zero;
+                }
+
+                SpatialHash.Quantize(position, SpatialConfig, out var centerCell);
+                var cellSize = math.max(SpatialConfig.CellSize, 1e-3f);
+                var cellRadius = (int)math.ceil(queryRadius / cellSize);
+                var maxCellRadius = InertiaConfig.GravityMaxCellRadius;
+                if (maxCellRadius > 0)
+                {
+                    cellRadius = math.min(cellRadius, maxCellRadius);
+                }
+                cellRadius = math.max(cellRadius, 0);
+
+                var cellRadius3 = new int3(cellRadius);
+                var minCell = math.max(centerCell - cellRadius3, int3.zero);
+                var maxCell = math.min(centerCell + cellRadius3, SpatialConfig.CellCounts - 1);
+
+                var minDistance = math.max(InertiaConfig.GravityMinDistance, 0.01f);
+                var minDistanceSq = minDistance * minDistance;
+                var maxDistanceSq = queryRadius * queryRadius;
+
+                var maxSources = InertiaConfig.GravityMaxSources;
+                if (maxSources == 0)
+                {
+                    maxSources = ushort.MaxValue;
+                }
+
+                var totalAccel = float3.zero;
+                var sources = 0;
+
+                for (var x = minCell.x; x <= maxCell.x; x++)
+                {
+                    for (var y = minCell.y; y <= maxCell.y; y++)
+                    {
+                        for (var z = minCell.z; z <= maxCell.z; z++)
+                        {
+                            var cell = new int3(x, y, z);
+                            var cellId = SpatialHash.Flatten(cell, SpatialConfig);
+                            if ((uint)cellId >= (uint)SpatialRanges.Length)
+                            {
+                                continue;
+                            }
+
+                            var range = SpatialRanges[cellId];
+                            var start = range.StartIndex;
+                            var count = range.Count;
+                            if (count <= 0)
+                            {
+                                continue;
+                            }
+
+                            var end = start + count;
+                            if (start < 0 || end <= 0 || start >= SpatialEntries.Length)
+                            {
+                                continue;
+                            }
+
+                            end = math.min(end, SpatialEntries.Length);
+                            for (var i = start; i < end; i++)
+                            {
+                                var entry = SpatialEntries[i];
+                                if (entry.Entity == entity || !PlanetGravityLookup.HasComponent(entry.Entity))
+                                {
+                                    continue;
+                                }
+
+                                var toSource = entry.Position - position;
+                                var distSq = math.lengthsq(toSource);
+                                if (distSq < minDistanceSq || distSq > maxDistanceSq)
+                                {
+                                    continue;
+                                }
+
+                                var dist = math.sqrt(distSq);
+                                var field = PlanetGravityLookup[entry.Entity];
+                                var accel = field.CalculateGravityAtDistance(dist) * gravityScale;
+                                if (accel <= 0f)
+                                {
+                                    continue;
+                                }
+
+                                totalAccel += math.normalizesafe(toSource) * accel;
+                                sources++;
+                                if (sources >= maxSources)
+                                {
+                                    return ClampGravity(totalAccel);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return ClampGravity(totalAccel);
+            }
+
+            private float3 ClampGravity(float3 gravityAccel)
+            {
+                var maxAccel = InertiaConfig.GravityMaxAccel;
+                if (maxAccel > 0f)
+                {
+                    var maxSq = maxAccel * maxAccel;
+                    var accelSq = math.lengthsq(gravityAccel);
+                    if (accelSq > maxSq)
+                    {
+                        gravityAccel = math.normalizesafe(gravityAccel) * maxAccel;
+                    }
+                }
+
+                return gravityAccel;
             }
 
             private BehaviorDisposition ResolveBehaviorDisposition(Entity profileEntity, Entity vesselEntity)

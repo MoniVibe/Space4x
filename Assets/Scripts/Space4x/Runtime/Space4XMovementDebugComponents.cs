@@ -83,6 +83,8 @@ namespace Space4X.Runtime
         public uint StateFlipCount;
         public uint LastIntentChangeTick;
         public uint LastPlanChangeTick;
+        public uint GravitySampleCount;
+        public float GravityPeakAccel;
         public byte Initialized;
     }
 

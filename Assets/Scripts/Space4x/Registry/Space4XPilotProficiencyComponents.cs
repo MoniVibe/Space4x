@@ -78,16 +78,16 @@ namespace Space4X.Registry
                 Finesse = 0.6f,
                 Will = 0.1f
             },
-            ControlMin = 0.5f,
-            ControlMax = 1.5f,
-            TurnMin = 0.7f,
-            TurnMax = 1.3f,
-            EnergyMin = 0.7f,
-            EnergyMax = 1.5f,
-            JitterMin = 0f,
-            JitterMax = 0.1f,
-            ReactionMin = 0.1f,
-            ReactionMax = 1.0f
+            ControlMin = 0.45f,
+            ControlMax = 1.65f,
+            TurnMin = 0.6f,
+            TurnMax = 1.45f,
+            EnergyMin = 0.6f,
+            EnergyMax = 1.65f,
+            JitterMin = 0.01f,
+            JitterMax = 0.2f,
+            ReactionMin = 0.08f,
+            ReactionMax = 1.2f
         };
     }
 }
