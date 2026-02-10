@@ -774,6 +774,12 @@ namespace Space4X.Systems.AI
                 var pilotJitter = jitterNorm;
                 var throttleRampScale = math.lerp(1.35f, 0.85f, reactionNorm);
                 throttleRampScale *= math.lerp(1.15f, 0.9f, pilotMastery);
+                var reactionHoldTicks = (uint)math.clamp(math.round(reactionSec / math.max(1e-3f, DeltaTime)), 1f, 18f);
+                var controlErrorStrength = math.lerp(0.14f, 0.02f, pilotMastery);
+                controlErrorStrength *= math.lerp(1.2f, 0.7f, pilotStabilityBias);
+                controlErrorStrength *= math.lerp(1f, 1.6f, pilotJitter);
+                var pilotGain = math.lerp(0.65f, 1.25f, pilotMastery);
+                var pilotBrakeGain = math.lerp(0.7f, 1.15f, pilotMastery);
                 var focusEvasion = 0f;
                 var focusFormation = 0f;
                 var focusEntity = Entity.Null;
@@ -972,6 +978,10 @@ namespace Space4X.Systems.AI
                 rotationMultiplier *= pilotTurnMultiplier * math.lerp(1f, 0.92f, pilotJitter);
                 slowdownMultiplier *= math.lerp(1.15f, 0.9f, pilotMastery);
                 slowdownMultiplier *= math.lerp(1f, 1.2f, pilotJitter);
+                speedMultiplier *= math.lerp(0.9f, 1.05f, pilotMastery);
+                accelerationMultiplier *= pilotGain;
+                decelerationMultiplier *= pilotBrakeGain;
+                rotationMultiplier *= pilotGain;
 
                 var engineResponseMultiplier = math.lerp(0.8f, 1.2f, engineResponse);
                 var engineBoostSpeedMultiplier = math.lerp(1f, 1.25f, engineBoost);
@@ -1162,6 +1172,23 @@ namespace Space4X.Systems.AI
                 var deceleration = movement.Deceleration > 0f ? movement.Deceleration * engineScale : math.max(0.1f, baseSpeed * 2.5f);
                 acceleration = math.max(0.01f, acceleration * accelerationMultiplier);
                 deceleration = math.max(0.01f, deceleration * decelerationMultiplier);
+                var predictiveRetroWeight = 0f;
+                if (inertialEnabled && !forceStop && currentSpeedSq > 1e-4f)
+                {
+                    var brakeDistance = currentSpeedSq / (2f * math.max(0.01f, deceleration));
+                    var remaining = math.max(0f, distanceScaled - arrivalDistance);
+                    var skillBuffer = math.lerp(0.75f, 1.15f, pilotMastery);
+                    var effectiveRemaining = remaining * skillBuffer;
+                    if (brakeDistance > effectiveRemaining)
+                    {
+                        var overshootDist = brakeDistance - effectiveRemaining;
+                        var buffer = math.max(arrivalDistance * 1.25f, baseSpeed * 0.5f);
+                        predictiveRetroWeight = math.saturate(overshootDist / math.max(1e-3f, buffer));
+                        var brakeScale = math.lerp(1f, 0.35f, predictiveRetroWeight);
+                        desiredSpeed *= brakeScale;
+                        deceleration *= math.lerp(1f, 1.35f, predictiveRetroWeight);
+                    }
+                }
                 var maxAccel = math.max(0.1f, baseSpeed * 6f);
                 if (desiredSpeed > currentSpeed + 0.01f && MotionConfig.AccelSpoolDurationSec > 0f)
                 {
@@ -1205,6 +1232,11 @@ namespace Space4X.Systems.AI
                         retrogradeWeight = math.saturate((slowdownDistance - distanceScaled) / math.max(1e-4f, slowdownDistance));
                     }
 
+                    if (predictiveRetroWeight > 0f)
+                    {
+                        retrogradeWeight = math.max(retrogradeWeight, predictiveRetroWeight);
+                    }
+
                     if (retrogradeWeight > 0f)
                     {
                         var retrogradeBoost = MotionConfig.RetrogradeBoost;
@@ -1232,7 +1264,8 @@ namespace Space4X.Systems.AI
                     discipline,
                     intelligence,
                     pilotStabilityBias,
-                    pilotResponseMultiplier);
+                    pilotResponseMultiplier,
+                    reactionHoldTicks);
 
                 var stabilizedDirection = StabilizeDirection(
                     direction,
@@ -1253,6 +1286,17 @@ namespace Space4X.Systems.AI
                     var desiredSpeedMag = math.length(desiredVelocity);
                     desiredVelocity = stabilizedDirection * desiredSpeedMag;
                     direction = stabilizedDirection;
+                }
+
+                if (controlErrorStrength > 1e-4f)
+                {
+                    var erroredDirection = ApplyControlError(direction, entity, CurrentTick, controlErrorStrength);
+                    if (math.lengthsq(erroredDirection - direction) > 1e-6f)
+                    {
+                        direction = erroredDirection;
+                        var desiredSpeedMag = math.length(desiredVelocity);
+                        desiredVelocity = direction * desiredSpeedMag;
+                    }
                 }
 
                 var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
@@ -1927,7 +1971,8 @@ namespace Space4X.Systems.AI
                 float discipline,
                 float intelligence,
                 float stabilityBias,
-                float responseMultiplier)
+                float responseMultiplier,
+                uint reactionHoldTicks)
             {
                 if (math.lengthsq(desiredDirection) < 1e-6f)
                 {
@@ -1940,6 +1985,15 @@ namespace Space4X.Systems.AI
                     turnRateState.LastDesiredDirection = desired;
                     turnRateState.LastDesiredTick = currentTick;
                     return desired;
+                }
+
+                if (reactionHoldTicks > 1u && turnRateState.LastDesiredTick != 0 && currentTick > turnRateState.LastDesiredTick)
+                {
+                    var elapsed = currentTick - turnRateState.LastDesiredTick;
+                    if (elapsed < reactionHoldTicks)
+                    {
+                        return turnRateState.LastDesiredDirection;
+                    }
                 }
 
                 var speedFactor = math.saturate(currentSpeed / math.max(0.1f, baseSpeed));
@@ -2157,6 +2211,31 @@ namespace Space4X.Systems.AI
                 var lateral = math.normalize(math.cross(direction, math.up()));
                 var adjusted = direction + lateral * offset * strength;
                 return math.normalize(adjusted);
+            }
+
+            private static float3 ApplyControlError(float3 direction, Entity vesselEntity, uint tick, float strength)
+            {
+                if (strength <= 1e-4f)
+                {
+                    return direction;
+                }
+
+                uint seed = math.hash(new uint3((uint)vesselEntity.Index, tick, 0xA2C2u));
+                float offsetA = HashToSigned(seed);
+                float offsetB = HashToSigned(seed ^ 0x9E3779B9u);
+
+                var up = math.abs(direction.y) > 0.8f ? new float3(1f, 0f, 0f) : math.up();
+                var lateral = math.normalizesafe(math.cross(up, direction), new float3(1f, 0f, 0f));
+                var vertical = math.normalizesafe(math.cross(direction, lateral), math.up());
+
+                var offset = lateral * offsetA + vertical * offsetB;
+                return math.normalizesafe(direction + offset * strength, direction);
+            }
+
+            private static float HashToSigned(uint seed)
+            {
+                var value01 = seed * (1f / uint.MaxValue);
+                return value01 * 2f - 1f;
             }
 
             private MoveIntentType ResolveIntentType(Entity vesselEntity, VesselAIState aiState)
@@ -2589,4 +2668,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
