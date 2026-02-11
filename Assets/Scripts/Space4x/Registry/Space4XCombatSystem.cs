@@ -2121,8 +2121,29 @@ namespace Space4X.Registry
             public int ShipsEngaged;
             public int ShipsApproaching;
             public int ShipsDisabled;
+            public int ShipsAlive;
             public float DamageDealt;
             public float DamageReceived;
+            public float HullCurrent;
+            public float HullMax;
+        }
+
+        private struct SideDamageTally
+        {
+            public float DealtEnergy;
+            public float DealtThermal;
+            public float DealtEM;
+            public float DealtRadiation;
+            public float DealtCaustic;
+            public float DealtKinetic;
+            public float DealtExplosive;
+            public float ReceivedEnergy;
+            public float ReceivedThermal;
+            public float ReceivedEM;
+            public float ReceivedRadiation;
+            public float ReceivedCaustic;
+            public float ReceivedKinetic;
+            public float ReceivedExplosive;
         }
 
         public void OnCreate(ref SystemState state)
@@ -2158,6 +2179,7 @@ namespace Space4X.Registry
             float totalDamageReceived = 0f;
 
             var sideStats = new NativeHashMap<byte, SideTally>(8, Allocator.Temp);
+            var sideDamage = new NativeHashMap<byte, SideDamageTally>(8, Allocator.Temp);
 
             foreach (var (engagement, entity) in SystemAPI.Query<RefRO<Space4XEngagement>>().WithEntityAccess())
             {
@@ -2218,6 +2240,12 @@ namespace Space4X.Registry
                 {
                     tally.ShipsDestroyed++;
                 }
+                else
+                {
+                    tally.ShipsAlive++;
+                }
+                tally.HullCurrent += math.max(0f, hull.ValueRO.Current);
+                tally.HullMax += math.max(0f, hull.ValueRO.Max);
                 sideStats[side.ValueRO.Side] = tally;
             }
 
@@ -2256,7 +2284,7 @@ namespace Space4X.Registry
                 telemetry = state.EntityManager.GetComponentData<Space4XCombatTelemetry>(telemetryEntity);
             }
 
-            foreach (var damageEvents in SystemAPI.Query<DynamicBuffer<DamageEvent>>())
+            foreach (var (damageEvents, targetEntity) in SystemAPI.Query<DynamicBuffer<DamageEvent>>().WithEntityAccess())
             {
                 for (int i = 0; i < damageEvents.Length; i++)
                 {
@@ -2291,6 +2319,22 @@ namespace Space4X.Registry
                         case Space4XDamageType.Explosive:
                             deltaExplosive += amount;
                             break;
+                    }
+
+                    if (damageEvent.Source != Entity.Null && _sideLookup.HasComponent(damageEvent.Source))
+                    {
+                        var side = _sideLookup[damageEvent.Source].Side;
+                        var tally = sideDamage.TryGetValue(side, out var existing) ? existing : default;
+                        AccumulateDamageDealt(ref tally, damageType, amount);
+                        sideDamage[side] = tally;
+                    }
+
+                    if (_sideLookup.HasComponent(targetEntity))
+                    {
+                        var side = _sideLookup[targetEntity].Side;
+                        var tally = sideDamage.TryGetValue(side, out var existing) ? existing : default;
+                        AccumulateDamageReceived(ref tally, damageType, amount);
+                        sideDamage[side] = tally;
                     }
                 }
 
@@ -2382,6 +2426,14 @@ namespace Space4X.Registry
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.engaged"), tally.ShipsEngaged, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.approaching"), tally.ShipsApproaching, TelemetryMetricUnit.Count);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.disabled"), tally.ShipsDisabled, TelemetryMetricUnit.Count);
+                var shipsAlive = tally.ShipsAlive > 0 ? tally.ShipsAlive : math.max(0, tally.ShipsTotal - tally.ShipsDestroyed);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive"), shipsAlive, TelemetryMetricUnit.Count);
+                var shipsAliveRatio = tally.ShipsTotal > 0 ? (float)shipsAlive / tally.ShipsTotal : 0f;
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.ships.alive_ratio"), shipsAliveRatio, TelemetryMetricUnit.Custom);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.current_total"), tally.HullCurrent, TelemetryMetricUnit.Custom);
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.max_total"), tally.HullMax, TelemetryMetricUnit.Custom);
+                var hullRatio = tally.HullMax > 0f ? tally.HullCurrent / tally.HullMax : 0f;
+                metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.hull.ratio"), hullRatio, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt"), tally.DamageDealt, TelemetryMetricUnit.Custom);
                 metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received"), tally.DamageReceived, TelemetryMetricUnit.Custom);
 
@@ -2399,6 +2451,108 @@ namespace Space4X.Registry
             metricBuffer.AddMetric("space4x.combat.outcome.winner_ratio", winnerRatio, TelemetryMetricUnit.Ratio);
 
             sideStats.Dispose();
+
+            using var sideDamagePairs = sideDamage.GetKeyValueArrays(Allocator.Temp);
+            for (int i = 0; i < sideDamagePairs.Length; i++)
+            {
+                var side = sideDamagePairs.Keys[i];
+                var tally = sideDamagePairs.Values[i];
+                EmitSideDamageMetrics(metricBuffer, side, tally);
+            }
+
+            sideDamage.Dispose();
+        }
+
+        private static void AccumulateDamageDealt(ref SideDamageTally tally, Space4XDamageType damageType, float amount)
+        {
+            if (amount <= 0f)
+            {
+                return;
+            }
+
+            switch (damageType)
+            {
+                case Space4XDamageType.Energy:
+                    tally.DealtEnergy += amount;
+                    break;
+                case Space4XDamageType.Thermal:
+                    tally.DealtThermal += amount;
+                    break;
+                case Space4XDamageType.EM:
+                    tally.DealtEM += amount;
+                    break;
+                case Space4XDamageType.Radiation:
+                    tally.DealtRadiation += amount;
+                    break;
+                case Space4XDamageType.Caustic:
+                    tally.DealtCaustic += amount;
+                    break;
+                case Space4XDamageType.Kinetic:
+                    tally.DealtKinetic += amount;
+                    break;
+                case Space4XDamageType.Explosive:
+                    tally.DealtExplosive += amount;
+                    break;
+            }
+        }
+
+        private static void AccumulateDamageReceived(ref SideDamageTally tally, Space4XDamageType damageType, float amount)
+        {
+            if (amount <= 0f)
+            {
+                return;
+            }
+
+            switch (damageType)
+            {
+                case Space4XDamageType.Energy:
+                    tally.ReceivedEnergy += amount;
+                    break;
+                case Space4XDamageType.Thermal:
+                    tally.ReceivedThermal += amount;
+                    break;
+                case Space4XDamageType.EM:
+                    tally.ReceivedEM += amount;
+                    break;
+                case Space4XDamageType.Radiation:
+                    tally.ReceivedRadiation += amount;
+                    break;
+                case Space4XDamageType.Caustic:
+                    tally.ReceivedCaustic += amount;
+                    break;
+                case Space4XDamageType.Kinetic:
+                    tally.ReceivedKinetic += amount;
+                    break;
+                case Space4XDamageType.Explosive:
+                    tally.ReceivedExplosive += amount;
+                    break;
+            }
+        }
+
+        private static void EmitSideDamageMetrics(DynamicBuffer<TelemetryMetric> metricBuffer, byte side, SideDamageTally tally)
+        {
+            var dealtDelta = tally.DealtEnergy + tally.DealtThermal + tally.DealtEM + tally.DealtRadiation +
+                             tally.DealtCaustic + tally.DealtKinetic + tally.DealtExplosive;
+            var receivedDelta = tally.ReceivedEnergy + tally.ReceivedThermal + tally.ReceivedEM + tally.ReceivedRadiation +
+                                tally.ReceivedCaustic + tally.ReceivedKinetic + tally.ReceivedExplosive;
+
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.dealt_delta"), dealtDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.received_delta"), receivedDelta, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.energy.dealt_delta"), tally.DealtEnergy, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.thermal.dealt_delta"), tally.DealtThermal, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.em.dealt_delta"), tally.DealtEM, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.radiation.dealt_delta"), tally.DealtRadiation, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.caustic.dealt_delta"), tally.DealtCaustic, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.kinetic.dealt_delta"), tally.DealtKinetic, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.explosive.dealt_delta"), tally.DealtExplosive, TelemetryMetricUnit.Custom);
+
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.energy.received_delta"), tally.ReceivedEnergy, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.thermal.received_delta"), tally.ReceivedThermal, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.em.received_delta"), tally.ReceivedEM, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.radiation.received_delta"), tally.ReceivedRadiation, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.caustic.received_delta"), tally.ReceivedCaustic, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.kinetic.received_delta"), tally.ReceivedKinetic, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric(new FixedString64Bytes($"space4x.combat.side.{side}.damage.explosive.received_delta"), tally.ReceivedExplosive, TelemetryMetricUnit.Custom);
         }
 
         private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
