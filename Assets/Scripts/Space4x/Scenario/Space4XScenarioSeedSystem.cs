@@ -531,7 +531,7 @@ namespace Space4x.Scenario
             });
         }
 
-        private static void SpawnSwarm(ref SystemState state, Entity carrierEntity, float3 carrierPosition, int count, ref Unity.Mathematics.Random random)
+        private void SpawnSwarm(ref SystemState state, Entity carrierEntity, float3 carrierPosition, int count, ref Unity.Mathematics.Random random)
         {
             var role = StrikeCraftRole.Fighter;
             var craftSpeed = 12f;
