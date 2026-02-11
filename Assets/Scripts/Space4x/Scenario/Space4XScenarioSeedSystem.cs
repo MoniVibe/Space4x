@@ -459,7 +459,7 @@ namespace Space4x.Scenario
             {
                 Weapon = weapon,
                 CurrentTarget = Entity.Null,
-                FireArcCenterOffsetDeg = 0f,
+                FireArcCenterOffsetDeg = (half)0f,
                 IsEnabled = 1,
                 ShotsFired = 0,
                 ShotsHit = 0,
