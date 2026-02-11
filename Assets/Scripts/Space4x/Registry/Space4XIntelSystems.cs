@@ -112,13 +112,14 @@ namespace Space4X.Registry
                 {
                     continue;
                 }
+                var candidatesRW = candidates;
 
                 float bestScore = float.MinValue;
                 Entity bestTarget = Entity.Null;
 
-                for (int i = 0; i < candidates.Length; i++)
+                for (int i = 0; i < candidatesRW.Length; i++)
                 {
-                    var candidate = candidates[i];
+                    var candidate = candidatesRW[i];
                     var bonus = 0f;
 
                     for (int j = 0; j < intelFacts.Length; j++)
@@ -144,7 +145,7 @@ namespace Space4X.Registry
                     {
                         bonus = math.min(bonus, tuning.MaxBonus);
                         candidate.Score += bonus;
-                        candidates[i] = candidate;
+                        candidatesRW[i] = candidate;
                     }
 
                     if (candidate.Score > bestScore ||
