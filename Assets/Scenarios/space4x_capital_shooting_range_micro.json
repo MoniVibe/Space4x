@@ -1,0 +1,210 @@
+{
+  "scenarioId": "space4x_capital_shooting_range_micro",
+  "seed": 2026,
+  "duration_s": 120,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "applyMotionProfile": true,
+    "applyMotionTuning": true,
+    "headlessQuestions": [
+      { "id": "space4x.q.gunnery.capital_range.score", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.hit_rate", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.reaction_time", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.ttk", "required": false },
+      { "id": "space4x.q.gunnery.capital_range.lock_churn", "required": false },
+      { "id": "space4x.q.gunnery.capital_range.drone_assist", "required": false }
+    ],
+    "gunneryBeat": {
+      "warmup_s": 10,
+      "live_fire_s": 100,
+      "cooldown_s": 10,
+      "targetProfiles": ["slow_arc", "crossing_fast", "zigzag_mid"],
+      "scoringWindow": [10, 110]
+    },
+    "resourceUse": {
+      "trackAmmo": true,
+      "trackEnergy": true,
+      "ammoReload_s": 6,
+      "capacitorRecoveryScale": "by_ship_class"
+    },
+    "rotationProfiles": {
+      "applyToFleetId": "RANGE-ALPHA",
+      "shipClasses": {
+        "dreadnought": { "yaw_deg_s": 8, "pitch_deg_s": 6 },
+        "cruiser": { "yaw_deg_s": 12, "pitch_deg_s": 10 },
+        "corvette": { "yaw_deg_s": 18, "pitch_deg_s": 14 }
+      }
+    },
+    "friendlyFire": {
+      "enabled": true,
+      "moralePenaltyPerHit": 0.05,
+      "escalationVariant": "chaotic_warlike"
+    },
+    "moraleCohesion": {
+      "enableMorale": true,
+      "enableCohesion": true,
+      "competitionPenalty": { "metric": "time_to_kill", "penalty": 0.1 },
+      "cohesionGainPerCleanVolley": 0.02,
+      "fleetCohesionEnabled": true
+    },
+    "moduleSeeds": {
+      "seedModules": true,
+      "seedStrategy": "per_run",
+      "seedOffsets": { "drones": 101, "sensors": 202 }
+    },
+    "targetDroneVariants": {
+      "armorTypes": ["light_armor", "heavy_armor"],
+      "shieldTypes": ["none", "light_shield"],
+      "engineProfiles": ["slow", "fast"],
+      "stealthProfiles": ["none", "cloak_burst"],
+      "stealthChance": 0.2
+    },
+    "schedule": {
+      "timeBase": "scenario",
+      "profiles": {
+        "gunnery": [
+          { "label": "Warmup", "start_s": 0, "duration_s": 10, "activity": "warmup" },
+          { "label": "LiveFire", "start_s": 10, "duration_s": 100, "activity": "live_fire" },
+          { "label": "Cooldown", "start_s": 110, "duration_s": 10, "activity": "cooldown" }
+        ],
+        "tactical": [
+          { "label": "Warmup", "start_s": 0, "duration_s": 10, "activity": "warmup" },
+          { "label": "LiveFire", "start_s": 10, "duration_s": 100, "activity": "live_fire" },
+          { "label": "Cooldown", "start_s": 110, "duration_s": 10, "activity": "cooldown" }
+        ],
+        "sensors": [
+          { "label": "Warmup", "start_s": 0, "duration_s": 10, "activity": "warmup" },
+          { "label": "LiveFire", "start_s": 10, "duration_s": 100, "activity": "live_fire" },
+          { "label": "Cooldown", "start_s": 110, "duration_s": 10, "activity": "cooldown" }
+        ]
+      },
+      "needsOverrides": {
+        "needs": {
+          "hunger": { "soft": 0.6, "hard": 0.85, "action": "eat" },
+          "fatigue": { "soft": 0.6, "hard": 0.85, "action": "rest" },
+          "injury": { "soft": 0.3, "hard": 0.6, "action": "medic" }
+        },
+        "interruptPolicy": { "soft": "finish_current_action", "hard": "immediate_interrupt" },
+        "shiftRules": { "allowEatOnShift": true, "allowRestOnShift": false, "sidelinedOnInjury": true }
+      }
+    },
+    "profilePools": {
+      "outlook_pool_ref": "puredots.outlook_pool"
+    },
+    "profileAssignments": {
+      "assignmentMode": "explicit",
+      "entities": {
+        "gunner_01": ["warlike", "aggressive"],
+        "tactical_01": ["materialist", "analytical"],
+        "sensors_01": ["spiritual", "calm"],
+        "support_01": ["pure", "cooperative"]
+      },
+      "notes": [
+        "Bind assignments to seat/crew entity ids when crew system lands.",
+        "Use pool refs for consistency; avoid random assignment in scenario definitions."
+      ]
+    },
+    "profileInterplay": {
+      "interactions": [
+        {
+          "sideA": {
+            "label": "crew_doctrine",
+            "profiles": ["warlike", "materialist", "spiritual", "pure"],
+            "entityIdPrefix": "crew_"
+          },
+          "sideB": {
+            "label": "environment_targets",
+            "profiles": ["environment"],
+            "entityIdPrefix": "range_"
+          }
+        }
+      ],
+      "mode": "environment",
+      "expectedOutcomes": [
+        "Profiles express doctrine through tool choice and targeting behavior.",
+        "Experience tiers shift reaction time, lock stability, and efficiency."
+      ],
+      "reporting": [
+        "gunnery.hit_rate_by_profile",
+        "gunnery.reaction_time_by_profile",
+        "gunnery.drone_assist_by_profile"
+      ],
+      "notes": [
+        "Interplay does not have to be conflict; this scenario focuses on profile expression vs environment."
+      ]
+    },
+    "notes": [
+      "ScenarioConfig fields are advisory; loader may ignore unknown keys."
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "range-capital-alpha",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "RANGE-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "range-target-drones",
+      "position": [600, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "RANGE-TGT",
+          "posture": "Patrol",
+          "shipCount": 6
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 10.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 12,
+      "kind": "MoveFleet",
+      "fleetId": "RANGE-TGT",
+      "targetPosition": [600, 200],
+      "description": "Crossing pass 1"
+    },
+    {
+      "time_s": 42,
+      "kind": "MoveFleet",
+      "fleetId": "RANGE-TGT",
+      "targetPosition": [-600, 200],
+      "description": "Crossing pass 2"
+    },
+    {
+      "time_s": 72,
+      "kind": "MoveFleet",
+      "fleetId": "RANGE-TGT",
+      "targetPosition": [0, -400],
+      "description": "Zigzag retreat"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "scenarioId": "scenario.space4x.economy_loop_micro",
+  "seed": 6319,
+  "runTicks": 900,
+  "entityCounts": [
+    { "registryId": "registry.storehouse.iron_ore_supply", "count": 2, "description": "Iron ore supply depots" },
+    { "registryId": "space4x.refinery", "count": 1, "description": "Refinery" },
+    { "registryId": "space4x.storehouse", "count": 1, "description": "Storehouse" },
+    { "registryId": "registry.hauler", "count": 2, "description": "Haulers" }
+  ],
+  "assertions": [
+    {
+      "metricId": "deliveries.count",
+      "op": 5,
+      "expectedValue": 2.0,
+      "description": "At least two deliveries complete."
+    },
+    {
+      "metricId": "storehouse.inventory",
+      "op": 4,
+      "expectedValue": 0.0,
+      "description": "Inventory should rise above zero during the run."
+    }
+  ],
+  "docs": "Economy loop micro: ore supply -> refinery -> storehouse. Exercises basic production/reserve flow."
+}

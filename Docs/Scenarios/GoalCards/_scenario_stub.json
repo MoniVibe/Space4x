@@ -1,0 +1,121 @@
+{
+  "scenarioId": "space4x_slice_name_micro",
+  "seed": 1,
+  "duration_s": 120,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "presentationScale": 0.75
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.slice.metric",
+        "required": true
+      }
+    ],
+    "schedule": {
+      "timeBase": "scenario",
+      "profiles": {
+        "role_name": [
+          {
+            "label": "Training",
+            "start_s": 0,
+            "duration_s": 60,
+            "activity": "train",
+            "sessionId": "training_session"
+          }
+        ]
+      },
+      "entitySchedules": {
+        "<entity_id>": "<profile_name>"
+      },
+      "sessions": {
+        "training_session": {
+          "mentorRole": "mentor_role",
+          "traineeRole": "trainee_role",
+          "focus": "skill_slice",
+          "constraints": {
+            "formation": "ring",
+            "allowMovement": false
+          }
+        }
+      },
+      "needsOverrides": {
+        "needs": {
+          "hunger": { "soft": 0.6, "hard": 0.85, "action": "eat" },
+          "fatigue": { "soft": 0.6, "hard": 0.85, "action": "rest" },
+          "injury": { "soft": 0.3, "hard": 0.6, "action": "medic" }
+        },
+        "interruptPolicy": {
+          "soft": "finish_current_action",
+          "hard": "immediate_interrupt"
+        },
+        "shiftRules": {
+          "allowEatOnShift": true,
+          "allowRestOnShift": false,
+          "sidelinedOnInjury": true
+        }
+      },
+      "profileNuance": {
+        "lawful": { "shiftBreakBias": "low", "dutyBias": "high" },
+        "pure": { "shiftBreakBias": "low", "dutyBias": "medium" },
+        "chaotic": { "shiftBreakBias": "high", "unpredictable": true },
+        "corrupt": { "shiftBreakBias": "selfish", "dutyBias": "low" },
+        "warlike": { "shiftBreakBias": "very_low", "dutyBias": "very_high" },
+        "warlike_fanatic": { "shiftBreakBias": "minimal", "eatOnShift": true }
+      },
+      "fallbackActivity": "idle"
+    },
+    "profilePools": {
+      "outlook_pool_ref": "puredots.outlook_pool"
+    },
+    "profileAssignments": {
+      "assignmentMode": "explicit",
+      "entities": {
+        "master_mage": ["pure", "chaotic", "good", "cooperative", "magic", "warlike", "egalitarian"],
+        "student_01": ["outlook_pool:lawful_good_cooperative"],
+        "student_02": ["outlook_pool:chaotic_neutral_independent"]
+      },
+      "notes": [
+        "Use pool refs for consistency; avoid random assignment in scenario definitions.",
+        "Match assignments to spawn entityId (Space4x) or entities.id/idPrefix (Godgame)."
+      ]
+    },
+    "profileInterplay": {
+      "interactions": [
+        {
+          "sideA": {
+            "label": "<group_a_label>",
+            "profiles": ["<profile_tag>", "<profile_tag>"],
+            "entityIdPrefix": "<entity_id_prefix>"
+          },
+          "sideB": {
+            "label": "<group_b_label>",
+            "profiles": ["<profile_tag>", "<profile_tag>"],
+            "entityIdPrefix": "<entity_id_prefix>"
+          }
+        }
+      ],
+      "mode": "<negotiation|cooperation|rivalry|conflict|environment>",
+      "expectedOutcomes": [
+        "<how profiles express themselves against other profiles or the simulation>",
+        "<secondary outcomes or edge cases>"
+      ],
+      "reporting": [
+        "<metric_name_by_profile>",
+        "<conversion_rate_by_profile>"
+      ],
+      "notes": [
+        "Interplay does not have to be conflict; use this to capture dynamic profile expression."
+      ]
+    }
+  },
+  "spawn": [],
+  "actions": []
+}

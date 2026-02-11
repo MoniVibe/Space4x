@@ -1,0 +1,27 @@
+{
+  "scenarioId": "scenario.space4x.logistics_chain_micro",
+  "seed": 7721,
+  "runTicks": 1200,
+  "entityCounts": [
+    { "registryId": "registry.storehouse.iron_ore_supply", "count": 3, "description": "Iron ore supply depots" },
+    { "registryId": "space4x.refinery", "count": 1, "description": "Refinery" },
+    { "registryId": "space4x.factory", "count": 1, "description": "Factory" },
+    { "registryId": "space4x.storehouse", "count": 1, "description": "Storehouse" },
+    { "registryId": "registry.hauler", "count": 3, "description": "Haulers" }
+  ],
+  "assertions": [
+    {
+      "metricId": "deliveries.count",
+      "op": 5,
+      "expectedValue": 3.0,
+      "description": "At least three deliveries complete across the chain."
+    },
+    {
+      "metricId": "storehouse.inventory",
+      "op": 4,
+      "expectedValue": 0.0,
+      "description": "Inventory should rise above zero during the run."
+    }
+  ],
+  "docs": "Logistics chain micro: supply -> refinery -> factory -> storehouse. Exercises routing and reservation pressure."
+}
