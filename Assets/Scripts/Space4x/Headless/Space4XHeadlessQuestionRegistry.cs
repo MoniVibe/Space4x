@@ -713,22 +713,29 @@ namespace Space4X.Headless
                 var hasCombatants = signals.TryGetMetric("space4x.combat.combatants.total", out var combatantsTotal);
                 var shotsHit = signals.GetMetricOrDefault("space4x.combat.shots.hit_total");
                 var combatantsDestroyed = signals.GetMetricOrDefault("space4x.combat.combatants.destroyed");
+                var hullDamaged = signals.GetMetricOrDefault("space4x.hull.damaged");
+                var hullCritical = signals.GetMetricOrDefault("space4x.hull.critical");
                 var totalAlive = signals.GetMetricOrDefault("space4x.combat.outcome.total_alive");
                 var winnerSide = signals.GetMetricOrDefault("space4x.combat.outcome.winner_side", -1f);
                 var winnerAlive = signals.GetMetricOrDefault("space4x.combat.outcome.winner_alive");
                 var winnerRatio = signals.GetMetricOrDefault("space4x.combat.outcome.winner_ratio");
 
                 var hitRatio = shotsFired > 0f ? shotsHit / shotsFired : 0f;
+                var hasImpactSignal = shotsHit > 0f || hullDamaged > 0f || hullCritical > 0f || combatantsDestroyed > 0f;
+                var attritionMissing = (combatantsTotal > 0f && totalAlive >= combatantsTotal) ? 1f : 0f;
 
                 answer.Metrics["shots_fired_total"] = shotsFired;
                 answer.Metrics["shots_hit_total"] = shotsHit;
                 answer.Metrics["shots_hit_ratio"] = hitRatio;
                 answer.Metrics["combatants_total"] = combatantsTotal;
                 answer.Metrics["combatants_destroyed"] = combatantsDestroyed;
+                answer.Metrics["hull_damaged"] = hullDamaged;
+                answer.Metrics["hull_critical"] = hullCritical;
                 answer.Metrics["outcome_total_alive"] = totalAlive;
                 answer.Metrics["winner_side"] = winnerSide;
                 answer.Metrics["winner_alive"] = winnerAlive;
                 answer.Metrics["winner_ratio"] = winnerRatio;
+                answer.Metrics["attrition_missing"] = attritionMissing;
 
                 if (!hasShots && !hasCombatants)
                 {
@@ -745,15 +752,22 @@ namespace Space4X.Headless
                     return answer;
                 }
 
-                if (combatantsTotal > 0f && totalAlive >= combatantsTotal)
+                if (!hasImpactSignal)
                 {
                     answer.Status = Space4XQuestionStatus.Fail;
-                    answer.Answer = "no_attrition_observed";
+                    answer.Answer = "no_impact_signal";
+                    return answer;
+                }
+
+                if (combatantsDestroyed > 0f && winnerSide < 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "winner_missing_after_attrition";
                     return answer;
                 }
 
                 answer.Status = Space4XQuestionStatus.Pass;
-                answer.Answer = $"shots={shotsFired:0} hits={shotsHit:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
+                answer.Answer = $"shots={shotsFired:0} hits={shotsHit:0} damaged={hullDamaged:0} critical={hullCritical:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
                 return answer;
             }
         }

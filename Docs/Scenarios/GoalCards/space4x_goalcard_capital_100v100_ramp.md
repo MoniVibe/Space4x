@@ -50,7 +50,8 @@ Duration:
   - `space4x.q.combat.battle_summary`
 - Super green fails fast when:
   - no shots are fired, or
-  - no attrition is observed.
+  - no impact signal is observed (no hits, hull damage, critical damage, or destroyed combatants).
+- Attrition remains a tracked metric in summary output but is not a hard fail in short smoke windows.
 - Proper 100 vs 100 scenario must pass:
   - `space4x.q.combat.fire`
   - `space4x.q.combat.battle_summary`
