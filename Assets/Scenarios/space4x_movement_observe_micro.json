@@ -1,0 +1,190 @@
+{
+  "scenarioId": "space4x_movement_observe_micro",
+  "seed": 2211,
+  "duration_s": 160,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "spawnLane": "mining-json",
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyLatchConfig": false,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.movement.turnrate_bounds",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "observe-carrier-alpha",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 9000},
+          {"type": "RareMetals", "capacity": 4000}
+        ],
+        "Fleet": {
+          "fleetId": "OBS-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 9.5,
+          "isHostile": false,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 2,
+          "escortRelease_s": 30
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "observe-carrier-omega",
+      "position": [280, 60],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 7000}
+        ],
+        "Fleet": {
+          "fleetId": "OBS-OMEGA",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.5,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 2,
+          "escortRelease_s": 35
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "observe-miner-alpha-1",
+      "position": [0, 0],
+      "carrierId": "observe-carrier-alpha",
+      "resourceId": "Minerals",
+      "toolKind": "drill",
+      "miningEfficiency": 0.82,
+      "speed": 9.0,
+      "cargoCapacity": 110.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "observe-miner-alpha-2",
+      "position": [0, 0],
+      "carrierId": "observe-carrier-alpha",
+      "resourceId": "RareMetals",
+      "toolKind": "laser",
+      "miningEfficiency": 0.75,
+      "speed": 9.2,
+      "cargoCapacity": 90.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "observe-deposit-alpha",
+      "position": [60, 20],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "observe-deposit-bravo",
+      "position": [120, 80],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 450.0,
+      "gatherRatePerWorker": 8.5,
+      "maxSimultaneousWorkers": 2
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 5,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-ALPHA",
+      "targetPosition": [220, 0],
+      "description": "Alpha accelerates forward"
+    },
+    {
+      "time_s": 25,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-ALPHA",
+      "targetPosition": [220, 220],
+      "description": "Alpha executes wide turn"
+    },
+    {
+      "time_s": 55,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-ALPHA",
+      "targetPosition": [-40, 220],
+      "description": "Alpha reverses arc"
+    },
+    {
+      "time_s": 85,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-ALPHA",
+      "targetPosition": [-140, 40],
+      "description": "Alpha retrograde braking"
+    },
+    {
+      "time_s": 120,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-ALPHA",
+      "targetPosition": [0, 0],
+      "description": "Alpha returns to origin"
+    },
+    {
+      "time_s": 15,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-OMEGA",
+      "targetPosition": [140, 40],
+      "description": "Omega advances into lane"
+    },
+    {
+      "time_s": 75,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "OBS-ALPHA",
+      "targetFleetId": "OBS-OMEGA",
+      "description": "Alpha launches intercept"
+    },
+    {
+      "time_s": 105,
+      "kind": "MoveFleet",
+      "fleetId": "OBS-OMEGA",
+      "targetPosition": [260, -60],
+      "description": "Omega drifts to lower belt"
+    }
+  ],
+  "telemetryExpectations": {
+    "expectMiningYield": true,
+    "expectCarrierPickup": true,
+    "expectInterceptAttempts": true,
+    "expectFleetRegistry": true,
+    "expectResourceRegistry": true,
+    "export": {
+      "csv": "Reports/space4x_movement_observe_metrics.csv",
+      "json": "Reports/space4x_movement_observe_metrics.json"
+    }
+  }
+}
