@@ -34,8 +34,9 @@ namespace Space4X.Registry
             }
 
             var decayPerTick = math.max(0f, tuning.DecayPerTick);
-            foreach (var intelBuffer in SystemAPI.Query<DynamicBuffer<IntelTargetFact>>())
+            foreach (var intelBufferRO in SystemAPI.Query<DynamicBuffer<IntelTargetFact>>())
             {
+                var intelBuffer = intelBufferRO;
                 for (int i = intelBuffer.Length - 1; i >= 0; i--)
                 {
                     var fact = intelBuffer[i];
