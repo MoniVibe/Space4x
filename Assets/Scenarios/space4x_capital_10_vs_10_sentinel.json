@@ -1,0 +1,86 @@
+{
+  "scenarioId": "space4x_capital_10_vs_10_sentinel",
+  "seed": 41010,
+  "duration_s": 20,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.fire",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "sentinel-alpha-carrier",
+      "position": [
+        -180.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "SENT-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 10
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "sentinel-beta-carrier",
+      "position": [
+        180.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "SENT-BETA",
+          "posture": "Patrol",
+          "shipCount": 10
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 1.0,
+      "kind": "MoveFleet",
+      "fleetId": "SENT-ALPHA",
+      "targetPosition": [
+        -30.0,
+        0.0
+      ],
+      "description": "immediate close-in for fast liveness check"
+    },
+    {
+      "time_s": 1.0,
+      "kind": "MoveFleet",
+      "fleetId": "SENT-BETA",
+      "targetPosition": [
+        30.0,
+        0.0
+      ],
+      "description": "immediate close-in for fast liveness check"
+    }
+  ]
+}

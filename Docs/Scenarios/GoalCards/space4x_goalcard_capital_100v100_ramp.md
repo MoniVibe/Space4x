@@ -66,10 +66,11 @@ Duration:
 
 ## Nightly Focus
 Scenario IDs:
+- `space4x_capital_10_vs_10_sentinel`
 - `space4x_capital_20_vs_20_supergreen`
 - `space4x_capital_100_vs_100_proper`
 Run budget:
-- 45s then 120s
+- 20s then 45s then 120s
 Telemetry IDs:
 - `space4x.q.combat.fire`
 - `space4x.q.combat.battle_summary`
@@ -85,6 +86,9 @@ Telemetry IDs:
 - Keep this as a spike card until 100 vs 100 stability is demonstrated over multiple seeds.
 
 ## Scenario JSON
+Path: Assets/Scenarios/space4x_capital_10_vs_10_sentinel.json
+Version: v0
+
 Path: Assets/Scenarios/space4x_capital_20_vs_20_supergreen.json
 Version: v0
 
