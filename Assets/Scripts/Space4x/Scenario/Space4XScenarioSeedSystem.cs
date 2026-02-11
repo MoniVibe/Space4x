@@ -627,7 +627,7 @@ namespace Space4x.Scenario
             }
         }
 
-        private static Entity CreatePilotEntity(ref SystemState state, float lawfulness)
+        private Entity CreatePilotEntity(ref SystemState state, float lawfulness)
         {
             var config = StrikeCraftPilotProfileConfig.Default;
             if (SystemAPI.TryGetSingleton<StrikeCraftPilotProfileConfig>(out var configSingleton))
