@@ -1,0 +1,98 @@
+{
+  "scenarioId": "space4x_capital_100_vs_100_proper",
+  "seed": 42100,
+  "duration_s": 120,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.fire",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      },
+      {
+        "id": "space4x.q.perf.summary",
+        "required": false
+      },
+      {
+        "id": "space4x.q.perf.budget",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": false
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "proper-alpha-carrier",
+      "position": [
+        -800.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "PROPER-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 100
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "proper-beta-carrier",
+      "position": [
+        800.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "PROPER-BETA",
+          "posture": "Patrol",
+          "shipCount": 100
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 5.0,
+      "kind": "MoveFleet",
+      "fleetId": "PROPER-ALPHA",
+      "targetPosition": [
+        -120.0,
+        0.0
+      ],
+      "description": "advance alpha into firing range"
+    },
+    {
+      "time_s": 5.0,
+      "kind": "MoveFleet",
+      "fleetId": "PROPER-BETA",
+      "targetPosition": [
+        120.0,
+        0.0
+      ],
+      "description": "advance beta into firing range"
+    }
+  ]
+}
