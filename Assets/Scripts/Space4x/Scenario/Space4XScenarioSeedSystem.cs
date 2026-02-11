@@ -138,7 +138,7 @@ namespace Space4x.Scenario
             };
         }
 
-        private static bool IsScenarioSeeded(ref SystemState state, in FixedString64Bytes scenarioId)
+        private bool IsScenarioSeeded(ref SystemState state, in FixedString64Bytes scenarioId)
         {
             if (!SystemAPI.TryGetSingleton<Space4XScenarioSeeded>(out var seeded))
             {
@@ -148,7 +148,7 @@ namespace Space4x.Scenario
             return seeded.ScenarioId.Equals(scenarioId);
         }
 
-        private static void MarkScenarioSeeded(ref SystemState state, in FixedString64Bytes scenarioId)
+        private void MarkScenarioSeeded(ref SystemState state, in FixedString64Bytes scenarioId)
         {
             if (SystemAPI.TryGetSingletonEntity<Space4XScenarioSeeded>(out var entity))
             {
