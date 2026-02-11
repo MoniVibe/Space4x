@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
 using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
 using Space4X.Registry;
