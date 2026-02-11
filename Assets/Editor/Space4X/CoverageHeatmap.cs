@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
+using System.Text;
 using Space4X.Authoring;
 using Space4X.EditorUtilities;
 using Space4X.Registry;
@@ -226,9 +226,82 @@ namespace Space4X.Editor
                 Directory.CreateDirectory(reportDir);
             }
             var reportPath = Path.Combine(reportDir, "coverage_heatmap.json");
-            var json = JsonConvert.SerializeObject(report, Formatting.Indented);
+            var json = SerializeReportJson(report);
             File.WriteAllText(reportPath, json);
             AssetDatabase.ImportAsset(reportPath);
+        }
+
+        private static string SerializeReportJson(CoverageReport report)
+        {
+            var sb = new StringBuilder(4096);
+            sb.AppendLine("{");
+            sb.AppendLine($"  \"Version\": \"{EscapeJson(report.Version)}\",");
+            sb.AppendLine($"  \"GeneratedAt\": \"{EscapeJson(report.GeneratedAt)}\",");
+            sb.AppendLine($"  \"OverallCoverage\": {report.OverallCoverage:F4},");
+            sb.AppendLine("  \"Categories\": {");
+
+            var ordered = report.Categories.OrderBy(k => k.Key).ToList();
+            for (var i = 0; i < ordered.Count; i++)
+            {
+                var pair = ordered[i];
+                var cat = pair.Value ?? new CategoryCoverage();
+                sb.AppendLine($"    \"{EscapeJson(pair.Key)}\": {{");
+                sb.AppendLine($"      \"CatalogCount\": {cat.CatalogCount},");
+                sb.AppendLine($"      \"PrefabCount\": {cat.PrefabCount},");
+                sb.AppendLine($"      \"BindingCount\": {cat.BindingCount},");
+                sb.AppendLine($"      \"PrefabCoverage\": {cat.PrefabCoverage:F4},");
+                sb.AppendLine($"      \"BindingCoverage\": {cat.BindingCoverage:F4},");
+                sb.Append("      \"MissingPrefabs\": [");
+                AppendJsonStringArray(sb, cat.MissingPrefabs);
+                sb.AppendLine("],");
+                sb.Append("      \"MissingBindings\": [");
+                AppendJsonStringArray(sb, cat.MissingBindings);
+                sb.AppendLine("]");
+                sb.Append("    }");
+                if (i < ordered.Count - 1)
+                {
+                    sb.Append(',');
+                }
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+            return sb.ToString();
+        }
+
+        private static void AppendJsonStringArray(StringBuilder sb, List<string> values)
+        {
+            if (values == null || values.Count == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < values.Count; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(", ");
+                }
+                sb.Append('"');
+                sb.Append(EscapeJson(values[i] ?? string.Empty));
+                sb.Append('"');
+            }
+        }
+
+        private static string EscapeJson(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n")
+                .Replace("\t", "\\t");
         }
 
         public static void PrintReport(CoverageReport report)
