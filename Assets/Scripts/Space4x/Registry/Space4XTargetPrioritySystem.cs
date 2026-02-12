@@ -220,7 +220,7 @@ namespace Space4X.Registry
                 }
 
                 // Select best target
-                SelectBestTarget(ref priority.ValueRW, candidates, currentTick);
+                SelectBestTarget(ref priority.ValueRW, profile.ValueRO, candidates, currentTick);
             }
 
             potentialTargets.Dispose();
@@ -387,6 +387,7 @@ namespace Space4X.Registry
 
         private void SelectBestTarget(
             ref TargetPriority priority,
+            in TargetSelectionProfile profile,
             DynamicBuffer<TargetCandidate> candidates,
             uint currentTick)
         {
@@ -394,14 +395,37 @@ namespace Space4X.Registry
             float bestScore = float.MinValue;
             const float scoreEpsilon = 0.0001f;
 
+            float currentTargetScore = float.MinValue;
+            bool hasCurrentCandidate = false;
+
             for (int i = 0; i < candidates.Length; i++)
             {
                 var candidate = candidates[i];
+                if (candidate.Entity == priority.CurrentTarget)
+                {
+                    currentTargetScore = candidate.Score;
+                    hasCurrentCandidate = true;
+                }
+
                 if (candidate.Score > bestScore ||
                     (math.abs(candidate.Score - bestScore) <= scoreEpsilon && IsPreferredTarget(candidate.Entity, bestTarget)))
                 {
                     bestScore = candidate.Score;
                     bestTarget = candidate.Entity;
+                }
+            }
+
+            // Soft hysteresis: don't flip-flop targets unless the new best is materially better.
+            if (priority.CurrentTarget != Entity.Null &&
+                bestTarget != Entity.Null &&
+                bestTarget != priority.CurrentTarget &&
+                hasCurrentCandidate)
+            {
+                var switchCost = TargetPriorityUtility.ResolveSwitchAwayCost(profile, priority.EngagementDuration);
+                if (switchCost > 0f && bestScore <= currentTargetScore + switchCost + scoreEpsilon)
+                {
+                    bestTarget = priority.CurrentTarget;
+                    bestScore = currentTargetScore;
                 }
             }
 
@@ -487,16 +511,18 @@ namespace Space4X.Registry
                     var newProfile = TargetPriorityUtility.ProfileFromAlignment(alignment.ValueRO);
 
                     // Preserve custom settings but update strategy and weights
-                    profile.ValueRW.Strategy = newProfile.Strategy;
-                    profile.ValueRW.DistanceWeight = newProfile.DistanceWeight;
-                    profile.ValueRW.ThreatWeight = newProfile.ThreatWeight;
-                    profile.ValueRW.WeaknessWeight = newProfile.WeaknessWeight;
-                    profile.ValueRW.ValueWeight = newProfile.ValueWeight;
-                    profile.ValueRW.AllyDefenseWeight = newProfile.AllyDefenseWeight;
-                }
-            }
-        }
-    }
+                     profile.ValueRW.Strategy = newProfile.Strategy;
+                     profile.ValueRW.DistanceWeight = newProfile.DistanceWeight;
+                     profile.ValueRW.ThreatWeight = newProfile.ThreatWeight;
+                     profile.ValueRW.WeaknessWeight = newProfile.WeaknessWeight;
+                     profile.ValueRW.ValueWeight = newProfile.ValueWeight;
+                     profile.ValueRW.AllyDefenseWeight = newProfile.AllyDefenseWeight;
+                     profile.ValueRW.SwitchAwayCost = newProfile.SwitchAwayCost;
+                     profile.ValueRW.SwitchAwayCostDecayPerSecond = newProfile.SwitchAwayCostDecayPerSecond;
+                 }
+             }
+         }
+     }
 
     /// <summary>
     /// Tracks damage history for target continuity bonuses.

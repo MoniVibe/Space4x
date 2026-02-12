@@ -84,6 +84,7 @@ namespace Space4X.Registry
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<TargetPriority>();
+            state.RequireForUpdate<TargetSelectionProfile>();
             state.RequireForUpdate<IntelTargetFact>();
             state.RequireForUpdate<TargetCandidate>();
         }
@@ -105,8 +106,8 @@ namespace Space4X.Registry
 
             const float scoreEpsilon = 0.0001f;
 
-            foreach (var (intelFacts, candidates, priority) in
-                SystemAPI.Query<DynamicBuffer<IntelTargetFact>, DynamicBuffer<TargetCandidate>, RefRW<TargetPriority>>())
+            foreach (var (intelFacts, candidates, priority, profile) in
+                SystemAPI.Query<DynamicBuffer<IntelTargetFact>, DynamicBuffer<TargetCandidate>, RefRW<TargetPriority>, RefRO<TargetSelectionProfile>>())
             {
                 if (intelFacts.Length == 0 || candidates.Length == 0)
                 {
@@ -116,6 +117,10 @@ namespace Space4X.Registry
 
                 float bestScore = float.MinValue;
                 Entity bestTarget = Entity.Null;
+
+                var currentTarget = priority.ValueRO.CurrentTarget;
+                float currentTargetScore = float.MinValue;
+                bool hasCurrentCandidate = false;
 
                 for (int i = 0; i < candidatesRW.Length; i++)
                 {
@@ -148,6 +153,12 @@ namespace Space4X.Registry
                         candidatesRW[i] = candidate;
                     }
 
+                    if (candidate.Entity == currentTarget)
+                    {
+                        currentTargetScore = candidate.Score;
+                        hasCurrentCandidate = true;
+                    }
+
                     if (candidate.Score > bestScore ||
                         (math.abs(candidate.Score - bestScore) <= scoreEpsilon && IsPreferredTarget(candidate.Entity, bestTarget)))
                     {
@@ -158,6 +169,19 @@ namespace Space4X.Registry
 
                 if (bestTarget != Entity.Null)
                 {
+                    // Soft hysteresis: prefer staying on the current target unless the new best is materially better.
+                    if (currentTarget != Entity.Null &&
+                        bestTarget != currentTarget &&
+                        hasCurrentCandidate)
+                    {
+                        var switchCost = TargetPriorityUtility.ResolveSwitchAwayCost(profile.ValueRO, priority.ValueRO.EngagementDuration);
+                        if (switchCost > 0f && bestScore <= currentTargetScore + switchCost + scoreEpsilon)
+                        {
+                            bestTarget = currentTarget;
+                            bestScore = currentTargetScore;
+                        }
+                    }
+
                     if (bestTarget != priority.ValueRO.CurrentTarget)
                     {
                         priority.ValueRW.EngagementDuration = 0f;

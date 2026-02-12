@@ -122,6 +122,22 @@ namespace Space4X.Registry
         /// </summary>
         public half MinThreatThreshold;
 
+        /// <summary>
+        /// Additive score cost to switch away from the current target (0 = no hysteresis).
+        ///
+        /// This is a soft preference: the AI can still switch immediately if another target is
+        /// materially better; it simply requires a higher score to justify flip-flopping.
+        /// </summary>
+        public half SwitchAwayCost;
+
+        /// <summary>
+        /// Linear decay rate (per second) for <see cref="SwitchAwayCost"/> as engagement time increases.
+        ///
+        /// Example: SwitchAwayCost=0.12 and SwitchAwayCostDecayPerSecond=0.03 means the switching
+        /// friction decays to 0 after ~4 seconds of continuous engagement.
+        /// </summary>
+        public half SwitchAwayCostDecayPerSecond;
+
         public static TargetSelectionProfile DefendAllies => new TargetSelectionProfile
         {
             Strategy = TargetStrategy.DefendAllies,
@@ -132,7 +148,9 @@ namespace Space4X.Registry
             ValueWeight = (half)0.0f,
             AllyDefenseWeight = (half)0.8f,
             MaxEngagementRange = 0f,
-            MinThreatThreshold = (half)0f
+            MinThreatThreshold = (half)0f,
+            SwitchAwayCost = (half)0.10f,
+            SwitchAwayCostDecayPerSecond = (half)0.03f
         };
 
         public static TargetSelectionProfile NeutralizeThreats => new TargetSelectionProfile
@@ -145,7 +163,9 @@ namespace Space4X.Registry
             ValueWeight = (half)0.3f,
             AllyDefenseWeight = (half)0.2f,
             MaxEngagementRange = 0f,
-            MinThreatThreshold = (half)0.2f
+            MinThreatThreshold = (half)0.2f,
+            SwitchAwayCost = (half)0.14f,
+            SwitchAwayCostDecayPerSecond = (half)0.03f
         };
 
         public static TargetSelectionProfile Opportunistic => new TargetSelectionProfile
@@ -158,7 +178,9 @@ namespace Space4X.Registry
             ValueWeight = (half)0.2f,
             AllyDefenseWeight = (half)0f,
             MaxEngagementRange = 0f,
-            MinThreatThreshold = (half)0f
+            MinThreatThreshold = (half)0f,
+            SwitchAwayCost = (half)0.06f,
+            SwitchAwayCostDecayPerSecond = (half)0.03f
         };
 
         public static TargetSelectionProfile HighValue => new TargetSelectionProfile
@@ -171,7 +193,9 @@ namespace Space4X.Registry
             ValueWeight = (half)0.9f,
             AllyDefenseWeight = (half)0f,
             MaxEngagementRange = 0f,
-            MinThreatThreshold = (half)0f
+            MinThreatThreshold = (half)0f,
+            SwitchAwayCost = (half)0.16f,
+            SwitchAwayCostDecayPerSecond = (half)0.03f
         };
 
         public static TargetSelectionProfile Balanced => new TargetSelectionProfile
@@ -184,7 +208,9 @@ namespace Space4X.Registry
             ValueWeight = (half)0.3f,
             AllyDefenseWeight = (half)0.3f,
             MaxEngagementRange = 0f,
-            MinThreatThreshold = (half)0f
+            MinThreatThreshold = (half)0f,
+            SwitchAwayCost = (half)0.12f,
+            SwitchAwayCostDecayPerSecond = (half)0.03f
         };
     }
 
@@ -402,6 +428,26 @@ namespace Space4X.Registry
             float engagementBonus = 0.2f * math.exp(-engagementDuration * 0.01f);
             return baseScore + engagementBonus;
         }
+
+        /// <summary>
+        /// Computes the current additive switching friction for the current target.
+        /// </summary>
+        public static float ResolveSwitchAwayCost(in TargetSelectionProfile profile, float engagementDuration)
+        {
+            var maxCost = (float)profile.SwitchAwayCost;
+            if (maxCost <= 0f)
+            {
+                return 0f;
+            }
+
+            var decay = math.max(0f, (float)profile.SwitchAwayCostDecayPerSecond);
+            if (decay <= 0f)
+            {
+                return maxCost;
+            }
+
+            // Linear decay: high immediately after switching, approaches 0 with time.
+            return math.max(0f, maxCost - engagementDuration * decay);
+        }
     }
 }
-
