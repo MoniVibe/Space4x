@@ -49,7 +49,7 @@ namespace Space4X.Registry
             {
                 if (_finalizedThisSession == 0 && time.Tick >= runtime.EndTick)
                 {
-                    FinalizeReport(ref state, time.Tick, isScenarioFinalize: true);
+                    FinalizeReport(ref state, runtime.StartTick, time.Tick, isScenarioFinalize: true);
                     _finalizedThisSession = 1;
                 }
 
@@ -89,7 +89,7 @@ namespace Space4X.Registry
                 return;
             }
 
-            FinalizeReport(ref state, time.Tick, isScenarioFinalize: false);
+            FinalizeReport(ref state, _battleStartTick, time.Tick, isScenarioFinalize: false);
             _inBattle = 0;
         }
 
@@ -108,7 +108,7 @@ namespace Space4X.Registry
             return state.EntityManager.GetBuffer<Space4XCombatOutcomeEvent>(streamEntity).Length;
         }
 
-        private void FinalizeReport(ref SystemState state, uint endTick, bool isScenarioFinalize)
+        private void FinalizeReport(ref SystemState state, uint startTick, uint endTick, bool isScenarioFinalize)
         {
             if (!TryGetTelemetryMetricBuffer(ref state, out var metrics))
             {
@@ -119,7 +119,7 @@ namespace Space4X.Registry
 
             var report = new Space4XBattleReport
             {
-                BattleStartTick = _battleStartTick,
+                BattleStartTick = startTick,
                 BattleEndTick = endTick,
                 WinnerSide = (int)GetMetricOrDefault(metrics, new FixedString64Bytes("space4x.combat.outcome.winner_side"), -1f),
                 TotalCombatants = (int)GetMetricOrDefault(metrics, new FixedString64Bytes("space4x.combat.combatants.total"), 0f),
