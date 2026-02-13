@@ -212,7 +212,7 @@ namespace Space4X.Registry
             _hasReportEntity = 1;
         }
 
-        private static bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
+        private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
         {
             buffer = default;
             if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
