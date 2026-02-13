@@ -5,6 +5,18 @@
 
 **Start Here**: `../TRI_PROJECT_BRIEFING.md` (master orientation) → `AGENTS.md` (Space4X agent workflow + smoke scene)
 
+## Canonical Directive Set
+
+For active direction and constraints, use the canonical docs in PureDOTS:
+- `../../puredots/Docs/NORTH_STAR.md`
+- `../../puredots/Docs/DEMO_SLICE.md`
+- `../../puredots/Docs/ARCHITECTURE.md`
+- `../../puredots/Docs/PERF_GATES.md`
+- `../../puredots/Docs/NETPLAY_NOT_NOW.md`
+- `../../puredots/Docs/PROGRESS_HUB.md`
+
+This orientation file provides Space4X-specific structure and inventory, but canonical intent/rules live in the docs above.
+
 ---
 
 ## Project Overview
@@ -414,4 +426,3 @@ Space4X is a well-structured DOTS-based 4X game with:
 **Ready for**: Fleshing out core loops, implementing missing mechanics, expanding scenario support, and building out the game vision.
 
 **Next focus areas**: Movement system integration, completing design pillars, extending scenario support, and implementing prefab maker.
-

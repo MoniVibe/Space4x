@@ -2,6 +2,7 @@
 
 Quick pointers to the active documentation:
 
+- Canonical direction (shared): `../../puredots/Docs/NORTH_STAR.md`, `../../puredots/Docs/DEMO_SLICE.md`, `../../puredots/Docs/ARCHITECTURE.md`, `../../puredots/Docs/PERF_GATES.md`, `../../puredots/Docs/NETPLAY_NOT_NOW.md`, `../../puredots/Docs/PROGRESS_HUB.md`
 - Project setup: `Docs/PROJECT_SETUP.md`
 - Headless workflows: `Docs/Headless/Space4X_HEADLESS.md`, `Docs/Headless/Godgame_HEADLESS.md`
 - Ops bus protocol: `../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`
