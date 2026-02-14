@@ -207,6 +207,8 @@ namespace Space4X.Headless
         public const string CombatBattleSummary = "space4x.q.combat.battle_summary";
         public const string BattleDeterminismDigest = "space4x.q.battle.determinism_digest";
         public const string BattleProfileBiasEvidence = "space4x.q.battle.profilebias.evidence";
+        public const string ProfileBiasNavEvidence = "space4x.q.profilebias.nav_evidence";
+        public const string ProfileBiasSensorsEvidence = "space4x.q.profilebias.sensors_evidence";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -257,7 +259,9 @@ namespace Space4X.Headless
             new CombatAttackRunQuestion(),
             new CombatBattleSummaryQuestion(),
             new BattleDeterminismDigestQuestion(),
-            new BattleProfileBiasEvidenceQuestion()
+            new BattleProfileBiasEvidenceQuestion(),
+            new ProfileBiasNavEvidenceQuestion(),
+            new ProfileBiasSensorsEvidenceQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -860,6 +864,93 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Fail;
                 answer.Answer = $"range_delta={rangeDelta:0.###} flank_ratio_delta={flankRatioDelta:0.###}";
+                answer.Answer = $"range_delta={rangeDelta:0.###} flank_ratio_delta={flankRatioDelta:0.###}";
+                return answer;
+            }
+        }
+
+        private sealed class ProfileBiasNavEvidenceQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ProfileBiasNavEvidence;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasRangeDelta = signals.TryGetMetric("space4x.profilebias.nav.range_delta", out var rangeDelta);
+                var aggressive = signals.GetMetricOrDefault("space4x.profilebias.nav.aggressive.avg_approach_distance");
+                var cautious = signals.GetMetricOrDefault("space4x.profilebias.nav.cautious.avg_approach_distance");
+
+                answer.Metrics["aggressive_avg_approach_distance"] = aggressive;
+                answer.Metrics["cautious_avg_approach_distance"] = cautious;
+                answer.Metrics["range_delta"] = rangeDelta;
+
+                if (!hasRangeDelta)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_profilebias_nav_metrics";
+                    answer.Answer = "profile-bias nav metrics unavailable";
+                    return answer;
+                }
+
+                if (Math.Abs(rangeDelta) > 0.01f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"range_delta={rangeDelta:0.###}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"range_delta={rangeDelta:0.###}";
+                return answer;
+            }
+        }
+
+        private sealed class ProfileBiasSensorsEvidenceQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ProfileBiasSensorsEvidence;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasDropDelta = signals.TryGetMetric("space4x.profilebias.sensors.drop_distance_delta", out var dropDelta);
+                var aggressiveDrop = signals.GetMetricOrDefault("space4x.profilebias.sensors.aggressive.drop_distance");
+                var cautiousDrop = signals.GetMetricOrDefault("space4x.profilebias.sensors.cautious.drop_distance");
+
+                answer.Metrics["aggressive_drop_distance"] = aggressiveDrop;
+                answer.Metrics["cautious_drop_distance"] = cautiousDrop;
+                answer.Metrics["drop_distance_delta"] = dropDelta;
+
+                if (!hasDropDelta)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_profilebias_sensors_metrics";
+                    answer.Answer = "profile-bias sensors metrics unavailable";
+                    return answer;
+                }
+
+                if (dropDelta > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"drop_distance_delta={dropDelta:0.###}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"drop_distance_delta={dropDelta:0.###}";
                 return answer;
             }
         }

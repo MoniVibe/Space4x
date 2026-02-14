@@ -1,0 +1,78 @@
+{
+  "scenarioId": "space4x_profilebias_nav_micro",
+  "seed": 41031,
+  "duration_s": 20,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.profilebias.nav_evidence",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "profile-nav-aggressive",
+      "position": [-920, -140],
+      "components": {
+        "Fleet": {
+          "fleetId": "PB-NAV-AGG",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "profile-nav-cautious",
+      "position": [-920, 140],
+      "components": {
+        "Fleet": {
+          "fleetId": "PB-NAV-CAUT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2.0,
+      "kind": "MoveFleet",
+      "fleetId": "PB-NAV-AGG",
+      "targetPosition": [260, 0],
+      "description": "aggressive cohort enters corridor"
+    },
+    {
+      "time_s": 2.0,
+      "kind": "MoveFleet",
+      "fleetId": "PB-NAV-CAUT",
+      "targetPosition": [260, 0],
+      "description": "cautious cohort enters corridor"
+    }
+  ]
+}

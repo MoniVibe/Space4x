@@ -1,0 +1,90 @@
+{
+  "scenarioId": "space4x_profilebias_sensors_micro",
+  "seed": 41032,
+  "duration_s": 24,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.profilebias.sensors_evidence",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "profile-sensors-aggressive",
+      "position": [0, -70],
+      "components": {
+        "Fleet": {
+          "fleetId": "PB-SENS-AGG",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "profile-sensors-cautious",
+      "position": [0, 70],
+      "components": {
+        "Fleet": {
+          "fleetId": "PB-SENS-CAUT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "profile-sensors-target",
+      "position": [40, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "PB-SENS-TGT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 8.0,
+      "kind": "MoveFleet",
+      "fleetId": "PB-SENS-TGT",
+      "targetPosition": [1500, 0],
+      "description": "target exits observer hold ranges"
+    }
+  ]
+}
