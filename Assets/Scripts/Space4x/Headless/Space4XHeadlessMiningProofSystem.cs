@@ -458,6 +458,8 @@ namespace Space4X.Headless
                 }
 
                 var head = new string(buffer, 0, read);
+                // Proof policy is data-driven in scenario JSON:
+                // "proofs": { "mining": false } disables mining proof for combat-only scenarios.
                 return Regex.IsMatch(head, "\"proofs\"\\s*:\\s*\\{[^}]*\"mining\"\\s*:\\s*false",
                     RegexOptions.IgnoreCase | RegexOptions.Singleline);
             }
