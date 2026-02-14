@@ -721,6 +721,7 @@ namespace Space4X.Headless
                 var winnerSide = signals.GetMetricOrDefault("space4x.combat.outcome.winner_side", -1f);
                 var winnerAlive = signals.GetMetricOrDefault("space4x.combat.outcome.winner_alive");
                 var winnerRatio = signals.GetMetricOrDefault("space4x.combat.outcome.winner_ratio");
+                var determinismDigest = signals.GetMetricOrDefault("space4x.battle.determinism.digest");
 
                 var hitRatio = shotsFired > 0f ? shotsHit / shotsFired : 0f;
                 var hasImpactSignal = shotsHit > 0f || hullDamaged > 0f || hullCritical > 0f || combatantsDestroyed > 0f;
@@ -737,6 +738,7 @@ namespace Space4X.Headless
                 answer.Metrics["winner_side"] = winnerSide;
                 answer.Metrics["winner_alive"] = winnerAlive;
                 answer.Metrics["winner_ratio"] = winnerRatio;
+                answer.Metrics["determinism_digest"] = determinismDigest;
                 answer.Metrics["attrition_missing"] = attritionMissing;
 
                 if (!hasShots && !hasCombatants)

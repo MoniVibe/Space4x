@@ -553,6 +553,11 @@ namespace Space4X.BattleSlice
                     AddMetric(snapshotBuffer, "space4x.battle.determinism.digest", metrics.Digest);
                     AddMetric(snapshotBuffer, "space4x.combat.shots.fired_total", fired);
                     AddMetric(snapshotBuffer, "space4x.combat.shots.hit_total", hitsTotal);
+                    AddMetric(snapshotBuffer, "space4x.combat.combatants.total", metrics.FightersTotal);
+                    AddMetric(snapshotBuffer, "space4x.combat.combatants.destroyed", metrics.FightersDestroyed);
+                    AddMetric(snapshotBuffer, "space4x.combat.outcome.winner_side", winner);
+                    AddMetric(snapshotBuffer, "space4x.combat.outcome.winner_alive", winnerAlive);
+                    AddMetric(snapshotBuffer, "space4x.combat.outcome.winner_ratio", winnerRatio);
                 }
             }
 
