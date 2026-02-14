@@ -22,9 +22,9 @@
       "targetCarrierId": "sensor-carrier-bravo",
       "acquireStart_s": 4,
       "acquireDuration_s": 5,
-      "dropStart_s": 11,
-      "dropDuration_s": 8,
-      "observerRange": 65,
+      "dropStart_s": 16,
+      "dropDuration_s": 6,
+      "observerRange": 120,
       "observerUpdateInterval": 0.25,
       "observerMaxTrackedTargets": 12
     },
