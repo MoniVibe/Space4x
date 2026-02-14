@@ -143,10 +143,30 @@ namespace Space4X.Perception
             {
                 ecb.AddComponent(entity, detectable);
             }
+            else
+            {
+                var current = entityManager.GetComponentData<Detectable>(entity);
+                current.Visibility = current.Visibility < detectable.Visibility ? detectable.Visibility : current.Visibility;
+                current.Audibility = current.Audibility < detectable.Audibility ? detectable.Audibility : current.Audibility;
+                current.ThreatLevel = current.ThreatLevel < detectable.ThreatLevel ? detectable.ThreatLevel : current.ThreatLevel;
+                ecb.SetComponent(entity, current);
+            }
 
             if (!entityManager.HasComponent<SensorSignature>(entity))
             {
                 ecb.AddComponent(entity, signature);
+            }
+            else
+            {
+                var current = entityManager.GetComponentData<SensorSignature>(entity);
+                current.VisualSignature = current.VisualSignature < signature.VisualSignature ? signature.VisualSignature : current.VisualSignature;
+                current.AuditorySignature = current.AuditorySignature < signature.AuditorySignature ? signature.AuditorySignature : current.AuditorySignature;
+                current.OlfactorySignature = current.OlfactorySignature < signature.OlfactorySignature ? signature.OlfactorySignature : current.OlfactorySignature;
+                current.EMSignature = current.EMSignature < signature.EMSignature ? signature.EMSignature : current.EMSignature;
+                current.GraviticSignature = current.GraviticSignature < signature.GraviticSignature ? signature.GraviticSignature : current.GraviticSignature;
+                current.ExoticSignature = current.ExoticSignature < signature.ExoticSignature ? signature.ExoticSignature : current.ExoticSignature;
+                current.ParanormalSignature = current.ParanormalSignature < signature.ParanormalSignature ? signature.ParanormalSignature : current.ParanormalSignature;
+                ecb.SetComponent(entity, current);
             }
 
             if (!entityManager.HasComponent<MediumContext>(entity))
