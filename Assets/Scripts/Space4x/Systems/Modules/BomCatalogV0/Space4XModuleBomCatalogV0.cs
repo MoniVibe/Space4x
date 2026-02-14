@@ -9,7 +9,6 @@ namespace Space4X.Systems.Modules.Bom
     {
         public int schemaVersion = 1;
         public string catalogId = string.Empty;
-        public Space4XAffixPools affixes = new();
         public Space4XPartFamilyDefinition[] partFamilies = Array.Empty<Space4XPartFamilyDefinition>();
         public Space4XManufacturerDefinition[] manufacturers = Array.Empty<Space4XManufacturerDefinition>();
         public Space4XMarkDefinition[] marks = Array.Empty<Space4XMarkDefinition>();
@@ -22,15 +21,6 @@ namespace Space4X.Systems.Modules.Bom
     {
         public string id = string.Empty;
         public string description = string.Empty;
-    }
-
-    [Serializable]
-    public sealed class Space4XAffixPools
-    {
-        public string[] lowPrefixes = Array.Empty<string>();
-        public string[] midPrefixes = Array.Empty<string>();
-        public string[] highPrefixes = Array.Empty<string>();
-        public string[] suffixes = Array.Empty<string>();
     }
 
     [Serializable]
@@ -181,11 +171,6 @@ namespace Space4X.Systems.Modules.Bom
         private static void NormalizeArrays(Space4XModuleBomCatalogV0 catalog)
         {
             catalog.catalogId ??= string.Empty;
-            catalog.affixes ??= new Space4XAffixPools();
-            catalog.affixes.lowPrefixes ??= Array.Empty<string>();
-            catalog.affixes.midPrefixes ??= Array.Empty<string>();
-            catalog.affixes.highPrefixes ??= Array.Empty<string>();
-            catalog.affixes.suffixes ??= Array.Empty<string>();
             catalog.partFamilies ??= Array.Empty<Space4XPartFamilyDefinition>();
             catalog.manufacturers ??= Array.Empty<Space4XManufacturerDefinition>();
             catalog.marks ??= Array.Empty<Space4XMarkDefinition>();

@@ -52,10 +52,8 @@ namespace Space4X.Systems.Modules.Bom
 
     public sealed class Space4XModuleBomDeterministicGenerator
     {
-        private static readonly string[] DefaultLowPrefixes = { "Field", "Cut", "Rough" };
-        private static readonly string[] DefaultMidPrefixes = { "Tuned", "Calibrated", "Veteran" };
-        private static readonly string[] DefaultHighPrefixes = { "Prime", "Mythic", "Apex" };
-        private static readonly string[] DefaultSuffixes = { "Array", "Lance", "Spindle", "Ward", "Crown", "Matrix" };
+        private static readonly string[] QualityPrefixes = { "Rugged", "Field", "Prime" };
+        private static readonly string[] NameSuffixes = { "Array", "Lance", "Spindle", "Bastion", "Crown", "Matrix" };
 
         private readonly Space4XModuleBomCatalogV0 _catalog;
         private readonly Dictionary<string, Space4XModuleFamilyDefinition> _moduleFamilies;
@@ -209,12 +207,10 @@ namespace Space4X.Systems.Modules.Bom
                 }
             }
 
-            var prefixRoll = Mix(seed, manufacturer);
-            prefixRoll = Mix(prefixRoll, moduleFamily.id);
-            prefixRoll = Mix(prefixRoll, (uint)mark);
-            var namePrefix = ResolvePrefix(qualityTarget, prefixRoll);
-            var suffixRoll = Mix(prefixRoll, digest);
-            var suffix = ResolveSuffix(suffixRoll);
+            var namePrefix = ResolvePrefix(qualityTarget);
+            var suffixRoll = Mix(seed, moduleFamily.id);
+            suffixRoll = Mix(suffixRoll, (uint)mark);
+            var suffix = NameSuffixes[suffixRoll % (uint)NameSuffixes.Length];
             var modelName = string.IsNullOrWhiteSpace(moduleFamily.model) ? moduleFamily.id : moduleFamily.model;
             var displayName = $"{manufacturer} Mk{mark} {modelName} {namePrefix} {suffix}";
             var rollId = $"{manufacturer}-{mark}-{digest:X8}";
@@ -395,44 +391,19 @@ namespace Space4X.Systems.Modules.Bom
             return string.IsNullOrWhiteSpace(rules[0].tier) ? "Standard" : rules[0].tier;
         }
 
-        private string ResolvePrefix(float qualityTarget, uint rollHash)
+        private static string ResolvePrefix(float qualityTarget)
         {
-            var affixes = _catalog.affixes;
-            string[] pool;
             if (qualityTarget >= 0.75f)
             {
-                pool = affixes?.highPrefixes;
-            }
-            else if (qualityTarget >= 0.45f)
-            {
-                pool = affixes?.midPrefixes;
-            }
-            else
-            {
-                pool = affixes?.lowPrefixes;
+                return QualityPrefixes[2];
             }
 
-            if (pool == null || pool.Length == 0)
+            if (qualityTarget >= 0.45f)
             {
-                pool = qualityTarget >= 0.75f
-                    ? DefaultHighPrefixes
-                    : qualityTarget >= 0.45f
-                        ? DefaultMidPrefixes
-                        : DefaultLowPrefixes;
+                return QualityPrefixes[1];
             }
 
-            return pool[(int)(rollHash % (uint)pool.Length)];
-        }
-
-        private string ResolveSuffix(uint rollHash)
-        {
-            var suffixes = _catalog.affixes?.suffixes;
-            if (suffixes == null || suffixes.Length == 0)
-            {
-                suffixes = DefaultSuffixes;
-            }
-
-            return suffixes[(int)(rollHash % (uint)suffixes.Length)];
+            return QualityPrefixes[0];
         }
 
         private static uint Quantize(float value)
