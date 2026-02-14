@@ -11,7 +11,6 @@
       "enabled": 1,
       "useBandScale": 1
     },
-    "spawnLane": "mining-json",
     "applyMotionTuning": true,
     "applyMotionProfile": true,
     "applyLatchConfig": false,
@@ -21,11 +20,11 @@
     "sensorsBeat": {
       "observerCarrierId": "sensor-carrier-alpha",
       "targetCarrierId": "sensor-carrier-bravo",
-      "acquireStart_s": 1,
-      "acquireDuration_s": 6,
-      "dropStart_s": 14,
+      "acquireStart_s": 4,
+      "acquireDuration_s": 5,
+      "dropStart_s": 11,
       "dropDuration_s": 8,
-      "observerRange": 90,
+      "observerRange": 120,
       "observerUpdateInterval": 0.25,
       "observerMaxTrackedTargets": 12
     },
@@ -78,7 +77,7 @@
   ],
   "actions": [
     {
-      "time_s": 8,
+      "time_s": 10,
       "kind": "MoveFleet",
       "fleetId": "SENSOR-TGT",
       "targetPosition": [900, 0],
