@@ -349,16 +349,35 @@ namespace Space4X.BattleSlice
                 {
                     metrics.FlakBursts++;
                     metrics.Digest = Space4XBattleSlice01.Mix(metrics.Digest, (uint)entity.Index, (uint)target.Entity.Index, 3u);
-                    var burst = ecb.CreateEntity();
-                    ecb.AddComponent(burst, new Space4XBattleSlice01Tag());
-                    ecb.AddComponent(burst, LocalTransform.FromPositionRotationScale(target.Position + target.Velocity * 0.35f, quaternion.identity, 1f));
-                    ecb.AddComponent(burst, new Space4XBattleSliceFlakVolume
+
+                    var burstCenter = target.Position + target.Velocity * 0.2f;
+                    const float burstRadius = 12f;
+                    var burstRadiusSq = burstRadius * burstRadius;
+                    var burstHits = 0;
+                    for (var i = 0; i < fighters.Length; i++)
                     {
-                        Side = fighter.ValueRO.Side,
-                        Radius = 14f,
-                        DamagePerTick = fighter.ValueRO.Damage * 0.32f,
-                        ExpireTick = time.Tick + 28u
-                    });
+                        var candidate = fighters[i];
+                        if (candidate.Side == fighter.ValueRO.Side)
+                        {
+                            continue;
+                        }
+
+                        if (math.lengthsq(candidate.Position - burstCenter) > burstRadiusSq)
+                        {
+                            continue;
+                        }
+
+                        if (ApplyDamage(em, candidate.Entity, fighter.ValueRO.Damage * 0.45f, ref metrics))
+                        {
+                            metrics.FlakHits++;
+                            burstHits++;
+                        }
+                    }
+
+                    if (burstHits > 0)
+                    {
+                        metrics.Digest = Space4XBattleSlice01.Mix(metrics.Digest, (uint)entity.Index, (uint)burstHits, 13u);
+                    }
                 }
             }
 
