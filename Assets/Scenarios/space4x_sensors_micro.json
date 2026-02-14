@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_sensors_micro",
   "seed": 901,
-  "duration_s": 90,
+  "duration_s": 24,
   "proofs": {
     "mining": false
   },
@@ -21,10 +21,10 @@
     "sensorsBeat": {
       "observerCarrierId": "sensor-carrier-alpha",
       "targetCarrierId": "sensor-carrier-bravo",
-      "acquireStart_s": 4,
-      "acquireDuration_s": 16,
-      "dropStart_s": 60,
-      "dropDuration_s": 20,
+      "acquireStart_s": 2,
+      "acquireDuration_s": 8,
+      "dropStart_s": 14,
+      "dropDuration_s": 8,
       "observerRange": 300,
       "observerUpdateInterval": 0.25,
       "observerMaxTrackedTargets": 12
@@ -59,7 +59,7 @@
     {
       "kind": "Carrier",
       "entityId": "sensor-carrier-bravo",
-      "position": [300, 0],
+      "position": [220, 0],
       "components": {
         "Fleet": {
           "fleetId": "SENSOR-TGT",
@@ -78,11 +78,11 @@
   ],
   "actions": [
     {
-      "time_s": 20,
+      "time_s": 14,
       "kind": "MoveFleet",
       "fleetId": "SENSOR-TGT",
       "targetPosition": [900, 0],
-      "description": "Target carrier exits sensor range"
+      "description": "Target carrier exits sensor range during drop window"
     }
   ]
 }
