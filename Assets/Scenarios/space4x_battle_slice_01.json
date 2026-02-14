@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_battle_slice_01",
   "seed": 43101,
-  "duration_s": 90,
+  "duration_s": 25,
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
     "headlessQuestions": [

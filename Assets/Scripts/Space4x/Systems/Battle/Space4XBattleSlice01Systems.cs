@@ -498,6 +498,14 @@ namespace Space4X.BattleSlice
             {
                 metrics.LastSnapshotTick = time.Tick;
                 UnityEngine.Debug.Log($"[BattleSlice01Metrics] tick={time.Tick} space4x.combat.shots.fired_total={fired} space4x.combat.shots.hit_total={hitsTotal} space4x.combat.combatants.destroyed={metrics.FightersDestroyed} space4x.battle.fire.raycast_hits={metrics.RaycastHits} space4x.battle.fire.projectile_hits={metrics.ProjectileHits} space4x.battle.fire.flak_hits={metrics.FlakHits} space4x.battle.determinism.digest={metrics.Digest}");
+
+                // Keep key question metrics fresh during runtime so headless gates can resolve before EndTick.
+                if (Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var snapshotBuffer))
+                {
+                    AddMetric(snapshotBuffer, "space4x.battle.determinism.digest", metrics.Digest);
+                    AddMetric(snapshotBuffer, "space4x.combat.shots.fired_total", fired);
+                    AddMetric(snapshotBuffer, "space4x.combat.shots.hit_total", hitsTotal);
+                }
             }
 
             var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
