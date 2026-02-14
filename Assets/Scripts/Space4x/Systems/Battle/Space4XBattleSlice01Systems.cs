@@ -102,6 +102,7 @@ namespace Space4X.BattleSlice
         {
             state.RequireForUpdate<ScenarioInfo>();
             state.RequireForUpdate<Space4XScenarioRuntime>();
+            state.RequireForUpdate<TimeState>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -136,6 +137,26 @@ namespace Space4X.BattleSlice
             {
                 return;
             }
+
+            var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
+            var time = SystemAPI.GetSingleton<TimeState>();
+            var fixedDt = time.FixedDeltaTime;
+            if (fixedDt <= 0f &&
+                SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState) &&
+                tickTimeState.FixedDeltaTime > 0f)
+            {
+                fixedDt = tickTimeState.FixedDeltaTime;
+            }
+
+            if (fixedDt <= 0f)
+            {
+                fixedDt = 1f / 60f;
+            }
+
+            fixedDt = math.max(1e-4f, fixedDt);
+            var expectedTicks = (uint)math.max(1f, math.ceil(runtime.DurationSeconds / fixedDt));
+            var expectedEndTick = runtime.StartTick + expectedTicks;
+            UnityEngine.Debug.Log($"[BattleSlice01] expected_end_tick={expectedEndTick} duration_s={runtime.DurationSeconds:0.###} fixed_dt={fixedDt:0.######}");
 
             SpawnFighters(ref state, side0Pos, 0, 80);
             SpawnFighters(ref state, side1Pos, 1, 80);
