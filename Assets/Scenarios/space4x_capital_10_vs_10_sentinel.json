@@ -2,6 +2,9 @@
   "scenarioId": "space4x_capital_10_vs_10_sentinel",
   "seed": 41010,
   "duration_s": 20,
+  "proofs": {
+    "mining": false
+  },
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
     "headlessQuestions": [
