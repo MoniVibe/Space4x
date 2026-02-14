@@ -2,7 +2,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Scenarios;
-using PureDOTS.Runtime.Ships;
 using Space4X.Headless;
 using Space4x.Scenario;
 using Unity.Collections;
@@ -119,7 +118,7 @@ namespace Space4X.BattleSlice
             var has0 = false;
             var has1 = false;
 
-            foreach (var (side, tx) in SystemAPI.Query<RefRO<Space4X.Runtime.ScenarioSide>, RefRO<LocalTransform>>().WithAll<Carrier>())
+            foreach (var (side, tx) in SystemAPI.Query<RefRO<Space4X.Runtime.ScenarioSide>, RefRO<LocalTransform>>())
             {
                 if (!has0 && side.ValueRO.Side == 0)
                 {
