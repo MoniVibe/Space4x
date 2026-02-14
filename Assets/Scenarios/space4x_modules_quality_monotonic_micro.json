@@ -1,0 +1,48 @@
+{
+  "scenarioId": "space4x_modules_quality_monotonic_micro",
+  "seed": 44101,
+  "duration_s": 20,
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.quality_monotonic_evidence",
+        "required": true
+      }
+    ]
+  },
+  "proofs": {
+    "mining": false
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "quality-facility-low",
+      "position": [
+        -260.0,
+        10.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "QUALITY-LOW",
+          "posture": "Anchor",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "quality-facility-high",
+      "position": [
+        260.0,
+        10.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "QUALITY-HIGH",
+          "posture": "Anchor",
+          "shipCount": 1
+        }
+      }
+    }
+  ]
+}
