@@ -1,0 +1,115 @@
+{
+  "scenarioId": "space4x_research_micro",
+  "seed": 250341,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.perf.summary",
+        "required": false
+      },
+      {
+        "id": "space4x.q.perf.budget",
+        "required": false
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "ResearchAnomaly",
+      "entityId": "anomaly-alpha",
+      "position": [40.0, 0.0],
+      "anomalyConfig": {
+        "fieldId": "Materials",
+        "baseYieldPerTick": 6.0,
+        "chargeCapacity": 320.0,
+        "rechargePerTick": 1.0,
+        "bandwidthCost": 2.5,
+        "isPermanent": 1
+      },
+      "anomalyState": {
+        "remainingCharge": 320.0,
+        "activeHarvesters": 0,
+        "rechargeProgress": 0.0
+      },
+      "anomalyVisual": {
+        "fieldId": "Materials",
+        "strengthBucket": 180
+      }
+    },
+    {
+      "kind": "ResearchAnomaly",
+      "entityId": "anomaly-beta",
+      "position": [-60.0, -5.0],
+      "anomalyConfig": {
+        "fieldId": "Propulsion",
+        "baseYieldPerTick": 10.0,
+        "chargeCapacity": 420.0,
+        "rechargePerTick": 0.5,
+        "bandwidthCost": 3.5,
+        "isPermanent": 0
+      },
+      "anomalyState": {
+        "remainingCharge": 420.0,
+        "activeHarvesters": 0,
+        "rechargeProgress": 0.0
+      },
+      "anomalyVisual": {
+        "fieldId": "Propulsion",
+        "strengthBucket": 200
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-research-01",
+      "position": [0.0, 0.0],
+      "researchAssignment": {
+        "cooldownTicks": 3.0,
+        "nextHarvestInTicks": 0.25
+      },
+      "researchBandwidth": {
+        "currentBandwidth": 18.0,
+        "capacity": 18.0,
+        "refillPerTick": 2.0,
+        "lossFraction": 0.1
+      },
+      "researchHarvest": {
+        "pendingRawPoints": 0.0,
+        "refinedPoints": 0.0,
+        "focusField": "Materials"
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-research-02",
+      "position": [10.0, 8.0],
+      "researchAssignment": {
+        "cooldownTicks": 2.0,
+        "nextHarvestInTicks": 0.25
+      },
+      "researchBandwidth": {
+        "currentBandwidth": 15.0,
+        "capacity": 20.0,
+        "refillPerTick": 2.5,
+        "lossFraction": 0.2
+      },
+      "researchHarvest": {
+        "pendingRawPoints": 0.0,
+        "refinedPoints": 0.0,
+        "focusField": "Propulsion"
+      }
+    }
+  ],
+  "telemetryExpectations": {
+    "expectResearchHarvest": true,
+    "expectBandwidthLoss": true,
+    "minimumHarvests": 3,
+    "export": {
+      "csv": "Reports/space4x_research_micro_metrics.csv",
+      "json": "Reports/space4x_research_micro_metrics.json"
+    }
+  }
+}

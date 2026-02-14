@@ -1,0 +1,106 @@
+{
+  "scenarioId": "space4x_refit_micro",
+  "seed": 42025,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.perf.summary",
+        "required": false
+      },
+      {
+        "id": "space4x.q.perf.budget",
+        "required": false
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Hull",
+      "hullId": "lcv-sparrow",
+      "position": [0, 0],
+      "loadout": [
+        {"slotIndex": 0, "moduleId": "reactor-mk1"},
+        {"slotIndex": 1, "moduleId": "engine-mk1"},
+        {"slotIndex": 2, "moduleId": "hangar-s-1"},
+        {"slotIndex": 3, "moduleId": "laser-s-1"},
+        {"slotIndex": 4, "moduleId": "pd-s-1"},
+        {"slotIndex": 5, "moduleId": "shield-s-1"},
+        {"slotIndex": 6, "moduleId": "scanner-s-1"}
+      ]
+    },
+    {
+      "kind": "Station",
+      "entityId": "refit-station-1",
+      "position": [200, 0],
+      "components": {
+        "RefitFacilityTag": true,
+        "FacilityZone": { "radiusMeters": 40.0 }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 1,
+      "type": "degradeEfficiency",
+      "target": "ship[0].slot[1]",
+      "to": 0.60
+    },
+    {
+      "time_s": 2,
+      "type": "degradeEfficiency",
+      "target": "ship[0].slot[5]",
+      "to": 0.55
+    },
+    {
+      "time_s": 3,
+      "type": "degradeEfficiency",
+      "target": "ship[0].slot[2]",
+      "to": 0.80
+    },
+    {
+      "time_s": 5,
+      "type": "issueRepair",
+      "mode": "Field",
+      "targets": ["ship[0].slot[1]", "ship[0].slot[5]"]
+    },
+    {
+      "time_s": 8,
+      "type": "moveTo",
+      "targetEntity": "refit-station-1"
+    },
+    {
+      "time_s": 10,
+      "type": "issueRefit",
+      "mode": "Facility",
+      "swap": { "slotIndex": 3, "newModuleId": "missile-s-1" }
+    }
+  ],
+  "telemetryExpectations": {
+    "expectNonNegativePowerBalance": true,
+    "expectRefitCount": 1,
+    "expectFieldRepairCount": 1,
+    "expectModulesRestoredTo>=0.95": ["ship[0].slot[1]", "ship[0].slot[5]"],
+    "assertions": [
+      {
+        "name": "OffenseImprovedAfterRefit",
+        "op": ">",
+        "lhs": "ratings.offense@t=14",
+        "rhs": "ratings.offense@t=9"
+      },
+      {
+        "name": "DowntimeTracked",
+        "op": ">",
+        "lhs": "uptime.modules.repaired.count",
+        "rhs": 0
+      }
+    ],
+    "export": {
+      "csv": "Reports/space4x_refit_micro_metrics.csv",
+      "json": "Reports/space4x_refit_micro_metrics.json"
+    }
+  }
+}

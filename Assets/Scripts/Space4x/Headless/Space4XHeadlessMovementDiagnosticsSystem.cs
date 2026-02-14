@@ -50,6 +50,8 @@ namespace Space4X.Headless
         private const string FtlMicroScenarioFile = "space4x_ftl_micro.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
+        private const string RefitMicroScenarioFile = "space4x_refit_micro.json";
+        private const string ResearchMicroScenarioFile = "space4x_research_micro.json";
         private const uint TeleportFailureThreshold = 1;
         private const float MaxAngularSpeedRad = math.PI * 4f;
         private const float MaxAngularAccelRad = math.PI * 8f;
@@ -641,12 +643,17 @@ namespace Space4X.Headless
 
             if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
                  (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
-                  scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
+                  scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(RefitMicroScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(ResearchMicroScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
                 ScenarioIdMatches(scenarioId, RefitScenarioFile) ||
-                ScenarioIdMatches(scenarioId, ResearchScenarioFile))
+                ScenarioIdMatches(scenarioId, ResearchScenarioFile) ||
+                ScenarioIdMatches(scenarioId, RefitMicroScenarioFile) ||
+                ScenarioIdMatches(scenarioId, ResearchMicroScenarioFile))
             {
-                // Refit/research focus on module loops; ignore stuck spikes to keep telemetry flowing.
+                // Refit/research focus on module/research loops, not turn-rate bounds.
                 _ignoreStuckFailures = true;
+                _ignoreTurnFailures = true;
             }
         }
 
