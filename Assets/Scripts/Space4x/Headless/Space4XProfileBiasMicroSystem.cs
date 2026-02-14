@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Scenarios;
 using Space4X.Runtime;
+using Space4X.Registry;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
