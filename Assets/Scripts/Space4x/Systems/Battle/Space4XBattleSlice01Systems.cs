@@ -546,6 +546,8 @@ namespace Space4X.BattleSlice
 
             if (metrics.Emitted == 0 && completionTick > 0u && time.Tick >= completionTick)
             {
+                Space4XOperatorReportUtility.RequestHeadlessAnswersFlush(ref state, time.Tick);
+
                 if (Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
                 {
                     AddMetric(buffer, "space4x.intercept.attempts", fired);

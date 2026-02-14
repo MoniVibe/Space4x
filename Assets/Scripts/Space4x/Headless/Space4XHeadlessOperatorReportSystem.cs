@@ -25,6 +25,7 @@ namespace Space4X.Headless
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string Space4xScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string ReportFileName = "operator_report.json";
+        private const string AnswersFileName = "headless_answers.json";
         private const string SensorsScenarioFile = "space4x_sensors_micro.json";
         private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
         private const string DogfightScenarioFile = "space4x_dogfight_headless.json";
@@ -59,7 +60,12 @@ namespace Space4X.Headless
             var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
             var hasEndTick = runtime.EndTick > 0;
             var shouldWrite = hasEndTick && timeState.Tick >= runtime.EndTick;
+            var flushRequested = Space4XOperatorReportUtility.TryConsumeHeadlessAnswersFlushRequest(ref state, out var flushRequestTick);
             if (!shouldWrite && SystemAPI.TryGetSingleton(out HeadlessExitRequest _))
+            {
+                shouldWrite = true;
+            }
+            if (!shouldWrite && flushRequested)
             {
                 shouldWrite = true;
             }
@@ -94,22 +100,29 @@ namespace Space4X.Headless
             var questionPack = CollectQuestionPack(state.EntityManager);
             var questions = Space4XHeadlessQuestionRegistry.BuildQuestions(signals, runtimeStats, runtime, questionPack);
 
-            WriteReport(ref state, runtime, metrics, blackCatList, questions);
+            var outputDir = ResolveOutputDirectory(state.EntityManager);
+            WriteReport(outputDir, ref state, runtime, metrics, blackCatList, questions);
+            var answersPath = WriteAnswers(outputDir, scenarioId: ResolveScenarioId(state.EntityManager), questions);
             EmitQuestionBank(questions, tickTime, scenarioTick);
+            if (flushRequested && IsBattleSliceScenario(state.EntityManager))
+            {
+                UnityDebug.Log($"[BattleSlice01] headless_answers_flushed path={answersPath} requestTick={flushRequestTick}");
+            }
+
             _done = 1;
         }
 
-        private static void WriteReport(
+        private static string WriteReport(
+            string outputDir,
             ref SystemState state,
             in Space4XScenarioRuntime runtime,
             Dictionary<string, float> metrics,
             List<Space4XOperatorBlackCat> blackCatList,
             List<Space4XQuestionAnswer> questions)
         {
-            var outputDir = ResolveOutputDirectory(state.EntityManager);
             if (string.IsNullOrWhiteSpace(outputDir))
             {
-                return;
+                return string.Empty;
             }
 
             Directory.CreateDirectory(outputDir);
@@ -136,6 +149,26 @@ namespace Space4X.Headless
             sb.Append('}');
 
             File.WriteAllText(outputPath, sb.ToString(), Encoding.ASCII);
+            return outputPath;
+        }
+
+        private static string WriteAnswers(string outputDir, string scenarioId, List<Space4XQuestionAnswer> questions)
+        {
+            if (string.IsNullOrWhiteSpace(outputDir))
+            {
+                return string.Empty;
+            }
+
+            Directory.CreateDirectory(outputDir);
+            var outputPath = Path.Combine(outputDir, AnswersFileName);
+            var sb = new StringBuilder(2048);
+            var first = true;
+            sb.Append('{');
+            AppendString(ref first, sb, "scenarioId", scenarioId ?? string.Empty);
+            AppendQuestions(ref first, sb, questions);
+            sb.Append('}');
+            File.WriteAllText(outputPath, sb.ToString(), Encoding.ASCII);
+            return outputPath;
         }
 
         private static void EmitQuestionBank(List<Space4XQuestionAnswer> questions, uint tickTime, uint scenarioTick)
@@ -688,6 +721,23 @@ namespace Space4X.Headless
 
             info = query.GetSingleton<ScenarioInfo>();
             return true;
+        }
+
+        private static string ResolveScenarioId(EntityManager entityManager)
+        {
+            return TryGetScenarioInfo(entityManager, out var info)
+                ? info.ScenarioId.ToString()
+                : string.Empty;
+        }
+
+        private static bool IsBattleSliceScenario(EntityManager entityManager)
+        {
+            if (!TryGetScenarioInfo(entityManager, out var info))
+            {
+                return false;
+            }
+
+            return string.Equals(info.ScenarioId.ToString(), "space4x_battle_slice_01", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string ResolveOutputDirectory(EntityManager entityManager)
