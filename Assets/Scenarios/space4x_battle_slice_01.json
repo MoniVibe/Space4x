@@ -19,6 +19,9 @@
       }
     ]
   },
+  "proofs": {
+    "mining": false
+  },
   "spawn": [
     {
       "kind": "Carrier",
