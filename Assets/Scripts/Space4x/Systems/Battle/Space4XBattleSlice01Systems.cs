@@ -147,7 +147,7 @@ namespace Space4X.BattleSlice
             state.EntityManager.SetComponentData(metrics, new Space4XBattleSliceMetrics { FightersTotal = 160, Digest = 1u });
 
             _done = 1;
-            Debug.Log("[BattleSlice01] spawned fighters=160 flak_anchors=2");
+            UnityEngine.Debug.Log("[BattleSlice01] spawned fighters=160 flak_anchors=2");
         }
 
         private static void SpawnFighters(ref SystemState state, float3 anchor, byte side, int count)
@@ -479,7 +479,7 @@ namespace Space4X.BattleSlice
             if (time.Tick % 50u == 0u && metrics.LastSnapshotTick != time.Tick)
             {
                 metrics.LastSnapshotTick = time.Tick;
-                Debug.Log($"[BattleSlice01Metrics] tick={time.Tick} space4x.combat.shots.fired_total={fired} space4x.combat.shots.hit_total={hitsTotal} space4x.combat.combatants.destroyed={metrics.FightersDestroyed} space4x.battle.fire.raycast_hits={metrics.RaycastHits} space4x.battle.fire.projectile_hits={metrics.ProjectileHits} space4x.battle.fire.flak_hits={metrics.FlakHits} space4x.battle.determinism.digest={metrics.Digest}");
+                UnityEngine.Debug.Log($"[BattleSlice01Metrics] tick={time.Tick} space4x.combat.shots.fired_total={fired} space4x.combat.shots.hit_total={hitsTotal} space4x.combat.combatants.destroyed={metrics.FightersDestroyed} space4x.battle.fire.raycast_hits={metrics.RaycastHits} space4x.battle.fire.projectile_hits={metrics.ProjectileHits} space4x.battle.fire.flak_hits={metrics.FlakHits} space4x.battle.determinism.digest={metrics.Digest}");
             }
 
             var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
