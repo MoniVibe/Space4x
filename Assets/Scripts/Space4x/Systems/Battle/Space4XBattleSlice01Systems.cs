@@ -232,7 +232,7 @@ namespace Space4X.BattleSlice
             var em = state.EntityManager;
             var metrics = em.GetComponentData<Space4XBattleSliceMetrics>(metricsEntity);
             var fighters = new NativeList<FighterSnapshot>(Allocator.Temp);
-            var flak = new NativeList<FlakSnapshot>(Allocator.Temp);
+            var flakHazards = new NativeList<FlakSnapshot>(Allocator.Temp);
 
             foreach (var (fighter, tx, entity) in SystemAPI.Query<RefRO<Space4XBattleSliceFighter>, RefRO<LocalTransform>>().WithEntityAccess())
             {
@@ -253,13 +253,13 @@ namespace Space4X.BattleSlice
             if (fighters.Length == 0)
             {
                 fighters.Dispose();
-                flak.Dispose();
+                flakHazards.Dispose();
                 return;
             }
 
             foreach (var (volume, tx) in SystemAPI.Query<RefRO<Space4XBattleSliceFlakVolume>, RefRO<LocalTransform>>())
             {
-                flak.Add(new FlakSnapshot
+                flakHazards.Add(new FlakSnapshot
                 {
                     Side = volume.ValueRO.Side,
                     Position = tx.ValueRO.Position,
@@ -284,9 +284,9 @@ namespace Space4X.BattleSlice
                 var toEnemy = math.normalizesafe(target.Position - tx.ValueRO.Position, new float3(1f, 0f, 0f));
                 var right = math.normalizesafe(math.cross(math.up(), toEnemy), new float3(0f, 0f, 1f));
                 var steer = ResolveSteer(entity, fighter.ValueRO.Intent, toEnemy, right, time.Tick);
-                for (var i = 0; i < flak.Length; i++)
+                for (var i = 0; i < flakHazards.Length; i++)
                 {
-                    var hazard = flak[i];
+                    var hazard = flakHazards[i];
                     if (hazard.Side == fighter.ValueRO.Side)
                     {
                         continue;
@@ -443,7 +443,7 @@ namespace Space4X.BattleSlice
             ecb.Playback(em);
             ecb.Dispose();
             fighters.Dispose();
-            flak.Dispose();
+            flakHazards.Dispose();
 
             var alive = 0;
             var side0 = 0;
