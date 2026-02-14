@@ -205,6 +205,7 @@ namespace Space4X.Headless
         public const string CollisionPhasing = "space4x.q.collision.phasing";
         public const string CombatAttackRun = "space4x.q.combat.attack_run";
         public const string CombatBattleSummary = "space4x.q.combat.battle_summary";
+        public const string BattleDeterminismDigest = "space4x.q.battle.determinism_digest";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -253,7 +254,8 @@ namespace Space4X.Headless
             new CrewTransferQuestion(),
             new CollisionPhasingQuestion(),
             new CombatAttackRunQuestion(),
-            new CombatBattleSummaryQuestion()
+            new CombatBattleSummaryQuestion(),
+            new BattleDeterminismDigestQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -768,6 +770,52 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"shots={shotsFired:0} hits={shotsHit:0} damaged={hullDamaged:0} critical={hullCritical:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
+                return answer;
+            }
+        }
+
+        private sealed class BattleDeterminismDigestQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.BattleDeterminismDigest;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.battle.determinism.digest", out var digest))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_determinism_digest";
+                    answer.Answer = "battle determinism digest unavailable";
+                    return answer;
+                }
+
+                var shots = signals.GetMetricOrDefault("space4x.combat.shots.fired_total");
+                answer.Metrics["digest"] = digest;
+                answer.Metrics["shots_fired_total"] = shots;
+
+                if (digest <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "determinism_digest_zero";
+                    return answer;
+                }
+
+                if (shots <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "battle_activity_missing";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"digest={digest:0} shots={shots:0}";
                 return answer;
             }
         }

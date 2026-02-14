@@ -1,0 +1,90 @@
+{
+  "scenarioId": "space4x_battle_slice_01",
+  "seed": 43101,
+  "duration_s": 90,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.fire",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      },
+      {
+        "id": "space4x.q.battle.determinism_digest",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "battle-slice-alpha-capital",
+      "position": [
+        -900.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "BATTLE-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 14.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "battle-slice-beta-capital",
+      "position": [
+        900.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "BATTLE-BETA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 14.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2.0,
+      "kind": "MoveFleet",
+      "fleetId": "BATTLE-ALPHA",
+      "targetPosition": [
+        -220.0,
+        0.0
+      ],
+      "description": "alpha capital closes to engagement corridor"
+    },
+    {
+      "time_s": 2.0,
+      "kind": "MoveFleet",
+      "fleetId": "BATTLE-BETA",
+      "targetPosition": [
+        220.0,
+        0.0
+      ],
+      "description": "beta capital closes to engagement corridor"
+    }
+  ]
+}
