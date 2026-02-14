@@ -59,7 +59,7 @@
     {
       "kind": "Carrier",
       "entityId": "sensor-carrier-bravo",
-      "position": [300, 0],
+      "position": [220, 0],
       "components": {
         "Fleet": {
           "fleetId": "SENSOR-TGT",
@@ -78,11 +78,11 @@
   ],
   "actions": [
     {
-      "time_s": 20,
+      "time_s": 14,
       "kind": "MoveFleet",
       "fleetId": "SENSOR-TGT",
       "targetPosition": [900, 0],
-      "description": "Target carrier exits sensor range"
+      "description": "Target carrier exits sensor range during drop window"
     }
   ]
 }
