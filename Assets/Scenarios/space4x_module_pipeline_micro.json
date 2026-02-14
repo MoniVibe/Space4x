@@ -1,0 +1,54 @@
+{
+  "scenarioId": "space4x_module_pipeline_micro",
+  "seed": 4101,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.pipeline_completion",
+        "required": true
+      },
+      {
+        "id": "space4x.q.modules.determinism_digest",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "modules-refinery",
+      "position": [
+        -300.0,
+        0.0
+      ]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "modules-forge",
+      "position": [
+        -100.0,
+        0.0
+      ]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "modules-assembler",
+      "position": [
+        100.0,
+        0.0
+      ]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "modules-shipyard",
+      "position": [
+        300.0,
+        0.0
+      ]
+    }
+  ]
+}

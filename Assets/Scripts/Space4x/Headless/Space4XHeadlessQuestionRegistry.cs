@@ -206,6 +206,8 @@ namespace Space4X.Headless
         public const string CombatAttackRun = "space4x.q.combat.attack_run";
         public const string CombatBattleSummary = "space4x.q.combat.battle_summary";
         public const string BattleDeterminismDigest = "space4x.q.battle.determinism_digest";
+        public const string ModulesPipelineCompletion = "space4x.q.modules.pipeline_completion";
+        public const string ModulesDeterminismDigest = "space4x.q.modules.determinism_digest";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -255,7 +257,9 @@ namespace Space4X.Headless
             new CollisionPhasingQuestion(),
             new CombatAttackRunQuestion(),
             new CombatBattleSummaryQuestion(),
-            new BattleDeterminismDigestQuestion()
+            new BattleDeterminismDigestQuestion(),
+            new ModulesPipelineCompletionQuestion(),
+            new ModulesDeterminismDigestQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -818,6 +822,96 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"digest={digest:0} shots={shots:0}";
+                return answer;
+            }
+        }
+
+        private sealed class ModulesPipelineCompletionQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ModulesPipelineCompletion;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasAssembled = signals.TryGetMetric("modules.modules_assembled", out var modulesAssembled);
+                var hasInstalled = signals.TryGetMetric("modules.installs_completed", out var installsCompleted);
+                var partsProduced = signals.GetMetricOrDefault("modules.parts_produced");
+                var avgPartQuality = signals.GetMetricOrDefault("modules.avg_part_quality");
+                var avgModuleQuality = signals.GetMetricOrDefault("modules.avg_module_quality");
+                var avgInstallQuality = signals.GetMetricOrDefault("modules.avg_install_quality");
+
+                answer.Metrics["parts_produced"] = partsProduced;
+                answer.Metrics["modules_assembled"] = modulesAssembled;
+                answer.Metrics["installs_completed"] = installsCompleted;
+                answer.Metrics["avg_part_quality"] = avgPartQuality;
+                answer.Metrics["avg_module_quality"] = avgModuleQuality;
+                answer.Metrics["avg_install_quality"] = avgInstallQuality;
+
+                if (!hasAssembled && !hasInstalled)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_pipeline_metrics";
+                    answer.Answer = "module pipeline metrics unavailable";
+                    return answer;
+                }
+
+                if ((modulesAssembled + installsCompleted) < 1f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"pipeline_not_complete assembled={modulesAssembled:0} installs={installsCompleted:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"assembled={modulesAssembled:0} installs={installsCompleted:0} parts={partsProduced:0}";
+                return answer;
+            }
+        }
+
+        private sealed class ModulesDeterminismDigestQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ModulesDeterminismDigest;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("modules.digest", out var digest))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_modules_digest";
+                    answer.Answer = "module digest unavailable";
+                    return answer;
+                }
+
+                var assembled = signals.GetMetricOrDefault("modules.modules_assembled");
+                var installs = signals.GetMetricOrDefault("modules.installs_completed");
+                answer.Metrics["digest"] = digest;
+                answer.Metrics["modules_assembled"] = assembled;
+                answer.Metrics["installs_completed"] = installs;
+
+                if (digest <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "module_digest_zero";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"digest={digest:0} assembled={assembled:0} installs={installs:0}";
                 return answer;
             }
         }
