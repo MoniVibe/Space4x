@@ -110,13 +110,9 @@ namespace Space4X.EditorTools
                     {
                         Generate();
                     }
-                    if (GUILayout.Button("Export CSV", GUILayout.Width(140f)))
+                    if (GUILayout.Button("Export Rolls CSV+MD", GUILayout.Width(180f)))
                     {
-                        ExportPreviewCsv();
-                    }
-                    if (GUILayout.Button("Export JSON", GUILayout.Width(140f)))
-                    {
-                        ExportPreviewJson();
+                        ExportRollsReports();
                     }
                 }
             }
@@ -128,20 +124,40 @@ namespace Space4X.EditorTools
             EditorGUILayout.LabelField($"Generated Modules ({_rows.Count})", EditorStyles.boldLabel);
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("idx", EditorStyles.miniBoldLabel, GUILayout.Width(32f));
+                    GUILayout.Label("rollId", EditorStyles.miniBoldLabel, GUILayout.Width(120f));
+                    GUILayout.Label("family", EditorStyles.miniBoldLabel, GUILayout.Width(170f));
+                    GUILayout.Label("mfr", EditorStyles.miniBoldLabel, GUILayout.Width(75f));
+                    GUILayout.Label("mk", EditorStyles.miniBoldLabel, GUILayout.Width(25f));
+                    GUILayout.Label("dps", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+                    GUILayout.Label("heat", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+                    GUILayout.Label("range", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+                    GUILayout.Label("reliab", EditorStyles.miniBoldLabel, GUILayout.Width(52f));
+                    GUILayout.Label("name", EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
+                }
+
                 for (var i = 0; i < _rows.Count; i++)
                 {
                     var row = _rows[i];
                     using (new EditorGUILayout.HorizontalScope())
                     {
-                        if (GUILayout.Toggle(i == _selected, i.ToString(CultureInfo.InvariantCulture), "Button", GUILayout.Width(40f)))
+                        if (GUILayout.Toggle(i == _selected, i.ToString(CultureInfo.InvariantCulture), "Button", GUILayout.Width(32f)))
                         {
                             _selected = i;
                         }
-                        GUILayout.Label(row.Roll.RollId, GUILayout.Width(170f));
-                        GUILayout.Label(row.Roll.ManufacturerId, GUILayout.Width(100f));
+                        GUILayout.Label(row.Roll.RollId, GUILayout.Width(120f));
+                        GUILayout.Label(row.Roll.ModuleFamilyId, GUILayout.Width(170f));
+                        GUILayout.Label(row.Roll.ManufacturerId, GUILayout.Width(75f));
+                        GUILayout.Label(row.Roll.Mark.ToString(CultureInfo.InvariantCulture), GUILayout.Width(25f));
+                        GUILayout.Label(row.Stats.Dps.ToString("0.0", CultureInfo.InvariantCulture), GUILayout.Width(52f));
+                        GUILayout.Label(row.Stats.Heat.ToString("0.0", CultureInfo.InvariantCulture), GUILayout.Width(52f));
+                        GUILayout.Label(row.Stats.Range.ToString("0.0", CultureInfo.InvariantCulture), GUILayout.Width(52f));
+                        GUILayout.Label(row.Stats.Reliability.ToString("0.0", CultureInfo.InvariantCulture), GUILayout.Width(52f));
                         GUILayout.Label(row.Roll.DisplayName, GUILayout.ExpandWidth(true));
                         var isOpen = _expanded.Contains(i);
-                        if (GUILayout.Button(isOpen ? "Hide" : "Parts", GUILayout.Width(60f)))
+                        if (GUILayout.Button(isOpen ? "Hide" : "Parts", GUILayout.Width(52f)))
                         {
                             if (isOpen) _expanded.Remove(i); else _expanded.Add(i);
                         }
@@ -151,6 +167,10 @@ namespace Space4X.EditorTools
                     {
                         using (new EditorGUI.IndentLevelScope())
                         {
+                            EditorGUILayout.LabelField(
+                                $"Derived stats: dps={row.Stats.Dps:0.###} heat={row.Stats.Heat:0.###} range={row.Stats.Range:0.###} reliability={row.Stats.Reliability:0.###} powerDraw={row.Stats.PowerDraw:0.###}",
+                                EditorStyles.miniLabel);
+
                             var parts = row.Roll.Parts ?? Array.Empty<Space4XModulePartRoll>();
                             for (var p = 0; p < parts.Length; p++)
                             {
@@ -244,16 +264,19 @@ namespace Space4X.EditorTools
                     DrawComparisonRow("Heat", _comparison.A.Heat, _comparison.B.Heat);
                     DrawComparisonRow("Range", _comparison.A.Range, _comparison.B.Range);
                     DrawComparisonRow("Reliability", _comparison.A.Reliability, _comparison.B.Reliability);
-                    DrawComparisonRow("PowerDraw", _comparison.A.PowerDraw, _comparison.B.PowerDraw);
                     EditorGUILayout.LabelField("Digest", _comparison.Digest.ToString(CultureInfo.InvariantCulture));
                 }
             }
         }
 
-        private static void DrawComparisonRow(string label, float a, float b)
+        private static void DrawComparisonRow(string label, DistributionStats a, DistributionStats b)
         {
-            var delta = a - b;
-            EditorGUILayout.LabelField(label, $"A={a:0.###}  B={b:0.###}  delta={delta:+0.###;-0.###;0}");
+            var meanDelta = a.Mean - b.Mean;
+            var p50Delta = a.P50 - b.P50;
+            var p95Delta = a.P95 - b.P95;
+            EditorGUILayout.LabelField(
+                label,
+                $"mean Δ={meanDelta:+0.###;-0.###;0} | p50 Δ={p50Delta:+0.###;-0.###;0} | p95 Δ={p95Delta:+0.###;-0.###;0}");
         }
 
         private void Reload()
@@ -442,8 +465,8 @@ namespace Space4X.EditorTools
                 return;
             }
 
-            var aggA = new AggregateStats();
-            var aggB = new AggregateStats();
+            var aggA = new ComparisonAccumulator();
+            var aggB = new ComparisonAccumulator();
             uint digest = 0x811C9DC5u;
 
             var produced = 0;
@@ -479,7 +502,7 @@ namespace Space4X.EditorTools
                 return;
             }
 
-            _comparison = new ComparisonSummary(family, mark, manufacturerA, manufacturerB, aggA.Mean(), aggB.Mean(), aggA.Count, aggB.Count, digest);
+            _comparison = new ComparisonSummary(family, mark, manufacturerA, manufacturerB, aggA.Build(), aggB.Build(), aggA.Count, aggB.Count, digest);
             _comparisonMessage = $"Generated {_comparison.CountA} samples per manufacturer for {family} Mk{mark}. Digest={digest}.";
         }
 
@@ -668,7 +691,7 @@ namespace Space4X.EditorTools
             return output;
         }
 
-        private void ExportPreviewCsv()
+        private void ExportRollsReports()
         {
             if (_rows.Count == 0)
             {
@@ -676,9 +699,18 @@ namespace Space4X.EditorTools
                 return;
             }
 
-            var path = EditorUtility.SaveFilePanel("Export Module Preview CSV", EnsureReportDir(), "space4x_module_workbench_preview", "csv");
-            if (string.IsNullOrWhiteSpace(path)) return;
+            var reports = EnsureReportDir();
+            var csvPath = Path.Combine(reports, "module_workbench_rolls.csv");
+            var mdPath = Path.Combine(reports, "module_workbench_rolls.md");
 
+            WriteRollsCsv(csvPath);
+            WriteRollsMarkdown(mdPath);
+
+            Debug.Log($"[Space4XModuleWorkbench] rolls exported csv={csvPath} md={mdPath}");
+        }
+
+        private void WriteRollsCsv(string path)
+        {
             var sb = new StringBuilder(4096);
             sb.AppendLine("index,seed,rollId,name,family,manufacturer,mark,qualityTarget,digest,dps,heat,range,reliability,powerDraw,parts");
             for (var i = 0; i < _rows.Count; i++)
@@ -703,66 +735,37 @@ namespace Space4X.EditorTools
             }
 
             File.WriteAllText(path, sb.ToString());
-            Debug.Log($"[Space4XModuleWorkbench] preview CSV exported: {path}");
         }
 
-        private void ExportPreviewJson()
+        private void WriteRollsMarkdown(string path)
         {
-            if (_rows.Count == 0)
-            {
-                ShowNotification(new GUIContent("Nothing to export."));
-                return;
-            }
-
-            var path = EditorUtility.SaveFilePanel("Export Module Preview JSON", EnsureReportDir(), "space4x_module_workbench_preview", "json");
-            if (string.IsNullOrWhiteSpace(path)) return;
-
-            var report = new PreviewExportDoc
-            {
-                generatedAtUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                catalogPath = _catalogPath,
-                rows = new PreviewExportRow[_rows.Count]
-            };
-
+            var sb = new StringBuilder(4096);
+            sb.AppendLine("# Space4X Module Workbench Rolls");
+            sb.AppendLine();
+            sb.AppendLine($"- generatedAtUtc: `{DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)}`");
+            sb.AppendLine($"- seed: `{_seed}`");
+            sb.AppendLine($"- count: `{_rows.Count}`");
+            sb.AppendLine($"- qualityTarget: `{_quality.ToString("0.###", CultureInfo.InvariantCulture)}`");
+            sb.AppendLine();
+            sb.AppendLine("| idx | rollId | family | manufacturer | mark | dps | heat | range | reliability | name |");
+            sb.AppendLine("|---:|---|---|---|---:|---:|---:|---:|---:|---|");
             for (var i = 0; i < _rows.Count; i++)
             {
-                var source = _rows[i];
-                var parts = source.Roll.Parts ?? Array.Empty<Space4XModulePartRoll>();
-                var partRows = new PreviewExportPart[parts.Length];
-                for (var p = 0; p < parts.Length; p++)
-                {
-                    partRows[p] = new PreviewExportPart
-                    {
-                        slotId = parts[p].SlotId,
-                        quantityIndex = parts[p].QuantityIndex,
-                        partId = parts[p].Part.PartId,
-                        qualityTier = parts[p].Part.QualityTier,
-                        qualityInput = parts[p].Part.QualityInput,
-                        rollHash = parts[p].Part.RollHash
-                    };
-                }
-
-                report.rows[i] = new PreviewExportRow
-                {
-                    seed = source.Seed,
-                    rollId = source.Roll.RollId,
-                    displayName = source.Roll.DisplayName,
-                    moduleFamilyId = source.Roll.ModuleFamilyId,
-                    manufacturerId = source.Roll.ManufacturerId,
-                    mark = source.Roll.Mark,
-                    qualityTarget = source.Roll.QualityTarget,
-                    digest = source.Roll.Digest,
-                    dps = source.Stats.Dps,
-                    heat = source.Stats.Heat,
-                    range = source.Stats.Range,
-                    reliability = source.Stats.Reliability,
-                    powerDraw = source.Stats.PowerDraw,
-                    parts = partRows
-                };
+                var row = _rows[i];
+                sb.Append("| ").Append(i.ToString(CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(row.Roll.RollId)
+                    .Append(" | ").Append(row.Roll.ModuleFamilyId)
+                    .Append(" | ").Append(row.Roll.ManufacturerId)
+                    .Append(" | ").Append(row.Roll.Mark.ToString(CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(row.Stats.Dps.ToString("0.###", CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(row.Stats.Heat.ToString("0.###", CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(row.Stats.Range.ToString("0.###", CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(row.Stats.Reliability.ToString("0.###", CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(row.Roll.DisplayName.Replace("|", "\\|"))
+                    .AppendLine(" |");
             }
 
-            File.WriteAllText(path, JsonUtility.ToJson(report, true));
-            Debug.Log($"[Space4XModuleWorkbench] preview JSON exported: {path}");
+            File.WriteAllText(path, sb.ToString());
         }
 
         private void ExportComparisonCsv()
@@ -773,17 +776,15 @@ namespace Space4X.EditorTools
                 return;
             }
 
-            var path = EditorUtility.SaveFilePanel("Export Comparison CSV", EnsureReportDir(), "space4x_module_workbench_comparison", "csv");
-            if (string.IsNullOrWhiteSpace(path)) return;
+            var path = Path.Combine(EnsureReportDir(), "module_workbench_comparison.csv");
 
             var sb = new StringBuilder(1024);
-            sb.AppendLine("metric,manufacturerA,manufacturerB,delta_A_minus_B");
+            sb.AppendLine("metric,a_mean,b_mean,delta_mean,a_p50,b_p50,delta_p50,a_p95,b_p95,delta_p95");
             AppendComparisonCsv(sb, "dps", _comparison.A.Dps, _comparison.B.Dps);
             AppendComparisonCsv(sb, "heat", _comparison.A.Heat, _comparison.B.Heat);
             AppendComparisonCsv(sb, "range", _comparison.A.Range, _comparison.B.Range);
             AppendComparisonCsv(sb, "reliability", _comparison.A.Reliability, _comparison.B.Reliability);
-            AppendComparisonCsv(sb, "powerDraw", _comparison.A.PowerDraw, _comparison.B.PowerDraw);
-            sb.AppendLine($"digest,{_comparison.Digest},,");
+            sb.AppendLine($"digest,{_comparison.Digest},,,,,,,,");
             File.WriteAllText(path, sb.ToString());
             Debug.Log($"[Space4XModuleWorkbench] comparison CSV exported: {path}");
         }
@@ -796,8 +797,7 @@ namespace Space4X.EditorTools
                 return;
             }
 
-            var path = EditorUtility.SaveFilePanel("Export Comparison Markdown", EnsureReportDir(), "space4x_module_workbench_comparison", "md");
-            if (string.IsNullOrWhiteSpace(path)) return;
+            var path = Path.Combine(EnsureReportDir(), "module_workbench_comparison.md");
 
             var sb = new StringBuilder(2048);
             sb.AppendLine("# Space4X Module Workbench Comparison");
@@ -808,13 +808,12 @@ namespace Space4X.EditorTools
             sb.AppendLine($"- Manufacturer B: `{_comparison.ManufacturerB}` (samples={_comparison.CountB})");
             sb.AppendLine($"- Digest: `{_comparison.Digest}`");
             sb.AppendLine();
-            sb.AppendLine("| Metric | A | B | Delta (A-B) |");
-            sb.AppendLine("|---|---:|---:|---:|");
+            sb.AppendLine("| Metric | A Mean | B Mean | Delta Mean | A p50 | B p50 | Delta p50 | A p95 | B p95 | Delta p95 |");
+            sb.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
             AppendComparisonMd(sb, "DPS", _comparison.A.Dps, _comparison.B.Dps);
             AppendComparisonMd(sb, "Heat", _comparison.A.Heat, _comparison.B.Heat);
             AppendComparisonMd(sb, "Range", _comparison.A.Range, _comparison.B.Range);
             AppendComparisonMd(sb, "Reliability", _comparison.A.Reliability, _comparison.B.Reliability);
-            AppendComparisonMd(sb, "PowerDraw", _comparison.A.PowerDraw, _comparison.B.PowerDraw);
             File.WriteAllText(path, sb.ToString());
             Debug.Log($"[Space4XModuleWorkbench] comparison markdown exported: {path}");
         }
@@ -826,22 +825,38 @@ namespace Space4X.EditorTools
             return reports;
         }
 
-        private static void AppendComparisonCsv(StringBuilder sb, string metric, float a, float b)
+        private static void AppendComparisonCsv(StringBuilder sb, string metric, DistributionStats a, DistributionStats b)
         {
-            var delta = a - b;
+            var deltaMean = a.Mean - b.Mean;
+            var deltaP50 = a.P50 - b.P50;
+            var deltaP95 = a.P95 - b.P95;
             sb.Append(metric).Append(',')
-                .Append(a.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
-                .Append(b.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
-                .Append(delta.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).AppendLine();
+                .Append(a.Mean.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
+                .Append(b.Mean.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
+                .Append(deltaMean.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).Append(',')
+                .Append(a.P50.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
+                .Append(b.P50.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
+                .Append(deltaP50.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).Append(',')
+                .Append(a.P95.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
+                .Append(b.P95.ToString("0.###", CultureInfo.InvariantCulture)).Append(',')
+                .Append(deltaP95.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).AppendLine();
         }
 
-        private static void AppendComparisonMd(StringBuilder sb, string metric, float a, float b)
+        private static void AppendComparisonMd(StringBuilder sb, string metric, DistributionStats a, DistributionStats b)
         {
-            var delta = a - b;
+            var deltaMean = a.Mean - b.Mean;
+            var deltaP50 = a.P50 - b.P50;
+            var deltaP95 = a.P95 - b.P95;
             sb.Append("| ").Append(metric).Append(" | ")
-                .Append(a.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
-                .Append(b.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
-                .Append(delta.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).AppendLine(" |");
+                .Append(a.Mean.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(b.Mean.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(deltaMean.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(a.P50.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(b.P50.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(deltaP50.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(a.P95.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(b.P95.ToString("0.###", CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(deltaP95.ToString("+0.###;-0.###;0", CultureInfo.InvariantCulture)).AppendLine(" |");
         }
 
         private static string EscapeCsv(string value)
@@ -941,54 +956,120 @@ namespace Space4X.EditorTools
             public float PowerDraw { get; }
         }
 
-        private sealed class AggregateStats
+        private readonly struct DistributionStats
         {
-            public int Count;
-            public float Dps;
-            public float Heat;
-            public float Range;
-            public float Reliability;
-            public float PowerDraw;
-
-            public void Add(ModuleStats stats)
+            public DistributionStats(float mean, float p50, float p95)
             {
-                Count++;
-                Dps += stats.Dps;
-                Heat += stats.Heat;
-                Range += stats.Range;
-                Reliability += stats.Reliability;
-                PowerDraw += stats.PowerDraw;
+                Mean = mean;
+                P50 = p50;
+                P95 = p95;
             }
 
-            public AvgStats Mean()
-            {
-                if (Count == 0) return default;
-                var inv = 1f / Count;
-                return new AvgStats(Dps * inv, Heat * inv, Range * inv, Reliability * inv, PowerDraw * inv);
-            }
+            public float Mean { get; }
+            public float P50 { get; }
+            public float P95 { get; }
         }
 
-        private readonly struct AvgStats
+        private readonly struct DistributionGroup
         {
-            public AvgStats(float dps, float heat, float range, float reliability, float powerDraw)
+            public DistributionGroup(
+                DistributionStats dps,
+                DistributionStats heat,
+                DistributionStats range,
+                DistributionStats reliability)
             {
                 Dps = dps;
                 Heat = heat;
                 Range = range;
                 Reliability = reliability;
-                PowerDraw = powerDraw;
             }
 
-            public float Dps { get; }
-            public float Heat { get; }
-            public float Range { get; }
-            public float Reliability { get; }
-            public float PowerDraw { get; }
+            public DistributionStats Dps { get; }
+            public DistributionStats Heat { get; }
+            public DistributionStats Range { get; }
+            public DistributionStats Reliability { get; }
+        }
+
+        private sealed class ComparisonAccumulator
+        {
+            private readonly List<float> _dps = new List<float>(64);
+            private readonly List<float> _heat = new List<float>(64);
+            private readonly List<float> _range = new List<float>(64);
+            private readonly List<float> _reliability = new List<float>(64);
+
+            public int Count => _dps.Count;
+
+            public void Add(ModuleStats stats)
+            {
+                _dps.Add(stats.Dps);
+                _heat.Add(stats.Heat);
+                _range.Add(stats.Range);
+                _reliability.Add(stats.Reliability);
+            }
+
+            public DistributionGroup Build()
+            {
+                return new DistributionGroup(
+                    BuildStats(_dps),
+                    BuildStats(_heat),
+                    BuildStats(_range),
+                    BuildStats(_reliability));
+            }
+
+            private static DistributionStats BuildStats(List<float> values)
+            {
+                if (values.Count == 0)
+                {
+                    return default;
+                }
+
+                var sorted = new List<float>(values);
+                sorted.Sort();
+                var sum = 0f;
+                for (var i = 0; i < sorted.Count; i++)
+                {
+                    sum += sorted[i];
+                }
+
+                var mean = sum / sorted.Count;
+                var p50 = Percentile(sorted, 0.5f);
+                var p95 = Percentile(sorted, 0.95f);
+                return new DistributionStats(mean, p50, p95);
+            }
+
+            private static float Percentile(List<float> sorted, float percentile)
+            {
+                if (sorted.Count == 0)
+                {
+                    return 0f;
+                }
+
+                var p = Mathf.Clamp01(percentile);
+                var scaled = p * (sorted.Count - 1);
+                var lower = Mathf.FloorToInt(scaled);
+                var upper = Mathf.CeilToInt(scaled);
+                if (lower == upper)
+                {
+                    return sorted[lower];
+                }
+
+                var t = scaled - lower;
+                return Mathf.Lerp(sorted[lower], sorted[upper], t);
+            }
         }
 
         private sealed class ComparisonSummary
         {
-            public ComparisonSummary(string family, int mark, string manufacturerA, string manufacturerB, AvgStats a, AvgStats b, int countA, int countB, uint digest)
+            public ComparisonSummary(
+                string family,
+                int mark,
+                string manufacturerA,
+                string manufacturerB,
+                DistributionGroup a,
+                DistributionGroup b,
+                int countA,
+                int countB,
+                uint digest)
             {
                 Family = family;
                 Mark = mark;
@@ -1005,49 +1086,11 @@ namespace Space4X.EditorTools
             public int Mark { get; }
             public string ManufacturerA { get; }
             public string ManufacturerB { get; }
-            public AvgStats A { get; }
-            public AvgStats B { get; }
+            public DistributionGroup A { get; }
+            public DistributionGroup B { get; }
             public int CountA { get; }
             public int CountB { get; }
             public uint Digest { get; }
-        }
-
-        [Serializable]
-        private sealed class PreviewExportDoc
-        {
-            public string generatedAtUtc;
-            public string catalogPath;
-            public PreviewExportRow[] rows;
-        }
-
-        [Serializable]
-        private sealed class PreviewExportRow
-        {
-            public uint seed;
-            public string rollId;
-            public string displayName;
-            public string moduleFamilyId;
-            public string manufacturerId;
-            public int mark;
-            public float qualityTarget;
-            public uint digest;
-            public float dps;
-            public float heat;
-            public float range;
-            public float reliability;
-            public float powerDraw;
-            public PreviewExportPart[] parts;
-        }
-
-        [Serializable]
-        private sealed class PreviewExportPart
-        {
-            public string slotId;
-            public int quantityIndex;
-            public string partId;
-            public string qualityTier;
-            public float qualityInput;
-            public uint rollHash;
         }
     }
 }
