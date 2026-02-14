@@ -80,10 +80,6 @@
         "pendingRawPoints": 0.0,
         "refinedPoints": 0.0,
         "focusField": "Materials"
-      },
-      "threatIntent": {
-        "intent": "Probe",
-        "confidence": 32
       }
     },
     {
@@ -104,10 +100,6 @@
         "pendingRawPoints": 0.0,
         "refinedPoints": 0.0,
         "focusField": "Propulsion"
-      },
-      "threatIntent": {
-        "intent": "Ambush",
-        "confidence": 45
       }
     }
   ],
