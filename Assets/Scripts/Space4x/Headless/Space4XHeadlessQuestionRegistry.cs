@@ -206,6 +206,7 @@ namespace Space4X.Headless
         public const string CombatAttackRun = "space4x.q.combat.attack_run";
         public const string CombatBattleSummary = "space4x.q.combat.battle_summary";
         public const string BattleDeterminismDigest = "space4x.q.battle.determinism_digest";
+        public const string BattleProfileBiasEvidence = "space4x.q.battle.profilebias.evidence";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -255,7 +256,8 @@ namespace Space4X.Headless
             new CollisionPhasingQuestion(),
             new CombatAttackRunQuestion(),
             new CombatBattleSummaryQuestion(),
-            new BattleDeterminismDigestQuestion()
+            new BattleDeterminismDigestQuestion(),
+            new BattleProfileBiasEvidenceQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -818,6 +820,46 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"digest={digest:0} shots={shots:0}";
+                return answer;
+            }
+        }
+
+        private sealed class BattleProfileBiasEvidenceQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.BattleProfileBiasEvidence;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasRangeDelta = signals.TryGetMetric("space4x.battle.profilebias.range_delta", out var rangeDelta);
+                var hasFlankRatioDelta = signals.TryGetMetric("space4x.battle.profilebias.flank_ratio_delta", out var flankRatioDelta);
+                answer.Metrics["range_delta"] = rangeDelta;
+                answer.Metrics["flank_ratio_delta"] = flankRatioDelta;
+
+                if (!hasRangeDelta || !hasFlankRatioDelta)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_profilebias_metrics";
+                    answer.Answer = "profile-bias metrics unavailable";
+                    return answer;
+                }
+
+                if (rangeDelta < 0f && flankRatioDelta > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"range_delta={rangeDelta:0.###} flank_ratio_delta={flankRatioDelta:0.###}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"range_delta={rangeDelta:0.###} flank_ratio_delta={flankRatioDelta:0.###}";
                 return answer;
             }
         }

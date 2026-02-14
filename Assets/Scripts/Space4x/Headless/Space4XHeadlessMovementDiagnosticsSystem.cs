@@ -48,6 +48,8 @@ namespace Space4X.Headless
         private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
         private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
         private const string FtlMicroScenarioFile = "space4x_ftl_micro.json";
+        private const string BattleSliceScenarioFile = "space4x_battle_slice_01.json";
+        private const string BattleSliceProfileBiasScenarioFile = "space4x_battle_slice_01_profilebias.json";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
         private const string RefitMicroScenarioFile = "space4x_refit_micro.json";
@@ -580,6 +582,17 @@ namespace Space4X.Headless
                 ScenarioIdMatches(scenarioId, TurnrateScenarioFile))
             {
                 _deferTurnFailures = true;
+                return;
+            }
+
+            if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
+                 (scenarioPath.EndsWith(BattleSliceScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(BattleSliceProfileBiasScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
+                ScenarioIdMatches(scenarioId, BattleSliceScenarioFile) ||
+                ScenarioIdMatches(scenarioId, BattleSliceProfileBiasScenarioFile))
+            {
+                // Battle-slice proofs focus on combat telemetry/questions, not turn-rate guardrails.
+                _ignoreTurnFailures = true;
                 return;
             }
 
