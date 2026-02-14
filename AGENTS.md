@@ -94,3 +94,9 @@ Artifacts expected per run:
 - `out/run_summary_min.json` (fast verdict)
 - `out/run_summary.json` (full metrics)
 - `meta.json`, `out/watchdog.json`, `out/player.log`, `out/stdout.log`, `out/stderr.log`
+
+## Multi-Agent Workflow (Iterators + Validator)
+
+- Iterators do not trigger Buildbox/nightlies/queues. They push a branch + PR + intent card and add label `needs-validate`.
+- Validator is the only actor that runs Buildbox, applies fix-up commits, and merges.
+- Workflow details: `Docs/VALIDATOR_WORKFLOW.md`.

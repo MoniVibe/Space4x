@@ -14,3 +14,5 @@
 - WSL is case-sensitive; fix casing mismatches that Windows may tolerate.
 
 Headless automation is driven by `Docs/Headless/*.md` and the ops bus protocol (`../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`); do not invent ad-hoc comms or side channels.
+
+Workflow (iterators + validator): `Docs/VALIDATOR_WORKFLOW.md`.
