@@ -204,6 +204,7 @@ namespace Space4X.Headless
         public const string CrewTransfer = "space4x.q.crew.transfer";
         public const string CollisionPhasing = "space4x.q.collision.phasing";
         public const string CombatAttackRun = "space4x.q.combat.attack_run";
+        public const string CombatBattleSummary = "space4x.q.combat.battle_summary";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -251,7 +252,8 @@ namespace Space4X.Headless
             new CrewSensorsCausalityQuestion(),
             new CrewTransferQuestion(),
             new CollisionPhasingQuestion(),
-            new CombatAttackRunQuestion()
+            new CombatAttackRunQuestion(),
+            new CombatBattleSummaryQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -689,6 +691,83 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Fail;
                 answer.Answer = $"gather={gatherCommands:0} ore_delta={oreDelta:0.##} cargo_delta={cargoDelta:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatBattleSummaryQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatBattleSummary;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasShots = signals.TryGetMetric("space4x.combat.shots.fired_total", out var shotsFired);
+                var hasCombatants = signals.TryGetMetric("space4x.combat.combatants.total", out var combatantsTotal);
+                var shotsHit = signals.GetMetricOrDefault("space4x.combat.shots.hit_total");
+                var combatantsDestroyed = signals.GetMetricOrDefault("space4x.combat.combatants.destroyed");
+                var hullDamaged = signals.GetMetricOrDefault("space4x.hull.damaged");
+                var hullCritical = signals.GetMetricOrDefault("space4x.hull.critical");
+                var totalAlive = signals.GetMetricOrDefault("space4x.combat.outcome.total_alive");
+                var winnerSide = signals.GetMetricOrDefault("space4x.combat.outcome.winner_side", -1f);
+                var winnerAlive = signals.GetMetricOrDefault("space4x.combat.outcome.winner_alive");
+                var winnerRatio = signals.GetMetricOrDefault("space4x.combat.outcome.winner_ratio");
+
+                var hitRatio = shotsFired > 0f ? shotsHit / shotsFired : 0f;
+                var hasImpactSignal = shotsHit > 0f || hullDamaged > 0f || hullCritical > 0f || combatantsDestroyed > 0f;
+                var attritionMissing = (combatantsTotal > 0f && totalAlive >= combatantsTotal) ? 1f : 0f;
+
+                answer.Metrics["shots_fired_total"] = shotsFired;
+                answer.Metrics["shots_hit_total"] = shotsHit;
+                answer.Metrics["shots_hit_ratio"] = hitRatio;
+                answer.Metrics["combatants_total"] = combatantsTotal;
+                answer.Metrics["combatants_destroyed"] = combatantsDestroyed;
+                answer.Metrics["hull_damaged"] = hullDamaged;
+                answer.Metrics["hull_critical"] = hullCritical;
+                answer.Metrics["outcome_total_alive"] = totalAlive;
+                answer.Metrics["winner_side"] = winnerSide;
+                answer.Metrics["winner_alive"] = winnerAlive;
+                answer.Metrics["winner_ratio"] = winnerRatio;
+                answer.Metrics["attrition_missing"] = attritionMissing;
+
+                if (!hasShots && !hasCombatants)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_battle_summary_metrics";
+                    answer.Answer = "battle summary metrics unavailable";
+                    return answer;
+                }
+
+                if (shotsFired <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_shots_fired";
+                    return answer;
+                }
+
+                if (!hasImpactSignal)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_impact_signal";
+                    return answer;
+                }
+
+                if (combatantsDestroyed > 0f && winnerSide < 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "winner_missing_after_attrition";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"shots={shotsFired:0} hits={shotsHit:0} damaged={hullDamaged:0} critical={hullCritical:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
                 return answer;
             }
         }

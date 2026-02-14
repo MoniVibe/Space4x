@@ -7,6 +7,27 @@
     "mining": false
   },
   "duration_s": 120,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.fire",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      },
+      {
+        "id": "space4x.q.perf.summary",
+        "required": false
+      },
+      {
+        "id": "space4x.q.perf.budget",
+        "required": false
+      }
+    ]
+  },
   "ships": [
     {
       "faction": "alpha",
