@@ -74,6 +74,21 @@ namespace Space4X.Perception
                     MaxTrackedTargets = maxTracked,
                     Flags = 0
                 });
+            }
+            else
+            {
+                var capability = em.GetComponentData<SenseCapability>(observer);
+                capability.EnabledChannels |= PerceptionChannel.EM | PerceptionChannel.Gravitic;
+                capability.Range = capability.Range < range ? range : capability.Range;
+                capability.FieldOfView = capability.FieldOfView < 360f ? 360f : capability.FieldOfView;
+                capability.Acuity = capability.Acuity <= 0f ? 1f : capability.Acuity;
+                capability.UpdateInterval = updateInterval;
+                capability.MaxTrackedTargets = maxTracked;
+                ecb.SetComponent(observer, capability);
+            }
+
+            if (!em.HasBuffer<SenseOrganState>(observer))
+            {
                 ecb.AddBuffer<SenseOrganState>(observer);
             }
 
