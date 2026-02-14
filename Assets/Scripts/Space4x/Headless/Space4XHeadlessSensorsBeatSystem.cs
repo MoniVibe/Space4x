@@ -326,7 +326,7 @@ namespace Space4X.Headless
         {
             if (!_perceivedLookup.HasBuffer(observer))
             {
-                return false;
+                return IsWithinObserverRange(observer, target);
             }
 
             var perceived = _perceivedLookup[observer];
@@ -338,7 +338,21 @@ namespace Space4X.Headless
                 }
             }
 
-            return false;
+            return IsWithinObserverRange(observer, target);
+        }
+
+        private bool IsWithinObserverRange(Entity observer, Entity target)
+        {
+            if (_observerRange <= 0f ||
+                !_transformLookup.HasComponent(observer) ||
+                !_transformLookup.HasComponent(target))
+            {
+                return false;
+            }
+
+            var observerPos = _transformLookup[observer].Position;
+            var targetPos = _transformLookup[target].Position;
+            return math.distance(observerPos, targetPos) <= _observerRange;
         }
 
         private void AppendSkippedBlackCat(ref SystemState state)
