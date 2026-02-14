@@ -16,6 +16,10 @@
       {
         "id": "space4x.q.battle.determinism_digest",
         "required": true
+      },
+      {
+        "id": "space4x.q.battle.profilebias.evidence",
+        "required": true
       }
     ]
   },
