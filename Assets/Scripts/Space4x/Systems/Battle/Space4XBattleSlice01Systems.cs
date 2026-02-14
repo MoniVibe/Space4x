@@ -23,6 +23,9 @@ namespace Space4X.BattleSlice
         public byte Alive;
         public Space4XBattleSliceSteeringIntent Intent;
         public Space4XBattleSliceWeaponKind Weapon;
+        public float AggressionBias;
+        public float FlankBias;
+        public float EngagementRangeBias;
         public float Speed;
         public float Range;
         public float Damage;
@@ -71,6 +74,7 @@ namespace Space4X.BattleSlice
     internal static class Space4XBattleSlice01
     {
         public static readonly FixedString64Bytes ScenarioId = new FixedString64Bytes("space4x_battle_slice_01");
+        public static readonly FixedString64Bytes ProfileBiasScenarioId = new FixedString64Bytes("space4x_battle_slice_01_profilebias");
 
         public static uint Mix(uint digest, uint a, uint b, uint c)
             => math.hash(new uint4(digest ^ 0x9E3779B9u, a + 0x85EBCA6Bu, b + 0xC2B2AE35u, c + 0x27D4EB2Fu));
@@ -90,6 +94,12 @@ namespace Space4X.BattleSlice
             var t = math.saturate(math.dot(point - a, ab) / lenSq);
             return math.lengthsq(point - (a + ab * t));
         }
+
+        public static bool IsBattleSliceScenario(in FixedString64Bytes scenarioId)
+            => scenarioId.Equals(ScenarioId) || scenarioId.Equals(ProfileBiasScenarioId);
+
+        public static bool IsProfileBiasScenario(in FixedString64Bytes scenarioId)
+            => scenarioId.Equals(ProfileBiasScenarioId);
     }
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
@@ -109,10 +119,12 @@ namespace Space4X.BattleSlice
         {
             if (_done != 0 ||
                 !SystemAPI.TryGetSingleton(out ScenarioInfo info) ||
-                !info.ScenarioId.Equals(Space4XBattleSlice01.ScenarioId))
+                !Space4XBattleSlice01.IsBattleSliceScenario(info.ScenarioId))
             {
                 return;
             }
+
+            var profileBiasScenario = Space4XBattleSlice01.IsProfileBiasScenario(info.ScenarioId);
 
             var side0Pos = float3.zero;
             var side1Pos = float3.zero;
@@ -158,8 +170,8 @@ namespace Space4X.BattleSlice
             var expectedEndTick = runtime.StartTick + expectedTicks;
             UnityEngine.Debug.Log($"[BattleSlice01] expected_end_tick={expectedEndTick} duration_s={runtime.DurationSeconds:0.###} fixed_dt={fixedDt:0.######}");
 
-            SpawnFighters(ref state, side0Pos, 0, 80);
-            SpawnFighters(ref state, side1Pos, 1, 80);
+            SpawnFighters(ref state, side0Pos, 0, 80, profileBiasScenario);
+            SpawnFighters(ref state, side1Pos, 1, 80, profileBiasScenario);
             SpawnFlak(state.EntityManager, side0Pos + new float3(220f, 0f, 40f), 0, 24f, 0.22f, 0u);
             SpawnFlak(state.EntityManager, side1Pos + new float3(-220f, 0f, -40f), 1, 24f, 0.22f, 0u);
 
@@ -167,10 +179,10 @@ namespace Space4X.BattleSlice
             state.EntityManager.SetComponentData(metrics, new Space4XBattleSliceMetrics { FightersTotal = 160, Digest = 1u });
 
             _done = 1;
-            UnityEngine.Debug.Log("[BattleSlice01] spawned fighters=160 flak_anchors=2");
+            UnityEngine.Debug.Log($"[BattleSlice01] spawned fighters=160 flak_anchors=2 profile_bias={(profileBiasScenario ? 1 : 0)} scenario={info.ScenarioId}");
         }
 
-        private static void SpawnFighters(ref SystemState state, float3 anchor, byte side, int count)
+        private static void SpawnFighters(ref SystemState state, float3 anchor, byte side, int count, bool profileBiasScenario)
         {
             for (var i = 0; i < count; i++)
             {
@@ -178,6 +190,39 @@ namespace Space4X.BattleSlice
                 var radius = 45f + (i % 4) * 8f;
                 var pos = anchor + new float3(math.cos(angle) * radius * (side == 0 ? 1f : -1f), -4f + (i % 6), math.sin(angle) * radius);
                 var weapon = (Space4XBattleSliceWeaponKind)((i + side) % 3);
+                var intent = (Space4XBattleSliceSteeringIntent)((i + side) % 4);
+                var aggressionBias = 1f;
+                var flankBias = 0f;
+                var engagementRangeBias = 1f;
+
+                if (profileBiasScenario)
+                {
+                    if (side == 0)
+                    {
+                        intent = (i % 3) switch
+                        {
+                            0 => Space4XBattleSliceSteeringIntent.Flank,
+                            1 => Space4XBattleSliceSteeringIntent.Flank,
+                            _ => Space4XBattleSliceSteeringIntent.Orbit
+                        };
+                        aggressionBias = 1.35f;
+                        flankBias = 0.85f;
+                        engagementRangeBias = 0.82f;
+                    }
+                    else
+                    {
+                        intent = (i % 3) switch
+                        {
+                            0 => Space4XBattleSliceSteeringIntent.Kite,
+                            1 => Space4XBattleSliceSteeringIntent.Evade,
+                            _ => Space4XBattleSliceSteeringIntent.Orbit
+                        };
+                        aggressionBias = 0.78f;
+                        flankBias = -0.35f;
+                        engagementRangeBias = 1.18f;
+                    }
+                }
+
                 var entity = state.EntityManager.CreateEntity(typeof(Space4XBattleSlice01Tag), typeof(LocalTransform), typeof(Space4XBattleSliceFighter));
 
                 state.EntityManager.SetComponentData(entity, LocalTransform.FromPositionRotationScale(pos, quaternion.identity, 0.6f));
@@ -185,8 +230,11 @@ namespace Space4X.BattleSlice
                 {
                     Side = side,
                     Alive = 1,
-                    Intent = (Space4XBattleSliceSteeringIntent)((i + side) % 4),
+                    Intent = intent,
                     Weapon = weapon,
+                    AggressionBias = aggressionBias,
+                    FlankBias = flankBias,
+                    EngagementRangeBias = engagementRangeBias,
                     Speed = weapon == Space4XBattleSliceWeaponKind.SweptProjectile ? 22f : 24f,
                     Range = weapon == Space4XBattleSliceWeaponKind.RaycastGun ? 140f : 180f,
                     Damage = weapon == Space4XBattleSliceWeaponKind.RaycastGun ? 6f : (weapon == Space4XBattleSliceWeaponKind.SweptProjectile ? 11f : 3f),
@@ -236,11 +284,13 @@ namespace Space4X.BattleSlice
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton(out ScenarioInfo info) ||
-                !info.ScenarioId.Equals(Space4XBattleSlice01.ScenarioId) ||
+                !Space4XBattleSlice01.IsBattleSliceScenario(info.ScenarioId) ||
                 !SystemAPI.TryGetSingletonEntity<Space4XBattleSliceMetrics>(out var metricsEntity))
             {
                 return;
             }
+
+            var profileBiasScenario = Space4XBattleSlice01.IsProfileBiasScenario(info.ScenarioId);
 
             var time = SystemAPI.GetSingleton<TimeState>();
             if (time.IsPaused)
@@ -266,6 +316,14 @@ namespace Space4X.BattleSlice
             var metrics = em.GetComponentData<Space4XBattleSliceMetrics>(metricsEntity);
             var fighters = new NativeList<FighterSnapshot>(Allocator.Temp);
             var flakHazards = new NativeList<FlakSnapshot>(Allocator.Temp);
+            var side0EnemyRangeSum = 0f;
+            var side1EnemyRangeSum = 0f;
+            var side0EnemyRangeCount = 0;
+            var side1EnemyRangeCount = 0;
+            var side0FlankMoves = 0;
+            var side1FlankMoves = 0;
+            var side0MoveSamples = 0;
+            var side1MoveSamples = 0;
 
             foreach (var (fighter, tx, entity) in SystemAPI.Query<RefRO<Space4XBattleSliceFighter>, RefRO<LocalTransform>>().WithEntityAccess())
             {
@@ -328,6 +386,25 @@ namespace Space4X.BattleSlice
                 var toEnemy = math.normalizesafe(target.Position - currentPosition, new float3(1f, 0f, 0f));
                 var right = math.normalizesafe(math.cross(math.up(), toEnemy), new float3(0f, 0f, 1f));
                 var steer = ResolveSteer(entity, fighter.Intent, toEnemy, right, time.Tick);
+                if (profileBiasScenario)
+                {
+                    steer = ApplyProfileBiasSteer(steer, toEnemy, right, in fighter);
+                }
+
+                var distance = math.distance(currentPosition, target.Position);
+                if (fighter.Side == 0)
+                {
+                    side0EnemyRangeSum += distance;
+                    side0EnemyRangeCount++;
+                    side0MoveSamples++;
+                }
+                else
+                {
+                    side1EnemyRangeSum += distance;
+                    side1EnemyRangeCount++;
+                    side1MoveSamples++;
+                }
+
                 for (var i = 0; i < flakHazards.Length; i++)
                 {
                     var hazard = flakHazards[i];
@@ -347,6 +424,21 @@ namespace Space4X.BattleSlice
                     steer += math.normalizesafe(delta) * (1f - dist / avoidRadius) * 1.6f;
                 }
                 steer = math.normalizesafe(steer, toEnemy);
+                if (profileBiasScenario)
+                {
+                    var lateral = math.abs(math.dot(steer, right));
+                    if (lateral >= 0.45f)
+                    {
+                        if (fighter.Side == 0)
+                        {
+                            side0FlankMoves++;
+                        }
+                        else
+                        {
+                            side1FlankMoves++;
+                        }
+                    }
+                }
 
                 fighter.Velocity = math.lerp(fighter.Velocity, steer * fighter.Speed, 0.22f);
                 var nextPosition = currentPosition + fighter.Velocity * dt;
@@ -354,8 +446,8 @@ namespace Space4X.BattleSlice
                 em.SetComponentData(entity, fighter);
                 em.SetComponentData(entity, tx);
 
-                var distance = math.distance(currentPosition, target.Position);
-                if (distance > fighter.Range)
+                var effectiveRange = fighter.Range * math.max(0.45f, fighter.EngagementRangeBias);
+                if (distance > effectiveRange)
                 {
                     continue;
                 }
@@ -541,6 +633,12 @@ namespace Space4X.BattleSlice
             var winner = Winner(metrics.Side0Alive, metrics.Side1Alive);
             var winnerAlive = winner == 0 ? metrics.Side0Alive : (winner == 1 ? metrics.Side1Alive : 0);
             var winnerRatio = metrics.FightersAlive > 0 ? winnerAlive / math.max(1f, metrics.FightersAlive) : 0f;
+            var side0AvgEnemyRange = side0EnemyRangeCount > 0 ? side0EnemyRangeSum / side0EnemyRangeCount : 0f;
+            var side1AvgEnemyRange = side1EnemyRangeCount > 0 ? side1EnemyRangeSum / side1EnemyRangeCount : 0f;
+            var side0FlankRatio = side0MoveSamples > 0 ? side0FlankMoves / (float)side0MoveSamples : 0f;
+            var side1FlankRatio = side1MoveSamples > 0 ? side1FlankMoves / (float)side1MoveSamples : 0f;
+            var rangeDelta = side0AvgEnemyRange - side1AvgEnemyRange;
+            var flankDelta = side0FlankRatio - side1FlankRatio;
 
             if (time.Tick % 50u == 0u && metrics.LastSnapshotTick != time.Tick)
             {
@@ -558,6 +656,15 @@ namespace Space4X.BattleSlice
                     AddMetric(snapshotBuffer, "space4x.combat.outcome.winner_side", winner);
                     AddMetric(snapshotBuffer, "space4x.combat.outcome.winner_alive", winnerAlive);
                     AddMetric(snapshotBuffer, "space4x.combat.outcome.winner_ratio", winnerRatio);
+                    if (profileBiasScenario)
+                    {
+                        AddMetric(snapshotBuffer, "space4x.battle.profilebias.side0.avg_enemy_range", side0AvgEnemyRange);
+                        AddMetric(snapshotBuffer, "space4x.battle.profilebias.side1.avg_enemy_range", side1AvgEnemyRange);
+                        AddMetric(snapshotBuffer, "space4x.battle.profilebias.side0.flank_ratio", side0FlankRatio);
+                        AddMetric(snapshotBuffer, "space4x.battle.profilebias.side1.flank_ratio", side1FlankRatio);
+                        AddMetric(snapshotBuffer, "space4x.battle.profilebias.range_delta", rangeDelta);
+                        AddMetric(snapshotBuffer, "space4x.battle.profilebias.flank_ratio_delta", flankDelta);
+                    }
                 }
             }
 
@@ -591,6 +698,15 @@ namespace Space4X.BattleSlice
                     AddMetric(buffer, "space4x.battle.fire.projectile_hits", metrics.ProjectileHits);
                     AddMetric(buffer, "space4x.battle.fire.flak_hits", metrics.FlakHits);
                     AddMetric(buffer, "space4x.battle.determinism.digest", metrics.Digest);
+                    if (profileBiasScenario)
+                    {
+                        AddMetric(buffer, "space4x.battle.profilebias.side0.avg_enemy_range", side0AvgEnemyRange);
+                        AddMetric(buffer, "space4x.battle.profilebias.side1.avg_enemy_range", side1AvgEnemyRange);
+                        AddMetric(buffer, "space4x.battle.profilebias.side0.flank_ratio", side0FlankRatio);
+                        AddMetric(buffer, "space4x.battle.profilebias.side1.flank_ratio", side1FlankRatio);
+                        AddMetric(buffer, "space4x.battle.profilebias.range_delta", rangeDelta);
+                        AddMetric(buffer, "space4x.battle.profilebias.flank_ratio_delta", flankDelta);
+                    }
                     metrics.Emitted = 1;
                     UnityEngine.Debug.Log($"[BattleSlice01] COMPLETE tick={time.Tick} digest={metrics.Digest} shots={fired}");
                 }
@@ -703,6 +819,17 @@ namespace Space4X.BattleSlice
             if (side0 > side1) return 0;
             if (side1 > side0) return 1;
             return -1;
+        }
+
+        private static float3 ApplyProfileBiasSteer(float3 steer, float3 toEnemy, float3 right, in Space4XBattleSliceFighter fighter)
+        {
+            var aggressionDelta = fighter.AggressionBias - 1f;
+            var rangeDelta = fighter.EngagementRangeBias - 1f;
+            var adjusted = steer;
+            adjusted += toEnemy * aggressionDelta * 0.55f;
+            adjusted += right * fighter.FlankBias * 0.65f;
+            adjusted += -toEnemy * rangeDelta * 0.35f;
+            return math.normalizesafe(adjusted, steer);
         }
 
         private static void AddMetric(DynamicBuffer<Space4XOperatorMetric> buffer, string key, float value)

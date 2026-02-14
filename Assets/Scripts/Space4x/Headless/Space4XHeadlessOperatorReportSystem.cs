@@ -737,7 +737,9 @@ namespace Space4X.Headless
                 return false;
             }
 
-            return string.Equals(info.ScenarioId.ToString(), "space4x_battle_slice_01", StringComparison.OrdinalIgnoreCase);
+            var scenarioId = info.ScenarioId.ToString();
+            return string.Equals(scenarioId, "space4x_battle_slice_01", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(scenarioId, "space4x_battle_slice_01_profilebias", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string ResolveOutputDirectory(EntityManager entityManager)

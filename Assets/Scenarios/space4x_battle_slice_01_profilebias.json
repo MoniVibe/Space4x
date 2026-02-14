@@ -1,0 +1,93 @@
+{
+  "scenarioId": "space4x_battle_slice_01_profilebias",
+  "seed": 43107,
+  "duration_s": 25,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.fire",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      },
+      {
+        "id": "space4x.q.battle.determinism_digest",
+        "required": true
+      }
+    ]
+  },
+  "proofs": {
+    "mining": false
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "battle-slice-profilebias-alpha-capital",
+      "position": [
+        -900.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "BATTLE-PROFILE-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 14.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "battle-slice-profilebias-beta-capital",
+      "position": [
+        900.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "BATTLE-PROFILE-BETA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 14.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 2.0,
+      "kind": "MoveFleet",
+      "fleetId": "BATTLE-PROFILE-ALPHA",
+      "targetPosition": [
+        -220.0,
+        0.0
+      ],
+      "description": "alpha capital closes to engagement corridor"
+    },
+    {
+      "time_s": 2.0,
+      "kind": "MoveFleet",
+      "fleetId": "BATTLE-PROFILE-BETA",
+      "targetPosition": [
+        220.0,
+        0.0
+      ],
+      "description": "beta capital closes to engagement corridor"
+    }
+  ]
+}
