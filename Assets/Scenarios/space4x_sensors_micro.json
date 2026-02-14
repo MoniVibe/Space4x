@@ -77,10 +77,10 @@
   ],
   "actions": [
     {
-      "time_s": 10,
+      "time_s": 9,
       "kind": "MoveFleet",
       "fleetId": "SENSOR-TGT",
-      "targetPosition": [900, 0],
+      "targetPosition": [1500, 0],
       "description": "Target carrier exits sensor range during drop window"
     }
   ]
