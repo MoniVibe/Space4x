@@ -227,7 +227,20 @@ namespace Space4X.BattleSlice
                 return;
             }
 
-            var dt = math.max(1e-4f, SystemAPI.Time.DeltaTime);
+            var dt = time.FixedDeltaTime;
+            if (dt <= 0f &&
+                SystemAPI.TryGetSingleton<TickTimeState>(out var tickTimeState) &&
+                tickTimeState.FixedDeltaTime > 0f)
+            {
+                dt = tickTimeState.FixedDeltaTime;
+            }
+
+            if (dt <= 0f)
+            {
+                dt = 1f / 60f;
+            }
+
+            dt = math.max(1e-4f, dt);
             var em = state.EntityManager;
             var metrics = em.GetComponentData<Space4XBattleSliceMetrics>(metricsEntity);
             var fighters = new NativeList<FighterSnapshot>(Allocator.Temp);
@@ -256,6 +269,8 @@ namespace Space4X.BattleSlice
                 return;
             }
 
+            SortFightersByEntityKey(ref fighters);
+
             foreach (var (volume, tx) in SystemAPI.Query<RefRO<Space4XBattleSliceFlakVolume>, RefRO<LocalTransform>>())
             {
                 flakHazards.Add(new FlakSnapshot
@@ -268,30 +283,39 @@ namespace Space4X.BattleSlice
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var (fighter, tx, entity) in SystemAPI.Query<RefRW<Space4XBattleSliceFighter>, RefRW<LocalTransform>>().WithEntityAccess())
+            for (var fighterIndex = 0; fighterIndex < fighters.Length; fighterIndex++)
             {
-                if (fighter.ValueRO.Alive == 0)
+                var entity = fighters[fighterIndex].Entity;
+                if (!em.HasComponent<Space4XBattleSliceFighter>(entity) || !em.HasComponent<LocalTransform>(entity))
                 {
                     continue;
                 }
 
-                if (!TryFindNearestEnemy(fighters, fighter.ValueRO.Side, entity, tx.ValueRO.Position, out var target))
+                var fighter = em.GetComponentData<Space4XBattleSliceFighter>(entity);
+                if (fighter.Alive == 0)
                 {
                     continue;
                 }
 
-                var toEnemy = math.normalizesafe(target.Position - tx.ValueRO.Position, new float3(1f, 0f, 0f));
+                var tx = em.GetComponentData<LocalTransform>(entity);
+                var currentPosition = tx.Position;
+                if (!TryFindNearestEnemy(fighters, fighter.Side, entity, currentPosition, out var target))
+                {
+                    continue;
+                }
+
+                var toEnemy = math.normalizesafe(target.Position - currentPosition, new float3(1f, 0f, 0f));
                 var right = math.normalizesafe(math.cross(math.up(), toEnemy), new float3(0f, 0f, 1f));
-                var steer = ResolveSteer(entity, fighter.ValueRO.Intent, toEnemy, right, time.Tick);
+                var steer = ResolveSteer(entity, fighter.Intent, toEnemy, right, time.Tick);
                 for (var i = 0; i < flakHazards.Length; i++)
                 {
                     var hazard = flakHazards[i];
-                    if (hazard.Side == fighter.ValueRO.Side)
+                    if (hazard.Side == fighter.Side)
                     {
                         continue;
                     }
 
-                    var delta = tx.ValueRO.Position - hazard.Position;
+                    var delta = currentPosition - hazard.Position;
                     var dist = math.length(delta);
                     var avoidRadius = hazard.Radius + 20f;
                     if (dist <= 0.01f || dist >= avoidRadius)
@@ -303,45 +327,48 @@ namespace Space4X.BattleSlice
                 }
                 steer = math.normalizesafe(steer, toEnemy);
 
-                fighter.ValueRW.Velocity = math.lerp(fighter.ValueRO.Velocity, steer * fighter.ValueRO.Speed, 0.22f);
-                var nextPosition = tx.ValueRO.Position + fighter.ValueRO.Velocity * dt;
-                tx.ValueRW = LocalTransform.FromPositionRotationScale(nextPosition, quaternion.LookRotationSafe(math.normalizesafe(fighter.ValueRO.Velocity, steer), math.up()), tx.ValueRO.Scale);
+                fighter.Velocity = math.lerp(fighter.Velocity, steer * fighter.Speed, 0.22f);
+                var nextPosition = currentPosition + fighter.Velocity * dt;
+                tx = LocalTransform.FromPositionRotationScale(nextPosition, quaternion.LookRotationSafe(math.normalizesafe(fighter.Velocity, steer), math.up()), tx.Scale);
+                em.SetComponentData(entity, fighter);
+                em.SetComponentData(entity, tx);
 
-                var distance = math.distance(tx.ValueRO.Position, target.Position);
-                if (distance > fighter.ValueRO.Range)
+                var distance = math.distance(currentPosition, target.Position);
+                if (distance > fighter.Range)
                 {
                     continue;
                 }
 
-                if (time.Tick > fighter.ValueRO.LastFireTick && time.Tick - fighter.ValueRO.LastFireTick < fighter.ValueRO.FireInterval)
+                if (time.Tick > fighter.LastFireTick && time.Tick - fighter.LastFireTick < fighter.FireInterval)
                 {
                     continue;
                 }
 
-                fighter.ValueRW.LastFireTick = time.Tick;
+                fighter.LastFireTick = time.Tick;
+                em.SetComponentData(entity, fighter);
 
-                if (fighter.ValueRO.Weapon == Space4XBattleSliceWeaponKind.RaycastGun)
+                if (fighter.Weapon == Space4XBattleSliceWeaponKind.RaycastGun)
                 {
                     metrics.RaycastShots++;
                     metrics.Digest = Space4XBattleSlice01.Mix(metrics.Digest, (uint)entity.Index, (uint)target.Entity.Index, 1u);
-                    if (Space4XBattleSlice01.Roll(entity, time.Tick, 11u) <= 0.72f && ApplyDamage(em, target.Entity, fighter.ValueRO.Damage, ref metrics))
+                    if (Space4XBattleSlice01.Roll(entity, time.Tick, 11u) <= 0.72f && ApplyDamage(em, target.Entity, fighter.Damage, ref metrics))
                     {
                         metrics.RaycastHits++;
                     }
                 }
-                else if (fighter.ValueRO.Weapon == Space4XBattleSliceWeaponKind.SweptProjectile)
+                else if (fighter.Weapon == Space4XBattleSliceWeaponKind.SweptProjectile)
                 {
                     metrics.ProjectileShots++;
                     metrics.Digest = Space4XBattleSlice01.Mix(metrics.Digest, (uint)entity.Index, (uint)target.Entity.Index, 2u);
                     var projectile = ecb.CreateEntity();
                     ecb.AddComponent(projectile, new Space4XBattleSlice01Tag());
-                    ecb.AddComponent(projectile, LocalTransform.FromPositionRotationScale(tx.ValueRO.Position, quaternion.identity, 0.2f));
+                    ecb.AddComponent(projectile, LocalTransform.FromPositionRotationScale(currentPosition, quaternion.identity, 0.2f));
                     ecb.AddComponent(projectile, new Space4XBattleSliceProjectile
                     {
-                        Side = fighter.ValueRO.Side,
-                        Damage = fighter.ValueRO.Damage,
+                        Side = fighter.Side,
+                        Damage = fighter.Damage,
                         Radius = 2.2f,
-                        Velocity = math.normalizesafe(target.Position - tx.ValueRO.Position) * math.max(1f, fighter.ValueRO.ProjectileSpeed),
+                        Velocity = math.normalizesafe(target.Position - currentPosition) * math.max(1f, fighter.ProjectileSpeed),
                         ExpireTick = time.Tick + 72u
                     });
                 }
@@ -357,7 +384,7 @@ namespace Space4X.BattleSlice
                     for (var i = 0; i < fighters.Length; i++)
                     {
                         var candidate = fighters[i];
-                        if (candidate.Side == fighter.ValueRO.Side)
+                        if (candidate.Side == fighter.Side)
                         {
                             continue;
                         }
@@ -367,7 +394,7 @@ namespace Space4X.BattleSlice
                             continue;
                         }
 
-                        if (ApplyDamage(em, candidate.Entity, fighter.ValueRO.Damage * 0.45f, ref metrics))
+                        if (ApplyDamage(em, candidate.Entity, fighter.Damage * 0.45f, ref metrics))
                         {
                             metrics.FlakHits++;
                             burstHits++;
@@ -567,6 +594,37 @@ namespace Space4X.BattleSlice
             }
 
             return found;
+        }
+
+        private static void SortFightersByEntityKey(ref NativeList<FighterSnapshot> fighters)
+        {
+            for (var i = 1; i < fighters.Length; i++)
+            {
+                var key = fighters[i];
+                var j = i - 1;
+                while (j >= 0 && CompareFighterKey(fighters[j], key) > 0)
+                {
+                    fighters[j + 1] = fighters[j];
+                    j--;
+                }
+
+                fighters[j + 1] = key;
+            }
+        }
+
+        private static int CompareFighterKey(FighterSnapshot a, FighterSnapshot b)
+        {
+            if (a.Entity.Index != b.Entity.Index)
+            {
+                return a.Entity.Index < b.Entity.Index ? -1 : 1;
+            }
+
+            if (a.Entity.Version != b.Entity.Version)
+            {
+                return a.Entity.Version < b.Entity.Version ? -1 : 1;
+            }
+
+            return 0;
         }
 
         private static float3 ResolveSteer(Entity entity, Space4XBattleSliceSteeringIntent intent, float3 toEnemy, float3 right, uint tick)
