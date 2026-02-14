@@ -23,7 +23,9 @@ namespace Space4X.Headless
         private const string TelemetryPathEnv = "PUREDOTS_TELEMETRY_PATH";
         private const string TelemetryMaxBytesEnv = "PUREDOTS_TELEMETRY_MAX_BYTES";
         private const string RefitScenarioFile = "space4x_refit.json";
+        private const string RefitMicroScenarioFile = "space4x_refit_micro.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
+        private const string ResearchMicroScenarioFile = "space4x_research_micro.json";
         private const ulong DefaultTelemetryMaxBytes = 524288000;
         private const string MetricRefitCount = "space4x.modules.refit.count";
         private const string MetricRefitCompleted = "space4x.modules.refit.completed";
@@ -85,8 +87,12 @@ namespace Space4X.Headless
                 return;
             }
 
-            _isRefitScenario = scenarioPathFull.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase);
-            _isResearchScenario = scenarioPathFull.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase);
+            _isRefitScenario =
+                scenarioPathFull.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                scenarioPathFull.EndsWith(RefitMicroScenarioFile, StringComparison.OrdinalIgnoreCase);
+            _isResearchScenario =
+                scenarioPathFull.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                scenarioPathFull.EndsWith(ResearchMicroScenarioFile, StringComparison.OrdinalIgnoreCase);
 
             var telemetryPathValue = SystemEnv.GetEnvironmentVariable(TelemetryPathEnv);
             if (!string.IsNullOrWhiteSpace(telemetryPathValue))
@@ -474,15 +480,21 @@ namespace Space4X.Headless
         private static bool TryResolveBankTestId(string scenarioPath, out FixedString64Bytes testId)
         {
             testId = default;
-            if (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                scenarioPath.EndsWith(RefitMicroScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
-                testId = new FixedString64Bytes("S3.REFIT_REPAIR");
+                testId = scenarioPath.EndsWith(RefitMicroScenarioFile, StringComparison.OrdinalIgnoreCase)
+                    ? new FixedString64Bytes("S3.REFIT_REPAIR_MICRO")
+                    : new FixedString64Bytes("S3.REFIT_REPAIR");
                 return true;
             }
 
-            if (scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase))
+            if (scenarioPath.EndsWith(ResearchScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                scenarioPath.EndsWith(ResearchMicroScenarioFile, StringComparison.OrdinalIgnoreCase))
             {
-                testId = new FixedString64Bytes("S4.RESEARCH_MVP");
+                testId = scenarioPath.EndsWith(ResearchMicroScenarioFile, StringComparison.OrdinalIgnoreCase)
+                    ? new FixedString64Bytes("S4.RESEARCH_MICRO")
+                    : new FixedString64Bytes("S4.RESEARCH_MVP");
                 return true;
             }
 
