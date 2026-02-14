@@ -7,6 +7,11 @@ namespace Space4X.Headless
     {
     }
 
+    public struct Space4XHeadlessAnswersFlushRequest : IComponentData
+    {
+        public uint RequestedTick;
+    }
+
     [InternalBufferCapacity(8)]
     public struct Space4XOperatorBlackCat : IBufferElementData
     {
@@ -72,6 +77,55 @@ namespace Space4X.Headless
             }
 
             buffer = state.EntityManager.GetBuffer<Space4XOperatorMetric>(entity);
+            return true;
+        }
+
+        public static void RequestHeadlessAnswersFlush(ref SystemState state, uint tick)
+        {
+            if (!state.EntityManager.WorldUnmanaged.IsCreated)
+            {
+                return;
+            }
+
+            using var query = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XOperatorReportTag>());
+            var entity = query.IsEmptyIgnoreFilter
+                ? state.EntityManager.CreateEntity(typeof(Space4XOperatorReportTag))
+                : query.GetSingletonEntity();
+
+            if (!state.EntityManager.HasComponent<Space4XHeadlessAnswersFlushRequest>(entity))
+            {
+                state.EntityManager.AddComponentData(entity, new Space4XHeadlessAnswersFlushRequest
+                {
+                    RequestedTick = tick
+                });
+                return;
+            }
+
+            var request = state.EntityManager.GetComponentData<Space4XHeadlessAnswersFlushRequest>(entity);
+            request.RequestedTick = tick;
+            state.EntityManager.SetComponentData(entity, request);
+        }
+
+        public static bool TryConsumeHeadlessAnswersFlushRequest(ref SystemState state, out uint requestedTick)
+        {
+            requestedTick = 0u;
+            if (!state.EntityManager.WorldUnmanaged.IsCreated)
+            {
+                return false;
+            }
+
+            using var query = state.EntityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Space4XOperatorReportTag>(),
+                ComponentType.ReadOnly<Space4XHeadlessAnswersFlushRequest>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            var entity = query.GetSingletonEntity();
+            var request = state.EntityManager.GetComponentData<Space4XHeadlessAnswersFlushRequest>(entity);
+            requestedTick = request.RequestedTick;
+            state.EntityManager.RemoveComponent<Space4XHeadlessAnswersFlushRequest>(entity);
             return true;
         }
     }
