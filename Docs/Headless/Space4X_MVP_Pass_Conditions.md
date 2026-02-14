@@ -2,6 +2,9 @@
 
 This sheet defines the micro-scenario gates used to tighten iteration on MVP systems. Questions are opt-in via `scenarioConfig.headlessQuestions`; the default question set remains sensors/comms/movement/mining only.
 
+## Scenario proof policy
+- Combat-only scenarios should disable mining proof in scenario data by adding `"proofs": { "mining": false }` at the top level of the scenario JSON.
+
 ## Movement
 - Question: `space4x.q.movement.turnrate_bounds`
 - Scenarios: `space4x_turnrate_micro.json`, `space4x_arc_micro.json`

@@ -35,7 +35,6 @@ namespace Space4X.Headless
         private const string MiningScenarioFile = "space4x_mining.json";
         private const string MiningCombatScenarioFile = "space4x_mining_combat.json";
         private const string MiningMicroScenarioFile = "space4x_mining_micro.json";
-        private const string SentinelScenarioId = "space4x_capital_10_vs_10_sentinel";
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
 
@@ -459,15 +458,8 @@ namespace Space4X.Headless
                 }
 
                 var head = new string(buffer, 0, read);
-                if (Regex.IsMatch(
-                        head,
-                        $"\"scenarioId\"\\s*:\\s*\"{Regex.Escape(SentinelScenarioId)}\"",
-                        RegexOptions.IgnoreCase | RegexOptions.Singleline))
-                {
-                    // Sentinel is a combat-only pre-smoke profile.
-                    return true;
-                }
-
+                // Proof policy is data-driven in scenario JSON:
+                // "proofs": { "mining": false } disables mining proof for combat-only scenarios.
                 return Regex.IsMatch(head, "\"proofs\"\\s*:\\s*\\{[^}]*\"mining\"\\s*:\\s*false",
                     RegexOptions.IgnoreCase | RegexOptions.Singleline);
             }
