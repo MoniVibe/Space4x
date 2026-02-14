@@ -1,5 +1,6 @@
 # Agent Quickstart (Space4X)
 
+- **Role-first workflow:** see root `AGENTS.md` (choose role, claim slot, read canonical docs).
 - Start here: `../TRI_PROJECT_BRIEFING.md` (canonical orientation).
 - Smoke scene: `Assets/Scenes/TRI_Space4X_Smoke.unity` (wraps mining demo SubScene in `Assets/Scenes/Demo/Space4X_MiningDemo_SubScene.unity`).
 - Avoid legacy: anything under `_Archive_Space4XLegacy/**` or `Assets/_Archive/**` is reference-only.

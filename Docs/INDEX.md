@@ -2,6 +2,8 @@
 
 Quick pointers to the active documentation:
 
+- **Role-first AGENTS:** Root `AGENTS.md` (choose role, claim slot). Slots: `Docs/Agents/SLOTS.md`. Canonical direction: PureDOTS `Docs/` (NORTH_STAR, DEMO_SLICE, etc.) or `TRI_PROJECT_BRIEFING` + `Docs/Headless/*`.
+
 - Project setup: `Docs/PROJECT_SETUP.md`
 - Headless workflows: `Docs/Headless/Space4X_HEADLESS.md`, `Docs/Headless/Godgame_HEADLESS.md`
 - Ops bus protocol: `../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`
