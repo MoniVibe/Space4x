@@ -1,0 +1,34 @@
+{
+  "scenarioId": "space4x_modules_provenance_advantage_micro",
+  "seed": 54101,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.provenance_advantage",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "provenance-orgA-yard",
+      "position": [
+        -140.0,
+        0.0
+      ]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "provenance-orgB-yard",
+      "position": [
+        140.0,
+        0.0
+      ]
+    }
+  ]
+}

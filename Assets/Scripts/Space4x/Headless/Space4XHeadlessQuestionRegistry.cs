@@ -209,6 +209,8 @@ namespace Space4X.Headless
         public const string BattleProfileBiasEvidence = "space4x.q.battle.profilebias.evidence";
         public const string ProfileBiasNavEvidence = "space4x.q.profilebias.nav_evidence";
         public const string ProfileBiasSensorsEvidence = "space4x.q.profilebias.sensors_evidence";
+        public const string ModulesProvenanceAdvantage = "space4x.q.modules.provenance_advantage";
+        public const string ModulesReverseEngineerSurpass = "space4x.q.modules.reverse_engineer_surpass";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -261,7 +263,9 @@ namespace Space4X.Headless
             new BattleDeterminismDigestQuestion(),
             new BattleProfileBiasEvidenceQuestion(),
             new ProfileBiasNavEvidenceQuestion(),
-            new ProfileBiasSensorsEvidenceQuestion()
+            new ProfileBiasSensorsEvidenceQuestion(),
+            new ModulesProvenanceAdvantageQuestion(),
+            new ModulesReverseEngineerSurpassQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -950,6 +954,102 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Fail;
                 answer.Answer = $"drop_distance_delta={dropDelta:0.###}";
+                return answer;
+            }
+        }
+
+        private sealed class ModulesProvenanceAdvantageQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ModulesProvenanceAdvantage;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasA = signals.TryGetMetric("modules.provenance.orgA.avg_integration_quality", out var orgAQuality);
+                var hasB = signals.TryGetMetric("modules.provenance.orgB.avg_integration_quality", out var orgBQuality);
+                var hasDelta = signals.TryGetMetric("modules.provenance.integration_quality_delta", out var delta);
+                if (!hasDelta && hasA && hasB)
+                {
+                    delta = orgAQuality - orgBQuality;
+                    hasDelta = true;
+                }
+
+                if (!hasA && !hasB && !hasDelta)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_provenance_metrics";
+                    answer.Answer = "provenance metrics unavailable";
+                    return answer;
+                }
+
+                answer.Metrics["orgA_avg_integration_quality"] = orgAQuality;
+                answer.Metrics["orgB_avg_integration_quality"] = orgBQuality;
+                answer.Metrics["integration_quality_delta"] = delta;
+
+                if (delta > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"delta={delta:0.###} orgA={orgAQuality:0.###} orgB={orgBQuality:0.###}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"expected_delta_gt_0 got={delta:0.###}";
+                return answer;
+            }
+        }
+
+        private sealed class ModulesReverseEngineerSurpassQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ModulesReverseEngineerSurpass;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasA = signals.TryGetMetric("modules.provenance.orgA.avg_integration_quality", out var orgAQuality);
+                var hasB = signals.TryGetMetric("modules.provenance.orgB.avg_integration_quality", out var orgBQuality);
+                var hasDelta = signals.TryGetMetric("modules.provenance.integration_quality_delta", out var delta);
+                if (!hasDelta && hasA && hasB)
+                {
+                    delta = orgAQuality - orgBQuality;
+                    hasDelta = true;
+                }
+
+                if (!hasA && !hasB && !hasDelta)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_provenance_metrics";
+                    answer.Answer = "provenance metrics unavailable";
+                    return answer;
+                }
+
+                answer.Metrics["orgA_avg_integration_quality"] = orgAQuality;
+                answer.Metrics["orgB_avg_integration_quality"] = orgBQuality;
+                answer.Metrics["integration_quality_delta"] = delta;
+
+                if (delta < 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Pass;
+                    answer.Answer = $"delta={delta:0.###} orgA={orgAQuality:0.###} orgB={orgBQuality:0.###}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Fail;
+                answer.Answer = $"expected_delta_lt_0 got={delta:0.###}";
                 return answer;
             }
         }

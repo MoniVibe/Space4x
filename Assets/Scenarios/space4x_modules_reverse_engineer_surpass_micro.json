@@ -1,0 +1,34 @@
+{
+  "scenarioId": "space4x_modules_reverse_engineer_surpass_micro",
+  "seed": 54102,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.reverse_engineer_surpass",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "surpass-orgA-yard",
+      "position": [
+        -160.0,
+        15.0
+      ]
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "surpass-orgB-yard",
+      "position": [
+        160.0,
+        -15.0
+      ]
+    }
+  ]
+}
