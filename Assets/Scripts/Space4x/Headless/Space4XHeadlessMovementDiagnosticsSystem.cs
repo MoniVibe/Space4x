@@ -645,8 +645,9 @@ namespace Space4X.Headless
                 ScenarioIdMatches(scenarioId, RefitScenarioFile) ||
                 ScenarioIdMatches(scenarioId, ResearchScenarioFile))
             {
-                // Refit/research focus on module loops; ignore stuck spikes to keep telemetry flowing.
+                // Refit/research focus on module/research loops, not turn-rate bounds.
                 _ignoreStuckFailures = true;
+                _ignoreTurnFailures = true;
             }
         }
 
