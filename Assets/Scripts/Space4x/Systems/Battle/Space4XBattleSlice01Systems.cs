@@ -509,7 +509,15 @@ namespace Space4X.BattleSlice
             }
 
             var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
-            if (metrics.Emitted == 0 && runtime.EndTick > 0u && time.Tick >= runtime.EndTick)
+            var completionTick = runtime.EndTick;
+            if (completionTick == 0u && runtime.DurationSeconds > 0f)
+            {
+                var fixedDt = math.max(1e-6f, time.FixedDeltaTime);
+                var durationTicks = (uint)math.max(1f, math.ceil(runtime.DurationSeconds / fixedDt));
+                completionTick = runtime.StartTick + durationTicks;
+            }
+
+            if (metrics.Emitted == 0 && completionTick > 0u && time.Tick >= completionTick)
             {
                 if (Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var buffer))
                 {
@@ -529,6 +537,7 @@ namespace Space4X.BattleSlice
                     AddMetric(buffer, "space4x.battle.fire.flak_hits", metrics.FlakHits);
                     AddMetric(buffer, "space4x.battle.determinism.digest", metrics.Digest);
                     metrics.Emitted = 1;
+                    UnityEngine.Debug.Log($"[BattleSlice01] COMPLETE tick={time.Tick} digest={metrics.Digest} shots={fired}");
                 }
             }
 
