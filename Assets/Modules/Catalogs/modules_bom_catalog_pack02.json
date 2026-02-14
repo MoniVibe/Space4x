@@ -1,0 +1,980 @@
+﻿{
+    "schemaVersion":  1,
+    "catalogId":  "space4x.modules.bom.pack02",
+    "affixPools":  {
+                       "lowPrefixes":  [
+                                           "Reserve",
+                                           "Depot"
+                                       ],
+                       "midPrefixes":  [
+                                           "Operator",
+                                           "Fleet"
+                                       ],
+                       "highPrefixes":  [
+                                            "Legendary",
+                                            "Prototype"
+                                        ],
+                       "suffixes":  [
+                                        "Anchor",
+                                        "Vector"
+                                    ]
+                   },
+    "partFamilies":  [
+                         {
+                             "id":  "Coil",
+                             "description":  "Field coils for shield shaping and scan pulse generation."
+                         },
+                         {
+                             "id":  "Regulator",
+                             "description":  "Flow regulators for stable output and lock behavior."
+                         },
+                         {
+                             "id":  "HeatSink",
+                             "description":  "High-mass sink stacks for defense and support modules."
+                         },
+                         {
+                             "id":  "Core",
+                             "description":  "Core processors and power bus internals."
+                         }
+                     ],
+    "manufacturers":  [
+
+                      ],
+    "marks":  [
+
+              ],
+    "parts":  [
+                  {
+                      "id":  "helios_coil_pack02",
+                      "family":  "Coil",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "coil",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  20.9
+                                        },
+                                        {
+                                            "key":  "regen",
+                                            "value":  2.976
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  3.024
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_regulator_pack02",
+                      "family":  "Regulator",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "regulator",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "regen",
+                                            "value":  3.936
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.865
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  3.42
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_heatsink_pack02",
+                      "family":  "HeatSink",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "heatsink",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.916
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.874
+                                        },
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  9.975
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_core_pack02",
+                      "family":  "Core",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "core",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "sensor_range",
+                                            "value":  14.4
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  7.79
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.837
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_coil_pack02",
+                      "family":  "Coil",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "coil",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  24.64
+                                        },
+                                        {
+                                            "key":  "regen",
+                                            "value":  3.348
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.408
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_regulator_pack02",
+                      "family":  "Regulator",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "regulator",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "regen",
+                                            "value":  4.428
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  1.034
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  3.744
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_heatsink_pack02",
+                      "family":  "HeatSink",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "heatsink",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.322
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  1.045
+                                        },
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  11.76
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_core_pack02",
+                      "family":  "Core",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "core",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "sensor_range",
+                                            "value":  14.85
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  8.528
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  1.001
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_coil_pack02",
+                      "family":  "Coil",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "coil",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  21.12
+                                        },
+                                        {
+                                            "key":  "regen",
+                                            "value":  2.976
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.856
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_regulator_pack02",
+                      "family":  "Regulator",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "regulator",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "regen",
+                                            "value":  3.936
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.884
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  3.708
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_heatsink_pack02",
+                      "family":  "HeatSink",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "heatsink",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.754
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.893
+                                        },
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  10.08
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_core_pack02",
+                      "family":  "Core",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "core",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "sensor_range",
+                                            "value":  15.45
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  8.446
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.855
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_coil_pack02",
+                      "family":  "Coil",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "coil",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  22.66
+                                        },
+                                        {
+                                            "key":  "regen",
+                                            "value":  3.162
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.66
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_regulator_pack02",
+                      "family":  "Regulator",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "regulator",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "regen",
+                                            "value":  4.182
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.978
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  4.176
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_heatsink_pack02",
+                      "family":  "HeatSink",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "heatsink",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  2.565
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.988
+                                        },
+                                        {
+                                            "key":  "shield_hp",
+                                            "value":  10.815
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_core_pack02",
+                      "family":  "Core",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "core",
+                                   "pack02"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "sensor_range",
+                                            "value":  16.2
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  9.512
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.946
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  }
+              ],
+    "moduleFamilies":  [
+                           {
+                               "id":  "module.defense.shield_generator",
+                               "model":  "ShieldGenerator",
+                               "requiredSlots":  [
+                                                     "coil",
+                                                     "regulator",
+                                                     "heat_sink",
+                                                     "core",
+                                                     "firmware"
+                                                 ],
+                               "allowedManufacturers":  [
+                                                            "Helios",
+                                                            "Bastion",
+                                                            "Vanta",
+                                                            "Aurora"
+                                                        ],
+                               "baseStatsByMark":  [
+                                                       {
+                                                           "mark":  1,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "shield_hp",
+                                                                             "value":  350
+                                                                         },
+                                                                         {
+                                                                             "key":  "regen",
+                                                                             "value":  14
+                                                                         },
+                                                                         {
+                                                                             "key":  "reliability",
+                                                                             "value":  0.95
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  2,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "shield_hp",
+                                                                             "value":  430
+                                                                         },
+                                                                         {
+                                                                             "key":  "regen",
+                                                                             "value":  18
+                                                                         },
+                                                                         {
+                                                                             "key":  "reliability",
+                                                                             "value":  0.97
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  3,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "shield_hp",
+                                                                             "value":  525
+                                                                         },
+                                                                         {
+                                                                             "key":  "regen",
+                                                                             "value":  23
+                                                                         },
+                                                                         {
+                                                                             "key":  "reliability",
+                                                                             "value":  0.99
+                                                                         }
+                                                                     ]
+                                                       }
+                                                   ],
+                               "bomTemplate":  [
+                                                   {
+                                                       "slotId":  "coil",
+                                                       "requiredFamily":  "Coil",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "regulator",
+                                                       "requiredFamily":  "Regulator",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "heat_sink",
+                                                       "requiredFamily":  "HeatSink",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "core",
+                                                       "requiredFamily":  "Core",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "firmware",
+                                                       "requiredFamily":  "Firmware",
+                                                       "quantity":  1
+                                                   }
+                                               ]
+                           },
+                           {
+                               "id":  "module.utility.scanner_suite",
+                               "model":  "ScannerSuite",
+                               "requiredSlots":  [
+                                                     "coil",
+                                                     "regulator",
+                                                     "heat_sink",
+                                                     "core",
+                                                     "firmware"
+                                                 ],
+                               "allowedManufacturers":  [
+                                                            "Helios",
+                                                            "Bastion",
+                                                            "Vanta",
+                                                            "Aurora"
+                                                        ],
+                               "baseStatsByMark":  [
+                                                       {
+                                                           "mark":  1,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "sensor_range",
+                                                                             "value":  82
+                                                                         },
+                                                                         {
+                                                                             "key":  "tracking",
+                                                                             "value":  35
+                                                                         },
+                                                                         {
+                                                                             "key":  "utility",
+                                                                             "value":  42
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  2,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "sensor_range",
+                                                                             "value":  99
+                                                                         },
+                                                                         {
+                                                                             "key":  "tracking",
+                                                                             "value":  42
+                                                                         },
+                                                                         {
+                                                                             "key":  "utility",
+                                                                             "value":  50
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  3,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "sensor_range",
+                                                                             "value":  120
+                                                                         },
+                                                                         {
+                                                                             "key":  "tracking",
+                                                                             "value":  50
+                                                                         },
+                                                                         {
+                                                                             "key":  "utility",
+                                                                             "value":  61
+                                                                         }
+                                                                     ]
+                                                       }
+                                                   ],
+                               "bomTemplate":  [
+                                                   {
+                                                       "slotId":  "coil",
+                                                       "requiredFamily":  "Coil",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "regulator",
+                                                       "requiredFamily":  "Regulator",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "heat_sink",
+                                                       "requiredFamily":  "HeatSink",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "core",
+                                                       "requiredFamily":  "Core",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "firmware",
+                                                       "requiredFamily":  "Firmware",
+                                                       "quantity":  1
+                                                   }
+                                               ]
+                           }
+                       ]
+}
