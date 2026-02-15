@@ -296,7 +296,7 @@ namespace Space4X.Headless
 
         private static float ResolveVirtualSensorRange(bool aggressive)
         {
-            return aggressive ? 112f : 82f;
+            return aggressive ? 96f : 82f;
         }
 
         private static void ApplyTuning(ref SystemState state, Entity entity, bool aggressive)
