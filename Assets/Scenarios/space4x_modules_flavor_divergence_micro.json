@@ -1,0 +1,48 @@
+{
+  "scenarioId": "space4x_modules_flavor_divergence_micro",
+  "seed": 44111,
+  "duration_s": 20,
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.flavor_divergence_evidence",
+        "required": true
+      }
+    ]
+  },
+  "proofs": {
+    "mining": false
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "flavor-helios-rig",
+      "position": [
+        -320.0,
+        -40.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "FLAVOR-HELIOS",
+          "posture": "Anchor",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "flavor-bastion-rig",
+      "position": [
+        320.0,
+        40.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "FLAVOR-BASTION",
+          "posture": "Anchor",
+          "shipCount": 1
+        }
+      }
+    }
+  ]
+}

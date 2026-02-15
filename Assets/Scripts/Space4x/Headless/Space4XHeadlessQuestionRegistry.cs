@@ -213,6 +213,8 @@ namespace Space4X.Headless
         public const string ModulesReverseEngineerSurpass = "space4x.q.modules.reverse_engineer_surpass";
         public const string ModulesPipelineCompletion = "space4x.q.modules.pipeline_completion";
         public const string ModulesDeterminismDigest = "space4x.q.modules.determinism_digest";
+        public const string ModulesQualityMonotonicEvidence = "space4x.q.modules.quality_monotonic_evidence";
+        public const string ModulesFlavorDivergenceEvidence = "space4x.q.modules.flavor_divergence_evidence";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -269,7 +271,9 @@ namespace Space4X.Headless
             new ModulesProvenanceAdvantageQuestion(),
             new ModulesReverseEngineerSurpassQuestion(),
             new ModulesPipelineCompletionQuestion(),
-            new ModulesDeterminismDigestQuestion()
+            new ModulesDeterminismDigestQuestion(),
+            new ModulesQualityMonotonicEvidenceQuestion(),
+            new ModulesFlavorDivergenceEvidenceQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -1138,6 +1142,128 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"digest={digest:0} installed={installed:0}";
+                return answer;
+            }
+        }
+
+        private sealed class ModulesQualityMonotonicEvidenceQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ModulesQualityMonotonicEvidence;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasLowModule = signals.TryGetMetric("space4x.modules.quality.group_low.module_quality", out var lowModule);
+                var hasHighModule = signals.TryGetMetric("space4x.modules.quality.group_high.module_quality", out var highModule);
+                var hasLowInstall = signals.TryGetMetric("space4x.modules.quality.group_low.install_quality", out var lowInstall);
+                var hasHighInstall = signals.TryGetMetric("space4x.modules.quality.group_high.install_quality", out var highInstall);
+                var hasDeltaModule = signals.TryGetMetric("space4x.modules.quality.delta.module_quality", out var deltaModule);
+                var hasDeltaInstall = signals.TryGetMetric("space4x.modules.quality.delta.install_quality", out var deltaInstall);
+
+                var passFlag = signals.GetMetricOrDefault("space4x.modules.quality.monotonic.pass");
+                var digest = signals.GetMetricOrDefault("space4x.modules.quality.monotonic.digest");
+
+                answer.Metrics["group_low_module_quality"] = lowModule;
+                answer.Metrics["group_high_module_quality"] = highModule;
+                answer.Metrics["group_low_install_quality"] = lowInstall;
+                answer.Metrics["group_high_install_quality"] = highInstall;
+                answer.Metrics["delta_module_quality"] = deltaModule;
+                answer.Metrics["delta_install_quality"] = deltaInstall;
+                answer.Metrics["monotonic_pass"] = passFlag;
+                answer.Metrics["digest"] = digest;
+
+                if (!hasLowModule || !hasHighModule || !hasLowInstall || !hasHighInstall || !hasDeltaModule || !hasDeltaInstall)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "module_quality_metrics_missing";
+                    answer.Answer = "module quality evidence metrics unavailable";
+                    return answer;
+                }
+
+                if (highModule <= lowModule || highInstall <= lowInstall || deltaModule <= 0f || deltaInstall <= 0f || passFlag < 1f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"non_monotonic module_delta={deltaModule:0.000} install_delta={deltaInstall:0.000}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"module_delta={deltaModule:0.000} install_delta={deltaInstall:0.000} digest={digest:0}";
+                return answer;
+            }
+        }
+
+        private sealed class ModulesFlavorDivergenceEvidenceQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.ModulesFlavorDivergenceEvidence;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasHeliosDps = signals.TryGetMetric("space4x.modules.flavor.helios.dps", out var heliosDps);
+                var hasBastionDps = signals.TryGetMetric("space4x.modules.flavor.bastion.dps", out var bastionDps);
+                var hasHeliosHeat = signals.TryGetMetric("space4x.modules.flavor.helios.heat", out var heliosHeat);
+                var hasBastionHeat = signals.TryGetMetric("space4x.modules.flavor.bastion.heat", out var bastionHeat);
+                var hasHeliosRange = signals.TryGetMetric("space4x.modules.flavor.helios.range", out var heliosRange);
+                var hasBastionRange = signals.TryGetMetric("space4x.modules.flavor.bastion.range", out var bastionRange);
+                var hasHeliosReliability = signals.TryGetMetric("space4x.modules.flavor.helios.reliability", out var heliosReliability);
+                var hasBastionReliability = signals.TryGetMetric("space4x.modules.flavor.bastion.reliability", out var bastionReliability);
+
+                var deltaDps = signals.GetMetricOrDefault("space4x.modules.flavor.delta.dps", heliosDps - bastionDps);
+                var deltaHeat = signals.GetMetricOrDefault("space4x.modules.flavor.delta.heat", heliosHeat - bastionHeat);
+                var deltaRange = signals.GetMetricOrDefault("space4x.modules.flavor.delta.range", heliosRange - bastionRange);
+                var deltaReliability = signals.GetMetricOrDefault("space4x.modules.flavor.delta.reliability", heliosReliability - bastionReliability);
+                var passFlag = signals.GetMetricOrDefault("space4x.modules.flavor.expected_tradeoff.pass");
+                var digest = signals.GetMetricOrDefault("space4x.modules.flavor.divergence.digest");
+
+                answer.Metrics["helios_dps"] = heliosDps;
+                answer.Metrics["bastion_dps"] = bastionDps;
+                answer.Metrics["helios_heat"] = heliosHeat;
+                answer.Metrics["bastion_heat"] = bastionHeat;
+                answer.Metrics["helios_range"] = heliosRange;
+                answer.Metrics["bastion_range"] = bastionRange;
+                answer.Metrics["helios_reliability"] = heliosReliability;
+                answer.Metrics["bastion_reliability"] = bastionReliability;
+                answer.Metrics["delta_dps"] = deltaDps;
+                answer.Metrics["delta_heat"] = deltaHeat;
+                answer.Metrics["delta_range"] = deltaRange;
+                answer.Metrics["delta_reliability"] = deltaReliability;
+                answer.Metrics["tradeoff_pass"] = passFlag;
+                answer.Metrics["digest"] = digest;
+
+                if (!hasHeliosDps || !hasBastionDps || !hasHeliosHeat || !hasBastionHeat ||
+                    !hasHeliosRange || !hasBastionRange || !hasHeliosReliability || !hasBastionReliability)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "module_flavor_metrics_missing";
+                    answer.Answer = "module flavor divergence metrics unavailable";
+                    return answer;
+                }
+
+                var directionPass = deltaDps > 0f && deltaHeat > 0f && deltaRange > 0f && deltaReliability < 0f;
+                if (!directionPass || passFlag < 1f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"tradeoff_direction_mismatch dps={deltaDps:0.0} heat={deltaHeat:0.0} range={deltaRange:0.0} reliability={deltaReliability:0.000}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"dps={deltaDps:0.0} heat={deltaHeat:0.0} range={deltaRange:0.0} reliability={deltaReliability:0.000} digest={digest:0}";
                 return answer;
             }
         }
