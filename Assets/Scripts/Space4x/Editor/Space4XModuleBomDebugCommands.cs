@@ -17,11 +17,11 @@ namespace Space4X.EditorTools
         {
             if (!Space4XModuleBomRollProbe.TryRollDigest100(out var result, out var error))
             {
-                Debug.LogError($"[Space4XModuleBomV0] roll probe failed: {error}");
+                UnityEngine.Debug.LogError($"[Space4XModuleBomV0] roll probe failed: {error}");
                 return;
             }
 
-            Debug.Log(Space4XModuleBomRollProbe.FormatMetricLine(result));
+            UnityEngine.Debug.Log(Space4XModuleBomRollProbe.FormatMetricLine(result));
         }
     }
 }
