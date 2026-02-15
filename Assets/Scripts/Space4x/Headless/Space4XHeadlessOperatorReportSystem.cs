@@ -30,6 +30,13 @@ namespace Space4X.Headless
         private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
         private const string DogfightScenarioFile = "space4x_dogfight_headless.json";
         private const string CommsScenarioFile = "space4x_comms_micro.json";
+        private const string LearningConvergenceQuestionId = "space4x.q.modules.learning_convergence";
+        private const string LearningMetricOrgBMaturity = "modules.learning.orgB.maturity";
+        private const string LearningMetricOrgBMaturityStart = "modules.learning.orgB.maturity.start";
+        private const string LearningMetricIntegrationDelta = "modules.learning.integration_quality_delta";
+        private const string LearningMetricIntegrationDeltaStart = "modules.learning.integration_quality_delta.start";
+        private const string LearningMetricIntegrationDeltaEnd = "modules.learning.integration_quality_delta.end";
+        private const string LearningMetricDigest = "modules.learning.digest";
         private const int TraceEventLimit = 8;
         private static readonly FixedString64Bytes SensorsBankId = new FixedString64Bytes("S0.SPACE4X_SENSORS_CONTACTS_MICRO");
         private static readonly FixedString64Bytes NavBankId = new FixedString64Bytes("S0.SPACE4X_NAV_REACH_TARGET_MICRO");
@@ -99,6 +106,7 @@ namespace Space4X.Headless
             var runtimeStats = Space4XOperatorRuntimeStats.Collect(state.EntityManager);
             var questionPack = CollectQuestionPack(state.EntityManager);
             var questions = Space4XHeadlessQuestionRegistry.BuildQuestions(signals, runtimeStats, runtime, questionPack);
+            ApplyLearningConvergenceQuestion(signals, runtime, questionPack, questions);
 
             var outputDir = ResolveOutputDirectory(state.EntityManager);
             WriteReport(outputDir, ref state, runtime, metrics, blackCatList, questions);
@@ -602,6 +610,91 @@ namespace Space4X.Headless
             }
 
             return pack;
+        }
+
+        private static void ApplyLearningConvergenceQuestion(
+            Space4XOperatorSignals signals,
+            in Space4XScenarioRuntime runtime,
+            Dictionary<string, bool> questionPack,
+            List<Space4XQuestionAnswer> questions)
+        {
+            if (questionPack == null || questions == null)
+            {
+                return;
+            }
+
+            if (!questionPack.TryGetValue(LearningConvergenceQuestionId, out var required))
+            {
+                return;
+            }
+
+            for (var i = questions.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(questions[i].Id, LearningConvergenceQuestionId, StringComparison.OrdinalIgnoreCase))
+                {
+                    questions.RemoveAt(i);
+                }
+            }
+
+            var hasOrgBStart = signals.TryGetMetric(LearningMetricOrgBMaturityStart, out var orgBStart);
+            var hasOrgBEnd = signals.TryGetMetric(LearningMetricOrgBMaturity, out var orgBEnd);
+            var hasDeltaStart = signals.TryGetMetric(LearningMetricIntegrationDeltaStart, out var deltaStart);
+            var hasDeltaEnd = signals.TryGetMetric(LearningMetricIntegrationDeltaEnd, out var deltaEnd);
+            if (!hasDeltaEnd)
+            {
+                hasDeltaEnd = signals.TryGetMetric(LearningMetricIntegrationDelta, out deltaEnd);
+            }
+
+            var metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+            {
+                { LearningMetricOrgBMaturityStart, orgBStart },
+                { LearningMetricOrgBMaturity, orgBEnd },
+                { LearningMetricIntegrationDeltaStart, deltaStart },
+                { LearningMetricIntegrationDeltaEnd, deltaEnd }
+            };
+
+            if (signals.TryGetMetric(LearningMetricDigest, out var digest))
+            {
+                metrics[LearningMetricDigest] = digest;
+            }
+
+            Space4XQuestionAnswer answer;
+            if (!hasOrgBStart || !hasOrgBEnd || !hasDeltaStart || !hasDeltaEnd)
+            {
+                answer = new Space4XQuestionAnswer
+                {
+                    Id = LearningConvergenceQuestionId,
+                    Required = required,
+                    Status = Space4XQuestionStatus.Unknown,
+                    Answer = "learning metrics missing",
+                    UnknownReason = "missing_learning_metrics",
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = metrics
+                };
+            }
+            else
+            {
+                var maturityIncreased = orgBEnd > orgBStart;
+                var deltaMagnitudeDecreased = math.abs(deltaEnd) < math.abs(deltaStart);
+                answer = new Space4XQuestionAnswer
+                {
+                    Id = LearningConvergenceQuestionId,
+                    Required = required,
+                    Status = maturityIncreased && deltaMagnitudeDecreased
+                        ? Space4XQuestionStatus.Pass
+                        : Space4XQuestionStatus.Fail,
+                    Answer = maturityIncreased && deltaMagnitudeDecreased
+                        ? "orgB maturity increased and integration delta converged"
+                        : "learning convergence condition not met",
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = metrics
+                };
+            }
+
+            questions.Add(answer);
+            questions.Sort((left, right) => string.CompareOrdinal(left?.Id, right?.Id));
         }
 
         private static void AppendDecisionTrace(ref bool first, StringBuilder sb, EntityManager entityManager, Entity entity)

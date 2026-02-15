@@ -1,0 +1,56 @@
+{
+  "scenarioId": "space4x_blueprint_learning_micro",
+  "seed": 41021,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.learning_convergence",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "learning-org-a-facility",
+      "position": [
+        -80.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "LEARN-ORG-A",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "learning-org-b-facility",
+      "position": [
+        80.0,
+        0.0
+      ],
+      "components": {
+        "Fleet": {
+          "fleetId": "LEARN-ORG-B",
+          "posture": "Patrol",
+          "shipCount": 1
+        }
+      }
+    }
+  ],
+  "actions": [],
+  "blueprintLearning": {
+    "blueprintId": "Laser_S_Mk1_Rapid",
+    "orgAProvenance": "Original",
+    "orgBProvenance": "ReverseEngineered",
+    "sharedMaterialQuality": 0.88,
+    "description": "Org B starts lower but learns each successful build using deterministic maturity updates."
+  }
+}
