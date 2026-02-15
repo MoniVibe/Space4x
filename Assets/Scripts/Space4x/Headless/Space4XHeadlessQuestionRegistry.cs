@@ -194,6 +194,7 @@ namespace Space4X.Headless
         public const string SensorsAcquireDrop = "space4x.q.sensors.acquire_drop";
         public const string CommsDelivery = "space4x.q.comms.delivery";
         public const string CommsDeliveryBlocked = "space4x.q.comms.delivery_blocked";
+        public const string CommsKnowledgeIsolation = "space4x.q.comms.knowledge_isolation";
         public const string MovementTurnRateBounds = "space4x.q.movement.turnrate_bounds";
         public const string CombatFire = "space4x.q.combat.fire";
         public const string MiningProgress = "space4x.q.mining.progress";
@@ -273,7 +274,8 @@ namespace Space4X.Headless
             new ModulesPipelineCompletionQuestion(),
             new ModulesDeterminismDigestQuestion(),
             new ModulesQualityMonotonicEvidenceQuestion(),
-            new ModulesFlavorDivergenceEvidenceQuestion()
+            new ModulesFlavorDivergenceEvidenceQuestion(),
+            new CommsKnowledgeIsolationQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -570,6 +572,78 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"blocked_reason={blockedReason:0} sent={sent:0} emitted={emitted:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CommsKnowledgeIsolationQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CommsKnowledgeIsolation;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.comms.shared_contacts.count", out var sharedContactsCount))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_comms_knowledge_metrics";
+                    answer.Answer = "comms isolation metrics unavailable";
+                    return answer;
+                }
+
+                var localContactsCount = signals.GetMetricOrDefault("space4x.comms.local_contacts.count");
+                var allyHasTargetKnowledge = signals.GetMetricOrDefault("space4x.comms.ally_has_target_knowledge");
+                var digest = signals.GetMetricOrDefault("space4x.comms.digest");
+                var sharedContactsPreCut = signals.GetMetricOrDefault("space4x.comms.shared_contacts.pre_cut");
+                var sharedContactsPostCut = signals.GetMetricOrDefault("space4x.comms.shared_contacts.post_cut");
+                var localContactsAfterCut = signals.GetMetricOrDefault("space4x.comms.local_contacts.after_cut_window");
+
+                answer.Metrics["shared_contacts_count"] = sharedContactsCount;
+                answer.Metrics["local_contacts_count"] = localContactsCount;
+                answer.Metrics["ally_has_target_knowledge"] = allyHasTargetKnowledge;
+                answer.Metrics["digest"] = digest;
+                answer.Metrics["shared_contacts_pre_cut"] = sharedContactsPreCut;
+                answer.Metrics["shared_contacts_post_cut"] = sharedContactsPostCut;
+                answer.Metrics["local_contacts_after_cut_window"] = localContactsAfterCut;
+
+                if (sharedContactsPreCut <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_pre_cut_shared_contacts";
+                    return answer;
+                }
+
+                if (sharedContactsPostCut > 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"shared_contacts_persist_post_cut={sharedContactsPostCut:0}";
+                    return answer;
+                }
+
+                if (localContactsAfterCut <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "observer_no_post_cut_local_contact";
+                    return answer;
+                }
+
+                if (allyHasTargetKnowledge > 0.5f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"ally_has_target_knowledge={allyHasTargetKnowledge:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer =
+                    $"shared_pre={sharedContactsPreCut:0} shared_post={sharedContactsPostCut:0} ally_knowledge={allyHasTargetKnowledge:0}";
                 return answer;
             }
         }
