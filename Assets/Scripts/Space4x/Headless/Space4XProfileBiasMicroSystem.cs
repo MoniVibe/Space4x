@@ -291,7 +291,7 @@ namespace Space4X.Headless
 
         private static float ResolveNavStandoff(bool aggressive)
         {
-            return aggressive ? 24f : 120f;
+            return aggressive ? 16f : 260f;
         }
 
         private static float ResolveVirtualSensorRange(bool aggressive)
