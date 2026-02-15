@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_profilebias_sensors_micro",
   "seed": 41032,
-  "duration_s": 6,
+  "duration_s": 10,
   "proofs": {
     "mining": false
   },
