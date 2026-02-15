@@ -864,7 +864,6 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Fail;
                 answer.Answer = $"range_delta={rangeDelta:0.###} flank_ratio_delta={flankRatioDelta:0.###}";
-                answer.Answer = $"range_delta={rangeDelta:0.###} flank_ratio_delta={flankRatioDelta:0.###}";
                 return answer;
             }
         }
