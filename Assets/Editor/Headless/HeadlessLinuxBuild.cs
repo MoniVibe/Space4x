@@ -310,23 +310,13 @@ namespace Tri.BuildTools
                 }
                 catch (FileNotFoundException)
                 {
-                    if (IsOptionalManagedAssembly(file))
-                    {
-                        UnityEngine.Debug.LogWarning($"[HeadlessLinuxBuild] Optional managed assembly missing during hash: {normalized}");
-                        continue;
-                    }
-
-                    throw;
+                    UnityEngine.Debug.LogWarning($"[HeadlessLinuxBuild] Missing file during hash (skipped): {normalized}");
+                    continue;
                 }
                 catch (DirectoryNotFoundException)
                 {
-                    if (IsOptionalManagedAssembly(file))
-                    {
-                        UnityEngine.Debug.LogWarning($"[HeadlessLinuxBuild] Optional managed assembly path missing during hash: {normalized}");
-                        continue;
-                    }
-
-                    throw;
+                    UnityEngine.Debug.LogWarning($"[HeadlessLinuxBuild] Missing path during hash (skipped): {normalized}");
+                    continue;
                 }
             }
 
