@@ -46,6 +46,8 @@ namespace Space4X.Headless
         private const string SensorsScenarioFile = "space4x_sensors_micro.json";
         private const string CommsScenarioFile = "space4x_comms_micro.json";
         private const string CommsBlockedScenarioFile = "space4x_comms_blocked_micro.json";
+        private const string ProfileBiasNavScenarioFile = "space4x_profilebias_nav_micro.json";
+        private const string ProfileBiasSensorsScenarioFile = "space4x_profilebias_sensors_micro.json";
         private const string TurnrateScenarioFile = "space4x_turnrate_micro.json";
         private const string FtlMicroScenarioFile = "space4x_ftl_micro.json";
         private const string BattleSliceScenarioFile = "space4x_battle_slice_01.json";
@@ -568,10 +570,14 @@ namespace Space4X.Headless
             if ((!string.IsNullOrWhiteSpace(scenarioPath) &&
                  (scenarioPath.EndsWith(SensorsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
                   scenarioPath.EndsWith(CommsScenarioFile, StringComparison.OrdinalIgnoreCase) ||
-                  scenarioPath.EndsWith(CommsBlockedScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
+                  scenarioPath.EndsWith(CommsBlockedScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(ProfileBiasNavScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                  scenarioPath.EndsWith(ProfileBiasSensorsScenarioFile, StringComparison.OrdinalIgnoreCase))) ||
                 ScenarioIdMatches(scenarioId, SensorsScenarioFile) ||
                 ScenarioIdMatches(scenarioId, CommsScenarioFile) ||
-                ScenarioIdMatches(scenarioId, CommsBlockedScenarioFile))
+                ScenarioIdMatches(scenarioId, CommsBlockedScenarioFile) ||
+                ScenarioIdMatches(scenarioId, ProfileBiasNavScenarioFile) ||
+                ScenarioIdMatches(scenarioId, ProfileBiasSensorsScenarioFile))
             {
                 _ignoreTurnFailures = true;
                 return;
