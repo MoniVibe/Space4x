@@ -381,6 +381,14 @@ namespace Tri.BuildTools
                 return false;
             }
 
+            var normalizedPath = path.Replace('\\', '/');
+            if (normalizedPath.IndexOf("/Managed/", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                (fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+                 fileName.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
             return fileName.Equals("glTFast.Documentation.Examples.dll", StringComparison.OrdinalIgnoreCase) ||
                    fileName.Equals("glTFast.Documentation.Examples.pdb", StringComparison.OrdinalIgnoreCase) ||
                    fileName.Equals("System.ComponentModel.Composition.dll", StringComparison.OrdinalIgnoreCase) ||
