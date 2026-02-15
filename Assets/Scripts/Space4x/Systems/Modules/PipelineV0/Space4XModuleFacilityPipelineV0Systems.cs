@@ -449,7 +449,7 @@ namespace Space4X.Modules.PipelineV0
             if (time.Tick % 50u == 0u && m.LastSnap != time.Tick)
             {
                 m.LastSnap = time.Tick;
-                Debug.Log($"[ModulePipelineV0Metrics] tick={time.Tick} modules.limbs.produced.count={m.LimbsProduced} modules.assembled.count={m.Assembled} modules.installed.count={m.Installed} modules.scrap.count={m.Scrap} modules.avg_integration_quality={avgIntegration:0.000} modules.avg_install_quality={avgInstall:0.000} modules.digest={m.Digest}");
+                global::UnityEngine.Debug.Log($"[ModulePipelineV0Metrics] tick={time.Tick} modules.limbs.produced.count={m.LimbsProduced} modules.assembled.count={m.Assembled} modules.installed.count={m.Installed} modules.scrap.count={m.Scrap} modules.avg_integration_quality={avgIntegration:0.000} modules.avg_install_quality={avgInstall:0.000} modules.digest={m.Digest}");
                 Emit(ref state, in m, avgC, avgP, avgO, avgM, avgF, avgIntegration, avgInstall);
             }
 
@@ -465,7 +465,7 @@ namespace Space4X.Modules.PipelineV0
                 Space4XOperatorReportUtility.RequestHeadlessAnswersFlush(ref state, time.Tick);
                 Emit(ref state, in m, avgC, avgP, avgO, avgM, avgF, avgIntegration, avgInstall);
                 m.Emitted = 1;
-                Debug.Log($"[ModulePipelineV0] COMPLETE tick={time.Tick} installed={m.Installed} digest={m.Digest}");
+                global::UnityEngine.Debug.Log($"[ModulePipelineV0] COMPLETE tick={time.Tick} installed={m.Installed} digest={m.Digest}");
             }
 
             state.EntityManager.SetComponentData(metricsEntity, m);
