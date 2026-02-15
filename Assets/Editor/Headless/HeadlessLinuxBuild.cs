@@ -382,7 +382,9 @@ namespace Tri.BuildTools
             }
 
             return fileName.Equals("glTFast.Documentation.Examples.dll", StringComparison.OrdinalIgnoreCase) ||
-                   fileName.Equals("glTFast.Documentation.Examples.pdb", StringComparison.OrdinalIgnoreCase);
+                   fileName.Equals("glTFast.Documentation.Examples.pdb", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("System.ComponentModel.Composition.dll", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("System.ComponentModel.Composition.pdb", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void TryWriteFallbackManifest(BuildArgs args, string manifestPath)
