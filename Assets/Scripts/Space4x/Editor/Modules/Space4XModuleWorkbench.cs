@@ -706,7 +706,7 @@ namespace Space4X.EditorTools
             WriteRollsCsv(csvPath);
             WriteRollsMarkdown(mdPath);
 
-            Debug.Log($"[Space4XModuleWorkbench] rolls exported csv={csvPath} md={mdPath}");
+            global::UnityEngine.Debug.Log($"[Space4XModuleWorkbench] rolls exported csv={csvPath} md={mdPath}");
         }
 
         private void WriteRollsCsv(string path)
@@ -786,7 +786,7 @@ namespace Space4X.EditorTools
             AppendComparisonCsv(sb, "reliability", _comparison.A.Reliability, _comparison.B.Reliability);
             sb.AppendLine($"digest,{_comparison.Digest},,,,,,,,");
             File.WriteAllText(path, sb.ToString());
-            Debug.Log($"[Space4XModuleWorkbench] comparison CSV exported: {path}");
+            global::UnityEngine.Debug.Log($"[Space4XModuleWorkbench] comparison CSV exported: {path}");
         }
 
         private void ExportComparisonMd()
@@ -815,7 +815,7 @@ namespace Space4X.EditorTools
             AppendComparisonMd(sb, "Range", _comparison.A.Range, _comparison.B.Range);
             AppendComparisonMd(sb, "Reliability", _comparison.A.Reliability, _comparison.B.Reliability);
             File.WriteAllText(path, sb.ToString());
-            Debug.Log($"[Space4XModuleWorkbench] comparison markdown exported: {path}");
+            global::UnityEngine.Debug.Log($"[Space4XModuleWorkbench] comparison markdown exported: {path}");
         }
         private static string EnsureReportDir()
         {
