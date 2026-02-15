@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "space4x.modules.bom.v0",
+  "partFamilies": [
+    { "id": "LaserEmitter", "description": "Emitter assemblies for beam weapons." },
+    { "id": "RailBarrel", "description": "Barrel and rail assemblies for kinetic batteries." },
+    { "id": "FlakChamber", "description": "Burst chambers for area denial flak systems." },
+    { "id": "HeatSink", "description": "Thermal control parts shared across module types." },
+    { "id": "Mount", "description": "Structural mounts and recoil frames." },
+    { "id": "Firmware", "description": "Control firmware and tactical chips." }
+  ],
+  "manufacturers": [
+    {
+      "id": "Helios",
+      "flavor": "High-output laser specialists with thermal tuning bias.",
+      "allowedFamilies": [ "LaserEmitter", "HeatSink", "Mount", "Firmware" ],
+      "statMultipliers": [
+        { "key": "damage", "value": 1.08 },
+        { "key": "heat", "value": 1.05 },
+        { "key": "stability", "value": 0.97 }
+      ]
+    },
+    {
+      "id": "Ironwake",
+      "flavor": "Heavy recoil-tolerant rail systems and rugged mounts.",
+      "allowedFamilies": [ "RailBarrel", "HeatSink", "Mount", "Firmware" ],
+      "statMultipliers": [
+        { "key": "penetration", "value": 1.11 },
+        { "key": "recoil", "value": 1.08 },
+        { "key": "cycle_time", "value": 0.95 }
+      ]
+    },
+    {
+      "id": "Bastion",
+      "flavor": "Defensive volume control and durable flak hardware.",
+      "allowedFamilies": [ "FlakChamber", "HeatSink", "Mount", "Firmware" ],
+      "statMultipliers": [
+        { "key": "aoe", "value": 1.1 },
+        { "key": "durability", "value": 1.07 },
+        { "key": "cooldown", "value": 0.96 }
+      ]
+    },
+    {
+      "id": "Meridian",
+      "flavor": "Balanced control stack and broad compatibility across families.",
+      "allowedFamilies": [ "LaserEmitter", "RailBarrel", "FlakChamber", "HeatSink", "Mount", "Firmware" ],
+      "statMultipliers": [
+        { "key": "efficiency", "value": 1.05 },
+        { "key": "stability", "value": 1.06 },
+        { "key": "peak_damage", "value": 0.98 }
+      ]
+    }
+  ],
+  "marks": [
+    { "mark": 1, "label": "Mk1", "qualityBandMin": 0.2, "qualityBandMax": 0.6 },
+    { "mark": 2, "label": "Mk2", "qualityBandMin": 0.4, "qualityBandMax": 0.8 },
+    { "mark": 3, "label": "Mk3", "qualityBandMin": 0.6, "qualityBandMax": 1.0 }
+  ],
+  "parts": [
+    { "id": "helios_lzr_emitter_a", "family": "LaserEmitter", "manufacturer": "Helios", "markMin": 1, "markMax": 1, "tags": [ "laser", "focus" ], "baseStats": [ { "key": "damage", "value": 11.0 }, { "key": "heat", "value": 5.5 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.59, "scalar": 1.0 }, { "tier": "Prime", "min": 0.6, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "helios_lzr_emitter_b", "family": "LaserEmitter", "manufacturer": "Helios", "markMin": 1, "markMax": 2, "tags": [ "laser", "burst" ], "baseStats": [ { "key": "damage", "value": 12.2 }, { "key": "heat", "value": 6.0 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.55, "scalar": 1.0 }, { "tier": "Refined", "min": 0.56, "max": 0.8, "scalar": 1.06 }, { "tier": "Prime", "min": 0.81, "max": 1.0, "scalar": 1.12 } ] },
+    { "id": "meridian_lzr_emitter_c", "family": "LaserEmitter", "manufacturer": "Meridian", "markMin": 1, "markMax": 3, "tags": [ "laser", "control" ], "baseStats": [ { "key": "damage", "value": 10.8 }, { "key": "stability", "value": 7.2 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.62, "scalar": 1.0 }, { "tier": "Prime", "min": 0.63, "max": 1.0, "scalar": 1.09 } ] },
+    { "id": "helios_lzr_emitter_d", "family": "LaserEmitter", "manufacturer": "Helios", "markMin": 2, "markMax": 3, "tags": [ "laser", "array" ], "baseStats": [ { "key": "damage", "value": 14.1 }, { "key": "heat", "value": 6.7 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.74, "scalar": 1.0 }, { "tier": "Prime", "min": 0.75, "max": 1.0, "scalar": 1.11 } ] },
+    { "id": "meridian_lzr_emitter_e", "family": "LaserEmitter", "manufacturer": "Meridian", "markMin": 3, "markMax": 3, "tags": [ "laser", "precision" ], "baseStats": [ { "key": "damage", "value": 15.0 }, { "key": "stability", "value": 8.1 } ], "qualityTierRules": [ { "tier": "Prime", "min": 0.0, "max": 1.0, "scalar": 1.12 } ] },
+
+    { "id": "ironwake_rail_barrel_a", "family": "RailBarrel", "manufacturer": "Ironwake", "markMin": 1, "markMax": 1, "tags": [ "rail", "mass" ], "baseStats": [ { "key": "penetration", "value": 13.5 }, { "key": "recoil", "value": 9.2 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.6, "scalar": 1.0 }, { "tier": "Prime", "min": 0.61, "max": 1.0, "scalar": 1.07 } ] },
+    { "id": "ironwake_rail_barrel_b", "family": "RailBarrel", "manufacturer": "Ironwake", "markMin": 1, "markMax": 2, "tags": [ "rail", "coil" ], "baseStats": [ { "key": "penetration", "value": 14.4 }, { "key": "cycle_time", "value": 1.1 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.55, "scalar": 1.0 }, { "tier": "Refined", "min": 0.56, "max": 0.82, "scalar": 1.05 }, { "tier": "Prime", "min": 0.83, "max": 1.0, "scalar": 1.09 } ] },
+    { "id": "ironwake_rail_barrel_c", "family": "RailBarrel", "manufacturer": "Ironwake", "markMin": 2, "markMax": 3, "tags": [ "rail", "magnum" ], "baseStats": [ { "key": "penetration", "value": 16.3 }, { "key": "recoil", "value": 10.5 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.75, "scalar": 1.0 }, { "tier": "Prime", "min": 0.76, "max": 1.0, "scalar": 1.1 } ] },
+    { "id": "meridian_rail_barrel_d", "family": "RailBarrel", "manufacturer": "Meridian", "markMin": 2, "markMax": 3, "tags": [ "rail", "stability" ], "baseStats": [ { "key": "penetration", "value": 15.5 }, { "key": "stability", "value": 7.7 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.7, "scalar": 1.0 }, { "tier": "Prime", "min": 0.71, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "ironwake_rail_barrel_e", "family": "RailBarrel", "manufacturer": "Ironwake", "markMin": 3, "markMax": 3, "tags": [ "rail", "apex" ], "baseStats": [ { "key": "penetration", "value": 17.2 }, { "key": "recoil", "value": 11.0 } ], "qualityTierRules": [ { "tier": "Prime", "min": 0.0, "max": 1.0, "scalar": 1.11 } ] },
+
+    { "id": "bastion_flak_chamber_a", "family": "FlakChamber", "manufacturer": "Bastion", "markMin": 1, "markMax": 1, "tags": [ "flak", "burst" ], "baseStats": [ { "key": "aoe", "value": 9.8 }, { "key": "cooldown", "value": 1.2 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.58, "scalar": 1.0 }, { "tier": "Prime", "min": 0.59, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "bastion_flak_chamber_b", "family": "FlakChamber", "manufacturer": "Bastion", "markMin": 1, "markMax": 2, "tags": [ "flak", "dense" ], "baseStats": [ { "key": "aoe", "value": 10.5 }, { "key": "burst_count", "value": 4.0 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.57, "scalar": 1.0 }, { "tier": "Refined", "min": 0.58, "max": 0.84, "scalar": 1.05 }, { "tier": "Prime", "min": 0.85, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "bastion_flak_chamber_c", "family": "FlakChamber", "manufacturer": "Bastion", "markMin": 2, "markMax": 3, "tags": [ "flak", "siege" ], "baseStats": [ { "key": "aoe", "value": 11.8 }, { "key": "durability", "value": 7.2 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.74, "scalar": 1.0 }, { "tier": "Prime", "min": 0.75, "max": 1.0, "scalar": 1.09 } ] },
+    { "id": "meridian_flak_chamber_d", "family": "FlakChamber", "manufacturer": "Meridian", "markMin": 2, "markMax": 3, "tags": [ "flak", "control" ], "baseStats": [ { "key": "aoe", "value": 10.9 }, { "key": "stability", "value": 7.0 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.72, "scalar": 1.0 }, { "tier": "Prime", "min": 0.73, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "bastion_flak_chamber_e", "family": "FlakChamber", "manufacturer": "Bastion", "markMin": 3, "markMax": 3, "tags": [ "flak", "ward" ], "baseStats": [ { "key": "aoe", "value": 12.6 }, { "key": "burst_count", "value": 5.0 } ], "qualityTierRules": [ { "tier": "Prime", "min": 0.0, "max": 1.0, "scalar": 1.1 } ] },
+
+    { "id": "helios_sink_a", "family": "HeatSink", "manufacturer": "Helios", "markMin": 1, "markMax": 2, "tags": [ "thermal", "laser" ], "baseStats": [ { "key": "heat_dissipation", "value": 7.5 }, { "key": "mass", "value": 1.4 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.64, "scalar": 1.0 }, { "tier": "Prime", "min": 0.65, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "ironwake_sink_b", "family": "HeatSink", "manufacturer": "Ironwake", "markMin": 1, "markMax": 3, "tags": [ "thermal", "kinetic" ], "baseStats": [ { "key": "heat_dissipation", "value": 7.0 }, { "key": "durability", "value": 6.2 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.6, "scalar": 1.0 }, { "tier": "Prime", "min": 0.61, "max": 1.0, "scalar": 1.07 } ] },
+    { "id": "bastion_sink_c", "family": "HeatSink", "manufacturer": "Bastion", "markMin": 1, "markMax": 3, "tags": [ "thermal", "defense" ], "baseStats": [ { "key": "heat_dissipation", "value": 6.8 }, { "key": "durability", "value": 6.8 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.63, "scalar": 1.0 }, { "tier": "Prime", "min": 0.64, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "meridian_sink_d", "family": "HeatSink", "manufacturer": "Meridian", "markMin": 2, "markMax": 3, "tags": [ "thermal", "control" ], "baseStats": [ { "key": "heat_dissipation", "value": 7.9 }, { "key": "stability", "value": 7.4 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.78, "scalar": 1.0 }, { "tier": "Prime", "min": 0.79, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "meridian_sink_e", "family": "HeatSink", "manufacturer": "Meridian", "markMin": 3, "markMax": 3, "tags": [ "thermal", "efficient" ], "baseStats": [ { "key": "heat_dissipation", "value": 8.4 }, { "key": "efficiency", "value": 1.08 } ], "qualityTierRules": [ { "tier": "Prime", "min": 0.0, "max": 1.0, "scalar": 1.09 } ] },
+
+    { "id": "helios_mount_a", "family": "Mount", "manufacturer": "Helios", "markMin": 1, "markMax": 2, "tags": [ "mount", "laser" ], "baseStats": [ { "key": "stability", "value": 6.2 }, { "key": "mass", "value": 2.1 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.6, "scalar": 1.0 }, { "tier": "Prime", "min": 0.61, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "ironwake_mount_b", "family": "Mount", "manufacturer": "Ironwake", "markMin": 1, "markMax": 3, "tags": [ "mount", "rail" ], "baseStats": [ { "key": "stability", "value": 7.1 }, { "key": "durability", "value": 6.9 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.58, "scalar": 1.0 }, { "tier": "Prime", "min": 0.59, "max": 1.0, "scalar": 1.07 } ] },
+    { "id": "bastion_mount_c", "family": "Mount", "manufacturer": "Bastion", "markMin": 1, "markMax": 3, "tags": [ "mount", "flak" ], "baseStats": [ { "key": "stability", "value": 6.8 }, { "key": "durability", "value": 7.2 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.62, "scalar": 1.0 }, { "tier": "Prime", "min": 0.63, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "meridian_mount_d", "family": "Mount", "manufacturer": "Meridian", "markMin": 2, "markMax": 3, "tags": [ "mount", "balanced" ], "baseStats": [ { "key": "stability", "value": 7.6 }, { "key": "efficiency", "value": 1.04 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.76, "scalar": 1.0 }, { "tier": "Prime", "min": 0.77, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "bastion_mount_e", "family": "Mount", "manufacturer": "Bastion", "markMin": 3, "markMax": 3, "tags": [ "mount", "fortified" ], "baseStats": [ { "key": "stability", "value": 8.0 }, { "key": "durability", "value": 7.8 } ], "qualityTierRules": [ { "tier": "Prime", "min": 0.0, "max": 1.0, "scalar": 1.09 } ] },
+
+    { "id": "helios_fw_a", "family": "Firmware", "manufacturer": "Helios", "markMin": 1, "markMax": 2, "tags": [ "firmware", "targeting" ], "baseStats": [ { "key": "tracking", "value": 6.4 }, { "key": "efficiency", "value": 1.02 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.62, "scalar": 1.0 }, { "tier": "Prime", "min": 0.63, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "ironwake_fw_b", "family": "Firmware", "manufacturer": "Ironwake", "markMin": 1, "markMax": 3, "tags": [ "firmware", "recoil" ], "baseStats": [ { "key": "stability", "value": 6.7 }, { "key": "cycle_time", "value": 0.98 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.6, "scalar": 1.0 }, { "tier": "Prime", "min": 0.61, "max": 1.0, "scalar": 1.07 } ] },
+    { "id": "bastion_fw_c", "family": "Firmware", "manufacturer": "Bastion", "markMin": 1, "markMax": 3, "tags": [ "firmware", "screening" ], "baseStats": [ { "key": "aoe_control", "value": 6.9 }, { "key": "durability", "value": 6.1 } ], "qualityTierRules": [ { "tier": "Standard", "min": 0.0, "max": 0.59, "scalar": 1.0 }, { "tier": "Prime", "min": 0.6, "max": 1.0, "scalar": 1.06 } ] },
+    { "id": "meridian_fw_d", "family": "Firmware", "manufacturer": "Meridian", "markMin": 2, "markMax": 3, "tags": [ "firmware", "optimizer" ], "baseStats": [ { "key": "efficiency", "value": 1.09 }, { "key": "tracking", "value": 7.4 } ], "qualityTierRules": [ { "tier": "Refined", "min": 0.0, "max": 0.75, "scalar": 1.0 }, { "tier": "Prime", "min": 0.76, "max": 1.0, "scalar": 1.08 } ] },
+    { "id": "meridian_fw_e", "family": "Firmware", "manufacturer": "Meridian", "markMin": 3, "markMax": 3, "tags": [ "firmware", "predictive" ], "baseStats": [ { "key": "efficiency", "value": 1.12 }, { "key": "tracking", "value": 7.9 } ], "qualityTierRules": [ { "tier": "Prime", "min": 0.0, "max": 1.0, "scalar": 1.09 } ] }
+  ],
+  "moduleFamilies": [
+    {
+      "id": "module.weapon.laser_array",
+      "model": "Lance Array",
+      "requiredSlots": [ "emitter", "sink", "mount", "firmware" ],
+      "allowedManufacturers": [ "Helios", "Meridian" ],
+      "baseStatsByMark": [
+        { "mark": 1, "stats": [ { "key": "damage", "value": 36.0 }, { "key": "power", "value": 24.0 } ] },
+        { "mark": 2, "stats": [ { "key": "damage", "value": 44.0 }, { "key": "power", "value": 28.0 } ] },
+        { "mark": 3, "stats": [ { "key": "damage", "value": 53.0 }, { "key": "power", "value": 32.0 } ] }
+      ],
+      "bomTemplate": [
+        { "slotId": "emitter", "requiredFamily": "LaserEmitter", "quantity": 2 },
+        { "slotId": "sink", "requiredFamily": "HeatSink", "quantity": 1 },
+        { "slotId": "mount", "requiredFamily": "Mount", "quantity": 1 },
+        { "slotId": "firmware", "requiredFamily": "Firmware", "quantity": 1 }
+      ]
+    },
+    {
+      "id": "module.weapon.rail_battery",
+      "model": "Spine Battery",
+      "requiredSlots": [ "barrel", "sink", "mount", "firmware" ],
+      "allowedManufacturers": [ "Ironwake", "Meridian" ],
+      "baseStatsByMark": [
+        { "mark": 1, "stats": [ { "key": "penetration", "value": 40.0 }, { "key": "recoil", "value": 16.0 } ] },
+        { "mark": 2, "stats": [ { "key": "penetration", "value": 49.0 }, { "key": "recoil", "value": 18.0 } ] },
+        { "mark": 3, "stats": [ { "key": "penetration", "value": 58.0 }, { "key": "recoil", "value": 20.0 } ] }
+      ],
+      "bomTemplate": [
+        { "slotId": "barrel", "requiredFamily": "RailBarrel", "quantity": 2 },
+        { "slotId": "sink", "requiredFamily": "HeatSink", "quantity": 1 },
+        { "slotId": "mount", "requiredFamily": "Mount", "quantity": 1 },
+        { "slotId": "firmware", "requiredFamily": "Firmware", "quantity": 1 }
+      ]
+    },
+    {
+      "id": "module.weapon.flak_screen",
+      "model": "Ward Screen",
+      "requiredSlots": [ "chamber", "sink", "mount", "firmware" ],
+      "allowedManufacturers": [ "Bastion", "Meridian" ],
+      "baseStatsByMark": [
+        { "mark": 1, "stats": [ { "key": "aoe", "value": 32.0 }, { "key": "cooldown", "value": 1.2 } ] },
+        { "mark": 2, "stats": [ { "key": "aoe", "value": 39.0 }, { "key": "cooldown", "value": 1.1 } ] },
+        { "mark": 3, "stats": [ { "key": "aoe", "value": 47.0 }, { "key": "cooldown", "value": 1.0 } ] }
+      ],
+      "bomTemplate": [
+        { "slotId": "chamber", "requiredFamily": "FlakChamber", "quantity": 2 },
+        { "slotId": "sink", "requiredFamily": "HeatSink", "quantity": 1 },
+        { "slotId": "mount", "requiredFamily": "Mount", "quantity": 1 },
+        { "slotId": "firmware", "requiredFamily": "Firmware", "quantity": 1 }
+      ]
+    }
+  ]
+}
