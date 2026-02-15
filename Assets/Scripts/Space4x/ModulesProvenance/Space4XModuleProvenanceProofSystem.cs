@@ -89,7 +89,7 @@ namespace Space4X.ModulesProvenance
             {
                 _flushRequested = 1;
                 Space4XOperatorReportUtility.RequestHeadlessAnswersFlush(ref state, time.Tick);
-                Debug.Log($"[ModulesProvenanceProof] COMPLETE tick={time.Tick} orgA={orgAAvg:0.###} orgB={orgBAvg:0.###} delta={delta:0.###}");
+                global::UnityEngine.Debug.Log($"[ModulesProvenanceProof] COMPLETE tick={time.Tick} orgA={orgAAvg:0.###} orgB={orgBAvg:0.###} delta={delta:0.###}");
             }
         }
 
