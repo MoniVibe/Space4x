@@ -301,8 +301,8 @@ namespace Space4X.Headless
 
         private static void ApplyTuning(ref SystemState state, Entity entity, bool aggressive)
         {
-            var compliance = aggressive ? 0.55f : 0.78f;
-            var caution = aggressive ? 0.22f : 0.86f;
+            var compliance = aggressive ? 0.9f : 0.35f;
+            var caution = aggressive ? 0.18f : 0.92f;
             var formation = aggressive ? 0.42f : 0.72f;
             var riskTolerance = aggressive ? 0.86f : 0.18f;
             var aggression = aggressive ? 0.87f : 0.2f;
