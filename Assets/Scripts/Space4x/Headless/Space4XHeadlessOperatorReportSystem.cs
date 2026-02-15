@@ -561,6 +561,18 @@ namespace Space4X.Headless
                     }
                 }
             }
+            if (TryGetTelemetryMetricsFromSingleton(entityManager, out var singletonMetrics))
+            {
+                for (var i = 0; i < singletonMetrics.Length; i++)
+                {
+                    var metric = singletonMetrics[i];
+                    var key = metric.Key.ToString();
+                    if (!metrics.ContainsKey(key))
+                    {
+                        metrics.Add(key, metric.Value);
+                    }
+                }
+            }
 
             return metrics;
         }
@@ -781,6 +793,26 @@ namespace Space4X.Headless
             }
 
             metrics = entityManager.GetBuffer<TelemetryMetric>(entity);
+            return true;
+        }
+
+        private static bool TryGetTelemetryMetricsFromSingleton(EntityManager entityManager, out DynamicBuffer<TelemetryMetric> metrics)
+        {
+            metrics = default;
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<TelemetryStreamSingleton>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            var singletonEntity = query.GetSingletonEntity();
+            var stream = entityManager.GetComponentData<TelemetryStreamSingleton>(singletonEntity).Stream;
+            if (stream == Entity.Null || !entityManager.HasBuffer<TelemetryMetric>(stream))
+            {
+                return false;
+            }
+
+            metrics = entityManager.GetBuffer<TelemetryMetric>(stream);
             return true;
         }
 
