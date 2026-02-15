@@ -1,0 +1,1576 @@
+﻿{
+    "schemaVersion":  1,
+    "catalogId":  "space4x.modules.bom.pack01",
+    "affixPools":  {
+                       "lowPrefixes":  [
+                                           "Field",
+                                           "Frontier",
+                                           "Rough",
+                                           "Line",
+                                           "Jury-Rigged",
+                                           "Workhorse"
+                                       ],
+                       "midPrefixes":  [
+                                           "Tuned",
+                                           "Calibrated",
+                                           "Command",
+                                           "Veteran",
+                                           "Refit",
+                                           "Balanced"
+                                       ],
+                       "highPrefixes":  [
+                                            "Prime",
+                                            "Apex",
+                                            "Ascendant",
+                                            "Mythic",
+                                            "Masterwork",
+                                            "Signature"
+                                        ],
+                       "suffixes":  [
+                                        "Array",
+                                        "Lance",
+                                        "Spindle",
+                                        "Ward",
+                                        "Halo",
+                                        "Matrix",
+                                        "Crown",
+                                        "Bastion"
+                                    ]
+                   },
+    "partFamilies":  [
+                         {
+                             "id":  "BarrelEmitter",
+                             "description":  "Emitter and barrel assemblies for direct-fire modules."
+                         },
+                         {
+                             "id":  "Capacitor",
+                             "description":  "Charge reservoirs for alpha strikes and sustained output."
+                         },
+                         {
+                             "id":  "Cooling",
+                             "description":  "Thermal management stacks for weapon duty cycles."
+                         },
+                         {
+                             "id":  "Mount",
+                             "description":  "Hardpoint mounts and recoil dampers."
+                         },
+                         {
+                             "id":  "Firmware",
+                             "description":  "Targeting and behavior firmware stacks."
+                         }
+                     ],
+    "manufacturers":  [
+                          {
+                              "id":  "Helios",
+                              "flavor":  "High DPS, high heat, long range, lower reliability.",
+                              "allowedFamilies":  [
+                                                      "BarrelEmitter",
+                                                      "Capacitor",
+                                                      "Cooling",
+                                                      "Mount",
+                                                      "Firmware",
+                                                      "Coil",
+                                                      "Regulator",
+                                                      "HeatSink",
+                                                      "Core"
+                                                  ],
+                              "statMultipliers":  [
+                                                      {
+                                                          "key":  "dps",
+                                                          "value":  1.15
+                                                      },
+                                                      {
+                                                          "key":  "alpha",
+                                                          "value":  1.09
+                                                      },
+                                                      {
+                                                          "key":  "range",
+                                                          "value":  1.1
+                                                      },
+                                                      {
+                                                          "key":  "heat",
+                                                          "value":  1.13
+                                                      },
+                                                      {
+                                                          "key":  "reliability",
+                                                          "value":  0.89
+                                                      },
+                                                      {
+                                                          "key":  "tracking",
+                                                          "value":  0.95
+                                                      },
+                                                      {
+                                                          "key":  "utility",
+                                                          "value":  0.94
+                                                      }
+                                                  ]
+                          },
+                          {
+                              "id":  "Bastion",
+                              "flavor":  "Lower DPS, cooler operation, shorter range, high reliability.",
+                              "allowedFamilies":  [
+                                                      "BarrelEmitter",
+                                                      "Capacitor",
+                                                      "Cooling",
+                                                      "Mount",
+                                                      "Firmware",
+                                                      "Coil",
+                                                      "Regulator",
+                                                      "HeatSink",
+                                                      "Core"
+                                                  ],
+                              "statMultipliers":  [
+                                                      {
+                                                          "key":  "dps",
+                                                          "value":  0.9
+                                                      },
+                                                      {
+                                                          "key":  "alpha",
+                                                          "value":  0.94
+                                                      },
+                                                      {
+                                                          "key":  "range",
+                                                          "value":  0.9
+                                                      },
+                                                      {
+                                                          "key":  "heat",
+                                                          "value":  0.84
+                                                      },
+                                                      {
+                                                          "key":  "reliability",
+                                                          "value":  1.17
+                                                      },
+                                                      {
+                                                          "key":  "tracking",
+                                                          "value":  1.02
+                                                      },
+                                                      {
+                                                          "key":  "utility",
+                                                          "value":  1.04
+                                                      }
+                                                  ]
+                          },
+                          {
+                              "id":  "Vanta",
+                              "flavor":  "Burst/alpha specialist with cooldown pressure and stealth lean.",
+                              "allowedFamilies":  [
+                                                      "BarrelEmitter",
+                                                      "Capacitor",
+                                                      "Cooling",
+                                                      "Mount",
+                                                      "Firmware",
+                                                      "Coil",
+                                                      "Regulator",
+                                                      "HeatSink",
+                                                      "Core"
+                                                  ],
+                              "statMultipliers":  [
+                                                      {
+                                                          "key":  "dps",
+                                                          "value":  1.03
+                                                      },
+                                                      {
+                                                          "key":  "alpha",
+                                                          "value":  1.18
+                                                      },
+                                                      {
+                                                          "key":  "cycle_time",
+                                                          "value":  1.08
+                                                      },
+                                                      {
+                                                          "key":  "heat",
+                                                          "value":  1.02
+                                                      },
+                                                      {
+                                                          "key":  "reliability",
+                                                          "value":  0.93
+                                                      },
+                                                      {
+                                                          "key":  "stealth_reveal",
+                                                          "value":  1.11
+                                                      },
+                                                      {
+                                                          "key":  "utility",
+                                                          "value":  1.02
+                                                      }
+                                                  ]
+                          },
+                          {
+                              "id":  "Aurora",
+                              "flavor":  "Tracking/control utility profile with wider beam handling.",
+                              "allowedFamilies":  [
+                                                      "BarrelEmitter",
+                                                      "Capacitor",
+                                                      "Cooling",
+                                                      "Mount",
+                                                      "Firmware",
+                                                      "Coil",
+                                                      "Regulator",
+                                                      "HeatSink",
+                                                      "Core"
+                                                  ],
+                              "statMultipliers":  [
+                                                      {
+                                                          "key":  "dps",
+                                                          "value":  0.96
+                                                      },
+                                                      {
+                                                          "key":  "alpha",
+                                                          "value":  0.95
+                                                      },
+                                                      {
+                                                          "key":  "range",
+                                                          "value":  1.01
+                                                      },
+                                                      {
+                                                          "key":  "heat",
+                                                          "value":  0.95
+                                                      },
+                                                      {
+                                                          "key":  "reliability",
+                                                          "value":  1.04
+                                                      },
+                                                      {
+                                                          "key":  "tracking",
+                                                          "value":  1.16
+                                                      },
+                                                      {
+                                                          "key":  "utility",
+                                                          "value":  1.19
+                                                      }
+                                                  ]
+                          }
+                      ],
+    "marks":  [
+                  {
+                      "mark":  1,
+                      "label":  "Mk1",
+                      "qualityBandMin":  0.2,
+                      "qualityBandMax":  0.55
+                  },
+                  {
+                      "mark":  2,
+                      "label":  "Mk2",
+                      "qualityBandMin":  0.45,
+                      "qualityBandMax":  0.8
+                  },
+                  {
+                      "mark":  3,
+                      "label":  "Mk3",
+                      "qualityBandMin":  0.7,
+                      "qualityBandMax":  1
+                  }
+              ],
+    "parts":  [
+                  {
+                      "id":  "helios_barrelemitter_pack01",
+                      "family":  "BarrelEmitter",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "barrelemitter",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "dps",
+                                            "value":  12.96
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  19.95
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  7.776
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_capacitor_pack01",
+                      "family":  "Capacitor",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "capacitor",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "alpha",
+                                            "value":  15.75
+                                        },
+                                        {
+                                            "key":  "cycle_time",
+                                            "value":  1.02
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  5.076
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_cooling_pack01",
+                      "family":  "Cooling",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "cooling",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  4.104
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.856
+                                        },
+                                        {
+                                            "key":  "dps",
+                                            "value":  4.536
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_mount_pack01",
+                      "family":  "Mount",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "mount",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  5.828
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.846
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  5.04
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_firmware_pack01",
+                      "family":  "Firmware",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "firmware",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  6.58
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  4.75
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.828
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_barrelemitter_pack01",
+                      "family":  "BarrelEmitter",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "barrelemitter",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "dps",
+                                            "value":  11.4
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  17.67
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  6.192
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_capacitor_pack01",
+                      "family":  "Capacitor",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "capacitor",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "alpha",
+                                            "value":  14.4
+                                        },
+                                        {
+                                            "key":  "cycle_time",
+                                            "value":  0.98
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  4.042
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_cooling_pack01",
+                      "family":  "Cooling",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "cooling",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  3.268
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  1.023
+                                        },
+                                        {
+                                            "key":  "dps",
+                                            "value":  3.99
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_mount_pack01",
+                      "family":  "Mount",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "mount",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  6.324
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  1.012
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  4.464
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_firmware_pack01",
+                      "family":  "Firmware",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "firmware",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  7.14
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  5.2
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.99
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_barrelemitter_pack01",
+                      "family":  "BarrelEmitter",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "barrelemitter",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "dps",
+                                            "value":  12.24
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  18.81
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  7.344
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_capacitor_pack01",
+                      "family":  "Capacitor",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "capacitor",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "alpha",
+                                            "value":  16.8
+                                        },
+                                        {
+                                            "key":  "cycle_time",
+                                            "value":  1.07
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  4.794
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_cooling_pack01",
+                      "family":  "Cooling",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "cooling",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  3.876
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.874
+                                        },
+                                        {
+                                            "key":  "dps",
+                                            "value":  4.284
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_mount_pack01",
+                      "family":  "Mount",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "mount",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  6.138
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.865
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  4.752
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_firmware_pack01",
+                      "family":  "Firmware",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "firmware",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  6.93
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  5.15
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.846
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_barrelemitter_pack01",
+                      "family":  "BarrelEmitter",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "barrelemitter",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "dps",
+                                            "value":  11.64
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  19
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  6.84
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_capacitor_pack01",
+                      "family":  "Capacitor",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "capacitor",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "alpha",
+                                            "value":  14.25
+                                        },
+                                        {
+                                            "key":  "cycle_time",
+                                            "value":  0.99
+                                        },
+                                        {
+                                            "key":  "heat",
+                                            "value":  4.465
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_cooling_pack01",
+                      "family":  "Cooling",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "cooling",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "heat",
+                                            "value":  3.61
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.967
+                                        },
+                                        {
+                                            "key":  "dps",
+                                            "value":  4.074
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_mount_pack01",
+                      "family":  "Mount",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "mount",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  7.068
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.957
+                                        },
+                                        {
+                                            "key":  "range",
+                                            "value":  4.8
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_firmware_pack01",
+                      "family":  "Firmware",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "firmware",
+                                   "pack01"
+                               ],
+                      "baseStats":  [
+                                        {
+                                            "key":  "tracking",
+                                            "value":  7.98
+                                        },
+                                        {
+                                            "key":  "utility",
+                                            "value":  5.8
+                                        },
+                                        {
+                                            "key":  "reliability",
+                                            "value":  0.936
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  }
+              ],
+    "moduleFamilies":  [
+                           {
+                               "id":  "module.weapon.railgun",
+                               "model":  "Railgun",
+                               "requiredSlots":  [
+                                                     "barrel_emitter",
+                                                     "capacitor",
+                                                     "cooling",
+                                                     "mount",
+                                                     "firmware"
+                                                 ],
+                               "allowedManufacturers":  [
+                                                            "Helios",
+                                                            "Bastion",
+                                                            "Vanta",
+                                                            "Aurora"
+                                                        ],
+                               "baseStatsByMark":  [
+                                                       {
+                                                           "mark":  1,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  44
+                                                                         },
+                                                                         {
+                                                                             "key":  "range",
+                                                                             "value":  66
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  28
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  2,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  52
+                                                                         },
+                                                                         {
+                                                                             "key":  "range",
+                                                                             "value":  74
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  32
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  3,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  61
+                                                                         },
+                                                                         {
+                                                                             "key":  "range",
+                                                                             "value":  82
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  37
+                                                                         }
+                                                                     ]
+                                                       }
+                                                   ],
+                               "bomTemplate":  [
+                                                   {
+                                                       "slotId":  "barrel_emitter",
+                                                       "requiredFamily":  "BarrelEmitter",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "capacitor",
+                                                       "requiredFamily":  "Capacitor",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "cooling",
+                                                       "requiredFamily":  "Cooling",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "mount",
+                                                       "requiredFamily":  "Mount",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "firmware",
+                                                       "requiredFamily":  "Firmware",
+                                                       "quantity":  1
+                                                   }
+                                               ]
+                           },
+                           {
+                               "id":  "module.weapon.missile_pod",
+                               "model":  "MissilePod",
+                               "requiredSlots":  [
+                                                     "barrel_emitter",
+                                                     "capacitor",
+                                                     "cooling",
+                                                     "mount",
+                                                     "firmware"
+                                                 ],
+                               "allowedManufacturers":  [
+                                                            "Helios",
+                                                            "Bastion",
+                                                            "Vanta",
+                                                            "Aurora"
+                                                        ],
+                               "baseStatsByMark":  [
+                                                       {
+                                                           "mark":  1,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  39
+                                                                         },
+                                                                         {
+                                                                             "key":  "alpha",
+                                                                             "value":  69
+                                                                         },
+                                                                         {
+                                                                             "key":  "cycle_time",
+                                                                             "value":  1.2
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  2,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  47
+                                                                         },
+                                                                         {
+                                                                             "key":  "alpha",
+                                                                             "value":  81
+                                                                         },
+                                                                         {
+                                                                             "key":  "cycle_time",
+                                                                             "value":  1.1
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  3,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  56
+                                                                         },
+                                                                         {
+                                                                             "key":  "alpha",
+                                                                             "value":  94
+                                                                         },
+                                                                         {
+                                                                             "key":  "cycle_time",
+                                                                             "value":  1
+                                                                         }
+                                                                     ]
+                                                       }
+                                                   ],
+                               "bomTemplate":  [
+                                                   {
+                                                       "slotId":  "barrel_emitter",
+                                                       "requiredFamily":  "BarrelEmitter",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "capacitor",
+                                                       "requiredFamily":  "Capacitor",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "cooling",
+                                                       "requiredFamily":  "Cooling",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "mount",
+                                                       "requiredFamily":  "Mount",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "firmware",
+                                                       "requiredFamily":  "Firmware",
+                                                       "quantity":  1
+                                                   }
+                                               ]
+                           },
+                           {
+                               "id":  "module.weapon.flak_array",
+                               "model":  "FlakArray",
+                               "requiredSlots":  [
+                                                     "barrel_emitter",
+                                                     "capacitor",
+                                                     "cooling",
+                                                     "mount",
+                                                     "firmware"
+                                                 ],
+                               "allowedManufacturers":  [
+                                                            "Helios",
+                                                            "Bastion",
+                                                            "Vanta",
+                                                            "Aurora"
+                                                        ],
+                               "baseStatsByMark":  [
+                                                       {
+                                                           "mark":  1,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  35
+                                                                         },
+                                                                         {
+                                                                             "key":  "tracking",
+                                                                             "value":  72
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  21
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  2,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  42
+                                                                         },
+                                                                         {
+                                                                             "key":  "tracking",
+                                                                             "value":  78
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  24
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  3,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  50
+                                                                         },
+                                                                         {
+                                                                             "key":  "tracking",
+                                                                             "value":  85
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  27
+                                                                         }
+                                                                     ]
+                                                       }
+                                                   ],
+                               "bomTemplate":  [
+                                                   {
+                                                       "slotId":  "barrel_emitter",
+                                                       "requiredFamily":  "BarrelEmitter",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "capacitor",
+                                                       "requiredFamily":  "Capacitor",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "cooling",
+                                                       "requiredFamily":  "Cooling",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "mount",
+                                                       "requiredFamily":  "Mount",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "firmware",
+                                                       "requiredFamily":  "Firmware",
+                                                       "quantity":  1
+                                                   }
+                                               ]
+                           },
+                           {
+                               "id":  "module.weapon.plasma_projector",
+                               "model":  "PlasmaProjector",
+                               "requiredSlots":  [
+                                                     "barrel_emitter",
+                                                     "capacitor",
+                                                     "cooling",
+                                                     "mount",
+                                                     "firmware"
+                                                 ],
+                               "allowedManufacturers":  [
+                                                            "Helios",
+                                                            "Bastion",
+                                                            "Vanta",
+                                                            "Aurora"
+                                                        ],
+                               "baseStatsByMark":  [
+                                                       {
+                                                           "mark":  1,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  46
+                                                                         },
+                                                                         {
+                                                                             "key":  "range",
+                                                                             "value":  49
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  34
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  2,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  55
+                                                                         },
+                                                                         {
+                                                                             "key":  "range",
+                                                                             "value":  55
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  39
+                                                                         }
+                                                                     ]
+                                                       },
+                                                       {
+                                                           "mark":  3,
+                                                           "stats":  [
+                                                                         {
+                                                                             "key":  "dps",
+                                                                             "value":  65
+                                                                         },
+                                                                         {
+                                                                             "key":  "range",
+                                                                             "value":  61
+                                                                         },
+                                                                         {
+                                                                             "key":  "heat",
+                                                                             "value":  44
+                                                                         }
+                                                                     ]
+                                                       }
+                                                   ],
+                               "bomTemplate":  [
+                                                   {
+                                                       "slotId":  "barrel_emitter",
+                                                       "requiredFamily":  "BarrelEmitter",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "capacitor",
+                                                       "requiredFamily":  "Capacitor",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "cooling",
+                                                       "requiredFamily":  "Cooling",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "mount",
+                                                       "requiredFamily":  "Mount",
+                                                       "quantity":  1
+                                                   },
+                                                   {
+                                                       "slotId":  "firmware",
+                                                       "requiredFamily":  "Firmware",
+                                                       "quantity":  1
+                                                   }
+                                               ]
+                           }
+                       ]
+}

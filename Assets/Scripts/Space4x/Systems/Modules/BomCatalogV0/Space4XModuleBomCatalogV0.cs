@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -9,11 +10,21 @@ namespace Space4X.Systems.Modules.Bom
     {
         public int schemaVersion = 1;
         public string catalogId = string.Empty;
+        public Space4XAffixPools affixPools = new();
         public Space4XPartFamilyDefinition[] partFamilies = Array.Empty<Space4XPartFamilyDefinition>();
         public Space4XManufacturerDefinition[] manufacturers = Array.Empty<Space4XManufacturerDefinition>();
         public Space4XMarkDefinition[] marks = Array.Empty<Space4XMarkDefinition>();
         public Space4XPartDefinition[] parts = Array.Empty<Space4XPartDefinition>();
         public Space4XModuleFamilyDefinition[] moduleFamilies = Array.Empty<Space4XModuleFamilyDefinition>();
+    }
+
+    [Serializable]
+    public sealed class Space4XAffixPools
+    {
+        public string[] lowPrefixes = Array.Empty<string>();
+        public string[] midPrefixes = Array.Empty<string>();
+        public string[] highPrefixes = Array.Empty<string>();
+        public string[] suffixes = Array.Empty<string>();
     }
 
     [Serializable]
@@ -99,9 +110,22 @@ namespace Space4X.Systems.Modules.Bom
     public static class Space4XModuleBomCatalogV0Loader
     {
         public const string DefaultCatalogRelativePath = "Assets/Data/Catalogs/space4x_module_bom_catalog_v0.json";
+        public const string CatalogPackRelativeDirectory = "Assets/Modules/Catalogs";
 
         public static bool TryLoadDefault(out Space4XModuleBomCatalogV0 catalog, out string resolvedPath, out string error)
         {
+            var directoryPath = ResolveCatalogPackDirectory();
+            if (Directory.Exists(directoryPath))
+            {
+                var files = Directory.GetFiles(directoryPath, "*.json", SearchOption.TopDirectoryOnly);
+                Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+                if (files.Length > 0)
+                {
+                    resolvedPath = directoryPath;
+                    return TryLoadFromDirectory(directoryPath, out catalog, out error);
+                }
+            }
+
             resolvedPath = ResolveDefaultCatalogPath();
             return TryLoadFromPath(resolvedPath, out catalog, out error);
         }
@@ -118,7 +142,79 @@ namespace Space4X.Systems.Modules.Bom
             return Path.Combine(projectRoot, "Assets", "Data", "Catalogs", "space4x_module_bom_catalog_v0.json");
         }
 
+        public static string ResolveCatalogPackDirectory()
+        {
+            var inProject = Path.Combine(Application.dataPath, "Modules", "Catalogs");
+            if (Directory.Exists(inProject))
+            {
+                return inProject;
+            }
+
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            return Path.Combine(projectRoot, "Assets", "Modules", "Catalogs");
+        }
+
+        public static bool TryLoadFromDirectory(string directoryPath, out Space4XModuleBomCatalogV0 catalog, out string error)
+        {
+            catalog = null;
+            error = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(directoryPath))
+            {
+                error = "catalog directory missing";
+                return false;
+            }
+
+            if (!Directory.Exists(directoryPath))
+            {
+                error = $"catalog directory missing: {directoryPath}";
+                return false;
+            }
+
+            var files = Directory.GetFiles(directoryPath, "*.json", SearchOption.TopDirectoryOnly);
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+            if (files.Length == 0)
+            {
+                error = $"catalog directory has no json files: {directoryPath}";
+                return false;
+            }
+
+            var merged = new Space4XModuleBomCatalogV0();
+            var sawAny = false;
+            for (var i = 0; i < files.Length; i++)
+            {
+                if (!TryLoadFromPathInternal(files[i], requireContent: false, out var partial, out var loadError))
+                {
+                    error = $"catalog load failed for {files[i]}: {loadError}";
+                    return false;
+                }
+
+                if (partial == null)
+                {
+                    continue;
+                }
+
+                MergeCatalog(merged, partial);
+                sawAny = true;
+            }
+
+            NormalizeArrays(merged);
+            if (!sawAny || merged.parts.Length == 0 || merged.moduleFamilies.Length == 0)
+            {
+                error = $"merged catalog from {directoryPath} has no parts or moduleFamilies";
+                return false;
+            }
+
+            catalog = merged;
+            return true;
+        }
+
         public static bool TryLoadFromPath(string path, out Space4XModuleBomCatalogV0 catalog, out string error)
+        {
+            return TryLoadFromPathInternal(path, requireContent: true, out catalog, out error);
+        }
+
+        private static bool TryLoadFromPathInternal(string path, bool requireContent, out Space4XModuleBomCatalogV0 catalog, out string error)
         {
             catalog = null;
             error = string.Empty;
@@ -152,7 +248,7 @@ namespace Space4X.Systems.Modules.Bom
                     return false;
                 }
 
-                if (loaded.parts.Length == 0 || loaded.moduleFamilies.Length == 0)
+                if (requireContent && (loaded.parts.Length == 0 || loaded.moduleFamilies.Length == 0))
                 {
                     error = "catalog must define parts and moduleFamilies";
                     return false;
@@ -168,9 +264,113 @@ namespace Space4X.Systems.Modules.Bom
             }
         }
 
+        private static void MergeCatalog(Space4XModuleBomCatalogV0 target, Space4XModuleBomCatalogV0 source)
+        {
+            if (target == null || source == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(target.catalogId) && !string.IsNullOrWhiteSpace(source.catalogId))
+            {
+                target.catalogId = source.catalogId;
+            }
+
+            target.schemaVersion = source.schemaVersion;
+            target.partFamilies = MergeById(target.partFamilies, source.partFamilies, x => x?.id);
+            target.manufacturers = MergeById(target.manufacturers, source.manufacturers, x => x?.id);
+            target.marks = MergeById(target.marks, source.marks, x => x?.mark.ToString());
+            target.parts = MergeById(target.parts, source.parts, x => x?.id);
+            target.moduleFamilies = MergeById(target.moduleFamilies, source.moduleFamilies, x => x?.id);
+
+            target.affixPools.lowPrefixes = MergeStrings(target.affixPools.lowPrefixes, source.affixPools?.lowPrefixes);
+            target.affixPools.midPrefixes = MergeStrings(target.affixPools.midPrefixes, source.affixPools?.midPrefixes);
+            target.affixPools.highPrefixes = MergeStrings(target.affixPools.highPrefixes, source.affixPools?.highPrefixes);
+            target.affixPools.suffixes = MergeStrings(target.affixPools.suffixes, source.affixPools?.suffixes);
+        }
+
+        private static T[] MergeById<T>(T[] a, T[] b, Func<T, string> idSelector)
+        {
+            var merged = new List<T>((a?.Length ?? 0) + (b?.Length ?? 0));
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (a != null)
+            {
+                for (var i = 0; i < a.Length; i++)
+                {
+                    var item = a[i];
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    var id = idSelector(item);
+                    if (string.IsNullOrWhiteSpace(id) || ids.Add(id))
+                    {
+                        merged.Add(item);
+                    }
+                }
+            }
+
+            if (b != null)
+            {
+                for (var i = 0; i < b.Length; i++)
+                {
+                    var item = b[i];
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    var id = idSelector(item);
+                    if (string.IsNullOrWhiteSpace(id) || ids.Add(id))
+                    {
+                        merged.Add(item);
+                    }
+                }
+            }
+
+            return merged.ToArray();
+        }
+
+        private static string[] MergeStrings(string[] a, string[] b)
+        {
+            var merged = new List<string>((a?.Length ?? 0) + (b?.Length ?? 0));
+            var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            AddStrings(a, merged, values);
+            AddStrings(b, merged, values);
+
+            return merged.ToArray();
+        }
+
+        private static void AddStrings(string[] source, List<string> target, HashSet<string> seen)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < source.Length; i++)
+            {
+                var value = source[i];
+                if (string.IsNullOrWhiteSpace(value) || !seen.Add(value))
+                {
+                    continue;
+                }
+
+                target.Add(value);
+            }
+        }
+
         private static void NormalizeArrays(Space4XModuleBomCatalogV0 catalog)
         {
             catalog.catalogId ??= string.Empty;
+            catalog.affixPools ??= new Space4XAffixPools();
+            catalog.affixPools.lowPrefixes ??= Array.Empty<string>();
+            catalog.affixPools.midPrefixes ??= Array.Empty<string>();
+            catalog.affixPools.highPrefixes ??= Array.Empty<string>();
+            catalog.affixPools.suffixes ??= Array.Empty<string>();
             catalog.partFamilies ??= Array.Empty<Space4XPartFamilyDefinition>();
             catalog.manufacturers ??= Array.Empty<Space4XManufacturerDefinition>();
             catalog.marks ??= Array.Empty<Space4XMarkDefinition>();
