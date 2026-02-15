@@ -1,0 +1,745 @@
+﻿{
+    "schemaVersion":  1,
+    "catalogId":  "space4x.modules.bom.pack03",
+    "affixPools":  {
+                       "lowPrefixes":  [
+                                           "Scavenged",
+                                           "Dockside",
+                                           "Recovered"
+                                       ],
+                       "midPrefixes":  [
+                                           "Fleetline",
+                                           "Vector-Tuned",
+                                           "Siege-Fit"
+                                       ],
+                       "highPrefixes":  [
+                                            "Sovereign",
+                                            "Relic-Grade",
+                                            "Overclocked"
+                                        ],
+                       "suffixes":  [
+                                        "of Ember",
+                                        "of Bulwark",
+                                        "of Phantom",
+                                        "of Guidance"
+                                    ]
+                   },
+    "partFamilies":  [
+
+                     ],
+    "manufacturers":  [
+
+                      ],
+    "marks":  [
+
+              ],
+    "parts":  [
+                  {
+                      "id":  "helios_prismcooling_pack03",
+                      "family":  "Cooling",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "cooling",
+                                   "pack03",
+                                   "module.plasma_projector"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_longbarrel_pack03",
+                      "family":  "BarrelEmitter",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "barrelemitter",
+                                   "pack03",
+                                   "module.railgun"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_fluxcapacitor_pack03",
+                      "family":  "Capacitor",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "capacitor",
+                                   "pack03",
+                                   "module.missile_pod"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "helios_beamfirmware_pack03",
+                      "family":  "Firmware",
+                      "manufacturer":  "Helios",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "helios",
+                                   "firmware",
+                                   "pack03",
+                                   "module.plasma_projector"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_ceramicheatsink_pack03",
+                      "family":  "HeatSink",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "heatsink",
+                                   "pack03",
+                                   "module.shield_generator"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_guardmount_pack03",
+                      "family":  "Mount",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "mount",
+                                   "pack03",
+                                   "module.flak_array"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_stableregulator_pack03",
+                      "family":  "Regulator",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "regulator",
+                                   "pack03",
+                                   "module.shield_generator"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "bastion_densecoil_pack03",
+                      "family":  "Coil",
+                      "manufacturer":  "Bastion",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "bastion",
+                                   "coil",
+                                   "pack03",
+                                   "module.shield_generator"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_ambushcapacitor_pack03",
+                      "family":  "Capacitor",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "capacitor",
+                                   "pack03",
+                                   "module.missile_pod"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_shadowfirmware_pack03",
+                      "family":  "Firmware",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "firmware",
+                                   "pack03",
+                                   "module.scanner_suite"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_fastrackmount_pack03",
+                      "family":  "Mount",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "mount",
+                                   "pack03",
+                                   "module.railgun"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "vanta_probecore_pack03",
+                      "family":  "Core",
+                      "manufacturer":  "Vanta",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "vanta",
+                                   "core",
+                                   "pack03",
+                                   "module.scanner_suite"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_vectorfirmware_pack03",
+                      "family":  "Firmware",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "firmware",
+                                   "pack03",
+                                   "module.flak_array"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_widemount_pack03",
+                      "family":  "Mount",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "mount",
+                                   "pack03",
+                                   "module.plasma_projector"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_lensingbarrel_pack03",
+                      "family":  "BarrelEmitter",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "barrelemitter",
+                                   "pack03",
+                                   "module.scanner_suite"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  },
+                  {
+                      "id":  "aurora_stabilcoil_pack03",
+                      "family":  "Coil",
+                      "manufacturer":  "Aurora",
+                      "markMin":  1,
+                      "markMax":  3,
+                      "tags":  [
+                                   "aurora",
+                                   "coil",
+                                   "pack03",
+                                   "module.shield_generator"
+                               ],
+                      "baseStats":  [
+                                        {
+
+                                        },
+                                        {
+
+                                        },
+                                        {
+
+                                        }
+                                    ],
+                      "qualityTierRules":  [
+                                               {
+                                                   "tier":  "Standard",
+                                                   "min":  0,
+                                                   "max":  0.59,
+                                                   "scalar":  1
+                                               },
+                                               {
+                                                   "tier":  "Refined",
+                                                   "min":  0.6,
+                                                   "max":  0.84,
+                                                   "scalar":  1.06
+                                               },
+                                               {
+                                                   "tier":  "Prime",
+                                                   "min":  0.85,
+                                                   "max":  1,
+                                                   "scalar":  1.12
+                                               }
+                                           ]
+                  }
+              ],
+    "moduleFamilies":  [
+
+                       ]
+}
