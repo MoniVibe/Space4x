@@ -104,7 +104,7 @@ namespace Space4X.Headless
             if (shouldSnapshot && _qualitySnapshotLogged == 0)
             {
                 _qualitySnapshotLogged = 1;
-                Debug.Log(
+                global::UnityEngine.Debug.Log(
                     $"[ModulesQualityMicro] tick={time.Tick} low_module={lowModuleQuality:0.000} high_module={highModuleQuality:0.000} " +
                     $"low_install={lowInstallQuality:0.000} high_install={highInstallQuality:0.000}");
             }
@@ -112,7 +112,7 @@ namespace Space4X.Headless
             if (shouldFinalize && _qualityFinalLogged == 0)
             {
                 _qualityFinalLogged = 1;
-                Debug.Log(
+                global::UnityEngine.Debug.Log(
                     $"[ModulesQualityMicro] final tick={time.Tick} delta_module={deltaModule:0.000} " +
                     $"delta_install={deltaInstall:0.000} pass={(pass ? 1 : 0)} digest={digest}");
             }
@@ -177,7 +177,7 @@ namespace Space4X.Headless
             if (shouldSnapshot && _flavorSnapshotLogged == 0)
             {
                 _flavorSnapshotLogged = 1;
-                Debug.Log(
+                global::UnityEngine.Debug.Log(
                     $"[ModulesFlavorMicro] tick={time.Tick} helios_dps={heliosDps:0.0} bastion_dps={bastionDps:0.0} " +
                     $"helios_heat={heliosHeat:0.0} bastion_heat={bastionHeat:0.0}");
             }
@@ -185,7 +185,7 @@ namespace Space4X.Headless
             if (shouldFinalize && _flavorFinalLogged == 0)
             {
                 _flavorFinalLogged = 1;
-                Debug.Log(
+                global::UnityEngine.Debug.Log(
                     $"[ModulesFlavorMicro] final tick={time.Tick} dps_delta={deltaDps:0.0} heat_delta={deltaHeat:0.0} " +
                     $"range_delta={deltaRange:0.0} reliability_delta={deltaReliability:0.000} pass={(pass ? 1 : 0)} digest={digest}");
             }
