@@ -1,0 +1,21 @@
+{
+  "scenarioId": "space4x_module_pipeline_micro",
+  "seed": 45011,
+  "duration_s": 25,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.modules.pipeline_completion",
+        "required": true
+      },
+      {
+        "id": "space4x.q.modules.determinism_digest",
+        "required": true
+      }
+    ]
+  },
+  "spawn": []
+}
