@@ -158,3 +158,81 @@ Name = ``Manufacturer + Mk + Model + Prefix + Suffix``
 | 29 | Helios Mk2 ShieldGenerator Veteran Bastion | `module.defense.shield_generator` | shield_hp=430; regen=18; reliability=0.86 |
 | 30 | Bastion Mk3 ScannerSuite Masterwork Ward | `module.utility.scanner_suite` | sensor_range=120; tracking=51; utility=63.44 |
 
+
+
+
+## Pack03 Expansion
+- Added `modules_bom_catalog_pack03.json` with 16 new signature parts across weapon/support slot families for Railgun, MissilePod, FlakArray, PlasmaProjector, ShieldGenerator, and ScannerSuite loadouts.
+- Added 13 affixes: 3 low, 3 mid, 3 high prefixes and 4 suffixes.
+- Pack03 is additive-only and merges after pack02 by filename sort.
+
+### Pack03 Affixes
+- Low: Scavenged, Dockside, Recovered
+- Mid: Fleetline, Vector-Tuned, Siege-Fit
+- High: Sovereign, Relic-Grade, Overclocked
+- Suffix: of Ember, of Bulwark, of Phantom, of Guidance
+
+### Deterministic Seed Set
+- Helios: 51001-51010
+- Bastion: 52001-52010
+- Vanta: 53001-53010
+- Aurora: 54001-54010
+
+### 40 Pack03 Example Names (10 per manufacturer)
+#### Helios
+| # | Seed | Name | Key Stats |
+| --- | --- | --- | --- |
+| 1 | 51001 | Helios Mk2 Railgun Vector-Tuned of Bulwark | dps=59.8; heat=36.16; reliability=0.801 |
+| 2 | 51002 | Helios Mk3 MissilePod Overclocked of Guidance | dps=54.05; heat=29.38; reliability=0.81 |
+| 3 | 51003 | Helios Mk1 FlakArray Scavenged of Bulwark | dps=48.3; heat=27.12; reliability=0.819 |
+| 4 | 51004 | Helios Mk2 PlasmaProjector Vector-Tuned of Guidance | dps=63.25; heat=44.07; reliability=0.783 |
+| 5 | 51005 | Helios Mk3 ShieldGenerator Overclocked of Bulwark | utility=56.4; reliability=0.863; heat=15.82 |
+| 6 | 51006 | Helios Mk1 ScannerSuite Scavenged of Guidance | utility=67.68; reliability=0.845; heat=11.3 |
+| 7 | 51007 | Helios Mk2 Railgun Vector-Tuned of Bulwark | dps=59.8; heat=36.16; reliability=0.801 |
+| 8 | 51008 | Helios Mk3 MissilePod Overclocked of Guidance | dps=54.05; heat=29.38; reliability=0.81 |
+| 9 | 51009 | Helios Mk1 FlakArray Scavenged of Bulwark | dps=48.3; heat=27.12; reliability=0.819 |
+| 10 | 51010 | Helios Mk2 PlasmaProjector Vector-Tuned of Guidance | dps=63.25; heat=44.07; reliability=0.783 |
+
+#### Bastion
+| # | Seed | Name | Key Stats |
+| --- | --- | --- | --- |
+| 1 | 52001 | Bastion Mk3 Railgun Overclocked of Bulwark | dps=46.8; heat=26.88; reliability=1.053 |
+| 2 | 52002 | Bastion Mk1 MissilePod Scavenged of Guidance | dps=42.3; heat=21.84; reliability=1.065 |
+| 3 | 52003 | Bastion Mk2 FlakArray Vector-Tuned of Bulwark | dps=37.8; heat=20.16; reliability=1.076 |
+| 4 | 52004 | Bastion Mk3 PlasmaProjector Overclocked of Guidance | dps=49.5; heat=32.76; reliability=1.03 |
+| 5 | 52005 | Bastion Mk1 ShieldGenerator Scavenged of Bulwark | utility=62.4; reliability=1.135; heat=11.76 |
+| 6 | 52006 | Bastion Mk2 ScannerSuite Vector-Tuned of Guidance | utility=74.88; reliability=1.112; heat=8.4 |
+| 7 | 52007 | Bastion Mk3 Railgun Overclocked of Bulwark | dps=46.8; heat=26.88; reliability=1.053 |
+| 8 | 52008 | Bastion Mk1 MissilePod Scavenged of Guidance | dps=42.3; heat=21.84; reliability=1.065 |
+| 9 | 52009 | Bastion Mk2 FlakArray Vector-Tuned of Bulwark | dps=37.8; heat=20.16; reliability=1.076 |
+| 10 | 52010 | Bastion Mk3 PlasmaProjector Overclocked of Guidance | dps=49.5; heat=32.76; reliability=1.03 |
+
+#### Vanta
+| # | Seed | Name | Key Stats |
+| --- | --- | --- | --- |
+| 1 | 53001 | Vanta Mk1 Railgun Scavenged of Bulwark | dps=53.56; heat=32.64; reliability=0.837 |
+| 2 | 53002 | Vanta Mk2 MissilePod Vector-Tuned of Guidance | dps=48.41; heat=26.52; reliability=0.846 |
+| 3 | 53003 | Vanta Mk3 FlakArray Overclocked of Bulwark | dps=43.26; heat=24.48; reliability=0.856 |
+| 4 | 53004 | Vanta Mk1 PlasmaProjector Scavenged of Guidance | dps=56.65; heat=39.78; reliability=0.818 |
+| 5 | 53005 | Vanta Mk2 ShieldGenerator Vector-Tuned of Bulwark | utility=61.2; reliability=0.902; heat=14.28 |
+| 6 | 53006 | Vanta Mk3 ScannerSuite Overclocked of Guidance | utility=73.44; reliability=0.884; heat=10.2 |
+| 7 | 53007 | Vanta Mk1 Railgun Scavenged of Bulwark | dps=53.56; heat=32.64; reliability=0.837 |
+| 8 | 53008 | Vanta Mk2 MissilePod Vector-Tuned of Guidance | dps=48.41; heat=26.52; reliability=0.846 |
+| 9 | 53009 | Vanta Mk3 FlakArray Overclocked of Bulwark | dps=43.26; heat=24.48; reliability=0.856 |
+| 10 | 53010 | Vanta Mk1 PlasmaProjector Scavenged of Guidance | dps=56.65; heat=39.78; reliability=0.818 |
+
+#### Aurora
+| # | Seed | Name | Key Stats |
+| --- | --- | --- | --- |
+| 1 | 54001 | Aurora Mk2 Railgun Vector-Tuned of Bulwark | dps=49.92; heat=30.4; reliability=0.936 |
+| 2 | 54002 | Aurora Mk3 MissilePod Overclocked of Guidance | dps=45.12; heat=24.7; reliability=0.946 |
+| 3 | 54003 | Aurora Mk1 FlakArray Scavenged of Bulwark | dps=40.32; heat=22.8; reliability=0.957 |
+| 4 | 54004 | Aurora Mk2 PlasmaProjector Vector-Tuned of Guidance | dps=52.8; heat=37.05; reliability=0.915 |
+| 5 | 54005 | Aurora Mk3 ShieldGenerator Overclocked of Bulwark | utility=71.4; reliability=1.009; heat=13.3 |
+| 6 | 54006 | Aurora Mk1 ScannerSuite Scavenged of Guidance | utility=85.68; reliability=0.988; heat=9.5 |
+| 7 | 54007 | Aurora Mk2 Railgun Vector-Tuned of Bulwark | dps=49.92; heat=30.4; reliability=0.936 |
+| 8 | 54008 | Aurora Mk3 MissilePod Overclocked of Guidance | dps=45.12; heat=24.7; reliability=0.946 |
+| 9 | 54009 | Aurora Mk1 FlakArray Scavenged of Bulwark | dps=40.32; heat=22.8; reliability=0.957 |
+| 10 | 54010 | Aurora Mk2 PlasmaProjector Vector-Tuned of Guidance | dps=52.8; heat=37.05; reliability=0.915 |
+
+
