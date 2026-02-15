@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_profilebias_nav_micro",
   "seed": 41031,
-  "duration_s": 20,
+  "duration_s": 4,
   "proofs": {
     "mining": false
   },

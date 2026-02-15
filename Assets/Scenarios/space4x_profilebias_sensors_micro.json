@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_profilebias_sensors_micro",
   "seed": 41032,
-  "duration_s": 24,
+  "duration_s": 6,
   "proofs": {
     "mining": false
   },
@@ -80,7 +80,7 @@
   ],
   "actions": [
     {
-      "time_s": 8.0,
+      "time_s": 1.5,
       "kind": "MoveFleet",
       "fleetId": "PB-SENS-TGT",
       "targetPosition": [1500, 0],
