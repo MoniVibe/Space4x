@@ -178,7 +178,7 @@ namespace Space4X.Modules.PipelineV0
             var runtime = SystemAPI.GetSingleton<Space4XScenarioRuntime>();
             var dt = math.max(1e-4f, SystemAPI.GetSingleton<TimeState>().FixedDeltaTime > 0f ? SystemAPI.GetSingleton<TimeState>().FixedDeltaTime : (1f / 60f));
             var expected = runtime.StartTick + (uint)math.max(1f, math.ceil(runtime.DurationSeconds / dt));
-            Debug.Log($"[ModulePipelineV0] expected_end_tick={expected} duration_s={runtime.DurationSeconds:0.###} fixed_dt={dt:0.######}");
+            global::UnityEngine.Debug.Log($"[ModulePipelineV0] expected_end_tick={expected} duration_s={runtime.DurationSeconds:0.###} fixed_dt={dt:0.######}");
             _done = 1;
         }
 
