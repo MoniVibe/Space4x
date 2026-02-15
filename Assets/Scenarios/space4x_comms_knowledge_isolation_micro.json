@@ -1,0 +1,90 @@
+{
+  "scenarioId": "space4x_comms_knowledge_isolation_micro",
+  "seed": 12031,
+  "duration_s": 20,
+  "proofs": {
+    "mining": false
+  },
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyMotionTuning": true,
+    "applyMotionProfile": true,
+    "applyFloatingOrigin": true,
+    "disableLegacyMining": true,
+    "disableLegacyPatrol": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.comms.knowledge_isolation",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "comms-ki-observer",
+      "position": [0, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "COMMS-KI-OBS",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "comms-ki-ally",
+      "position": [420, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "COMMS-KI-ALLY",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": false,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "comms-ki-target",
+      "position": [140, 0],
+      "components": {
+        "Fleet": {
+          "fleetId": "COMMS-KI-TGT",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": false,
+          "interceptSpeed": 8.0,
+          "isHostile": true,
+          "strikeCraftCount": 0,
+          "escortCount": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 12,
+      "kind": "MoveFleet",
+      "fleetId": "COMMS-KI-TGT",
+      "targetPosition": [-520, 0],
+      "description": "target drifts away after comms isolation window"
+    }
+  ]
+}
