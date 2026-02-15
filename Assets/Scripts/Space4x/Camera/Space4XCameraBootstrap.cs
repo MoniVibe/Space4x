@@ -121,6 +121,11 @@ namespace Space4X.Camera
                 rigController.TargetCamera = unityCamera;
             }
 
+            if (cameraGameObject.GetComponent<Space4XCameraHudOverlay>() == null)
+            {
+                cameraGameObject.AddComponent<Space4XCameraHudOverlay>();
+            }
+
             var placeholder = cameraGameObject.GetComponent<Space4XCameraPlaceholder>();
             if (placeholder != null)
             {
