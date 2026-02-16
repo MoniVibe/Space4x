@@ -58,7 +58,7 @@ namespace Space4X.Presentation
             SpawnMissingStrikeCraftProxies(ref state, config, ref ecb);
         }
 
-        private static bool IsScenarioSupported(ref SystemState state, in Space4XSpectatorRenderBridgeConfig config)
+        private bool IsScenarioSupported(ref SystemState state, in Space4XSpectatorRenderBridgeConfig config)
         {
             if (config.OnlyCapitalBattleScenarios == 0)
             {
@@ -74,7 +74,7 @@ namespace Space4X.Presentation
             return scenarioId.Equals(Capital20v20ScenarioId) || scenarioId.Equals(Capital100v100ScenarioId);
         }
 
-        private static void CleanupAllProxies(ref SystemState state)
+        private void CleanupAllProxies(ref SystemState state)
         {
             var em = state.EntityManager;
             var endEcb = state.World.GetOrCreateSystemManaged<EndPresentationECBSystem>();
@@ -101,7 +101,7 @@ namespace Space4X.Presentation
             }
         }
 
-        private static void CleanupDanglingLinks(ref SystemState state, ref EntityCommandBuffer ecb)
+        private void CleanupDanglingLinks(ref SystemState state, ref EntityCommandBuffer ecb)
         {
             var em = state.EntityManager;
             foreach (var (link, entity) in SystemAPI.Query<RefRO<RenderProxyLink>>().WithAll<Carrier>().WithEntityAccess())
@@ -123,7 +123,7 @@ namespace Space4X.Presentation
             }
         }
 
-        private static void CleanupOrphanedProxies(ref SystemState state, ref EntityCommandBuffer ecb)
+        private void CleanupOrphanedProxies(ref SystemState state, ref EntityCommandBuffer ecb)
         {
             var em = state.EntityManager;
             foreach (var (source, entity) in SystemAPI.Query<RefRO<RenderProxySource>>().WithAll<RenderProxyTag>().WithEntityAccess())
@@ -156,7 +156,7 @@ namespace Space4X.Presentation
             }
         }
 
-        private static void SpawnMissingCarrierProxies(
+        private void SpawnMissingCarrierProxies(
             ref SystemState state,
             in Space4XSpectatorRenderBridgeConfig config,
             ref EntityCommandBuffer ecb)
@@ -173,7 +173,7 @@ namespace Space4X.Presentation
             }
         }
 
-        private static void SpawnMissingStrikeCraftProxies(
+        private void SpawnMissingStrikeCraftProxies(
             ref SystemState state,
             in Space4XSpectatorRenderBridgeConfig config,
             ref EntityCommandBuffer ecb)
@@ -190,7 +190,7 @@ namespace Space4X.Presentation
             }
         }
 
-        private static void SpawnProxyForSource(
+        private void SpawnProxyForSource(
             ref SystemState state,
             Entity source,
             in LocalTransform sourceTransform,
@@ -239,7 +239,7 @@ namespace Space4X.Presentation
             return 0;
         }
 
-        private static void AddRenderComponents(
+        private void AddRenderComponents(
             ref EntityCommandBuffer ecb,
             Entity entity,
             SpectatorRenderProxyKind kind,
