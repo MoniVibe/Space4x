@@ -16,6 +16,7 @@ using Space4X.Registry;
 using Space4X.Physics;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
@@ -456,7 +457,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public BufferLookup<DepartmentStatsBuffer> DepartmentStatsLookup;
             [ReadOnly] public ComponentLookup<TargetPriority> PriorityLookup;
-            [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] public ComponentLookup<LocalTransform> TargetTransformLookup;
             [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
             [ReadOnly] public BufferLookup<WeaponMountBuffer> WeaponLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;

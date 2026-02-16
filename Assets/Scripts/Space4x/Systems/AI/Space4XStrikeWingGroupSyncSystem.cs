@@ -91,27 +91,7 @@ namespace Space4X.Systems.AI
                 formationConfig = formationSingleton;
             }
 
-            _entityInfoLookup.Update(ref state);
-            _groupTagLookup.Update(ref state);
-            _groupMetaLookup.Update(ref state);
-            _groupFormationLookup.Update(ref state);
-            _groupFormationSpreadLookup.Update(ref state);
-            _cohesionProfileLookup.Update(ref state);
-            _cohesionStateLookup.Update(ref state);
-            _stanceLookup.Update(ref state);
-            _threatLookup.Update(ref state);
-            _intentLookup.Update(ref state);
-            _plannerLookup.Update(ref state);
-            _wingFormationStateLookup.Update(ref state);
-            _wingGroupSyncStateLookup.Update(ref state);
-            _localTransformLookup.Update(ref state);
-            _squadTacticLookup.Update(ref state);
-            _formationStateLookup.Update(ref state);
-            _membershipLookup.Update(ref state);
-            _commsOutboxLookup.Update(ref state);
-            _groupMemberLookup.Update(ref state);
-            _anchorRefLookup.Update(ref state);
-            _formationSlotLookup.Update(ref state);
+            UpdateLookups(ref state);
 
             var craftQuery = SystemAPI.QueryBuilder().WithAll<StrikeCraftProfile>().Build();
             var craftCount = craftQuery.CalculateEntityCount();
@@ -144,7 +124,9 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                UpdateLookups(ref state);
                 EnsureGroupScaffold(leader, wingDecisionConfig.MaxWingSize, defaults, ref state);
+                UpdateLookups(ref state);
                 SyncGroupMembers(ref state, leader, leaderMembers, timeState.Tick);
             }
 
@@ -153,6 +135,31 @@ namespace Space4X.Systems.AI
             leaders.Dispose();
             leaderMembers.Dispose();
             leaderSet.Dispose();
+        }
+
+        private void UpdateLookups(ref SystemState state)
+        {
+            _entityInfoLookup.Update(ref state);
+            _groupTagLookup.Update(ref state);
+            _groupMetaLookup.Update(ref state);
+            _groupFormationLookup.Update(ref state);
+            _groupFormationSpreadLookup.Update(ref state);
+            _cohesionProfileLookup.Update(ref state);
+            _cohesionStateLookup.Update(ref state);
+            _stanceLookup.Update(ref state);
+            _threatLookup.Update(ref state);
+            _intentLookup.Update(ref state);
+            _plannerLookup.Update(ref state);
+            _wingFormationStateLookup.Update(ref state);
+            _wingGroupSyncStateLookup.Update(ref state);
+            _localTransformLookup.Update(ref state);
+            _squadTacticLookup.Update(ref state);
+            _formationStateLookup.Update(ref state);
+            _membershipLookup.Update(ref state);
+            _commsOutboxLookup.Update(ref state);
+            _groupMemberLookup.Update(ref state);
+            _anchorRefLookup.Update(ref state);
+            _formationSlotLookup.Update(ref state);
         }
 
         private void EnsureGroupScaffold(
@@ -166,21 +173,24 @@ namespace Space4X.Systems.AI
                 return;
             }
 
-            if (!_groupTagLookup.HasComponent(leader))
-            {
-                state.EntityManager.AddComponent<GroupTag>(leader);
-            }
+            var hasGroupTag = _groupTagLookup.HasComponent(leader);
+            var hasGroupMeta = _groupMetaLookup.HasComponent(leader);
+            var hasGroupFormation = _groupFormationLookup.HasComponent(leader);
+            var hasGroupFormationSpread = _groupFormationSpreadLookup.HasComponent(leader);
+            var hasCohesionProfile = _cohesionProfileLookup.HasComponent(leader);
+            var hasCohesionState = _cohesionStateLookup.HasComponent(leader);
+            var hasStance = _stanceLookup.HasComponent(leader);
+            var hasThreat = _threatLookup.HasComponent(leader);
+            var hasIntent = _intentLookup.HasComponent(leader);
+            var hasPlanner = _plannerLookup.HasComponent(leader);
+            var hasCommsOutbox = _commsOutboxLookup.HasBuffer(leader);
+            var hasGroupMemberBuffer = _groupMemberLookup.HasBuffer(leader);
+            var hasWingFormationState = _wingFormationStateLookup.HasComponent(leader);
+            var hasWingGroupSyncState = _wingGroupSyncStateLookup.HasComponent(leader);
+            var hasAnchorRefs = _anchorRefLookup.HasBuffer(leader);
+            var hasLocalTransform = _localTransformLookup.HasComponent(leader);
 
-            if (!_groupMetaLookup.HasComponent(leader))
-            {
-                state.EntityManager.AddComponentData(leader, new GroupMeta
-                {
-                    Kind = GroupKind.StrikeWing,
-                    Leader = leader,
-                    MaxSize = maxSize
-                });
-            }
-            else
+            if (hasGroupMeta)
             {
                 var meta = _groupMetaLookup[leader];
                 meta.Kind = GroupKind.StrikeWing;
@@ -189,9 +199,25 @@ namespace Space4X.Systems.AI
                 _groupMetaLookup[leader] = meta;
             }
 
-            if (!_groupFormationLookup.HasComponent(leader))
+            var em = state.EntityManager;
+            if (!hasGroupTag)
             {
-                state.EntityManager.AddComponentData(leader, new GroupFormation
+                em.AddComponent<GroupTag>(leader);
+            }
+
+            if (!hasGroupMeta)
+            {
+                em.AddComponentData(leader, new GroupMeta
+                {
+                    Kind = GroupKind.StrikeWing,
+                    Leader = leader,
+                    MaxSize = maxSize
+                });
+            }
+
+            if (!hasGroupFormation)
+            {
+                em.AddComponentData(leader, new GroupFormation
                 {
                     Type = PureDOTS.Runtime.Groups.FormationType.Line,
                     Spacing = defaults.LooseSpacing,
@@ -200,22 +226,22 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_groupFormationSpreadLookup.HasComponent(leader))
+            if (!hasGroupFormationSpread)
             {
-                state.EntityManager.AddComponentData(leader, new GroupFormationSpread
+                em.AddComponentData(leader, new GroupFormationSpread
                 {
                     CohesionNormalized = 0f
                 });
             }
 
-            if (!_cohesionProfileLookup.HasComponent(leader))
+            if (!hasCohesionProfile)
             {
-                state.EntityManager.AddComponentData(leader, SquadCohesionProfile.Default);
+                em.AddComponentData(leader, SquadCohesionProfile.Default);
             }
 
-            if (!_cohesionStateLookup.HasComponent(leader))
+            if (!hasCohesionState)
             {
-                state.EntityManager.AddComponentData(leader, new SquadCohesionState
+                em.AddComponentData(leader, new SquadCohesionState
                 {
                     NormalizedCohesion = 0f,
                     Flags = 0,
@@ -225,9 +251,9 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_stanceLookup.HasComponent(leader))
+            if (!hasStance)
             {
-                state.EntityManager.AddComponentData(leader, new GroupStanceState
+                em.AddComponentData(leader, new GroupStanceState
                 {
                     Stance = GroupStance.Hold,
                     PrimaryTarget = Entity.Null,
@@ -236,9 +262,9 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_threatLookup.HasComponent(leader))
+            if (!hasThreat)
             {
-                state.EntityManager.AddComponentData(leader, new EngagementThreatSummary
+                em.AddComponentData(leader, new EngagementThreatSummary
                 {
                     PrimaryThreat = Entity.Null,
                     PrimaryThreatDistance = 0f,
@@ -256,9 +282,9 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_intentLookup.HasComponent(leader))
+            if (!hasIntent)
             {
-                state.EntityManager.AddComponentData(leader, new EngagementIntent
+                em.AddComponentData(leader, new EngagementIntent
                 {
                     Kind = EngagementIntentKind.None,
                     PrimaryTarget = Entity.Null,
@@ -268,9 +294,9 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_plannerLookup.HasComponent(leader))
+            if (!hasPlanner)
             {
-                state.EntityManager.AddComponentData(leader, new EngagementPlannerState
+                em.AddComponentData(leader, new EngagementPlannerState
                 {
                     LastIntentTick = 0,
                     LastTacticTick = 0,
@@ -278,19 +304,19 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_commsOutboxLookup.HasBuffer(leader))
+            if (!hasCommsOutbox)
             {
-                state.EntityManager.AddBuffer<CommsOutboxEntry>(leader);
+                em.AddBuffer<CommsOutboxEntry>(leader);
             }
 
-            if (!_groupMemberLookup.HasBuffer(leader))
+            if (!hasGroupMemberBuffer)
             {
-                state.EntityManager.AddBuffer<GroupMember>(leader);
+                em.AddBuffer<GroupMember>(leader);
             }
 
-            if (!_wingFormationStateLookup.HasComponent(leader))
+            if (!hasWingFormationState)
             {
-                state.EntityManager.AddComponentData(leader, new WingFormationState
+                em.AddComponentData(leader, new WingFormationState
                 {
                     LastDecisionTick = 0,
                     LastTacticKind = 0,
@@ -302,44 +328,45 @@ namespace Space4X.Systems.AI
                 });
             }
 
-            if (!_wingGroupSyncStateLookup.HasComponent(leader))
+            if (!hasWingGroupSyncState)
             {
-                state.EntityManager.AddComponentData(leader, new WingGroupSyncState
+                em.AddComponentData(leader, new WingGroupSyncState
                 {
                     LastMemberCount = 0,
                     LastMemberHash = 0u
                 });
             }
 
-            if (!_anchorRefLookup.HasBuffer(leader))
+            if (!hasAnchorRefs)
             {
-                state.EntityManager.AddBuffer<WingFormationAnchorRef>(leader);
+                em.AddBuffer<WingFormationAnchorRef>(leader);
             }
 
-            if (!_localTransformLookup.HasComponent(leader))
+            if (!hasLocalTransform)
             {
-                state.EntityManager.AddComponentData(leader, LocalTransform.Identity);
+                em.AddComponentData(leader, LocalTransform.Identity);
             }
         }
 
         private void CleanupOrphanedGroups(NativeParallelHashMap<Entity, byte> leaderSet, ref SystemState state)
         {
+            var em = state.EntityManager;
             var groupQuery = SystemAPI.QueryBuilder().WithAll<GroupTag, GroupMeta>().Build();
             var groups = groupQuery.ToEntityArray(Allocator.Temp);
             for (int i = 0; i < groups.Length; i++)
             {
                 var groupEntity = groups[i];
-                if (!IsValidEntity(groupEntity))
+                if (groupEntity == Entity.Null || !em.Exists(groupEntity))
                 {
                     continue;
                 }
 
-                if (!_groupMetaLookup.HasComponent(groupEntity))
+                if (!em.HasComponent<GroupMeta>(groupEntity))
                 {
                     continue;
                 }
 
-                var meta = _groupMetaLookup[groupEntity];
+                var meta = em.GetComponentData<GroupMeta>(groupEntity);
                 if (meta.Kind != GroupKind.StrikeWing)
                 {
                     continue;
@@ -350,104 +377,104 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
-                if (_anchorRefLookup.HasBuffer(groupEntity))
+                if (em.HasBuffer<WingFormationAnchorRef>(groupEntity))
                 {
-                    var anchors = _anchorRefLookup[groupEntity];
+                    var anchors = em.GetBuffer<WingFormationAnchorRef>(groupEntity);
                     for (int a = 0; a < anchors.Length; a++)
                     {
                         var anchorEntity = anchors[a].Anchor;
-                        if (IsValidEntity(anchorEntity))
+                        if (anchorEntity != Entity.Null && em.Exists(anchorEntity))
                         {
-                            state.EntityManager.DestroyEntity(anchorEntity);
+                            em.DestroyEntity(anchorEntity);
                         }
                     }
 
-                    state.EntityManager.RemoveComponent<WingFormationAnchorRef>(groupEntity);
+                    em.RemoveComponent<WingFormationAnchorRef>(groupEntity);
                 }
 
-                if (_wingFormationStateLookup.HasComponent(groupEntity))
+                if (em.HasComponent<WingFormationState>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<WingFormationState>(groupEntity);
+                    em.RemoveComponent<WingFormationState>(groupEntity);
                 }
 
-                if (_wingGroupSyncStateLookup.HasComponent(groupEntity))
+                if (em.HasComponent<WingGroupSyncState>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<WingGroupSyncState>(groupEntity);
+                    em.RemoveComponent<WingGroupSyncState>(groupEntity);
                 }
 
-                if (_groupFormationLookup.HasComponent(groupEntity))
+                if (em.HasComponent<GroupFormation>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupFormation>(groupEntity);
+                    em.RemoveComponent<GroupFormation>(groupEntity);
                 }
 
-                if (_groupFormationSpreadLookup.HasComponent(groupEntity))
+                if (em.HasComponent<GroupFormationSpread>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupFormationSpread>(groupEntity);
+                    em.RemoveComponent<GroupFormationSpread>(groupEntity);
                 }
 
-                if (_cohesionProfileLookup.HasComponent(groupEntity))
+                if (em.HasComponent<SquadCohesionProfile>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<SquadCohesionProfile>(groupEntity);
+                    em.RemoveComponent<SquadCohesionProfile>(groupEntity);
                 }
 
-                if (_cohesionStateLookup.HasComponent(groupEntity))
+                if (em.HasComponent<SquadCohesionState>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<SquadCohesionState>(groupEntity);
+                    em.RemoveComponent<SquadCohesionState>(groupEntity);
                 }
 
-                if (_stanceLookup.HasComponent(groupEntity))
+                if (em.HasComponent<GroupStanceState>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupStanceState>(groupEntity);
+                    em.RemoveComponent<GroupStanceState>(groupEntity);
                 }
 
-                if (_threatLookup.HasComponent(groupEntity))
+                if (em.HasComponent<EngagementThreatSummary>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<EngagementThreatSummary>(groupEntity);
+                    em.RemoveComponent<EngagementThreatSummary>(groupEntity);
                 }
 
-                if (_intentLookup.HasComponent(groupEntity))
+                if (em.HasComponent<EngagementIntent>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<EngagementIntent>(groupEntity);
+                    em.RemoveComponent<EngagementIntent>(groupEntity);
                 }
 
-                if (_plannerLookup.HasComponent(groupEntity))
+                if (em.HasComponent<EngagementPlannerState>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<EngagementPlannerState>(groupEntity);
+                    em.RemoveComponent<EngagementPlannerState>(groupEntity);
                 }
 
-                if (_commsOutboxLookup.HasBuffer(groupEntity))
+                if (em.HasComponent<CommsOutboxEntry>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<CommsOutboxEntry>(groupEntity);
+                    em.RemoveComponent<CommsOutboxEntry>(groupEntity);
                 }
 
-                if (_groupMemberLookup.HasBuffer(groupEntity))
+                if (em.HasComponent<GroupMember>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupMember>(groupEntity);
+                    em.RemoveComponent<GroupMember>(groupEntity);
                 }
 
-                if (_squadTacticLookup.HasComponent(groupEntity))
+                if (em.HasComponent<SquadTacticOrder>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<SquadTacticOrder>(groupEntity);
+                    em.RemoveComponent<SquadTacticOrder>(groupEntity);
                 }
 
-                if (_formationStateLookup.HasComponent(groupEntity))
+                if (em.HasComponent<PureDOTS.Runtime.Formation.FormationState>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<PureDOTS.Runtime.Formation.FormationState>(groupEntity);
+                    em.RemoveComponent<PureDOTS.Runtime.Formation.FormationState>(groupEntity);
                 }
 
-                if (_formationSlotLookup.HasBuffer(groupEntity))
+                if (em.HasComponent<PureDOTS.Runtime.Formation.FormationSlot>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<PureDOTS.Runtime.Formation.FormationSlot>(groupEntity);
+                    em.RemoveComponent<PureDOTS.Runtime.Formation.FormationSlot>(groupEntity);
                 }
 
-                if (_groupTagLookup.HasComponent(groupEntity))
+                if (em.HasComponent<GroupTag>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupTag>(groupEntity);
+                    em.RemoveComponent<GroupTag>(groupEntity);
                 }
 
-                if (_groupMetaLookup.HasComponent(groupEntity))
+                if (em.HasComponent<GroupMeta>(groupEntity))
                 {
-                    state.EntityManager.RemoveComponent<GroupMeta>(groupEntity);
+                    em.RemoveComponent<GroupMeta>(groupEntity);
                 }
             }
 

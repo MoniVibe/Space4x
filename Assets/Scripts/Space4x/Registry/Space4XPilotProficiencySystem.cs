@@ -52,6 +52,8 @@ namespace Space4X.Registry
                 return;
             }
 
+            state.Dependency.Complete();
+
             var config = Space4XPilotProficiencyConfig.Default;
             if (SystemAPI.TryGetSingleton<Space4XPilotProficiencyConfig>(out var configSingleton))
             {

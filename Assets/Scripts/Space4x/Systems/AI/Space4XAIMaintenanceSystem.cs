@@ -19,7 +19,6 @@ namespace Space4X.Systems.AI
     [UpdateAfter(typeof(Space4XThreatBehaviorSystem))]
     public partial struct Space4XAIMaintenanceSystem : ISystem
     {
-        private ComponentLookup<PreFlightCheck> _preFlightLookup;
         private ComponentLookup<VesselStanceComponent> _stanceLookup;
         private BufferLookup<AIOrder> _orderLookup;
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
@@ -29,7 +28,6 @@ namespace Space4X.Systems.AI
         {
             state.RequireForUpdate<TimeState>();
             
-            _preFlightLookup = state.GetComponentLookup<PreFlightCheck>(false);
             _stanceLookup = state.GetComponentLookup<VesselStanceComponent>(true);
             _orderLookup = state.GetBufferLookup<AIOrder>(true);
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
@@ -44,7 +42,6 @@ namespace Space4X.Systems.AI
                 return;
             }
 
-            _preFlightLookup.Update(ref state);
             _stanceLookup.Update(ref state);
             _orderLookup.Update(ref state);
             _alignmentLookup.Update(ref state);
@@ -52,7 +49,6 @@ namespace Space4X.Systems.AI
             var job = new ProcessMaintenanceJob
             {
                 CurrentTick = timeState.Tick,
-                PreFlightLookup = _preFlightLookup,
                 StanceLookup = _stanceLookup,
                 OrderLookup = _orderLookup,
                 AlignmentLookup = _alignmentLookup
@@ -66,21 +62,12 @@ namespace Space4X.Systems.AI
         public partial struct ProcessMaintenanceJob : IJobEntity
         {
             public uint CurrentTick;
-            public ComponentLookup<PreFlightCheck> PreFlightLookup;
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
             [ReadOnly] public BufferLookup<AIOrder> OrderLookup;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
 
-            public void Execute(Entity entity)
+            public void Execute(Entity entity, ref PreFlightCheck preFlight)
             {
-                // Check if vessel needs repairs
-                if (!PreFlightLookup.HasComponent(entity))
-                {
-                    return;
-                }
-
-                var preFlight = PreFlightLookup.GetRefRW(entity).ValueRW;
-                
                 // Determine if repair is needed
                 var needsRepair = (float)preFlight.HullIntegrity < 0.7f;
                 var needsProvisions = (float)preFlight.ProvisionsLevel < 0.5f;
@@ -147,10 +134,8 @@ namespace Space4X.Systems.AI
                 {
                     // Mark that maintenance is needed
                     preFlight.CheckPassed = 0;
-                    PreFlightLookup.GetRefRW(entity).ValueRW = preFlight;
                 }
             }
         }
     }
 }
-
