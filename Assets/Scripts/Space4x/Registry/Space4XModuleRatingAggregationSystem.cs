@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -27,6 +28,7 @@ namespace Space4X.Registry
         {
             _healthLookup.Update(ref state);
             _moduleTypeLookup.Update(ref state);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (slots, entity) in SystemAPI.Query<DynamicBuffer<CarrierModuleSlot>>().WithEntityAccess())
             {
@@ -96,13 +98,16 @@ namespace Space4X.Registry
 
                 if (!state.EntityManager.HasComponent<ModuleRatingAggregate>(entity))
                 {
-                    state.EntityManager.AddComponentData(entity, aggregate);
+                    ecb.AddComponent(entity, aggregate);
                 }
                 else
                 {
                     state.EntityManager.SetComponentData(entity, aggregate);
                 }
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
     }
 
@@ -117,4 +122,3 @@ namespace Space4X.Registry
         public byte RefittingModuleCount;
     }
 }
-
