@@ -586,7 +586,7 @@ namespace Space4X.Temporal
         }
 
         /// <summary>
-        /// Begins a rewind preview/scrub. Placeholder - implement when preview flow is ready.
+        /// Begins a rewind preview/scrub.
         /// </summary>
         public static void BeginRewindPreview(float scrubSpeed = 1f)
         {
@@ -612,7 +612,7 @@ namespace Space4X.Temporal
         }
 
         /// <summary>
-        /// Updates rewind preview speed. Placeholder.
+        /// Updates rewind preview speed.
         /// </summary>
         public static void UpdateRewindPreviewSpeed(float scrubSpeed = 1f)
         {
@@ -633,7 +633,7 @@ namespace Space4X.Temporal
         }
 
         /// <summary>
-        /// Ends the current rewind scrub without committing. Placeholder.
+        /// Ends the current rewind scrub without committing.
         /// </summary>
         public static void EndRewindScrub()
         {
@@ -653,7 +653,7 @@ namespace Space4X.Temporal
         }
 
         /// <summary>
-        /// Commits the current rewind preview. Placeholder.
+        /// Commits the current rewind preview.
         /// </summary>
         public static void CommitRewindFromPreview()
         {
@@ -677,7 +677,7 @@ namespace Space4X.Temporal
         }
 
         /// <summary>
-        /// Cancels the current rewind preview. Placeholder.
+        /// Cancels the current rewind preview.
         /// </summary>
         public static void CancelRewindPreview()
         {

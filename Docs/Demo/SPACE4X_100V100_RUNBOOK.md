@@ -1,12 +1,21 @@
 # Space4X 100v100 Runbook
 
-Scenario file: `Assets/Scenarios/space4x_100v100.json`
+Scenario files:
+- CI/headless short run: `Assets/Scenarios/space4x_100v100.json`
+- Presentation/filming run: `Assets/Scenarios/space4x_100v100_presentation.json`
+
+## CI Short vs Presentation Long
+
+- CI/headless should use `space4x_100v100.json` (short duration, faster completion, avoids timeout pressure).
+- Filming/editor showcase should use `space4x_100v100_presentation.json` (long duration for full 100v100 presentation beats).
+- Both scenarios are identical except `duration_s`.
 
 ## Editor Run (TRI_Space4X_Smoke)
 
 1. Open scene `Assets/Scenes/TRI_Space4X_Smoke.unity`.
 2. Set environment variable:
-   - PowerShell: `$env:SPACE4X_SCENARIO_PATH = "Assets/Scenarios/space4x_100v100.json"`
+   - CI/headless parity: `$env:SPACE4X_SCENARIO_PATH = "Assets/Scenarios/space4x_100v100.json"`
+   - Filming pass: `$env:SPACE4X_SCENARIO_PATH = "Assets/Scenarios/space4x_100v100_presentation.json"`
 3. Enter Play mode.
 
 Notes:

@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_100v100",
   "seed": 100100,
-  "duration_s": 75.0,
+  "duration_s": 180.0,
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true
   },
@@ -13644,4 +13644,3 @@
     }
   }
 }
-
