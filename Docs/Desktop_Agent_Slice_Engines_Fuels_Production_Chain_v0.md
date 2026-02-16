@@ -6,6 +6,11 @@ Scope: docs only (no code, no scenario edits, no `Packages/*lock*`).
 
 Deliverable: this one doc.
 
+Relationship to `Docs/Conceptualization/Mechanics/ResourceChains.md`:
+- This doc is a Space4x "flavors" pass over the low-bloat resource families (especially Petrochemicals + Electronics).
+- Treat the `fuel.*` rows as subtypes that can be compressed into a smaller SKU set for implementation if needed.
+- The point here is distinct logistics constraints (boiloff/pressure/toxicity/rarity/power), not chemical completeness.
+
 ## Definitions
 
 Energy density buckets (relative):
@@ -25,12 +30,12 @@ Each fuel has at least one distinct logistical constraint (cryogenic, pressurize
 
 | fuel_id | Source (primary) | Storage constraints | Energy density | Hazards | Engine families that use it |
 | --- | --- | --- | --- | --- | --- |
-| `fuel.solid_composite` | industrial | ambient; bulky; limited throttle (cast grain) | `E2` | fire/explosion; debris | `engine_family.solid_booster` |
+| `fuel.solid_composite` | industrial/import (not modeled in minimal loop) | ambient; bulky; limited throttle (cast grain) | `E2` | fire/explosion; debris | `engine_family.solid_booster` |
 | `fuel.kerolox` | industrial + ice/atmo (O2) | LOX cryogenic; RP-1 ambient | `E3` | explosion; oxidizer handling | `engine_family.chem_main`, `engine_family.chem_lander` |
 | `fuel.methalox` | ice + atmo (CO2/CH4) + industrial catalysts | LOX/LCH4 cryogenic | `E3` | explosion; boiloff | `engine_family.chem_main`, `engine_family.chem_lander` |
-| `fuel.hydrolox` | ice + gas giant (H2) | deep cryogenic (LH2 boiloff dominates) | `E3` | explosion; extreme boiloff | `engine_family.chem_high_isp`, `engine_family.ntr` (as propellant) |
+| `fuel.hydrolox` | ice + gas giant (H2) | deep cryogenic (LH2 boiloff dominates) | `E3` | explosion; extreme boiloff | `engine_family.chem_high_isp` |
 | `fuel.hypergolic` | industrial (N2O4 + MMH/UDMH) | ambient storable; toxic/corrosive; contamination risk | `E2` | highly toxic; corrosive; fire | `engine_family.chem_storable`, `engine_family.rcs` |
-| `fuel.hydrogen_propellant` | ice + gas giant | deep cryogenic; very low density (big tanks) | `E0` | boiloff; embrittlement | `engine_family.ntr`, `engine_family.fusion_torch` (reaction mass) |
+| `fuel.hydrogen_propellant` | ice + gas giant | deep cryogenic; very low density (big tanks) | `E0` | boiloff; embrittlement | `engine_family.ntr` (propellant), `engine_family.fusion_torch` (reaction mass) |
 | `fuel.noble_gas_propellant` | atmo (noble gas distillation) | high-pressure tanks; low mass flow limits | `E0` | high-pressure; supply constrained | `engine_family.hall`, `engine_family.ion`, `engine_family.mpd` |
 | `fuel.fusion_d_he3` | ice (D via heavy water) + gas giant (He3) | cryogenic; high handling/security; rare | `E4` | radiation; strategic material | `engine_family.fusion_torch` |
 
@@ -96,9 +101,31 @@ LATE GATES
 15. Late: skim gas giant -> `he3` (rare) ; enrich heavy water -> `deuterium` ; combine -> `fuel.fusion_d_he3`
 
 Outputs supported by the loop:
-- Fuels: `solid_composite`, `kerolox`, `methalox`, `hydrolox`, `hypergolic`, `hydrogen_propellant`, `noble_gas_propellant`, `fusion_d_he3`
-- Ammo (minimal): `ammo.solid_motor` (uses `solid_composite`), `ammo.missile_bus` (uses `hypergolic` or `solid_composite`), `ammo.kinetic_slug` (uses `alloys`)
+- Fuels: `kerolox`, `methalox`, `hydrolox`, `hypergolic`, `hydrogen_propellant`, `noble_gas_propellant`, `fusion_d_he3`
 - Parts: tanks (cryo/pressure), pumps, valves, radiators, reactor shielding (late)
+
+Not modeled in this minimal loop (intentionally):
+- `fuel.solid_composite` (treat as an industrial good or imports until/if a solid propellant chain is worth the complexity).
+
+## Facility Mapping (Docs-Only)
+
+This is a lightweight mapping from a facility archetype to the recipe numbers it can run.
+
+| facility_id | Runs recipe numbers | Notes |
+| --- | --- | --- |
+| `facility.ice_mine` | 1 | water/CO2 sources |
+| `facility.ore_mine` | 2 | metals/alloys chain starts here |
+| `facility.atmo_scoop` | 3 | CO2/N2/noble gases buckets |
+| `facility.smelter` | 4 | ore -> metals |
+| `facility.metallurgy` | 5 | metals -> alloys |
+| `facility.fabricator` | 6 | alloys -> parts |
+| `facility.electrolyzer` | 7 | water + power -> LOX + LH2 |
+| `facility.cryoplant` | 8 | enables hydrolox + hydrogen propellant storage |
+| `facility.sabatier` | 9-10 | CO2 + H2 -> CH4; CH4 + LOX -> methalox |
+| `facility.ft_synth` | 11-12 | CO2/CO + H2 -> RP-1; RP-1 + LOX -> kerolox |
+| `facility.hypergolic_plant` | 13 | storable but toxic chain |
+| `facility.gas_separation` | 14 | noble gases -> propellant |
+| `facility.gas_giant_skimmer` | 15 | late gate: He3 feedstock |
 
 ## Invariants
 
@@ -109,11 +136,12 @@ Outputs supported by the loop:
   - gas giant skim + security chain for He3
 - Electric engines decouple propellant from energy: they consume `E0` propellant but require persistent power and radiators.
 - The chain is closed-loop at the mid tier: Sabatier/FT produce water as a byproduct, feeding electrolysis (power becomes the dominant limiter).
-- A colony can reach T2 propulsion without importing magical ingredients: ice + atmo + ore + power is sufficient to field `engine_family.ntr` (propellant + infrastructure).
+- A colony can reach mid-tier propulsion without importing magical ingredients: ice + atmo + ore + power is sufficient for `engine_family.chem_main` or `engine_family.hall` loops.
+- `engine_family.ntr` additionally requires reactor fuel / fissiles (not modeled here; treat as rare deposits, strategic imports, or a later chain).
 
 ## Acceptance Checks
 
-- Can outline a colony plan that reaches T2 propulsion (choose one: `engine_family.ntr` or `engine_family.hall`) with explicit inputs and facilities, using only resources in this doc plus `power`.
+- Can outline a colony plan that reaches mid-tier propulsion (choose one: `engine_family.chem_main` or `engine_family.hall`) with explicit inputs and facilities, using only resources in this doc plus `power`.
 - For every fuel row, can point to:
   - where it comes from (ice/atmo/gas giant/industrial)
   - what storage constraint makes it interesting
@@ -122,4 +150,3 @@ Outputs supported by the loop:
   - at least one fuel/propellant it consumes (directly or as reaction mass)
   - a reason to choose it that is not just "bigger numbers"
 - The production map stays readable: at most 15 recipes, no extra intermediates unless they unlock a new logistics constraint or a new tier.
-
