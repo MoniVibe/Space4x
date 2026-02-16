@@ -51,6 +51,7 @@ namespace Space4X.Headless
 
             // Headless validations depend on PureDOTS telemetry metrics being exported.
             config.ValueRW.Flags |= TelemetryExportFlags.IncludeTelemetryMetrics;
+            config.ValueRW.Version++;
 
             if (!string.IsNullOrWhiteSpace(Space4XHeadlessDiagnostics.TelemetryPath))
             {
@@ -63,10 +64,18 @@ namespace Space4X.Headless
                 config.ValueRW.Version++;
             }
 
-            // Some metric emitters expect the TelemetryStream entity to already have a TelemetryMetric buffer.
-            if (SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity) &&
-                telemetryEntity != Entity.Null &&
-                !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
+            // Metric emitters (and operator report) typically read metrics off TelemetryStreamSingleton.Stream.
+            // Ensure that entity has a TelemetryMetric buffer so metrics can actually be written.
+            Entity telemetryEntity = Entity.Null;
+            if (SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            {
+                telemetryEntity = telemetryRef.Stream;
+            }
+            if (telemetryEntity == Entity.Null && SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var streamEntity))
+            {
+                telemetryEntity = streamEntity;
+            }
+            if (telemetryEntity != Entity.Null && !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
             {
                 state.EntityManager.AddBuffer<TelemetryMetric>(telemetryEntity);
             }
