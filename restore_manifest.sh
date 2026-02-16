@@ -6,9 +6,11 @@ PKG_DIR="$PROJECT_DIR/Packages"
 
 if [ -f "$PKG_DIR/manifest.json.bak" ]; then
   cp -f "$PKG_DIR/manifest.json.bak" "$PKG_DIR/manifest.json"
+  rm -f "$PKG_DIR/manifest.json.bak"
 fi
 if [ -f "$PKG_DIR/packages-lock.json.bak" ]; then
   cp -f "$PKG_DIR/packages-lock.json.bak" "$PKG_DIR/packages-lock.json"
+  rm -f "$PKG_DIR/packages-lock.json.bak"
 fi
 
 if [ -d "$PKG_DIR/Coplay.disabled" ]; then

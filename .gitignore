@@ -71,3 +71,8 @@ Assets/Resources/PerformanceTestRunSettings.json.meta
 ## Backup directories
 Library_backup_*/
 Temp_backup_*/
+
+## Headless manifest swap leftovers (run restore_manifest.sh if present)
+Packages/manifest.json.bak
+Packages/packages-lock.json.bak
+Packages/Coplay.disabled/
