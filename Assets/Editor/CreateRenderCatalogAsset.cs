@@ -2,10 +2,15 @@ using UnityEngine;
 using UnityEditor;
 using PureDOTS.Rendering;
 using System.Collections.Generic;
+using System.IO;
 using Space4X.Presentation;
 
 public class CreateRenderCatalogAsset
 {
+    private const string ResourcesCatalogPath = "Assets/Resources/Space4XRenderCatalog_v2.asset";
+    private const string DataCatalogPath = "Assets/Data/Space4XRenderCatalog_v2.asset";
+
+    [MenuItem("Tools/Space4X/Create Render Catalog Asset")]
     public static void Execute()
     {
         var catalog = ScriptableObject.CreateInstance<RenderPresentationCatalogDefinition>();
@@ -18,6 +23,13 @@ public class CreateRenderCatalogAsset
         string fallbackMatGuid = "eab17db06d3ab6a44a7879edf1d11c2c";
         string fallbackMatPath = AssetDatabase.GUIDToAssetPath(fallbackMatGuid);
         Material fallbackMat = AssetDatabase.LoadAssetAtPath<Material>(fallbackMatPath);
+        Material variantMaterial = mat1 != null ? mat1 : fallbackMat;
+
+        if (fallbackMat == null || variantMaterial == null)
+        {
+            Debug.LogError("[CreateRenderCatalogAsset] Missing fallback material; cannot build render catalog.");
+            return;
+        }
 
         // Built-in Meshes
         // We can't easily load built-in meshes by GUID in Editor script without some tricks, 
@@ -38,7 +50,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "Carrier",
             Mesh = capsule,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.5f, 1f, 0.5f),
@@ -51,7 +63,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "Miner",
             Mesh = cube,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = new Vector3(0.000000059604645f, 0, -0.00000008940697f),
             BoundsExtents = new Vector3(0.50000006f, 1f, 0.5000001f),
@@ -64,7 +76,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "Asteroid",
             Mesh = sphere,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.5f, 0.5f, 0.5f),
@@ -77,7 +89,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "Projectile",
             Mesh = cube,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.1f, 0.1f, 0.6f),
@@ -90,7 +102,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "FleetImpostor",
             Mesh = capsule,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(4f, 0.5f, 4f),
@@ -103,7 +115,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "Individual",
             Mesh = cube,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.25f, 0.5f, 0.25f),
@@ -116,7 +128,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "StrikeCraft",
             Mesh = capsule,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.35f, 0.2f, 0.6f),
@@ -129,7 +141,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "ResourcePickup",
             Mesh = sphere,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.25f, 0.25f, 0.25f),
@@ -142,7 +154,7 @@ public class CreateRenderCatalogAsset
         {
             Name = "GhostTether",
             Mesh = cube,
-            Material = mat1,
+            Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
             BoundsExtents = new Vector3(0.5f, 0.5f, 0.5f),
@@ -227,10 +239,11 @@ public class CreateRenderCatalogAsset
         themes.Add(defaultTheme);
         catalog.Themes = themes.ToArray();
 
-        string path = "Assets/Data/Space4XRenderCatalog_v2.asset";
-        AssetDatabase.CreateAsset(catalog, path);
+        SaveCatalogAsset(catalog, ResourcesCatalogPath);
+        SaveCatalogAsset(Object.Instantiate(catalog), DataCatalogPath);
         AssetDatabase.SaveAssets();
-        Debug.Log($"Created catalog asset at {path}");
+        AssetDatabase.Refresh();
+        Debug.Log($"[CreateRenderCatalogAsset] Wrote render catalogs to '{ResourcesCatalogPath}' and '{DataCatalogPath}'.");
 
         // Assign to GameObject
         var go = GameObject.Find("RenderCatalog");
@@ -252,5 +265,22 @@ public class CreateRenderCatalogAsset
         Mesh mesh = go.GetComponent<MeshFilter>().sharedMesh;
         GameObject.DestroyImmediate(go);
         return mesh;
+    }
+
+    private static void SaveCatalogAsset(RenderPresentationCatalogDefinition catalog, string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var existing = AssetDatabase.LoadAssetAtPath<RenderPresentationCatalogDefinition>(path);
+        if (existing != null)
+        {
+            AssetDatabase.DeleteAsset(path);
+        }
+
+        AssetDatabase.CreateAsset(catalog, path);
     }
 }
