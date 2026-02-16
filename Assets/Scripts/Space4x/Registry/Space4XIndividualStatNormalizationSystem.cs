@@ -15,10 +15,13 @@ namespace Space4X.Registry
     [UpdateBefore(typeof(Space4XPilotProficiencySystem))]
     public partial struct Space4XIndividualStatNormalizationSystem : ISystem
     {
+        private ComponentLookup<PureDOTS.Runtime.Stats.WisdomStat> _wisdomLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
+            _wisdomLookup = state.GetComponentLookup<PureDOTS.Runtime.Stats.WisdomStat>(true);
         }
 
         [BurstCompile]
@@ -36,14 +39,14 @@ namespace Space4X.Registry
 
             ecb.Playback(em);
 
-            var wisdomLookup = state.GetComponentLookup<PureDOTS.Runtime.Stats.WisdomStat>(true);
-            wisdomLookup.Update(ref state);
+            _wisdomLookup.Update(ref state);
 
             var job = new NormalizeJob
             {
-                WisdomLookup = wisdomLookup
+                WisdomLookup = _wisdomLookup
             };
-            state.Dependency = job.ScheduleParallel(state.Dependency);
+            state.Dependency = job.Schedule(state.Dependency);
+            state.Dependency.Complete();
         }
 
         [BurstCompile]

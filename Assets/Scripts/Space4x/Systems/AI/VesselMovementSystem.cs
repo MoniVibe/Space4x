@@ -292,8 +292,14 @@ namespace Space4X.Systems.AI
             _planetGravityLookup.Update(ref state);
 
             var hasSpatialGrid = SystemAPI.TryGetSingleton<SpatialGridConfig>(out var spatialConfig);
-            NativeArray<SpatialGridCellRange> spatialRanges = default;
-            NativeArray<SpatialGridEntry> spatialEntries = default;
+            var spatialRanges = CollectionHelper.CreateNativeArray<SpatialGridCellRange>(
+                0,
+                state.WorldUpdateAllocator,
+                NativeArrayOptions.UninitializedMemory);
+            var spatialEntries = CollectionHelper.CreateNativeArray<SpatialGridEntry>(
+                0,
+                state.WorldUpdateAllocator,
+                NativeArrayOptions.UninitializedMemory);
             if (hasSpatialGrid)
             {
                 var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
