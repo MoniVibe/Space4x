@@ -1,0 +1,175 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d16b64d6be34486d882e70418d837bfd, type: 3}
+  m_Name: Space4XRenderCatalog_v2
+  m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogDefinition
+  Variants:
+  - Name: Carrier
+    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.5, y: 1, z: 0.5}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: Miner
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+    BoundsExtents: {x: 0.50000006, y: 1, z: 0.5000001}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: Asteroid
+    Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: Projectile
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.1, y: 0.1, z: 0.6}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: FleetImpostor
+    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 4, y: 0.5, z: 4}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: Individual
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.25, y: 0.5, z: 0.25}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: StrikeCraft
+    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.35, y: 0.2, z: 0.6}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: ResourcePickup
+    Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.25, y: 0.25, z: 0.25}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  - Name: GhostTether
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+    BoundsCenter: {x: 0, y: 0, z: 0}
+    BoundsExtents: {x: 0.5, y: 0.5, z: 0.5}
+    PresenterMask: 1
+    SubMesh: 0
+    RenderLayer: 0
+    VisualKind: 1
+    TracerWidth: 0.3
+    TracerLength: 6
+    TracerColor: {r: 1, g: 1, b: 1, a: 1}
+    TracerStyle: 0
+  Themes:
+  - Name: Default
+    ThemeId: 0
+    SemanticVariants:
+    - SemanticKey: 200
+      Lod0Variant: 0
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 210
+      Lod0Variant: 1
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 220
+      Lod0Variant: 2
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 230
+      Lod0Variant: 3
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 240
+      Lod0Variant: 4
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 250
+      Lod0Variant: 5
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 260
+      Lod0Variant: 6
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 270
+      Lod0Variant: 7
+      Lod1Variant: -1
+      Lod2Variant: -1
+    - SemanticKey: 280
+      Lod0Variant: 8
+      Lod1Variant: -1
+      Lod2Variant: -1
+  FallbackMesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  FallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
+  LodCount: 1

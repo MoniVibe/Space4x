@@ -586,44 +586,145 @@ namespace Space4X.Temporal
         }
 
         /// <summary>
-        /// Begins a rewind preview/scrub. Placeholder - implement when preview flow is ready.
+        /// Begins a rewind preview/scrub.
         /// </summary>
         public static void BeginRewindPreview(float scrubSpeed = 1f)
         {
-            // TODO: Implement preview rewind hook.
+            if (!TryGetRewindCommandBuffer(out var commandBuffer))
+            {
+                return;
+            }
+
+            var clampedSpeed = math.clamp(scrubSpeed, 1f, 4f);
+            commandBuffer.Add(new TimeControlCommand
+            {
+                Type = TimeControlCommandType.BeginPreviewRewind,
+                FloatParam = clampedSpeed,
+                Scope = TimeControlScope.Global,
+                Source = TimeControlSource.Player,
+                PlayerId = TimePlayerIds.SinglePlayer,
+                Priority = 200
+            });
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnityEngine.Debug.Log($"[Space4XTimeAPI] BeginRewindPreview speed={clampedSpeed:F2}");
+#endif
         }
 
         /// <summary>
-        /// Updates rewind preview speed. Placeholder.
+        /// Updates rewind preview speed.
         /// </summary>
         public static void UpdateRewindPreviewSpeed(float scrubSpeed = 1f)
         {
-            // TODO: Implement preview rewind speed update.
+            if (!TryGetRewindCommandBuffer(out var commandBuffer))
+            {
+                return;
+            }
+
+            commandBuffer.Add(new TimeControlCommand
+            {
+                Type = TimeControlCommandType.UpdatePreviewRewindSpeed,
+                FloatParam = math.clamp(scrubSpeed, 1f, 4f),
+                Scope = TimeControlScope.Global,
+                Source = TimeControlSource.Player,
+                PlayerId = TimePlayerIds.SinglePlayer,
+                Priority = 150
+            });
         }
 
         /// <summary>
-        /// Ends the current rewind scrub without committing. Placeholder.
+        /// Ends the current rewind scrub without committing.
         /// </summary>
         public static void EndRewindScrub()
         {
-            // TODO: Implement preview rewind end.
+            if (!TryGetRewindCommandBuffer(out var commandBuffer))
+            {
+                return;
+            }
+
+            commandBuffer.Add(new TimeControlCommand
+            {
+                Type = TimeControlCommandType.EndScrubPreview,
+                Scope = TimeControlScope.Global,
+                Source = TimeControlSource.Player,
+                PlayerId = TimePlayerIds.SinglePlayer,
+                Priority = 200
+            });
         }
 
         /// <summary>
-        /// Commits the current rewind preview. Placeholder.
+        /// Commits the current rewind preview.
         /// </summary>
         public static void CommitRewindFromPreview()
         {
-            // TODO: Implement preview rewind commit.
+            if (!TryGetRewindCommandBuffer(out var commandBuffer))
+            {
+                return;
+            }
+
+            commandBuffer.Add(new TimeControlCommand
+            {
+                Type = TimeControlCommandType.CommitRewindFromPreview,
+                Scope = TimeControlScope.Global,
+                Source = TimeControlSource.Player,
+                PlayerId = TimePlayerIds.SinglePlayer,
+                Priority = 250
+            });
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnityEngine.Debug.Log("[Space4XTimeAPI] CommitRewindFromPreview");
+#endif
         }
 
         /// <summary>
-        /// Cancels the current rewind preview. Placeholder.
+        /// Cancels the current rewind preview.
         /// </summary>
         public static void CancelRewindPreview()
         {
-            // TODO: Implement preview rewind cancel.
+            if (!TryGetRewindCommandBuffer(out var commandBuffer))
+            {
+                return;
+            }
+
+            commandBuffer.Add(new TimeControlCommand
+            {
+                Type = TimeControlCommandType.CancelRewindPreview,
+                Scope = TimeControlScope.Global,
+                Source = TimeControlSource.Player,
+                PlayerId = TimePlayerIds.SinglePlayer,
+                Priority = 200
+            });
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnityEngine.Debug.Log("[Space4XTimeAPI] CancelRewindPreview");
+#endif
+        }
+
+        private static bool TryGetRewindCommandBuffer(out DynamicBuffer<TimeControlCommand> commandBuffer)
+        {
+            commandBuffer = default;
+
+            var world = World.DefaultGameObjectInjectionWorld;
+            if (world == null || !world.IsCreated)
+            {
+                return false;
+            }
+
+            var entityManager = world.EntityManager;
+            using var rewindQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<RewindState>());
+            if (rewindQuery.IsEmptyIgnoreFilter || rewindQuery.CalculateEntityCount() != 1)
+            {
+                return false;
+            }
+
+            var rewindEntity = rewindQuery.GetSingletonEntity();
+            if (!entityManager.HasBuffer<TimeControlCommand>(rewindEntity))
+            {
+                entityManager.AddBuffer<TimeControlCommand>(rewindEntity);
+            }
+
+            commandBuffer = entityManager.GetBuffer<TimeControlCommand>(rewindEntity);
+            return true;
         }
     }
 }
-
