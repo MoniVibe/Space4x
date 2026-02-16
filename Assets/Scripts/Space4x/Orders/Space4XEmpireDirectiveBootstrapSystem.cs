@@ -39,15 +39,15 @@ namespace Space4X.Orders
                     continue;
                 }
 
-                var directives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
-                if (directives.Length > 0)
+                var existingDirectives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
+                if (existingDirectives.Length > 0)
                     continue;
 
-                AddDirective(ref directives, EmpireDirectiveType.SecureResources, math.clamp((float)faction.ValueRO.TradeFocus * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveType.Expand, math.clamp((float)faction.ValueRO.ExpansionDrive * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveType.ResearchFocus, math.clamp((float)faction.ValueRO.ResearchFocus * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveType.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
-                AddDirective(ref directives, EmpireDirectiveType.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
+                AddDirective(ref existingDirectives, EmpireDirectiveType.SecureResources, math.clamp((float)faction.ValueRO.TradeFocus * 100f, 0f, 100f), currentTick);
+                AddDirective(ref existingDirectives, EmpireDirectiveType.Expand, math.clamp((float)faction.ValueRO.ExpansionDrive * 100f, 0f, 100f), currentTick);
+                AddDirective(ref existingDirectives, EmpireDirectiveType.ResearchFocus, math.clamp((float)faction.ValueRO.ResearchFocus * 100f, 0f, 100f), currentTick);
+                AddDirective(ref existingDirectives, EmpireDirectiveType.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
+                AddDirective(ref existingDirectives, EmpireDirectiveType.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
             }
 
             ecb.Playback(state.EntityManager);
