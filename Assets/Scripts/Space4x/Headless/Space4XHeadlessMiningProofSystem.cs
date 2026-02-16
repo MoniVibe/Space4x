@@ -94,6 +94,11 @@ namespace Space4X.Headless
                 state.Enabled = false;
                 return;
             }
+            if (!string.IsNullOrWhiteSpace(scenarioPath) && !IsMiningProofScenarioPath(scenarioPath))
+            {
+                state.Enabled = false;
+                return;
+            }
             if (!string.IsNullOrWhiteSpace(scenarioPath) && ScenarioDisablesMiningProof(scenarioPath))
             {
                 state.Enabled = false;
@@ -435,6 +440,19 @@ namespace Space4X.Headless
         {
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             return !string.IsNullOrWhiteSpace(scenarioPath) &&
+                   scenarioPath.EndsWith(MiningMicroScenarioFile, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsMiningProofScenarioPath(string scenarioPath)
+        {
+            if (string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return false;
+            }
+
+            return IsSmokeScenarioPath(scenarioPath) ||
+                   scenarioPath.EndsWith(MiningScenarioFile, StringComparison.OrdinalIgnoreCase) ||
+                   scenarioPath.EndsWith(MiningCombatScenarioFile, StringComparison.OrdinalIgnoreCase) ||
                    scenarioPath.EndsWith(MiningMicroScenarioFile, StringComparison.OrdinalIgnoreCase);
         }
 
