@@ -58,7 +58,9 @@ namespace Space4X.Systems.AI
                 AlignmentLookup = _alignmentLookup
             };
 
-            state.Dependency = job.ScheduleParallel(state.Dependency);
+            // Writes through ComponentLookup<PreFlightCheck>; run single-threaded to
+            // avoid parallel write restrictions on lookup containers.
+            state.Dependency = job.Schedule(state.Dependency);
         }
 
         [BurstCompile]
@@ -153,4 +155,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

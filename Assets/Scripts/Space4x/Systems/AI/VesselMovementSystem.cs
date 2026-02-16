@@ -68,7 +68,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
         private ComponentLookup<TargetPriority> _priorityLookup;
-        private ComponentLookup<LocalTransform> _targetTransformLookup;
+        private ComponentLookup<LocalToWorld> _targetTransformLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private BufferLookup<WeaponMountBuffer> _weaponLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
@@ -131,7 +131,7 @@ namespace Space4X.Systems.AI
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
-            _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _targetTransformLookup = state.GetComponentLookup<LocalToWorld>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _weaponLookup = state.GetBufferLookup<WeaponMountBuffer>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
@@ -456,7 +456,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public BufferLookup<DepartmentStatsBuffer> DepartmentStatsLookup;
             [ReadOnly] public ComponentLookup<TargetPriority> PriorityLookup;
-            [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
+            [ReadOnly] public ComponentLookup<LocalToWorld> TargetTransformLookup;
             [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
             [ReadOnly] public BufferLookup<WeaponMountBuffer> WeaponLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;

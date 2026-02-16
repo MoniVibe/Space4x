@@ -31,8 +31,8 @@ namespace Space4X.Systems.AI
             state.RequireForUpdate<TimeState>();
             
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(true);
-            _preFlightLookup = state.GetComponentLookup<PreFlightCheck>(false);
-            _threatLookup = state.GetComponentLookup<ThreatAssessment>(false);
+            _preFlightLookup = state.GetComponentLookup<PreFlightCheck>(true);
+            _threatLookup = state.GetComponentLookup<ThreatAssessment>(true);
             _breachLookup = state.GetBufferLookup<ComplianceBreach>(true);
             _outlookLookup = state.GetBufferLookup<TopStance>(true);
         }
@@ -75,8 +75,8 @@ namespace Space4X.Systems.AI
             public uint CurrentTick;
             public float DeltaTime;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;
-            public ComponentLookup<PreFlightCheck> PreFlightLookup;
-            public ComponentLookup<ThreatAssessment> ThreatLookup;
+            [ReadOnly] public ComponentLookup<PreFlightCheck> PreFlightLookup;
+            [ReadOnly] public ComponentLookup<ThreatAssessment> ThreatLookup;
             [ReadOnly] public BufferLookup<ComplianceBreach> BreachLookup;
             [ReadOnly] public BufferLookup<TopStance> OutlookLookup;
 
@@ -268,5 +268,4 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
 

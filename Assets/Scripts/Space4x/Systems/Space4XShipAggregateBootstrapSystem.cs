@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Ships;
 using Space4X.Registry;
+using Unity.Collections;
 using Unity.Entities;
 
 namespace Space4X.Systems
@@ -14,11 +15,11 @@ namespace Space4X.Systems
 
         public void OnUpdate(ref SystemState state)
         {
-            var entityManager = state.EntityManager;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (_, entity) in SystemAPI.Query<RefRO<Carrier>>().WithNone<ShipAggregate>().WithEntityAccess())
             {
-                entityManager.AddComponentData(entity, new ShipAggregate
+                ecb.AddComponent(entity, new ShipAggregate
                 {
                     Role = ShipRole.Carrier
                 });
@@ -26,11 +27,14 @@ namespace Space4X.Systems
 
             foreach (var (_, entity) in SystemAPI.Query<RefRO<MiningVessel>>().WithNone<ShipAggregate>().WithEntityAccess())
             {
-                entityManager.AddComponentData(entity, new ShipAggregate
+                ecb.AddComponent(entity, new ShipAggregate
                 {
                     Role = ShipRole.Support
                 });
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
     }
 }

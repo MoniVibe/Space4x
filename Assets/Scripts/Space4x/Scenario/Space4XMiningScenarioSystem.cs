@@ -2234,56 +2234,55 @@ namespace Space4x.Scenario
 
             EnsureModuleOwnerState(owner, loadoutKind);
 
-            var slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
-            DynamicBuffer<ModuleAttachment> attachments;
-            if (EntityManager.HasBuffer<ModuleAttachment>(owner))
+            EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
             {
-                attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+                EntityManager.AddBuffer<ModuleAttachment>(owner);
             }
-            else
-            {
-                attachments = EntityManager.AddBuffer<ModuleAttachment>(owner);
-            }
+
+            var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            slots.Clear();
             attachments.Clear();
 
             switch (loadoutKind)
             {
                 case DefaultModuleLoadoutKind.Carrier:
-                    AddModuleSlot(slots, attachments, "reactor-mk2", out _);
-                    AddModuleSlot(slots, attachments, "engine-mk2", out _);
-                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
-                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
-                    AddModuleSlot(slots, attachments, "shield-m-1", out _);
-                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
-                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
-                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
-                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
-                    AddModuleSlot(slots, attachments, "missile-m-1", out _);
-                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    AddModuleSlot(owner, "reactor-mk2", out _);
+                    AddModuleSlot(owner, "engine-mk2", out _);
+                    AddModuleSlot(owner, "bridge-mk1", out _);
+                    AddModuleSlot(owner, "cockpit-mk1", out _);
+                    AddModuleSlot(owner, "shield-m-1", out _);
+                    AddModuleSlot(owner, "armor-s-1", out _);
+                    AddModuleSlot(owner, "scanner-s-1", out _);
+                    AddModuleSlot(owner, "laser-s-1", out _);
+                    AddModuleSlot(owner, "pd-s-1", out _);
+                    AddModuleSlot(owner, "missile-m-1", out _);
+                    AddModuleSlot(owner, "ammo-bay-s-1", out _);
                     break;
                 case DefaultModuleLoadoutKind.MiningVessel:
-                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
-                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
-                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
-                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
-                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
-                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
-                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
-                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
-                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    AddModuleSlot(owner, "reactor-mk1", out _);
+                    AddModuleSlot(owner, "engine-mk1", out _);
+                    AddModuleSlot(owner, "bridge-mk1", out _);
+                    AddModuleSlot(owner, "cockpit-mk1", out _);
+                    AddModuleSlot(owner, "shield-s-1", out _);
+                    AddModuleSlot(owner, "armor-s-1", out _);
+                    AddModuleSlot(owner, "scanner-s-1", out _);
+                    AddModuleSlot(owner, "pd-s-1", out _);
+                    AddModuleSlot(owner, "ammo-bay-s-1", out _);
                     break;
                 case DefaultModuleLoadoutKind.Escort:
-                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
-                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
-                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
-                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
-                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
-                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
-                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
-                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
-                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
-                    AddModuleSlot(slots, attachments, "missile-s-1", out _);
-                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    AddModuleSlot(owner, "reactor-mk1", out _);
+                    AddModuleSlot(owner, "engine-mk1", out _);
+                    AddModuleSlot(owner, "bridge-mk1", out _);
+                    AddModuleSlot(owner, "cockpit-mk1", out _);
+                    AddModuleSlot(owner, "shield-s-1", out _);
+                    AddModuleSlot(owner, "armor-s-1", out _);
+                    AddModuleSlot(owner, "scanner-s-1", out _);
+                    AddModuleSlot(owner, "laser-s-1", out _);
+                    AddModuleSlot(owner, "pd-s-1", out _);
+                    AddModuleSlot(owner, "missile-s-1", out _);
+                    AddModuleSlot(owner, "ammo-bay-s-1", out _);
                     break;
             }
         }
@@ -2328,24 +2327,26 @@ namespace Space4x.Scenario
 
             EnsureModuleOwnerState(owner, loadoutKind);
 
-            DynamicBuffer<CarrierModuleSlot> slots;
             if (EntityManager.HasBuffer<CarrierModuleSlot>(owner))
             {
-                slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
-                if (slots.Length > 0)
+                if (EntityManager.GetBuffer<CarrierModuleSlot>(owner).Length > 0)
                 {
                     return false;
                 }
-                slots.Clear();
             }
             else
             {
-                slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+                EntityManager.AddBuffer<CarrierModuleSlot>(owner);
             }
 
-            var attachments = EntityManager.HasBuffer<ModuleAttachment>(owner)
-                ? EntityManager.GetBuffer<ModuleAttachment>(owner)
-                : EntityManager.AddBuffer<ModuleAttachment>(owner);
+            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                EntityManager.AddBuffer<ModuleAttachment>(owner);
+            }
+
+            var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            slots.Clear();
             attachments.Clear();
 
             var totalMass = 0f;
@@ -2359,7 +2360,7 @@ namespace Space4x.Scenario
                     continue;
                 }
 
-                if (AddModuleSlot(slots, attachments, moduleId, out var massTons))
+                if (AddModuleSlot(owner, moduleId, out var massTons))
                 {
                     totalMass += massTons;
                     moduleCount++;
@@ -2405,7 +2406,7 @@ namespace Space4x.Scenario
             }
         }
 
-        private bool AddModuleSlot(DynamicBuffer<CarrierModuleSlot> slots, DynamicBuffer<ModuleAttachment> attachments, string moduleId, out float massTons)
+        private bool AddModuleSlot(Entity owner, string moduleId, out float massTons)
         {
             var module = CreateModuleEntity(moduleId, out var slotSize, out massTons);
             if (module == Entity.Null)
@@ -2414,6 +2415,8 @@ namespace Space4x.Scenario
                 return false;
             }
 
+            var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
             var slotIndex = slots.Length;
             slots.Add(new CarrierModuleSlot
             {

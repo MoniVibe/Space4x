@@ -1,5 +1,6 @@
 using Space4X.Registry;
 using TimeState = PureDOTS.Runtime.Components.TimeState;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -20,6 +21,7 @@ namespace Space4X.Orders
         public void OnUpdate(ref SystemState state)
         {
             uint currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (faction, entity) in SystemAPI.Query<RefRO<Space4XFaction>>().WithEntityAccess())
             {
@@ -28,10 +30,18 @@ namespace Space4X.Orders
 
                 if (!state.EntityManager.HasBuffer<EmpireDirective>(entity))
                 {
-                    state.EntityManager.AddBuffer<EmpireDirective>(entity);
+                    ecb.AddBuffer<EmpireDirective>(entity);
                 }
+            }
 
-                var directives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
+
+            foreach (var (faction, directives) in SystemAPI.Query<RefRO<Space4XFaction>, DynamicBuffer<EmpireDirective>>())
+            {
+                if (faction.ValueRO.Type != FactionType.Empire && faction.ValueRO.Type != FactionType.Player)
+                    continue;
+
                 if (directives.Length > 0)
                     continue;
 
