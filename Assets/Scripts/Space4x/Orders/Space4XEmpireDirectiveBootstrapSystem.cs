@@ -37,11 +37,12 @@ namespace Space4X.Orders
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
 
-            foreach (var (faction, directives) in SystemAPI.Query<RefRO<Space4XFaction>, DynamicBuffer<EmpireDirective>>())
+            foreach (var (faction, entity) in SystemAPI.Query<RefRO<Space4XFaction>>().WithAll<EmpireDirective>().WithEntityAccess())
             {
                 if (faction.ValueRO.Type != FactionType.Empire && faction.ValueRO.Type != FactionType.Player)
                     continue;
 
+                var directives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
                 if (directives.Length > 0)
                     continue;
 
