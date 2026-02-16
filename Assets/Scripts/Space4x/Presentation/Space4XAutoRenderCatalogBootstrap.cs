@@ -10,6 +10,7 @@ namespace Space4X.Presentation
     {
         private const string CatalogResourceName = "Space4XRenderCatalog_v2";
         private const string BootstrapObjectName = "Space4XAutoRenderCatalogBootstrap";
+        private static bool _logged;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureCatalogBootstrap()
@@ -25,7 +26,7 @@ namespace Space4X.Presentation
 
             if (HasCatalogSingleton())
             {
-                UnityDebug.Log($"[Space4XAutoRenderCatalogBootstrap] catalog_ready=1 variants={variantCount} theme0={theme0Mappings}");
+                LogOnce(catalogReady: true, variantCount, theme0Mappings);
                 return;
             }
 
@@ -36,11 +37,14 @@ namespace Space4X.Presentation
                 {
                     existingBootstrap.CatalogDefinition = catalog;
                 }
+
+                LogOnce(catalogReady: existingBootstrap.CatalogDefinition != null, variantCount, theme0Mappings);
+                return;
             }
 
             if (catalog == null)
             {
-                UnityDebug.LogWarning($"[Space4XAutoRenderCatalogBootstrap] catalog_ready=0 missing_resource='{CatalogResourceName}'");
+                LogOnce(catalogReady: false, variantCount, theme0Mappings);
                 return;
             }
 
@@ -48,7 +52,7 @@ namespace Space4X.Presentation
             Object.DontDestroyOnLoad(bootstrapGo);
             var runtimeBootstrap = bootstrapGo.AddComponent<RenderPresentationCatalogRuntimeBootstrap>();
             runtimeBootstrap.CatalogDefinition = catalog;
-            UnityDebug.Log($"[Space4XAutoRenderCatalogBootstrap] catalog_ready=1 variants={variantCount} theme0={theme0Mappings}");
+            LogOnce(catalogReady: true, variantCount, theme0Mappings);
         }
 
         private static bool HasCatalogSingleton()
@@ -80,6 +84,24 @@ namespace Space4X.Presentation
             }
 
             return 0;
+        }
+
+        private static void LogOnce(bool catalogReady, int variantCount, int theme0Mappings)
+        {
+            if (_logged)
+            {
+                return;
+            }
+
+            _logged = true;
+            if (catalogReady)
+            {
+                UnityDebug.Log($"[Space4XAutoRenderCatalogBootstrap] catalog_ready=1 variants={variantCount} theme0={theme0Mappings}");
+            }
+            else
+            {
+                UnityDebug.LogWarning($"[Space4XAutoRenderCatalogBootstrap] catalog_ready=0 missing_resource='{CatalogResourceName}'");
+            }
         }
     }
 }

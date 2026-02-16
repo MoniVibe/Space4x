@@ -245,18 +245,6 @@ public class CreateRenderCatalogAsset
         AssetDatabase.Refresh();
         Debug.Log($"[CreateRenderCatalogAsset] Wrote render catalogs to '{ResourcesCatalogPath}' and '{DataCatalogPath}'.");
 
-        // Assign to GameObject
-        var go = GameObject.Find("RenderCatalog");
-        if (go != null)
-        {
-            var authoring = go.GetComponent<RenderPresentationCatalogAuthoring>();
-            if (authoring != null)
-            {
-                authoring.CatalogDefinition = catalog;
-                EditorUtility.SetDirty(go);
-                Debug.Log("Assigned new catalog to RenderCatalog GameObject.");
-            }
-        }
     }
 
     private static Mesh GetBuiltinMesh(PrimitiveType type)
