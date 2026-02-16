@@ -805,6 +805,7 @@ namespace Space4X.Headless
 
                 var hasShots = signals.TryGetMetric("space4x.combat.shots.fired_total", out var shotsFired);
                 var hasCombatants = signals.TryGetMetric("space4x.combat.combatants.total", out var combatantsTotal);
+                var hasIntercepts = signals.TryGetMetric("space4x.intercept.attempts", out var interceptAttempts);
                 var shotsHit = signals.GetMetricOrDefault("space4x.combat.shots.hit_total");
                 var combatantsDestroyed = signals.GetMetricOrDefault("space4x.combat.combatants.destroyed");
                 var hullDamaged = signals.GetMetricOrDefault("space4x.hull.damaged");
@@ -815,17 +816,24 @@ namespace Space4X.Headless
                 var winnerRatio = signals.GetMetricOrDefault("space4x.combat.outcome.winner_ratio");
                 var determinismDigest = signals.GetMetricOrDefault("space4x.battle.determinism.digest");
 
-                var hitRatio = shotsFired > 0f ? shotsHit / shotsFired : 0f;
-                var hasImpactSignal = shotsHit > 0f || hullDamaged > 0f || hullCritical > 0f || combatantsDestroyed > 0f;
+                var effectiveShotsFired = shotsFired;
+                if (effectiveShotsFired <= 0f && interceptAttempts > 0f)
+                {
+                    effectiveShotsFired = interceptAttempts;
+                }
+
+                var hitRatio = effectiveShotsFired > 0f ? shotsHit / effectiveShotsFired : 0f;
+                var hasImpactSignal = shotsHit > 0f || hullDamaged > 0f || hullCritical > 0f || combatantsDestroyed > 0f || interceptAttempts > 0f;
                 var attritionMissing = (combatantsTotal > 0f && totalAlive >= combatantsTotal) ? 1f : 0f;
 
-                answer.Metrics["shots_fired_total"] = shotsFired;
+                answer.Metrics["shots_fired_total"] = effectiveShotsFired;
                 answer.Metrics["shots_hit_total"] = shotsHit;
                 answer.Metrics["shots_hit_ratio"] = hitRatio;
                 answer.Metrics["combatants_total"] = combatantsTotal;
                 answer.Metrics["combatants_destroyed"] = combatantsDestroyed;
                 answer.Metrics["hull_damaged"] = hullDamaged;
                 answer.Metrics["hull_critical"] = hullCritical;
+                answer.Metrics["intercept_attempts"] = interceptAttempts;
                 answer.Metrics["outcome_total_alive"] = totalAlive;
                 answer.Metrics["winner_side"] = winnerSide;
                 answer.Metrics["winner_alive"] = winnerAlive;
@@ -833,7 +841,7 @@ namespace Space4X.Headless
                 answer.Metrics["determinism_digest"] = determinismDigest;
                 answer.Metrics["attrition_missing"] = attritionMissing;
 
-                if (!hasShots && !hasCombatants)
+                if (!hasShots && !hasCombatants && (!hasIntercepts || interceptAttempts <= 0f))
                 {
                     answer.Status = Space4XQuestionStatus.Unknown;
                     answer.UnknownReason = "no_battle_summary_metrics";
@@ -841,7 +849,7 @@ namespace Space4X.Headless
                     return answer;
                 }
 
-                if (shotsFired <= 0f)
+                if (effectiveShotsFired <= 0f)
                 {
                     answer.Status = Space4XQuestionStatus.Fail;
                     answer.Answer = "no_shots_fired";
@@ -863,7 +871,7 @@ namespace Space4X.Headless
                 }
 
                 answer.Status = Space4XQuestionStatus.Pass;
-                answer.Answer = $"shots={shotsFired:0} hits={shotsHit:0} damaged={hullDamaged:0} critical={hullCritical:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
+                answer.Answer = $"shots={effectiveShotsFired:0} hits={shotsHit:0} damaged={hullDamaged:0} critical={hullCritical:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
                 return answer;
             }
         }
@@ -891,8 +899,15 @@ namespace Space4X.Headless
                 }
 
                 var shots = signals.GetMetricOrDefault("space4x.combat.shots.fired_total");
+                var interceptAttempts = signals.GetMetricOrDefault("space4x.intercept.attempts");
+                if (shots <= 0f && interceptAttempts > 0f)
+                {
+                    shots = interceptAttempts;
+                }
+
                 answer.Metrics["digest"] = digest;
                 answer.Metrics["shots_fired_total"] = shots;
+                answer.Metrics["intercept_attempts"] = interceptAttempts;
 
                 if (digest <= 0f)
                 {
