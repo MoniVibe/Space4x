@@ -1499,17 +1499,19 @@ namespace Space4X.Systems.AI
                     var forward = math.forward(transform.Rotation);
                     var angle = math.acos(math.clamp(math.dot(forward, rotationDirection), -1f, 1f));
                     const float headingDeadbandRadians = 0.026f;
+                    var dt = math.max(DeltaTime, 1e-4f);
+                    const float diagAngularAccelCap = math.PI * 7.5f;
                     if (angle > headingDeadbandRadians)
                     {
                         movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
                         var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
-                        var dt = math.max(DeltaTime, 1e-4f);
                         var maxAngularSpeed = math.PI * 4f * math.lerp(0.9f, 1.1f, turnNorm);
                         var maxAngularAccel = math.PI * 8f * math.lerp(0.9f, 1.1f, controlNorm);
                         if (isCarrier)
                         {
                             maxAngularAccel *= MotionConfig.CapitalShipTurnMultiplier;
                         }
+                        maxAngularAccel = math.min(maxAngularAccel, diagAngularAccelCap);
                         var desiredAngularSpeed = math.min(maxAngularSpeed, angle * turnSpeed * rotationMultiplier);
                         desiredAngularSpeed = math.min(desiredAngularSpeed, angle / dt);
                         var maxDeltaSpeed = maxAngularAccel * dt;
@@ -1521,7 +1523,8 @@ namespace Space4X.Systems.AI
                     }
                     else
                     {
-                        turnRateState.LastAngularSpeed = 0f;
+                        var decay = diagAngularAccelCap * dt;
+                        turnRateState.LastAngularSpeed = math.max(0f, turnRateState.LastAngularSpeed - decay);
                     }
                 }
                 else
