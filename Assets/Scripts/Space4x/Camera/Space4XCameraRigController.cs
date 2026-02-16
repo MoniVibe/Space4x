@@ -3,11 +3,14 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
+using Unity.Collections;
+using Unity.Transforms;
 using UCamera = UnityEngine.Camera;
 using UObject = UnityEngine.Object;
 using UDebug = UnityEngine.Debug;
 using UTime = UnityEngine.Time;
 using PureDOTS.Input;
+using Space4X.Presentation;
 using RmbContext = PureDOTS.Input.RmbContext;
 using CameraRigState = PureDOTS.Runtime.Camera.CameraRigState;
 using CameraRigMode = PureDOTS.Runtime.Camera.CameraRigMode;
@@ -65,6 +68,19 @@ namespace Space4X.Camera
         [Header("Y-Axis Lock")]
         [SerializeField] private bool yAxisLocked = true;
 
+        [Header("Selection Focus")]
+        [SerializeField] private Key focusSelectedKey = Key.F;
+        [SerializeField] private Key toggleFollowKey = Key.G;
+        [SerializeField] private float followLerp = 6f;
+        [SerializeField] private float followVerticalOffset = 8f;
+
+        [Header("Cinematic Take")]
+        [SerializeField] private bool cinematicEnabled = true;
+        [SerializeField] private Key toggleCinematicKey = Key.C;
+        [SerializeField] private float cinematicDurationSeconds = 45f;
+        [SerializeField] private float cinematicOrbitTurns = 1.25f;
+        [SerializeField] private float cinematicHeightWave = 18f;
+
         [Header("Input Actions (Input System)")]
         [SerializeField] private InputActionReference moveAction;
         [SerializeField] private InputActionReference verticalAction;
@@ -92,6 +108,8 @@ namespace Space4X.Camera
         private World _ecsWorld;
         private EntityQuery _rtsInputQuery;
         private bool _rtsQueryValid;
+        private EntityQuery _selectedQuery;
+        private bool _selectedQueryValid;
 
         // Internal state
         private Vector3 _position;
@@ -100,6 +118,15 @@ namespace Space4X.Camera
         private Quaternion _rotation;
         private bool _applierEnsured;
         private bool _loggedMissingCamera;
+        private bool _followSelected;
+        private Entity _followEntity;
+        private Vector3 _followOffset;
+        private bool _cinematicActive;
+        private float _cinematicTime;
+        private Vector3 _cinematicCenter;
+        private float _cinematicBaseYaw;
+        private float _cinematicBaseRadius;
+        private float _cinematicBaseHeight;
 
         // Pan and zoom helpers
         private bool _isDraggingPan;
@@ -107,6 +134,9 @@ namespace Space4X.Camera
         private Vector3 _panPivotStart;
         private Plane _panPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly Plane _groundPlane = new Plane(Vector3.up, Vector3.zero);
+
+        public bool IsFollowSelectedActive => _followSelected;
+        public bool IsCinematicActive => _cinematicActive;
 
         private void OnEnable()
         {
@@ -146,6 +176,20 @@ namespace Space4X.Camera
 
                 _rtsQueryValid = false;
             }
+
+            if (_selectedQueryValid)
+            {
+                try
+                {
+                    _selectedQuery.Dispose();
+                }
+                catch
+                {
+                    // World may already be tearing down.
+                }
+
+                _selectedQueryValid = false;
+            }
         }
 
         private void Update()
@@ -161,6 +205,48 @@ namespace Space4X.Camera
             float zoomValue = ReadZoomValue();
             bool togglePressed = ReadYAxisToggle();
             var context = inputRouter != null ? inputRouter.CurrentContext : default;
+            var keyboard = Keyboard.current;
+
+            if (keyboard != null && keyboard[toggleCinematicKey].wasPressedThisFrame && cinematicEnabled)
+            {
+                ToggleCinematicTake();
+            }
+
+            if (_cinematicActive)
+            {
+                UpdateCinematicTake(dt);
+                ConsumeCameraRequests();
+                return;
+            }
+
+            if (keyboard != null && keyboard[focusSelectedKey].wasPressedThisFrame)
+            {
+                FocusSelectedEntity();
+            }
+
+            if (keyboard != null && keyboard[toggleFollowKey].wasPressedThisFrame)
+            {
+                ToggleFollowSelected();
+            }
+
+            bool hasManualInput =
+                moveInput.sqrMagnitude > 1e-4f ||
+                Mathf.Abs(verticalInput) > 1e-4f ||
+                orbitDelta.sqrMagnitude > 1e-4f ||
+                panDelta.sqrMagnitude > 1e-4f ||
+                Mathf.Abs(zoomValue) > 0.01f;
+
+            if (_followSelected && hasManualInput)
+            {
+                _followSelected = false;
+            }
+
+            if (_followSelected)
+            {
+                UpdateFollowSelected(dt);
+                ConsumeCameraRequests();
+                return;
+            }
 
             if (togglePressed)
             {
@@ -419,6 +505,207 @@ namespace Space4X.Camera
             }
 
             return true;
+        }
+
+        private bool TryEnsureSelectedQuery(out EntityManager entityManager)
+        {
+            if (!TryEnsureRtsInputQuery(out entityManager))
+            {
+                return false;
+            }
+
+            if (!_selectedQueryValid)
+            {
+                _selectedQuery = entityManager.CreateEntityQuery(new EntityQueryDesc
+                {
+                    All = new[]
+                    {
+                        ComponentType.ReadOnly<PureDOTS.Input.SelectedTag>(),
+                        ComponentType.ReadOnly<LocalTransform>()
+                    }
+                });
+                _selectedQueryValid = true;
+            }
+
+            return true;
+        }
+
+        private bool TryGetSelectedWorldPosition(out Vector3 worldPosition, out Entity entity)
+        {
+            worldPosition = default;
+            entity = Entity.Null;
+
+            if (!TryEnsureSelectedQuery(out var entityManager))
+            {
+                return false;
+            }
+
+            var count = _selectedQuery.CalculateEntityCount();
+            if (count <= 0)
+            {
+                return false;
+            }
+
+            if (count == 1)
+            {
+                entity = _selectedQuery.GetSingletonEntity();
+            }
+            else
+            {
+                using var entities = _selectedQuery.ToEntityArray(Allocator.Temp);
+                entity = entities.Length > 0 ? entities[0] : Entity.Null;
+            }
+
+            if (entity == Entity.Null || !entityManager.Exists(entity) || !entityManager.HasComponent<LocalTransform>(entity))
+            {
+                return false;
+            }
+
+            var tx = entityManager.GetComponentData<LocalTransform>(entity);
+            worldPosition = new Vector3(tx.Position.x, tx.Position.y, tx.Position.z);
+            return true;
+        }
+
+        private bool TryGetEntityWorldPosition(in Entity entity, out Vector3 worldPosition)
+        {
+            worldPosition = default;
+
+            if (entity == Entity.Null || !TryEnsureRtsInputQuery(out var entityManager))
+            {
+                return false;
+            }
+
+            if (!entityManager.Exists(entity) || !entityManager.HasComponent<LocalTransform>(entity))
+            {
+                return false;
+            }
+
+            var tx = entityManager.GetComponentData<LocalTransform>(entity);
+            worldPosition = new Vector3(tx.Position.x, tx.Position.y, tx.Position.z);
+            return true;
+        }
+
+        private void FocusSelectedEntity()
+        {
+            if (!TryGetSelectedWorldPosition(out var target, out var selected))
+            {
+                return;
+            }
+
+            _followEntity = selected;
+            var snapDistance = Mathf.Clamp(math.max(minZoomDistance, defaultFocusDistance), minZoomDistance, maxZoomDistance);
+            _position = target - (_rotation * Vector3.forward * snapDistance);
+            LookAtWorld(target + Vector3.up * followVerticalOffset, 1f);
+        }
+
+        private void ToggleFollowSelected()
+        {
+            if (_followSelected)
+            {
+                _followSelected = false;
+                return;
+            }
+
+            if (!TryGetSelectedWorldPosition(out var target, out var selected))
+            {
+                _followSelected = false;
+                return;
+            }
+
+            _followEntity = selected;
+            _followOffset = _position - target;
+            if (_followOffset.sqrMagnitude < 1e-4f)
+            {
+                var fallbackDistance = Mathf.Clamp(math.max(minZoomDistance, defaultFocusDistance), minZoomDistance, maxZoomDistance);
+                _followOffset = -(_rotation * Vector3.forward * fallbackDistance);
+            }
+
+            _followSelected = true;
+        }
+
+        private void UpdateFollowSelected(float dt)
+        {
+            if (!TryGetEntityWorldPosition(_followEntity, out var target))
+            {
+                if (!TryGetSelectedWorldPosition(out target, out _followEntity))
+                {
+                    _followSelected = false;
+                    return;
+                }
+            }
+
+            var desiredOffset = _followOffset;
+            desiredOffset.y = math.max(desiredOffset.y, followVerticalOffset);
+            var desiredPos = target + desiredOffset;
+            var gain = 1f - Mathf.Exp(-math.max(0.01f, followLerp) * dt);
+            _position = Vector3.Lerp(_position, desiredPos, gain);
+            LookAtWorld(target + Vector3.up * followVerticalOffset, gain);
+        }
+
+        private void ToggleCinematicTake()
+        {
+            if (_cinematicActive)
+            {
+                _cinematicActive = false;
+                return;
+            }
+
+            StartCinematicTake();
+        }
+
+        private void StartCinematicTake()
+        {
+            _followSelected = false;
+            _cinematicActive = true;
+            _cinematicTime = 0f;
+
+            if (!TryGetSelectedWorldPosition(out _cinematicCenter, out _))
+            {
+                _cinematicCenter = SampleFallbackZoomTarget();
+            }
+
+            var toCamera = _position - _cinematicCenter;
+            _cinematicBaseRadius = Mathf.Clamp(new Vector2(toCamera.x, toCamera.z).magnitude, 50f, maxZoomDistance);
+            _cinematicBaseHeight = Mathf.Clamp(toCamera.y, 20f, 140f);
+            _cinematicBaseYaw = Mathf.Atan2(toCamera.x, toCamera.z) * Mathf.Rad2Deg;
+        }
+
+        private void UpdateCinematicTake(float dt)
+        {
+            _cinematicTime += dt;
+            float duration = Mathf.Clamp(cinematicDurationSeconds, 30f, 60f);
+            float t = Mathf.Clamp01(_cinematicTime / duration);
+            float eased = Mathf.SmoothStep(0f, 1f, t);
+            float yaw = _cinematicBaseYaw + 360f * cinematicOrbitTurns * eased;
+            float radius = Mathf.Lerp(_cinematicBaseRadius * 1.15f, _cinematicBaseRadius * 0.75f, eased);
+            float height = _cinematicBaseHeight + Mathf.Sin(eased * Mathf.PI * 2f) * cinematicHeightWave;
+
+            var radial = Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 0f, radius);
+            _position = _cinematicCenter + radial + Vector3.up * height;
+            LookAtWorld(_cinematicCenter + Vector3.up * followVerticalOffset, 1f);
+
+            if (t >= 1f)
+            {
+                _cinematicActive = false;
+            }
+        }
+
+        private void LookAtWorld(in Vector3 target, float blend)
+        {
+            var dir = target - _position;
+            if (dir.sqrMagnitude <= 1e-6f)
+            {
+                return;
+            }
+
+            var desired = Quaternion.LookRotation(dir.normalized, Vector3.up);
+            var desiredEuler = desired.eulerAngles;
+            var desiredYaw = NormalizeDegrees(desiredEuler.y);
+            var desiredPitch = Mathf.Clamp(NormalizeDegrees(desiredEuler.x), minPitch, maxPitch);
+            var t = Mathf.Clamp01(blend);
+            _yaw = Mathf.LerpAngle(_yaw, desiredYaw, t);
+            _pitch = Mathf.Lerp(_pitch, desiredPitch, t);
+            _rotation = Quaternion.Euler(_pitch, _yaw, 0f);
         }
 
         private void ResolveProfileActions()
