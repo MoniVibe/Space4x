@@ -69,12 +69,12 @@ namespace Space4X.Camera
                 return;
             }
 
-            if (Time.unscaledTime < _nextRefreshTime)
+            if (UnityEngine.Time.unscaledTime < _nextRefreshTime)
             {
                 return;
             }
 
-            _nextRefreshTime = Time.unscaledTime + 1f / Mathf.Max(1f, refreshRateHz);
+            _nextRefreshTime = UnityEngine.Time.unscaledTime + 1f / Mathf.Max(1f, refreshRateHz);
             RefreshSnapshot();
         }
 
@@ -111,7 +111,7 @@ namespace Space4X.Camera
         {
             var snapshot = new HudSnapshot
             {
-                WorldSeconds = Time.timeSinceLevelLoad
+                WorldSeconds = UnityEngine.Time.timeSinceLevelLoad
             };
 
             if (!TryEnsureQueries(out var entityManager))

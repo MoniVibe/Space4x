@@ -520,7 +520,7 @@ namespace Space4X.Camera
                 {
                     All = new[]
                     {
-                        ComponentType.ReadOnly<SelectedTag>(),
+                        ComponentType.ReadOnly<PureDOTS.Input.SelectedTag>(),
                         ComponentType.ReadOnly<LocalTransform>()
                     }
                 });
