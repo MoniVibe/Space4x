@@ -2558,17 +2558,17 @@ namespace Space4X.Registry
         private bool TryGetTelemetryMetricBuffer(ref SystemState state, out DynamicBuffer<TelemetryMetric> buffer)
         {
             buffer = default;
-            if (!SystemAPI.TryGetSingleton<TelemetryStreamSingleton>(out var telemetryRef))
+            if (!SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity))
             {
                 return false;
             }
 
-            if (telemetryRef.Stream == Entity.Null || !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryRef.Stream))
+            if (telemetryEntity == Entity.Null || !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
             {
                 return false;
             }
 
-            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryRef.Stream);
+            buffer = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
             return true;
         }
     }
