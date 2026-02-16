@@ -19,20 +19,18 @@ namespace Space4X.Tests.PlayMode
         private bool _sawErrorLog;
         private string _firstErrorLog;
 
-        [UnitySetUp]
-        public IEnumerator SetUp()
+        [SetUp]
+        public void SetUp()
         {
             _sawErrorLog = false;
             _firstErrorLog = null;
             Application.logMessageReceived += OnLogMessageReceived;
-            yield return null;
         }
 
-        [UnityTearDown]
-        public IEnumerator TearDown()
+        [TearDown]
+        public void TearDown()
         {
             Application.logMessageReceived -= OnLogMessageReceived;
-            yield return null;
         }
 
         [UnityTest]
