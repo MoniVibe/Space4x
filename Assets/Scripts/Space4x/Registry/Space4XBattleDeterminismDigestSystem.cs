@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.Telemetry;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
