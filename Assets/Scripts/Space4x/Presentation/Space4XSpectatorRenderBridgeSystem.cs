@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Space4X.Runtime;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Rendering;
