@@ -388,7 +388,9 @@ namespace Space4X.Headless
                     if (SystemAPI.HasComponent<MoveIntent>(entity))
                     {
                         var intent = SystemAPI.GetComponentRO<MoveIntent>(entity).ValueRO;
-                        ignoreTurnForIntent = intent.IntentType == MoveIntentType.Orbit;
+                        ignoreTurnForIntent =
+                            intent.IntentType == MoveIntentType.Orbit ||
+                            intent.IntentType == MoveIntentType.Hold;
                     }
 
                     var stateValue = turnState.ValueRW;
