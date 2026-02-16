@@ -65,7 +65,7 @@ namespace Space4X.Systems.AI
                 OutlookLookup = _outlookLookup
             };
 
-            state.Dependency = job.ScheduleParallel(state.Dependency);
+            state.Dependency = job.Schedule(state.Dependency);
         }
 
         [BurstCompile]
@@ -268,4 +268,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

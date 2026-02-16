@@ -54,7 +54,7 @@ namespace Space4X.Systems.AI
                 AlignmentLookup = _alignmentLookup
             };
 
-            state.Dependency = job.ScheduleParallel(state.Dependency);
+            state.Dependency = job.Schedule(state.Dependency);
         }
 
         [BurstCompile]

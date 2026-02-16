@@ -43,7 +43,9 @@ namespace Space4X.Registry
             {
                 WisdomLookup = wisdomLookup
             };
-            state.Dependency = job.ScheduleParallel(state.Dependency);
+            // Keep normalization synchronous so downstream proficiency reads never race this write.
+            state.Dependency = job.Schedule(state.Dependency);
+            state.Dependency.Complete();
         }
 
         [BurstCompile]

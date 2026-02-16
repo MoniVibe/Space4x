@@ -69,7 +69,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
         private ComponentLookup<TargetPriority> _priorityLookup;
-        private ComponentLookup<LocalTransform> _targetTransformLookup;
+        private ComponentLookup<LocalToWorld> _targetWorldLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private BufferLookup<WeaponMountBuffer> _weaponLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
@@ -132,7 +132,7 @@ namespace Space4X.Systems.AI
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
-            _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _targetWorldLookup = state.GetComponentLookup<LocalToWorld>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _weaponLookup = state.GetBufferLookup<WeaponMountBuffer>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
@@ -270,7 +270,7 @@ namespace Space4X.Systems.AI
             _behaviorDispositionLookup.Update(ref state);
             _departmentStatsLookup.Update(ref state);
             _priorityLookup.Update(ref state);
-            _targetTransformLookup.Update(ref state);
+            _targetWorldLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _weaponLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
@@ -377,7 +377,7 @@ namespace Space4X.Systems.AI
                 BehaviorDispositionLookup = _behaviorDispositionLookup,
                 DepartmentStatsLookup = _departmentStatsLookup,
                 PriorityLookup = _priorityLookup,
-                TargetTransformLookup = _targetTransformLookup,
+                TargetWorldLookup = _targetWorldLookup,
                 EngagementLookup = _engagementLookup,
                 WeaponLookup = _weaponLookup,
                 AsteroidLookup = _asteroidLookup,
@@ -457,7 +457,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public BufferLookup<DepartmentStatsBuffer> DepartmentStatsLookup;
             [ReadOnly] public ComponentLookup<TargetPriority> PriorityLookup;
-            [ReadOnly, NativeDisableContainerSafetyRestriction] public ComponentLookup<LocalTransform> TargetTransformLookup;
+            [ReadOnly] public ComponentLookup<LocalToWorld> TargetWorldLookup;
             [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
             [ReadOnly] public BufferLookup<WeaponMountBuffer> WeaponLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;
@@ -559,7 +559,7 @@ namespace Space4X.Systems.AI
                 if (PriorityLookup.HasComponent(entity))
                 {
                     var priority = PriorityLookup[entity];
-                    if (priority.CurrentTarget != Entity.Null && TargetTransformLookup.HasComponent(priority.CurrentTarget))
+                    if (priority.CurrentTarget != Entity.Null && TargetWorldLookup.HasComponent(priority.CurrentTarget))
                     {
                         priorityTarget = priority.CurrentTarget;
                         hasPriorityTarget = true;
@@ -648,7 +648,7 @@ namespace Space4X.Systems.AI
                 var targetPosition = hasAttackMove ? attackMove.Destination : aiState.TargetPosition;
                 if (!hasAttackMove && aiState.TargetEntity == Entity.Null && hasPriorityTarget)
                 {
-                    targetPosition = TargetTransformLookup[priorityTarget].Position;
+                    targetPosition = TargetWorldLookup[priorityTarget].Position;
                 }
                 if (forceHold || noTarget)
                 {
@@ -1826,7 +1826,7 @@ namespace Space4X.Systems.AI
                     }
                 }
 
-                if (combatTarget == Entity.Null || !TargetTransformLookup.HasComponent(combatTarget))
+                if (combatTarget == Entity.Null || !TargetWorldLookup.HasComponent(combatTarget))
                 {
                     return false;
                 }
@@ -1844,14 +1844,14 @@ namespace Space4X.Systems.AI
                         return false;
                     }
 
-                    var destToTarget = math.distance(attackMove.Destination, TargetTransformLookup[combatTarget].Position);
+                    var destToTarget = math.distance(attackMove.Destination, TargetWorldLookup[combatTarget].Position);
                     if (destToTarget > maxRange * 1.5f && attackMove.DestinationRadius <= 0f)
                     {
                         return false;
                     }
                 }
 
-                var targetPos = TargetTransformLookup[combatTarget].Position;
+                var targetPos = TargetWorldLookup[combatTarget].Position;
                 var toTarget = targetPos - transform.Position;
                 var distance = math.length(toTarget);
                 if (distance <= 0.01f)
