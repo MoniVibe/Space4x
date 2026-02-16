@@ -1,5 +1,6 @@
 using Space4X.Registry;
 using TimeState = PureDOTS.Runtime.Components.TimeState;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -20,6 +21,7 @@ namespace Space4X.Orders
         public void OnUpdate(ref SystemState state)
         {
             uint currentTick = SystemAPI.GetSingleton<TimeState>().Tick;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (faction, entity) in SystemAPI.Query<RefRO<Space4XFaction>>().WithEntityAccess())
             {
@@ -28,7 +30,13 @@ namespace Space4X.Orders
 
                 if (!state.EntityManager.HasBuffer<EmpireDirective>(entity))
                 {
-                    state.EntityManager.AddBuffer<EmpireDirective>(entity);
+                    var directives = ecb.AddBuffer<EmpireDirective>(entity);
+                    AddDirective(ref directives, EmpireDirectiveType.SecureResources, math.clamp((float)faction.ValueRO.TradeFocus * 100f, 0f, 100f), currentTick);
+                    AddDirective(ref directives, EmpireDirectiveType.Expand, math.clamp((float)faction.ValueRO.ExpansionDrive * 100f, 0f, 100f), currentTick);
+                    AddDirective(ref directives, EmpireDirectiveType.ResearchFocus, math.clamp((float)faction.ValueRO.ResearchFocus * 100f, 0f, 100f), currentTick);
+                    AddDirective(ref directives, EmpireDirectiveType.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
+                    AddDirective(ref directives, EmpireDirectiveType.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
+                    continue;
                 }
 
                 var directives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
@@ -41,6 +49,9 @@ namespace Space4X.Orders
                 AddDirective(ref directives, EmpireDirectiveType.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
                 AddDirective(ref directives, EmpireDirectiveType.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private static void AddDirective(ref DynamicBuffer<EmpireDirective> directives, EmpireDirectiveType directiveType, float basePriority, uint currentTick)

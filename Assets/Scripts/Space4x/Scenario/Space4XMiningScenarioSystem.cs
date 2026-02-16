@@ -2234,57 +2234,69 @@ namespace Space4x.Scenario
 
             EnsureModuleOwnerState(owner, loadoutKind);
 
-            var slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
-            DynamicBuffer<ModuleAttachment> attachments;
-            if (EntityManager.HasBuffer<ModuleAttachment>(owner))
+            var moduleSpawns = new List<ModuleSpawn>(16);
+            void AddDefaultModule(string moduleId)
             {
-                attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+                if (TryCreateModuleSpawn(moduleId, out var spawn))
+                {
+                    moduleSpawns.Add(spawn);
+                }
             }
-            else
-            {
-                attachments = EntityManager.AddBuffer<ModuleAttachment>(owner);
-            }
-            attachments.Clear();
 
             switch (loadoutKind)
             {
                 case DefaultModuleLoadoutKind.Carrier:
-                    AddModuleSlot(slots, attachments, "reactor-mk2", out _);
-                    AddModuleSlot(slots, attachments, "engine-mk2", out _);
-                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
-                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
-                    AddModuleSlot(slots, attachments, "shield-m-1", out _);
-                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
-                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
-                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
-                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
-                    AddModuleSlot(slots, attachments, "missile-m-1", out _);
-                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    AddDefaultModule("reactor-mk2");
+                    AddDefaultModule("engine-mk2");
+                    AddDefaultModule("bridge-mk1");
+                    AddDefaultModule("cockpit-mk1");
+                    AddDefaultModule("shield-m-1");
+                    AddDefaultModule("armor-s-1");
+                    AddDefaultModule("scanner-s-1");
+                    AddDefaultModule("laser-s-1");
+                    AddDefaultModule("pd-s-1");
+                    AddDefaultModule("missile-m-1");
+                    AddDefaultModule("ammo-bay-s-1");
                     break;
                 case DefaultModuleLoadoutKind.MiningVessel:
-                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
-                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
-                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
-                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
-                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
-                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
-                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
-                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
-                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    AddDefaultModule("reactor-mk1");
+                    AddDefaultModule("engine-mk1");
+                    AddDefaultModule("bridge-mk1");
+                    AddDefaultModule("cockpit-mk1");
+                    AddDefaultModule("shield-s-1");
+                    AddDefaultModule("armor-s-1");
+                    AddDefaultModule("scanner-s-1");
+                    AddDefaultModule("pd-s-1");
+                    AddDefaultModule("ammo-bay-s-1");
                     break;
                 case DefaultModuleLoadoutKind.Escort:
-                    AddModuleSlot(slots, attachments, "reactor-mk1", out _);
-                    AddModuleSlot(slots, attachments, "engine-mk1", out _);
-                    AddModuleSlot(slots, attachments, "bridge-mk1", out _);
-                    AddModuleSlot(slots, attachments, "cockpit-mk1", out _);
-                    AddModuleSlot(slots, attachments, "shield-s-1", out _);
-                    AddModuleSlot(slots, attachments, "armor-s-1", out _);
-                    AddModuleSlot(slots, attachments, "scanner-s-1", out _);
-                    AddModuleSlot(slots, attachments, "laser-s-1", out _);
-                    AddModuleSlot(slots, attachments, "pd-s-1", out _);
-                    AddModuleSlot(slots, attachments, "missile-s-1", out _);
-                    AddModuleSlot(slots, attachments, "ammo-bay-s-1", out _);
+                    AddDefaultModule("reactor-mk1");
+                    AddDefaultModule("engine-mk1");
+                    AddDefaultModule("bridge-mk1");
+                    AddDefaultModule("cockpit-mk1");
+                    AddDefaultModule("shield-s-1");
+                    AddDefaultModule("armor-s-1");
+                    AddDefaultModule("scanner-s-1");
+                    AddDefaultModule("laser-s-1");
+                    AddDefaultModule("pd-s-1");
+                    AddDefaultModule("missile-s-1");
+                    AddDefaultModule("ammo-bay-s-1");
                     break;
+            }
+
+            EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                EntityManager.AddBuffer<ModuleAttachment>(owner);
+            }
+            var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            slots.Clear();
+            attachments.Clear();
+
+            for (int i = 0; i < moduleSpawns.Count; i++)
+            {
+                AppendModuleSlot(ref slots, ref attachments, moduleSpawns[i]);
             }
         }
 
@@ -2328,25 +2340,16 @@ namespace Space4x.Scenario
 
             EnsureModuleOwnerState(owner, loadoutKind);
 
-            DynamicBuffer<CarrierModuleSlot> slots;
             if (EntityManager.HasBuffer<CarrierModuleSlot>(owner))
             {
-                slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
-                if (slots.Length > 0)
+                var existingSlots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+                if (existingSlots.Length > 0)
                 {
                     return false;
                 }
-                slots.Clear();
-            }
-            else
-            {
-                slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
             }
 
-            var attachments = EntityManager.HasBuffer<ModuleAttachment>(owner)
-                ? EntityManager.GetBuffer<ModuleAttachment>(owner)
-                : EntityManager.AddBuffer<ModuleAttachment>(owner);
-            attachments.Clear();
+            var moduleSpawns = new List<ModuleSpawn>(ship.modules.Count);
 
             var totalMass = 0f;
             var moduleCount = 0;
@@ -2359,11 +2362,35 @@ namespace Space4x.Scenario
                     continue;
                 }
 
-                if (AddModuleSlot(slots, attachments, moduleId, out var massTons))
+                if (TryCreateModuleSpawn(moduleId, out var spawn))
                 {
-                    totalMass += massTons;
+                    moduleSpawns.Add(spawn);
+                    totalMass += spawn.MassTons;
                     moduleCount++;
                 }
+            }
+
+            if (moduleCount == 0)
+            {
+                return false;
+            }
+
+            if (!EntityManager.HasBuffer<CarrierModuleSlot>(owner))
+            {
+                EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            }
+            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                EntityManager.AddBuffer<ModuleAttachment>(owner);
+            }
+            var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            slots.Clear();
+            attachments.Clear();
+
+            for (int i = 0; i < moduleSpawns.Count; i++)
+            {
+                AppendModuleSlot(ref slots, ref attachments, moduleSpawns[i]);
             }
 
             if (ship.massCap > 0f && totalMass > ship.massCap + 0.01f)
@@ -2405,28 +2432,47 @@ namespace Space4x.Scenario
             }
         }
 
-        private bool AddModuleSlot(DynamicBuffer<CarrierModuleSlot> slots, DynamicBuffer<ModuleAttachment> attachments, string moduleId, out float massTons)
+        private readonly struct ModuleSpawn
         {
-            var module = CreateModuleEntity(moduleId, out var slotSize, out massTons);
+            public readonly Entity Module;
+            public readonly ModuleSlotSize SlotSize;
+            public readonly float MassTons;
+
+            public ModuleSpawn(Entity module, ModuleSlotSize slotSize, float massTons)
+            {
+                Module = module;
+                SlotSize = slotSize;
+                MassTons = massTons;
+            }
+        }
+
+        private bool TryCreateModuleSpawn(string moduleId, out ModuleSpawn spawn)
+        {
+            spawn = default;
+            var module = CreateModuleEntity(moduleId, out var slotSize, out var massTons);
             if (module == Entity.Null)
             {
-                massTons = 0f;
                 return false;
             }
 
+            spawn = new ModuleSpawn(module, slotSize, massTons);
+            return true;
+        }
+
+        private static void AppendModuleSlot(ref DynamicBuffer<CarrierModuleSlot> slots, ref DynamicBuffer<ModuleAttachment> attachments, in ModuleSpawn spawn)
+        {
             var slotIndex = slots.Length;
             slots.Add(new CarrierModuleSlot
             {
                 SlotIndex = slotIndex,
-                SlotSize = slotSize,
-                CurrentModule = module,
-                TargetModule = module,
+                SlotSize = spawn.SlotSize,
+                CurrentModule = spawn.Module,
+                TargetModule = spawn.Module,
                 RefitProgress = 0f,
                 State = Space4X.Registry.ModuleSlotState.Active
             });
 
-            attachments.Add(new ModuleAttachment { Module = module });
-            return true;
+            attachments.Add(new ModuleAttachment { Module = spawn.Module });
         }
 
         private Entity CreateModuleEntity(string moduleId, out ModuleSlotSize slotSize, out float massTons)
