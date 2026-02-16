@@ -65,7 +65,9 @@ namespace Space4X.Tests.PlayMode
 
             Assert.AreEqual(1, query.CalculateEntityCount(), "Expected one visual entity");
 
-            var e = query.GetSingletonEntity();
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            Assert.AreEqual(1, entities.Length, "Expected one visual entity entity reference");
+            var e = entities[0];
             var rma = _entityManager.GetSharedComponentManaged<RenderMeshArray>(e);
             Assert.Greater(rma.MeshReferences?.Length ?? 0, 0, "RenderMeshArray should have meshes");
             Assert.Greater(rma.MaterialReferences?.Length ?? 0, 0, "RenderMeshArray should have materials");
