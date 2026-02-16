@@ -49,6 +49,9 @@ namespace Space4X.Headless
                 return;
             }
 
+            // Headless validations depend on PureDOTS telemetry metrics being exported.
+            config.ValueRW.Flags |= TelemetryExportFlags.IncludeTelemetryMetrics;
+
             if (!string.IsNullOrWhiteSpace(Space4XHeadlessDiagnostics.TelemetryPath))
             {
                 config.ValueRW.OutputPath = new FixedString512Bytes(Space4XHeadlessDiagnostics.TelemetryPath);
@@ -58,6 +61,14 @@ namespace Space4X.Headless
                     config.ValueRW.MaxOutputBytes = 24u * 1024u * 1024u;
                 }
                 config.ValueRW.Version++;
+            }
+
+            // Some metric emitters expect the TelemetryStream entity to already have a TelemetryMetric buffer.
+            if (SystemAPI.TryGetSingletonEntity<TelemetryStream>(out var telemetryEntity) &&
+                telemetryEntity != Entity.Null &&
+                !state.EntityManager.HasBuffer<TelemetryMetric>(telemetryEntity))
+            {
+                state.EntityManager.AddBuffer<TelemetryMetric>(telemetryEntity);
             }
 
             _applied = 1;
