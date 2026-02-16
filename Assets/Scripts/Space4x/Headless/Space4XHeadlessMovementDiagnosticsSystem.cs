@@ -384,6 +384,14 @@ namespace Space4X.Headless
                 var wantsMove = movement.ValueRO.IsMoving != 0 && speed >= TurnSpeedMin;
                 if (wantsMove)
                 {
+                    var ignoreTurnForIntent = false;
+                    if (SystemAPI.HasComponent<MoveIntent>(entity))
+                    {
+                        var intent = SystemAPI.GetComponentRO<MoveIntent>(entity).ValueRO;
+                        ignoreTurnForIntent =
+                            intent.IntentType == MoveIntentType.Orbit ||
+                            intent.IntentType == MoveIntentType.Hold;
+                    }
                     var stateValue = turnState.ValueRW;
                     var moveStartTick = movement.ValueRO.MoveStartTick;
                     if (moveStartTick > 0 && tick <= moveStartTick + TurnWarmupTicks)
@@ -422,7 +430,7 @@ namespace Space4X.Headless
                         var angularAccel = math.abs(angularSpeed - stateValue.LastAngularSpeed) / deltaTime;
                         turnSampleCount++;
 
-                        if (!_ignoreTurnFailures)
+                        if (!_ignoreTurnFailures && !ignoreTurnForIntent)
                         {
                             if (angularSpeed > MaxAngularSpeedRad)
                             {
