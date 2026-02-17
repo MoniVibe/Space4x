@@ -33,6 +33,62 @@
         { "op": "AddTag", "tagId": "manufacturer.prismworks", "value": 1.0 },
         { "op": "AddTag", "tagId": "theme.beam", "value": 1.0 }
       ]
+    },
+    {
+      "id": "thermospire",
+      "displayName": "Thermospire Arsenal",
+      "signatureRuleId": "sig.thermospire.overdrive",
+      "statMods": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.18 },
+        { "op": "MulStat", "statId": "Range", "value": 1.08 },
+        { "op": "MulStat", "statId": "HeatCost", "value": 1.28 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "manufacturer.thermospire", "value": 1.0 },
+        { "op": "AddTag", "tagId": "theme.beam", "value": 1.0 }
+      ]
+    },
+    {
+      "id": "ironwake",
+      "displayName": "Ironwake Forge",
+      "signatureRuleId": "sig.ironwake.knockback",
+      "statMods": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.12 },
+        { "op": "MulStat", "statId": "FireRate", "value": 0.93 },
+        { "op": "MulStat", "statId": "Mass", "value": 1.10 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "manufacturer.ironwake", "value": 1.0 },
+        { "op": "AddTag", "tagId": "theme.kinetic", "value": 1.0 }
+      ]
+    },
+    {
+      "id": "broodlink",
+      "displayName": "Broodlink Collective",
+      "signatureRuleId": "sig.broodlink.swarm",
+      "statMods": [
+        { "op": "MulStat", "statId": "DroneCapacity", "value": 1.35 },
+        { "op": "MulStat", "statId": "Damage", "value": 0.90 },
+        { "op": "MulStat", "statId": "FireRate", "value": 1.04 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "manufacturer.broodlink", "value": 1.0 },
+        { "op": "AddTag", "tagId": "theme.drone", "value": 1.0 }
+      ]
+    },
+    {
+      "id": "austere",
+      "displayName": "Austere Dynamics",
+      "signatureRuleId": "sig.austere.efficient",
+      "statMods": [
+        { "op": "MulStat", "statId": "EnergyCost", "value": 0.82 },
+        { "op": "MulStat", "statId": "HeatCost", "value": 0.84 },
+        { "op": "MulStat", "statId": "Damage", "value": 0.92 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "manufacturer.austere", "value": 1.0 },
+        { "op": "AddTag", "tagId": "theme.efficient", "value": 1.0 }
+      ]
     }
   ],
   "parts": [
@@ -52,6 +108,26 @@
       "statMods": [
         { "op": "AddStat", "statId": "Damage", "value": 2.5 },
         { "op": "MulStat", "statId": "Mass", "value": 1.03 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "core_flux_overdrive",
+      "slotType": "Core",
+      "statMods": [
+        { "op": "AddStat", "statId": "Damage", "value": 3.0 },
+        { "op": "AddStat", "statId": "HeatCapacity", "value": 6.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "core_compact_efficient",
+      "slotType": "Core",
+      "statMods": [
+        { "op": "MulStat", "statId": "EnergyCost", "value": 0.90 },
+        { "op": "MulStat", "statId": "Damage", "value": 0.95 }
       ],
       "tagOps": [],
       "effectOps": []
@@ -97,6 +173,26 @@
       "effectOps": []
     },
     {
+      "id": "cooling_overclock_radiator",
+      "slotType": "Cooling",
+      "statMods": [
+        { "op": "AddStat", "statId": "HeatDissipation", "value": 8.0 },
+        { "op": "MulStat", "statId": "FireRate", "value": 1.06 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "cooling_phase_sink",
+      "slotType": "Cooling",
+      "statMods": [
+        { "op": "MulStat", "statId": "HeatCost", "value": 0.78 },
+        { "op": "AddStat", "statId": "HeatCapacity", "value": 10.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
       "id": "guidance_drone_link",
       "slotType": "Guidance",
       "statMods": [
@@ -109,6 +205,90 @@
       "effectOps": [
         { "op": "ReplaceAttackFamily", "fromFamily": "Unknown", "toFamily": "Energy" }
       ]
+    },
+    {
+      "id": "guidance_pursuit_matrix",
+      "slotType": "Guidance",
+      "statMods": [
+        { "op": "MulStat", "statId": "Range", "value": 1.08 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "guidance.pursuit", "value": 1.0 }
+      ],
+      "effectOps": []
+    },
+    {
+      "id": "guidance_swarm_router",
+      "slotType": "Guidance",
+      "statMods": [
+        { "op": "AddStat", "statId": "DroneCapacity", "value": 3.0 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "drone.swarm", "value": 1.0 }
+      ],
+      "effectOps": []
+    },
+    {
+      "id": "capacitor_burst_bank",
+      "slotType": "Capacitor",
+      "statMods": [
+        { "op": "MulStat", "statId": "FireRate", "value": 1.12 },
+        { "op": "MulStat", "statId": "HeatCost", "value": 1.10 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "capacitor_sustain_bank",
+      "slotType": "Capacitor",
+      "statMods": [
+        { "op": "MulStat", "statId": "FireRate", "value": 0.96 },
+        { "op": "MulStat", "statId": "HeatCost", "value": 0.82 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "emitter_coherent_lattice",
+      "slotType": "Emitter",
+      "statMods": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.14 }
+      ],
+      "tagOps": [],
+      "effectOps": [
+        { "op": "ReplaceAttackFamily", "fromFamily": "Unknown", "toFamily": "Energy" }
+      ]
+    },
+    {
+      "id": "emitter_scatter_array",
+      "slotType": "Emitter",
+      "statMods": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.06 }
+      ],
+      "tagOps": [],
+      "effectOps": [
+        { "op": "ReplaceAttackFamily", "fromFamily": "Unknown", "toFamily": "Kinetic" }
+      ]
+    },
+    {
+      "id": "plating_reinforced_belt",
+      "slotType": "Plating",
+      "statMods": [
+        { "op": "AddStat", "statId": "ShieldCapacity", "value": 14.0 },
+        { "op": "MulStat", "statId": "Mass", "value": 1.08 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "plating_lightweight_frame",
+      "slotType": "Plating",
+      "statMods": [
+        { "op": "MulStat", "statId": "Mass", "value": 0.90 },
+        { "op": "MulStat", "statId": "ShieldCapacity", "value": 0.95 }
+      ],
+      "tagOps": [],
+      "effectOps": []
     }
   ],
   "blueprints": [
@@ -135,6 +315,161 @@
       "parts": ["core_a", "guidance_drone_link", "cooling_stable"],
       "rarity": "Uncommon",
       "tier": 1
+    },
+    {
+      "blueprintId": "blueprint.weapon.beam_captain.thermospire.v1",
+      "baseModuleId": "laser-s-1",
+      "manufacturerId": "thermospire",
+      "parts": ["core_flux_overdrive", "lens_beam_bias", "cooling_phase_sink", "emitter_coherent_lattice", "capacitor_sustain_bank"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.reactor.beam_captain.austere.v1",
+      "baseModuleId": "reactor-mk2",
+      "manufacturerId": "austere",
+      "parts": ["core_compact_efficient", "cooling_phase_sink", "capacitor_sustain_bank", "plating_lightweight_frame"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.hangar.drone_admiral.broodlink.v1",
+      "baseModuleId": "hangar-s-1",
+      "manufacturerId": "broodlink",
+      "parts": ["core_a", "guidance_swarm_router", "cooling_stable", "capacitor_sustain_bank", "plating_lightweight_frame"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.reactor.drone_admiral.austere.v1",
+      "baseModuleId": "reactor-mk1",
+      "manufacturerId": "austere",
+      "parts": ["core_compact_efficient", "cooling_phase_sink", "capacitor_sustain_bank"],
+      "rarity": "Uncommon",
+      "tier": 1
+    },
+    {
+      "blueprintId": "blueprint.weapon.kinetic_bruiser.ironwake.v1",
+      "baseModuleId": "pd-s-1",
+      "manufacturerId": "ironwake",
+      "parts": ["core_b", "barrel_kinetic_bias", "cooling_overclock_radiator", "capacitor_burst_bank", "plating_reinforced_belt"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.reactor.kinetic_bruiser.ironwake.v1",
+      "baseModuleId": "reactor-mk2",
+      "manufacturerId": "ironwake",
+      "parts": ["core_flux_overdrive", "cooling_overclock_radiator", "capacitor_burst_bank", "plating_reinforced_belt"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.weapon.converter.baseline.v1",
+      "baseModuleId": "pd-s-1",
+      "manufacturerId": "baseline",
+      "parts": ["core_b", "barrel_kinetic_bias", "emitter_coherent_lattice", "cooling_phase_sink", "capacitor_sustain_bank"],
+      "rarity": "Uncommon",
+      "tier": 1
+    },
+    {
+      "blueprintId": "blueprint.hangar.converter.broodlink.v1",
+      "baseModuleId": "hangar-s-1",
+      "manufacturerId": "broodlink",
+      "parts": ["core_a", "guidance_drone_link", "emitter_coherent_lattice", "cooling_phase_sink"],
+      "rarity": "Uncommon",
+      "tier": 1
+    }
+  ],
+  "perkDefinitions": [
+    {
+      "perkId": "perk_convert_kinetic_to_beam_100",
+      "displayName": "Kinetic to Beam Conversion",
+      "ops": [
+        { "op": "ConvertDamage", "fromDamageType": "Kinetic", "toDamageType": "Energy", "pct": 1.0 }
+      ]
+    },
+    {
+      "perkId": "perk_drones_use_beam",
+      "displayName": "Drones Use Beam",
+      "ops": [
+        { "op": "ReplaceAttackFamily", "fromFamily": "Kinetic", "toFamily": "Energy" },
+        { "op": "AddTag", "tagId": "drone.attack.beam", "value": 1.0 }
+      ]
+    },
+    {
+      "perkId": "perk_beam_chain_small",
+      "displayName": "Beam Chain Small",
+      "ops": [
+        { "op": "AddProc", "effectId": "beam.chain.small", "chance": 0.20, "procCoef": 0.35 }
+      ]
+    },
+    {
+      "perkId": "perk_beam_damage_mult_small",
+      "displayName": "Beam Damage Small",
+      "ops": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.12 },
+        { "op": "AddTag", "tagId": "theme.beam", "value": 1.0 }
+      ]
+    },
+    {
+      "perkId": "perk_beam_range_mult_small",
+      "displayName": "Beam Range Small",
+      "ops": [
+        { "op": "MulStat", "statId": "Range", "value": 1.10 }
+      ]
+    },
+    {
+      "perkId": "perk_kinetic_damage_mult_small",
+      "displayName": "Kinetic Damage Small",
+      "ops": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.10 },
+        { "op": "AddTag", "tagId": "theme.kinetic", "value": 1.0 }
+      ]
+    },
+    {
+      "perkId": "perk_kinetic_impact_knockback_small",
+      "displayName": "Kinetic Impact Wave",
+      "ops": [
+        { "op": "AddTag", "tagId": "control.knockback", "value": 1.0 },
+        { "op": "AddProc", "effectId": "kinetic.impact.wave", "chance": 0.18, "procCoef": 0.25 }
+      ]
+    },
+    {
+      "perkId": "perk_drone_capacity_plus_two",
+      "displayName": "Drone Capacity +2",
+      "ops": [
+        { "op": "AddStat", "statId": "DroneCapacity", "value": 2.0 }
+      ]
+    },
+    {
+      "perkId": "perk_drone_fire_rate_mult_small",
+      "displayName": "Drone Fire Rate Small",
+      "ops": [
+        { "op": "MulStat", "statId": "FireRate", "value": 1.08 },
+        { "op": "AddTag", "tagId": "theme.drone", "value": 1.0 }
+      ]
+    },
+    {
+      "perkId": "perk_efficiency_power_draw_down",
+      "displayName": "Power Draw Down",
+      "ops": [
+        { "op": "MulStat", "statId": "EnergyCost", "value": 0.88 }
+      ]
+    },
+    {
+      "perkId": "perk_heat_dissipation_boost_small",
+      "displayName": "Heat Dissipation Boost",
+      "ops": [
+        { "op": "AddStat", "statId": "HeatDissipation", "value": 5.0 }
+      ]
+    },
+    {
+      "perkId": "perk_shield_capacity_flat_small",
+      "displayName": "Shield Capacity Flat",
+      "ops": [
+        { "op": "AddStat", "statId": "ShieldCapacity", "value": 18.0 }
+      ]
     }
   ]
 }
