@@ -15,16 +15,73 @@ namespace Space4x.Scenario
 {
     public enum Space4XFleetcrawlRoomKind : byte { Combat = 0, Relief = 1, Boss = 2 }
     public enum Space4XFleetcrawlBoonType : byte { ChainLightning = 0, MissileVolley = 1, BoostCooldown = 2, ShieldRegen = 3 }
+    public enum Space4XRunGateKind : byte { Boon = 0, Blueprint = 1, Relief = 2 }
+    public enum Space4XRunRewardKind : byte { None = 0, Boon = 1, ModuleBlueprint = 2, ManufacturerUnlock = 3, PartUnlock = 4, Currency = 5, Heal = 6, Reroll = 7 }
+    public enum Space4XRunPerkOpKind : byte { AddStat = 0, MulStat = 1, AddTag = 2, RemoveTag = 3, ConvertDamage = 4, ReplaceAttackFamily = 5 }
+    public enum Space4XRunBlueprintKind : byte { Weapon = 0, Reactor = 1, Hangar = 2 }
+    public enum Space4XRunStatKind : byte { Damage = 0, Cooldown = 1, ShieldRegen = 2 }
+    public enum Space4XRunStatTarget : byte { AllWeapons = 0, BeamWeapons = 1, Drones = 2 }
 
     public struct Space4XFleetcrawlSeeded : IComponentData { public FixedString64Bytes ScenarioId; }
     public struct Space4XRunPlayerTag : IComponentData { }
     public struct PlayerFlagshipTag : IComponentData { }
+    public struct Space4XRunDroneTag : IComponentData { }
     public struct Space4XRunEnemyTag : IComponentData { public int RoomIndex; public int WaveIndex; }
     public struct Space4XRunEnemyDestroyedCounted : IComponentData { }
     public struct Space4XRunChainLightningSource : IComponentData { }
     public struct Space4XRunDamageEventCursor : IComponentData { public int ProcessedCount; }
     public struct RunCurrency : IComponentData { public int Value; }
+    public struct Space4XRunRerollTokens : IComponentData { public int Value; }
+    public struct Space4XRunReactiveModifiers : IComponentData { public float DamageMul; public float CooldownMul; }
     public struct Space4XRunBoonSet : IComponentData { public byte ChainLightning; public byte MissileVolley; public byte BoostCooldown; public byte ShieldRegen; }
+
+    [InternalBufferCapacity(8)]
+    public struct Space4XRunPerkOp : IBufferElementData
+    {
+        public FixedString64Bytes PerkId;
+        public Space4XRunPerkOpKind Kind;
+        public Space4XDamageType FromDamageType;
+        public Space4XDamageType ToDamageType;
+        public WeaponType FromWeaponType;
+        public WeaponType ToWeaponType;
+        public Space4XRunStatKind Stat;
+        public Space4XRunStatTarget Target;
+        public float Value;
+        public byte Stacks;
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct Space4XRunInstalledBlueprint : IBufferElementData
+    {
+        public FixedString64Bytes BlueprintId;
+        public FixedString64Bytes BaseModuleId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes PartA;
+        public FixedString64Bytes PartB;
+        public Space4XRunBlueprintKind Kind;
+        public byte Version;
+    }
+
+    [InternalBufferCapacity(4)]
+    public struct Space4XRunUnlockedManufacturer : IBufferElementData
+    {
+        public FixedString64Bytes ManufacturerId;
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct Space4XRunUnlockedPart : IBufferElementData
+    {
+        public FixedString64Bytes PartId;
+    }
+
+    [InternalBufferCapacity(16)]
+    public struct Space4XRunGateRewardRecord : IBufferElementData
+    {
+        public int RoomIndex;
+        public Space4XRunGateKind GateKind;
+        public Space4XRunRewardKind RewardKind;
+        public FixedString64Bytes RewardId;
+    }
 
     public struct Space4XFleetcrawlDirectorState : IComponentData
     {
@@ -38,6 +95,7 @@ namespace Space4x.Scenario
         public int EnemiesDestroyedInRoom;
         public float DamageSnapshotAtRoomStart;
         public uint StableDigest;
+        public uint Seed;
         public byte RunCompleted;
     }
 
@@ -152,7 +210,7 @@ namespace Space4x.Scenario
             return e;
         }
 
-        public static void SpawnStrikeWing(ref SystemState state, float3 anchor, byte side, int count, bool playerTag, int roomIndex, int waveIndex)
+        public static void SpawnStrikeWing(ref SystemState state, float3 anchor, byte side, int count, bool playerTag, int roomIndex, int waveIndex, bool droneTag = false)
         {
             var em = state.EntityManager;
             for (var i = 0; i < count; i++)
@@ -171,7 +229,7 @@ namespace Space4x.Scenario
                 em.AddComponentData(e, SupplyStatus.DefaultStrikeCraft);
                 EnsureSubsystems(ref state, e, hull.Max);
                 var weapons = em.AddBuffer<WeaponMount>(e);
-                AddWeapon(weapons, Space4XWeapon.Laser(WeaponSize.Small));
+                AddWeapon(weapons, side == 1 ? Space4XWeapon.Laser(WeaponSize.Small) : Space4XWeapon.Kinetic(WeaponSize.Small));
                 em.AddComponentData(e, StrikeCraftProfile.Create(StrikeCraftRole.Fighter, Entity.Null));
                 em.AddComponentData(e, new StrikeCraftState
                 {
@@ -203,6 +261,7 @@ namespace Space4x.Scenario
                 em.AddBuffer<TargetCandidate>(e);
                 em.AddBuffer<DamageHistory>(e);
                 if (playerTag) em.AddComponent<Space4XRunPlayerTag>(e);
+                if (playerTag && droneTag) em.AddComponent<Space4XRunDroneTag>(e);
                 if (side == 1)
                 {
                     em.AddComponentData(e, new Space4XRunEnemyTag { RoomIndex = roomIndex, WaveIndex = waveIndex });
@@ -277,8 +336,18 @@ namespace Space4x.Scenario
             var bossDur = shortMode ? 75f : 420f;
             var waveInt = shortMode ? 10f : 45f;
 
-            var directorEntity = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlDirectorState), typeof(RunCurrency), typeof(Space4XRunBoonSet));
+            var directorEntity = state.EntityManager.CreateEntity(
+                typeof(Space4XFleetcrawlDirectorState),
+                typeof(RunCurrency),
+                typeof(Space4XRunRerollTokens),
+                typeof(Space4XRunReactiveModifiers),
+                typeof(Space4XRunBoonSet));
             var rooms = state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XRunPerkOp>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XRunInstalledBlueprint>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XRunUnlockedManufacturer>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XRunUnlockedPart>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XRunGateRewardRecord>(directorEntity);
             rooms.Add(new Space4XFleetcrawlRoom { Kind = Space4XFleetcrawlRoomKind.Combat, DurationTicks = ToTicks(combatDur, dt), WaveIntervalTicks = ToTicks(waveInt, dt), PlannedWaves = 4, RewardCurrency = 80, RewardHealRatio = 0.06f, RewardPomPct = 0.05f, RewardMaxHullFlat = 20f, OfferBoon = 1 });
             rooms.Add(new Space4XFleetcrawlRoom { Kind = Space4XFleetcrawlRoomKind.Relief, DurationTicks = ToTicks(reliefDur, dt), WaveIntervalTicks = 0, PlannedWaves = 0, RewardCurrency = 40, RewardHealRatio = 0.08f, RewardPomPct = 0f, RewardMaxHullFlat = 0f, OfferBoon = 0 });
             rooms.Add(new Space4XFleetcrawlRoom { Kind = Space4XFleetcrawlRoomKind.Combat, DurationTicks = ToTicks(combatDur, dt), WaveIntervalTicks = ToTicks(waveInt, dt), PlannedWaves = 5, RewardCurrency = 120, RewardHealRatio = 0.05f, RewardPomPct = 0.08f, RewardMaxHullFlat = 30f, OfferBoon = 1 });
@@ -293,13 +362,16 @@ namespace Space4x.Scenario
 
             Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, new float3(-120f, 0f, 0f), 0, 6, true, -1, -1);
 
-            state.EntityManager.SetComponentData(directorEntity, new Space4XFleetcrawlDirectorState { Initialized = 0, CurrentRoomIndex = -1, StableDigest = 1u });
+            var runSeed = info.Seed == 0u ? 9017u : info.Seed;
+            state.EntityManager.SetComponentData(directorEntity, new Space4XFleetcrawlDirectorState { Initialized = 0, CurrentRoomIndex = -1, StableDigest = math.hash(new uint2(1u, runSeed)), Seed = runSeed });
             state.EntityManager.SetComponentData(directorEntity, new RunCurrency { Value = 0 });
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunRerollTokens { Value = 0 });
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunReactiveModifiers { DamageMul = 1f, CooldownMul = 1f });
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunBoonSet());
 
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
-            Debug.Log($"[Fleetcrawl] Seeded run. rooms={rooms.Length} short_mode={(shortMode ? 1 : 0)}.");
+            Debug.Log($"[Fleetcrawl] Seeded run. rooms={rooms.Length} short_mode={(shortMode ? 1 : 0)} seed={runSeed}.");
         }
 
         private static uint ToTicks(float sec, float dt) => (uint)math.max(1f, math.round(math.max(0.01f, sec) / math.max(1e-6f, dt)));
@@ -528,93 +600,692 @@ namespace Space4x.Scenario
                 }
             }
 
-            if (room.OfferBoon != 0)
-            {
-                ApplyBoon(ref state, director.CurrentRoomIndex);
-            }
-
+            var gateSummary = ResolveRoomGates(ref state, ref director, room);
+            var buildDigest = ComputeBuildDigest(state.EntityManager, directorEntity, director.Seed);
             var dps = math.max(0f, (SumPlayerDamage() - director.DamageSnapshotAtRoomStart) / math.max(1e-6f, (director.RoomEndTick - director.RoomStartTick) * dt));
             var digestRoom = math.hash(new uint4((uint)director.CurrentRoomIndex, (uint)director.WavesSpawnedInRoom, (uint)director.EnemiesDestroyedInRoom, (uint)math.max(0, currency.Value)));
-            director.StableDigest = math.hash(new uint2(director.StableDigest ^ digestRoom, (uint)math.round(dps * 100f)));
-            Debug.Log($"[Fleetcrawl] ROOM_END index={director.CurrentRoomIndex} kind={room.Kind} waves={director.WavesSpawnedInRoom} killed={director.EnemiesDestroyedInRoom}/{director.EnemiesSpawnedInRoom} currency={currency.Value} dps={dps:0.0} digest={director.StableDigest}.");
+            director.StableDigest = math.hash(new uint4(director.StableDigest ^ digestRoom, (uint)math.round(dps * 100f), buildDigest, director.Seed));
+            var perks = state.EntityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
+            var installed = state.EntityManager.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
+            Debug.Log($"[Fleetcrawl] ROOM_END index={director.CurrentRoomIndex} kind={room.Kind} waves={director.WavesSpawnedInRoom} killed={director.EnemiesDestroyedInRoom}/{director.EnemiesSpawnedInRoom} gates={gateSummary} perks={perks.Length} blueprints={FormatInstalledBlueprints(installed)} currency={currency.Value} dps={dps:0.0} digest={director.StableDigest}.");
         }
 
-        private static void ApplyBoon(ref SystemState state, int roomIndex)
+        private struct RewardOffer
         {
-            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
-            var boonSet = state.EntityManager.GetComponentData<Space4XRunBoonSet>(directorEntity);
-            var picked = (Space4XFleetcrawlBoonType)(roomIndex % 4);
-            var offerB = (Space4XFleetcrawlBoonType)((roomIndex + 1) % 4);
-            var offerC = (Space4XFleetcrawlBoonType)((roomIndex + 2) % 4);
+            public Space4XRunRewardKind Kind;
+            public Space4XRunBlueprintKind BlueprintKind;
+            public FixedString64Bytes RewardId;
+            public FixedString64Bytes ManufacturerId;
+            public FixedString64Bytes PartA;
+            public FixedString64Bytes PartB;
+            public FixedString64Bytes BaseModuleId;
+        }
 
-            switch (picked)
+        public static class Space4XFleetcrawlBuildDeterminism
+        {
+            public static uint SimulateDigest(uint seed, int roomCount)
             {
-                case Space4XFleetcrawlBoonType.ChainLightning:
-                    if (boonSet.ChainLightning == 0)
+                var roomTotal = math.max(0, roomCount);
+                var runSeed = seed == 0u ? 9017u : seed;
+                var digest = DeterministicMix(runSeed, 0x9E3779B9u, 0x85EBCA6Bu, 0xC2B2AE35u);
+                var boonBits = 0u;
+                var blueprintBits = 0u;
+
+                for (var roomIndex = 0; roomIndex < roomTotal; roomIndex++)
+                {
+                    var roomKind = ResolveDeterministicRoomKind(roomIndex);
+                    var gateCount = roomKind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
+                    for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
                     {
-                        boonSet.ChainLightning = 1;
-                        foreach (var (_, entity) in SystemAPI.Query<RefRO<Space4XRunPlayerTag>>().WithEntityAccess())
+                        var gateKind = ResolveGateKindForDeterminism(roomIndex, gateOrdinal);
+                        var pick = PickOfferIndex(runSeed, roomIndex, gateKind, 3);
+                        if (gateKind == Space4XRunGateKind.Boon)
                         {
-                            if (!state.EntityManager.HasComponent<Space4XRunChainLightningSource>(entity))
-                            {
-                                state.EntityManager.AddComponent<Space4XRunChainLightningSource>(entity);
-                            }
+                            boonBits |= 1u << ((roomIndex + pick) % 4);
+                        }
+                        else if (gateKind == Space4XRunGateKind.Blueprint)
+                        {
+                            blueprintBits |= 1u << ((roomIndex * 3 + pick) % 4);
+                        }
+                        digest = DeterministicMix(digest, (uint)gateKind, (uint)pick, (uint)roomIndex + 1u);
+                    }
+                }
+
+                return DeterministicMix(digest, boonBits, blueprintBits, (uint)roomTotal);
+            }
+        }
+
+        private static FixedString512Bytes ResolveRoomGates(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room)
+        {
+            var summary = new FixedString512Bytes();
+            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            var records = state.EntityManager.GetBuffer<Space4XRunGateRewardRecord>(directorEntity);
+            var gateCount = room.Kind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
+
+            for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
+            {
+                var gateKind = ResolveGateKind(room, gateOrdinal);
+                ResolveOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
+                var pick = PickOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
+                var picked = pick switch
+                {
+                    0 => offerA,
+                    1 => offerB,
+                    _ => offerC
+                };
+
+                Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId}.");
+                ApplyOffer(ref state, directorEntity, picked, director.CurrentRoomIndex);
+                records.Add(new Space4XRunGateRewardRecord
+                {
+                    RoomIndex = director.CurrentRoomIndex,
+                    GateKind = gateKind,
+                    RewardKind = picked.Kind,
+                    RewardId = picked.RewardId
+                });
+
+                if (summary.Length > 0)
+                {
+                    summary.Append(" | ");
+                }
+                summary.Append(gateKind.ToString());
+                summary.Append(":");
+                summary.Append(picked.RewardId);
+            }
+
+            return summary;
+        }
+
+        private static Space4XRunGateKind ResolveGateKind(in Space4XFleetcrawlRoom room, int gateOrdinal)
+        {
+            if (room.Kind == Space4XFleetcrawlRoomKind.Relief)
+            {
+                return gateOrdinal == 0 ? Space4XRunGateKind.Boon : Space4XRunGateKind.Blueprint;
+            }
+
+            return gateOrdinal switch
+            {
+                0 => Space4XRunGateKind.Boon,
+                1 => Space4XRunGateKind.Blueprint,
+                _ => Space4XRunGateKind.Relief
+            };
+        }
+
+        private static Space4XRunGateKind ResolveGateKindForDeterminism(int roomIndex, int gateOrdinal)
+        {
+            if (ResolveDeterministicRoomKind(roomIndex) == Space4XFleetcrawlRoomKind.Relief)
+            {
+                return gateOrdinal == 0 ? Space4XRunGateKind.Boon : Space4XRunGateKind.Blueprint;
+            }
+
+            return gateOrdinal switch
+            {
+                0 => Space4XRunGateKind.Boon,
+                1 => Space4XRunGateKind.Blueprint,
+                _ => Space4XRunGateKind.Relief
+            };
+        }
+
+        private static Space4XFleetcrawlRoomKind ResolveDeterministicRoomKind(int roomIndex)
+        {
+            var pattern = roomIndex % 5;
+            return pattern switch
+            {
+                1 => Space4XFleetcrawlRoomKind.Relief,
+                3 => Space4XFleetcrawlRoomKind.Boss,
+                4 => Space4XFleetcrawlRoomKind.Relief,
+                _ => Space4XFleetcrawlRoomKind.Combat
+            };
+        }
+
+        private static void ResolveOffers(uint seed, int roomIndex, Space4XRunGateKind gateKind, out RewardOffer offerA, out RewardOffer offerB, out RewardOffer offerC)
+        {
+            var start = (int)(DeterministicMix(seed, (uint)(roomIndex + 1), (uint)gateKind + 17u, 0xA5A5A5A5u) % 4u);
+            switch (gateKind)
+            {
+                case Space4XRunGateKind.Boon:
+                    offerA = GetBoonOffer(start % 4);
+                    offerB = GetBoonOffer((start + 1) % 4);
+                    offerC = GetBoonOffer((start + 2) % 4);
+                    break;
+                case Space4XRunGateKind.Blueprint:
+                    offerA = GetBlueprintOffer(start % 4);
+                    offerB = GetBlueprintOffer((start + 1) % 4);
+                    offerC = GetBlueprintOffer((start + 2) % 4);
+                    break;
+                default:
+                    offerA = GetReliefOffer(0);
+                    offerB = GetReliefOffer(1);
+                    offerC = GetReliefOffer(2);
+                    break;
+            }
+        }
+
+        private static RewardOffer GetBoonOffer(int index)
+        {
+            return index switch
+            {
+                0 => new RewardOffer { Kind = Space4XRunRewardKind.Boon, RewardId = new FixedString64Bytes("perk_convert_kinetic_to_beam_100") },
+                1 => new RewardOffer { Kind = Space4XRunRewardKind.Boon, RewardId = new FixedString64Bytes("perk_drones_use_beam") },
+                2 => new RewardOffer { Kind = Space4XRunRewardKind.Boon, RewardId = new FixedString64Bytes("perk_beam_chain_small") },
+                _ => new RewardOffer { Kind = Space4XRunRewardKind.Boon, RewardId = new FixedString64Bytes("perk_beam_damage_mult_small") }
+            };
+        }
+
+        private static RewardOffer GetBlueprintOffer(int index)
+        {
+            return index switch
+            {
+                0 => new RewardOffer
+                {
+                    Kind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Weapon,
+                    RewardId = new FixedString64Bytes("weapon_laser_prismworks_coreA_lensBeam"),
+                    BaseModuleId = new FixedString64Bytes("weapon_laser"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    PartA = new FixedString64Bytes("coreA"),
+                    PartB = new FixedString64Bytes("lensBeam")
+                },
+                1 => new RewardOffer
+                {
+                    Kind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Weapon,
+                    RewardId = new FixedString64Bytes("weapon_kinetic_baseline_coreB_barrelKinetic"),
+                    BaseModuleId = new FixedString64Bytes("weapon_kinetic"),
+                    ManufacturerId = new FixedString64Bytes("baseline"),
+                    PartA = new FixedString64Bytes("coreB"),
+                    PartB = new FixedString64Bytes("barrelKinetic")
+                },
+                2 => new RewardOffer
+                {
+                    Kind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Reactor,
+                    RewardId = new FixedString64Bytes("reactor_prismworks_coreA_coolingStable"),
+                    BaseModuleId = new FixedString64Bytes("reactor"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    PartA = new FixedString64Bytes("coreA"),
+                    PartB = new FixedString64Bytes("coolingStable")
+                },
+                _ => new RewardOffer
+                {
+                    Kind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Hangar,
+                    RewardId = new FixedString64Bytes("hangar_prismworks_guidanceDroneLink_lensBeam"),
+                    BaseModuleId = new FixedString64Bytes("hangar"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    PartA = new FixedString64Bytes("guidanceDroneLink"),
+                    PartB = new FixedString64Bytes("lensBeam")
+                }
+            };
+        }
+
+        private static RewardOffer GetReliefOffer(int index)
+        {
+            return index switch
+            {
+                0 => new RewardOffer { Kind = Space4XRunRewardKind.Currency, RewardId = new FixedString64Bytes("relief_currency_cache") },
+                1 => new RewardOffer { Kind = Space4XRunRewardKind.Heal, RewardId = new FixedString64Bytes("relief_hull_patch") },
+                _ => new RewardOffer { Kind = Space4XRunRewardKind.Reroll, RewardId = new FixedString64Bytes("relief_reroll_token") }
+            };
+        }
+
+        private static int PickOfferIndex(uint seed, int roomIndex, Space4XRunGateKind gateKind, int offerCount)
+        {
+            if (offerCount <= 1)
+            {
+                return 0;
+            }
+
+            var hash = DeterministicMix(seed, (uint)(roomIndex + 1), (uint)gateKind + 101u, 0xC3A5C85Cu);
+            return (int)(hash % (uint)offerCount);
+        }
+
+        private static void ApplyOffer(ref SystemState state, Entity directorEntity, in RewardOffer offer, int roomIndex)
+        {
+            switch (offer.Kind)
+            {
+                case Space4XRunRewardKind.Boon:
+                    ApplyPerkReward(ref state, directorEntity, offer.RewardId, roomIndex);
+                    break;
+                case Space4XRunRewardKind.ModuleBlueprint:
+                    ApplyBlueprintReward(ref state, directorEntity, offer, roomIndex);
+                    break;
+                case Space4XRunRewardKind.Currency:
+                    {
+                        var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
+                        currency.Value += 35;
+                        state.EntityManager.SetComponentData(directorEntity, currency);
+                        break;
+                    }
+                case Space4XRunRewardKind.Heal:
+                    HealPlayers(0.08f);
+                    break;
+                case Space4XRunRewardKind.Reroll:
+                    {
+                        var reroll = state.EntityManager.GetComponentData<Space4XRunRerollTokens>(directorEntity);
+                        reroll.Value += 1;
+                        state.EntityManager.SetComponentData(directorEntity, reroll);
+                        break;
+                    }
+            }
+        }
+
+        private static void ApplyPerkReward(ref SystemState state, Entity directorEntity, in FixedString64Bytes perkId, int roomIndex)
+        {
+            var perkOps = state.EntityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
+            if (perkId.Equals(new FixedString64Bytes("perk_convert_kinetic_to_beam_100")))
+            {
+                if (!HasPerkOp(perkOps, perkId))
+                {
+                    perkOps.Add(new Space4XRunPerkOp
+                    {
+                        PerkId = perkId,
+                        Kind = Space4XRunPerkOpKind.ConvertDamage,
+                        FromDamageType = Space4XDamageType.Kinetic,
+                        ToDamageType = Space4XDamageType.Energy,
+                        FromWeaponType = WeaponType.Kinetic,
+                        ToWeaponType = WeaponType.Laser,
+                        Stat = Space4XRunStatKind.Damage,
+                        Target = Space4XRunStatTarget.AllWeapons,
+                        Value = 1f,
+                        Stacks = 1
+                    });
+                }
+                ConvertPlayerKineticToBeam();
+            }
+            else if (perkId.Equals(new FixedString64Bytes("perk_drones_use_beam")))
+            {
+                if (!HasPerkOp(perkOps, perkId))
+                {
+                    perkOps.Add(new Space4XRunPerkOp
+                    {
+                        PerkId = perkId,
+                        Kind = Space4XRunPerkOpKind.ReplaceAttackFamily,
+                        FromDamageType = Space4XDamageType.Kinetic,
+                        ToDamageType = Space4XDamageType.Energy,
+                        FromWeaponType = WeaponType.Kinetic,
+                        ToWeaponType = WeaponType.Laser,
+                        Stat = Space4XRunStatKind.Damage,
+                        Target = Space4XRunStatTarget.Drones,
+                        Value = 1f,
+                        Stacks = 1
+                    });
+                }
+                ConvertDroneWeaponsToBeam();
+            }
+            else if (perkId.Equals(new FixedString64Bytes("perk_beam_chain_small")))
+            {
+                if (!HasPerkOp(perkOps, perkId))
+                {
+                    perkOps.Add(new Space4XRunPerkOp
+                    {
+                        PerkId = perkId,
+                        Kind = Space4XRunPerkOpKind.AddTag,
+                        Stat = Space4XRunStatKind.Damage,
+                        Target = Space4XRunStatTarget.BeamWeapons,
+                        Value = 0.25f,
+                        Stacks = 1
+                    });
+                    foreach (var (_, entity) in SystemAPI.Query<RefRO<Space4XRunPlayerTag>>().WithEntityAccess())
+                    {
+                        if (!state.EntityManager.HasComponent<Space4XRunChainLightningSource>(entity))
+                        {
+                            state.EntityManager.AddComponent<Space4XRunChainLightningSource>(entity);
                         }
                     }
-                    break;
-                case Space4XFleetcrawlBoonType.MissileVolley:
-                    if (boonSet.MissileVolley == 0)
+                }
+            }
+            else
+            {
+                var index = FindPerkOpIndex(perkOps, perkId);
+                if (index < 0)
+                {
+                    perkOps.Add(new Space4XRunPerkOp
                     {
-                        boonSet.MissileVolley = 1;
-                        foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
-                        {
-                            var append = new NativeList<WeaponMount>(Allocator.Temp);
-                            for (var i = 0; i < weapons.Length; i++)
-                            {
-                                var mount = weapons[i];
-                                if (mount.Weapon.Type != WeaponType.Missile)
-                                {
-                                    continue;
-                                }
-                                mount.Weapon.BaseDamage *= 0.6f;
-                                mount.Weapon.CooldownTicks = (ushort)math.max(1, mount.Weapon.CooldownTicks + 1);
-                                append.Add(mount);
-                            }
-                            for (var i = 0; i < append.Length; i++)
-                            {
-                                weapons.Add(append[i]);
-                            }
-                            append.Dispose();
-                        }
-                    }
+                        PerkId = perkId,
+                        Kind = Space4XRunPerkOpKind.MulStat,
+                        Stat = Space4XRunStatKind.Damage,
+                        Target = Space4XRunStatTarget.BeamWeapons,
+                        Value = 1.12f,
+                        Stacks = 1
+                    });
+                }
+                else
+                {
+                    var op = perkOps[index];
+                    op.Stacks = (byte)math.min(255, op.Stacks + 1);
+                    op.Value *= 1.05f;
+                    perkOps[index] = op;
+                }
+                ApplyBeamDamageMultiplier(1.12f);
+            }
+
+            Debug.Log($"[Fleetcrawl] GATE room={roomIndex} gate=Boon picked={perkId}.");
+        }
+
+        private static void ApplyBlueprintReward(ref SystemState state, Entity directorEntity, in RewardOffer offer, int roomIndex)
+        {
+            var installed = state.EntityManager.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
+            var replaced = false;
+            for (var i = 0; i < installed.Length; i++)
+            {
+                if (installed[i].Kind != offer.BlueprintKind)
+                {
+                    continue;
+                }
+
+                installed[i] = new Space4XRunInstalledBlueprint
+                {
+                    BlueprintId = offer.RewardId,
+                    BaseModuleId = offer.BaseModuleId,
+                    ManufacturerId = offer.ManufacturerId,
+                    PartA = offer.PartA,
+                    PartB = offer.PartB,
+                    Kind = offer.BlueprintKind,
+                    Version = (byte)(installed[i].Version + 1)
+                };
+                replaced = true;
+                break;
+            }
+
+            if (!replaced)
+            {
+                installed.Add(new Space4XRunInstalledBlueprint
+                {
+                    BlueprintId = offer.RewardId,
+                    BaseModuleId = offer.BaseModuleId,
+                    ManufacturerId = offer.ManufacturerId,
+                    PartA = offer.PartA,
+                    PartB = offer.PartB,
+                    Kind = offer.BlueprintKind,
+                    Version = 1
+                });
+            }
+
+            RegisterUnlocks(state.EntityManager, directorEntity, offer);
+
+            switch (offer.BlueprintKind)
+            {
+                case Space4XRunBlueprintKind.Weapon:
+                    InstallWeaponBlueprint(offer.RewardId);
                     break;
-                case Space4XFleetcrawlBoonType.BoostCooldown:
-                    boonSet.BoostCooldown = (byte)math.min(255, boonSet.BoostCooldown + 1);
-                    foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
-                    {
-                        for (var i = 0; i < weapons.Length; i++)
-                        {
-                            var mount = weapons[i];
-                            mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * 0.82f));
-                            weapons[i] = mount;
-                        }
-                    }
+                case Space4XRunBlueprintKind.Reactor:
+                    ApplyReactorBlueprint(ref state, directorEntity);
                     break;
-                case Space4XFleetcrawlBoonType.ShieldRegen:
-                    boonSet.ShieldRegen = (byte)math.min(255, boonSet.ShieldRegen + 1);
-                    foreach (var shield in SystemAPI.Query<RefRW<Space4XShield>>().WithAll<Space4XRunPlayerTag>())
-                    {
-                        var shieldData = shield.ValueRO;
-                        shieldData.RechargeRate *= 1.35f;
-                        shieldData.Maximum *= 1.08f;
-                        shieldData.Current = math.min(shieldData.Maximum, shieldData.Current + shieldData.Maximum * 0.08f);
-                        shield.ValueRW = shieldData;
-                    }
+                case Space4XRunBlueprintKind.Hangar:
+                    SpawnHangarDronesFromBlueprint(ref state, directorEntity, roomIndex);
                     break;
             }
 
-            state.EntityManager.SetComponentData(directorEntity, boonSet);
-            Debug.Log($"[Fleetcrawl] BOON room={roomIndex} picked={picked} offers=[{picked},{offerB},{offerC}].");
+            Debug.Log($"[Fleetcrawl] GATE room={roomIndex} gate=Blueprint picked={offer.RewardId}.");
+        }
+
+        private static void RegisterUnlocks(EntityManager em, Entity directorEntity, in RewardOffer offer)
+        {
+            var manufacturers = em.GetBuffer<Space4XRunUnlockedManufacturer>(directorEntity);
+            var parts = em.GetBuffer<Space4XRunUnlockedPart>(directorEntity);
+            if (!ContainsManufacturer(manufacturers, offer.ManufacturerId))
+            {
+                manufacturers.Add(new Space4XRunUnlockedManufacturer { ManufacturerId = offer.ManufacturerId });
+            }
+            if (!ContainsPart(parts, offer.PartA))
+            {
+                parts.Add(new Space4XRunUnlockedPart { PartId = offer.PartA });
+            }
+            if (!ContainsPart(parts, offer.PartB))
+            {
+                parts.Add(new Space4XRunUnlockedPart { PartId = offer.PartB });
+            }
+        }
+
+        private static bool ContainsManufacturer(DynamicBuffer<Space4XRunUnlockedManufacturer> buffer, in FixedString64Bytes id)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].ManufacturerId.Equals(id))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool ContainsPart(DynamicBuffer<Space4XRunUnlockedPart> buffer, in FixedString64Bytes id)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i].PartId.Equals(id))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static void InstallWeaponBlueprint(in FixedString64Bytes blueprintId)
+        {
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<PlayerFlagshipTag>())
+            {
+                if (weapons.Length == 0)
+                {
+                    continue;
+                }
+
+                var mount = weapons[0];
+                if (blueprintId.Equals(new FixedString64Bytes("weapon_kinetic_baseline_coreB_barrelKinetic")))
+                {
+                    mount.Weapon = Space4XWeapon.Kinetic(WeaponSize.Large);
+                    mount.Weapon.BaseDamage *= 1.25f;
+                    mount.Weapon.CooldownTicks = (ushort)math.max(1, mount.Weapon.CooldownTicks - 2);
+                }
+                else
+                {
+                    mount.Weapon = Space4XWeapon.Laser(WeaponSize.Large);
+                    mount.Weapon.BaseDamage *= 1.15f;
+                    mount.Weapon.CooldownTicks = (ushort)math.max(1, mount.Weapon.CooldownTicks - 1);
+                }
+                weapons[0] = mount;
+            }
+        }
+
+        private static void ApplyReactorBlueprint(ref SystemState state, Entity directorEntity)
+        {
+            var modifiers = state.EntityManager.GetComponentData<Space4XRunReactiveModifiers>(directorEntity);
+            modifiers.DamageMul *= 1.08f;
+            modifiers.CooldownMul *= 0.9f;
+            state.EntityManager.SetComponentData(directorEntity, modifiers);
+
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
+            {
+                for (var i = 0; i < weapons.Length; i++)
+                {
+                    var mount = weapons[i];
+                    mount.Weapon.BaseDamage *= 1.08f;
+                    mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * 0.9f));
+                    mount.HeatDissipation *= 1.12f;
+                    weapons[i] = mount;
+                }
+            }
+        }
+
+        private static void SpawnHangarDronesFromBlueprint(ref SystemState state, Entity directorEntity, int roomIndex)
+        {
+            var anchor = new float3(-120f, 0f, 0f);
+            foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<PlayerFlagshipTag>())
+            {
+                anchor = transform.ValueRO.Position;
+                break;
+            }
+
+            Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, anchor + new float3(-8f, 0f, 12f), 0, 4, true, roomIndex, 0, true);
+            var perkOps = state.EntityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
+            if (HasPerkOp(perkOps, new FixedString64Bytes("perk_drones_use_beam")) ||
+                HasPerkOp(perkOps, new FixedString64Bytes("perk_convert_kinetic_to_beam_100")))
+            {
+                ConvertDroneWeaponsToBeam();
+            }
+        }
+
+        private static bool HasPerkOp(DynamicBuffer<Space4XRunPerkOp> perkOps, in FixedString64Bytes perkId)
+        {
+            return FindPerkOpIndex(perkOps, perkId) >= 0;
+        }
+
+        private static int FindPerkOpIndex(DynamicBuffer<Space4XRunPerkOp> perkOps, in FixedString64Bytes perkId)
+        {
+            for (var i = 0; i < perkOps.Length; i++)
+            {
+                if (perkOps[i].PerkId.Equals(perkId))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static void ConvertPlayerKineticToBeam()
+        {
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
+            {
+                for (var i = 0; i < weapons.Length; i++)
+                {
+                    var mount = weapons[i];
+                    if (mount.Weapon.DamageType != Space4XDamageType.Kinetic && mount.Weapon.Type != WeaponType.Kinetic)
+                    {
+                        continue;
+                    }
+
+                    ConvertMountToBeam(ref mount, 1.05f);
+                    weapons[i] = mount;
+                }
+            }
+        }
+
+        private static void ConvertDroneWeaponsToBeam()
+        {
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag, Space4XRunDroneTag>())
+            {
+                for (var i = 0; i < weapons.Length; i++)
+                {
+                    var mount = weapons[i];
+                    ConvertMountToBeam(ref mount, 1.02f);
+                    weapons[i] = mount;
+                }
+            }
+        }
+
+        private static void ApplyBeamDamageMultiplier(float multiplier)
+        {
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
+            {
+                for (var i = 0; i < weapons.Length; i++)
+                {
+                    var mount = weapons[i];
+                    if (mount.Weapon.Delivery != WeaponDelivery.Beam && mount.Weapon.DamageType != Space4XDamageType.Energy)
+                    {
+                        continue;
+                    }
+
+                    mount.Weapon.BaseDamage *= multiplier;
+                    weapons[i] = mount;
+                }
+            }
+        }
+
+        private static void ConvertMountToBeam(ref WeaponMount mount, float damageScale)
+        {
+            var w = mount.Weapon;
+            w.Type = WeaponType.Laser;
+            w.DamageType = Space4XDamageType.Energy;
+            w.Family = WeaponFamily.Energy;
+            w.Delivery = WeaponDelivery.Beam;
+            w.ShieldModifier = (half)math.max((float)w.ShieldModifier, 1.25f);
+            w.ArmorPenetration = (half)math.min((float)w.ArmorPenetration, 0.45f);
+            w.BaseDamage *= damageScale;
+            mount.Weapon = w;
+        }
+
+        private static void HealPlayers(float ratio)
+        {
+            foreach (var hull in SystemAPI.Query<RefRW<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
+            {
+                var hullData = hull.ValueRO;
+                hullData.Current = math.min(hullData.Max, hullData.Current + hullData.Max * math.max(0f, ratio));
+                hull.ValueRW = hullData;
+            }
+        }
+
+        private static string FormatInstalledBlueprints(DynamicBuffer<Space4XRunInstalledBlueprint> installed)
+        {
+            if (installed.Length == 0)
+            {
+                return "<none>";
+            }
+
+            var result = string.Empty;
+            for (var i = 0; i < installed.Length; i++)
+            {
+                if (i > 0)
+                {
+                    result += ",";
+                }
+                result += installed[i].BlueprintId.ToString();
+            }
+
+            return result;
+        }
+
+        private static uint ComputeBuildDigest(EntityManager em, Entity directorEntity, uint seed)
+        {
+            var digest = math.hash(new uint2(seed == 0u ? 9017u : seed, 0xB5297A4Du));
+            var perkOps = em.GetBuffer<Space4XRunPerkOp>(directorEntity);
+            for (var i = 0; i < perkOps.Length; i++)
+            {
+                var op = perkOps[i];
+                digest = math.hash(new uint4(
+                    digest,
+                    HashFixedString(op.PerkId),
+                    (uint)op.Kind + ((uint)op.Stacks << 8),
+                    (uint)math.round(math.abs(op.Value) * 1000f)));
+            }
+
+            var installed = em.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
+            for (var i = 0; i < installed.Length; i++)
+            {
+                var bp = installed[i];
+                digest = math.hash(new uint4(
+                    digest ^ (uint)bp.Kind,
+                    HashFixedString(bp.BlueprintId),
+                    HashFixedString(bp.ManufacturerId),
+                    HashFixedString(bp.PartA) ^ HashFixedString(bp.PartB)));
+            }
+
+            return digest;
+        }
+
+        private static uint DeterministicMix(uint a, uint b, uint c, uint d)
+        {
+            var hash = 2166136261u;
+            hash ^= a;
+            hash *= 16777619u;
+            hash ^= b;
+            hash *= 16777619u;
+            hash ^= c;
+            hash *= 16777619u;
+            hash ^= d;
+            hash *= 16777619u;
+            return hash;
+        }
+
+        private static uint HashFixedString(in FixedString64Bytes value)
+        {
+            var hash = 2166136261u;
+            for (var i = 0; i < value.Length; i++)
+            {
+                hash ^= value[i];
+                hash *= 16777619u;
+            }
+            return hash;
         }
 
         private static float SumPlayerDamage()
