@@ -65,8 +65,6 @@ namespace Space4X.Presentation
 
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<RenderPresentationCatalog>();
-
             _carrierInitQuery = SystemAPI.QueryBuilder()
                 .WithAll<Carrier, LocalTransform>()
                 .WithNone<CarrierPresentationTag>()
