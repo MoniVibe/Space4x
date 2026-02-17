@@ -78,7 +78,7 @@ namespace Space4X.Tests.PlayMode
             }
 
             var scenario = global::System.Environment.GetEnvironmentVariable(EnvScenarioPath);
-            Debug.Log($"[RenderedSmokeParityBatchEnvBootstrap] applied=1 reason={reason} scenario={scenario}");
+            UnityEngine.Debug.Log($"[RenderedSmokeParityBatchEnvBootstrap] applied=1 reason={reason} scenario={scenario}");
         }
     }
 
