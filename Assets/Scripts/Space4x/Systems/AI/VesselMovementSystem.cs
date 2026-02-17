@@ -293,16 +293,20 @@ namespace Space4X.Systems.AI
             _planetGravityLookup.Update(ref state);
 
             var hasSpatialGrid = SystemAPI.TryGetSingleton<SpatialGridConfig>(out var spatialConfig);
-            NativeArray<SpatialGridCellRange> spatialRanges = default;
-            NativeArray<SpatialGridEntry> spatialEntries = default;
+            var spatialRanges = new NativeArray<SpatialGridCellRange>(0, Allocator.TempJob);
+            var spatialEntries = new NativeArray<SpatialGridEntry>(0, Allocator.TempJob);
+            var ownsSpatialArrays = true;
             if (hasSpatialGrid)
             {
                 var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
                 if (SystemAPI.HasBuffer<SpatialGridCellRange>(gridEntity) &&
                     SystemAPI.HasBuffer<SpatialGridEntry>(gridEntity))
                 {
+                    spatialRanges.Dispose();
+                    spatialEntries.Dispose();
                     spatialRanges = SystemAPI.GetBuffer<SpatialGridCellRange>(gridEntity).AsNativeArray();
                     spatialEntries = SystemAPI.GetBuffer<SpatialGridEntry>(gridEntity).AsNativeArray();
+                    ownsSpatialArrays = false;
                 }
                 else
                 {
@@ -408,7 +412,14 @@ namespace Space4X.Systems.AI
                 AllowSlide = 1
             };
 
-            state.Dependency = job.ScheduleParallel(state.Dependency);
+            var jobHandle = job.ScheduleParallel(state.Dependency);
+            if (ownsSpatialArrays)
+            {
+                jobHandle = spatialRanges.Dispose(jobHandle);
+                jobHandle = spatialEntries.Dispose(jobHandle);
+            }
+
+            state.Dependency = jobHandle;
         }
 
         [BurstCompile]

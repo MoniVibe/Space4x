@@ -82,18 +82,27 @@ namespace Space4X.Tests.PlayMode
 #if UNITY_EDITOR
                     try
                     {
-                        var openedScene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                        var loadOp = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(
                             SmokeScenePath,
-                            UnityEditor.SceneManagement.OpenSceneMode.Single);
-                        if (openedScene.IsValid() && openedScene.isLoaded)
+                            new LoadSceneParameters(LoadSceneMode.Single));
+
+                        var spin = 0;
+                        while (loadOp != null && !loadOp.isDone && spin < 240)
                         {
-                            SceneManager.SetActiveScene(openedScene);
-                            loadedScene = openedScene;
+                            UpdateWorlds(runtimeErrors);
+                            spin++;
+                        }
+
+                        var loadedByPath = SceneManager.GetSceneByPath(SmokeScenePath);
+                        if (loadedByPath.IsValid() && loadedByPath.isLoaded)
+                        {
+                            SceneManager.SetActiveScene(loadedByPath);
+                            loadedScene = loadedByPath;
                         }
                     }
                     catch (Exception ex)
                     {
-                        UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] EditorSceneManager.OpenScene fallback failed ({ex.GetType().Name}): {ex.Message}");
+                        UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] LoadSceneAsyncInPlayMode fallback failed ({ex.GetType().Name}): {ex.Message}");
                     }
 #endif
                 }
