@@ -21,6 +21,9 @@ namespace Space4X.Presentation
     /// </summary>
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    [UpdateBefore(typeof(RenderPresentationValidationSystem))]
+#endif
     public partial struct Space4XPresentationLifecycleSystem : ISystem
     {
         private EntityQuery _carrierInitQuery;
@@ -104,13 +107,22 @@ namespace Space4X.Presentation
                 .WithNone<RenderKey>()
                 .Build();
 
-            _missingPresenterQuery = SystemAPI.QueryBuilder()
-                .WithAll<RenderSemanticKey>()
-                .WithNone<MeshPresenter>()
-                .WithNone<SpritePresenter>()
-                .WithNone<DebugPresenter>()
-                .WithNone<TracerPresenter>()
-                .Build();
+            _missingPresenterQuery = state.GetEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<RenderSemanticKey>()
+                },
+                None = new[]
+                {
+                    ComponentType.ReadOnly<MeshPresenter>(),
+                    ComponentType.ReadOnly<SpritePresenter>(),
+                    ComponentType.ReadOnly<DebugPresenter>(),
+                    ComponentType.ReadOnly<TracerPresenter>()
+                },
+                // Match validation semantics so disabled entities are repaired as well.
+                Options = EntityQueryOptions.IgnoreComponentEnabledState
+            });
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             UnityDebug.Log($"[Space4XPresentationLifecycle] OnCreate World='{state.WorldUnmanaged.Name}' RenderingEnabled={RuntimeMode.IsRenderingEnabled} Headless={RuntimeMode.IsHeadless} HasCatalog={SystemAPI.HasSingleton<RenderPresentationCatalog>()}");
@@ -669,21 +681,24 @@ namespace Space4X.Presentation
                 return;
             }
 
-            foreach (var (semantic, entity) in SystemAPI
-                         .Query<RefRO<RenderSemanticKey>>()
-                         .WithNone<MeshPresenter>()
-                         .WithNone<SpritePresenter>()
-                         .WithNone<DebugPresenter>()
-                         .WithNone<TracerPresenter>()
-                         .WithEntityAccess())
+            var em = state.EntityManager;
+            using var entities = _missingPresenterQuery.ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < entities.Length; i++)
             {
+                var entity = entities[i];
+                if (!em.Exists(entity) || !em.HasComponent<RenderSemanticKey>(entity))
+                {
+                    continue;
+                }
+
+                var semantic = em.GetComponentData<RenderSemanticKey>(entity).Value;
                 if (!SystemAPI.HasComponent<PresentationLayer>(entity))
                 {
                     ecb.AddComponent(entity, new PresentationLayer { Value = PresentationLayerId.Orbital });
                 }
 
                 AddCommonRenderComponents(ref state, ref ecb, entity,
-                    semantic.ValueRO.Value,
+                    semantic,
                     cullDistance: FallbackCullDistance,
                     cullPriority: FallbackCullPriority,
                     importance: FallbackImportance);
