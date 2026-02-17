@@ -79,6 +79,27 @@ namespace Space4X.Tests.PlayMode
                 }
                 else
                 {
+#if UNITY_EDITOR
+                    try
+                    {
+                        var openedScene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                            SmokeScenePath,
+                            UnityEditor.SceneManagement.OpenSceneMode.Single);
+                        if (openedScene.IsValid() && openedScene.isLoaded)
+                        {
+                            SceneManager.SetActiveScene(openedScene);
+                            loadedScene = openedScene;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] EditorSceneManager.OpenScene fallback failed ({ex.GetType().Name}): {ex.Message}");
+                    }
+#endif
+                }
+
+                if (!(loadedScene.IsValid() && loadedScene.isLoaded))
+                {
                     UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Scene '{SmokeSceneName}' not active after load call; continuing with currently active scene.");
                 }
 
