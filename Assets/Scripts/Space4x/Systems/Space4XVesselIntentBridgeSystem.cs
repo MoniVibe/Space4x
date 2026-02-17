@@ -69,6 +69,10 @@ namespace Space4X.Systems
                 return;
             }
 
+            // This system performs immediate ComponentLookup reads/writes on VesselAIState.
+            // Ensure writer jobs (for example VesselTargetingSystem) are completed first.
+            state.CompleteDependency();
+
             _aiStateLookup.Update(ref state);
             _miningVesselLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
