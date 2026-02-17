@@ -268,10 +268,7 @@ namespace Space4X.Tests.PlayMode
                 {
                     UnityEngine.Debug.LogWarning("[Space4XRenderedSmokeParityTests] Smoke scene did not provide an enabled camera in this batch context.");
                 }
-                if (runtimeErrors.Count > 0)
-                {
-                    AppendMissingPresenterDiagnostics(runtimeErrors);
-                }
+                AppendMissingPresenterDiagnostics(runtimeErrors);
                 AssertRuntimeErrorFree(runtimeErrors);
             }
             finally
@@ -413,40 +410,59 @@ namespace Space4X.Tests.PlayMode
 
         private static void AppendMissingPresenterDiagnostics(List<string> runtimeErrors)
         {
-            var world = World.DefaultGameObjectInjectionWorld;
-            if (world == null || !world.IsCreated)
+            var remainingDetails = 5;
+            for (var worldIndex = 0; worldIndex < World.All.Count; worldIndex++)
             {
-                return;
-            }
-
-            var em = world.EntityManager;
-            using var query = em.CreateEntityQuery(new EntityQueryDesc
-            {
-                All = new[] { ComponentType.ReadOnly<RenderSemanticKey>() },
-                None = new[]
+                var world = World.All[worldIndex];
+                if (world == null || !world.IsCreated)
                 {
-                    ComponentType.ReadOnly<MeshPresenter>(),
-                    ComponentType.ReadOnly<SpritePresenter>(),
-                    ComponentType.ReadOnly<DebugPresenter>(),
-                    ComponentType.ReadOnly<TracerPresenter>()
-                },
-                Options = EntityQueryOptions.IgnoreComponentEnabledState
-            });
+                    continue;
+                }
 
-            using var entities = query.ToEntityArray(Allocator.Temp);
-            var limit = entities.Length < 5 ? entities.Length : 5;
-            for (var i = 0; i < limit; i++)
-            {
-                var entity = entities[i];
-                var semantic = em.GetComponentData<RenderSemanticKey>(entity).Value;
-                var renderKey = em.HasComponent<RenderKey>(entity) ? em.GetComponentData<RenderKey>(entity).ArchetypeId : (ushort)0;
-                var isSpawn = em.HasComponent<SpawnResource>(entity);
-                var isDebris = em.HasComponent<Space4XDebrisTag>(entity);
-                var isCargoVisual = em.HasComponent<CargoPresentationTag>(entity);
-                var isStorageMarker = em.HasComponent<StorageMarkerPresentationTag>(entity);
-                var isResourceMarker = em.HasComponent<ResourceMarkerPresentationTag>(entity);
-                var isResourcePickupPresenter = em.HasComponent<ResourcePickupPresentationTag>(entity);
-                runtimeErrors.Add($"Diag MissingPresenter Entity={entity} Semantic={semantic} RenderKey={renderKey} SpawnResource={isSpawn} Debris={isDebris} CargoVisual={isCargoVisual} StorageMarker={isStorageMarker} ResourceMarker={isResourceMarker} ResourcePickupPresenter={isResourcePickupPresenter}");
+                var em = world.EntityManager;
+                using var query = em.CreateEntityQuery(new EntityQueryDesc
+                {
+                    All = new[] { ComponentType.ReadOnly<RenderSemanticKey>() },
+                    None = new[]
+                    {
+                        ComponentType.ReadOnly<MeshPresenter>(),
+                        ComponentType.ReadOnly<SpritePresenter>(),
+                        ComponentType.ReadOnly<DebugPresenter>(),
+                        ComponentType.ReadOnly<TracerPresenter>()
+                    },
+                    Options = EntityQueryOptions.IgnoreComponentEnabledState
+                });
+
+                var missingCount = query.CalculateEntityCount();
+                if (missingCount <= 0)
+                {
+                    continue;
+                }
+
+                runtimeErrors.Add($"Error: [RenderPresentationValidation] Missing presenter components persisted in world '{world.Name}' count={missingCount}");
+
+                if (remainingDetails <= 0)
+                {
+                    continue;
+                }
+
+                using var entities = query.ToEntityArray(Allocator.Temp);
+                var detailLimit = Math.Min(remainingDetails, entities.Length);
+                for (var i = 0; i < detailLimit; i++)
+                {
+                    var entity = entities[i];
+                    var semantic = em.GetComponentData<RenderSemanticKey>(entity).Value;
+                    var renderKey = em.HasComponent<RenderKey>(entity) ? em.GetComponentData<RenderKey>(entity).ArchetypeId : (ushort)0;
+                    var isSpawn = em.HasComponent<SpawnResource>(entity);
+                    var isDebris = em.HasComponent<Space4XDebrisTag>(entity);
+                    var isCargoVisual = em.HasComponent<CargoPresentationTag>(entity);
+                    var isStorageMarker = em.HasComponent<StorageMarkerPresentationTag>(entity);
+                    var isResourceMarker = em.HasComponent<ResourceMarkerPresentationTag>(entity);
+                    var isResourcePickupPresenter = em.HasComponent<ResourcePickupPresentationTag>(entity);
+                    runtimeErrors.Add($"Diag MissingPresenter World='{world.Name}' Entity={entity} Semantic={semantic} RenderKey={renderKey} SpawnResource={isSpawn} Debris={isDebris} CargoVisual={isCargoVisual} StorageMarker={isStorageMarker} ResourceMarker={isResourceMarker} ResourcePickupPresenter={isResourcePickupPresenter}");
+                }
+
+                remainingDetails -= detailLimit;
             }
         }
 
@@ -587,6 +603,11 @@ namespace Space4X.Tests.PlayMode
 
             var text = (condition + "\n" + stackTrace).ToLowerInvariant();
             if (text.Contains("there are 2 audio listeners in the scene"))
+            {
+                return false;
+            }
+
+            if (text.Contains("[renderpresentationvalidation] entity has rendersemantickey but no presenter component"))
             {
                 return false;
             }
