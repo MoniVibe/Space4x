@@ -118,13 +118,13 @@ namespace Space4X.Systems.AI
             var defaults = formationConfig.StrikeDefaults;
             for (int i = 0; i < leaders.Length; i++)
             {
+                UpdateLookups(ref state);
                 var leader = leaders[i];
                 if (!_entityInfoLookup.Exists(leader))
                 {
                     continue;
                 }
 
-                UpdateLookups(ref state);
                 EnsureGroupScaffold(leader, wingDecisionConfig.MaxWingSize, defaults, ref state);
                 UpdateLookups(ref state);
                 SyncGroupMembers(ref state, leader, leaderMembers, timeState.Tick);
