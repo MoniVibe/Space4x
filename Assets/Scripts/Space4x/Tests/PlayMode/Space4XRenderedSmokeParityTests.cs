@@ -14,6 +14,48 @@ using UnityEngine.SceneManagement;
 
 namespace Space4X.Tests.PlayMode
 {
+    internal static class RenderedSmokeParityBatchEnvBootstrap
+    {
+        private const string RenderedSmokeParityFilter = "Space4X.Tests.PlayMode.Space4XRenderedSmokeParityTests";
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
+        private static void ConfigureBatchRunEnvironment()
+        {
+            if (!Application.isBatchMode || !IsRenderedSmokeParityRun())
+            {
+                return;
+            }
+
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_RENDERING", "1");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "0");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+            global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", "0");
+        }
+
+        private static bool IsRenderedSmokeParityRun()
+        {
+            var args = global::System.Environment.GetCommandLineArgs();
+            if (args == null || args.Length < 2)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < args.Length - 1; i++)
+            {
+                if (!string.Equals(args[i], "-testFilter", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                return args[i + 1].IndexOf(RenderedSmokeParityFilter, StringComparison.Ordinal) >= 0;
+            }
+
+            return false;
+        }
+    }
+
     /// <summary>
     /// Scene-level parity test to catch runtime render/presentation failures in automated runs.
     /// </summary>
@@ -22,12 +64,6 @@ namespace Space4X.Tests.PlayMode
         private const string SmokeSceneName = "TRI_Space4X_Smoke";
         private const string SmokeScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
         private const int MaxTicks = 1200; // ~20 seconds at 60 fps equivalent update count
-        private static readonly string[] HeadlessProofDriverSystemTypeNames =
-        {
-            "PureDOTS.Systems.HeadlessRewindProofSystem",
-            "PureDOTS.Systems.HeadlessTimeControlProofSystem"
-        };
-        private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
 
         [Test]
         public void SmokeScene_ResolvesPresentation_WithoutRuntimeExceptions()
@@ -35,6 +71,7 @@ namespace Space4X.Tests.PlayMode
             var runtimeErrors = new List<string>();
             var previousScenario = global::System.Environment.GetEnvironmentVariable("SPACE4X_SCENARIO_PATH");
             var previousForceRender = global::System.Environment.GetEnvironmentVariable("PUREDOTS_FORCE_RENDER");
+            var previousLegacyRendering = global::System.Environment.GetEnvironmentVariable("PUREDOTS_RENDERING");
             var previousHeadlessPresentation = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION");
             var previousHeadless = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS");
             var previousRewindProof = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF");
@@ -74,7 +111,8 @@ namespace Space4X.Tests.PlayMode
                 SetEnvironmentDefault("SPACE4X_SCENARIO_PATH", "Assets/Scenarios/space4x_smoke.json");
                 // Force rendered play-mode parity regardless of outer pipeline env.
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
-                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "1");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_RENDERING", "1");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "0");
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS", "0");
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
@@ -217,6 +255,7 @@ namespace Space4X.Tests.PlayMode
 #endif
                 global::System.Environment.SetEnvironmentVariable("SPACE4X_SCENARIO_PATH", previousScenario);
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", previousForceRender);
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_RENDERING", previousLegacyRendering);
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", previousHeadlessPresentation);
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS", previousHeadless);
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", previousRewindProof);
@@ -228,7 +267,7 @@ namespace Space4X.Tests.PlayMode
 
         private static void UpdateWorlds(List<string> runtimeErrors)
         {
-            DisableHeadlessProofDrivers(runtimeErrors);
+            PureDOTS.Runtime.Core.RuntimeMode.RefreshFromEnvironment();
             for (var worldIndex = 0; worldIndex < World.All.Count; worldIndex++)
             {
                 var world = World.All[worldIndex];
@@ -246,77 +285,6 @@ namespace Space4X.Tests.PlayMode
                     runtimeErrors.Add($"Exception: World update failed in '{world.Name}' ({ex.GetType().Name}): {ex.Message}");
                 }
             }
-        }
-
-        private static void DisableHeadlessProofDrivers(List<string> runtimeErrors)
-        {
-            for (var worldIndex = 0; worldIndex < World.All.Count; worldIndex++)
-            {
-                var world = World.All[worldIndex];
-                if (world == null || !world.IsCreated)
-                {
-                    continue;
-                }
-
-                for (var systemIndex = 0; systemIndex < HeadlessProofDriverSystemTypeNames.Length; systemIndex++)
-                {
-                    var systemType = ResolveType(HeadlessProofDriverSystemTypeNames[systemIndex]);
-                    if (systemType == null)
-                    {
-                        continue;
-                    }
-
-                    SystemHandle handle;
-                    try
-                    {
-                        handle = world.GetExistingSystem(systemType);
-                    }
-                    catch (Exception ex)
-                    {
-                        runtimeErrors.Add($"Exception: Failed to query system '{systemType.FullName}' in world '{world.Name}' ({ex.GetType().Name}): {ex.Message}");
-                        continue;
-                    }
-
-                    if (handle == SystemHandle.Null)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        world.DestroySystem(handle);
-                    }
-                    catch (Exception ex)
-                    {
-                        runtimeErrors.Add($"Exception: Failed to disable system '{systemType.FullName}' in world '{world.Name}' ({ex.GetType().Name}): {ex.Message}");
-                    }
-                }
-            }
-        }
-
-        private static Type ResolveType(string fullName)
-        {
-            if (TypeCache.TryGetValue(fullName, out var cached))
-            {
-                return cached;
-            }
-
-            var resolved = Type.GetType(fullName, throwOnError: false);
-            if (resolved == null)
-            {
-                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-                for (var i = 0; i < assemblies.Length; i++)
-                {
-                    resolved = assemblies[i].GetType(fullName, throwOnError: false);
-                    if (resolved != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            TypeCache[fullName] = resolved;
-            return resolved;
         }
 
         private static void EnsureCatalogBootstrapAwake(List<string> runtimeErrors)
