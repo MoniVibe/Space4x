@@ -70,6 +70,11 @@ namespace Space4X.Presentation
                     continue;
                 }
 
+                var hadMesh = entityManager.HasComponent<MeshPresenter>(entity);
+                var hadSprite = entityManager.HasComponent<SpritePresenter>(entity);
+                var hadDebug = entityManager.HasComponent<DebugPresenter>(entity);
+                var hadTracer = entityManager.HasComponent<TracerPresenter>(entity);
+
                 if (!entityManager.HasComponent<MeshPresenter>(entity))
                 {
                     entityManager.AddComponentData(entity, new MeshPresenter
@@ -105,6 +110,20 @@ namespace Space4X.Presentation
                     });
                 }
                 entityManager.SetComponentEnabled<TracerPresenter>(entity, false);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (i < 3)
+                {
+                    var hasMesh = entityManager.HasComponent<MeshPresenter>(entity);
+                    var hasSprite = entityManager.HasComponent<SpritePresenter>(entity);
+                    var hasDebug = entityManager.HasComponent<DebugPresenter>(entity);
+                    var hasTracer = entityManager.HasComponent<TracerPresenter>(entity);
+                    UnityDebug.Log(
+                        $"[Space4XRenderPresenterRepairSystem] Entity={entity} " +
+                        $"before(mesh={hadMesh} sprite={hadSprite} debug={hadDebug} tracer={hadTracer}) " +
+                        $"after(mesh={hasMesh} sprite={hasSprite} debug={hasDebug} tracer={hasTracer})");
+                }
+#endif
             }
         }
     }
