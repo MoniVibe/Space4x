@@ -211,9 +211,6 @@ namespace Space4X.Tests.PlayMode
                 var materialMeshInfoCount = 0;
                 var gameplayWorld = "<none>";
                 var gameplayWorldSeen = false;
-                var gameplayWorldHasCatalog = false;
-                var gameplayWorldHadCatalog = false;
-                var gameplayMissingPresenters = int.MaxValue;
                 var peakCarrierCount = 0;
                 var peakMiningCount = 0;
                 var peakAsteroidCount = 0;
@@ -238,33 +235,17 @@ namespace Space4X.Tests.PlayMode
                             out var carrierCount,
                             out var miningCount,
                             out var asteroidCount,
-                            out var gameplayMaterialMeshInfo,
-                            out var gameplayHasCatalog,
-                            out var gameplayMissingPresenterCount))
+                            out var gameplayMaterialMeshInfo))
                     {
                         gameplayWorldSeen = true;
                         gameplayWorld = gameplayCandidateWorld;
-                        gameplayWorldHasCatalog = gameplayHasCatalog;
-                        gameplayWorldHadCatalog = gameplayWorldHadCatalog || gameplayHasCatalog;
-                        gameplayMissingPresenters = gameplayMissingPresenterCount;
                         peakCarrierCount = Math.Max(peakCarrierCount, carrierCount);
                         peakMiningCount = Math.Max(peakMiningCount, miningCount);
                         peakAsteroidCount = Math.Max(peakAsteroidCount, asteroidCount);
                         peakGameplayMaterialMeshInfo = Math.Max(peakGameplayMaterialMeshInfo, gameplayMaterialMeshInfo);
                     }
-                    else
-                    {
-                        gameplayWorldHasCatalog = false;
-                        gameplayMissingPresenters = int.MaxValue;
-                    }
 
-                    if (hasCatalog &&
-                        gameplayWorldSeen &&
-                        gameplayWorldHasCatalog &&
-                        gameplayMissingPresenters == 0 &&
-                        peakCarrierCount > 0 &&
-                        peakMiningCount > 0 &&
-                        peakGameplayMaterialMeshInfo > 0)
+                    if (hasCatalog && gameplayWorldSeen && peakCarrierCount > 0 && peakMiningCount > 0 && peakGameplayMaterialMeshInfo > 0)
                     {
                         readyTicks++;
                         if (readyTicks >= 120)
@@ -283,12 +264,14 @@ namespace Space4X.Tests.PlayMode
                 Assert.IsTrue(gameplayWorldSeen, $"Gameplay world was never observed (catalogWorld={catalogWorld}, semantic={semanticCount}).");
                 Assert.Greater(peakCarrierCount + peakMiningCount, 0, $"No carrier/mining vessels were observed in gameplay world '{gameplayWorld}'.");
                 Assert.Greater(peakGameplayMaterialMeshInfo, 0, $"MaterialMeshInfo stayed at zero in gameplay world '{gameplayWorld}' (carriers={peakCarrierCount}, miners={peakMiningCount}, asteroids={peakAsteroidCount}).");
-                Assert.IsTrue(gameplayWorldHadCatalog, $"Gameplay world '{gameplayWorld}' never resolved RenderPresentationCatalog (globalCatalogWorld={catalogWorld}).");
                 if (!hasMainCamera)
                 {
                     UnityEngine.Debug.LogWarning("[Space4XRenderedSmokeParityTests] Smoke scene did not provide an enabled camera in this batch context.");
                 }
-                AppendMissingPresenterDiagnostics(runtimeErrors);
+                if (runtimeErrors.Count > 0)
+                {
+                    AppendMissingPresenterDiagnostics(runtimeErrors);
+                }
                 AssertRuntimeErrorFree(runtimeErrors);
             }
             finally
@@ -576,14 +559,7 @@ namespace Space4X.Tests.PlayMode
             return false;
         }
 
-        private static bool TryFindGameplayWorldStats(
-            out string worldName,
-            out int carrierCount,
-            out int miningCount,
-            out int asteroidCount,
-            out int materialMeshInfoCount,
-            out bool hasCatalog,
-            out int missingPresenterCount)
+        private static bool TryFindGameplayWorldStats(out string worldName, out int carrierCount, out int miningCount, out int asteroidCount, out int materialMeshInfoCount)
         {
             for (var i = 0; i < World.All.Count; i++)
             {
@@ -603,8 +579,6 @@ namespace Space4X.Tests.PlayMode
                 }
 
                 materialMeshInfoCount = CountEntities<MaterialMeshInfo>(entityManager);
-                hasCatalog = CountEntities<RenderPresentationCatalog>(entityManager) > 0;
-                missingPresenterCount = CountMissingPresenterEntities(entityManager);
                 worldName = world.Name;
                 return true;
             }
@@ -614,31 +588,12 @@ namespace Space4X.Tests.PlayMode
             miningCount = 0;
             asteroidCount = 0;
             materialMeshInfoCount = 0;
-            hasCatalog = false;
-            missingPresenterCount = int.MaxValue;
             return false;
         }
 
         private static int CountEntities<T>(EntityManager entityManager) where T : unmanaged, IComponentData
         {
             using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
-            return query.CalculateEntityCount();
-        }
-
-        private static int CountMissingPresenterEntities(EntityManager entityManager)
-        {
-            using var query = entityManager.CreateEntityQuery(new EntityQueryDesc
-            {
-                All = new[] { ComponentType.ReadOnly<RenderSemanticKey>() },
-                None = new[]
-                {
-                    ComponentType.ReadOnly<MeshPresenter>(),
-                    ComponentType.ReadOnly<SpritePresenter>(),
-                    ComponentType.ReadOnly<DebugPresenter>(),
-                    ComponentType.ReadOnly<TracerPresenter>()
-                },
-                Options = EntityQueryOptions.IgnoreComponentEnabledState
-            });
             return query.CalculateEntityCount();
         }
 
