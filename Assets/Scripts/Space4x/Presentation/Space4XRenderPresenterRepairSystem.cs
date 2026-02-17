@@ -1,5 +1,4 @@
 using PureDOTS.Rendering;
-using PureDOTS.Runtime.Core;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -19,7 +18,6 @@ namespace Space4X.Presentation
 
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<RenderPresentationCatalog>();
             _missingPresenterQuery = state.GetEntityQuery(new EntityQueryDesc
             {
                 All = new[]
@@ -39,7 +37,7 @@ namespace Space4X.Presentation
 
         public void OnUpdate(ref SystemState state)
         {
-            if (!RuntimeMode.IsRenderingEnabled || _missingPresenterQuery.IsEmptyIgnoreFilter)
+            if (_missingPresenterQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }
