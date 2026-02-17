@@ -2,6 +2,9 @@ using PureDOTS.Rendering;
 using PureDOTS.Systems;
 using Unity.Collections;
 using Unity.Entities;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using UnityDebug = UnityEngine.Debug;
+#endif
 
 namespace Space4X.Presentation
 {
@@ -13,6 +16,8 @@ namespace Space4X.Presentation
     public partial struct Space4XRenderPresenterRepairSystem : ISystem
     {
         private EntityQuery _missingPresenterQuery;
+        private byte _loggedCreate;
+        private byte _loggedRepair;
 
         public void OnCreate(ref SystemState state)
         {
@@ -31,6 +36,14 @@ namespace Space4X.Presentation
                 },
                 Options = EntityQueryOptions.IgnoreComponentEnabledState
             });
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_loggedCreate == 0)
+            {
+                _loggedCreate = 1;
+                UnityDebug.Log($"[Space4XRenderPresenterRepairSystem] OnCreate World='{state.WorldUnmanaged.Name}'");
+            }
+#endif
         }
 
         public void OnUpdate(ref SystemState state)
@@ -42,6 +55,13 @@ namespace Space4X.Presentation
 
             var entityManager = state.EntityManager;
             using var entities = _missingPresenterQuery.ToEntityArray(Allocator.Temp);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_loggedRepair == 0)
+            {
+                _loggedRepair = 1;
+                UnityDebug.Log($"[Space4XRenderPresenterRepairSystem] Repairing missing presenters World='{state.WorldUnmanaged.Name}' Count={entities.Length}");
+            }
+#endif
             for (var i = 0; i < entities.Length; i++)
             {
                 var entity = entities[i];
