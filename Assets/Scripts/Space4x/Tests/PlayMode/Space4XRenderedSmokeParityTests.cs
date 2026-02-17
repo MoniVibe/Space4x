@@ -66,12 +66,13 @@ namespace Space4X.Tests.PlayMode
             try
             {
                 SetEnvironmentDefault("SPACE4X_SCENARIO_PATH", "Assets/Scenarios/space4x_smoke.json");
-                SetEnvironmentDefault("PUREDOTS_FORCE_RENDER", "1");
-                SetEnvironmentDefault("PUREDOTS_HEADLESS_PRESENTATION", "1");
-                SetEnvironmentDefault("PUREDOTS_HEADLESS", "0");
-                SetEnvironmentDefault("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
-                SetEnvironmentDefault("PUREDOTS_HEADLESS_TIME_PROOF", "0");
-                SetEnvironmentDefault("SPACE4X_HEADLESS_MINING_PROOF", "0");
+                // Force rendered play-mode parity regardless of outer pipeline env.
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "1");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS", "0");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+                global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", "0");
                 PureDOTS.Runtime.Core.RuntimeMode.RefreshFromEnvironment();
 
 #if UNITY_EDITOR
