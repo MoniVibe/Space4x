@@ -31,6 +31,9 @@ namespace Space4X.Tests.PlayMode
             var previousForceRender = global::System.Environment.GetEnvironmentVariable("PUREDOTS_FORCE_RENDER");
             var previousHeadlessPresentation = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION");
             var previousHeadless = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS");
+            var previousRewindProof = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF");
+            var previousTimeProof = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF");
+            var previousMiningProof = global::System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF");
 
 #if UNITY_EDITOR
             var originalBuildScenes = UnityEditor.EditorBuildSettings.scenes;
@@ -58,6 +61,10 @@ namespace Space4X.Tests.PlayMode
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "1");
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS", "0");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+                global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", "0");
+                PureDOTS.Runtime.Core.RuntimeMode.RefreshFromEnvironment();
 
 #if UNITY_EDITOR
                 EnsureSmokeSceneInBuildSettings(originalBuildScenes);
@@ -171,6 +178,10 @@ namespace Space4X.Tests.PlayMode
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", previousForceRender);
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", previousHeadlessPresentation);
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS", previousHeadless);
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", previousRewindProof);
+                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", previousTimeProof);
+                global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", previousMiningProof);
+                PureDOTS.Runtime.Core.RuntimeMode.RefreshFromEnvironment();
             }
         }
 
