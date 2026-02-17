@@ -1,4 +1,5 @@
 using PureDOTS.Rendering;
+using PureDOTS.Systems;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -7,11 +8,8 @@ namespace Space4X.Presentation
     /// <summary>
     /// Ensures any entity with a semantic render key also has presenter components before validation runs.
     /// </summary>
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-    [UpdateBefore(typeof(RenderPresentationValidationSystem))]
-#endif
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderLast = true)]
+    [UpdateAfter(typeof(PresentationContentResolveSystem))]
     public partial struct Space4XRenderPresenterRepairSystem : ISystem
     {
         private EntityQuery _missingPresenterQuery;
