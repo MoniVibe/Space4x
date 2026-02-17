@@ -17,21 +17,19 @@ namespace Space4X.Tests.PlayMode
     internal static class RenderedSmokeParityBatchEnvBootstrap
     {
         private const string RenderedSmokeParityFilter = "Space4X.Tests.PlayMode.Space4XRenderedSmokeParityTests";
+        private const string DefaultScenarioPath = "Assets/Scenarios/space4x_smoke.json";
+        private const string EnvScenarioPath = "SPACE4X_SCENARIO_PATH";
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void PrimeBatchRunEnvironment()
+        {
+            ApplyDeterministicParityEnvironment(refreshRuntimeMode: false, reason: "AfterAssembliesLoaded");
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         private static void ConfigureBatchRunEnvironment()
         {
-            if (!Application.isBatchMode || !IsRenderedSmokeParityRun())
-            {
-                return;
-            }
-
-            global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
-            global::System.Environment.SetEnvironmentVariable("PUREDOTS_RENDERING", "1");
-            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "0");
-            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
-            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
-            global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", "0");
+            ApplyDeterministicParityEnvironment(refreshRuntimeMode: true, reason: "BeforeSplash");
         }
 
         private static bool IsRenderedSmokeParityRun()
@@ -53,6 +51,34 @@ namespace Space4X.Tests.PlayMode
             }
 
             return false;
+        }
+
+        internal static void ApplyDeterministicParityEnvironment(bool refreshRuntimeMode, string reason)
+        {
+            if (!Application.isBatchMode || !IsRenderedSmokeParityRun())
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(global::System.Environment.GetEnvironmentVariable(EnvScenarioPath)))
+            {
+                global::System.Environment.SetEnvironmentVariable(EnvScenarioPath, DefaultScenarioPath);
+            }
+
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_RENDERING", "1");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "0");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+            global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+            global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", "0");
+
+            if (refreshRuntimeMode)
+            {
+                PureDOTS.Runtime.Core.RuntimeMode.RefreshFromEnvironment();
+            }
+
+            var scenario = global::System.Environment.GetEnvironmentVariable(EnvScenarioPath);
+            Debug.Log($"[RenderedSmokeParityBatchEnvBootstrap] applied=1 reason={reason} scenario={scenario}");
         }
     }
 
@@ -108,6 +134,7 @@ namespace Space4X.Tests.PlayMode
             Application.logMessageReceived += CaptureLog;
             try
             {
+                RenderedSmokeParityBatchEnvBootstrap.ApplyDeterministicParityEnvironment(refreshRuntimeMode: true, reason: "TestStart");
                 SetEnvironmentDefault("SPACE4X_SCENARIO_PATH", "Assets/Scenarios/space4x_smoke.json");
                 // Force rendered play-mode parity regardless of outer pipeline env.
                 global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
