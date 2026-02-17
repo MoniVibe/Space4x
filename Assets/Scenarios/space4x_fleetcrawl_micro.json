@@ -1,0 +1,13 @@
+{
+  "scenarioId": "space4x_fleetcrawl_micro",
+  "seed": 9017,
+  "duration_s": 420,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    }
+  },
+  "spawn": []
+}
