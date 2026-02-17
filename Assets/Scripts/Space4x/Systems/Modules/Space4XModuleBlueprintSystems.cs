@@ -2085,6 +2085,8 @@ namespace Space4X.Systems.Modules
         public void OnUpdate(ref SystemState state)
         {
             _moduleReactorLookup.Update(ref state);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var queuedStructuralChanges = false;
 
             foreach (var (modules, owner) in SystemAPI.Query<DynamicBuffer<ModuleAttachment>>().WithEntityAccess())
             {
@@ -2135,9 +2137,16 @@ namespace Space4X.Systems.Modules
                 }
                 else
                 {
-                    state.EntityManager.AddComponentData(owner, reactorSpec);
+                    ecb.AddComponent(owner, reactorSpec);
+                    queuedStructuralChanges = true;
                 }
             }
+
+            if (queuedStructuralChanges)
+            {
+                ecb.Playback(state.EntityManager);
+            }
+            ecb.Dispose();
         }
     }
 
@@ -2157,6 +2166,8 @@ namespace Space4X.Systems.Modules
         public void OnUpdate(ref SystemState state)
         {
             _moduleHangarLookup.Update(ref state);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var queuedStructuralChanges = false;
 
             foreach (var (modules, owner) in SystemAPI.Query<DynamicBuffer<ModuleAttachment>>().WithEntityAccess())
             {
@@ -2221,7 +2232,8 @@ namespace Space4X.Systems.Modules
                 }
                 else
                 {
-                    state.EntityManager.AddComponentData(owner, profile);
+                    ecb.AddComponent(owner, profile);
+                    queuedStructuralChanges = true;
                 }
 
                 var hangarCapacity = new HangarCapacity { Capacity = capacity };
@@ -2231,9 +2243,16 @@ namespace Space4X.Systems.Modules
                 }
                 else
                 {
-                    state.EntityManager.AddComponentData(owner, hangarCapacity);
+                    ecb.AddComponent(owner, hangarCapacity);
+                    queuedStructuralChanges = true;
                 }
             }
+
+            if (queuedStructuralChanges)
+            {
+                ecb.Playback(state.EntityManager);
+            }
+            ecb.Dispose();
         }
     }
 
