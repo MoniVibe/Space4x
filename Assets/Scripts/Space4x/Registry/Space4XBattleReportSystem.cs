@@ -110,12 +110,11 @@ namespace Space4X.Registry
 
         private void FinalizeReport(ref SystemState state, uint startTick, uint endTick, bool isScenarioFinalize)
         {
+            EnsureReportEntity(ref state);
             if (!TryGetTelemetryMetricBuffer(ref state, out var metrics))
             {
                 return;
             }
-
-            EnsureReportEntity(ref state);
 
             var report = new Space4XBattleReport
             {

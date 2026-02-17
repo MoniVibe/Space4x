@@ -7,8 +7,8 @@ namespace Space4X.Presentation
     /// <summary>
     /// Ensures any entity with a semantic render key also has presenter components before validation runs.
     /// </summary>
-    [WorldSystemFilter(WorldSystemFilterFlags.Default)]
-    [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
+    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     [UpdateBefore(typeof(RenderPresentationValidationSystem))]
 #endif
