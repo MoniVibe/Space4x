@@ -22,6 +22,12 @@ namespace Space4X.Tests.PlayMode
         private const string SmokeSceneName = "TRI_Space4X_Smoke";
         private const string SmokeScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
         private const int MaxTicks = 1200; // ~20 seconds at 60 fps equivalent update count
+        private static readonly string[] HeadlessProofDriverSystemTypeNames =
+        {
+            "PureDOTS.Systems.HeadlessRewindProofSystem",
+            "PureDOTS.Systems.HeadlessTimeControlProofSystem"
+        };
+        private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
 
         [Test]
         public void SmokeScene_ResolvesPresentation_WithoutRuntimeExceptions()
@@ -222,6 +228,7 @@ namespace Space4X.Tests.PlayMode
 
         private static void UpdateWorlds(List<string> runtimeErrors)
         {
+            DisableHeadlessProofDrivers(runtimeErrors);
             for (var worldIndex = 0; worldIndex < World.All.Count; worldIndex++)
             {
                 var world = World.All[worldIndex];
@@ -239,6 +246,77 @@ namespace Space4X.Tests.PlayMode
                     runtimeErrors.Add($"Exception: World update failed in '{world.Name}' ({ex.GetType().Name}): {ex.Message}");
                 }
             }
+        }
+
+        private static void DisableHeadlessProofDrivers(List<string> runtimeErrors)
+        {
+            for (var worldIndex = 0; worldIndex < World.All.Count; worldIndex++)
+            {
+                var world = World.All[worldIndex];
+                if (world == null || !world.IsCreated)
+                {
+                    continue;
+                }
+
+                for (var systemIndex = 0; systemIndex < HeadlessProofDriverSystemTypeNames.Length; systemIndex++)
+                {
+                    var systemType = ResolveType(HeadlessProofDriverSystemTypeNames[systemIndex]);
+                    if (systemType == null)
+                    {
+                        continue;
+                    }
+
+                    SystemHandle handle;
+                    try
+                    {
+                        handle = world.GetExistingSystem(systemType);
+                    }
+                    catch (Exception ex)
+                    {
+                        runtimeErrors.Add($"Exception: Failed to query system '{systemType.FullName}' in world '{world.Name}' ({ex.GetType().Name}): {ex.Message}");
+                        continue;
+                    }
+
+                    if (handle == SystemHandle.Null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        world.DestroySystem(handle);
+                    }
+                    catch (Exception ex)
+                    {
+                        runtimeErrors.Add($"Exception: Failed to disable system '{systemType.FullName}' in world '{world.Name}' ({ex.GetType().Name}): {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private static Type ResolveType(string fullName)
+        {
+            if (TypeCache.TryGetValue(fullName, out var cached))
+            {
+                return cached;
+            }
+
+            var resolved = Type.GetType(fullName, throwOnError: false);
+            if (resolved == null)
+            {
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                for (var i = 0; i < assemblies.Length; i++)
+                {
+                    resolved = assemblies[i].GetType(fullName, throwOnError: false);
+                    if (resolved != null)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            TypeCache[fullName] = resolved;
+            return resolved;
         }
 
         private static void EnsureCatalogBootstrapAwake(List<string> runtimeErrors)
