@@ -70,13 +70,20 @@ namespace Space4X.Tests.PlayMode
                 EnsureSmokeSceneInBuildSettings(originalBuildScenes);
 #endif
 
-                try
+                if (Application.isBatchMode)
                 {
-                    SceneManager.LoadScene(SmokeSceneName, LoadSceneMode.Single);
+                    UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Batch mode detected; skipping direct SceneManager.LoadScene('{SmokeSceneName}') and using active scene context.");
                 }
-                catch (Exception ex)
+                else
                 {
-                    UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Failed to load scene '{SmokeSceneName}' ({ex.GetType().Name}): {ex.Message}. Continuing with active scene.");
+                    try
+                    {
+                        SceneManager.LoadScene(SmokeSceneName, LoadSceneMode.Single);
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Failed to load scene '{SmokeSceneName}' ({ex.GetType().Name}): {ex.Message}. Continuing with active scene.");
+                    }
                 }
 
                 var loadedScene = SceneManager.GetSceneByName(SmokeSceneName);
