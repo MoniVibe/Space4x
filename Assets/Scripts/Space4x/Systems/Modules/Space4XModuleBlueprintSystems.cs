@@ -1904,6 +1904,65 @@ namespace Space4X.Systems.Modules
                 runPerks = runPerkBuffer.AsNativeArray();
             }
 
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            try
+            {
+                var queuedStructuralChanges = false;
+                foreach (var (_, entity) in SystemAPI.Query<RefRO<ModuleTypeId>>().WithAll<ModuleBlueprintRef, ModuleBlueprintPartId>().WithEntityAccess())
+                {
+                    if (!state.EntityManager.HasBuffer<ModuleDerivedStat>(entity))
+                    {
+                        ecb.AddBuffer<ModuleDerivedStat>(entity);
+                        queuedStructuralChanges = true;
+                    }
+
+                    if (!state.EntityManager.HasBuffer<ModuleDerivedTag>(entity))
+                    {
+                        ecb.AddBuffer<ModuleDerivedTag>(entity);
+                        queuedStructuralChanges = true;
+                    }
+
+                    if (!state.EntityManager.HasBuffer<ModuleDerivedEffectOp>(entity))
+                    {
+                        ecb.AddBuffer<ModuleDerivedEffectOp>(entity);
+                        queuedStructuralChanges = true;
+                    }
+
+                    if (!state.EntityManager.HasComponent<ModuleDerivedWeaponProfile>(entity))
+                    {
+                        ecb.AddComponent(entity, default(ModuleDerivedWeaponProfile));
+                        queuedStructuralChanges = true;
+                    }
+
+                    if (!state.EntityManager.HasComponent<ModuleDerivedReactorProfile>(entity))
+                    {
+                        ecb.AddComponent(entity, default(ModuleDerivedReactorProfile));
+                        queuedStructuralChanges = true;
+                    }
+
+                    if (!state.EntityManager.HasComponent<ModuleDerivedHangarProfile>(entity))
+                    {
+                        ecb.AddComponent(entity, default(ModuleDerivedHangarProfile));
+                        queuedStructuralChanges = true;
+                    }
+
+                    if (!state.EntityManager.HasComponent<ModuleDerivedDigest>(entity))
+                    {
+                        ecb.AddComponent(entity, default(ModuleDerivedDigest));
+                        queuedStructuralChanges = true;
+                    }
+                }
+
+                if (queuedStructuralChanges)
+                {
+                    ecb.Playback(state.EntityManager);
+                }
+            }
+            finally
+            {
+                ecb.Dispose();
+            }
+
             foreach (var (moduleType, blueprintRef, parts, entity) in SystemAPI.Query<RefRO<ModuleTypeId>, RefRO<ModuleBlueprintRef>, DynamicBuffer<ModuleBlueprintPartId>>().WithEntityAccess())
             {
                 if (!TryGetModuleSpec(ref modules, moduleType.ValueRO.Value, out var spec))
@@ -1911,9 +1970,20 @@ namespace Space4X.Systems.Modules
                     continue;
                 }
 
-                var stats = EnsureBuffer<ModuleDerivedStat>(ref state, entity);
-                var tags = EnsureBuffer<ModuleDerivedTag>(ref state, entity);
-                var effects = EnsureBuffer<ModuleDerivedEffectOp>(ref state, entity);
+                if (!state.EntityManager.HasBuffer<ModuleDerivedStat>(entity) ||
+                    !state.EntityManager.HasBuffer<ModuleDerivedTag>(entity) ||
+                    !state.EntityManager.HasBuffer<ModuleDerivedEffectOp>(entity) ||
+                    !state.EntityManager.HasComponent<ModuleDerivedWeaponProfile>(entity) ||
+                    !state.EntityManager.HasComponent<ModuleDerivedReactorProfile>(entity) ||
+                    !state.EntityManager.HasComponent<ModuleDerivedHangarProfile>(entity) ||
+                    !state.EntityManager.HasComponent<ModuleDerivedDigest>(entity))
+                {
+                    continue;
+                }
+
+                var stats = state.EntityManager.GetBuffer<ModuleDerivedStat>(entity);
+                var tags = state.EntityManager.GetBuffer<ModuleDerivedTag>(entity);
+                var effects = state.EntityManager.GetBuffer<ModuleDerivedEffectOp>(entity);
                 effects.Clear();
 
                 var result = Space4XModuleBlueprintResolver.Resolve(spec, blueprintRef.ValueRO, parts, tags, effects, runPerks);
@@ -1947,15 +2017,7 @@ namespace Space4X.Systems.Modules
                     DamageType = result.DamageType,
                     Delivery = result.Delivery
                 };
-
-                if (state.EntityManager.HasComponent<ModuleDerivedWeaponProfile>(entity))
-                {
-                    state.EntityManager.SetComponentData(entity, weaponProfile);
-                }
-                else
-                {
-                    state.EntityManager.AddComponentData(entity, weaponProfile);
-                }
+                state.EntityManager.SetComponentData(entity, weaponProfile);
 
                 var reactorProfile = new ModuleDerivedReactorProfile
                 {
@@ -1964,39 +2026,16 @@ namespace Space4X.Systems.Modules
                     HeatDissipation = result.HeatDissipation,
                     MassTons = result.Mass
                 };
-
-                if (state.EntityManager.HasComponent<ModuleDerivedReactorProfile>(entity))
-                {
-                    state.EntityManager.SetComponentData(entity, reactorProfile);
-                }
-                else
-                {
-                    state.EntityManager.AddComponentData(entity, reactorProfile);
-                }
+                state.EntityManager.SetComponentData(entity, reactorProfile);
 
                 var hangarProfile = new ModuleDerivedHangarProfile
                 {
                     DroneCapacity = result.DroneCapacity,
                     DroneAttackFamily = result.AttackFamily == WeaponFamily.Unknown ? WeaponFamily.Kinetic : result.AttackFamily
                 };
+                state.EntityManager.SetComponentData(entity, hangarProfile);
 
-                if (state.EntityManager.HasComponent<ModuleDerivedHangarProfile>(entity))
-                {
-                    state.EntityManager.SetComponentData(entity, hangarProfile);
-                }
-                else
-                {
-                    state.EntityManager.AddComponentData(entity, hangarProfile);
-                }
-
-                if (state.EntityManager.HasComponent<ModuleDerivedDigest>(entity))
-                {
-                    state.EntityManager.SetComponentData(entity, new ModuleDerivedDigest { Value = result.Digest });
-                }
-                else
-                {
-                    state.EntityManager.AddComponentData(entity, new ModuleDerivedDigest { Value = result.Digest });
-                }
+                state.EntityManager.SetComponentData(entity, new ModuleDerivedDigest { Value = result.Digest });
             }
 
             if (runPerks.IsCreated)
@@ -2018,16 +2057,6 @@ namespace Space4X.Systems.Modules
             }
 
             return false;
-        }
-
-        private static DynamicBuffer<T> EnsureBuffer<T>(ref SystemState state, Entity entity) where T : unmanaged, IBufferElementData
-        {
-            if (!state.EntityManager.HasBuffer<T>(entity))
-            {
-                state.EntityManager.AddBuffer<T>(entity);
-            }
-
-            return state.EntityManager.GetBuffer<T>(entity);
         }
 
         private static void AddStat(DynamicBuffer<ModuleDerivedStat> stats, ModuleDerivedStatId statId, float value)
