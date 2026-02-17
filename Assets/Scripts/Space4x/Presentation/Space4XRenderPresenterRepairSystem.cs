@@ -10,7 +10,9 @@ namespace Space4X.Presentation
     /// </summary>
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationModeSystem))]
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     [UpdateBefore(typeof(RenderPresentationValidationSystem))]
+#endif
     public partial struct Space4XRenderPresenterRepairSystem : ISystem
     {
         private EntityQuery _semanticQuery;
