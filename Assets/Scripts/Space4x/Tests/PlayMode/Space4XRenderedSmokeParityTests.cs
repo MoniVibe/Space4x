@@ -35,6 +35,14 @@ namespace Space4X.Tests.PlayMode
             var previousTimeProof = global::System.Environment.GetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF");
             var previousMiningProof = global::System.Environment.GetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF");
 
+            static void SetEnvironmentDefault(string name, string value)
+            {
+                if (string.IsNullOrWhiteSpace(global::System.Environment.GetEnvironmentVariable(name)))
+                {
+                    global::System.Environment.SetEnvironmentVariable(name, value);
+                }
+            }
+
 #if UNITY_EDITOR
             var originalBuildScenes = UnityEditor.EditorBuildSettings.scenes;
 #endif
@@ -57,13 +65,13 @@ namespace Space4X.Tests.PlayMode
             Application.logMessageReceived += CaptureLog;
             try
             {
-                global::System.Environment.SetEnvironmentVariable("SPACE4X_SCENARIO_PATH", "Assets/Scenarios/space4x_smoke.json");
-                global::System.Environment.SetEnvironmentVariable("PUREDOTS_FORCE_RENDER", "1");
-                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_PRESENTATION", "1");
-                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS", "0");
-                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
-                global::System.Environment.SetEnvironmentVariable("PUREDOTS_HEADLESS_TIME_PROOF", "0");
-                global::System.Environment.SetEnvironmentVariable("SPACE4X_HEADLESS_MINING_PROOF", "0");
+                SetEnvironmentDefault("SPACE4X_SCENARIO_PATH", "Assets/Scenarios/space4x_smoke.json");
+                SetEnvironmentDefault("PUREDOTS_FORCE_RENDER", "1");
+                SetEnvironmentDefault("PUREDOTS_HEADLESS_PRESENTATION", "1");
+                SetEnvironmentDefault("PUREDOTS_HEADLESS", "0");
+                SetEnvironmentDefault("PUREDOTS_HEADLESS_REWIND_PROOF", "0");
+                SetEnvironmentDefault("PUREDOTS_HEADLESS_TIME_PROOF", "0");
+                SetEnvironmentDefault("SPACE4X_HEADLESS_MINING_PROOF", "0");
                 PureDOTS.Runtime.Core.RuntimeMode.RefreshFromEnvironment();
 
 #if UNITY_EDITOR
@@ -129,6 +137,12 @@ namespace Space4X.Tests.PlayMode
                 var catalogWorld = "<none>";
                 var semanticCount = 0;
                 var materialMeshInfoCount = 0;
+                var gameplayWorld = "<none>";
+                var gameplayWorldSeen = false;
+                var peakCarrierCount = 0;
+                var peakMiningCount = 0;
+                var peakAsteroidCount = 0;
+                var peakGameplayMaterialMeshInfo = 0;
                 var readyTicks = 0;
 
                 for (var tick = 0; tick < MaxTicks; tick++)
@@ -144,8 +158,22 @@ namespace Space4X.Tests.PlayMode
                     hasCatalog = TryFindCatalogWorld(out catalogWorld);
                     semanticCount = CountEntitiesAcrossWorlds<RenderSemanticKey>();
                     materialMeshInfoCount = CountEntitiesAcrossWorlds<MaterialMeshInfo>();
+                    if (TryFindGameplayWorldStats(
+                            out var gameplayCandidateWorld,
+                            out var carrierCount,
+                            out var miningCount,
+                            out var asteroidCount,
+                            out var gameplayMaterialMeshInfo))
+                    {
+                        gameplayWorldSeen = true;
+                        gameplayWorld = gameplayCandidateWorld;
+                        peakCarrierCount = Math.Max(peakCarrierCount, carrierCount);
+                        peakMiningCount = Math.Max(peakMiningCount, miningCount);
+                        peakAsteroidCount = Math.Max(peakAsteroidCount, asteroidCount);
+                        peakGameplayMaterialMeshInfo = Math.Max(peakGameplayMaterialMeshInfo, gameplayMaterialMeshInfo);
+                    }
 
-                    if (hasCatalog && materialMeshInfoCount > 0)
+                    if (hasCatalog && gameplayWorldSeen && peakCarrierCount > 0 && peakMiningCount > 0 && peakGameplayMaterialMeshInfo > 0)
                     {
                         readyTicks++;
                         if (readyTicks >= 120)
@@ -161,6 +189,10 @@ namespace Space4X.Tests.PlayMode
 
                 Assert.IsTrue(hasCatalog, $"RenderPresentationCatalog singleton was not present in any active world (catalogWorld={catalogWorld}, semantic={semanticCount}, meshInfo={materialMeshInfoCount}).");
                 Assert.Greater(materialMeshInfoCount, 0, $"MaterialMeshInfo stayed at zero, presentation did not resolve (catalogWorld={catalogWorld}, semantic={semanticCount}).");
+                Assert.IsTrue(gameplayWorldSeen, $"Gameplay world was never observed (catalogWorld={catalogWorld}, semantic={semanticCount}).");
+                Assert.Greater(peakCarrierCount, 0, $"Carrier entities were never observed in gameplay world '{gameplayWorld}'.");
+                Assert.Greater(peakMiningCount, 0, $"Mining vessels were never observed in gameplay world '{gameplayWorld}'.");
+                Assert.Greater(peakGameplayMaterialMeshInfo, 0, $"MaterialMeshInfo stayed at zero in gameplay world '{gameplayWorld}' (carriers={peakCarrierCount}, miners={peakMiningCount}, asteroids={peakAsteroidCount}).");
                 if (!hasMainCamera)
                 {
                     UnityEngine.Debug.LogWarning("[Space4XRenderedSmokeParityTests] Smoke scene did not provide an enabled camera in this batch context.");
@@ -435,6 +467,38 @@ namespace Space4X.Tests.PlayMode
             return false;
         }
 
+        private static bool TryFindGameplayWorldStats(out string worldName, out int carrierCount, out int miningCount, out int asteroidCount, out int materialMeshInfoCount)
+        {
+            for (var i = 0; i < World.All.Count; i++)
+            {
+                var world = World.All[i];
+                if (world == null || !world.IsCreated)
+                {
+                    continue;
+                }
+
+                var entityManager = world.EntityManager;
+                carrierCount = CountEntities<Carrier>(entityManager);
+                miningCount = CountEntities<MiningVessel>(entityManager);
+                asteroidCount = CountEntities<Asteroid>(entityManager);
+                if (carrierCount <= 0 && miningCount <= 0 && asteroidCount <= 0)
+                {
+                    continue;
+                }
+
+                materialMeshInfoCount = CountEntities<MaterialMeshInfo>(entityManager);
+                worldName = world.Name;
+                return true;
+            }
+
+            worldName = "<none>";
+            carrierCount = 0;
+            miningCount = 0;
+            asteroidCount = 0;
+            materialMeshInfoCount = 0;
+            return false;
+        }
+
         private static int CountEntities<T>(EntityManager entityManager) where T : unmanaged, IComponentData
         {
             using var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
@@ -460,6 +524,7 @@ namespace Space4X.Tests.PlayMode
                    || text.Contains("nullreferenceexception")
                    || text.Contains("missingreferenceexception")
                    || text.Contains("[renderpresentationvalidation]")
+                   || text.Contains("parity violation")
                    || text.Contains("completeness violation")
                    || text.Contains("error cs");
         }
