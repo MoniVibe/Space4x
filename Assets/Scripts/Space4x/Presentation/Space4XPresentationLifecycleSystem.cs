@@ -21,6 +21,7 @@ namespace Space4X.Presentation
     /// </summary>
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateBefore(typeof(RenderPresentationValidationSystem))]
     public partial struct Space4XPresentationLifecycleSystem : ISystem
     {
         private EntityQuery _carrierInitQuery;
