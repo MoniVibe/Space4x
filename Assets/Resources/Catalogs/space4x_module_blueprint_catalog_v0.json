@@ -133,6 +133,15 @@
       "effectOps": []
     },
     {
+      "id": "core_mass_trim_spine",
+      "slotType": "Core",
+      "statMods": [
+        { "op": "MulStat", "statId": "Mass", "value": 0.86 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
       "id": "lens_beam_bias",
       "slotType": "Output",
       "statMods": [
@@ -158,6 +167,32 @@
       ],
       "effectOps": [
         { "op": "ConvertDamage", "fromDamageType": "Kinetic", "toDamageType": "Energy", "pct": 0.20 }
+      ]
+    },
+    {
+      "id": "output_beam_collimator_range",
+      "slotType": "Output",
+      "statMods": [
+        { "op": "MulStat", "statId": "Range", "value": 1.18 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "attack.beam", "value": 1.0 }
+      ],
+      "effectOps": [
+        { "op": "ReplaceAttackFamily", "fromFamily": "Unknown", "toFamily": "Energy" }
+      ]
+    },
+    {
+      "id": "output_kinetic_breach_head",
+      "slotType": "Output",
+      "statMods": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.12 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "damage.kinetic", "value": 1.0 }
+      ],
+      "effectOps": [
+        { "op": "ReplaceAttackFamily", "fromFamily": "Unknown", "toFamily": "Kinetic" }
       ]
     },
     {
@@ -188,6 +223,24 @@
       "statMods": [
         { "op": "MulStat", "statId": "HeatCost", "value": 0.78 },
         { "op": "AddStat", "statId": "HeatCapacity", "value": 10.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "cooling_heat_dump_v2",
+      "slotType": "Cooling",
+      "statMods": [
+        { "op": "AddStat", "statId": "HeatDissipation", "value": 10.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "cooling_low_flux_jacket",
+      "slotType": "Cooling",
+      "statMods": [
+        { "op": "MulStat", "statId": "HeatCost", "value": 0.74 }
       ],
       "tagOps": [],
       "effectOps": []
@@ -229,6 +282,28 @@
       "effectOps": []
     },
     {
+      "id": "guidance_long_arc_lens",
+      "slotType": "Guidance",
+      "statMods": [
+        { "op": "MulStat", "statId": "Range", "value": 1.16 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "guidance.long_arc", "value": 1.0 }
+      ],
+      "effectOps": []
+    },
+    {
+      "id": "guidance_nest_expander",
+      "slotType": "Guidance",
+      "statMods": [
+        { "op": "AddStat", "statId": "DroneCapacity", "value": 2.0 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "drone.capacity.bias", "value": 1.0 }
+      ],
+      "effectOps": []
+    },
+    {
       "id": "capacitor_burst_bank",
       "slotType": "Capacitor",
       "statMods": [
@@ -244,6 +319,15 @@
       "statMods": [
         { "op": "MulStat", "statId": "FireRate", "value": 0.96 },
         { "op": "MulStat", "statId": "HeatCost", "value": 0.82 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "capacitor_efficiency_loop",
+      "slotType": "Capacitor",
+      "statMods": [
+        { "op": "MulStat", "statId": "EnergyCost", "value": 0.84 }
       ],
       "tagOps": [],
       "effectOps": []
@@ -286,6 +370,25 @@
       "statMods": [
         { "op": "MulStat", "statId": "Mass", "value": 0.90 },
         { "op": "MulStat", "statId": "ShieldCapacity", "value": 0.95 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "plating_ward_shell",
+      "slotType": "Plating",
+      "statMods": [
+        { "op": "AddStat", "statId": "ShieldCapacity", "value": 22.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "plating_bulwark_mesh",
+      "slotType": "Plating",
+      "statMods": [
+        { "op": "AddStat", "statId": "ShieldCapacity", "value": 28.0 },
+        { "op": "MulStat", "statId": "Mass", "value": 1.07 }
       ],
       "tagOps": [],
       "effectOps": []
@@ -379,6 +482,54 @@
       "parts": ["core_a", "guidance_drone_link", "emitter_coherent_lattice", "cooling_phase_sink"],
       "rarity": "Uncommon",
       "tier": 1
+    },
+    {
+      "blueprintId": "blueprint.weapon.beam_range.prismworks.v2",
+      "baseModuleId": "laser-s-1",
+      "manufacturerId": "prismworks",
+      "parts": ["core_mass_trim_spine", "output_beam_collimator_range", "guidance_long_arc_lens", "cooling_low_flux_jacket", "capacitor_efficiency_loop"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.weapon.beam_dps.thermospire.v2",
+      "baseModuleId": "laser-s-1",
+      "manufacturerId": "thermospire",
+      "parts": ["core_flux_overdrive", "lens_beam_bias", "emitter_coherent_lattice", "cooling_heat_dump_v2", "capacitor_burst_bank"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.hangar.drone_capacity.broodlink.v2",
+      "baseModuleId": "hangar-s-1",
+      "manufacturerId": "broodlink",
+      "parts": ["core_a", "guidance_nest_expander", "cooling_low_flux_jacket", "capacitor_efficiency_loop", "plating_lightweight_frame"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.hangar.drone_damage.prismworks.v2",
+      "baseModuleId": "hangar-s-1",
+      "manufacturerId": "prismworks",
+      "parts": ["core_flux_overdrive", "guidance_drone_link", "emitter_coherent_lattice", "cooling_heat_dump_v2", "capacitor_burst_bank"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.weapon.kinetic_damage.ironwake.v2",
+      "baseModuleId": "pd-s-1",
+      "manufacturerId": "ironwake",
+      "parts": ["core_flux_overdrive", "output_kinetic_breach_head", "emitter_scatter_array", "cooling_heat_dump_v2", "capacitor_burst_bank"],
+      "rarity": "Rare",
+      "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.weapon.kinetic_wall.baseline.v2",
+      "baseModuleId": "pd-s-1",
+      "manufacturerId": "baseline",
+      "parts": ["core_b", "output_kinetic_breach_head", "plating_bulwark_mesh", "cooling_stable", "capacitor_sustain_bank"],
+      "rarity": "Rare",
+      "tier": 2
     }
   ],
   "perkDefinitions": [
