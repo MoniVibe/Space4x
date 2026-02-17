@@ -70,55 +70,51 @@ namespace Space4X.Tests.PlayMode
                 EnsureSmokeSceneInBuildSettings(originalBuildScenes);
 #endif
 
-                if (Application.isBatchMode)
-                {
-                    UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Batch mode detected; skipping direct SceneManager.LoadScene('{SmokeSceneName}') and using active scene context.");
-                }
-                else
-                {
-                    try
-                    {
-                        SceneManager.LoadScene(SmokeSceneName, LoadSceneMode.Single);
-                    }
-                    catch (Exception ex)
-                    {
-                        UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Failed to load scene '{SmokeSceneName}' ({ex.GetType().Name}): {ex.Message}. Continuing with active scene.");
-                    }
-                }
-
-                var loadedScene = SceneManager.GetSceneByName(SmokeSceneName);
-                if (loadedScene.IsValid() && loadedScene.isLoaded)
-                {
-                    SceneManager.SetActiveScene(loadedScene);
-                }
-                else
-                {
+                Scene loadedScene = default;
 #if UNITY_EDITOR
-                    try
-                    {
-                        var loadOp = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(
-                            SmokeScenePath,
-                            new LoadSceneParameters(LoadSceneMode.Single));
+                try
+                {
+                    var loadOp = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(
+                        SmokeScenePath,
+                        new LoadSceneParameters(LoadSceneMode.Single));
 
-                        var spin = 0;
-                        while (loadOp != null && !loadOp.isDone && spin < 240)
-                        {
-                            UpdateWorlds(runtimeErrors);
-                            spin++;
-                        }
-
-                        var loadedByPath = SceneManager.GetSceneByPath(SmokeScenePath);
-                        if (loadedByPath.IsValid() && loadedByPath.isLoaded)
-                        {
-                            SceneManager.SetActiveScene(loadedByPath);
-                            loadedScene = loadedByPath;
-                        }
-                    }
-                    catch (Exception ex)
+                    var spin = 0;
+                    while (loadOp != null && !loadOp.isDone && spin < 240)
                     {
-                        UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] LoadSceneAsyncInPlayMode fallback failed ({ex.GetType().Name}): {ex.Message}");
+                        UpdateWorlds(runtimeErrors);
+                        spin++;
                     }
+
+                    var loadedByPath = SceneManager.GetSceneByPath(SmokeScenePath);
+                    if (loadedByPath.IsValid() && loadedByPath.isLoaded)
+                    {
+                        SceneManager.SetActiveScene(loadedByPath);
+                        loadedScene = loadedByPath;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] LoadSceneAsyncInPlayMode failed ({ex.GetType().Name}): {ex.Message}");
+                }
+#else
+                try
+                {
+                    SceneManager.LoadScene(SmokeSceneName, LoadSceneMode.Single);
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"[Space4XRenderedSmokeParityTests] Failed to load scene '{SmokeSceneName}' ({ex.GetType().Name}): {ex.Message}. Continuing with active scene.");
+                }
+                loadedScene = SceneManager.GetSceneByName(SmokeSceneName);
 #endif
+
+                if (!(loadedScene.IsValid() && loadedScene.isLoaded))
+                {
+                    loadedScene = SceneManager.GetSceneByName(SmokeSceneName);
+                    if (loadedScene.IsValid() && loadedScene.isLoaded)
+                    {
+                        SceneManager.SetActiveScene(loadedScene);
+                    }
                 }
 
                 if (!(loadedScene.IsValid() && loadedScene.isLoaded))
