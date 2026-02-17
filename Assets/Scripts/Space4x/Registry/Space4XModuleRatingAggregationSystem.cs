@@ -16,16 +16,29 @@ namespace Space4X.Registry
     {
         private ComponentLookup<ModuleHealth> _healthLookup;
         private ComponentLookup<ModuleTypeId> _moduleTypeLookup;
+        private EntityQuery _moduleCatalogQuery;
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
             _healthLookup = state.GetComponentLookup<ModuleHealth>(true);
             _moduleTypeLookup = state.GetComponentLookup<ModuleTypeId>(true);
+            _moduleCatalogQuery = state.GetEntityQuery(ComponentType.ReadOnly<ModuleCatalogSingleton>());
         }
 
         public void OnUpdate(ref SystemState state)
         {
+            if (_moduleCatalogQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var moduleCatalog = _moduleCatalogQuery.GetSingleton<ModuleCatalogSingleton>();
+            if (!moduleCatalog.Catalog.IsCreated)
+            {
+                return;
+            }
+
             _healthLookup.Update(ref state);
             _moduleTypeLookup.Update(ref state);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -58,7 +71,7 @@ namespace Space4X.Registry
                     }
 
                     var moduleId = _moduleTypeLookup[slot.CurrentModule].Value;
-                    if (!ModuleCatalogUtility.TryGetModuleSpec(ref state, moduleId, out var spec))
+                    if (!ModuleCatalogUtility.TryGetModuleSpec(in moduleCatalog, moduleId, out var spec))
                     {
                         continue;
                     }

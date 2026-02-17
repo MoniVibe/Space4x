@@ -6,6 +6,39 @@ namespace Space4X.Registry
 {
     public static class ModuleCatalogUtility
     {
+        public static bool TryGetModuleSpec(in ModuleCatalogSingleton catalogSingleton, in FixedString64Bytes moduleId, out ModuleSpec spec)
+        {
+            spec = default;
+            if (!catalogSingleton.Catalog.IsCreated)
+            {
+                return false;
+            }
+
+            ref var modules = ref catalogSingleton.Catalog.Value.Modules;
+            for (int i = 0; i < modules.Length; i++)
+            {
+                if (modules[i].Id == moduleId)
+                {
+                    spec = modules[i];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TryGetModuleSpec(EntityQuery query, in FixedString64Bytes moduleId, out ModuleSpec spec)
+        {
+            spec = default;
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            var catalogSingleton = query.GetSingleton<ModuleCatalogSingleton>();
+            return TryGetModuleSpec(in catalogSingleton, moduleId, out spec);
+        }
+
         public static bool TryGetTuning(EntityQuery query, out RefitRepairTuning tuning)
         {
             tuning = default;
@@ -27,30 +60,8 @@ namespace Space4X.Registry
         [BurstDiscard]
         public static bool TryGetModuleSpec(ref SystemState state, in FixedString64Bytes moduleId, out ModuleSpec spec)
         {
-            spec = default;
             var query = state.GetEntityQuery(ComponentType.ReadOnly<ModuleCatalogSingleton>());
-            if (query.IsEmptyIgnoreFilter)
-            {
-                return false;
-            }
-
-            var catalog = query.GetSingleton<ModuleCatalogSingleton>();
-            if (!catalog.Catalog.IsCreated)
-            {
-                return false;
-            }
-
-            ref var modules = ref catalog.Catalog.Value.Modules;
-            for (int i = 0; i < modules.Length; i++)
-            {
-                if (modules[i].Id == moduleId)
-                {
-                    spec = modules[i];
-                    return true;
-                }
-            }
-
-            return false;
+            return TryGetModuleSpec(query, moduleId, out spec);
         }
 
         public static bool TryGetModuleSpec(EntityManager entityManager, in FixedString64Bytes moduleId, out ModuleSpec spec)
