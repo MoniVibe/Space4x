@@ -20,12 +20,18 @@ namespace Space4x.Scenario
         private GUIStyle _panelStyle;
         private GUIStyle _headerStyle;
         private GUIStyle _labelStyle;
+        private GUIStyle _mutedLabelStyle;
         private bool _stylesReady;
+
+        private bool _introInitialized;
+        private float _introUntilRealtime;
 
         private void OnDestroy()
         {
             _queriesReady = false;
             _stylesReady = false;
+            _introInitialized = false;
+            _introUntilRealtime = 0f;
         }
 
         private void OnGUI()
@@ -58,33 +64,166 @@ namespace Space4x.Scenario
                 return;
             }
 
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.enterKey.wasPressedThisFrame)
+            {
+                _introUntilRealtime = 0f;
+            }
+
             var roomIndex = math.clamp(director.CurrentRoomIndex, 0, rooms.Length - 1);
             var room = rooms[roomIndex];
             var time = _entityManager.GetComponentData<TimeState>(_timeQuery.GetSingletonEntity());
             var dt = time.FixedDeltaTime > 0f ? time.FixedDeltaTime : (1f / 60f);
             var remainingSeconds = math.max(0f, (director.RoomEndTick - time.Tick) * dt);
             var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(room.Kind);
-            var perkCount = _entityManager.GetBuffer<Space4XRunPerkOp>(directorEntity).Length;
+            var perkOps = _entityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
             var installed = _entityManager.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
 
+            if (!_introInitialized && director.Initialized != 0)
+            {
+                _introInitialized = true;
+                _introUntilRealtime = Time.realtimeSinceStartup + 9f;
+            }
+
             EnsureStyles();
-            GUILayout.BeginArea(new Rect(18f, 18f, 560f, 500f), GUIContent.none, _panelStyle);
+            GUILayout.BeginArea(new Rect(18f, 18f, 700f, 640f), GUIContent.none, _panelStyle);
             GUILayout.Label("FleetCrawl HUD", _headerStyle);
+            GUILayout.Label($"Scenario: {scenarioInfo.ScenarioId}", _labelStyle);
             GUILayout.Label($"Room {roomIndex + 1}/{rooms.Length}  kind={room.Kind}  remaining={remainingSeconds:0.0}s", _labelStyle);
             GUILayout.Label($"Tick {time.Tick}  dt={dt:0.000}  digest={director.StableDigest}", _labelStyle);
-            GUILayout.Label($"Perks={perkCount}  Blueprints={FormatBlueprints(installed)}", _labelStyle);
-            GUILayout.Label("Controls: WASD move, Shift boost, Q special dash, Mouse wheel zoom", _labelStyle);
 
-            GUILayout.Space(8f);
+            var status = Space4XFleetcrawlPlayerControlMono.CurrentStatus;
+            GUILayout.Label(
+                $"Pilot: boost={status.Boost01 * 100f:0}%  dash_cd={status.DashCooldown:0.00}s  speed={status.Speed:0.0}",
+                _labelStyle);
+            GUILayout.Label("Controls: WASD move, Shift boost, Q dash, F snap camera, Mouse wheel zoom", _labelStyle);
+
+            GUILayout.Space(6f);
+            GUILayout.Label($"Perks ({perkOps.Length}): {FormatPerkList(perkOps)}", _labelStyle);
+            GUILayout.Label($"Weapon BP: {FindBlueprint(installed, Space4XRunBlueprintKind.Weapon)}", _labelStyle);
+            GUILayout.Label($"Reactor BP: {FindBlueprint(installed, Space4XRunBlueprintKind.Reactor)}", _labelStyle);
+            GUILayout.Label($"Hangar BP: {FindBlueprint(installed, Space4XRunBlueprintKind.Hangar)}", _labelStyle);
+
+            GUILayout.Space(10f);
             GUILayout.Label($"Gate Choice ({gateCount})", _headerStyle);
             DrawGateChoiceButtons(directorEntity, director, room, gateCount);
 
-            GUILayout.Space(8f);
+            GUILayout.Space(10f);
             DrawBoonChoiceButtons(directorEntity, director, room, gateCount);
             GUILayout.EndArea();
+
+            if (_introUntilRealtime > Time.realtimeSinceStartup && director.RunCompleted == 0)
+            {
+                DrawRunStartPanel(installed, perkOps);
+            }
+
+            if (director.RunCompleted != 0)
+            {
+                DrawRunEndPanel(directorEntity, director, rooms);
+            }
         }
 
         private void DrawGateChoiceButtons(Entity directorEntity, in Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int gateCount)
+        {
+            var selectedGateOrdinal = ResolveSelectedGateOrdinal(directorEntity, director, gateCount);
+            var selectedBoonOffer = ResolveSelectedBoonOffer(directorEntity, director);
+
+            for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
+            {
+                var gateKind = Space4XFleetcrawlUiBridge.ResolveGateKind(room.Kind, gateOrdinal);
+                var selected = gateOrdinal == selectedGateOrdinal ? " [selected]" : string.Empty;
+                var offerIndex = gateKind == Space4XRunGateKind.Boon ? selectedBoonOffer : Space4XFleetcrawlUiBridge.ResolveAutoOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
+                var picked = Space4XFleetcrawlUiBridge.ResolvePickedOffer(director.Seed, director.CurrentRoomIndex, gateKind, offerIndex);
+                Space4XFleetcrawlUiBridge.ResolveGateOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
+
+                var label = $"Gate {gateOrdinal + 1} [{gateKind}]{selected}\n" +
+                            $"{Space4XFleetcrawlUiBridge.DescribeOffer(picked)}\n" +
+                            $"Offers: {offerA.RewardId} | {offerB.RewardId} | {offerC.RewardId}";
+                if (!GUILayout.Button(label, GUILayout.Height(60f)))
+                {
+                    continue;
+                }
+
+                UpsertComponent(directorEntity, new Space4XRunPendingGatePick
+                {
+                    RoomIndex = director.CurrentRoomIndex,
+                    GateOrdinal = gateOrdinal
+                });
+                Debug.Log($"[FleetcrawlUI] PendingGatePick room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal} gate={gateKind} summary='{Space4XFleetcrawlUiBridge.DescribeOffer(picked)}'.");
+            }
+        }
+
+        private void DrawBoonChoiceButtons(Entity directorEntity, in Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int gateCount)
+        {
+            var gateOrdinal = ResolveSelectedGateOrdinal(directorEntity, director, gateCount);
+            var gateKind = Space4XFleetcrawlUiBridge.ResolveGateKind(room.Kind, gateOrdinal);
+            if (gateKind != Space4XRunGateKind.Boon)
+            {
+                GUILayout.Label("Boon Choice: select a Boon gate to preview and pick boons.", _mutedLabelStyle);
+                return;
+            }
+
+            GUILayout.Label("Boon Choice (3)", _headerStyle);
+            var selectedOffer = ResolveSelectedBoonOffer(directorEntity, director);
+            for (var offerIndex = 0; offerIndex < 3; offerIndex++)
+            {
+                var perkId = Space4XFleetcrawlUiBridge.ResolveBoonOfferIdAt(director.Seed, director.CurrentRoomIndex, offerIndex);
+                var selected = offerIndex == selectedOffer ? " [selected]" : string.Empty;
+                var perkSummary = Space4XFleetcrawlUiBridge.DescribePerk(perkId);
+                var label = $"Boon {offerIndex + 1}{selected}: {perkId}\n{perkSummary}";
+                if (!GUILayout.Button(label, GUILayout.Height(48f)))
+                {
+                    continue;
+                }
+
+                UpsertComponent(directorEntity, new Space4XRunPendingBoonPick
+                {
+                    RoomIndex = director.CurrentRoomIndex,
+                    OfferIndex = offerIndex
+                });
+                Debug.Log($"[FleetcrawlUI] PendingBoonPick room={director.CurrentRoomIndex} offer={offerIndex} perk={perkId} summary='{perkSummary}'.");
+            }
+        }
+
+        private void DrawRunStartPanel(DynamicBuffer<Space4XRunInstalledBlueprint> installed, DynamicBuffer<Space4XRunPerkOp> perkOps)
+        {
+            GUILayout.BeginArea(new Rect(Screen.width * 0.5f - 260f, 30f, 520f, 175f), GUIContent.none, _panelStyle);
+            GUILayout.Label("Run Start", _headerStyle);
+            GUILayout.Label($"Starter Weapon BP: {FindBlueprint(installed, Space4XRunBlueprintKind.Weapon)}", _labelStyle);
+            GUILayout.Label($"Starter Reactor BP: {FindBlueprint(installed, Space4XRunBlueprintKind.Reactor)}", _labelStyle);
+            GUILayout.Label($"Starter Hangar BP: {FindBlueprint(installed, Space4XRunBlueprintKind.Hangar)}", _labelStyle);
+            GUILayout.Label($"Starter perks: {FormatPerkList(perkOps)}", _labelStyle);
+            GUILayout.Label("Pick gate first, then pick boon when Boon gate is selected. Press Enter to close.", _mutedLabelStyle);
+            GUILayout.EndArea();
+        }
+
+        private void DrawRunEndPanel(Entity directorEntity, in Space4XFleetcrawlDirectorState director, DynamicBuffer<Space4XFleetcrawlRoom> rooms)
+        {
+            var roomsCleared = math.clamp(director.CurrentRoomIndex + 1, 0, rooms.Length);
+            var bossRoomsCleared = 0;
+            for (var i = 0; i < roomsCleared; i++)
+            {
+                if (rooms[i].Kind == Space4XFleetcrawlRoomKind.Boss)
+                {
+                    bossRoomsCleared++;
+                }
+            }
+
+            var currency = _entityManager.HasComponent<RunCurrency>(directorEntity)
+                ? _entityManager.GetComponentData<RunCurrency>(directorEntity).Value
+                : 0;
+
+            GUILayout.BeginArea(new Rect(Screen.width * 0.5f - 260f, Screen.height * 0.5f - 120f, 520f, 230f), GUIContent.none, _panelStyle);
+            GUILayout.Label("Run Complete", _headerStyle);
+            GUILayout.Label($"Rooms Cleared: {roomsCleared}", _labelStyle);
+            GUILayout.Label($"Boss Rooms Cleared: {bossRoomsCleared}", _labelStyle);
+            GUILayout.Label($"Currency: {currency}", _labelStyle);
+            GUILayout.Label($"Build Digest: {director.StableDigest}", _labelStyle);
+            GUILayout.Label("Review your build in HUD and restart the scenario for another deterministic run.", _mutedLabelStyle);
+            GUILayout.EndArea();
+        }
+
+        private int ResolveSelectedGateOrdinal(Entity directorEntity, in Space4XFleetcrawlDirectorState director, int gateCount)
         {
             var selectedGateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(director.Seed, director.CurrentRoomIndex, gateCount);
             if (_entityManager.HasComponent<Space4XRunPendingGatePick>(directorEntity))
@@ -96,45 +235,12 @@ namespace Space4x.Scenario
                 }
             }
 
-            for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
-            {
-                var gateKind = Space4XFleetcrawlUiBridge.ResolveGateKind(room.Kind, gateOrdinal);
-                var selected = gateOrdinal == selectedGateOrdinal ? " [selected]" : string.Empty;
-                if (!GUILayout.Button($"Gate {gateOrdinal + 1}: {gateKind}{selected}", GUILayout.Height(28f)))
-                {
-                    continue;
-                }
-
-                UpsertComponent(directorEntity, new Space4XRunPendingGatePick
-                {
-                    RoomIndex = director.CurrentRoomIndex,
-                    GateOrdinal = gateOrdinal
-                });
-                Debug.Log($"[FleetcrawlUI] PendingGatePick room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal} gate={gateKind}.");
-            }
+            return selectedGateOrdinal;
         }
 
-        private void DrawBoonChoiceButtons(Entity directorEntity, in Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int gateCount)
+        private int ResolveSelectedBoonOffer(Entity directorEntity, in Space4XFleetcrawlDirectorState director)
         {
-            var gateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(director.Seed, director.CurrentRoomIndex, gateCount);
-            if (_entityManager.HasComponent<Space4XRunPendingGatePick>(directorEntity))
-            {
-                var pending = _entityManager.GetComponentData<Space4XRunPendingGatePick>(directorEntity);
-                if (pending.RoomIndex == director.CurrentRoomIndex && pending.GateOrdinal >= 0 && pending.GateOrdinal < gateCount)
-                {
-                    gateOrdinal = pending.GateOrdinal;
-                }
-            }
-
-            var gateKind = Space4XFleetcrawlUiBridge.ResolveGateKind(room.Kind, gateOrdinal);
-            if (gateKind != Space4XRunGateKind.Boon)
-            {
-                GUILayout.Label("Boon Choice: select a Boon gate to pick a boon.", _labelStyle);
-                return;
-            }
-
-            GUILayout.Label("Boon Choice (3)", _headerStyle);
-            var selectedOffer = Space4XFleetcrawlUiBridge.ResolveAutoOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
+            var selectedOffer = Space4XFleetcrawlUiBridge.ResolveAutoOfferIndex(director.Seed, director.CurrentRoomIndex, Space4XRunGateKind.Boon, 3);
             if (_entityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
             {
                 var pending = _entityManager.GetComponentData<Space4XRunPendingBoonPick>(directorEntity);
@@ -144,22 +250,7 @@ namespace Space4x.Scenario
                 }
             }
 
-            for (var offerIndex = 0; offerIndex < 3; offerIndex++)
-            {
-                var perkId = Space4XFleetcrawlUiBridge.ResolveBoonOfferIdAt(director.Seed, director.CurrentRoomIndex, offerIndex);
-                var selected = offerIndex == selectedOffer ? " [selected]" : string.Empty;
-                if (!GUILayout.Button($"Boon {offerIndex + 1}: {perkId}{selected}", GUILayout.Height(26f)))
-                {
-                    continue;
-                }
-
-                UpsertComponent(directorEntity, new Space4XRunPendingBoonPick
-                {
-                    RoomIndex = director.CurrentRoomIndex,
-                    OfferIndex = offerIndex
-                });
-                Debug.Log($"[FleetcrawlUI] PendingBoonPick room={director.CurrentRoomIndex} offer={offerIndex} perk={perkId}.");
-            }
+            return selectedOffer;
         }
 
         private bool TryEnsureQueries()
@@ -219,6 +310,12 @@ namespace Space4x.Scenario
                 fontSize = 11,
                 richText = false
             };
+            _mutedLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                richText = false,
+                normal = { textColor = new Color(0.74f, 0.74f, 0.74f, 1f) }
+            };
         }
 
         private void UpsertComponent<T>(Entity entity, in T value) where T : unmanaged, IComponentData
@@ -233,25 +330,38 @@ namespace Space4x.Scenario
             }
         }
 
-        private static string FormatBlueprints(DynamicBuffer<Space4XRunInstalledBlueprint> installed)
+        private static string FormatPerkList(DynamicBuffer<Space4XRunPerkOp> perkOps)
         {
-            if (installed.Length == 0)
+            if (perkOps.Length == 0)
             {
                 return "<none>";
             }
 
             var text = string.Empty;
-            for (var i = 0; i < installed.Length; i++)
+            for (var i = 0; i < perkOps.Length; i++)
             {
                 if (i > 0)
                 {
-                    text += ",";
+                    text += " | ";
                 }
 
-                text += installed[i].BlueprintId.ToString();
+                text += perkOps[i].PerkId.ToString();
             }
 
             return text;
+        }
+
+        private static string FindBlueprint(DynamicBuffer<Space4XRunInstalledBlueprint> installed, Space4XRunBlueprintKind kind)
+        {
+            for (var i = 0; i < installed.Length; i++)
+            {
+                if (installed[i].Kind == kind)
+                {
+                    return installed[i].BlueprintId.ToString();
+                }
+            }
+
+            return "<none>";
         }
     }
 }
