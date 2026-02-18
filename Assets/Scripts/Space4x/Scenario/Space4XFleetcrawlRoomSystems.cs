@@ -1399,6 +1399,7 @@ namespace Space4x.Scenario
                 state.EntityManager.AddComponentData(directorEntity, challenge);
             }
             state.EntityManager.SetComponentData(directorEntity, challenge);
+            ConsumeOnePendingUpgrade(ref state, directorEntity, ref director, roomIndex);
 
             if (room.Kind == Space4XFleetcrawlRoomKind.Combat || room.Kind == Space4XFleetcrawlRoomKind.Boss)
             {
@@ -1839,6 +1840,81 @@ namespace Space4x.Scenario
                     weaponBuffer[i] = mount;
                 }
             }
+        }
+
+        private void ConsumeOnePendingUpgrade(ref SystemState state, Entity directorEntity, ref Space4XFleetcrawlDirectorState director, int roomIndex)
+        {
+            if (!state.EntityManager.HasComponent<Space4XRunProgressionState>(directorEntity))
+            {
+                return;
+            }
+
+            var progression = state.EntityManager.GetComponentData<Space4XRunProgressionState>(directorEntity);
+            if (progression.UnspentUpgrades <= 0)
+            {
+                return;
+            }
+
+            var choice = (int)(DeterministicMix(
+                    director.Seed,
+                    (uint)(roomIndex + 1),
+                    (uint)math.max(1, progression.Level),
+                    (uint)math.max(0, progression.UnspentUpgrades)) % 3u);
+
+            switch (choice)
+            {
+                case 0:
+                    ApplyAutoUpgradeFirepower(ref state);
+                    break;
+                case 1:
+                    ApplyAutoUpgradeHull(ref state);
+                    break;
+                default:
+                    ApplyAutoUpgradeThrusters(ref state);
+                    break;
+            }
+
+            progression.UnspentUpgrades = math.max(0, progression.UnspentUpgrades - 1);
+            state.EntityManager.SetComponentData(directorEntity, progression);
+            director.StableDigest = math.hash(new uint4(
+                director.StableDigest,
+                (uint)choice,
+                (uint)math.max(0, progression.Level),
+                (uint)math.max(0, progression.UnspentUpgrades)));
+            Debug.Log($"[Fleetcrawl] LEVEL_PICK room={roomIndex} pick={choice} level={progression.Level} unspent={progression.UnspentUpgrades}.");
+        }
+
+        private void ApplyAutoUpgradeFirepower(ref SystemState state)
+        {
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
+            {
+                var weaponBuffer = weapons;
+                for (var i = 0; i < weaponBuffer.Length; i++)
+                {
+                    var mount = weaponBuffer[i];
+                    mount.Weapon.BaseDamage *= 1.09f;
+                    mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * 0.95f));
+                    weaponBuffer[i] = mount;
+                }
+            }
+        }
+
+        private void ApplyAutoUpgradeHull(ref SystemState state)
+        {
+            foreach (var hull in SystemAPI.Query<RefRW<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
+            {
+                var hullData = hull.ValueRO;
+                hullData.Max += 18f;
+                hullData.BaseMax += 18f;
+                hullData.Current = math.min(hullData.Max, hullData.Current + hullData.Max * 0.12f);
+                hull.ValueRW = hullData;
+            }
+        }
+
+        private void ApplyAutoUpgradeThrusters(ref SystemState state)
+        {
+            ApplyFlightMultipliers(ref state, 1.05f, 1.08f, 1.04f, 1.10f, playerOnly: true);
+            ApplyFlightMultipliers(ref state, 1.03f, 1.06f, 1.02f, 1.06f, playerOnly: false);
         }
 
         private void ApplyReliefRoomBonus(ref SystemState state, Entity directorEntity, in Space4XFleetcrawlRoom room)

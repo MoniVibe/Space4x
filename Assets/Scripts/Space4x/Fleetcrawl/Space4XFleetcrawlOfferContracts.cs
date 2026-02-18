@@ -16,6 +16,11 @@ namespace Space4x.Fleetcrawl
         public int Level;
     }
 
+    public struct FleetcrawlRunExperience : IComponentData
+    {
+        public int Value;
+    }
+
     public struct FleetcrawlRunShardWallet : IComponentData
     {
         public int Shards;
@@ -369,7 +374,70 @@ namespace Space4x.Fleetcrawl
     }
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XFleetcrawlRoomDirectorSystem))]
+    [UpdateBefore(typeof(Space4XFleetcrawlOfferGenerationSystem))]
+    public partial struct Space4XFleetcrawlRunStateBridgeSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var em = state.EntityManager;
+            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+
+            if (!em.HasComponent<FleetcrawlRunLevelState>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new FleetcrawlRunLevelState { Level = 1 });
+            }
+            if (!em.HasComponent<FleetcrawlRunExperience>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new FleetcrawlRunExperience { Value = 0 });
+            }
+            if (!em.HasComponent<FleetcrawlRunShardWallet>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new FleetcrawlRunShardWallet { Shards = 0 });
+            }
+            if (!em.HasComponent<FleetcrawlRunChallengeState>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new FleetcrawlRunChallengeState { Challenge = 0 });
+            }
+
+            var level = 1;
+            var xp = 0;
+            if (em.HasComponent<Space4XRunProgressionState>(directorEntity))
+            {
+                var progression = em.GetComponentData<Space4XRunProgressionState>(directorEntity);
+                level = math.max(1, progression.Level);
+                xp = math.max(0, progression.TotalExperienceEarned);
+            }
+
+            var shards = 0;
+            if (em.HasComponent<Space4XRunMetaResourceState>(directorEntity))
+            {
+                var meta = em.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
+                shards = math.max(0, meta.Shards);
+            }
+
+            var challenge = 0;
+            if (em.HasComponent<Space4XRunChallengeState>(directorEntity))
+            {
+                var runChallenge = em.GetComponentData<Space4XRunChallengeState>(directorEntity);
+                challenge = runChallenge.Active != 0 ? math.max(0, runChallenge.RiskTier) : 0;
+            }
+
+            em.SetComponentData(directorEntity, new FleetcrawlRunLevelState { Level = level });
+            em.SetComponentData(directorEntity, new FleetcrawlRunExperience { Value = xp });
+            em.SetComponentData(directorEntity, new FleetcrawlRunShardWallet { Shards = shards });
+            em.SetComponentData(directorEntity, new FleetcrawlRunChallengeState { Challenge = challenge });
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XFleetcrawlLootShopBootstrapSystem))]
+    [UpdateAfter(typeof(Space4XFleetcrawlRunStateBridgeSystem))]
     public partial struct Space4XFleetcrawlOfferGenerationSystem : ISystem
     {
         private EntityQuery _refreshRequestQuery;
