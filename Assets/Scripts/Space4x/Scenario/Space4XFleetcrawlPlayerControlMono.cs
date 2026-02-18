@@ -129,6 +129,7 @@ namespace Space4x.Scenario
             }
 
             var specialRequested = false;
+            var specialCooldownUntilTickForDirective = _specialCooldownUntilTick;
             if (keyboard.eKey.wasPressedThisFrame && tick >= _specialCooldownUntilTick)
             {
                 _specialCooldownUntilTick = tick + _specialCooldownTicks;
@@ -174,7 +175,7 @@ namespace Space4x.Scenario
                 Tick = tick,
                 BoostCooldownUntilTick = _boostCooldownUntilTick,
                 DashCooldownUntilTick = _dashCooldownUntilTick,
-                SpecialCooldownUntilTick = _specialCooldownUntilTick
+                SpecialCooldownUntilTick = specialCooldownUntilTickForDirective
             });
 
             var target = transform.Position + moveDir * step;
