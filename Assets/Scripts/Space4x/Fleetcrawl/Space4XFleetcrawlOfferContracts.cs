@@ -883,7 +883,8 @@ namespace Space4x.Fleetcrawl
                 var behaviorCost = CountBehaviorFlags(rolledItem.WeaponBehaviors) * 5;
                 var socketCost = math.max(0, rolledItem.ModuleSocketCount) * 4;
                 var stackCost = math.max(0, rolledItem.StackCount - 1) * 2;
-                var price = math.max(1, catalogRow.BaseShardCost + (challenge * 5) + ((int)rolledItem.Quality * 6) + behaviorCost + socketCost + stackCost);
+                var qualityCost = (int)rolledItem.Quality * 6;
+                var price = math.max(1, catalogRow.BaseShardCost + (challenge * 5) + qualityCost + behaviorCost + socketCost + stackCost);
                 lootOffers.Add(new FleetcrawlLootOfferEntry
                 {
                     SlotIndex = slot,
@@ -1266,6 +1267,7 @@ namespace Space4x.Fleetcrawl
         {
             var comboBits = CountComboFlags(offer.ComboTags);
             var behaviorBits = CountBehaviorFlags(offer.WeaponBehaviors);
+            var qualityScore = (int)offer.Quality * 100;
             var archetypeBias = offer.Archetype switch
             {
                 FleetcrawlLootArchetype.Trinket => 55,
@@ -1275,7 +1277,7 @@ namespace Space4x.Fleetcrawl
             };
 
             return archetypeBias +
-                   (int)offer.Quality * 100 +
+                   qualityScore +
                    comboBits * 16 +
                    behaviorBits * 20 +
                    math.max(0, offer.ModuleSocketCount) * 22 +
