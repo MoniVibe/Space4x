@@ -386,10 +386,10 @@ namespace Space4x.Scenario
 
             var dt = math.max(1e-6f, ResolveFixedDelta(SystemAPI.GetSingleton<TimeState>()));
             var shortMode = scenarioId.Contains("micro", StringComparison.OrdinalIgnoreCase) || IsTruthy(Environment.GetEnvironmentVariable("SPACE4X_FLEETCRAWL_SHORT"));
-            var combatDur = shortMode ? 45f : 300f;
-            var reliefDur = shortMode ? 20f : 45f;
-            var bossDur = shortMode ? 75f : 420f;
-            var waveInt = shortMode ? 10f : 45f;
+            var combatDur = shortMode ? 45f : 150f;
+            var reliefDur = shortMode ? 20f : 28f;
+            var bossDur = shortMode ? 78f : 210f;
+            var waveInt = shortMode ? 10f : 24f;
 
             var directorEntity = state.EntityManager.CreateEntity(
                 typeof(Space4XFleetcrawlDirectorState),
@@ -411,13 +411,13 @@ namespace Space4x.Scenario
                 EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
                 DurationTicks = ToTicks(combatDur, dt),
                 WaveIntervalTicks = ToTicks(waveInt, dt),
-                PlannedWaves = 4,
-                KillQuota = shortMode ? 24 : 80,
+                PlannedWaves = shortMode ? 4 : 5,
+                KillQuota = shortMode ? 24 : 50,
                 MiniBossQuota = 1,
                 BossQuota = 0,
-                BaseStrikePerWave = shortMode ? 9 : 12,
+                BaseStrikePerWave = shortMode ? 9 : 11,
                 BaseCarrierPerWave = 0,
-                MiniBossEveryNWaves = 2,
+                MiniBossEveryNWaves = shortMode ? 2 : 3,
                 MiniBossCarrierCount = 1,
                 BossCarrierCount = 0,
                 RewardCurrency = 80,
@@ -457,11 +457,11 @@ namespace Space4x.Scenario
                 EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
                 DurationTicks = ToTicks(combatDur, dt),
                 WaveIntervalTicks = ToTicks(waveInt, dt),
-                PlannedWaves = 5,
-                KillQuota = shortMode ? 34 : 110,
+                PlannedWaves = shortMode ? 5 : 6,
+                KillQuota = shortMode ? 34 : 78,
                 MiniBossQuota = 2,
                 BossQuota = 0,
-                BaseStrikePerWave = shortMode ? 10 : 13,
+                BaseStrikePerWave = shortMode ? 10 : 12,
                 BaseCarrierPerWave = 1,
                 MiniBossEveryNWaves = 2,
                 MiniBossCarrierCount = 1,
@@ -480,13 +480,13 @@ namespace Space4x.Scenario
                 EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
                 DurationTicks = ToTicks(bossDur, dt),
                 WaveIntervalTicks = ToTicks(waveInt, dt),
-                PlannedWaves = 4,
+                PlannedWaves = shortMode ? 4 : 5,
                 KillQuota = 0,
                 MiniBossQuota = 1,
                 BossQuota = shortMode ? 1 : 2,
-                BaseStrikePerWave = shortMode ? 8 : 10,
+                BaseStrikePerWave = shortMode ? 8 : 9,
                 BaseCarrierPerWave = 0,
-                MiniBossEveryNWaves = 2,
+                MiniBossEveryNWaves = shortMode ? 2 : 3,
                 MiniBossCarrierCount = 1,
                 BossCarrierCount = shortMode ? 1 : 2,
                 RewardCurrency = 220,
@@ -935,6 +935,9 @@ namespace Space4x.Scenario
             }
             ecb.Playback(em);
             ecb.Dispose();
+            var normalStrikesThisTick = 0;
+            var miniBossStrikesThisTick = 0;
+            var bossStrikesThisTick = 0;
 
             foreach (var (enemyTag, hull, transform, telegraphRef, weapons, entity) in SystemAPI
                          .Query<RefRO<Space4XRunEnemyTag>, RefRO<HullIntegrity>, RefRO<LocalTransform>, RefRW<Space4XEnemyTelegraphState>, DynamicBuffer<WeaponMount>>()
@@ -975,8 +978,11 @@ namespace Space4x.Scenario
 
                 if (telegraph.IsBursting == 0 && burstingNow)
                 {
-                    TriggerTelegraphedStrike(ref state, entity, transform.ValueRO.Position, profile, tick, out var hits);
-                    Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_STRIKE class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index} hits={hits}.");
+                    if (TryConsumeStrikeBudget(enemyTag.ValueRO.EnemyClass, ref normalStrikesThisTick, ref miniBossStrikesThisTick, ref bossStrikesThisTick))
+                    {
+                        TriggerTelegraphedStrike(ref state, entity, transform.ValueRO.Position, enemyTag.ValueRO.EnemyClass, profile, tick, out var hits);
+                        Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_STRIKE class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index} hits={hits}.");
+                    }
                 }
 
                 telegraph.IsTelegraphing = (byte)(telegraphingNow ? 1 : 0);
@@ -1000,45 +1006,68 @@ namespace Space4x.Scenario
                 case Space4XFleetcrawlEnemyClass.MiniBoss:
                     return new EnemyTelegraphProfile
                     {
-                        WarmupTicks = 75u,
-                        WarmupJitterTicks = 32u,
-                        TelegraphTicks = 34u,
-                        BurstTicks = 42u,
-                        CycleTicks = 182u,
-                        CycleJitterTicks = 28u,
-                        StrikeRange = 52f,
-                        StrikeDamage = 34f,
-                        ShieldShare = 0.32f,
-                        ArmorShare = 0.16f
+                        WarmupTicks = 84u,
+                        WarmupJitterTicks = 36u,
+                        TelegraphTicks = 40u,
+                        BurstTicks = 36u,
+                        CycleTicks = 196u,
+                        CycleJitterTicks = 34u,
+                        StrikeRange = 50f,
+                        StrikeDamage = 26f,
+                        ShieldShare = 0.30f,
+                        ArmorShare = 0.14f
                     };
                 case Space4XFleetcrawlEnemyClass.Boss:
                     return new EnemyTelegraphProfile
                     {
-                        WarmupTicks = 92u,
-                        WarmupJitterTicks = 40u,
-                        TelegraphTicks = 48u,
-                        BurstTicks = 58u,
-                        CycleTicks = 212u,
-                        CycleJitterTicks = 36u,
-                        StrikeRange = 64f,
-                        StrikeDamage = 52f,
-                        ShieldShare = 0.36f,
+                        WarmupTicks = 104u,
+                        WarmupJitterTicks = 48u,
+                        TelegraphTicks = 56u,
+                        BurstTicks = 50u,
+                        CycleTicks = 236u,
+                        CycleJitterTicks = 42u,
+                        StrikeRange = 60f,
+                        StrikeDamage = 42f,
+                        ShieldShare = 0.34f,
                         ArmorShare = 0.18f
                     };
                 default:
                     return new EnemyTelegraphProfile
                     {
-                        WarmupTicks = 58u,
-                        WarmupJitterTicks = 24u,
-                        TelegraphTicks = 24u,
-                        BurstTicks = 30u,
-                        CycleTicks = 148u,
-                        CycleJitterTicks = 22u,
-                        StrikeRange = 40f,
-                        StrikeDamage = 18f,
-                        ShieldShare = 0.28f,
-                        ArmorShare = 0.12f
+                        WarmupTicks = 68u,
+                        WarmupJitterTicks = 28u,
+                        TelegraphTicks = 32u,
+                        BurstTicks = 26u,
+                        CycleTicks = 164u,
+                        CycleJitterTicks = 28u,
+                        StrikeRange = 34f,
+                        StrikeDamage = 12f,
+                        ShieldShare = 0.24f,
+                        ArmorShare = 0.10f
                     };
+            }
+        }
+
+        private static bool TryConsumeStrikeBudget(
+            Space4XFleetcrawlEnemyClass enemyClass,
+            ref int normalStrikesThisTick,
+            ref int miniBossStrikesThisTick,
+            ref int bossStrikesThisTick)
+        {
+            switch (enemyClass)
+            {
+                case Space4XFleetcrawlEnemyClass.Boss:
+                    if (bossStrikesThisTick >= 1) return false;
+                    bossStrikesThisTick++;
+                    return true;
+                case Space4XFleetcrawlEnemyClass.MiniBoss:
+                    if (miniBossStrikesThisTick >= 1) return false;
+                    miniBossStrikesThisTick++;
+                    return true;
+                default:
+                    if (normalStrikesThisTick >= 2) return false;
+                    normalStrikesThisTick++;
+                    return true;
             }
         }
 
@@ -1056,13 +1085,15 @@ namespace Space4x.Scenario
             ref SystemState state,
             Entity source,
             float3 sourcePos,
+            Space4XFleetcrawlEnemyClass enemyClass,
             in EnemyTelegraphProfile profile,
             uint tick,
             out int hits)
         {
             hits = 0;
             var maxRangeSq = profile.StrikeRange * profile.StrikeRange;
-            foreach (var (transform, hull, side, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>().WithAll<Space4XRunPlayerTag>().WithEntityAccess())
+            var weaponType = ResolveTelegraphWeaponType(enemyClass);
+            foreach (var (transform, hull, side, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>().WithAll<Space4XRunPlayerTag, PlayerFlagshipTag>().WithEntityAccess())
             {
                 if (side.ValueRO.Side != 0 || hull.ValueRO.Current <= 0f)
                 {
@@ -1080,7 +1111,10 @@ namespace Space4x.Scenario
                     continue;
                 }
 
-                var raw = profile.StrikeDamage;
+                var distance = math.sqrt(distSq);
+                var range01 = math.saturate(distance / math.max(1f, profile.StrikeRange));
+                var falloff = math.lerp(1f, 0.55f, range01);
+                var raw = profile.StrikeDamage * falloff;
                 var shieldDamage = raw * profile.ShieldShare;
                 var armorDamage = raw * profile.ArmorShare;
                 var hullDamage = raw * math.max(0f, 1f - profile.ShieldShare - profile.ArmorShare);
@@ -1088,7 +1122,7 @@ namespace Space4x.Scenario
                 damageEvents.Add(new DamageEvent
                 {
                     Source = source,
-                    WeaponType = WeaponType.Laser,
+                    WeaponType = weaponType,
                     RawDamage = raw,
                     ShieldDamage = shieldDamage,
                     ArmorDamage = armorDamage,
@@ -1097,6 +1131,19 @@ namespace Space4x.Scenario
                     IsCritical = 0
                 });
                 hits++;
+            }
+        }
+
+        private static WeaponType ResolveTelegraphWeaponType(Space4XFleetcrawlEnemyClass enemyClass)
+        {
+            switch (enemyClass)
+            {
+                case Space4XFleetcrawlEnemyClass.Boss:
+                    return WeaponType.Missile;
+                case Space4XFleetcrawlEnemyClass.MiniBoss:
+                    return WeaponType.Ion;
+                default:
+                    return WeaponType.Laser;
             }
         }
     }
