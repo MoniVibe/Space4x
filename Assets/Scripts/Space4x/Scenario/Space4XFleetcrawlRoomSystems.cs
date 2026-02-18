@@ -429,12 +429,13 @@ namespace Space4x.Scenario
                 typeof(Space4XRunProgressionState),
                 typeof(Space4XRunChallengeState),
                 typeof(Space4XRunMetaResourceState));
-            var rooms = state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunPerkOp>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunInstalledBlueprint>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunUnlockedManufacturer>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunUnlockedPart>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunGateRewardRecord>(directorEntity);
+            var rooms = state.EntityManager.GetBuffer<Space4XFleetcrawlRoom>(directorEntity);
             rooms.Add(new Space4XFleetcrawlRoom
             {
                 Kind = Space4XFleetcrawlRoomKind.Combat,
@@ -554,6 +555,7 @@ namespace Space4x.Scenario
 #if !UNITY_INCLUDE_TESTS
             ApplyOptionalRoomProfile(rooms, shortMode, dt);
 #endif
+            var roomCount = rooms.Length;
 
             var flagship = Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, new float3(-120f, 0f, 0f), 0, new FixedString64Bytes("player-flagship"), true, -1, -1);
             if (!state.EntityManager.HasComponent<PlayerFlagshipTag>(flagship))
@@ -602,7 +604,7 @@ namespace Space4x.Scenario
 
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
-            Debug.Log($"[Fleetcrawl] Seeded run. rooms={rooms.Length} short_mode={(shortMode ? 1 : 0)} seed={runSeed}.");
+            Debug.Log($"[Fleetcrawl] Seeded run. rooms={roomCount} short_mode={(shortMode ? 1 : 0)} seed={runSeed}.");
         }
 
         [Serializable]
