@@ -392,6 +392,111 @@
       ],
       "tagOps": [],
       "effectOps": []
+    },
+    {
+      "id": "core_hollow_lattice",
+      "slotType": "Core",
+      "statMods": [
+        { "op": "MulStat", "statId": "Mass", "value": 0.84 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "cooling_microchannel_loop",
+      "slotType": "Cooling",
+      "statMods": [
+        { "op": "MulStat", "statId": "HeatCost", "value": 0.70 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "cooling_sink_matrix_v3",
+      "slotType": "Cooling",
+      "statMods": [
+        { "op": "AddStat", "statId": "HeatDissipation", "value": 12.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "capacitor_econ_regulator",
+      "slotType": "Capacitor",
+      "statMods": [
+        { "op": "MulStat", "statId": "EnergyCost", "value": 0.78 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "guidance_rangefinder_bus",
+      "slotType": "Guidance",
+      "statMods": [
+        { "op": "MulStat", "statId": "Range", "value": 1.20 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "guidance.rangefinder", "value": 1.0 }
+      ],
+      "effectOps": []
+    },
+    {
+      "id": "guidance_drone_cradle",
+      "slotType": "Guidance",
+      "statMods": [
+        { "op": "AddStat", "statId": "DroneCapacity", "value": 4.0 }
+      ],
+      "tagOps": [
+        { "op": "AddTag", "tagId": "drone.capacity.focus", "value": 1.0 }
+      ],
+      "effectOps": []
+    },
+    {
+      "id": "plating_guard_plate",
+      "slotType": "Plating",
+      "statMods": [
+        { "op": "AddStat", "statId": "ShieldCapacity", "value": 24.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "plating_feather_shell",
+      "slotType": "Plating",
+      "statMods": [
+        { "op": "MulStat", "statId": "Mass", "value": 0.82 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "emitter_overfocus_ring",
+      "slotType": "Emitter",
+      "statMods": [
+        { "op": "MulStat", "statId": "Damage", "value": 1.18 }
+      ],
+      "tagOps": [],
+      "effectOps": [
+        { "op": "ReplaceAttackFamily", "fromFamily": "Unknown", "toFamily": "Energy" }
+      ]
+    },
+    {
+      "id": "housing_shield_cradle",
+      "slotType": "Housing",
+      "statMods": [
+        { "op": "AddStat", "statId": "ShieldCapacity", "value": 16.0 }
+      ],
+      "tagOps": [],
+      "effectOps": []
+    },
+    {
+      "id": "housing_service_spine",
+      "slotType": "Housing",
+      "statMods": [
+        { "op": "MulStat", "statId": "EnergyCost", "value": 0.90 }
+      ],
+      "tagOps": [],
+      "effectOps": []
     }
   ],
   "blueprints": [
@@ -530,6 +635,70 @@
       "parts": ["core_b", "output_kinetic_breach_head", "plating_bulwark_mesh", "cooling_stable", "capacitor_sustain_bank"],
       "rarity": "Rare",
       "tier": 2
+    },
+    {
+      "blueprintId": "blueprint.weapon.beam_sniper.prismworks.v3",
+      "baseModuleId": "laser-s-1",
+      "manufacturerId": "prismworks",
+      "parts": ["core_hollow_lattice", "output_beam_collimator_range", "guidance_rangefinder_bus", "cooling_microchannel_loop", "capacitor_econ_regulator", "housing_service_spine"],
+      "rarity": "Epic",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.weapon.beam_overdrive.thermospire.v3",
+      "baseModuleId": "laser-s-1",
+      "manufacturerId": "thermospire",
+      "parts": ["core_flux_overdrive", "lens_beam_bias", "emitter_overfocus_ring", "cooling_sink_matrix_v3", "capacitor_burst_bank"],
+      "rarity": "Epic",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.hangar.drone_command.broodlink.v3",
+      "baseModuleId": "hangar-s-1",
+      "manufacturerId": "broodlink",
+      "parts": ["core_hollow_lattice", "guidance_drone_cradle", "cooling_microchannel_loop", "capacitor_econ_regulator", "housing_service_spine", "plating_feather_shell"],
+      "rarity": "Epic",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.hangar.drone_lancer.prismworks.v3",
+      "baseModuleId": "hangar-s-1",
+      "manufacturerId": "prismworks",
+      "parts": ["core_flux_overdrive", "guidance_drone_link", "emitter_overfocus_ring", "cooling_sink_matrix_v3", "capacitor_burst_bank"],
+      "rarity": "Epic",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.weapon.kinetic_breaker.ironwake.v3",
+      "baseModuleId": "pd-s-1",
+      "manufacturerId": "ironwake",
+      "parts": ["core_flux_overdrive", "output_kinetic_breach_head", "cooling_sink_matrix_v3", "capacitor_burst_bank", "plating_guard_plate"],
+      "rarity": "Epic",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.weapon.kinetic_bastion.baseline.v3",
+      "baseModuleId": "pd-s-1",
+      "manufacturerId": "baseline",
+      "parts": ["core_b", "output_kinetic_breach_head", "plating_bulwark_mesh", "plating_guard_plate", "cooling_stable", "housing_shield_cradle"],
+      "rarity": "Epic",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.reactor.efficiency.austere.v3",
+      "baseModuleId": "reactor-mk2",
+      "manufacturerId": "austere",
+      "parts": ["core_compact_efficient", "cooling_microchannel_loop", "capacitor_econ_regulator", "housing_service_spine", "plating_feather_shell"],
+      "rarity": "Rare",
+      "tier": 3
+    },
+    {
+      "blueprintId": "blueprint.reactor.overclock.thermospire.v3",
+      "baseModuleId": "reactor-mk2",
+      "manufacturerId": "thermospire",
+      "parts": ["core_flux_overdrive", "cooling_sink_matrix_v3", "capacitor_burst_bank", "housing_shield_cradle", "plating_guard_plate"],
+      "rarity": "Rare",
+      "tier": 3
     }
   ],
   "perkDefinitions": [
