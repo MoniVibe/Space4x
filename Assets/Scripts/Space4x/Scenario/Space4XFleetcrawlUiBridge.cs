@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -23,11 +24,78 @@ namespace Space4x.Scenario
         public FixedString64Bytes RewardId;
     }
 
+    public enum Space4XFleetcrawlInputMode : byte
+    {
+        Auto = 0,
+        Manual = 1
+    }
+
+    public struct Space4XFleetcrawlPlayerDirective : IComponentData
+    {
+        public float2 Movement;
+        public byte BoostRequested;
+        public byte DashRequested;
+        public byte SpecialRequested;
+        public uint Tick;
+        public uint BoostCooldownUntilTick;
+        public uint DashCooldownUntilTick;
+        public uint SpecialCooldownUntilTick;
+    }
+
     internal static class Space4XFleetcrawlUiBridge
     {
         public static bool IsFleetcrawlScenario(in FixedString64Bytes scenarioId)
         {
             return scenarioId.Length > 0 && scenarioId.ToString().StartsWith("space4x_fleetcrawl", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static Space4XFleetcrawlInputMode ReadInputMode()
+        {
+            var raw = Environment.GetEnvironmentVariable("SPACE4X_FLEETCRAWL_INPUT_MODE");
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return Space4XFleetcrawlInputMode.Manual;
+            }
+
+            return raw.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase)
+                ? Space4XFleetcrawlInputMode.Auto
+                : Space4XFleetcrawlInputMode.Manual;
+        }
+
+        public static uint ReadTicksSetting(string envName, uint defaultValue)
+        {
+            var raw = Environment.GetEnvironmentVariable(envName);
+            if (string.IsNullOrWhiteSpace(raw) || !uint.TryParse(raw.Trim(), out var value))
+            {
+                return defaultValue;
+            }
+
+            return value;
+        }
+
+        public static bool TryReadPickIndex(string envName, out int index)
+        {
+            index = 0;
+            var raw = Environment.GetEnvironmentVariable(envName);
+            if (string.IsNullOrWhiteSpace(raw) || !int.TryParse(raw.Trim(), out var parsed))
+            {
+                return false;
+            }
+
+            // Accept both 0-based and 1-based user inputs.
+            if (parsed > 0 && parsed <= 3)
+            {
+                index = parsed - 1;
+                return true;
+            }
+
+            index = parsed;
+            return true;
+        }
+
+        public static void ClearPickEnv(string envName)
+        {
+            Environment.SetEnvironmentVariable(envName, string.Empty);
         }
 
         public static int ResolveGateCount(Space4XFleetcrawlRoomKind roomKind)

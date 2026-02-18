@@ -25,6 +25,8 @@ namespace Space4x.Scenario
 
         private bool _introInitialized;
         private float _introUntilRealtime;
+        private int _lastOfferSummaryRoom = int.MinValue;
+        private uint _lastOfferSummarySeed;
 
         private void OnDestroy()
         {
@@ -78,6 +80,7 @@ namespace Space4x.Scenario
             var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(room.Kind);
             var perkOps = _entityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
             var installed = _entityManager.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
+            EmitOfferSummaryLogs(director, room, gateCount, directorEntity);
 
             if (!_introInitialized && director.Initialized != 0)
             {
@@ -221,6 +224,33 @@ namespace Space4x.Scenario
             GUILayout.Label($"Build Digest: {director.StableDigest}", _labelStyle);
             GUILayout.Label("Review your build in HUD and restart the scenario for another deterministic run.", _mutedLabelStyle);
             GUILayout.EndArea();
+        }
+
+        private void EmitOfferSummaryLogs(in Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int gateCount, Entity directorEntity)
+        {
+            if (_lastOfferSummaryRoom == director.CurrentRoomIndex && _lastOfferSummarySeed == director.Seed)
+            {
+                return;
+            }
+
+            _lastOfferSummaryRoom = director.CurrentRoomIndex;
+            _lastOfferSummarySeed = director.Seed;
+            var selectedGate = ResolveSelectedGateOrdinal(directorEntity, director, gateCount);
+            var selectedBoon = ResolveSelectedBoonOffer(directorEntity, director);
+            for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
+            {
+                var gateKind = Space4XFleetcrawlUiBridge.ResolveGateKind(room.Kind, gateOrdinal);
+                Space4XFleetcrawlUiBridge.ResolveGateOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
+                var pickIndex = gateKind == Space4XRunGateKind.Boon
+                    ? selectedBoon
+                    : Space4XFleetcrawlUiBridge.ResolveAutoOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
+                var picked = Space4XFleetcrawlUiBridge.ResolvePickedOffer(director.Seed, director.CurrentRoomIndex, gateKind, pickIndex);
+                Debug.Log($"[FleetcrawlUI] GATE_OFFER_SUMMARY room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal} selected={(gateOrdinal == selectedGate ? 1 : 0)} gate={gateKind} offer0={offerA.RewardId} offer1={offerB.RewardId} offer2={offerC.RewardId} picked={picked.RewardId} picked_summary='{Space4XFleetcrawlUiBridge.DescribeOffer(picked)}'.");
+                if (gateKind == Space4XRunGateKind.Boon)
+                {
+                    Debug.Log($"[FleetcrawlUI] BOON_OFFER_SUMMARY room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal} selected_offer={selectedBoon} offer0='{Space4XFleetcrawlUiBridge.DescribePerk(offerA.RewardId)}' offer1='{Space4XFleetcrawlUiBridge.DescribePerk(offerB.RewardId)}' offer2='{Space4XFleetcrawlUiBridge.DescribePerk(offerC.RewardId)}'.");
+                }
+            }
         }
 
         private int ResolveSelectedGateOrdinal(Entity directorEntity, in Space4XFleetcrawlDirectorState director, int gateCount)
