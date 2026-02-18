@@ -492,6 +492,16 @@ namespace Space4x.Scenario
         private void StartRoom(ref SystemState state, ref Space4XFleetcrawlDirectorState director, DynamicBuffer<Space4XFleetcrawlRoom> rooms, int roomIndex, uint tick, float dt)
         {
             var room = rooms[roomIndex];
+            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            if (state.EntityManager.HasComponent<Space4XRunPendingGatePick>(directorEntity))
+            {
+                state.EntityManager.RemoveComponent<Space4XRunPendingGatePick>(directorEntity);
+            }
+            if (state.EntityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
+            {
+                state.EntityManager.RemoveComponent<Space4XRunPendingBoonPick>(directorEntity);
+            }
+
             director.Initialized = 1;
             director.CurrentRoomIndex = roomIndex;
             director.RoomStartTick = tick;
@@ -638,21 +648,20 @@ namespace Space4x.Scenario
                 for (var roomIndex = 0; roomIndex < roomTotal; roomIndex++)
                 {
                     var roomKind = ResolveDeterministicRoomKind(roomIndex);
-                    var gateCount = roomKind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
-                    for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
+                    var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(roomKind);
+                    var gateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(runSeed, roomIndex, gateCount);
+                    var gateKind = ResolveGateKindForDeterminism(roomIndex, gateOrdinal);
+                    var pick = PickOfferIndex(runSeed, roomIndex, gateKind, 3);
+                    if (gateKind == Space4XRunGateKind.Boon)
                     {
-                        var gateKind = ResolveGateKindForDeterminism(roomIndex, gateOrdinal);
-                        var pick = PickOfferIndex(runSeed, roomIndex, gateKind, 3);
-                        if (gateKind == Space4XRunGateKind.Boon)
-                        {
-                            boonBits |= 1u << ((roomIndex + pick) % 4);
-                        }
-                        else if (gateKind == Space4XRunGateKind.Blueprint)
-                        {
-                            blueprintBits |= 1u << ((roomIndex * 3 + pick) % 4);
-                        }
-                        digest = DeterministicMix(digest, (uint)gateKind, (uint)pick, (uint)roomIndex + 1u);
+                        boonBits |= 1u << ((roomIndex + pick) % 4);
                     }
+                    else if (gateKind == Space4XRunGateKind.Blueprint)
+                    {
+                        blueprintBits |= 1u << ((roomIndex * 3 + pick) % 4);
+                    }
+
+                    digest = DeterministicMix(digest, (uint)gateKind, (uint)pick, (uint)((roomIndex + 1) * 17 + gateOrdinal));
                 }
 
                 return DeterministicMix(digest, boonBits, blueprintBits, (uint)roomTotal);
@@ -664,39 +673,66 @@ namespace Space4x.Scenario
             var summary = new FixedString512Bytes();
             var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
             var records = state.EntityManager.GetBuffer<Space4XRunGateRewardRecord>(directorEntity);
-            var gateCount = room.Kind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
-
-            for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
+            var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(room.Kind);
+            var gateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(director.Seed, director.CurrentRoomIndex, gateCount);
+            var gateSource = "auto";
+            if (state.EntityManager.HasComponent<Space4XRunPendingGatePick>(directorEntity))
             {
-                var gateKind = ResolveGateKind(room, gateOrdinal);
-                ResolveOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
-                var pick = PickOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
-                var picked = pick switch
+                var pending = state.EntityManager.GetComponentData<Space4XRunPendingGatePick>(directorEntity);
+                if (pending.RoomIndex == director.CurrentRoomIndex && pending.GateOrdinal >= 0 && pending.GateOrdinal < gateCount)
                 {
-                    0 => offerA,
-                    1 => offerB,
-                    _ => offerC
-                };
-
-                Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId}.");
-                ApplyOffer(ref state, directorEntity, picked, director.CurrentRoomIndex);
-                records.Add(new Space4XRunGateRewardRecord
-                {
-                    RoomIndex = director.CurrentRoomIndex,
-                    GateKind = gateKind,
-                    RewardKind = picked.Kind,
-                    RewardId = picked.RewardId
-                });
-
-                if (summary.Length > 0)
-                {
-                    summary.Append(" | ");
+                    gateOrdinal = pending.GateOrdinal;
+                    gateSource = "manual";
                 }
-                summary.Append(gateKind.ToString());
-                summary.Append(":");
-                summary.Append(picked.RewardId);
+
+                state.EntityManager.RemoveComponent<Space4XRunPendingGatePick>(directorEntity);
             }
 
+            var gateKind = ResolveGateKind(room, gateOrdinal);
+            ResolveOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
+            var pick = PickOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
+            var pickSource = "auto";
+            if (gateKind == Space4XRunGateKind.Boon && state.EntityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
+            {
+                var pending = state.EntityManager.GetComponentData<Space4XRunPendingBoonPick>(directorEntity);
+                if (pending.RoomIndex == director.CurrentRoomIndex && pending.OfferIndex >= 0 && pending.OfferIndex < 3)
+                {
+                    pick = pending.OfferIndex;
+                    pickSource = "manual";
+                }
+
+                state.EntityManager.RemoveComponent<Space4XRunPendingBoonPick>(directorEntity);
+            }
+            else if (state.EntityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
+            {
+                var staleBoonPick = state.EntityManager.GetComponentData<Space4XRunPendingBoonPick>(directorEntity);
+                if (staleBoonPick.RoomIndex <= director.CurrentRoomIndex)
+                {
+                    state.EntityManager.RemoveComponent<Space4XRunPendingBoonPick>(directorEntity);
+                }
+            }
+
+            var picked = pick switch
+            {
+                0 => offerA,
+                1 => offerB,
+                _ => offerC
+            };
+
+            Debug.Log($"[Fleetcrawl] GATE_CHOICE room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal}/{gateCount} gate={gateKind} source={gateSource}.");
+            Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId} source={pickSource}.");
+            ApplyOffer(ref state, directorEntity, picked, director.CurrentRoomIndex);
+            records.Add(new Space4XRunGateRewardRecord
+            {
+                RoomIndex = director.CurrentRoomIndex,
+                GateKind = gateKind,
+                RewardKind = picked.Kind,
+                RewardId = picked.RewardId
+            });
+
+            summary.Append(gateKind.ToString());
+            summary.Append(":");
+            summary.Append(picked.RewardId);
             return summary;
         }
 
