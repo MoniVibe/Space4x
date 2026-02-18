@@ -157,6 +157,13 @@ namespace Space4x.Scenario
             }
 
             var flagshipEntity = _flagshipQuery.GetSingletonEntity();
+            var shouldUpsertDirective = hasInput || boosting || _dashBurstRemaining > 0f || specialRequested;
+            if (!shouldUpsertDirective && _smoothedSpeed < 0.05f)
+            {
+                UpdateStatusSnapshot();
+                return;
+            }
+
             UpsertComponent(flagshipEntity, new Space4XFleetcrawlPlayerDirective
             {
                 Movement = moveInput,
