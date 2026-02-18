@@ -17,6 +17,13 @@ namespace Space4x.Fleetcrawl
         WeaponBehavior = 7
     }
 
+    public enum FleetcrawlHeatSafetyMode : byte
+    {
+        ConservativeThrottle = 0,
+        BalancedAutoVent = 1,
+        UnsafeNoReduction = 2
+    }
+
     [InternalBufferCapacity(32)]
     public struct FleetcrawlHeatModifierDefinition : IBufferElementData
     {
@@ -33,8 +40,19 @@ namespace Space4x.Fleetcrawl
         public float OverheatThresholdOffset01;
         public float HeatDamageBonusPerHeat01;
         public float HeatCooldownBonusPerHeat01;
+        public float HeatEngineSpeedBonusPerHeat01;
+        public float HeatShieldRechargeBonusPerHeat01;
+        public float HeatShieldIntensityBonusPerHeat01;
         public float OverheatDamagePenaltyMultiplier;
         public float OverheatCooldownPenaltyMultiplier;
+        public float OverheatJamChancePerTick;
+        public float OverheatThermalSelfDamagePerTick;
+        public float HeatsinkCapacityMultiplier;
+        public float HeatsinkAbsorbMultiplier;
+        public float HeatsinkVentMultiplier;
+        public float UnsafeThermalLeakMultiplier;
+        public float PreOverheatThrottleStart01;
+        public float PreOverheatThrottleScale;
     }
 
     public struct FleetcrawlResolvedHeatStats
@@ -45,8 +63,19 @@ namespace Space4x.Fleetcrawl
         public float OverheatThresholdOffset01;
         public float HeatDamageBonusPerHeat01;
         public float HeatCooldownBonusPerHeat01;
+        public float HeatEngineSpeedBonusPerHeat01;
+        public float HeatShieldRechargeBonusPerHeat01;
+        public float HeatShieldIntensityBonusPerHeat01;
         public float OverheatDamagePenaltyMultiplier;
         public float OverheatCooldownPenaltyMultiplier;
+        public float OverheatJamChancePerTick;
+        public float OverheatThermalSelfDamagePerTick;
+        public float HeatsinkCapacityMultiplier;
+        public float HeatsinkAbsorbMultiplier;
+        public float HeatsinkVentMultiplier;
+        public float UnsafeThermalLeakMultiplier;
+        public float PreOverheatThrottleStart01;
+        public float PreOverheatThrottleScale;
 
         public static FleetcrawlResolvedHeatStats Identity => new FleetcrawlResolvedHeatStats
         {
@@ -56,8 +85,19 @@ namespace Space4x.Fleetcrawl
             OverheatThresholdOffset01 = 0f,
             HeatDamageBonusPerHeat01 = 0f,
             HeatCooldownBonusPerHeat01 = 0f,
+            HeatEngineSpeedBonusPerHeat01 = 0f,
+            HeatShieldRechargeBonusPerHeat01 = 0f,
+            HeatShieldIntensityBonusPerHeat01 = 0f,
             OverheatDamagePenaltyMultiplier = 0.75f,
-            OverheatCooldownPenaltyMultiplier = 1.25f
+            OverheatCooldownPenaltyMultiplier = 1.25f,
+            OverheatJamChancePerTick = 0.12f,
+            OverheatThermalSelfDamagePerTick = 0.4f,
+            HeatsinkCapacityMultiplier = 1f,
+            HeatsinkAbsorbMultiplier = 1f,
+            HeatsinkVentMultiplier = 1f,
+            UnsafeThermalLeakMultiplier = 1.35f,
+            PreOverheatThrottleStart01 = 0.72f,
+            PreOverheatThrottleScale = 0.4f
         };
 
         public void Apply(in FleetcrawlHeatModifierDefinition modifier)
@@ -67,6 +107,10 @@ namespace Space4x.Fleetcrawl
             var capacity = modifier.HeatCapacityMultiplier <= 0f ? 1f : modifier.HeatCapacityMultiplier;
             var overheatDamagePenalty = modifier.OverheatDamagePenaltyMultiplier <= 0f ? 1f : modifier.OverheatDamagePenaltyMultiplier;
             var overheatCooldownPenalty = modifier.OverheatCooldownPenaltyMultiplier <= 0f ? 1f : modifier.OverheatCooldownPenaltyMultiplier;
+            var heatsinkCapacity = modifier.HeatsinkCapacityMultiplier <= 0f ? 1f : modifier.HeatsinkCapacityMultiplier;
+            var heatsinkAbsorb = modifier.HeatsinkAbsorbMultiplier <= 0f ? 1f : modifier.HeatsinkAbsorbMultiplier;
+            var heatsinkVent = modifier.HeatsinkVentMultiplier <= 0f ? 1f : modifier.HeatsinkVentMultiplier;
+            var unsafeLeak = modifier.UnsafeThermalLeakMultiplier <= 0f ? 1f : modifier.UnsafeThermalLeakMultiplier;
 
             HeatGenerationMultiplier *= math.max(0.05f, generation);
             HeatDissipationMultiplier *= math.max(0.05f, dissipation);
@@ -74,8 +118,22 @@ namespace Space4x.Fleetcrawl
             OverheatThresholdOffset01 += modifier.OverheatThresholdOffset01;
             HeatDamageBonusPerHeat01 += math.max(0f, modifier.HeatDamageBonusPerHeat01);
             HeatCooldownBonusPerHeat01 += math.max(0f, modifier.HeatCooldownBonusPerHeat01);
+            HeatEngineSpeedBonusPerHeat01 += math.max(0f, modifier.HeatEngineSpeedBonusPerHeat01);
+            HeatShieldRechargeBonusPerHeat01 += math.max(0f, modifier.HeatShieldRechargeBonusPerHeat01);
+            HeatShieldIntensityBonusPerHeat01 += math.max(0f, modifier.HeatShieldIntensityBonusPerHeat01);
             OverheatDamagePenaltyMultiplier *= math.max(0.05f, overheatDamagePenalty);
             OverheatCooldownPenaltyMultiplier *= math.max(0.05f, overheatCooldownPenalty);
+            OverheatJamChancePerTick = math.clamp(OverheatJamChancePerTick + modifier.OverheatJamChancePerTick, 0f, 1f);
+            OverheatThermalSelfDamagePerTick = math.max(0f, OverheatThermalSelfDamagePerTick + modifier.OverheatThermalSelfDamagePerTick);
+            HeatsinkCapacityMultiplier *= math.max(0.05f, heatsinkCapacity);
+            HeatsinkAbsorbMultiplier *= math.max(0.05f, heatsinkAbsorb);
+            HeatsinkVentMultiplier *= math.max(0.05f, heatsinkVent);
+            UnsafeThermalLeakMultiplier *= math.max(0.05f, unsafeLeak);
+            if (modifier.PreOverheatThrottleStart01 > 0f)
+            {
+                PreOverheatThrottleStart01 = math.clamp(math.min(PreOverheatThrottleStart01, modifier.PreOverheatThrottleStart01), 0.05f, 0.99f);
+            }
+            PreOverheatThrottleScale += math.max(0f, modifier.PreOverheatThrottleScale);
         }
     }
 
@@ -90,6 +148,14 @@ namespace Space4x.Fleetcrawl
         public uint LastTick;
     }
 
+    public struct FleetcrawlHeatsinkState : IComponentData
+    {
+        public float StoredHeat;
+        public float BaseCapacity;
+        public float BaseAbsorbPerTick;
+        public float BaseVentPerTick;
+    }
+
     public struct FleetcrawlHeatOutputState : IComponentData
     {
         public float Heat01;
@@ -99,6 +165,15 @@ namespace Space4x.Fleetcrawl
         public float RecoveryThreshold01;
         public float DamageMultiplier;
         public float CooldownMultiplier;
+        public float FireRateThrottleMultiplier;
+        public float EngineSpeedMultiplier;
+        public float ShieldRechargeMultiplier;
+        public float ShieldIntensityMultiplier;
+        public float JamChance;
+        public float ThermalSelfDamagePerTick;
+        public float HeatsinkStoredHeat;
+        public float HeatsinkCapacity;
+        public byte SuppressFire;
         public byte IsOverheated;
     }
 
@@ -142,9 +217,32 @@ namespace Space4x.Fleetcrawl
             ref FleetcrawlHeatRuntimeState runtime,
             out FleetcrawlHeatOutputState output)
         {
+            var heatsink = default(FleetcrawlHeatsinkState);
+            TickAdvanced(
+                tick,
+                actions,
+                heatStats,
+                ref runtime,
+                ref heatsink,
+                FleetcrawlHeatSafetyMode.BalancedAutoVent,
+                out output);
+        }
+
+        public static void TickAdvanced(
+            uint tick,
+            DynamicBuffer<FleetcrawlHeatActionEvent> actions,
+            in FleetcrawlResolvedHeatStats heatStats,
+            ref FleetcrawlHeatRuntimeState runtime,
+            ref FleetcrawlHeatsinkState heatsink,
+            FleetcrawlHeatSafetyMode safetyMode,
+            out FleetcrawlHeatOutputState output)
+        {
             var capacity = math.max(1f, runtime.BaseHeatCapacity * math.max(0.05f, heatStats.HeatCapacityMultiplier));
             var dissipation = math.max(0f, runtime.BaseDissipationPerTick * math.max(0.05f, heatStats.HeatDissipationMultiplier));
             var generationMultiplier = math.max(0.05f, heatStats.HeatGenerationMultiplier);
+            var heatsinkCapacity = math.max(0f, heatsink.BaseCapacity * math.max(0.05f, heatStats.HeatsinkCapacityMultiplier));
+            var heatsinkAbsorbPerTick = math.max(0f, heatsink.BaseAbsorbPerTick * math.max(0.05f, heatStats.HeatsinkAbsorbMultiplier));
+            var heatsinkVentPerTick = math.max(0f, heatsink.BaseVentPerTick * math.max(0.05f, heatStats.HeatsinkVentMultiplier));
 
             var generated = 0f;
             for (var i = 0; i < actions.Length; i++)
@@ -154,7 +252,25 @@ namespace Space4x.Fleetcrawl
                 generated += math.max(0f, action.BaseHeat * scale * generationMultiplier);
             }
 
+            if (generated > 0f && heatsinkCapacity > 0f && heatsinkAbsorbPerTick > 0f)
+            {
+                heatsink.StoredHeat = math.clamp(heatsink.StoredHeat, 0f, heatsinkCapacity);
+                var absorb = math.min(generated, math.min(heatsinkAbsorbPerTick, heatsinkCapacity - heatsink.StoredHeat));
+                if (absorb > 0f)
+                {
+                    heatsink.StoredHeat += absorb;
+                    generated -= absorb;
+                }
+            }
+
             runtime.CurrentHeat = math.max(0f, runtime.CurrentHeat + generated - dissipation);
+
+            if (heatsink.StoredHeat > 0f && heatsinkVentPerTick > 0f)
+            {
+                var vent = math.min(heatsink.StoredHeat, heatsinkVentPerTick);
+                heatsink.StoredHeat -= vent;
+            }
+
             var heat01 = math.saturate(runtime.CurrentHeat / capacity);
 
             var overheatThreshold = math.clamp(runtime.BaseOverheatThreshold01 + heatStats.OverheatThresholdOffset01, 0.25f, 0.99f);
@@ -172,16 +288,52 @@ namespace Space4x.Fleetcrawl
 
             var damageMultiplier = 1f;
             var cooldownMultiplier = 1f;
+            var fireRateThrottle = 1f;
+            var engineSpeedMultiplier = 1f;
+            var shieldRechargeMultiplier = 1f;
+            var shieldIntensityMultiplier = 1f;
+            var jamChance = 0f;
+            var thermalSelfDamage = 0f;
+            var suppressFire = (byte)0;
+            var normalizedHeat = math.saturate(heat01 / math.max(0.01f, overheatThreshold));
+
             if (runtime.IsOverheated != 0)
             {
-                damageMultiplier *= math.max(0.05f, heatStats.OverheatDamagePenaltyMultiplier);
-                cooldownMultiplier *= math.max(0.05f, heatStats.OverheatCooldownPenaltyMultiplier);
+                if (safetyMode == FleetcrawlHeatSafetyMode.UnsafeNoReduction)
+                {
+                    var stress = math.saturate((heat01 - overheatThreshold) / math.max(0.01f, 1f - overheatThreshold));
+                    jamChance = math.clamp(heatStats.OverheatJamChancePerTick * (1f + stress), 0f, 1f);
+                    thermalSelfDamage = math.max(0f, heatStats.OverheatThermalSelfDamagePerTick * heatStats.UnsafeThermalLeakMultiplier * (1f + stress));
+                }
+                else
+                {
+                    damageMultiplier *= math.max(0.05f, heatStats.OverheatDamagePenaltyMultiplier);
+                    cooldownMultiplier *= math.max(0.05f, heatStats.OverheatCooldownPenaltyMultiplier);
+                    fireRateThrottle *= safetyMode == FleetcrawlHeatSafetyMode.ConservativeThrottle ? 1.25f : 1.15f;
+                    suppressFire = 1;
+                }
+
+                engineSpeedMultiplier *= safetyMode == FleetcrawlHeatSafetyMode.UnsafeNoReduction ? 0.95f : 0.88f;
+                shieldRechargeMultiplier *= safetyMode == FleetcrawlHeatSafetyMode.UnsafeNoReduction ? 0.92f : 0.82f;
+                shieldIntensityMultiplier *= safetyMode == FleetcrawlHeatSafetyMode.UnsafeNoReduction ? 0.9f : 0.78f;
             }
             else
             {
-                var normalizedHeat = math.saturate(heat01 / math.max(0.01f, overheatThreshold));
                 damageMultiplier *= 1f + math.max(0f, heatStats.HeatDamageBonusPerHeat01) * normalizedHeat;
                 cooldownMultiplier *= math.max(0.1f, 1f - math.max(0f, heatStats.HeatCooldownBonusPerHeat01) * normalizedHeat);
+                engineSpeedMultiplier *= 1f + math.max(0f, heatStats.HeatEngineSpeedBonusPerHeat01) * normalizedHeat;
+                shieldRechargeMultiplier *= 1f + math.max(0f, heatStats.HeatShieldRechargeBonusPerHeat01) * normalizedHeat;
+                shieldIntensityMultiplier *= 1f + math.max(0f, heatStats.HeatShieldIntensityBonusPerHeat01) * normalizedHeat;
+
+                if (safetyMode != FleetcrawlHeatSafetyMode.UnsafeNoReduction)
+                {
+                    var throttleStart = math.clamp(heatStats.PreOverheatThrottleStart01, 0.05f, 0.99f);
+                    if (heat01 > throttleStart)
+                    {
+                        var throttleHeat = math.saturate((heat01 - throttleStart) / math.max(0.01f, 1f - throttleStart));
+                        fireRateThrottle *= 1f + throttleHeat * math.max(0f, heatStats.PreOverheatThrottleScale);
+                    }
+                }
             }
 
             runtime.LastTick = tick;
@@ -194,6 +346,15 @@ namespace Space4x.Fleetcrawl
                 RecoveryThreshold01 = recoveryThreshold,
                 DamageMultiplier = damageMultiplier,
                 CooldownMultiplier = cooldownMultiplier,
+                FireRateThrottleMultiplier = fireRateThrottle,
+                EngineSpeedMultiplier = engineSpeedMultiplier,
+                ShieldRechargeMultiplier = shieldRechargeMultiplier,
+                ShieldIntensityMultiplier = shieldIntensityMultiplier,
+                JamChance = jamChance,
+                ThermalSelfDamagePerTick = thermalSelfDamage,
+                HeatsinkStoredHeat = heatsink.StoredHeat,
+                HeatsinkCapacity = heatsinkCapacity,
+                SuppressFire = suppressFire,
                 IsOverheated = runtime.IsOverheated
             };
 
@@ -206,8 +367,35 @@ namespace Space4x.Fleetcrawl
         {
             var merged = baseStats;
             merged.DamageMultiplier *= math.max(0.05f, heatOutput.DamageMultiplier);
-            merged.CooldownMultiplier *= math.max(0.05f, heatOutput.CooldownMultiplier);
+            var fireThrottle = heatOutput.FireRateThrottleMultiplier <= 0f ? 1f : heatOutput.FireRateThrottleMultiplier;
+            merged.CooldownMultiplier *= math.max(0.05f, heatOutput.CooldownMultiplier * math.max(0.1f, fireThrottle));
+            var engineScale = heatOutput.EngineSpeedMultiplier <= 0f ? 1f : math.max(0.05f, heatOutput.EngineSpeedMultiplier);
+            merged.TurnRateMultiplier *= engineScale;
+            merged.AccelerationMultiplier *= engineScale;
+            merged.DecelerationMultiplier *= engineScale;
+            merged.MaxSpeedMultiplier *= engineScale;
             return merged;
+        }
+
+        public static bool ShouldSuppressFire(in FleetcrawlHeatOutputState output)
+        {
+            return output.SuppressFire != 0;
+        }
+
+        public static bool ResolveJam(in FleetcrawlHeatOutputState output, Entity source, int mountIndex, uint tick)
+        {
+            if (output.SuppressFire != 0 || output.JamChance <= 1e-5f)
+            {
+                return false;
+            }
+
+            var hash = math.hash(new uint4(
+                (uint)source.Index,
+                (uint)math.max(0, source.Version),
+                (uint)math.max(0, mountIndex + 1),
+                tick ^ 0x9E3779B9u));
+            var roll = (hash & 0xFFFFu) / 65535f;
+            return roll < math.saturate(output.JamChance);
         }
 
         private static bool MatchesAny(
@@ -304,8 +492,19 @@ namespace Space4x.Fleetcrawl
                 OverheatThresholdOffset01 = 0f,
                 HeatDamageBonusPerHeat01 = 0.14f,
                 HeatCooldownBonusPerHeat01 = 0.08f,
+                HeatEngineSpeedBonusPerHeat01 = 0.08f,
+                HeatShieldRechargeBonusPerHeat01 = 0.03f,
+                HeatShieldIntensityBonusPerHeat01 = 0.02f,
                 OverheatDamagePenaltyMultiplier = 0.78f,
-                OverheatCooldownPenaltyMultiplier = 1.22f
+                OverheatCooldownPenaltyMultiplier = 1.22f,
+                OverheatJamChancePerTick = 0.03f,
+                OverheatThermalSelfDamagePerTick = 0.1f,
+                HeatsinkCapacityMultiplier = 1.1f,
+                HeatsinkAbsorbMultiplier = 1.05f,
+                HeatsinkVentMultiplier = 1f,
+                UnsafeThermalLeakMultiplier = 1.15f,
+                PreOverheatThrottleStart01 = 0.72f,
+                PreOverheatThrottleScale = 0.35f
             });
             heatDefs.Add(new FleetcrawlHeatModifierDefinition
             {
@@ -318,8 +517,17 @@ namespace Space4x.Fleetcrawl
                 OverheatThresholdOffset01 = -0.02f,
                 HeatDamageBonusPerHeat01 = 0.2f,
                 HeatCooldownBonusPerHeat01 = 0.12f,
+                HeatEngineSpeedBonusPerHeat01 = 0.06f,
                 OverheatDamagePenaltyMultiplier = 0.72f,
-                OverheatCooldownPenaltyMultiplier = 1.28f
+                OverheatCooldownPenaltyMultiplier = 1.28f,
+                OverheatJamChancePerTick = 0.08f,
+                OverheatThermalSelfDamagePerTick = 0.28f,
+                HeatsinkCapacityMultiplier = 0.95f,
+                HeatsinkAbsorbMultiplier = 0.92f,
+                HeatsinkVentMultiplier = 0.88f,
+                UnsafeThermalLeakMultiplier = 1.35f,
+                PreOverheatThrottleStart01 = 0.68f,
+                PreOverheatThrottleScale = 0.46f
             });
             heatDefs.Add(new FleetcrawlHeatModifierDefinition
             {
@@ -332,8 +540,18 @@ namespace Space4x.Fleetcrawl
                 OverheatThresholdOffset01 = 0.05f,
                 HeatDamageBonusPerHeat01 = 0f,
                 HeatCooldownBonusPerHeat01 = 0f,
+                HeatShieldRechargeBonusPerHeat01 = 0.05f,
+                HeatShieldIntensityBonusPerHeat01 = 0.03f,
                 OverheatDamagePenaltyMultiplier = 1f,
-                OverheatCooldownPenaltyMultiplier = 1f
+                OverheatCooldownPenaltyMultiplier = 1f,
+                OverheatJamChancePerTick = -0.04f,
+                OverheatThermalSelfDamagePerTick = -0.1f,
+                HeatsinkCapacityMultiplier = 1.5f,
+                HeatsinkAbsorbMultiplier = 1.65f,
+                HeatsinkVentMultiplier = 1.4f,
+                UnsafeThermalLeakMultiplier = 0.85f,
+                PreOverheatThrottleStart01 = 0.8f,
+                PreOverheatThrottleScale = 0.18f
             });
             heatDefs.Add(new FleetcrawlHeatModifierDefinition
             {
@@ -346,8 +564,61 @@ namespace Space4x.Fleetcrawl
                 OverheatThresholdOffset01 = 0.01f,
                 HeatDamageBonusPerHeat01 = 0.1f,
                 HeatCooldownBonusPerHeat01 = 0.06f,
+                HeatShieldIntensityBonusPerHeat01 = 0.08f,
                 OverheatDamagePenaltyMultiplier = 0.88f,
-                OverheatCooldownPenaltyMultiplier = 1.15f
+                OverheatCooldownPenaltyMultiplier = 1.15f,
+                OverheatJamChancePerTick = 0.02f,
+                OverheatThermalSelfDamagePerTick = 0.05f,
+                HeatsinkCapacityMultiplier = 1.2f,
+                HeatsinkAbsorbMultiplier = 1.1f,
+                HeatsinkVentMultiplier = 1.12f,
+                UnsafeThermalLeakMultiplier = 1.08f,
+                PreOverheatThrottleStart01 = 0.74f,
+                PreOverheatThrottleScale = 0.3f
+            });
+            heatDefs.Add(new FleetcrawlHeatModifierDefinition
+            {
+                ModifierId = new FixedString64Bytes("heat_behavior_ionize"),
+                SourceKind = FleetcrawlHeatModifierSourceKind.WeaponBehavior,
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.Ionize,
+                HeatGenerationMultiplier = 1.02f,
+                HeatDissipationMultiplier = 1f,
+                HeatCapacityMultiplier = 1f,
+                OverheatThresholdOffset01 = 0f,
+                HeatDamageBonusPerHeat01 = 0.06f,
+                HeatCooldownBonusPerHeat01 = 0.03f,
+                HeatShieldRechargeBonusPerHeat01 = 0.12f,
+                HeatShieldIntensityBonusPerHeat01 = 0.1f,
+                OverheatDamagePenaltyMultiplier = 0.92f,
+                OverheatCooldownPenaltyMultiplier = 1.08f,
+                HeatsinkCapacityMultiplier = 1.06f,
+                HeatsinkAbsorbMultiplier = 1.02f,
+                HeatsinkVentMultiplier = 1.1f,
+                PreOverheatThrottleStart01 = 0.76f,
+                PreOverheatThrottleScale = 0.24f
+            });
+            heatDefs.Add(new FleetcrawlHeatModifierDefinition
+            {
+                ModifierId = new FixedString64Bytes("heat_set_prism"),
+                SourceKind = FleetcrawlHeatModifierSourceKind.SetId,
+                SourceId = new FixedString64Bytes("set_prism"),
+                HeatGenerationMultiplier = 1f,
+                HeatDissipationMultiplier = 1.08f,
+                HeatCapacityMultiplier = 1.12f,
+                OverheatThresholdOffset01 = 0.03f,
+                HeatDamageBonusPerHeat01 = 0.08f,
+                HeatCooldownBonusPerHeat01 = 0.05f,
+                HeatEngineSpeedBonusPerHeat01 = 0.04f,
+                HeatShieldRechargeBonusPerHeat01 = 0.08f,
+                OverheatDamagePenaltyMultiplier = 0.9f,
+                OverheatCooldownPenaltyMultiplier = 1.12f,
+                OverheatJamChancePerTick = -0.03f,
+                HeatsinkCapacityMultiplier = 1.2f,
+                HeatsinkAbsorbMultiplier = 1.16f,
+                HeatsinkVentMultiplier = 1.2f,
+                UnsafeThermalLeakMultiplier = 0.92f,
+                PreOverheatThrottleStart01 = 0.78f,
+                PreOverheatThrottleScale = 0.22f
             });
 
             Debug.Log($"[FleetcrawlHeat] Heat modifier bootstrap definitions={heatDefs.Length}.");
