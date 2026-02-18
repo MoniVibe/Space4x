@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -49,7 +50,7 @@ namespace Space4x.Scenario
                 }
 
                 var hits = FireSpecialPulse(
-                    em,
+                    ref state,
                     flagshipEntity,
                     flagshipTransform.ValueRO.Position,
                     tick);
@@ -62,11 +63,12 @@ namespace Space4x.Scenario
         }
 
         private int FireSpecialPulse(
-            EntityManager em,
+            ref SystemState state,
             Entity source,
             float3 origin,
             uint tick)
         {
+            var em = state.EntityManager;
             var radiusSq = SpecialRadius * SpecialRadius;
             var candidates = new NativeList<SpecialTargetCandidate>(Allocator.Temp);
 

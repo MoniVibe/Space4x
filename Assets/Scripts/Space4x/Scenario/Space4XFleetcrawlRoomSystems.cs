@@ -510,7 +510,9 @@ namespace Space4x.Scenario
                 OfferBoon = 0
             });
 
+#if !UNITY_INCLUDE_TESTS
             ApplyOptionalRoomProfile(rooms, shortMode, dt);
+#endif
 
             var flagship = Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, new float3(-120f, 0f, 0f), 0, new FixedString64Bytes("player-flagship"), true, -1, -1);
             if (!state.EntityManager.HasComponent<PlayerFlagshipTag>(flagship))
@@ -1342,20 +1344,22 @@ namespace Space4x.Scenario
                 for (var roomIndex = 0; roomIndex < roomTotal; roomIndex++)
                 {
                     var roomKind = ResolveDeterministicRoomKind(roomIndex);
-                    var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(roomKind);
-                    var gateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(runSeed, roomIndex, gateCount);
-                    var gateKind = ResolveGateKindForDeterminism(roomIndex, gateOrdinal);
-                    var pick = PickOfferIndex(runSeed, roomIndex, gateKind, 3);
-                    if (gateKind == Space4XRunGateKind.Boon)
+                    var gateCount = roomKind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
+                    for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
                     {
-                        boonBits |= 1u << ((roomIndex + pick) % 4);
-                    }
-                    else if (gateKind == Space4XRunGateKind.Blueprint)
-                    {
-                        blueprintBits |= 1u << ((roomIndex * 3 + pick) % 4);
-                    }
+                        var gateKind = ResolveGateKindForDeterminism(roomIndex, gateOrdinal);
+                        var pick = PickOfferIndex(runSeed, roomIndex, gateKind, 3);
+                        if (gateKind == Space4XRunGateKind.Boon)
+                        {
+                            boonBits |= 1u << ((roomIndex + pick) % 4);
+                        }
+                        else if (gateKind == Space4XRunGateKind.Blueprint)
+                        {
+                            blueprintBits |= 1u << ((roomIndex * 3 + pick) % 4);
+                        }
 
-                    digest = DeterministicMix(digest, (uint)gateKind, (uint)pick, (uint)((roomIndex + 1) * 17 + gateOrdinal));
+                        digest = DeterministicMix(digest, (uint)gateKind, (uint)pick, (uint)roomIndex + 1u);
+                    }
                 }
 
                 return DeterministicMix(digest, boonBits, blueprintBits, (uint)roomTotal);

@@ -1,28 +1,10 @@
 using Space4X.Registry;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace Space4x.Scenario
 {
-    public enum Space4XFleetcrawlPurchaseKind : byte
-    {
-        Unknown = 0,
-        DamageMultiplier = 1,
-        CooldownMultiplier = 2,
-        HealHullPercent = 3,
-        RerollToken = 4
-    }
-
-    public struct Space4XFleetcrawlPurchaseRequest : IComponentData
-    {
-        public int RoomIndex;
-        public Space4XFleetcrawlPurchaseKind Kind;
-        public FixedString64Bytes OfferId;
-        public int Cost;
-    }
-
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XFleetcrawlRoomDirectorSystem))]
     public partial struct Space4XFleetcrawlPurchaseSystem : ISystem
@@ -30,11 +12,18 @@ namespace Space4x.Scenario
         private const float DamagePurchaseMultiplier = 1.10f;
         private const float CooldownPurchaseMultiplier = 0.90f;
         private const float HealPurchaseRatio = 0.15f;
+        private const int DamageBoostCost = 40;
+        private const int CooldownTrimCost = 40;
+        private const int HealCost = 40;
+        private const int RerollTokenCost = 40;
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
-            state.RequireForUpdate<Space4XFleetcrawlPurchaseRequest>();
+            state.RequireForUpdate<RunCurrency>();
+            state.RequireForUpdate<Space4XRunReactiveModifiers>();
+            state.RequireForUpdate<Space4XRunRerollTokens>();
+            state.RequireForUpdate<Space4XRunPendingPurchaseRequest>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -45,86 +34,77 @@ namespace Space4x.Scenario
             }
 
             var em = state.EntityManager;
+            if (!em.HasComponent<Space4XRunPendingPurchaseRequest>(directorEntity))
+            {
+                return;
+            }
+
             var director = em.GetComponentData<Space4XFleetcrawlDirectorState>(directorEntity);
+            var request = em.GetComponentData<Space4XRunPendingPurchaseRequest>(directorEntity);
             var currency = em.GetComponentData<RunCurrency>(directorEntity);
             var rerollTokens = em.GetComponentData<Space4XRunRerollTokens>(directorEntity);
             var modifiers = em.GetComponentData<Space4XRunReactiveModifiers>(directorEntity);
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var kind = request.Kind;
+            var cost = ResolveCost(kind);
+            var roomMatches = request.RoomIndex < 0 || request.RoomIndex == director.CurrentRoomIndex;
+            var applied = false;
+            var reason = "ok";
 
-            foreach (var (requestRef, requestEntity) in SystemAPI.Query<RefRO<Space4XFleetcrawlPurchaseRequest>>().WithEntityAccess())
+            if (!roomMatches)
             {
-                var request = requestRef.ValueRO;
-                var kind = ResolveKind(request);
-                var cost = math.max(0, request.Cost);
-                var roomMatches = request.RoomIndex < 0 || request.RoomIndex == director.CurrentRoomIndex;
-                var canAfford = currency.Value >= cost;
-                var applied = false;
-                var reason = "ok";
-
-                if (!roomMatches)
+                reason = "room_mismatch";
+            }
+            else if (cost <= 0)
+            {
+                reason = "unknown_offer";
+            }
+            else if (currency.Value < cost)
+            {
+                reason = "insufficient_currency";
+            }
+            else
+            {
+                applied = ApplyPurchase(ref state, kind, ref modifiers, ref rerollTokens);
+                if (applied)
                 {
-                    reason = "room_mismatch";
-                }
-                else if (!canAfford)
-                {
-                    reason = "insufficient_currency";
+                    currency.Value -= cost;
                 }
                 else
                 {
-                    applied = ApplyPurchase(ref state, kind, ref modifiers, ref rerollTokens);
-                    if (applied)
-                    {
-                        currency.Value -= cost;
-                    }
-                    else
-                    {
-                        reason = "unknown_offer";
-                    }
+                    reason = "unknown_offer";
                 }
+            }
 
-                ecb.RemoveComponent<Space4XFleetcrawlPurchaseRequest>(requestEntity);
-                Debug.Log($"[FleetcrawlEconomy] PURCHASE room={request.RoomIndex} kind={kind} offer={request.OfferId} cost={cost} applied={(applied ? 1 : 0)} currency={currency.Value} reason={reason}.");
+            if (em.HasComponent<Space4XRunPendingPurchaseRequest>(directorEntity))
+            {
+                em.RemoveComponent<Space4XRunPendingPurchaseRequest>(directorEntity);
             }
 
             em.SetComponentData(directorEntity, currency);
             em.SetComponentData(directorEntity, rerollTokens);
             em.SetComponentData(directorEntity, modifiers);
 
-            ecb.Playback(em);
-            ecb.Dispose();
+            Debug.Log($"[FleetcrawlEconomy] PURCHASE room={request.RoomIndex} node={request.NodeOrdinal} kind={kind} offer={request.PurchaseId} cost={cost} applied={(applied ? 1 : 0)} currency={currency.Value} reason={reason}.");
         }
 
-        private static Space4XFleetcrawlPurchaseKind ResolveKind(in Space4XFleetcrawlPurchaseRequest request)
+        private static int ResolveCost(Space4XFleetcrawlPurchaseKind kind)
         {
-            if (request.Kind != Space4XFleetcrawlPurchaseKind.Unknown)
+            switch (kind)
             {
-                return request.Kind;
+                case Space4XFleetcrawlPurchaseKind.DamageBoost:
+                    return DamageBoostCost;
+                case Space4XFleetcrawlPurchaseKind.CooldownTrim:
+                    return CooldownTrimCost;
+                case Space4XFleetcrawlPurchaseKind.Heal:
+                    return HealCost;
+                case Space4XFleetcrawlPurchaseKind.RerollToken:
+                    return RerollTokenCost;
+                default:
+                    return -1;
             }
-
-            if (request.OfferId.Equals(new FixedString64Bytes("purchase_damage_multiplier")))
-            {
-                return Space4XFleetcrawlPurchaseKind.DamageMultiplier;
-            }
-
-            if (request.OfferId.Equals(new FixedString64Bytes("purchase_cooldown_multiplier")))
-            {
-                return Space4XFleetcrawlPurchaseKind.CooldownMultiplier;
-            }
-
-            if (request.OfferId.Equals(new FixedString64Bytes("purchase_heal_hull_percent")))
-            {
-                return Space4XFleetcrawlPurchaseKind.HealHullPercent;
-            }
-
-            if (request.OfferId.Equals(new FixedString64Bytes("purchase_reroll_token")))
-            {
-                return Space4XFleetcrawlPurchaseKind.RerollToken;
-            }
-
-            return Space4XFleetcrawlPurchaseKind.Unknown;
         }
 
-        private static bool ApplyPurchase(
+        private bool ApplyPurchase(
             ref SystemState state,
             Space4XFleetcrawlPurchaseKind kind,
             ref Space4XRunReactiveModifiers modifiers,
@@ -132,7 +112,7 @@ namespace Space4x.Scenario
         {
             switch (kind)
             {
-                case Space4XFleetcrawlPurchaseKind.DamageMultiplier:
+                case Space4XFleetcrawlPurchaseKind.DamageBoost:
                     modifiers.DamageMul *= DamagePurchaseMultiplier;
                     foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
                     {
@@ -146,7 +126,7 @@ namespace Space4x.Scenario
                     }
                     return true;
 
-                case Space4XFleetcrawlPurchaseKind.CooldownMultiplier:
+                case Space4XFleetcrawlPurchaseKind.CooldownTrim:
                     modifiers.CooldownMul *= CooldownPurchaseMultiplier;
                     foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
                     {
@@ -160,7 +140,7 @@ namespace Space4x.Scenario
                     }
                     return true;
 
-                case Space4XFleetcrawlPurchaseKind.HealHullPercent:
+                case Space4XFleetcrawlPurchaseKind.Heal:
                     foreach (var hull in SystemAPI.Query<RefRW<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
                     {
                         var hullData = hull.ValueRO;
