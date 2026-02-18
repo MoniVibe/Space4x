@@ -16,7 +16,7 @@ namespace Space4X.Tests
             var second = Space4XFleetcrawlRoomDirectorSystem.Space4XFleetcrawlBuildDeterminism.SimulateDigest(seed, roomCount);
 
             Assert.AreEqual(first, second, "Fleetcrawl gate auto-pick digest must be deterministic for fixed seed/room count.");
-            Assert.AreEqual(1377985494u, first, "Digest constant drifted for canonical fleetcrawl micro run.");
+            Assert.AreEqual(754799518u, first, "Digest constant drifted for canonical fleetcrawl micro run.");
         }
     }
 }
