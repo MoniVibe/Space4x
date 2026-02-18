@@ -16,19 +16,28 @@ namespace Space4x.Scenario
                 return;
             }
 
-            var existing = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
-            if (existing != null)
+            var existingOverlay = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
+            if (existingOverlay != null)
             {
+                var host = existingOverlay.gameObject;
+                EnsureComponent<Space4XFleetcrawlUiOverlayMono>(host);
+                EnsureComponent<Space4XFleetcrawlManualPickInjectorMono>(host);
+                EnsureComponent<Space4XFleetcrawlPlayerControlMono>(host);
+                EnsureComponent<Space4XFleetcrawlCameraFollowMono>(host);
+                EnsureComponent<Space4XFleetcrawlGateMarkersMono>(host);
+                EnsureComponent<Space4XFleetcrawlEconomyAffordancesMono>(host);
                 LogOnce("existing");
                 return;
             }
 
             var go = new GameObject(BootstrapObjectName);
             Object.DontDestroyOnLoad(go);
-            go.AddComponent<Space4XFleetcrawlUiOverlayMono>();
-            go.AddComponent<Space4XFleetcrawlManualPickInjectorMono>();
-            go.AddComponent<Space4XFleetcrawlPlayerControlMono>();
-            go.AddComponent<Space4XFleetcrawlCameraFollowMono>();
+            EnsureComponent<Space4XFleetcrawlUiOverlayMono>(go);
+            EnsureComponent<Space4XFleetcrawlManualPickInjectorMono>(go);
+            EnsureComponent<Space4XFleetcrawlPlayerControlMono>(go);
+            EnsureComponent<Space4XFleetcrawlCameraFollowMono>(go);
+            EnsureComponent<Space4XFleetcrawlGateMarkersMono>(go);
+            EnsureComponent<Space4XFleetcrawlEconomyAffordancesMono>(go);
             LogOnce("spawned");
         }
 
@@ -41,6 +50,12 @@ namespace Space4x.Scenario
 
             _logged = true;
             Debug.Log($"[Space4XFleetcrawlAutoUiBootstrap] active=1 mode={mode}");
+        }
+
+        private static T EnsureComponent<T>(GameObject go) where T : Component
+        {
+            var existing = go.GetComponent<T>();
+            return existing != null ? existing : go.AddComponent<T>();
         }
     }
 }
