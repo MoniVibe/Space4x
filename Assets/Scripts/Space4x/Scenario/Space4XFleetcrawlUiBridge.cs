@@ -17,6 +17,22 @@ namespace Space4x.Scenario
         public int OfferIndex;
     }
 
+    public enum Space4XFleetcrawlPurchaseKind : byte
+    {
+        DamageBoost = 0,
+        CooldownTrim = 1,
+        Heal = 2,
+        RerollToken = 3
+    }
+
+    public struct Space4XRunPendingPurchaseRequest : IComponentData
+    {
+        public int RoomIndex;
+        public int NodeOrdinal;
+        public Space4XFleetcrawlPurchaseKind Kind;
+        public FixedString64Bytes PurchaseId;
+    }
+
     public struct Space4XFleetcrawlOfferPreview
     {
         public Space4XRunRewardKind RewardKind;
@@ -251,6 +267,18 @@ namespace Space4x.Scenario
             }
 
             return blueprintId.ToString();
+        }
+
+        public static string DescribePurchase(Space4XFleetcrawlPurchaseKind kind)
+        {
+            return kind switch
+            {
+                Space4XFleetcrawlPurchaseKind.DamageBoost => "Damage+",
+                Space4XFleetcrawlPurchaseKind.CooldownTrim => "Cooldown-",
+                Space4XFleetcrawlPurchaseKind.Heal => "Heal",
+                Space4XFleetcrawlPurchaseKind.RerollToken => "Reroll token",
+                _ => kind.ToString()
+            };
         }
 
         private static Space4XFleetcrawlOfferPreview GetBoonOffer(int index)
