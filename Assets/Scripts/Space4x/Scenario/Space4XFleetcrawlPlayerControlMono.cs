@@ -156,16 +156,7 @@ namespace Space4x.Scenario
                 step += dashDistance * dt * 0.35f;
             }
 
-            if (!hasInput && _smoothedSpeed < 0.05f)
-            {
-                UpdateStatusSnapshot();
-                return;
-            }
-
             var flagshipEntity = _flagshipQuery.GetSingletonEntity();
-            var transform = _entityManager.GetComponentData<LocalTransform>(flagshipEntity);
-            var command = _entityManager.GetComponentData<MovementCommand>(flagshipEntity);
-
             UpsertComponent(flagshipEntity, new Space4XFleetcrawlPlayerDirective
             {
                 Movement = moveInput,
@@ -177,6 +168,15 @@ namespace Space4x.Scenario
                 DashCooldownUntilTick = _dashCooldownUntilTick,
                 SpecialCooldownUntilTick = specialCooldownUntilTickForDirective
             });
+
+            if (!hasInput && _smoothedSpeed < 0.05f)
+            {
+                UpdateStatusSnapshot();
+                return;
+            }
+
+            var transform = _entityManager.GetComponentData<LocalTransform>(flagshipEntity);
+            var command = _entityManager.GetComponentData<MovementCommand>(flagshipEntity);
 
             var target = transform.Position + moveDir * step;
             target.y = transform.Position.y;
