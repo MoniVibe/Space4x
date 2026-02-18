@@ -1,3 +1,5 @@
+using Space4X.Registry;
+using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -154,6 +156,12 @@ namespace Space4x.Fleetcrawl
         public float BaseCapacity;
         public float BaseAbsorbPerTick;
         public float BaseVentPerTick;
+    }
+
+    public struct FleetcrawlHeatControlState : IComponentData
+    {
+        public FleetcrawlHeatSafetyMode SafetyMode;
+        public byte HeatsinkEnabled;
     }
 
     public struct FleetcrawlHeatOutputState : IComponentData
@@ -622,6 +630,103 @@ namespace Space4x.Fleetcrawl
             });
 
             Debug.Log($"[FleetcrawlHeat] Heat modifier bootstrap definitions={heatDefs.Length}.");
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    public partial struct Space4XFleetcrawlHeatRuntimeBootstrapSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<WeaponMount>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var em = state.EntityManager;
+            var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
+
+            foreach (var (weapons, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>()
+                         .WithAny<Space4XRunPlayerTag, Space4XRunEnemyTag>()
+                         .WithEntityAccess())
+            {
+                if (!em.HasComponent<FleetcrawlHeatRuntimeState>(entity))
+                {
+                    var capSum = 0f;
+                    var dissSum = 0f;
+                    for (var i = 0; i < weapons.Length; i++)
+                    {
+                        var mount = weapons[i];
+                        capSum += mount.HeatCapacity > 0f ? mount.HeatCapacity : 100f;
+                        dissSum += mount.HeatDissipation > 0f ? mount.HeatDissipation : 4f;
+                    }
+
+                    var baseCapacity = math.max(40f, capSum * 0.5f);
+                    var baseDissipation = math.max(0.5f, dissSum * 0.25f);
+                    ecb.AddComponent(entity, new FleetcrawlHeatRuntimeState
+                    {
+                        CurrentHeat = 0f,
+                        BaseHeatCapacity = baseCapacity,
+                        BaseDissipationPerTick = baseDissipation,
+                        BaseOverheatThreshold01 = 0.85f,
+                        BaseRecoveryThreshold01 = 0.45f,
+                        IsOverheated = 0,
+                        LastTick = 0u
+                    });
+                }
+
+                if (!em.HasComponent<FleetcrawlHeatsinkState>(entity))
+                {
+                    ecb.AddComponent(entity, new FleetcrawlHeatsinkState
+                    {
+                        StoredHeat = 0f,
+                        BaseCapacity = 60f,
+                        BaseAbsorbPerTick = 10f,
+                        BaseVentPerTick = 3f
+                    });
+                }
+
+                if (!em.HasComponent<FleetcrawlHeatControlState>(entity))
+                {
+                    ecb.AddComponent(entity, new FleetcrawlHeatControlState
+                    {
+                        SafetyMode = FleetcrawlHeatSafetyMode.BalancedAutoVent,
+                        HeatsinkEnabled = 1
+                    });
+                }
+
+                if (!em.HasComponent<FleetcrawlHeatOutputState>(entity))
+                {
+                    ecb.AddComponent(entity, new FleetcrawlHeatOutputState
+                    {
+                        Heat01 = 0f,
+                        HeatCapacity = 100f,
+                        DissipationPerTick = 0f,
+                        OverheatThreshold01 = 0.85f,
+                        RecoveryThreshold01 = 0.45f,
+                        DamageMultiplier = 1f,
+                        CooldownMultiplier = 1f,
+                        FireRateThrottleMultiplier = 1f,
+                        EngineSpeedMultiplier = 1f,
+                        ShieldRechargeMultiplier = 1f,
+                        ShieldIntensityMultiplier = 1f,
+                        JamChance = 0f,
+                        ThermalSelfDamagePerTick = 0f,
+                        HeatsinkStoredHeat = 0f,
+                        HeatsinkCapacity = 0f,
+                        SuppressFire = 0,
+                        IsOverheated = 0
+                    });
+                }
+
+                if (!em.HasBuffer<FleetcrawlHeatActionEvent>(entity))
+                {
+                    ecb.AddBuffer<FleetcrawlHeatActionEvent>(entity);
+                }
+            }
+
+            ecb.Playback(em);
+            ecb.Dispose();
         }
     }
 }
