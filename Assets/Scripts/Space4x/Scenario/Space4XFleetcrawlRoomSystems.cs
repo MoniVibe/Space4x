@@ -38,6 +38,15 @@ namespace Space4x.Scenario
     public struct PlayerFlagshipTag : IComponentData { }
     public struct Space4XRunDroneTag : IComponentData { }
     public struct Space4XRunEnemyTag : IComponentData { public int RoomIndex; public int WaveIndex; public Space4XFleetcrawlEnemyClass EnemyClass; }
+    public struct Space4XEnemyTelegraphState : IComponentData
+    {
+        public uint NextTelegraphTick;
+        public uint TelegraphUntilTick;
+        public uint BurstUntilTick;
+        public byte IsTelegraphing;
+        public byte IsBursting;
+        public byte Initialized;
+    }
     public struct Space4XRunEnemyDestroyedCounted : IComponentData { }
     public struct Space4XRunChainLightningSource : IComponentData { }
     public struct Space4XRunDamageEventCursor : IComponentData { public int ProcessedCount; }
@@ -874,6 +883,221 @@ namespace Space4x.Scenario
         {
             return !string.IsNullOrWhiteSpace(value) &&
                    (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("yes", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XFleetcrawlRoomDirectorSystem))]
+    public partial struct Space4XFleetcrawlEnemyTelegraphSystem : ISystem
+    {
+        private struct EnemyTelegraphProfile
+        {
+            public uint WarmupTicks;
+            public uint WarmupJitterTicks;
+            public uint TelegraphTicks;
+            public uint BurstTicks;
+            public uint CycleTicks;
+            public uint CycleJitterTicks;
+            public float StrikeRange;
+            public float StrikeDamage;
+            public float ShieldShare;
+            public float ArmorShare;
+        }
+
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+            state.RequireForUpdate<Space4XRunEnemyTag>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var em = state.EntityManager;
+            var tick = SystemAPI.GetSingleton<TimeState>().Tick;
+            var director = SystemAPI.GetSingleton<Space4XFleetcrawlDirectorState>();
+            if (director.RunCompleted != 0)
+            {
+                return;
+            }
+
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            foreach (var (enemyTag, entity) in SystemAPI.Query<RefRO<Space4XRunEnemyTag>>().WithNone<Space4XEnemyTelegraphState>().WithEntityAccess())
+            {
+                var profile = ResolveProfile(enemyTag.ValueRO.EnemyClass);
+                var hash = math.hash(new uint3((uint)entity.Index, (uint)entity.Version, (uint)math.max(0, enemyTag.ValueRO.WaveIndex + 13)));
+                var warmup = profile.WarmupTicks + ResolveJitter(hash, profile.WarmupJitterTicks);
+                ecb.AddComponent(entity, new Space4XEnemyTelegraphState
+                {
+                    NextTelegraphTick = tick + math.max(1u, warmup),
+                    Initialized = 1
+                });
+            }
+            ecb.Playback(em);
+            ecb.Dispose();
+
+            foreach (var (enemyTag, hull, transform, telegraphRef, weapons, entity) in SystemAPI
+                         .Query<RefRO<Space4XRunEnemyTag>, RefRO<HullIntegrity>, RefRO<LocalTransform>, RefRW<Space4XEnemyTelegraphState>, DynamicBuffer<WeaponMount>>()
+                         .WithEntityAccess())
+            {
+                if (hull.ValueRO.Current <= 0f)
+                {
+                    continue;
+                }
+
+                var profile = ResolveProfile(enemyTag.ValueRO.EnemyClass);
+                var telegraph = telegraphRef.ValueRO;
+                if (telegraph.Initialized == 0 || telegraph.NextTelegraphTick == 0u)
+                {
+                    var initHash = math.hash(new uint3((uint)entity.Index, (uint)entity.Version, (uint)math.max(0, enemyTag.ValueRO.RoomIndex + 19)));
+                    telegraph.Initialized = 1;
+                    telegraph.NextTelegraphTick = tick + profile.WarmupTicks + ResolveJitter(initHash, profile.WarmupJitterTicks);
+                }
+
+                if (tick >= telegraph.NextTelegraphTick && tick >= telegraph.BurstUntilTick)
+                {
+                    telegraph.TelegraphUntilTick = tick + math.max(1u, profile.TelegraphTicks);
+                    telegraph.BurstUntilTick = telegraph.TelegraphUntilTick + math.max(1u, profile.BurstTicks);
+                    var cycleHash = math.hash(new uint3((uint)entity.Index, tick, (uint)enemyTag.ValueRO.EnemyClass + 31u));
+                    telegraph.NextTelegraphTick = tick + math.max(1u, profile.CycleTicks) + ResolveJitter(cycleHash, profile.CycleJitterTicks);
+                }
+
+                var telegraphingNow = tick < telegraph.TelegraphUntilTick;
+                var burstingNow = !telegraphingNow && tick < telegraph.BurstUntilTick;
+                if (telegraph.IsTelegraphing == 0 && telegraphingNow)
+                {
+                    Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_START class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index}.");
+                }
+                if (telegraph.IsTelegraphing != 0 && !telegraphingNow)
+                {
+                    Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_RELEASE class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index}.");
+                }
+
+                if (telegraph.IsBursting == 0 && burstingNow)
+                {
+                    TriggerTelegraphedStrike(ref state, entity, transform.ValueRO.Position, profile, tick, out var hits);
+                    Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_STRIKE class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index} hits={hits}.");
+                }
+
+                telegraph.IsTelegraphing = (byte)(telegraphingNow ? 1 : 0);
+                telegraph.IsBursting = (byte)(burstingNow ? 1 : 0);
+                telegraphRef.ValueRW = telegraph;
+
+                var weaponBuffer = weapons;
+                for (var i = 0; i < weaponBuffer.Length; i++)
+                {
+                    var mount = weaponBuffer[i];
+                    mount.IsEnabled = (byte)(telegraphingNow ? 0 : 1);
+                    weaponBuffer[i] = mount;
+                }
+            }
+        }
+
+        private static EnemyTelegraphProfile ResolveProfile(Space4XFleetcrawlEnemyClass enemyClass)
+        {
+            switch (enemyClass)
+            {
+                case Space4XFleetcrawlEnemyClass.MiniBoss:
+                    return new EnemyTelegraphProfile
+                    {
+                        WarmupTicks = 75u,
+                        WarmupJitterTicks = 32u,
+                        TelegraphTicks = 34u,
+                        BurstTicks = 42u,
+                        CycleTicks = 182u,
+                        CycleJitterTicks = 28u,
+                        StrikeRange = 52f,
+                        StrikeDamage = 34f,
+                        ShieldShare = 0.32f,
+                        ArmorShare = 0.16f
+                    };
+                case Space4XFleetcrawlEnemyClass.Boss:
+                    return new EnemyTelegraphProfile
+                    {
+                        WarmupTicks = 92u,
+                        WarmupJitterTicks = 40u,
+                        TelegraphTicks = 48u,
+                        BurstTicks = 58u,
+                        CycleTicks = 212u,
+                        CycleJitterTicks = 36u,
+                        StrikeRange = 64f,
+                        StrikeDamage = 52f,
+                        ShieldShare = 0.36f,
+                        ArmorShare = 0.18f
+                    };
+                default:
+                    return new EnemyTelegraphProfile
+                    {
+                        WarmupTicks = 58u,
+                        WarmupJitterTicks = 24u,
+                        TelegraphTicks = 24u,
+                        BurstTicks = 30u,
+                        CycleTicks = 148u,
+                        CycleJitterTicks = 22u,
+                        StrikeRange = 40f,
+                        StrikeDamage = 18f,
+                        ShieldShare = 0.28f,
+                        ArmorShare = 0.12f
+                    };
+            }
+        }
+
+        private static uint ResolveJitter(uint hash, uint maxExclusive)
+        {
+            if (maxExclusive <= 1u)
+            {
+                return 0u;
+            }
+
+            return hash % maxExclusive;
+        }
+
+        private void TriggerTelegraphedStrike(
+            ref SystemState state,
+            Entity source,
+            float3 sourcePos,
+            in EnemyTelegraphProfile profile,
+            uint tick,
+            out int hits)
+        {
+            hits = 0;
+            var maxRangeSq = profile.StrikeRange * profile.StrikeRange;
+            foreach (var (transform, hull, side, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>().WithAll<Space4XRunPlayerTag>().WithEntityAccess())
+            {
+                if (side.ValueRO.Side != 0 || hull.ValueRO.Current <= 0f)
+                {
+                    continue;
+                }
+
+                var distSq = math.distancesq(sourcePos, transform.ValueRO.Position);
+                if (distSq > maxRangeSq)
+                {
+                    continue;
+                }
+
+                if (!state.EntityManager.HasBuffer<DamageEvent>(entity))
+                {
+                    continue;
+                }
+
+                var raw = profile.StrikeDamage;
+                var shieldDamage = raw * profile.ShieldShare;
+                var armorDamage = raw * profile.ArmorShare;
+                var hullDamage = raw * math.max(0f, 1f - profile.ShieldShare - profile.ArmorShare);
+                var damageEvents = state.EntityManager.GetBuffer<DamageEvent>(entity);
+                damageEvents.Add(new DamageEvent
+                {
+                    Source = source,
+                    WeaponType = WeaponType.Laser,
+                    RawDamage = raw,
+                    ShieldDamage = shieldDamage,
+                    ArmorDamage = armorDamage,
+                    HullDamage = hullDamage,
+                    Tick = tick,
+                    IsCritical = 0
+                });
+                hits++;
+            }
         }
     }
 

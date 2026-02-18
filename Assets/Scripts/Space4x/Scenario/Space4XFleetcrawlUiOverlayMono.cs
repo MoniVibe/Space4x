@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Scenarios;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -15,6 +16,7 @@ namespace Space4x.Scenario
         private EntityQuery _scenarioQuery;
         private EntityQuery _timeQuery;
         private EntityQuery _directorQuery;
+        private EntityQuery _enemyTelegraphQuery;
         private bool _queriesReady;
 
         private GUIStyle _panelStyle;
@@ -94,12 +96,15 @@ namespace Space4x.Scenario
             GUILayout.Label($"Scenario: {scenarioInfo.ScenarioId}", _labelStyle);
             GUILayout.Label($"Room {roomIndex + 1}/{rooms.Length}  kind={room.Kind}  remaining={remainingSeconds:0.0}s", _labelStyle);
             GUILayout.Label($"Tick {time.Tick}  dt={dt:0.000}  digest={director.StableDigest}", _labelStyle);
+            GUILayout.Label($"Status: {director.DifficultyStatus}  kills={director.EnemiesDestroyedInRoom}/{math.max(0, director.EnemiesSpawnedInRoom)}  mini={director.MiniBossesDestroyedInRoom}  boss={director.BossesDestroyedInRoom}", _labelStyle);
+            GUILayout.Label(BuildRoomObjectiveText(room, director, remainingSeconds), _labelStyle);
+            GUILayout.Label(BuildTelegraphSummary(), _labelStyle);
 
             var status = Space4XFleetcrawlPlayerControlMono.CurrentStatus;
             GUILayout.Label(
                 $"Pilot: boost={status.Boost01 * 100f:0}%  dash_cd={status.DashCooldown:0.00}s  speed={status.Speed:0.0}",
                 _labelStyle);
-            GUILayout.Label("Controls: WASD move, Shift boost, Q dash, F snap camera, Mouse wheel zoom", _labelStyle);
+            GUILayout.Label("Controls: WASD move, Space/Ctrl vertical, Shift boost, Q dash, E special, F snap camera, Mouse wheel zoom", _labelStyle);
 
             GUILayout.Space(6f);
             GUILayout.Label($"Perks ({perkOps.Length}): {FormatPerkList(perkOps)}", _labelStyle);
@@ -301,6 +306,9 @@ namespace Space4x.Scenario
             _scenarioQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<ScenarioInfo>());
             _timeQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<TimeState>());
             _directorQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XFleetcrawlDirectorState>());
+            _enemyTelegraphQuery = _entityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Space4XEnemyTelegraphState>(),
+                ComponentType.ReadOnly<Space4XRunEnemyTag>());
             _queriesReady = true;
             return true;
         }
@@ -392,6 +400,97 @@ namespace Space4x.Scenario
             }
 
             return "<none>";
+        }
+
+        private static string BuildRoomObjectiveText(in Space4XFleetcrawlRoom room, in Space4XFleetcrawlDirectorState director, float remainingSeconds)
+        {
+            var conditions = room.EndConditions;
+            if (conditions == 0)
+            {
+                conditions = Space4XFleetcrawlRoomEndConditionFlags.Timer;
+            }
+
+            var text = $"Objective ({room.EndLogic}): ";
+            var hasPart = false;
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.Timer) != 0)
+            {
+                text += $"timer {remainingSeconds:0.0}s";
+                hasPart = true;
+            }
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.KillQuota) != 0)
+            {
+                if (hasPart) text += " | ";
+                var target = math.max(1, room.KillQuota);
+                var progress = math.min(target, director.EnemiesDestroyedInRoom);
+                text += $"kills {progress}/{target}";
+                hasPart = true;
+            }
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota) != 0)
+            {
+                if (hasPart) text += " | ";
+                var target = math.max(1, room.MiniBossQuota);
+                var progress = math.min(target, director.MiniBossesDestroyedInRoom);
+                text += $"mini {progress}/{target}";
+                hasPart = true;
+            }
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.BossQuota) != 0)
+            {
+                if (hasPart) text += " | ";
+                var target = math.max(1, room.BossQuota);
+                var progress = math.min(target, director.BossesDestroyedInRoom);
+                text += $"boss {progress}/{target}";
+                hasPart = true;
+            }
+
+            return hasPart ? text : "Objective: <none>";
+        }
+
+        private string BuildTelegraphSummary()
+        {
+            if (_enemyTelegraphQuery.IsEmptyIgnoreFilter)
+            {
+                return "Telegraphs: windup N:0 M:0 B:0 | burst N:0 M:0 B:0";
+            }
+
+            var states = _enemyTelegraphQuery.ToComponentDataArray<Space4XEnemyTelegraphState>(Allocator.Temp);
+            var tags = _enemyTelegraphQuery.ToComponentDataArray<Space4XRunEnemyTag>(Allocator.Temp);
+            try
+            {
+                var normalWindup = 0;
+                var miniWindup = 0;
+                var bossWindup = 0;
+                var normalBurst = 0;
+                var miniBurst = 0;
+                var bossBurst = 0;
+                var count = math.min(states.Length, tags.Length);
+                for (var i = 0; i < count; i++)
+                {
+                    var telegraphing = states[i].IsTelegraphing != 0;
+                    var bursting = states[i].IsBursting != 0;
+                    switch (tags[i].EnemyClass)
+                    {
+                        case Space4XFleetcrawlEnemyClass.MiniBoss:
+                            if (telegraphing) miniWindup++;
+                            if (bursting) miniBurst++;
+                            break;
+                        case Space4XFleetcrawlEnemyClass.Boss:
+                            if (telegraphing) bossWindup++;
+                            if (bursting) bossBurst++;
+                            break;
+                        default:
+                            if (telegraphing) normalWindup++;
+                            if (bursting) normalBurst++;
+                            break;
+                    }
+                }
+
+                return $"Telegraphs: windup N:{normalWindup} M:{miniWindup} B:{bossWindup} | burst N:{normalBurst} M:{miniBurst} B:{bossBurst}";
+            }
+            finally
+            {
+                states.Dispose();
+                tags.Dispose();
+            }
         }
     }
 }
