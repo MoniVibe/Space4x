@@ -1863,11 +1863,13 @@ namespace Space4X.Systems.Modules
     [BurstCompile]
     [UpdateInGroup(typeof(AISystemGroup))]
     [UpdateAfter(typeof(Space4XModuleAttachmentSyncSystem))]
+    [UpdateAfter(typeof(Space4XModuleDerivedStatsSystem))]
     public partial struct Space4XWeaponModuleAggregationSystem : ISystem
     {
         private ComponentLookup<ModuleTypeId> _moduleTypeLookup;
         private ComponentLookup<WeaponModuleProfile> _weaponProfileLookup;
         private ComponentLookup<ModuleLimbProfile> _limbProfileLookup;
+        private ComponentLookup<ModuleDerivedWeaponProfile> _derivedWeaponLookup;
         private BufferLookup<WeaponMount> _weaponMountLookup;
 
         public void OnCreate(ref SystemState state)
@@ -1878,6 +1880,7 @@ namespace Space4X.Systems.Modules
             _moduleTypeLookup = state.GetComponentLookup<ModuleTypeId>(true);
             _weaponProfileLookup = state.GetComponentLookup<WeaponModuleProfile>(true);
             _limbProfileLookup = state.GetComponentLookup<ModuleLimbProfile>(true);
+            _derivedWeaponLookup = state.GetComponentLookup<ModuleDerivedWeaponProfile>(true);
             _weaponMountLookup = state.GetBufferLookup<WeaponMount>(true);
         }
 
@@ -1899,6 +1902,7 @@ namespace Space4X.Systems.Modules
             _moduleTypeLookup.Update(ref state);
             _weaponProfileLookup.Update(ref state);
             _limbProfileLookup.Update(ref state);
+            _derivedWeaponLookup.Update(ref state);
             _weaponMountLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -2007,6 +2011,45 @@ namespace Space4X.Systems.Modules
                     var heatPerShot = ResolveHeatPerShot(weapon, hasWeaponSpec, weaponSpec);
                     var heatCapacity = math.lerp(0.6f, 1.4f, cooling);
                     var heatDissipation = math.lerp(0.01f, 0.06f, cooling);
+
+                    if (_derivedWeaponLookup.HasComponent(module))
+                    {
+                        var derived = _derivedWeaponLookup[module];
+                        var damageScalar = math.max(0.01f, derived.DamageScalar);
+                        var fireRateScalar = math.max(0.01f, derived.FireRateScalar);
+                        var rangeScalar = math.max(0.01f, derived.RangeScalar);
+                        var energyScalar = math.max(0.01f, derived.EnergyCostScalar);
+                        var heatScalar = math.max(0.01f, derived.HeatCostScalar);
+
+                        weapon.BaseDamage *= damageScalar;
+                        weapon.OptimalRange *= rangeScalar;
+                        weapon.MaxRange *= rangeScalar;
+                        weapon.CooldownTicks = (ushort)math.clamp((int)math.round(weapon.CooldownTicks / fireRateScalar), 1, ushort.MaxValue);
+                        weapon.ShieldModifier = (half)math.saturate((float)weapon.ShieldModifier * damageScalar);
+                        weapon.ArmorPenetration = (half)math.saturate((float)weapon.ArmorPenetration * damageScalar);
+
+                        if (derived.AttackFamily != WeaponFamily.Unknown)
+                        {
+                            weapon.Family = derived.AttackFamily;
+                        }
+
+                        if (derived.DamageType != Space4XDamageType.Unknown)
+                        {
+                            weapon.DamageType = derived.DamageType;
+                        }
+
+                        if (derived.Delivery != WeaponDelivery.Unknown)
+                        {
+                            weapon.Delivery = derived.Delivery;
+                        }
+
+                        if (weapon.AmmoPerShot == 0)
+                        {
+                            heatPerShot *= energyScalar;
+                        }
+
+                        heatPerShot *= heatScalar;
+                    }
 
                     weaponBuffer.Add(new WeaponMount
                     {

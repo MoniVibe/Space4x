@@ -8,6 +8,7 @@ namespace Space4X.Presentation
     /// Ensures any entity with a semantic render key has presenter components and at least one presenter enabled
     /// before validation runs.
     /// </summary>
+    [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationModeSystem))]
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
