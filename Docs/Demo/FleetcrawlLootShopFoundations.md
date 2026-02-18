@@ -8,11 +8,20 @@ This slice adds standalone contracts and deterministic helpers without modifying
 - `FleetcrawlLimbQualityTier`
 - `FleetcrawlLimbSlot`
 - `FleetcrawlModuleType`
+- `FleetcrawlLootArchetype`
 - `FleetcrawlLimbSharingMode`
 - `FleetcrawlComboTag`
+- `FleetcrawlWeaponBehaviorTag`
+- `FleetcrawlSkillFamily`
 - `FleetcrawlModuleLimbDefinition`
 - `FleetcrawlLimbAffixDefinition`
+- `FleetcrawlHullSegmentDefinition`
+- `FleetcrawlTrinketDefinition`
+- `FleetcrawlGeneralItemDefinition`
+- `FleetcrawlSetBonusDefinition`
 - `FleetcrawlRolledLimb`
+- `FleetcrawlRolledItem`
+- `FleetcrawlOwnedItem`
 
 ### Shop/offer
 - `FleetcrawlOfferRuntimeTag`
@@ -42,6 +51,9 @@ This slice adds standalone contracts and deterministic helpers without modifying
 Implemented in:
 - `FleetcrawlDeterministicLimbRollService.ComputeRollHash`
 - `FleetcrawlDeterministicLimbRollService.RollLimb`
+- `FleetcrawlDeterministicLimbRollService.RollHullSegment`
+- `FleetcrawlDeterministicLimbRollService.RollTrinket`
+- `FleetcrawlDeterministicLimbRollService.RollGeneralItem`
 
 ### Offer generation
 `seed + roomIndex + level + xp + shards + challenge + nonce` plus channel/slot/refresh stream
@@ -66,11 +78,16 @@ Implemented in:
 
 4. `FleetcrawlModuleUpgradeResolver`
 - resolves rolled limb + affix + combo tag effects into module/weapon/movement multipliers
+- can fold in owned item archetypes and set bonuses via `ResolveAggregateWithInventory`
 
 ## Extension points
 
 - Add new limb families by appending `FleetcrawlModuleLimbDefinition` rows.
 - Add new affix pools by appending `FleetcrawlLimbAffixDefinition` rows.
+- Add hull segment archetypes by appending `FleetcrawlHullSegmentDefinition` rows.
+- Add trinket archetypes by appending `FleetcrawlTrinketDefinition` rows.
+- Add general item archetypes by appending `FleetcrawlGeneralItemDefinition` rows.
+- Add set/manufacturer combo behavior by appending `FleetcrawlSetBonusDefinition` rows.
 - Add new shop items via `FleetcrawlCurrencyShopCatalogEntry`.
 - Add new loot offer channels/slots via `FleetcrawlLootOfferCatalogEntry`.
 - Add new module combo behavior via `FleetcrawlModuleUpgradeDefinition.RequiredTags`.

@@ -204,6 +204,126 @@ namespace Space4X.Tests
             };
             Assert.IsTrue(FleetcrawlModuleLimbCompatibility.HasLimbConflict(uniqueCandidate, equipped));
         }
+
+        [Test]
+        public void HullAndTrinketRoll_AreDeterministic_ForSameInputs()
+        {
+            var runtime = _entityManager.CreateEntity();
+            var hulls = _entityManager.AddBuffer<FleetcrawlHullSegmentDefinition>(runtime);
+            hulls.Add(new FleetcrawlHullSegmentDefinition
+            {
+                SegmentId = new FixedString64Bytes("hull_test"),
+                ManufacturerId = new FixedString64Bytes("mfg_a"),
+                SetId = new FixedString64Bytes("set_a"),
+                ComboTags = FleetcrawlComboTag.Vanguard,
+                MinQuality = FleetcrawlLimbQualityTier.Common,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 10,
+                MinLevel = 1,
+                ModuleSocketCount = 2
+            });
+
+            var trinkets = _entityManager.AddBuffer<FleetcrawlTrinketDefinition>(runtime);
+            trinkets.Add(new FleetcrawlTrinketDefinition
+            {
+                TrinketId = new FixedString64Bytes("trinket_test"),
+                ManufacturerId = new FixedString64Bytes("mfg_b"),
+                SetId = new FixedString64Bytes("set_b"),
+                ComboTags = FleetcrawlComboTag.Arc,
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork | FleetcrawlWeaponBehaviorTag.Ionize,
+                SkillFamily = FleetcrawlSkillFamily.Support,
+                MinQuality = FleetcrawlLimbQualityTier.Common,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 10,
+                MinLevel = 1
+            });
+
+            var hullA = FleetcrawlDeterministicLimbRollService.RollHullSegment(
+                4455u, 2, 6, new FixedString64Bytes("hull_test"), 3, hulls);
+            var hullB = FleetcrawlDeterministicLimbRollService.RollHullSegment(
+                4455u, 2, 6, new FixedString64Bytes("hull_test"), 3, hulls);
+            Assert.AreEqual(hullA.RollHash, hullB.RollHash);
+            Assert.AreEqual(hullA.ItemId, hullB.ItemId);
+            Assert.AreEqual(hullA.ModuleSocketCount, hullB.ModuleSocketCount);
+
+            var trinketA = FleetcrawlDeterministicLimbRollService.RollTrinket(
+                4455u, 2, 6, new FixedString64Bytes("trinket_test"), 7, trinkets);
+            var trinketB = FleetcrawlDeterministicLimbRollService.RollTrinket(
+                4455u, 2, 6, new FixedString64Bytes("trinket_test"), 7, trinkets);
+            Assert.AreEqual(trinketA.RollHash, trinketB.RollHash);
+            Assert.AreEqual(trinketA.WeaponBehaviors, trinketB.WeaponBehaviors);
+            Assert.AreEqual(trinketA.ItemId, trinketB.ItemId);
+        }
+
+        [Test]
+        public void Resolver_AppliesSetAndTrinketModifiers_FromOwnedItems()
+        {
+            var host = _entityManager.CreateEntity();
+            var limbs = _entityManager.AddBuffer<FleetcrawlRolledLimbBufferElement>(host);
+            var limbDefs = _entityManager.AddBuffer<FleetcrawlModuleLimbDefinition>(host);
+            var affixDefs = _entityManager.AddBuffer<FleetcrawlLimbAffixDefinition>(host);
+            var upgradeDefs = _entityManager.AddBuffer<FleetcrawlModuleUpgradeDefinition>(host);
+            var setDefs = _entityManager.AddBuffer<FleetcrawlSetBonusDefinition>(host);
+            var owned = _entityManager.AddBuffer<FleetcrawlOwnedItem>(host);
+
+            setDefs.Add(new FleetcrawlSetBonusDefinition
+            {
+                SetId = new FixedString64Bytes("set_prism"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                RequiredItemTags = FleetcrawlComboTag.Arc,
+                RequiredWeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork,
+                RequiredSkillFamily = FleetcrawlSkillFamily.Support,
+                RequiredCount = 2,
+                TurnRateMultiplier = 1.02f,
+                AccelerationMultiplier = 1.01f,
+                DecelerationMultiplier = 1.01f,
+                MaxSpeedMultiplier = 1.02f,
+                CooldownMultiplier = 0.92f,
+                DamageMultiplier = 1.12f
+            });
+
+            owned.Add(new FleetcrawlOwnedItem
+            {
+                Value = new FleetcrawlRolledItem
+                {
+                    Archetype = FleetcrawlLootArchetype.Trinket,
+                    ItemId = new FixedString64Bytes("trinket_prism_refractor"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    SetId = new FixedString64Bytes("set_prism"),
+                    ComboTags = FleetcrawlComboTag.Arc | FleetcrawlComboTag.Flux,
+                    WeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork | FleetcrawlWeaponBehaviorTag.Ionize,
+                    SkillFamily = FleetcrawlSkillFamily.Support,
+                    Quality = FleetcrawlLimbQualityTier.Epic,
+                    StackCount = 1
+                }
+            });
+            owned.Add(new FleetcrawlOwnedItem
+            {
+                Value = new FleetcrawlRolledItem
+                {
+                    Archetype = FleetcrawlLootArchetype.GeneralItem,
+                    ItemId = new FixedString64Bytes("item_flux_capsule"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    SetId = new FixedString64Bytes("set_prism"),
+                    ComboTags = FleetcrawlComboTag.Arc | FleetcrawlComboTag.Flux,
+                    WeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork,
+                    SkillFamily = FleetcrawlSkillFamily.Support,
+                    Quality = FleetcrawlLimbQualityTier.Rare,
+                    StackCount = 2
+                }
+            });
+
+            var resolved = FleetcrawlModuleUpgradeResolver.ResolveAggregateWithInventory(
+                limbs,
+                owned,
+                limbDefs,
+                affixDefs,
+                upgradeDefs,
+                setDefs);
+
+            Assert.Greater(resolved.DamageMultiplier, 1.1f);
+            Assert.Less(resolved.CooldownMultiplier, 1f);
+        }
     }
 }
 #endif

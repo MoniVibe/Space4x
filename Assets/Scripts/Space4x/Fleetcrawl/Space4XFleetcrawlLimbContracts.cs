@@ -47,6 +47,35 @@ namespace Space4x.Fleetcrawl
         Utility = 3
     }
 
+    public enum FleetcrawlLootArchetype : byte
+    {
+        ModuleLimb = 0,
+        HullSegment = 1,
+        Trinket = 2,
+        GeneralItem = 3
+    }
+
+    [Flags]
+    public enum FleetcrawlWeaponBehaviorTag : ushort
+    {
+        None = 0,
+        BeamFork = 1 << 0,
+        Pierce = 1 << 1,
+        Ricochet = 1 << 2,
+        Ionize = 1 << 3,
+        BurnPayload = 1 << 4,
+        DroneFocus = 1 << 5
+    }
+
+    public enum FleetcrawlSkillFamily : byte
+    {
+        None = 0,
+        Mobility = 1,
+        Defense = 2,
+        Ordnance = 3,
+        Support = 4
+    }
+
     public enum FleetcrawlLimbSharingMode : byte
     {
         Shared = 0,
@@ -90,6 +119,77 @@ namespace Space4x.Fleetcrawl
         public float DamageMultiplier;
     }
 
+    [InternalBufferCapacity(24)]
+    public struct FleetcrawlHullSegmentDefinition : IBufferElementData
+    {
+        public FixedString64Bytes SegmentId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes SetId;
+        public FleetcrawlComboTag ComboTags;
+        public FleetcrawlLimbQualityTier MinQuality;
+        public FleetcrawlLimbQualityTier MaxQuality;
+        public int Weight;
+        public int MinLevel;
+        public int ModuleSocketCount;
+        public float TurnRateMultiplier;
+        public float AccelerationMultiplier;
+        public float DecelerationMultiplier;
+        public float MaxSpeedMultiplier;
+        public float CooldownMultiplier;
+        public float DamageMultiplier;
+    }
+
+    [InternalBufferCapacity(24)]
+    public struct FleetcrawlTrinketDefinition : IBufferElementData
+    {
+        public FixedString64Bytes TrinketId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes SetId;
+        public FleetcrawlComboTag ComboTags;
+        public FleetcrawlWeaponBehaviorTag WeaponBehaviors;
+        public FleetcrawlSkillFamily SkillFamily;
+        public FleetcrawlLimbQualityTier MinQuality;
+        public FleetcrawlLimbQualityTier MaxQuality;
+        public int Weight;
+        public int MinLevel;
+        public float CooldownMultiplier;
+        public float DamageMultiplier;
+    }
+
+    [InternalBufferCapacity(24)]
+    public struct FleetcrawlGeneralItemDefinition : IBufferElementData
+    {
+        public FixedString64Bytes ItemId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes SetId;
+        public FleetcrawlComboTag ComboTags;
+        public FleetcrawlSkillFamily SkillFamily;
+        public FleetcrawlLimbQualityTier MinQuality;
+        public FleetcrawlLimbQualityTier MaxQuality;
+        public int Weight;
+        public int MinLevel;
+        public int MaxStackCount;
+        public float CooldownMultiplier;
+        public float DamageMultiplier;
+    }
+
+    [InternalBufferCapacity(16)]
+    public struct FleetcrawlSetBonusDefinition : IBufferElementData
+    {
+        public FixedString64Bytes SetId;
+        public FixedString64Bytes ManufacturerId;
+        public FleetcrawlComboTag RequiredItemTags;
+        public FleetcrawlWeaponBehaviorTag RequiredWeaponBehaviors;
+        public FleetcrawlSkillFamily RequiredSkillFamily;
+        public int RequiredCount;
+        public float TurnRateMultiplier;
+        public float AccelerationMultiplier;
+        public float DecelerationMultiplier;
+        public float MaxSpeedMultiplier;
+        public float CooldownMultiplier;
+        public float DamageMultiplier;
+    }
+
     public struct FleetcrawlRolledLimb
     {
         public FixedString64Bytes LimbId;
@@ -99,6 +199,23 @@ namespace Space4x.Fleetcrawl
         public FleetcrawlLimbSharingMode SharingMode;
         public FleetcrawlComboTag ComboTags;
         public FleetcrawlLimbQualityTier Quality;
+        public uint RollHash;
+        public int Level;
+        public int RoomIndex;
+    }
+
+    public struct FleetcrawlRolledItem
+    {
+        public FleetcrawlLootArchetype Archetype;
+        public FixedString64Bytes ItemId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes SetId;
+        public FleetcrawlComboTag ComboTags;
+        public FleetcrawlWeaponBehaviorTag WeaponBehaviors;
+        public FleetcrawlSkillFamily SkillFamily;
+        public FleetcrawlLimbQualityTier Quality;
+        public int ModuleSocketCount;
+        public int StackCount;
         public uint RollHash;
         public int Level;
         public int RoomIndex;
@@ -146,6 +263,12 @@ namespace Space4x.Fleetcrawl
     public struct FleetcrawlRolledLimbBufferElement : IBufferElementData
     {
         public FleetcrawlRolledLimb Value;
+    }
+
+    [InternalBufferCapacity(24)]
+    public struct FleetcrawlOwnedItem : IBufferElementData
+    {
+        public FleetcrawlRolledItem Value;
     }
 
     public static class FleetcrawlDeterministicLimbRollService
@@ -296,6 +419,162 @@ namespace Space4x.Fleetcrawl
                 SharingMode = limb.SharingMode,
                 ComboTags = combinedTags,
                 Quality = quality,
+                RollHash = hash,
+                Level = math.max(1, level),
+                RoomIndex = roomIndex
+            };
+        }
+
+        public static uint ComputeItemRollHash(uint seed, int roomIndex, int level, FleetcrawlLootArchetype archetype, int stream)
+        {
+            return math.hash(new uint4(
+                seed ^ 0x7FEB352Du,
+                (uint)(roomIndex + 1) * 2246822519u,
+                ((uint)math.max(1, level) * 3266489917u) ^ ((uint)archetype + 1u),
+                (uint)(stream + 1) * 668265263u));
+        }
+
+        public static FleetcrawlRolledItem FromLimb(
+            in FleetcrawlRolledLimb rolledLimb,
+            in FixedString64Bytes manufacturerId,
+            in FixedString64Bytes setId,
+            FleetcrawlWeaponBehaviorTag behaviorTags,
+            FleetcrawlSkillFamily skillFamily)
+        {
+            return new FleetcrawlRolledItem
+            {
+                Archetype = FleetcrawlLootArchetype.ModuleLimb,
+                ItemId = rolledLimb.LimbId,
+                ManufacturerId = manufacturerId,
+                SetId = setId,
+                ComboTags = rolledLimb.ComboTags,
+                WeaponBehaviors = behaviorTags,
+                SkillFamily = skillFamily,
+                Quality = rolledLimb.Quality,
+                ModuleSocketCount = 0,
+                StackCount = 1,
+                RollHash = rolledLimb.RollHash,
+                Level = rolledLimb.Level,
+                RoomIndex = rolledLimb.RoomIndex
+            };
+        }
+
+        public static FleetcrawlRolledItem RollHullSegment(
+            uint seed,
+            int roomIndex,
+            int level,
+            in FixedString64Bytes preferredSegmentId,
+            int stream,
+            DynamicBuffer<FleetcrawlHullSegmentDefinition> segmentDefinitions)
+        {
+            var hash = ComputeItemRollHash(seed, roomIndex, level, FleetcrawlLootArchetype.HullSegment, stream);
+            var quality = RollQualityTier(seed, roomIndex, level, FleetcrawlLimbSlot.Core, stream);
+            var segmentIndex = PickWeightedIndex(
+                segmentDefinitions,
+                segment =>
+                    level >= math.max(1, segment.MinLevel) &&
+                    quality >= segment.MinQuality &&
+                    quality <= segment.MaxQuality &&
+                    (preferredSegmentId.Length == 0 || segment.SegmentId.Equals(preferredSegmentId)),
+                segment => segment.Weight,
+                hash ^ 0xA93B41C5u);
+
+            var segment = segmentIndex >= 0 ? segmentDefinitions[segmentIndex] : default;
+            var itemId = segmentIndex >= 0 ? segment.SegmentId : preferredSegmentId;
+            return new FleetcrawlRolledItem
+            {
+                Archetype = FleetcrawlLootArchetype.HullSegment,
+                ItemId = itemId,
+                ManufacturerId = segment.ManufacturerId,
+                SetId = segment.SetId,
+                ComboTags = segment.ComboTags != FleetcrawlComboTag.None ? segment.ComboTags : FleetcrawlComboTag.Vanguard,
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.None,
+                SkillFamily = FleetcrawlSkillFamily.Defense,
+                Quality = quality,
+                ModuleSocketCount = math.max(0, segment.ModuleSocketCount),
+                StackCount = 1,
+                RollHash = hash,
+                Level = math.max(1, level),
+                RoomIndex = roomIndex
+            };
+        }
+
+        public static FleetcrawlRolledItem RollTrinket(
+            uint seed,
+            int roomIndex,
+            int level,
+            in FixedString64Bytes preferredTrinketId,
+            int stream,
+            DynamicBuffer<FleetcrawlTrinketDefinition> trinketDefinitions)
+        {
+            var hash = ComputeItemRollHash(seed, roomIndex, level, FleetcrawlLootArchetype.Trinket, stream);
+            var quality = RollQualityTier(seed, roomIndex, level, FleetcrawlLimbSlot.Utility, stream);
+            var trinketIndex = PickWeightedIndex(
+                trinketDefinitions,
+                trinket =>
+                    level >= math.max(1, trinket.MinLevel) &&
+                    quality >= trinket.MinQuality &&
+                    quality <= trinket.MaxQuality &&
+                    (preferredTrinketId.Length == 0 || trinket.TrinketId.Equals(preferredTrinketId)),
+                trinket => trinket.Weight,
+                hash ^ 0xD1B54A35u);
+
+            var trinket = trinketIndex >= 0 ? trinketDefinitions[trinketIndex] : default;
+            var itemId = trinketIndex >= 0 ? trinket.TrinketId : preferredTrinketId;
+            return new FleetcrawlRolledItem
+            {
+                Archetype = FleetcrawlLootArchetype.Trinket,
+                ItemId = itemId,
+                ManufacturerId = trinket.ManufacturerId,
+                SetId = trinket.SetId,
+                ComboTags = trinket.ComboTags != FleetcrawlComboTag.None ? trinket.ComboTags : FleetcrawlComboTag.Support,
+                WeaponBehaviors = trinket.WeaponBehaviors,
+                SkillFamily = trinket.SkillFamily,
+                Quality = quality,
+                ModuleSocketCount = 0,
+                StackCount = 1,
+                RollHash = hash,
+                Level = math.max(1, level),
+                RoomIndex = roomIndex
+            };
+        }
+
+        public static FleetcrawlRolledItem RollGeneralItem(
+            uint seed,
+            int roomIndex,
+            int level,
+            in FixedString64Bytes preferredItemId,
+            int stream,
+            DynamicBuffer<FleetcrawlGeneralItemDefinition> itemDefinitions)
+        {
+            var hash = ComputeItemRollHash(seed, roomIndex, level, FleetcrawlLootArchetype.GeneralItem, stream);
+            var quality = RollQualityTier(seed, roomIndex, level, FleetcrawlLimbSlot.Utility, stream);
+            var itemIndex = PickWeightedIndex(
+                itemDefinitions,
+                item =>
+                    level >= math.max(1, item.MinLevel) &&
+                    quality >= item.MinQuality &&
+                    quality <= item.MaxQuality &&
+                    (preferredItemId.Length == 0 || item.ItemId.Equals(preferredItemId)),
+                item => item.Weight,
+                hash ^ 0x94D049BBu);
+
+            var item = itemIndex >= 0 ? itemDefinitions[itemIndex] : default;
+            var itemId = itemIndex >= 0 ? item.ItemId : preferredItemId;
+            var maxStack = math.max(1, item.MaxStackCount);
+            var stackRoll = math.max(1, math.min(maxStack, 1 + (int)(hash % (uint)maxStack)));
+            return new FleetcrawlRolledItem
+            {
+                Archetype = FleetcrawlLootArchetype.GeneralItem,
+                ItemId = itemId,
+                ManufacturerId = item.ManufacturerId,
+                SetId = item.SetId,
+                ComboTags = item.ComboTags != FleetcrawlComboTag.None ? item.ComboTags : FleetcrawlComboTag.Support,
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.None,
+                SkillFamily = item.SkillFamily,
+                Quality = quality,
+                ModuleSocketCount = 0,
+                StackCount = stackRoll,
                 RollHash = hash,
                 Level = math.max(1, level),
                 RoomIndex = roomIndex

@@ -241,5 +241,138 @@ namespace Space4x.Fleetcrawl
 
             return aggregate;
         }
+
+        public static FleetcrawlResolvedUpgradeStats ResolveAggregateWithInventory(
+            DynamicBuffer<FleetcrawlRolledLimbBufferElement> rolledLimbs,
+            DynamicBuffer<FleetcrawlOwnedItem> ownedItems,
+            DynamicBuffer<FleetcrawlModuleLimbDefinition> limbDefinitions,
+            DynamicBuffer<FleetcrawlLimbAffixDefinition> affixDefinitions,
+            DynamicBuffer<FleetcrawlModuleUpgradeDefinition> upgradeDefinitions,
+            DynamicBuffer<FleetcrawlSetBonusDefinition> setBonusDefinitions)
+        {
+            var aggregate = ResolveAggregate(rolledLimbs, limbDefinitions, affixDefinitions, upgradeDefinitions);
+            ApplyOwnedItemModifiers(ref aggregate, ownedItems);
+            ApplySetBonuses(ref aggregate, ownedItems, setBonusDefinitions);
+            return aggregate;
+        }
+
+        private static void ApplyOwnedItemModifiers(ref FleetcrawlResolvedUpgradeStats stats, DynamicBuffer<FleetcrawlOwnedItem> ownedItems)
+        {
+            for (var i = 0; i < ownedItems.Length; i++)
+            {
+                var item = ownedItems[i].Value;
+                var qualityScalar = 1f + (int)item.Quality * 0.02f;
+                switch (item.Archetype)
+                {
+                    case FleetcrawlLootArchetype.HullSegment:
+                        stats.ApplyMultipliers(
+                            1f * qualityScalar,
+                            1.02f * qualityScalar,
+                            1.03f * qualityScalar,
+                            1.01f * qualityScalar,
+                            1f,
+                            1f);
+                        break;
+                    case FleetcrawlLootArchetype.Trinket:
+                        stats.ApplyMultipliers(
+                            1f,
+                            1f,
+                            1f,
+                            1f,
+                            ResolveBehaviorCooldownMultiplier(item.WeaponBehaviors),
+                            ResolveBehaviorDamageMultiplier(item.WeaponBehaviors) * qualityScalar);
+                        break;
+                    case FleetcrawlLootArchetype.GeneralItem:
+                        var stack = math.max(1, item.StackCount);
+                        stats.ApplyMultipliers(
+                            1f,
+                            1f,
+                            1f,
+                            1f,
+                            math.max(0.7f, 1f - (stack - 1) * 0.015f),
+                            1f + (stack - 1) * 0.02f);
+                        break;
+                }
+            }
+        }
+
+        private static void ApplySetBonuses(
+            ref FleetcrawlResolvedUpgradeStats stats,
+            DynamicBuffer<FleetcrawlOwnedItem> ownedItems,
+            DynamicBuffer<FleetcrawlSetBonusDefinition> setBonusDefinitions)
+        {
+            for (var i = 0; i < setBonusDefinitions.Length; i++)
+            {
+                var set = setBonusDefinitions[i];
+                var requiredCount = math.max(1, set.RequiredCount);
+                var count = 0;
+
+                for (var j = 0; j < ownedItems.Length; j++)
+                {
+                    var item = ownedItems[j].Value;
+                    if (set.SetId.Length > 0 && !item.SetId.Equals(set.SetId))
+                    {
+                        continue;
+                    }
+                    if (set.ManufacturerId.Length > 0 && !item.ManufacturerId.Equals(set.ManufacturerId))
+                    {
+                        continue;
+                    }
+                    if (set.RequiredItemTags != FleetcrawlComboTag.None &&
+                        (item.ComboTags & set.RequiredItemTags) != set.RequiredItemTags)
+                    {
+                        continue;
+                    }
+                    if (set.RequiredWeaponBehaviors != FleetcrawlWeaponBehaviorTag.None &&
+                        (item.WeaponBehaviors & set.RequiredWeaponBehaviors) != set.RequiredWeaponBehaviors)
+                    {
+                        continue;
+                    }
+                    if (set.RequiredSkillFamily != FleetcrawlSkillFamily.None && item.SkillFamily != set.RequiredSkillFamily)
+                    {
+                        continue;
+                    }
+
+                    count++;
+                }
+
+                if (count < requiredCount)
+                {
+                    continue;
+                }
+
+                stats.ApplyMultipliers(
+                    set.TurnRateMultiplier,
+                    set.AccelerationMultiplier,
+                    set.DecelerationMultiplier,
+                    set.MaxSpeedMultiplier,
+                    set.CooldownMultiplier,
+                    set.DamageMultiplier);
+            }
+        }
+
+        private static float ResolveBehaviorDamageMultiplier(FleetcrawlWeaponBehaviorTag behavior)
+        {
+            var multiplier = 1f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.BeamFork) != 0) multiplier *= 1.08f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.Pierce) != 0) multiplier *= 1.05f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.Ricochet) != 0) multiplier *= 1.04f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.Ionize) != 0) multiplier *= 1.03f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.BurnPayload) != 0) multiplier *= 1.05f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.DroneFocus) != 0) multiplier *= 1.02f;
+            return multiplier;
+        }
+
+        private static float ResolveBehaviorCooldownMultiplier(FleetcrawlWeaponBehaviorTag behavior)
+        {
+            var multiplier = 1f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.BeamFork) != 0) multiplier *= 1.02f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.Pierce) != 0) multiplier *= 0.99f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.Ricochet) != 0) multiplier *= 1.01f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.Ionize) != 0) multiplier *= 0.97f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.BurnPayload) != 0) multiplier *= 1.03f;
+            if ((behavior & FleetcrawlWeaponBehaviorTag.DroneFocus) != 0) multiplier *= 0.98f;
+            return math.max(0.7f, multiplier);
+        }
     }
 }

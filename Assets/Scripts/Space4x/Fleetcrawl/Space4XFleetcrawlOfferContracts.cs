@@ -69,8 +69,14 @@ namespace Space4x.Fleetcrawl
     public struct FleetcrawlLootOfferCatalogEntry : IBufferElementData
     {
         public FixedString64Bytes OfferId;
+        public FleetcrawlLootArchetype Archetype;
         public FleetcrawlModuleType ModuleType;
         public FleetcrawlLimbSlot Slot;
+        public FixedString64Bytes ItemId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes SetId;
+        public FleetcrawlWeaponBehaviorTag WeaponBehaviors;
+        public FleetcrawlSkillFamily SkillFamily;
         public int Weight;
         public int MinLevel;
         public int BaseShardCost;
@@ -93,10 +99,20 @@ namespace Space4x.Fleetcrawl
     {
         public int SlotIndex;
         public FixedString64Bytes OfferId;
+        public FleetcrawlLootArchetype Archetype;
         public FleetcrawlModuleType ModuleType;
         public FleetcrawlLimbSlot Slot;
+        public FixedString64Bytes ItemId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes SetId;
         public int PriceShards;
+        public FleetcrawlLimbQualityTier Quality;
+        public int ModuleSocketCount;
+        public int StackCount;
+        public FleetcrawlWeaponBehaviorTag WeaponBehaviors;
+        public FleetcrawlSkillFamily SkillFamily;
         public FleetcrawlRolledLimb RolledLimb;
+        public FleetcrawlRolledItem RolledItem;
         public FleetcrawlComboTag ComboTags;
         public uint RollHash;
     }
@@ -207,8 +223,14 @@ namespace Space4x.Fleetcrawl
             lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
             {
                 OfferId = new FixedString64Bytes("loot_weapon_barrel"),
+                Archetype = FleetcrawlLootArchetype.ModuleLimb,
                 ModuleType = FleetcrawlModuleType.Weapon,
                 Slot = FleetcrawlLimbSlot.Barrel,
+                ItemId = new FixedString64Bytes("limb_barrel_serrated"),
+                ManufacturerId = new FixedString64Bytes("baseline"),
+                SetId = new FixedString64Bytes("set_raider"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.Pierce,
+                SkillFamily = FleetcrawlSkillFamily.Ordnance,
                 Weight = 12,
                 MinLevel = 1,
                 BaseShardCost = 25,
@@ -217,8 +239,14 @@ namespace Space4x.Fleetcrawl
             lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
             {
                 OfferId = new FixedString64Bytes("loot_weapon_stabilizer"),
+                Archetype = FleetcrawlLootArchetype.ModuleLimb,
                 ModuleType = FleetcrawlModuleType.Weapon,
                 Slot = FleetcrawlLimbSlot.Stabilizer,
+                ItemId = new FixedString64Bytes("limb_stabilizer_vectored"),
+                ManufacturerId = new FixedString64Bytes("baseline"),
+                SetId = new FixedString64Bytes("set_raider"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.Ricochet,
+                SkillFamily = FleetcrawlSkillFamily.Mobility,
                 Weight = 10,
                 MinLevel = 2,
                 BaseShardCost = 30,
@@ -227,8 +255,14 @@ namespace Space4x.Fleetcrawl
             lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
             {
                 OfferId = new FixedString64Bytes("loot_reactor_core"),
+                Archetype = FleetcrawlLootArchetype.ModuleLimb,
                 ModuleType = FleetcrawlModuleType.Reactor,
                 Slot = FleetcrawlLimbSlot.Core,
+                ItemId = new FixedString64Bytes("limb_reactor_flux_core"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                SetId = new FixedString64Bytes("set_prism"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.Ionize,
+                SkillFamily = FleetcrawlSkillFamily.Support,
                 Weight = 8,
                 MinLevel = 2,
                 BaseShardCost = 35,
@@ -237,12 +271,66 @@ namespace Space4x.Fleetcrawl
             lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
             {
                 OfferId = new FixedString64Bytes("loot_hangar_utility"),
+                Archetype = FleetcrawlLootArchetype.ModuleLimb,
                 ModuleType = FleetcrawlModuleType.Hangar,
                 Slot = FleetcrawlLimbSlot.Utility,
+                ItemId = new FixedString64Bytes("limb_hangar_relay"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                SetId = new FixedString64Bytes("set_prism"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.DroneFocus,
+                SkillFamily = FleetcrawlSkillFamily.Support,
                 Weight = 7,
                 MinLevel = 3,
                 BaseShardCost = 40,
                 ComboTags = FleetcrawlComboTag.Drone
+            });
+            lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
+            {
+                OfferId = new FixedString64Bytes("loot_hull_segment_bastion"),
+                Archetype = FleetcrawlLootArchetype.HullSegment,
+                ModuleType = FleetcrawlModuleType.Utility,
+                Slot = FleetcrawlLimbSlot.Core,
+                ItemId = new FixedString64Bytes("hull_bastion_ring"),
+                ManufacturerId = new FixedString64Bytes("bastion"),
+                SetId = new FixedString64Bytes("set_bastion"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.None,
+                SkillFamily = FleetcrawlSkillFamily.Defense,
+                Weight = 6,
+                MinLevel = 3,
+                BaseShardCost = 52,
+                ComboTags = FleetcrawlComboTag.Vanguard | FleetcrawlComboTag.Support
+            });
+            lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
+            {
+                OfferId = new FixedString64Bytes("loot_trinket_prism_refractor"),
+                Archetype = FleetcrawlLootArchetype.Trinket,
+                ModuleType = FleetcrawlModuleType.Utility,
+                Slot = FleetcrawlLimbSlot.Utility,
+                ItemId = new FixedString64Bytes("trinket_prism_refractor"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                SetId = new FixedString64Bytes("set_prism"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork | FleetcrawlWeaponBehaviorTag.Ionize,
+                SkillFamily = FleetcrawlSkillFamily.Support,
+                Weight = 5,
+                MinLevel = 4,
+                BaseShardCost = 64,
+                ComboTags = FleetcrawlComboTag.Arc | FleetcrawlComboTag.Flux
+            });
+            lootCatalog.Add(new FleetcrawlLootOfferCatalogEntry
+            {
+                OfferId = new FixedString64Bytes("loot_item_nanite_cache"),
+                Archetype = FleetcrawlLootArchetype.GeneralItem,
+                ModuleType = FleetcrawlModuleType.Utility,
+                Slot = FleetcrawlLimbSlot.Utility,
+                ItemId = new FixedString64Bytes("item_nanite_cache"),
+                ManufacturerId = new FixedString64Bytes("civfoundry"),
+                SetId = new FixedString64Bytes("set_support"),
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.None,
+                SkillFamily = FleetcrawlSkillFamily.Defense,
+                Weight = 9,
+                MinLevel = 2,
+                BaseShardCost = 28,
+                ComboTags = FleetcrawlComboTag.Support
             });
 
             var limbDefs = em.AddBuffer<FleetcrawlModuleLimbDefinition>(runtime);
@@ -366,10 +454,145 @@ namespace Space4x.Fleetcrawl
                 DamageMultiplier = 1.1f
             });
 
+            var hullDefs = em.AddBuffer<FleetcrawlHullSegmentDefinition>(runtime);
+            hullDefs.Add(new FleetcrawlHullSegmentDefinition
+            {
+                SegmentId = new FixedString64Bytes("hull_bastion_ring"),
+                ManufacturerId = new FixedString64Bytes("bastion"),
+                SetId = new FixedString64Bytes("set_bastion"),
+                ComboTags = FleetcrawlComboTag.Vanguard | FleetcrawlComboTag.Support,
+                MinQuality = FleetcrawlLimbQualityTier.Uncommon,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 9,
+                MinLevel = 3,
+                ModuleSocketCount = 2,
+                TurnRateMultiplier = 0.98f,
+                AccelerationMultiplier = 1.02f,
+                DecelerationMultiplier = 1.05f,
+                MaxSpeedMultiplier = 1.01f,
+                CooldownMultiplier = 0.98f,
+                DamageMultiplier = 1.04f
+            });
+            hullDefs.Add(new FleetcrawlHullSegmentDefinition
+            {
+                SegmentId = new FixedString64Bytes("hull_raider_spine"),
+                ManufacturerId = new FixedString64Bytes("raiderworks"),
+                SetId = new FixedString64Bytes("set_raider"),
+                ComboTags = FleetcrawlComboTag.Agile | FleetcrawlComboTag.Kinetic,
+                MinQuality = FleetcrawlLimbQualityTier.Common,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 11,
+                MinLevel = 2,
+                ModuleSocketCount = 1,
+                TurnRateMultiplier = 1.08f,
+                AccelerationMultiplier = 1.07f,
+                DecelerationMultiplier = 1.04f,
+                MaxSpeedMultiplier = 1.05f,
+                CooldownMultiplier = 1f,
+                DamageMultiplier = 1.02f
+            });
+
+            var trinketDefs = em.AddBuffer<FleetcrawlTrinketDefinition>(runtime);
+            trinketDefs.Add(new FleetcrawlTrinketDefinition
+            {
+                TrinketId = new FixedString64Bytes("trinket_prism_refractor"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                SetId = new FixedString64Bytes("set_prism"),
+                ComboTags = FleetcrawlComboTag.Arc | FleetcrawlComboTag.Flux,
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork | FleetcrawlWeaponBehaviorTag.Ionize,
+                SkillFamily = FleetcrawlSkillFamily.Support,
+                MinQuality = FleetcrawlLimbQualityTier.Uncommon,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 8,
+                MinLevel = 4,
+                CooldownMultiplier = 0.95f,
+                DamageMultiplier = 1.08f
+            });
+            trinketDefs.Add(new FleetcrawlTrinketDefinition
+            {
+                TrinketId = new FixedString64Bytes("trinket_kinetic_gyrostab"),
+                ManufacturerId = new FixedString64Bytes("baseline"),
+                SetId = new FixedString64Bytes("set_raider"),
+                ComboTags = FleetcrawlComboTag.Agile | FleetcrawlComboTag.Kinetic,
+                WeaponBehaviors = FleetcrawlWeaponBehaviorTag.Ricochet | FleetcrawlWeaponBehaviorTag.Pierce,
+                SkillFamily = FleetcrawlSkillFamily.Ordnance,
+                MinQuality = FleetcrawlLimbQualityTier.Common,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 10,
+                MinLevel = 3,
+                CooldownMultiplier = 0.97f,
+                DamageMultiplier = 1.06f
+            });
+
+            var itemDefs = em.AddBuffer<FleetcrawlGeneralItemDefinition>(runtime);
+            itemDefs.Add(new FleetcrawlGeneralItemDefinition
+            {
+                ItemId = new FixedString64Bytes("item_nanite_cache"),
+                ManufacturerId = new FixedString64Bytes("civfoundry"),
+                SetId = new FixedString64Bytes("set_support"),
+                ComboTags = FleetcrawlComboTag.Support,
+                SkillFamily = FleetcrawlSkillFamily.Defense,
+                MinQuality = FleetcrawlLimbQualityTier.Common,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 12,
+                MinLevel = 2,
+                MaxStackCount = 3,
+                CooldownMultiplier = 0.99f,
+                DamageMultiplier = 1.03f
+            });
+            itemDefs.Add(new FleetcrawlGeneralItemDefinition
+            {
+                ItemId = new FixedString64Bytes("item_flux_capsule"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                SetId = new FixedString64Bytes("set_prism"),
+                ComboTags = FleetcrawlComboTag.Flux,
+                SkillFamily = FleetcrawlSkillFamily.Support,
+                MinQuality = FleetcrawlLimbQualityTier.Uncommon,
+                MaxQuality = FleetcrawlLimbQualityTier.Legendary,
+                Weight = 8,
+                MinLevel = 3,
+                MaxStackCount = 2,
+                CooldownMultiplier = 0.95f,
+                DamageMultiplier = 1.05f
+            });
+
+            var setDefs = em.AddBuffer<FleetcrawlSetBonusDefinition>(runtime);
+            setDefs.Add(new FleetcrawlSetBonusDefinition
+            {
+                SetId = new FixedString64Bytes("set_raider"),
+                ManufacturerId = new FixedString64Bytes("baseline"),
+                RequiredItemTags = FleetcrawlComboTag.Agile | FleetcrawlComboTag.Kinetic,
+                RequiredWeaponBehaviors = FleetcrawlWeaponBehaviorTag.Ricochet,
+                RequiredSkillFamily = FleetcrawlSkillFamily.Ordnance,
+                RequiredCount = 2,
+                TurnRateMultiplier = 1.05f,
+                AccelerationMultiplier = 1.04f,
+                DecelerationMultiplier = 1.02f,
+                MaxSpeedMultiplier = 1.04f,
+                CooldownMultiplier = 0.96f,
+                DamageMultiplier = 1.08f
+            });
+            setDefs.Add(new FleetcrawlSetBonusDefinition
+            {
+                SetId = new FixedString64Bytes("set_prism"),
+                ManufacturerId = new FixedString64Bytes("prismworks"),
+                RequiredItemTags = FleetcrawlComboTag.Arc | FleetcrawlComboTag.Flux,
+                RequiredWeaponBehaviors = FleetcrawlWeaponBehaviorTag.BeamFork,
+                RequiredSkillFamily = FleetcrawlSkillFamily.Support,
+                RequiredCount = 2,
+                TurnRateMultiplier = 1.03f,
+                AccelerationMultiplier = 1.02f,
+                DecelerationMultiplier = 1.01f,
+                MaxSpeedMultiplier = 1.02f,
+                CooldownMultiplier = 0.9f,
+                DamageMultiplier = 1.1f
+            });
+
             em.AddBuffer<FleetcrawlCurrencyShopOfferEntry>(runtime);
             em.AddBuffer<FleetcrawlLootOfferEntry>(runtime);
+            em.AddBuffer<FleetcrawlOwnedItem>(runtime);
 
-            Debug.Log($"[FleetcrawlMeta] Loot/shop bootstrap ready. shop_catalog={shopCatalog.Length} loot_catalog={lootCatalog.Length} limbs={limbDefs.Length} affixes={affixDefs.Length}.");
+            Debug.Log($"[FleetcrawlMeta] Loot/shop bootstrap ready. shop_catalog={shopCatalog.Length} loot_catalog={lootCatalog.Length} limbs={limbDefs.Length} affixes={affixDefs.Length} hulls={hullDefs.Length} trinkets={trinketDefs.Length} items={itemDefs.Length} sets={setDefs.Length}.");
         }
     }
 
@@ -514,6 +737,9 @@ namespace Space4x.Fleetcrawl
             var lootCatalog = em.GetBuffer<FleetcrawlLootOfferCatalogEntry>(runtimeEntity);
             var limbDefinitions = em.GetBuffer<FleetcrawlModuleLimbDefinition>(runtimeEntity);
             var affixDefinitions = em.GetBuffer<FleetcrawlLimbAffixDefinition>(runtimeEntity);
+            var hullDefinitions = em.GetBuffer<FleetcrawlHullSegmentDefinition>(runtimeEntity);
+            var trinketDefinitions = em.GetBuffer<FleetcrawlTrinketDefinition>(runtimeEntity);
+            var itemDefinitions = em.GetBuffer<FleetcrawlGeneralItemDefinition>(runtimeEntity);
 
             currencyOffers.Clear();
             lootOffers.Clear();
@@ -572,26 +798,80 @@ namespace Space4x.Fleetcrawl
                 }
 
                 var catalogRow = lootCatalog[index];
-                var rolled = FleetcrawlDeterministicLimbRollService.RollLimb(
-                    director.Seed,
-                    roomIndex,
-                    level,
-                    catalogRow.ModuleType,
-                    catalogRow.Slot,
-                    cache.RefreshCount * 97 + slot + (int)requestNonce,
-                    limbDefinitions,
-                    affixDefinitions);
+                var rollStream = cache.RefreshCount * 97 + slot + (int)requestNonce;
+                var rolledLimb = default(FleetcrawlRolledLimb);
+                FleetcrawlRolledItem rolledItem;
+                switch (catalogRow.Archetype)
+                {
+                    case FleetcrawlLootArchetype.HullSegment:
+                        rolledItem = FleetcrawlDeterministicLimbRollService.RollHullSegment(
+                            director.Seed,
+                            roomIndex,
+                            level,
+                            catalogRow.ItemId,
+                            rollStream,
+                            hullDefinitions);
+                        break;
+                    case FleetcrawlLootArchetype.Trinket:
+                        rolledItem = FleetcrawlDeterministicLimbRollService.RollTrinket(
+                            director.Seed,
+                            roomIndex,
+                            level,
+                            catalogRow.ItemId,
+                            rollStream,
+                            trinketDefinitions);
+                        break;
+                    case FleetcrawlLootArchetype.GeneralItem:
+                        rolledItem = FleetcrawlDeterministicLimbRollService.RollGeneralItem(
+                            director.Seed,
+                            roomIndex,
+                            level,
+                            catalogRow.ItemId,
+                            rollStream,
+                            itemDefinitions);
+                        break;
+                    default:
+                        rolledLimb = FleetcrawlDeterministicLimbRollService.RollLimb(
+                            director.Seed,
+                            roomIndex,
+                            level,
+                            catalogRow.ModuleType,
+                            catalogRow.Slot,
+                            rollStream,
+                            limbDefinitions,
+                            affixDefinitions);
+                        rolledItem = FleetcrawlDeterministicLimbRollService.FromLimb(
+                            rolledLimb,
+                            catalogRow.ManufacturerId,
+                            catalogRow.SetId,
+                            catalogRow.WeaponBehaviors,
+                            catalogRow.SkillFamily);
+                        break;
+                }
 
-                var price = math.max(1, catalogRow.BaseShardCost + (challenge * 5) + (rolled.Quality * 6));
+                var behaviorCost = CountBehaviorFlags(rolledItem.WeaponBehaviors) * 5;
+                var socketCost = math.max(0, rolledItem.ModuleSocketCount) * 4;
+                var stackCost = math.max(0, rolledItem.StackCount - 1) * 2;
+                var price = math.max(1, catalogRow.BaseShardCost + (challenge * 5) + ((int)rolledItem.Quality * 6) + behaviorCost + socketCost + stackCost);
                 lootOffers.Add(new FleetcrawlLootOfferEntry
                 {
                     SlotIndex = slot,
                     OfferId = catalogRow.OfferId,
+                    Archetype = catalogRow.Archetype,
                     ModuleType = catalogRow.ModuleType,
                     Slot = catalogRow.Slot,
+                    ItemId = rolledItem.ItemId,
+                    ManufacturerId = rolledItem.ManufacturerId,
+                    SetId = rolledItem.SetId,
                     PriceShards = price,
-                    RolledLimb = rolled,
-                    ComboTags = catalogRow.ComboTags | rolled.ComboTags,
+                    Quality = rolledItem.Quality,
+                    ModuleSocketCount = rolledItem.ModuleSocketCount,
+                    StackCount = rolledItem.StackCount,
+                    WeaponBehaviors = rolledItem.WeaponBehaviors,
+                    SkillFamily = rolledItem.SkillFamily,
+                    RolledLimb = rolledLimb,
+                    RolledItem = rolledItem,
+                    ComboTags = catalogRow.ComboTags | rolledItem.ComboTags,
                     RollHash = offerHash
                 });
             }
@@ -708,6 +988,18 @@ namespace Space4x.Fleetcrawl
             }
 
             return -1;
+        }
+
+        private static int CountBehaviorFlags(FleetcrawlWeaponBehaviorTag flags)
+        {
+            var value = (uint)flags;
+            var count = 0;
+            while (value != 0u)
+            {
+                count += (int)(value & 1u);
+                value >>= 1;
+            }
+            return count;
         }
     }
 }
