@@ -1,7 +1,9 @@
 using PureDOTS.Runtime.Components;
 using Space4X.BattleSlice;
+using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -28,6 +30,10 @@ namespace Space4X.Camera
         private bool _battleMetricsQueryValid;
         private EntityQuery _battleFighterQuery;
         private bool _battleFighterQueryValid;
+        private EntityQuery _fleetcrawlDirectorQuery;
+        private bool _fleetcrawlDirectorQueryValid;
+        private EntityQuery _enemyTelegraphQuery;
+        private bool _enemyTelegraphQueryValid;
         private Space4XCameraRigController _rigController;
         private GUIStyle _panelStyle;
         private GUIStyle _labelStyle;
@@ -42,6 +48,27 @@ namespace Space4X.Camera
             public float WorldSeconds;
             public uint Digest;
             public bool HasDigest;
+            public bool HasFleetcrawl;
+            public int FleetcrawlRoomIndex;
+            public int FleetcrawlRoomCount;
+            public Space4XFleetcrawlRoomKind FleetcrawlRoomKind;
+            public float FleetcrawlRemainingSeconds;
+            public Space4XFleetcrawlDifficultyStatus FleetcrawlStatus;
+            public int FleetcrawlKills;
+            public int FleetcrawlSpawned;
+            public int FleetcrawlMiniBossKills;
+            public int FleetcrawlBossKills;
+            public Space4XFleetcrawlRoomEndLogic FleetcrawlObjectiveLogic;
+            public Space4XFleetcrawlRoomEndConditionFlags FleetcrawlObjectiveConditions;
+            public int FleetcrawlKillQuota;
+            public int FleetcrawlMiniBossQuota;
+            public int FleetcrawlBossQuota;
+            public int TelegraphNormalWindup;
+            public int TelegraphMiniWindup;
+            public int TelegraphBossWindup;
+            public int TelegraphNormalBurst;
+            public int TelegraphMiniBurst;
+            public int TelegraphBossBurst;
         }
 
         private void OnEnable()
@@ -54,6 +81,8 @@ namespace Space4X.Camera
             DisposeQuery(ref _tickQuery, ref _tickQueryValid);
             DisposeQuery(ref _battleMetricsQuery, ref _battleMetricsQueryValid);
             DisposeQuery(ref _battleFighterQuery, ref _battleFighterQueryValid);
+            DisposeQuery(ref _fleetcrawlDirectorQuery, ref _fleetcrawlDirectorQueryValid);
+            DisposeQuery(ref _enemyTelegraphQuery, ref _enemyTelegraphQueryValid);
         }
 
         private void Update()
@@ -97,6 +126,21 @@ namespace Space4X.Camera
             else if (showDeterminismDigest)
             {
                 GUILayout.Label("Digest n/a", _labelStyle);
+            }
+
+            if (_snapshot.HasFleetcrawl)
+            {
+                GUILayout.Space(4f);
+                GUILayout.Label(
+                    $"Fleetcrawl room {_snapshot.FleetcrawlRoomIndex + 1}/{_snapshot.FleetcrawlRoomCount} kind={_snapshot.FleetcrawlRoomKind} remaining={_snapshot.FleetcrawlRemainingSeconds:0.0}s",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Status {_snapshot.FleetcrawlStatus}  kills={_snapshot.FleetcrawlKills}/{math.max(0, _snapshot.FleetcrawlSpawned)}  mini={_snapshot.FleetcrawlMiniBossKills}  boss={_snapshot.FleetcrawlBossKills}",
+                    _labelStyle);
+                GUILayout.Label(BuildFleetcrawlObjectiveText(in _snapshot), _labelStyle);
+                GUILayout.Label(
+                    $"Telegraphs: windup N:{_snapshot.TelegraphNormalWindup} M:{_snapshot.TelegraphMiniWindup} B:{_snapshot.TelegraphBossWindup} | burst N:{_snapshot.TelegraphNormalBurst} M:{_snapshot.TelegraphMiniBurst} B:{_snapshot.TelegraphBossBurst}",
+                    _labelStyle);
             }
 
             var mode = _rigController != null && _rigController.IsCinematicActive
@@ -162,6 +206,72 @@ namespace Space4X.Camera
                 }
             }
 
+            if (TryGetFirstEntity(entityManager, _fleetcrawlDirectorQuery, out var directorEntity) &&
+                entityManager.HasComponent<Space4XFleetcrawlDirectorState>(directorEntity) &&
+                entityManager.HasBuffer<Space4XFleetcrawlRoom>(directorEntity))
+            {
+                var director = entityManager.GetComponentData<Space4XFleetcrawlDirectorState>(directorEntity);
+                var rooms = entityManager.GetBuffer<Space4XFleetcrawlRoom>(directorEntity);
+                if (rooms.Length > 0)
+                {
+                    var roomIndex = math.clamp(director.CurrentRoomIndex, 0, rooms.Length - 1);
+                    var room = rooms[roomIndex];
+                    var dt = 1f / 60f;
+                    if (_tickQuery.CalculateEntityCount() == 1)
+                    {
+                        var tickEntity = _tickQuery.GetSingletonEntity();
+                        if (entityManager.HasComponent<TickTimeState>(tickEntity))
+                        {
+                            var tick = entityManager.GetComponentData<TickTimeState>(tickEntity);
+                            dt = tick.FixedDeltaTime > 0f ? tick.FixedDeltaTime : dt;
+                        }
+                    }
+
+                    snapshot.HasFleetcrawl = true;
+                    snapshot.FleetcrawlRoomIndex = roomIndex;
+                    snapshot.FleetcrawlRoomCount = rooms.Length;
+                    snapshot.FleetcrawlRoomKind = room.Kind;
+                    snapshot.FleetcrawlRemainingSeconds = math.max(0f, (director.RoomEndTick - snapshot.Tick) * dt);
+                    snapshot.FleetcrawlStatus = director.DifficultyStatus;
+                    snapshot.FleetcrawlKills = director.EnemiesDestroyedInRoom;
+                    snapshot.FleetcrawlSpawned = director.EnemiesSpawnedInRoom;
+                    snapshot.FleetcrawlMiniBossKills = director.MiniBossesDestroyedInRoom;
+                    snapshot.FleetcrawlBossKills = director.BossesDestroyedInRoom;
+                    snapshot.FleetcrawlObjectiveLogic = room.EndLogic;
+                    snapshot.FleetcrawlObjectiveConditions = room.EndConditions;
+                    snapshot.FleetcrawlKillQuota = room.KillQuota;
+                    snapshot.FleetcrawlMiniBossQuota = room.MiniBossQuota;
+                    snapshot.FleetcrawlBossQuota = room.BossQuota;
+                }
+            }
+
+            if (!_enemyTelegraphQuery.IsEmptyIgnoreFilter)
+            {
+                using var states = _enemyTelegraphQuery.ToComponentDataArray<Space4XEnemyTelegraphState>(Allocator.Temp);
+                using var tags = _enemyTelegraphQuery.ToComponentDataArray<Space4XRunEnemyTag>(Allocator.Temp);
+                var count = math.min(states.Length, tags.Length);
+                for (var i = 0; i < count; i++)
+                {
+                    var telegraphing = states[i].IsTelegraphing != 0;
+                    var bursting = states[i].IsBursting != 0;
+                    switch (tags[i].EnemyClass)
+                    {
+                        case Space4XFleetcrawlEnemyClass.MiniBoss:
+                            if (telegraphing) snapshot.TelegraphMiniWindup++;
+                            if (bursting) snapshot.TelegraphMiniBurst++;
+                            break;
+                        case Space4XFleetcrawlEnemyClass.Boss:
+                            if (telegraphing) snapshot.TelegraphBossWindup++;
+                            if (bursting) snapshot.TelegraphBossBurst++;
+                            break;
+                        default:
+                            if (telegraphing) snapshot.TelegraphNormalWindup++;
+                            if (bursting) snapshot.TelegraphNormalBurst++;
+                            break;
+                    }
+                }
+            }
+
             _snapshot = snapshot;
         }
 
@@ -196,6 +306,22 @@ namespace Space4X.Camera
             {
                 _battleFighterQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XBattleSliceFighter>());
                 _battleFighterQueryValid = true;
+            }
+
+            if (!_fleetcrawlDirectorQueryValid)
+            {
+                _fleetcrawlDirectorQuery = entityManager.CreateEntityQuery(
+                    ComponentType.ReadOnly<Space4XFleetcrawlDirectorState>(),
+                    ComponentType.ReadOnly<Space4XFleetcrawlRoom>());
+                _fleetcrawlDirectorQueryValid = true;
+            }
+
+            if (!_enemyTelegraphQueryValid)
+            {
+                _enemyTelegraphQuery = entityManager.CreateEntityQuery(
+                    ComponentType.ReadOnly<Space4XEnemyTelegraphState>(),
+                    ComponentType.ReadOnly<Space4XRunEnemyTag>());
+                _enemyTelegraphQueryValid = true;
             }
 
             return true;
@@ -264,6 +390,49 @@ namespace Space4X.Camera
                 fontSize = fontSize
             };
             _labelStyle.normal.textColor = new Color(0.93f, 0.96f, 1f, 1f);
+        }
+
+        private static string BuildFleetcrawlObjectiveText(in HudSnapshot snapshot)
+        {
+            var conditions = snapshot.FleetcrawlObjectiveConditions;
+            if (conditions == 0)
+            {
+                conditions = Space4XFleetcrawlRoomEndConditionFlags.Timer;
+            }
+
+            var text = $"Objective ({snapshot.FleetcrawlObjectiveLogic}): ";
+            var hasPart = false;
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.Timer) != 0)
+            {
+                text += $"timer {snapshot.FleetcrawlRemainingSeconds:0.0}s";
+                hasPart = true;
+            }
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.KillQuota) != 0)
+            {
+                if (hasPart) text += " | ";
+                var target = math.max(1, snapshot.FleetcrawlKillQuota);
+                var progress = math.min(target, snapshot.FleetcrawlKills);
+                text += $"kills {progress}/{target}";
+                hasPart = true;
+            }
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota) != 0)
+            {
+                if (hasPart) text += " | ";
+                var target = math.max(1, snapshot.FleetcrawlMiniBossQuota);
+                var progress = math.min(target, snapshot.FleetcrawlMiniBossKills);
+                text += $"mini {progress}/{target}";
+                hasPart = true;
+            }
+            if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.BossQuota) != 0)
+            {
+                if (hasPart) text += " | ";
+                var target = math.max(1, snapshot.FleetcrawlBossQuota);
+                var progress = math.min(target, snapshot.FleetcrawlBossKills);
+                text += $"boss {progress}/{target}";
+                hasPart = true;
+            }
+
+            return hasPart ? text : "Objective: <none>";
         }
     }
 }
