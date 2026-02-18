@@ -20,6 +20,7 @@ namespace Space4x.Scenario
             if (existing != null)
             {
                 EnsureComponent<Space4XFleetcrawlGateMarkersMono>(existing.gameObject);
+                EnsureComponent<Space4XFleetcrawlEconomyAffordancesMono>(existing.gameObject);
                 LogOnce("existing");
                 return;
             }
@@ -31,6 +32,7 @@ namespace Space4x.Scenario
             go.AddComponent<Space4XFleetcrawlPlayerControlMono>();
             go.AddComponent<Space4XFleetcrawlCameraFollowMono>();
             EnsureComponent<Space4XFleetcrawlGateMarkersMono>(go);
+            EnsureComponent<Space4XFleetcrawlEconomyAffordancesMono>(go);
             LogOnce("spawned");
         }
 
