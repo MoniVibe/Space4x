@@ -129,6 +129,7 @@ namespace Space4x.Scenario
             }
 
             var specialRequested = false;
+            var specialCooldownUntilTickForDirective = _specialCooldownUntilTick;
             if (keyboard.eKey.wasPressedThisFrame && tick >= _specialCooldownUntilTick)
             {
                 _specialCooldownUntilTick = tick + _specialCooldownTicks;
@@ -155,16 +156,7 @@ namespace Space4x.Scenario
                 step += dashDistance * dt * 0.35f;
             }
 
-            if (!hasInput && _smoothedSpeed < 0.05f)
-            {
-                UpdateStatusSnapshot();
-                return;
-            }
-
             var flagshipEntity = _flagshipQuery.GetSingletonEntity();
-            var transform = _entityManager.GetComponentData<LocalTransform>(flagshipEntity);
-            var command = _entityManager.GetComponentData<MovementCommand>(flagshipEntity);
-
             UpsertComponent(flagshipEntity, new Space4XFleetcrawlPlayerDirective
             {
                 Movement = moveInput,
@@ -174,8 +166,17 @@ namespace Space4x.Scenario
                 Tick = tick,
                 BoostCooldownUntilTick = _boostCooldownUntilTick,
                 DashCooldownUntilTick = _dashCooldownUntilTick,
-                SpecialCooldownUntilTick = _specialCooldownUntilTick
+                SpecialCooldownUntilTick = specialCooldownUntilTickForDirective
             });
+
+            if (!hasInput && _smoothedSpeed < 0.05f)
+            {
+                UpdateStatusSnapshot();
+                return;
+            }
+
+            var transform = _entityManager.GetComponentData<LocalTransform>(flagshipEntity);
+            var command = _entityManager.GetComponentData<MovementCommand>(flagshipEntity);
 
             var target = transform.Position + moveDir * step;
             target.y = transform.Position.y;
