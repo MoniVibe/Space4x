@@ -63,6 +63,16 @@ namespace Space4X.Camera
             public int FleetcrawlKillQuota;
             public int FleetcrawlMiniBossQuota;
             public int FleetcrawlBossQuota;
+            public int FleetcrawlLevel;
+            public int FleetcrawlExperience;
+            public int FleetcrawlExperienceToNext;
+            public int FleetcrawlUnspentUpgrades;
+            public int FleetcrawlMetaShards;
+            public Space4XFleetcrawlChallengeKind FleetcrawlChallengeKind;
+            public int FleetcrawlChallengeRisk;
+            public float FleetcrawlChallengeSpawnMultiplier;
+            public float FleetcrawlChallengeCurrencyMultiplier;
+            public float FleetcrawlChallengeExperienceMultiplier;
             public int TelegraphNormalWindup;
             public int TelegraphMiniWindup;
             public int TelegraphBossWindup;
@@ -137,6 +147,12 @@ namespace Space4X.Camera
                 GUILayout.Label(
                     $"Status {_snapshot.FleetcrawlStatus}  kills={_snapshot.FleetcrawlKills}/{math.max(0, _snapshot.FleetcrawlSpawned)}  mini={_snapshot.FleetcrawlMiniBossKills}  boss={_snapshot.FleetcrawlBossKills}",
                     _labelStyle);
+                GUILayout.Label(
+                    $"Progress lvl={_snapshot.FleetcrawlLevel} xp={_snapshot.FleetcrawlExperience}/{_snapshot.FleetcrawlExperienceToNext} unspent={_snapshot.FleetcrawlUnspentUpgrades} shards={_snapshot.FleetcrawlMetaShards}",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Challenge {_snapshot.FleetcrawlChallengeKind} risk={_snapshot.FleetcrawlChallengeRisk} spawn={_snapshot.FleetcrawlChallengeSpawnMultiplier:0.00}x xp={_snapshot.FleetcrawlChallengeExperienceMultiplier:0.00}x currency={_snapshot.FleetcrawlChallengeCurrencyMultiplier:0.00}x",
+                    _labelStyle);
                 GUILayout.Label(BuildFleetcrawlObjectiveText(in _snapshot), _labelStyle);
                 GUILayout.Label(
                     $"Telegraphs: windup N:{_snapshot.TelegraphNormalWindup} M:{_snapshot.TelegraphMiniWindup} B:{_snapshot.TelegraphBossWindup} | burst N:{_snapshot.TelegraphNormalBurst} M:{_snapshot.TelegraphMiniBurst} B:{_snapshot.TelegraphBossBurst}",
@@ -155,7 +171,10 @@ namespace Space4X.Camera
         {
             var snapshot = new HudSnapshot
             {
-                WorldSeconds = UnityEngine.Time.timeSinceLevelLoad
+                WorldSeconds = UnityEngine.Time.timeSinceLevelLoad,
+                FleetcrawlChallengeSpawnMultiplier = 1f,
+                FleetcrawlChallengeCurrencyMultiplier = 1f,
+                FleetcrawlChallengeExperienceMultiplier = 1f
             };
 
             if (!TryEnsureQueries(out var entityManager))
@@ -242,6 +261,28 @@ namespace Space4X.Camera
                     snapshot.FleetcrawlKillQuota = room.KillQuota;
                     snapshot.FleetcrawlMiniBossQuota = room.MiniBossQuota;
                     snapshot.FleetcrawlBossQuota = room.BossQuota;
+                    if (entityManager.HasComponent<Space4XRunProgressionState>(directorEntity))
+                    {
+                        var progression = entityManager.GetComponentData<Space4XRunProgressionState>(directorEntity);
+                        snapshot.FleetcrawlLevel = progression.Level;
+                        snapshot.FleetcrawlExperience = progression.Experience;
+                        snapshot.FleetcrawlExperienceToNext = progression.ExperienceToNext;
+                        snapshot.FleetcrawlUnspentUpgrades = progression.UnspentUpgrades;
+                    }
+                    if (entityManager.HasComponent<Space4XRunMetaResourceState>(directorEntity))
+                    {
+                        var meta = entityManager.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
+                        snapshot.FleetcrawlMetaShards = meta.Shards;
+                    }
+                    if (entityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
+                    {
+                        var challenge = entityManager.GetComponentData<Space4XRunChallengeState>(directorEntity);
+                        snapshot.FleetcrawlChallengeKind = challenge.Kind;
+                        snapshot.FleetcrawlChallengeRisk = challenge.RiskTier;
+                        snapshot.FleetcrawlChallengeSpawnMultiplier = challenge.SpawnMultiplier;
+                        snapshot.FleetcrawlChallengeCurrencyMultiplier = challenge.CurrencyMultiplier;
+                        snapshot.FleetcrawlChallengeExperienceMultiplier = challenge.ExperienceMultiplier;
+                    }
                 }
             }
 

@@ -26,6 +26,7 @@ namespace Space4x.Scenario
     public enum Space4XFleetcrawlDifficultyStatus : byte { Calm = 0, Pressured = 1, Overrun = 2, Recovery = 3 }
     public enum Space4XFleetcrawlEnemyClass : byte { Normal = 0, MiniBoss = 1, Boss = 2 }
     public enum Space4XFleetcrawlBoonType : byte { ChainLightning = 0, MissileVolley = 1, BoostCooldown = 2, ShieldRegen = 3 }
+    public enum Space4XFleetcrawlChallengeKind : byte { None = 0, Swarm = 1, Hazard = 2, Nemesis = 3 }
     public enum Space4XRunGateKind : byte { Boon = 0, Blueprint = 1, Relief = 2 }
     public enum Space4XRunRewardKind : byte { None = 0, Boon = 1, ModuleBlueprint = 2, ManufacturerUnlock = 3, PartUnlock = 4, Currency = 5, Heal = 6, Reroll = 7 }
     public enum Space4XRunPerkOpKind : byte { AddStat = 0, MulStat = 1, AddTag = 2, RemoveTag = 3, ConvertDamage = 4, ReplaceAttackFamily = 5 }
@@ -54,6 +55,29 @@ namespace Space4x.Scenario
     public struct Space4XRunRerollTokens : IComponentData { public int Value; }
     public struct Space4XRunReactiveModifiers : IComponentData { public float DamageMul; public float CooldownMul; }
     public struct Space4XRunBoonSet : IComponentData { public byte ChainLightning; public byte MissileVolley; public byte BoostCooldown; public byte ShieldRegen; }
+    public struct Space4XRunProgressionState : IComponentData
+    {
+        public int Level;
+        public int Experience;
+        public int ExperienceToNext;
+        public int UnspentUpgrades;
+        public int TotalExperienceEarned;
+    }
+    public struct Space4XRunChallengeState : IComponentData
+    {
+        public Space4XFleetcrawlChallengeKind Kind;
+        public byte Active;
+        public byte RiskTier;
+        public int RoomIndex;
+        public float SpawnMultiplier;
+        public float CurrencyMultiplier;
+        public float ExperienceMultiplier;
+    }
+    public struct Space4XRunMetaResourceState : IComponentData
+    {
+        public int Shards;
+        public int RoomChallengeClears;
+    }
 
     [InternalBufferCapacity(8)]
     public struct Space4XRunPerkOp : IBufferElementData
@@ -363,11 +387,15 @@ namespace Space4x.Scenario
     {
         private const string RoomProfilePathEnv = "SPACE4X_FLEETCRAWL_ROOMS_PATH";
         private static readonly char[] EndConditionSplitChars = { '|', ',', ';', '+', ' ' };
+        private EntityQuery _seededQuery;
+        private EntityQuery _directorQuery;
 
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<ScenarioInfo>();
             state.RequireForUpdate<TimeState>();
+            _seededQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XFleetcrawlSeeded>());
+            _directorQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XFleetcrawlDirectorState>());
         }
 
         public void OnUpdate(ref SystemState state)
@@ -379,7 +407,8 @@ namespace Space4x.Scenario
                 return;
             }
 
-            if (SystemAPI.TryGetSingleton<Space4XFleetcrawlSeeded>(out _))
+            // Guard against repeated bootstrap in multi-world/test harness flows.
+            if (!_seededQuery.IsEmptyIgnoreFilter || !_directorQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }
@@ -396,7 +425,10 @@ namespace Space4x.Scenario
                 typeof(RunCurrency),
                 typeof(Space4XRunRerollTokens),
                 typeof(Space4XRunReactiveModifiers),
-                typeof(Space4XRunBoonSet));
+                typeof(Space4XRunBoonSet),
+                typeof(Space4XRunProgressionState),
+                typeof(Space4XRunChallengeState),
+                typeof(Space4XRunMetaResourceState));
             var rooms = state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunPerkOp>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunInstalledBlueprint>(directorEntity);
@@ -544,6 +576,29 @@ namespace Space4x.Scenario
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunRerollTokens { Value = 0 });
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunReactiveModifiers { DamageMul = 1f, CooldownMul = 1f });
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunBoonSet());
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunProgressionState
+            {
+                Level = 1,
+                Experience = 0,
+                ExperienceToNext = 30,
+                UnspentUpgrades = 0,
+                TotalExperienceEarned = 0
+            });
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunChallengeState
+            {
+                Kind = Space4XFleetcrawlChallengeKind.None,
+                Active = 0,
+                RiskTier = 0,
+                RoomIndex = -1,
+                SpawnMultiplier = 1f,
+                CurrencyMultiplier = 1f,
+                ExperienceMultiplier = 1f
+            });
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunMetaResourceState
+            {
+                Shards = 0,
+                RoomChallengeClears = 0
+            });
 
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
@@ -1156,6 +1211,10 @@ namespace Space4x.Scenario
         private const int CarrierKillBounty = 12;
         private const int MiniBossKillBonus = 8;
         private const int BossKillBonus = 22;
+        private const int StrikeCraftKillExperience = 4;
+        private const int CarrierKillExperience = 10;
+        private const int MiniBossKillExperienceBonus = 12;
+        private const int BossKillExperienceBonus = 28;
 
         public void OnCreate(ref SystemState state)
         {
@@ -1213,6 +1272,7 @@ namespace Space4x.Scenario
             }
 
             var bountyEarned = 0;
+            var experienceEarned = 0;
             foreach (var (hull, enemyTag, entity) in SystemAPI.Query<RefRO<HullIntegrity>, RefRO<Space4XRunEnemyTag>>().WithNone<Space4XRunEnemyDestroyedCounted>().WithEntityAccess())
             {
                 if (hull.ValueRO.Current > 0f)
@@ -1222,19 +1282,23 @@ namespace Space4x.Scenario
 
                 director.EnemiesDestroyedInRoom++;
                 var bounty = SystemAPI.HasComponent<CarrierTag>(entity) ? CarrierKillBounty : StrikeCraftKillBounty;
+                var experience = SystemAPI.HasComponent<CarrierTag>(entity) ? CarrierKillExperience : StrikeCraftKillExperience;
                 switch (enemyTag.ValueRO.EnemyClass)
                 {
                     case Space4XFleetcrawlEnemyClass.MiniBoss:
                         director.MiniBossesDestroyedInRoom++;
                         bounty += MiniBossKillBonus;
+                        experience += MiniBossKillExperienceBonus;
                         break;
                     case Space4XFleetcrawlEnemyClass.Boss:
                         director.BossesDestroyedInRoom++;
                         bounty += BossKillBonus;
+                        experience += BossKillExperienceBonus;
                         break;
                 }
 
                 bountyEarned += bounty;
+                experienceEarned += experience;
                 ecb.AddComponent<Space4XRunEnemyDestroyedCounted>(entity);
             }
 
@@ -1243,6 +1307,10 @@ namespace Space4x.Scenario
                 var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
                 currency.Value += bountyEarned;
                 state.EntityManager.SetComponentData(directorEntity, currency);
+            }
+            if (experienceEarned > 0)
+            {
+                AwardExperience(ref state, directorEntity, ref director, experienceEarned);
             }
 
             if (director.Initialized == 0)
@@ -1325,6 +1393,12 @@ namespace Space4x.Scenario
             director.NextWaveTick = director.RoomEndTick;
             director.DifficultyStatus = Space4XFleetcrawlDifficultyStatus.Calm;
             director.RunFailed = 0;
+            var challenge = ResolveChallengeForRoom(director.Seed, roomIndex, room);
+            if (!state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
+            {
+                state.EntityManager.AddComponentData(directorEntity, challenge);
+            }
+            state.EntityManager.SetComponentData(directorEntity, challenge);
 
             if (room.Kind == Space4XFleetcrawlRoomKind.Combat || room.Kind == Space4XFleetcrawlRoomKind.Boss)
             {
@@ -1332,7 +1406,7 @@ namespace Space4x.Scenario
                 director.NextWaveTick = tick + math.max(1u, room.WaveIntervalTicks);
             }
 
-            Debug.Log($"[Fleetcrawl] ROOM_START index={roomIndex} kind={room.Kind} relief={room.ReliefKind} duration_s={(director.RoomEndTick - director.RoomStartTick) * dt:0.0} waves={room.PlannedWaves} end={room.EndLogic}:{room.EndConditions}.");
+            Debug.Log($"[Fleetcrawl] ROOM_START index={roomIndex} kind={room.Kind} relief={room.ReliefKind} challenge={challenge.Kind} risk={challenge.RiskTier} duration_s={(director.RoomEndTick - director.RoomStartTick) * dt:0.0} waves={room.PlannedWaves} end={room.EndLogic}:{room.EndConditions}.");
         }
 
         private void SpawnWave(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int roomIndex, int waveIndex, uint tick)
@@ -1347,6 +1421,17 @@ namespace Space4x.Scenario
             var carrierCount = 0;
             var strikeCount = 0;
             var spawnScale = ResolveSpawnScale(director.DifficultyStatus);
+            var challengeSpawnScale = 1f;
+            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            if (state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
+            {
+                var challenge = state.EntityManager.GetComponentData<Space4XRunChallengeState>(directorEntity);
+                if (challenge.Active != 0 && challenge.RoomIndex == roomIndex)
+                {
+                    challengeSpawnScale = math.max(0.65f, challenge.SpawnMultiplier);
+                }
+            }
+            var totalSpawnScale = spawnScale * challengeSpawnScale;
             var strikePerWave = math.max(0, room.BaseStrikePerWave);
             var carrierPerWave = math.max(0, room.BaseCarrierPerWave);
             if (room.Kind == Space4XFleetcrawlRoomKind.Relief)
@@ -1355,8 +1440,8 @@ namespace Space4x.Scenario
                 carrierPerWave = 0;
             }
 
-            strikePerWave = math.max(0, (int)math.round(strikePerWave * spawnScale));
-            carrierPerWave = math.max(0, (int)math.round(carrierPerWave * spawnScale));
+            strikePerWave = math.max(0, (int)math.round(strikePerWave * totalSpawnScale));
+            carrierPerWave = math.max(0, (int)math.round(carrierPerWave * totalSpawnScale));
 
             if (strikePerWave > 0)
             {
@@ -1379,7 +1464,7 @@ namespace Space4x.Scenario
                                   (waveIndex % room.MiniBossEveryNWaves == 0);
             if (shouldSpawnMini && room.MiniBossCarrierCount > 0)
             {
-                var miniCount = math.max(1, (int)math.round(room.MiniBossCarrierCount * math.max(0.75f, spawnScale)));
+                var miniCount = math.max(1, (int)math.round(room.MiniBossCarrierCount * math.max(0.75f, totalSpawnScale)));
                 for (var i = 0; i < miniCount; i++)
                 {
                     var miniOffset = new float3(95f, 0f, (i - (miniCount - 1) * 0.5f) * 10f);
@@ -1398,7 +1483,7 @@ namespace Space4x.Scenario
 
             if (room.Kind == Space4XFleetcrawlRoomKind.Boss && waveIndex == 1 && room.BossCarrierCount > 0)
             {
-                var bossCount = math.max(1, room.BossCarrierCount);
+                var bossCount = math.max(1, (int)math.round(room.BossCarrierCount * math.max(0.8f, challengeSpawnScale)));
                 for (var i = 0; i < bossCount; i++)
                 {
                     var bossOffset = new float3(102f, 0f, (i - (bossCount - 1) * 0.5f) * 16f);
@@ -1515,8 +1600,26 @@ namespace Space4x.Scenario
         private void FinalizeRoom(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, float dt)
         {
             var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            var challenge = state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity)
+                ? state.EntityManager.GetComponentData<Space4XRunChallengeState>(directorEntity)
+                : new Space4XRunChallengeState
+                {
+                    Kind = Space4XFleetcrawlChallengeKind.None,
+                    Active = 0,
+                    RiskTier = 0,
+                    RoomIndex = director.CurrentRoomIndex,
+                    SpawnMultiplier = 1f,
+                    CurrencyMultiplier = 1f,
+                    ExperienceMultiplier = 1f
+                };
+            var challengeActive = challenge.Active != 0 && challenge.RoomIndex == director.CurrentRoomIndex;
             var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
-            currency.Value += room.RewardCurrency;
+            var roomCurrencyReward = room.RewardCurrency;
+            if (challengeActive)
+            {
+                roomCurrencyReward = math.max(1, (int)math.round(roomCurrencyReward * math.max(1f, challenge.CurrencyMultiplier)));
+            }
+            currency.Value += roomCurrencyReward;
             state.EntityManager.SetComponentData(directorEntity, currency);
 
             foreach (var hull in SystemAPI.Query<RefRW<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
@@ -1550,16 +1653,192 @@ namespace Space4x.Scenario
                 }
             }
 
+            var roomExperience = ResolveRoomCompletionExperience(room.Kind);
+            if (roomExperience > 0)
+            {
+                AwardExperience(ref state, directorEntity, ref director, roomExperience);
+            }
+            var progression = state.EntityManager.HasComponent<Space4XRunProgressionState>(directorEntity)
+                ? state.EntityManager.GetComponentData<Space4XRunProgressionState>(directorEntity)
+                : new Space4XRunProgressionState { Level = 1, ExperienceToNext = 30 };
+            if (!state.EntityManager.HasComponent<Space4XRunMetaResourceState>(directorEntity))
+            {
+                state.EntityManager.AddComponentData(directorEntity, new Space4XRunMetaResourceState());
+            }
+            var meta = state.EntityManager.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
+            meta.Shards += ResolveMetaShardReward(room.Kind, challengeActive ? challenge.RiskTier : (byte)0);
+            if (challengeActive)
+            {
+                meta.RoomChallengeClears++;
+            }
+            state.EntityManager.SetComponentData(directorEntity, meta);
+
             ApplyReliefRoomBonus(ref state, directorEntity, room);
 
             var gateSummary = ResolveRoomGates(ref state, ref director, room);
             var buildDigest = ComputeBuildDigest(state.EntityManager, directorEntity, director.Seed);
             var dps = math.max(0f, (SumPlayerDamage(ref state) - director.DamageSnapshotAtRoomStart) / math.max(1e-6f, (director.RoomEndTick - director.RoomStartTick) * dt));
             var digestRoom = math.hash(new uint4((uint)director.CurrentRoomIndex, (uint)director.WavesSpawnedInRoom, (uint)director.EnemiesDestroyedInRoom, (uint)math.max(0, currency.Value)));
-            director.StableDigest = math.hash(new uint4(director.StableDigest ^ digestRoom, (uint)math.round(dps * 100f), buildDigest, director.Seed));
+            var progressionDigest = math.hash(new uint2((uint)math.max(0, progression.Level), (uint)math.max(0, progression.TotalExperienceEarned)));
+            director.StableDigest = math.hash(new uint4(
+                director.StableDigest ^ digestRoom,
+                (uint)math.round(dps * 100f),
+                buildDigest ^ progressionDigest,
+                director.Seed ^ (uint)math.max(0, meta.Shards)));
             var perks = state.EntityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
             var installed = state.EntityManager.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
-            Debug.Log($"[Fleetcrawl] ROOM_END index={director.CurrentRoomIndex} kind={room.Kind} relief={room.ReliefKind} status={director.DifficultyStatus} waves={director.WavesSpawnedInRoom} killed={director.EnemiesDestroyedInRoom}/{director.EnemiesSpawnedInRoom} miniboss_kills={director.MiniBossesDestroyedInRoom} boss_kills={director.BossesDestroyedInRoom} gates={gateSummary} perks={perks.Length} blueprints={FormatInstalledBlueprints(installed)} currency={currency.Value} dps={dps:0.0} digest={director.StableDigest}.");
+            Debug.Log($"[Fleetcrawl] ROOM_END index={director.CurrentRoomIndex} kind={room.Kind} relief={room.ReliefKind} challenge={challenge.Kind} risk={challenge.RiskTier} status={director.DifficultyStatus} waves={director.WavesSpawnedInRoom} killed={director.EnemiesDestroyedInRoom}/{director.EnemiesSpawnedInRoom} miniboss_kills={director.MiniBossesDestroyedInRoom} boss_kills={director.BossesDestroyedInRoom} gates={gateSummary} perks={perks.Length} blueprints={FormatInstalledBlueprints(installed)} currency={currency.Value} xp={progression.Experience}/{progression.ExperienceToNext} lvl={progression.Level} shards={meta.Shards} dps={dps:0.0} digest={director.StableDigest}.");
+        }
+
+        private static Space4XRunChallengeState ResolveChallengeForRoom(uint seed, int roomIndex, in Space4XFleetcrawlRoom room)
+        {
+            var challenge = new Space4XRunChallengeState
+            {
+                Kind = Space4XFleetcrawlChallengeKind.None,
+                Active = 0,
+                RiskTier = 0,
+                RoomIndex = roomIndex,
+                SpawnMultiplier = 1f,
+                CurrencyMultiplier = 1f,
+                ExperienceMultiplier = 1f
+            };
+
+            if (room.Kind == Space4XFleetcrawlRoomKind.Relief)
+            {
+                return challenge;
+            }
+
+            var roll = (int)(DeterministicMix(seed, (uint)(roomIndex + 1), (uint)room.Kind + 41u, 0x5EED1234u) % 100u);
+            if (room.Kind == Space4XFleetcrawlRoomKind.Boss && roll < 55)
+            {
+                roll = 55;
+            }
+            if (roll < 45)
+            {
+                return challenge;
+            }
+
+            if (roll < 75)
+            {
+                challenge.Kind = Space4XFleetcrawlChallengeKind.Swarm;
+                challenge.Active = 1;
+                challenge.RiskTier = 1;
+                challenge.SpawnMultiplier = 1.18f;
+                challenge.CurrencyMultiplier = 1.25f;
+                challenge.ExperienceMultiplier = 1.20f;
+                return challenge;
+            }
+
+            if (roll < 93)
+            {
+                challenge.Kind = Space4XFleetcrawlChallengeKind.Hazard;
+                challenge.Active = 1;
+                challenge.RiskTier = 2;
+                challenge.SpawnMultiplier = 1.10f;
+                challenge.CurrencyMultiplier = 1.45f;
+                challenge.ExperienceMultiplier = 1.35f;
+                return challenge;
+            }
+
+            challenge.Kind = Space4XFleetcrawlChallengeKind.Nemesis;
+            challenge.Active = 1;
+            challenge.RiskTier = 3;
+            challenge.SpawnMultiplier = 1.32f;
+            challenge.CurrencyMultiplier = 1.75f;
+            challenge.ExperienceMultiplier = 1.6f;
+            return challenge;
+        }
+
+        private static int ResolveRoomCompletionExperience(Space4XFleetcrawlRoomKind roomKind)
+        {
+            switch (roomKind)
+            {
+                case Space4XFleetcrawlRoomKind.Boss:
+                    return 44;
+                case Space4XFleetcrawlRoomKind.Relief:
+                    return 10;
+                default:
+                    return 24;
+            }
+        }
+
+        private static int ResolveMetaShardReward(Space4XFleetcrawlRoomKind roomKind, byte challengeRisk)
+        {
+            var baseReward = roomKind == Space4XFleetcrawlRoomKind.Boss ? 3 :
+                roomKind == Space4XFleetcrawlRoomKind.Relief ? 1 : 2;
+            return baseReward + math.max(0, (int)challengeRisk);
+        }
+
+        private void AwardExperience(ref SystemState state, Entity directorEntity, ref Space4XFleetcrawlDirectorState director, int amount)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            if (!state.EntityManager.HasComponent<Space4XRunProgressionState>(directorEntity))
+            {
+                state.EntityManager.AddComponentData(directorEntity, new Space4XRunProgressionState
+                {
+                    Level = 1,
+                    Experience = 0,
+                    ExperienceToNext = 30,
+                    UnspentUpgrades = 0,
+                    TotalExperienceEarned = 0
+                });
+            }
+
+            var adjustedAmount = amount;
+            if (state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
+            {
+                var challenge = state.EntityManager.GetComponentData<Space4XRunChallengeState>(directorEntity);
+                if (challenge.Active != 0 && challenge.RoomIndex == director.CurrentRoomIndex)
+                {
+                    adjustedAmount = math.max(1, (int)math.round(adjustedAmount * math.max(1f, challenge.ExperienceMultiplier)));
+                }
+            }
+
+            var progression = state.EntityManager.GetComponentData<Space4XRunProgressionState>(directorEntity);
+            progression.Experience += adjustedAmount;
+            progression.TotalExperienceEarned += adjustedAmount;
+
+            while (progression.Experience >= progression.ExperienceToNext)
+            {
+                progression.Experience -= progression.ExperienceToNext;
+                progression.Level++;
+                progression.UnspentUpgrades++;
+                progression.ExperienceToNext = ResolveNextLevelExperience(progression.ExperienceToNext, progression.Level);
+                ApplyLevelUpBonuses(ref state);
+            }
+
+            state.EntityManager.SetComponentData(directorEntity, progression);
+            director.StableDigest = math.hash(new uint4(
+                director.StableDigest,
+                (uint)math.max(0, progression.Level),
+                (uint)math.max(0, progression.TotalExperienceEarned),
+                0x6B9D8AF1u));
+        }
+
+        private static int ResolveNextLevelExperience(int currentRequirement, int level)
+        {
+            var baseline = math.max(24, currentRequirement);
+            return math.max(30, (int)math.round(baseline * 1.24f + 10f + math.max(0, level - 1) * 2f));
+        }
+
+        private void ApplyLevelUpBonuses(ref SystemState state)
+        {
+            HealPlayers(ref state, 0.06f);
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
+            {
+                var weaponBuffer = weapons;
+                for (var i = 0; i < weaponBuffer.Length; i++)
+                {
+                    var mount = weaponBuffer[i];
+                    mount.Weapon.BaseDamage *= 1.04f;
+                    mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * 0.98f));
+                    weaponBuffer[i] = mount;
+                }
+            }
         }
 
         private void ApplyReliefRoomBonus(ref SystemState state, Entity directorEntity, in Space4XFleetcrawlRoom room)
