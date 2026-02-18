@@ -49,6 +49,7 @@ namespace Space4x.Scenario
                 }
 
                 var hits = FireSpecialPulse(
+                    ref state,
                     em,
                     flagshipEntity,
                     flagshipTransform.ValueRO.Position,
@@ -62,6 +63,7 @@ namespace Space4x.Scenario
         }
 
         private int FireSpecialPulse(
+            ref SystemState state,
             EntityManager em,
             Entity source,
             float3 origin,
@@ -70,12 +72,12 @@ namespace Space4x.Scenario
             var radiusSq = SpecialRadius * SpecialRadius;
             var candidates = new NativeList<SpecialTargetCandidate>(Allocator.Temp);
 
-            foreach (var (enemyTransform, hull, side, enemyEntity) in SystemAPI
-                         .Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>()
+            foreach (var (enemyTransform, hull, enemyEntity) in SystemAPI
+                         .Query<RefRO<LocalTransform>, RefRO<HullIntegrity>>()
                          .WithAll<Space4XRunEnemyTag>()
                          .WithEntityAccess())
             {
-                if (side.ValueRO.Side != 1 || hull.ValueRO.Current <= 0f)
+                if (hull.ValueRO.Current <= 0f)
                 {
                     continue;
                 }
