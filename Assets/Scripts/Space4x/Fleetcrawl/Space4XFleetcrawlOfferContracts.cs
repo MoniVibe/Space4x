@@ -54,6 +54,28 @@ namespace Space4x.Fleetcrawl
         public FixedString32Bytes SourceTag;
     }
 
+    public enum FleetcrawlOfferChannel : byte
+    {
+        Loot = 0,
+        CurrencyShop = 1
+    }
+
+    public struct FleetcrawlPurchaseRequest : IComponentData
+    {
+        public FleetcrawlOfferChannel Channel;
+        public int SlotIndex;
+        public uint Nonce;
+        public FixedString32Bytes SourceTag;
+    }
+
+    public struct FleetcrawlPurchaseRuntimeState : IComponentData
+    {
+        public uint LastProcessedSignature;
+        public uint LastProcessedRequestNonce;
+        public int LastAutoPurchaseRoomIndex;
+        public int PurchasesResolved;
+    }
+
     [InternalBufferCapacity(24)]
     public struct FleetcrawlCurrencyShopCatalogEntry : IBufferElementData
     {
@@ -172,7 +194,8 @@ namespace Space4x.Fleetcrawl
             var runtime = em.CreateEntity(
                 typeof(FleetcrawlOfferRuntimeTag),
                 typeof(FleetcrawlOfferGenerationConfig),
-                typeof(FleetcrawlOfferGenerationCache));
+                typeof(FleetcrawlOfferGenerationCache),
+                typeof(FleetcrawlPurchaseRuntimeState));
 
             em.SetComponentData(runtime, new FleetcrawlOfferGenerationConfig
             {
@@ -188,6 +211,13 @@ namespace Space4x.Fleetcrawl
                 LastXp = 0,
                 LastShards = 0,
                 LastChallenge = 0
+            });
+            em.SetComponentData(runtime, new FleetcrawlPurchaseRuntimeState
+            {
+                LastProcessedSignature = 0u,
+                LastProcessedRequestNonce = 0u,
+                LastAutoPurchaseRoomIndex = -1,
+                PurchasesResolved = 0
             });
 
             var shopCatalog = em.AddBuffer<FleetcrawlCurrencyShopCatalogEntry>(runtime);
@@ -590,6 +620,7 @@ namespace Space4x.Fleetcrawl
 
             em.AddBuffer<FleetcrawlCurrencyShopOfferEntry>(runtime);
             em.AddBuffer<FleetcrawlLootOfferEntry>(runtime);
+            em.AddBuffer<FleetcrawlRolledLimbBufferElement>(runtime);
             em.AddBuffer<FleetcrawlOwnedItem>(runtime);
 
             Debug.Log($"[FleetcrawlMeta] Loot/shop bootstrap ready. shop_catalog={shopCatalog.Length} loot_catalog={lootCatalog.Length} limbs={limbDefs.Length} affixes={affixDefs.Length} hulls={hullDefs.Length} trinkets={trinketDefs.Length} items={itemDefs.Length} sets={setDefs.Length}.");
@@ -988,6 +1019,411 @@ namespace Space4x.Fleetcrawl
             }
 
             return -1;
+        }
+
+        private static int CountBehaviorFlags(FleetcrawlWeaponBehaviorTag flags)
+        {
+            var value = (uint)flags;
+            var count = 0;
+            while (value != 0u)
+            {
+                count += (int)(value & 1u);
+                value >>= 1;
+            }
+            return count;
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XFleetcrawlOfferGenerationSystem))]
+    public partial struct Space4XFleetcrawlPurchaseApplySystem : ISystem
+    {
+        private EntityQuery _purchaseRequestQuery;
+
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+            state.RequireForUpdate<FleetcrawlOfferRuntimeTag>();
+            _purchaseRequestQuery = state.GetEntityQuery(ComponentType.ReadOnly<FleetcrawlPurchaseRequest>());
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var em = state.EntityManager;
+            var runtimeEntity = SystemAPI.GetSingletonEntity<FleetcrawlOfferRuntimeTag>();
+            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            var director = em.GetComponentData<Space4XFleetcrawlDirectorState>(directorEntity);
+            var cache = em.GetComponentData<FleetcrawlOfferGenerationCache>(runtimeEntity);
+            var purchaseState = em.GetComponentData<FleetcrawlPurchaseRuntimeState>(runtimeEntity);
+            var roomIndex = math.max(0, director.CurrentRoomIndex);
+
+            if (!em.HasComponent<FleetcrawlRunShardWallet>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new FleetcrawlRunShardWallet { Shards = 0 });
+            }
+            if (!em.HasComponent<Space4XRunMetaResourceState>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new Space4XRunMetaResourceState());
+            }
+
+            var wallet = em.GetComponentData<FleetcrawlRunShardWallet>(directorEntity);
+            var meta = em.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
+            var lootOffers = em.GetBuffer<FleetcrawlLootOfferEntry>(runtimeEntity);
+            var shopOffers = em.GetBuffer<FleetcrawlCurrencyShopOfferEntry>(runtimeEntity);
+            var ownedItems = em.GetBuffer<FleetcrawlOwnedItem>(runtimeEntity);
+            var rolledLimbs = em.GetBuffer<FleetcrawlRolledLimbBufferElement>(runtimeEntity);
+            var limbDefs = em.GetBuffer<FleetcrawlModuleLimbDefinition>(runtimeEntity);
+            var affixDefs = em.GetBuffer<FleetcrawlLimbAffixDefinition>(runtimeEntity);
+            var upgradeDefs = em.GetBuffer<FleetcrawlModuleUpgradeDefinition>(runtimeEntity);
+            var setDefs = em.GetBuffer<FleetcrawlSetBonusDefinition>(runtimeEntity);
+
+            var hasManualRequest = !_purchaseRequestQuery.IsEmptyIgnoreFilter;
+            var selected = default(FleetcrawlPurchaseRequest);
+            var hasSelected = false;
+            if (hasManualRequest)
+            {
+                foreach (var request in SystemAPI.Query<RefRO<FleetcrawlPurchaseRequest>>())
+                {
+                    if (!hasSelected ||
+                        request.ValueRO.Nonce > selected.Nonce ||
+                        (request.ValueRO.Nonce == selected.Nonce && request.ValueRO.SlotIndex < selected.SlotIndex))
+                    {
+                        selected = request.ValueRO;
+                        hasSelected = true;
+                    }
+                }
+            }
+            else if (cache.LastSignature != 0u && purchaseState.LastAutoPurchaseRoomIndex != roomIndex)
+            {
+                var autoPick = ResolveAutoPurchase(lootOffers, shopOffers, wallet.Shards);
+                if (autoPick.HasValue)
+                {
+                    selected = autoPick.Value;
+                    selected.SourceTag = new FixedString32Bytes("auto");
+                    selected.Nonce = purchaseState.LastProcessedRequestNonce + 1u;
+                    hasSelected = true;
+                }
+            }
+
+            if (!hasSelected)
+            {
+                if (hasManualRequest)
+                {
+                    ClearPurchaseRequests(ref state);
+                }
+                return;
+            }
+
+            var purchased = false;
+            var purchaseLabel = new FixedString64Bytes();
+            if (selected.Channel == FleetcrawlOfferChannel.Loot)
+            {
+                var index = FindLootOfferIndexBySlot(lootOffers, selected.SlotIndex);
+                if (index >= 0)
+                {
+                    var offer = lootOffers[index];
+                    if (wallet.Shards >= offer.PriceShards)
+                    {
+                        var before = FleetcrawlModuleUpgradeResolver.ResolveAggregateWithInventory(
+                            rolledLimbs, ownedItems, limbDefs, affixDefs, upgradeDefs, setDefs);
+
+                        wallet.Shards = math.max(0, wallet.Shards - offer.PriceShards);
+                        meta.Shards = wallet.Shards;
+                        em.SetComponentData(directorEntity, wallet);
+                        em.SetComponentData(directorEntity, meta);
+
+                        ownedItems.Add(new FleetcrawlOwnedItem { Value = offer.RolledItem });
+                        if (offer.Archetype == FleetcrawlLootArchetype.ModuleLimb)
+                        {
+                            rolledLimbs.Add(new FleetcrawlRolledLimbBufferElement { Value = offer.RolledLimb });
+                        }
+
+                        var after = FleetcrawlModuleUpgradeResolver.ResolveAggregateWithInventory(
+                            rolledLimbs, ownedItems, limbDefs, affixDefs, upgradeDefs, setDefs);
+                        var delta = ResolveDelta(before, after);
+                        ApplyDeltaToPlayers(ref state, delta);
+
+                        lootOffers.RemoveAt(index);
+                        purchased = true;
+                        purchaseLabel = offer.ItemId;
+                    }
+                }
+            }
+            else
+            {
+                var index = FindShopOfferIndexBySlot(shopOffers, selected.SlotIndex);
+                if (index >= 0)
+                {
+                    var offer = shopOffers[index];
+                    if (wallet.Shards >= offer.PriceShards)
+                    {
+                        wallet.Shards = math.max(0, wallet.Shards - offer.PriceShards);
+                        meta.Shards = wallet.Shards;
+                        em.SetComponentData(directorEntity, wallet);
+                        em.SetComponentData(directorEntity, meta);
+                        ApplyShopReward(em, directorEntity, offer.SkuId);
+                        shopOffers.RemoveAt(index);
+                        purchased = true;
+                        purchaseLabel = offer.SkuId;
+                    }
+                }
+            }
+
+            if (purchased)
+            {
+                purchaseState.LastProcessedSignature = cache.LastSignature;
+                purchaseState.LastProcessedRequestNonce = math.max(purchaseState.LastProcessedRequestNonce, selected.Nonce);
+                purchaseState.PurchasesResolved++;
+                if (!hasManualRequest)
+                {
+                    purchaseState.LastAutoPurchaseRoomIndex = roomIndex;
+                }
+                em.SetComponentData(runtimeEntity, purchaseState);
+
+                var refresh = em.CreateEntity(typeof(FleetcrawlOfferRefreshRequest));
+                em.SetComponentData(refresh, new FleetcrawlOfferRefreshRequest
+                {
+                    Nonce = (uint)purchaseState.PurchasesResolved,
+                    SourceTag = selected.SourceTag.IsEmpty ? new FixedString32Bytes("purchase") : selected.SourceTag
+                });
+
+                Debug.Log($"[FleetcrawlMeta] PURCHASE channel={selected.Channel} slot={selected.SlotIndex} room={roomIndex} shards={wallet.Shards} item={purchaseLabel}.");
+            }
+
+            if (hasManualRequest)
+            {
+                ClearPurchaseRequests(ref state);
+            }
+        }
+
+        private static FleetcrawlPurchaseRequest? ResolveAutoPurchase(
+            DynamicBuffer<FleetcrawlLootOfferEntry> lootOffers,
+            DynamicBuffer<FleetcrawlCurrencyShopOfferEntry> shopOffers,
+            int shards)
+        {
+            var bestLootScore = int.MinValue;
+            var bestLootHash = uint.MaxValue;
+            var bestLootSlot = -1;
+            for (var i = 0; i < lootOffers.Length; i++)
+            {
+                var offer = lootOffers[i];
+                if (offer.PriceShards > shards)
+                {
+                    continue;
+                }
+
+                var score = ComputeLootScore(offer);
+                if (score > bestLootScore || (score == bestLootScore && offer.RollHash < bestLootHash))
+                {
+                    bestLootScore = score;
+                    bestLootHash = offer.RollHash;
+                    bestLootSlot = offer.SlotIndex;
+                }
+            }
+
+            if (bestLootSlot >= 0)
+            {
+                return new FleetcrawlPurchaseRequest
+                {
+                    Channel = FleetcrawlOfferChannel.Loot,
+                    SlotIndex = bestLootSlot
+                };
+            }
+
+            var bestShopScore = int.MinValue;
+            var bestShopHash = uint.MaxValue;
+            var bestShopSlot = -1;
+            for (var i = 0; i < shopOffers.Length; i++)
+            {
+                var offer = shopOffers[i];
+                if (offer.PriceShards > shards)
+                {
+                    continue;
+                }
+
+                var score = ComputeShopScore(offer);
+                if (score > bestShopScore || (score == bestShopScore && offer.RollHash < bestShopHash))
+                {
+                    bestShopScore = score;
+                    bestShopHash = offer.RollHash;
+                    bestShopSlot = offer.SlotIndex;
+                }
+            }
+
+            if (bestShopSlot >= 0)
+            {
+                return new FleetcrawlPurchaseRequest
+                {
+                    Channel = FleetcrawlOfferChannel.CurrencyShop,
+                    SlotIndex = bestShopSlot
+                };
+            }
+
+            return null;
+        }
+
+        private static int ComputeLootScore(in FleetcrawlLootOfferEntry offer)
+        {
+            var comboBits = CountComboFlags(offer.ComboTags);
+            var behaviorBits = CountBehaviorFlags(offer.WeaponBehaviors);
+            var archetypeBias = offer.Archetype switch
+            {
+                FleetcrawlLootArchetype.Trinket => 55,
+                FleetcrawlLootArchetype.HullSegment => 45,
+                FleetcrawlLootArchetype.ModuleLimb => 40,
+                _ => 24
+            };
+
+            return archetypeBias +
+                   (int)offer.Quality * 100 +
+                   comboBits * 16 +
+                   behaviorBits * 20 +
+                   math.max(0, offer.ModuleSocketCount) * 22 +
+                   math.max(0, offer.StackCount - 1) * 10;
+        }
+
+        private static int ComputeShopScore(in FleetcrawlCurrencyShopOfferEntry offer)
+        {
+            var score = CountComboFlags(offer.ComboTags) * 6;
+            if (offer.SkuId.Equals(new FixedString64Bytes("ent_radar_uplink")))
+            {
+                score += 30;
+            }
+            score += math.max(0, 200 - offer.PriceShards);
+            return score;
+        }
+
+        private static int FindLootOfferIndexBySlot(DynamicBuffer<FleetcrawlLootOfferEntry> offers, int slotIndex)
+        {
+            for (var i = 0; i < offers.Length; i++)
+            {
+                if (offers[i].SlotIndex == slotIndex)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static int FindShopOfferIndexBySlot(DynamicBuffer<FleetcrawlCurrencyShopOfferEntry> offers, int slotIndex)
+        {
+            for (var i = 0; i < offers.Length; i++)
+            {
+                if (offers[i].SlotIndex == slotIndex)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private static FleetcrawlResolvedUpgradeStats ResolveDelta(in FleetcrawlResolvedUpgradeStats before, in FleetcrawlResolvedUpgradeStats after)
+        {
+            return new FleetcrawlResolvedUpgradeStats
+            {
+                TurnRateMultiplier = SafeRatio(after.TurnRateMultiplier, before.TurnRateMultiplier),
+                AccelerationMultiplier = SafeRatio(after.AccelerationMultiplier, before.AccelerationMultiplier),
+                DecelerationMultiplier = SafeRatio(after.DecelerationMultiplier, before.DecelerationMultiplier),
+                MaxSpeedMultiplier = SafeRatio(after.MaxSpeedMultiplier, before.MaxSpeedMultiplier),
+                CooldownMultiplier = SafeRatio(after.CooldownMultiplier, before.CooldownMultiplier),
+                DamageMultiplier = SafeRatio(after.DamageMultiplier, before.DamageMultiplier)
+            };
+        }
+
+        private static float SafeRatio(float after, float before)
+        {
+            return before > 1e-6f ? math.max(0.01f, after / before) : math.max(0.01f, after);
+        }
+
+        private static void ApplyDeltaToPlayers(ref SystemState state, in FleetcrawlResolvedUpgradeStats delta)
+        {
+            foreach (var (carrierRef, movementRef) in SystemAPI.Query<RefRW<Carrier>, RefRW<VesselMovement>>().WithAll<Space4XRunPlayerTag>())
+            {
+                var carrier = carrierRef.ValueRO;
+                carrier.Speed *= delta.MaxSpeedMultiplier;
+                carrier.Acceleration *= delta.AccelerationMultiplier;
+                carrier.Deceleration *= delta.DecelerationMultiplier;
+                carrier.TurnSpeed *= delta.TurnRateMultiplier;
+                carrierRef.ValueRW = carrier;
+
+                var movement = movementRef.ValueRO;
+                movement.BaseSpeed *= delta.MaxSpeedMultiplier;
+                movement.Acceleration *= delta.AccelerationMultiplier;
+                movement.Deceleration *= delta.DecelerationMultiplier;
+                movement.TurnSpeed *= delta.TurnRateMultiplier;
+                movementRef.ValueRW = movement;
+            }
+
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
+            {
+                var weaponBuffer = weapons;
+                for (var i = 0; i < weaponBuffer.Length; i++)
+                {
+                    var mount = weaponBuffer[i];
+                    mount.Weapon.BaseDamage = math.max(0.01f, mount.Weapon.BaseDamage * delta.DamageMultiplier);
+                    mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * delta.CooldownMultiplier));
+                    weaponBuffer[i] = mount;
+                }
+            }
+        }
+
+        private static void ApplyShopReward(EntityManager em, Entity directorEntity, in FixedString64Bytes skuId)
+        {
+            if (!em.HasComponent<RunCurrency>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new RunCurrency());
+            }
+            if (!em.HasComponent<Space4XRunRerollTokens>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new Space4XRunRerollTokens());
+            }
+
+            if (skuId.Equals(new FixedString64Bytes("ent_radar_uplink")))
+            {
+                var reroll = em.GetComponentData<Space4XRunRerollTokens>(directorEntity);
+                reroll.Value += 1;
+                em.SetComponentData(directorEntity, reroll);
+                return;
+            }
+
+            var currency = em.GetComponentData<RunCurrency>(directorEntity);
+            if (skuId.Equals(new FixedString64Bytes("soft_pack_small")))
+            {
+                currency.Value += 65;
+            }
+            else if (skuId.Equals(new FixedString64Bytes("soft_pack_medium")))
+            {
+                currency.Value += 130;
+            }
+            else
+            {
+                currency.Value += 35;
+            }
+            em.SetComponentData(directorEntity, currency);
+        }
+
+        private static void ClearPurchaseRequests(ref SystemState state)
+        {
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            foreach (var (_, entity) in SystemAPI.Query<RefRO<FleetcrawlPurchaseRequest>>().WithEntityAccess())
+            {
+                ecb.DestroyEntity(entity);
+            }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
+        }
+
+        private static int CountComboFlags(FleetcrawlComboTag flags)
+        {
+            var value = (uint)flags;
+            var count = 0;
+            while (value != 0u)
+            {
+                count += (int)(value & 1u);
+                value >>= 1;
+            }
+            return count;
         }
 
         private static int CountBehaviorFlags(FleetcrawlWeaponBehaviorTag flags)

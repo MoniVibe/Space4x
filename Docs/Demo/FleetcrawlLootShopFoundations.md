@@ -28,6 +28,8 @@ This slice adds standalone contracts and deterministic helpers without modifying
 - `FleetcrawlOfferGenerationConfig`
 - `FleetcrawlOfferGenerationCache`
 - `FleetcrawlOfferRefreshRequest`
+- `FleetcrawlPurchaseRequest`
+- `FleetcrawlPurchaseRuntimeState`
 - `FleetcrawlCurrencyShopCatalogEntry`
 - `FleetcrawlLootOfferCatalogEntry`
 - `FleetcrawlCurrencyShopOfferEntry`
@@ -73,10 +75,15 @@ Implemented in:
 - generates deterministic currency and loot offers
 - handles `FleetcrawlOfferRefreshRequest`
 
-3. `Space4XFleetcrawlModuleUpgradeBootstrapSystem`
+3. `Space4XFleetcrawlPurchaseApplySystem`
+- resolves manual purchase requests (`FleetcrawlPurchaseRequest`) or one deterministic auto-buy per room
+- spends shard wallet, records owned item inventory, and applies immediate stat delta to player ships/weapons
+- supports mixed archetypes (limb/hull/trinket/general item) and triggers refresh requests post-purchase
+
+4. `Space4XFleetcrawlModuleUpgradeBootstrapSystem`
 - seeds default module upgrade definitions
 
-4. `FleetcrawlModuleUpgradeResolver`
+5. `FleetcrawlModuleUpgradeResolver`
 - resolves rolled limb + affix + combo tag effects into module/weapon/movement multipliers
 - can fold in owned item archetypes and set bonuses via `ResolveAggregateWithInventory`
 

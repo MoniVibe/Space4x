@@ -324,6 +324,34 @@ namespace Space4X.Tests
             Assert.Greater(resolved.DamageMultiplier, 1.1f);
             Assert.Less(resolved.CooldownMultiplier, 1f);
         }
+
+        [Test]
+        public void PurchaseApply_AutoBuysAffordableOffer_AndAddsOwnedItem()
+        {
+            var bootstrap = _world.GetOrCreateSystem<Space4XFleetcrawlLootShopBootstrapSystem>();
+            var upgradeBootstrap = _world.GetOrCreateSystem<Space4XFleetcrawlModuleUpgradeBootstrapSystem>();
+            var bridge = _world.GetOrCreateSystem<Space4XFleetcrawlRunStateBridgeSystem>();
+            var generation = _world.GetOrCreateSystem<Space4XFleetcrawlOfferGenerationSystem>();
+            var purchase = _world.GetOrCreateSystem<Space4XFleetcrawlPurchaseApplySystem>();
+
+            bootstrap.Update(_world.Unmanaged);
+            upgradeBootstrap.Update(_world.Unmanaged);
+            bridge.Update(_world.Unmanaged);
+            generation.Update(_world.Unmanaged);
+
+            var runtime = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<FleetcrawlOfferRuntimeTag>()).GetSingletonEntity();
+            var director = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XFleetcrawlDirectorState>()).GetSingletonEntity();
+            var ownedBefore = _entityManager.GetBuffer<FleetcrawlOwnedItem>(runtime).Length;
+            var shardsBefore = _entityManager.GetComponentData<FleetcrawlRunShardWallet>(director).Shards;
+
+            purchase.Update(_world.Unmanaged);
+
+            var ownedAfter = _entityManager.GetBuffer<FleetcrawlOwnedItem>(runtime).Length;
+            var shardsAfter = _entityManager.GetComponentData<FleetcrawlRunShardWallet>(director).Shards;
+
+            Assert.Greater(ownedAfter, ownedBefore);
+            Assert.Less(shardsAfter, shardsBefore);
+        }
     }
 }
 #endif
