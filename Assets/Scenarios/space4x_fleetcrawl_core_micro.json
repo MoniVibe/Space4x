@@ -1,0 +1,189 @@
+{
+  "scenarioId": "space4x_fleetcrawl_core_micro",
+  "seed": 19021,
+  "duration_s": 180,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "presentationScale": 0.75
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.mining.progress",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-core-flagship",
+      "position": [0, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 320,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "scanner-s-1",
+          "shield-s-1",
+          "armor-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "ResourceStorage": [
+          { "type": "Minerals", "capacity": 12000 },
+          { "type": "RareMetals", "capacity": 8000 }
+        ],
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-CORE-FRIENDLY",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 60
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "fleetcrawl-core-miner-1",
+      "position": [8, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 220,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "scanner-s-1",
+          "shield-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "carrierId": "fleetcrawl-core-flagship",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.86,
+      "speed": 7.0,
+      "cargoCapacity": 130.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "fleetcrawl-core-miner-2",
+      "position": [12, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "scanner-s-1",
+          "shield-s-1",
+          "armor-s-1",
+          "pd-s-1"
+        ]
+      },
+      "carrierId": "fleetcrawl-core-flagship",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.8,
+      "speed": 6.5,
+      "cargoCapacity": 150.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "fleetcrawl-core-deposit",
+      "position": [65, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1600.0,
+      "gatherRatePerWorker": 11.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-core-hostile",
+      "position": [300, 40],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 280,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "laser-s-1",
+          "missile-m-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-CORE-HOSTILE",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 90
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 8.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-CORE-FRIENDLY",
+      "targetPosition": [58, 4],
+      "description": "Room 1: commit to mining lane."
+    },
+    {
+      "time_s": 72.0,
+      "kind": "TriggerIntercept",
+      "fleetId": "FLEETCRAWL-CORE-FRIENDLY",
+      "targetFleetId": "FLEETCRAWL-CORE-HOSTILE",
+      "description": "Room 2: intercept pressure begins."
+    },
+    {
+      "time_s": 128.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-CORE-FRIENDLY",
+      "targetPosition": [118, -18],
+      "description": "Room 3: extraction vector."
+    }
+  ]
+}

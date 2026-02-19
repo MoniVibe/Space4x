@@ -1,0 +1,278 @@
+{
+  "contractId": "space4x.fleetcrawl.room_contract.v1",
+  "version": 1,
+  "active": true,
+  "notes": "Two-layer difficulty: runDifficulty and roomClass. Room composition uses archetype x systemSize x wildcard tags.",
+  "runDifficultyProfiles": [
+    {
+      "id": "easy",
+      "label": "Easy",
+      "unlockedByDefault": true,
+      "requiresMetaTag": "",
+      "budgetMultiplier": 0.82,
+      "rewardMultiplier": 0.9,
+      "hazardIntensityMultiplier": 0.78,
+      "repairCostMultiplier": 0.75,
+      "minibossChanceBonus": -0.08
+    },
+    {
+      "id": "normal",
+      "label": "Normal",
+      "unlockedByDefault": true,
+      "requiresMetaTag": "",
+      "budgetMultiplier": 1.0,
+      "rewardMultiplier": 1.0,
+      "hazardIntensityMultiplier": 1.0,
+      "repairCostMultiplier": 1.0,
+      "minibossChanceBonus": 0.0
+    },
+    {
+      "id": "hard",
+      "label": "Hard",
+      "unlockedByDefault": false,
+      "requiresMetaTag": "fleetcrawl.unlock.hard",
+      "budgetMultiplier": 1.22,
+      "rewardMultiplier": 1.18,
+      "hazardIntensityMultiplier": 1.2,
+      "repairCostMultiplier": 1.15,
+      "minibossChanceBonus": 0.1
+    },
+    {
+      "id": "nightmare",
+      "label": "Nightmare",
+      "unlockedByDefault": false,
+      "requiresMetaTag": "fleetcrawl.unlock.nightmare",
+      "budgetMultiplier": 1.42,
+      "rewardMultiplier": 1.34,
+      "hazardIntensityMultiplier": 1.35,
+      "repairCostMultiplier": 1.3,
+      "minibossChanceBonus": 0.2
+    }
+  ],
+  "roomClassProfiles": [
+    {
+      "id": "normal",
+      "budgetMultiplier": 1.0,
+      "rewardMultiplier": 1.0,
+      "threatStepBonus": 0,
+      "hazardSlotsDelta": 0,
+      "minibossEligible": false,
+      "weight": 72
+    },
+    {
+      "id": "elite",
+      "budgetMultiplier": 1.38,
+      "rewardMultiplier": 1.45,
+      "threatStepBonus": 1,
+      "hazardSlotsDelta": 1,
+      "minibossEligible": true,
+      "weight": 24
+    },
+    {
+      "id": "miniboss",
+      "budgetMultiplier": 1.8,
+      "rewardMultiplier": 1.95,
+      "threatStepBonus": 2,
+      "hazardSlotsDelta": 1,
+      "minibossEligible": true,
+      "weight": 4
+    }
+  ],
+  "systemSizeProfiles": [
+    {
+      "id": "small",
+      "encounterSlots": 2,
+      "hazardSlots": 1,
+      "objectiveSlots": 1,
+      "baseBudget": 80
+    },
+    {
+      "id": "medium",
+      "encounterSlots": 3,
+      "hazardSlots": 2,
+      "objectiveSlots": 1,
+      "baseBudget": 110
+    },
+    {
+      "id": "large",
+      "encounterSlots": 4,
+      "hazardSlots": 2,
+      "objectiveSlots": 2,
+      "baseBudget": 150
+    }
+  ],
+  "wildcardProfiles": [
+    {
+      "id": "anomaly",
+      "weight": 18,
+      "riskMultiplier": 1.1,
+      "rewardMultiplier": 1.12,
+      "requiredPackTags": ["wildcard.anomaly"]
+    },
+    {
+      "id": "hazard",
+      "weight": 22,
+      "riskMultiplier": 1.08,
+      "rewardMultiplier": 1.0,
+      "requiredPackTags": ["wildcard.hazard"]
+    },
+    {
+      "id": "distress_signal",
+      "weight": 14,
+      "riskMultiplier": 1.05,
+      "rewardMultiplier": 1.2,
+      "requiredPackTags": ["wildcard.distress"]
+    },
+    {
+      "id": "roaming_market",
+      "weight": 10,
+      "riskMultiplier": 0.92,
+      "rewardMultiplier": 1.08,
+      "requiredPackTags": ["wildcard.market"]
+    }
+  ],
+  "roomArchetypes": [
+    {
+      "id": "resource_room",
+      "threatLevelRange": [1, 4],
+      "systemSizeWeights": {
+        "small": 45,
+        "medium": 40,
+        "large": 15
+      },
+      "roomClassWeights": {
+        "normal": 70,
+        "elite": 25,
+        "miniboss": 5
+      },
+      "requiredPackTags": ["objective.mining"],
+      "optionalPackTags": ["enemy.light", "hazard.asteroid", "wildcard.distress"],
+      "budgetShares": {
+        "objective": 0.4,
+        "enemies": 0.35,
+        "hazards": 0.25
+      }
+    },
+    {
+      "id": "derelict_room",
+      "threatLevelRange": [2, 5],
+      "systemSizeWeights": {
+        "small": 35,
+        "medium": 45,
+        "large": 20
+      },
+      "roomClassWeights": {
+        "normal": 60,
+        "elite": 30,
+        "miniboss": 10
+      },
+      "requiredPackTags": ["objective.salvage"],
+      "optionalPackTags": ["enemy.raider", "hazard.radiation", "wildcard.anomaly"],
+      "budgetShares": {
+        "objective": 0.25,
+        "enemies": 0.45,
+        "hazards": 0.3
+      }
+    },
+    {
+      "id": "swarm_room",
+      "threatLevelRange": [3, 6],
+      "systemSizeWeights": {
+        "small": 25,
+        "medium": 45,
+        "large": 30
+      },
+      "roomClassWeights": {
+        "normal": 52,
+        "elite": 33,
+        "miniboss": 15
+      },
+      "requiredPackTags": ["enemy.swarm"],
+      "optionalPackTags": ["hazard.minefield", "wildcard.hazard", "wildcard.anomaly"],
+      "budgetShares": {
+        "objective": 0.15,
+        "enemies": 0.65,
+        "hazards": 0.2
+      }
+    }
+  ],
+  "spawnPackRefs": [
+    {
+      "id": "pack.asteroid_field.small.v1",
+      "packType": "hazard",
+      "budgetCost": 22,
+      "tags": ["hazard.asteroid", "size.small", "wildcard.hazard"],
+      "prefabRefs": [
+        {
+          "prefabId": "AsteroidFieldSmall",
+          "countRange": [1, 1]
+        }
+      ]
+    },
+    {
+      "id": "pack.swarm.interceptor.light.v1",
+      "packType": "enemy",
+      "budgetCost": 30,
+      "tags": ["enemy.swarm", "enemy.light"],
+      "prefabRefs": [
+        {
+          "prefabId": "SwarmInterceptorWing",
+          "countRange": [1, 2]
+        }
+      ]
+    },
+    {
+      "id": "pack.objective.mining.cluster.v1",
+      "packType": "objective",
+      "budgetCost": 26,
+      "tags": ["objective.mining"],
+      "prefabRefs": [
+        {
+          "prefabId": "MiningClusterStandard",
+          "countRange": [1, 1]
+        }
+      ]
+    },
+    {
+      "id": "pack.objective.salvage.derelict.v1",
+      "packType": "objective",
+      "budgetCost": 28,
+      "tags": ["objective.salvage", "wildcard.anomaly"],
+      "prefabRefs": [
+        {
+          "prefabId": "DerelictSalvageCluster",
+          "countRange": [1, 1]
+        }
+      ]
+    },
+    {
+      "id": "pack.market.roaming.v1",
+      "packType": "wildcard",
+      "budgetCost": 18,
+      "tags": ["wildcard.market"],
+      "prefabRefs": [
+        {
+          "prefabId": "RoamingMarketConvoy",
+          "countRange": [1, 1]
+        }
+      ]
+    }
+  ],
+  "minibossRules": {
+    "minDepth": 3,
+    "eligibleAfterEliteRooms": 1,
+    "baseSpawnChance": 0.08,
+    "guaranteeByDepth": 7,
+    "cooldownRooms": 2
+  },
+  "budgetFormula": {
+    "depthStepMultiplier": 0.08,
+    "threatStepMultiplier": 0.1
+  },
+  "selectionRules": {
+    "maxDuplicateArchetypeInRow": 2,
+    "maxWildcardPerRoom": 2,
+    "allowStackedHazardsInEliteRooms": true,
+    "fallbackWildcard": "hazard"
+  }
+}
