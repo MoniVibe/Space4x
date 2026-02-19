@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "space4x.fleetcrawl.pacing.v0",
+  "mode": "soft_endless_pressure",
+  "designNotes": {
+    "hardTimeout": false,
+    "forcedExit": false,
+    "supportsExtendedRoomHold": true,
+    "supportsMetaCounterplay": true
+  },
+  "difficultyProfiles": [
+    {
+      "difficultyTier": 1,
+      "targetRoomSeconds": 2160,
+      "debtGainPerSecond": 0.00045
+    },
+    {
+      "difficultyTier": 2,
+      "targetRoomSeconds": 1920,
+      "debtGainPerSecond": 0.00055
+    },
+    {
+      "difficultyTier": 3,
+      "targetRoomSeconds": 1800,
+      "debtGainPerSecond": 0.00065
+    },
+    {
+      "difficultyTier": 4,
+      "targetRoomSeconds": 1620,
+      "debtGainPerSecond": 0.0008
+    },
+    {
+      "difficultyTier": 5,
+      "targetRoomSeconds": 1440,
+      "debtGainPerSecond": 0.001
+    }
+  ],
+  "pressureCurve": {
+    "graceSeconds": 480,
+    "lateStartSeconds": 1800,
+    "phaseASlope": 0.00035,
+    "phaseBSlope": 0.00095,
+    "phaseCExponent": 1.45,
+    "phaseCScale": 0.65,
+    "pressureCap": 6.0,
+    "formula": "phaseA=min(roomTime,grace)*phaseASlope; phaseB=max(0,roomTime-grace)*phaseBSlope; phaseC=pow(max(0,roomTime-lateStart)/600,phaseCExponent)*phaseCScale; pressure=clamp((phaseA+phaseB+phaseC)*(1-metaPressureResist),0,pressureCap)"
+  },
+  "runDebt": {
+    "formula": "over=max(0,roomTime-targetRoomSecondsByDifficulty); runDebt += over*debtGainPerSecond*(1-metaDebtControl)",
+    "decayBetweenRooms": 0.1,
+    "minDebt": 0.0
+  },
+  "threatMapping": {
+    "kPressure": 0.22,
+    "kDebt": 0.18,
+    "waveBudgetCap": 4.5,
+    "baseEliteChance": 0.05,
+    "eliteFromPressure": 0.04,
+    "eliteFromDebt": 0.03,
+    "hazardFromPressure": 0.12,
+    "hazardFromDebt": 0.08,
+    "rewardDecayFromPressure": 0.09,
+    "formula": "threatScalar=1+pressure*kPressure+runDebt*kDebt; waveBudgetMult=clamp(threatScalar,1,waveBudgetCap); eliteChance=baseEliteChance+pressure*eliteFromPressure+runDebt*eliteFromDebt; hazardRateMult=1+pressure*hazardFromPressure+runDebt*hazardFromDebt; rewardDecayMult=1/(1+rewardDecayFromPressure*pressure)"
+  },
+  "metaHooks": {
+    "metaPressureResist": {
+      "description": "Reduces pressure contribution from room time",
+      "min": 0.0,
+      "max": 0.6
+    },
+    "metaDebtControl": {
+      "description": "Reduces run-debt accrual and enables debt burn tools",
+      "min": 0.0,
+      "max": 0.7
+    },
+    "debtBurnActions": [
+      "high_risk_objective_clear",
+      "boss_elimination_bonus",
+      "resource_spend_purge"
+    ]
+  },
+  "uiHints": {
+    "pressureBands": [
+      "Calm",
+      "Rising",
+      "Menacing",
+      "Cataclysmic"
+    ],
+    "showRunDebt": true,
+    "showEscalationTooltip": true
+  },
+  "acceptance": [
+    "No forced room timeout",
+    "Escalation scales with room dwell time",
+    "Delay in earlier rooms increases later-room threat",
+    "Strong builds may hold long rooms but pressure/debt costs continue to rise",
+    "Meta progression can reduce pressure and/or debt"
+  ]
+}
