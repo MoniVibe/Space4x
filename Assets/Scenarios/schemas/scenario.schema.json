@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "space4x://Assets/Scenarios/schemas/scenario.schema.json",
+  "title": "Space4X Scenario Schema (Permissive)",
+  "description": "Permissive schema supporting multiple known Space4X scenario shapes. Intended for editor tooling and basic validation; not a strict contract.",
+  "$comment": "This schema is intentionally permissive. It exists primarily to satisfy $schema references like \"schemas/scenario.schema.json\" under Assets/Scenarios/ without forcing edits or normalization across existing scenario JSONs.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/stress_ships_list" },
+    { "$ref": "#/$defs/mining_style" },
+    { "$ref": "#/$defs/scenario_runner_counts" }
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "stress_ships_list": {
+      "type": "object",
+      "$comment": "Stress format: top-level ships[] list used by capital stress scenarios (100v100, 200v200).",
+      "required": ["scenarioId", "ships"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "id": { "type": "string" },
+        "scenarioId": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "duration_s": { "type": "number", "minimum": 0 },
+        "seed": { "type": "integer" },
+        "applyDefaultModuleLoadouts": { "type": "boolean" },
+        "proofs": { "type": "object", "additionalProperties": true },
+        "ships": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stress_ship" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "stress_ship": {
+      "type": "object",
+      "$comment": "Single ship entry in the ships[] stress list. Extra properties are allowed to avoid schema churn.",
+      "required": ["faction", "x", "y"],
+      "properties": {
+        "faction": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "isCarrier": { "type": "boolean" },
+        "strikeCraftCount": { "type": "integer", "minimum": 0 },
+        "shipTemplateId": { "type": "string" },
+        "pilotProfileId": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "mining_style": {
+      "type": "object",
+      "$comment": "Mining-style format: scenarioConfig + spawn/actions used by most Space4X headless scenarios (including large spawn lists like 2k vs 2k).",
+      "required": ["scenarioId"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "scenarioId": { "type": "string", "minLength": 1 },
+        "seed": { "type": "integer" },
+        "duration_s": { "type": "number", "minimum": 0 },
+        "proofs": { "type": "object", "additionalProperties": true },
+        "scenarioConfig": { "type": "object", "additionalProperties": true },
+        "dogfightConfig": { "type": "object", "additionalProperties": true },
+        "stanceConfig": { "type": "object", "additionalProperties": true },
+        "spawn": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        "individuals": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        "telemetryExpectations": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": true
+    },
+    "scenario_runner_counts": {
+      "type": "object",
+      "$comment": "ScenarioRunner counts format: registryId/count lists used by some PureDOTS-driven micros. Accepted here to keep tooling happy when mixed into Space4X Assets/Scenarios.",
+      "required": ["scenarioId", "runTicks", "entityCounts"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "scenarioId": { "type": "string", "minLength": 1 },
+        "seed": { "type": "integer" },
+        "runTicks": { "type": "integer", "minimum": 1 },
+        "entityCounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "registryId": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 },
+              "description": { "type": "string" }
+            },
+            "required": ["registryId", "count"],
+            "additionalProperties": true
+          }
+        },
+        "assertions": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true }
+        },
+        "docs": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

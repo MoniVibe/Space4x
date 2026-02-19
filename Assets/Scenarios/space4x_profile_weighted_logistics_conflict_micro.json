@@ -1,0 +1,602 @@
+{
+  "$schema": "schemas/scenario.schema.json",
+  "scenarioId": "space4x_profile_weighted_logistics_conflict_micro",
+  "seed": 27182,
+  "duration_s": 120,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "friendlyFactionOutlook": [
+      "Egalitarian",
+      "Materialist",
+      "Honorable"
+    ],
+    "hostileFactionOutlook": [
+      "Militarist",
+      "Corrupt",
+      "Authoritarian"
+    ],
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.mining.progress",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.directive_churn",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.regroup_latency",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.cohesion_uptime",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.profile_weight_influence",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.order_decision_profile_link",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.collective_profile_directive_link",
+        "required": false
+      },
+      {
+        "id": "space4x.q.combat.leader_profile_directive_link",
+        "required": false
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 260.0,
+    "coneDegrees": 45.0,
+    "navConstantN": 3.3,
+    "breakOffDistance": 18.0,
+    "breakOffTicks": 90,
+    "rejoinRadius": 8.0,
+    "rejoinOffset": [
+      0.0,
+      0.0,
+      -12.0
+    ],
+    "jinkStrength": 0.14
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "logi-friendly-carrier",
+      "position": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "components": {
+        "ResourceStorage": [
+          {
+            "type": "Minerals",
+            "capacity": 12000
+          }
+        ],
+        "Fleet": {
+          "fleetId": "LOGI-FRIENDLY",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 0,
+          "escortRelease_s": 0.0,
+          "pilotProfileIds": [
+            "friendly_strike_1",
+            "friendly_strike_2"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "logi-hostile-carrier",
+      "position": [
+        110.0,
+        0.0,
+        0.0
+      ],
+      "components": {
+        "ResourceStorage": [
+          {
+            "type": "Minerals",
+            "capacity": 10000
+          }
+        ],
+        "Fleet": {
+          "fleetId": "LOGI-HOSTILE",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 11.0,
+          "isHostile": true,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 0,
+          "escortRelease_s": 0.0,
+          "pilotProfileIds": [
+            "hostile_strike_1",
+            "hostile_strike_2"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "friendly-miner-1",
+      "position": [
+        -92.0,
+        0.0,
+        -6.0
+      ],
+      "carrierId": "logi-friendly-carrier",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.88,
+      "speed": 8.5,
+      "cargoCapacity": 120.0,
+      "startDocked": true,
+      "pilotProfileId": "friendly_miner_1"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "friendly-miner-2",
+      "position": [
+        -92.0,
+        0.0,
+        0.0
+      ],
+      "carrierId": "logi-friendly-carrier",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.82,
+      "speed": 8.2,
+      "cargoCapacity": 110.0,
+      "startDocked": true,
+      "pilotProfileId": "friendly_miner_2"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "friendly-miner-3",
+      "position": [
+        -92.0,
+        0.0,
+        6.0
+      ],
+      "carrierId": "logi-friendly-carrier",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.86,
+      "speed": 8.4,
+      "cargoCapacity": 115.0,
+      "startDocked": true,
+      "pilotProfileId": "friendly_miner_3"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "hostile-miner-1",
+      "position": [
+        108.0,
+        0.0,
+        -4.0
+      ],
+      "carrierId": "logi-hostile-carrier",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.74,
+      "speed": 8.8,
+      "cargoCapacity": 100.0,
+      "startDocked": true,
+      "pilotProfileId": "hostile_miner_1"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "hostile-miner-2",
+      "position": [
+        108.0,
+        0.0,
+        4.0
+      ],
+      "carrierId": "logi-hostile-carrier",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.70,
+      "speed": 8.9,
+      "cargoCapacity": 96.0,
+      "startDocked": true,
+      "pilotProfileId": "hostile_miner_2"
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "hostile-miner-3",
+      "position": [
+        112.0,
+        0.0,
+        0.0
+      ],
+      "carrierId": "logi-hostile-carrier",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.72,
+      "speed": 9.0,
+      "cargoCapacity": 98.0,
+      "startDocked": true,
+      "pilotProfileId": "hostile_miner_3"
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-friendly-lane",
+      "position": [
+        -30.0,
+        0.0,
+        -20.0
+      ],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 11.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-contested-center",
+      "position": [
+        10.0,
+        0.0,
+        0.0
+      ],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1400.0,
+      "gatherRatePerWorker": 14.0,
+      "maxSimultaneousWorkers": 6
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-hostile-lane",
+      "position": [
+        60.0,
+        0.0,
+        18.0
+      ],
+      "resourceId": "Minerals",
+      "unitsRemaining": 850.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    }
+  ],
+  "actions": [],
+  "individuals": [
+    {
+      "id": "friendly_miner_1",
+      "law": 0.82,
+      "good": 0.20,
+      "integrity": 0.74,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.72
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.16
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.12
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.90,
+        "caution": 0.70,
+        "formationAdherence": 0.84,
+        "riskTolerance": 0.22,
+        "aggression": 0.36,
+        "patience": 0.86
+      }
+    },
+    {
+      "id": "friendly_miner_2",
+      "law": 0.74,
+      "good": 0.16,
+      "integrity": 0.66,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.66
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.22
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.12
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.84,
+        "caution": 0.66,
+        "formationAdherence": 0.78,
+        "riskTolerance": 0.28,
+        "aggression": 0.40,
+        "patience": 0.78
+      }
+    },
+    {
+      "id": "friendly_miner_3",
+      "law": 0.68,
+      "good": 0.10,
+      "integrity": 0.62,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.60
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.25
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.15
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.79,
+        "caution": 0.62,
+        "formationAdherence": 0.74,
+        "riskTolerance": 0.32,
+        "aggression": 0.44,
+        "patience": 0.72
+      }
+    },
+    {
+      "id": "hostile_miner_1",
+      "law": -0.60,
+      "good": -0.12,
+      "integrity": -0.36,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.52
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.48
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.36,
+        "caution": 0.34,
+        "formationAdherence": 0.38,
+        "riskTolerance": 0.70,
+        "aggression": 0.58,
+        "patience": 0.44
+      }
+    },
+    {
+      "id": "hostile_miner_2",
+      "law": -0.72,
+      "good": -0.18,
+      "integrity": -0.42,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.60
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.40
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.30,
+        "caution": 0.28,
+        "formationAdherence": 0.34,
+        "riskTolerance": 0.78,
+        "aggression": 0.62,
+        "patience": 0.36
+      }
+    },
+    {
+      "id": "hostile_miner_3",
+      "law": -0.66,
+      "good": -0.10,
+      "integrity": -0.30,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.56
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.44
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.34,
+        "caution": 0.32,
+        "formationAdherence": 0.36,
+        "riskTolerance": 0.74,
+        "aggression": 0.60,
+        "patience": 0.40
+      }
+    },
+    {
+      "id": "friendly_strike_1",
+      "law": 0.76,
+      "good": 0.06,
+      "integrity": 0.60,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.68
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.18
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.14
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.82,
+        "caution": 0.50,
+        "formationAdherence": 0.80,
+        "riskTolerance": 0.34,
+        "aggression": 0.58,
+        "patience": 0.68
+      }
+    },
+    {
+      "id": "friendly_strike_2",
+      "law": 0.70,
+      "good": 0.02,
+      "integrity": 0.56,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.62
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.20
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.18
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.78,
+        "caution": 0.46,
+        "formationAdherence": 0.74,
+        "riskTolerance": 0.38,
+        "aggression": 0.60,
+        "patience": 0.62
+      }
+    },
+    {
+      "id": "hostile_strike_1",
+      "law": -0.80,
+      "good": -0.22,
+      "integrity": -0.48,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.70
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.30
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.24,
+        "caution": 0.20,
+        "formationAdherence": 0.30,
+        "riskTolerance": 0.84,
+        "aggression": 0.78,
+        "patience": 0.26
+      }
+    },
+    {
+      "id": "hostile_strike_2",
+      "law": -0.74,
+      "good": -0.16,
+      "integrity": -0.42,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.64
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.36
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.28,
+        "caution": 0.24,
+        "formationAdherence": 0.34,
+        "riskTolerance": 0.80,
+        "aggression": 0.74,
+        "patience": 0.32
+      }
+    }
+  ],
+  "personalRelations": [
+    {
+      "idA": "friendly_miner_1",
+      "idB": "friendly_miner_2",
+      "kind": "Comrade",
+      "score": 52,
+      "trust": 0.76,
+      "fear": 0.10
+    },
+    {
+      "idA": "friendly_miner_2",
+      "idB": "friendly_miner_3",
+      "kind": "Friend",
+      "score": 44,
+      "trust": 0.68,
+      "fear": 0.12
+    },
+    {
+      "idA": "friendly_strike_1",
+      "idB": "friendly_strike_2",
+      "kind": "Comrade",
+      "score": 40,
+      "trust": 0.64,
+      "fear": 0.14
+    },
+    {
+      "idA": "hostile_miner_1",
+      "idB": "hostile_miner_2",
+      "kind": "Rival",
+      "score": -26,
+      "trust": 0.26,
+      "fear": 0.44
+    },
+    {
+      "idA": "hostile_miner_2",
+      "idB": "hostile_miner_3",
+      "kind": "Rival",
+      "score": -32,
+      "trust": 0.20,
+      "fear": 0.50
+    },
+    {
+      "idA": "hostile_strike_1",
+      "idB": "hostile_strike_2",
+      "kind": "Rival",
+      "score": -38,
+      "trust": 0.18,
+      "fear": 0.56
+    }
+  ]
+}

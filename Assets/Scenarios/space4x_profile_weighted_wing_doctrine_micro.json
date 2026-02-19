@@ -1,0 +1,390 @@
+{
+  "$schema": "schemas/scenario.schema.json",
+  "scenarioId": "space4x_profile_weighted_wing_doctrine_micro",
+  "seed": 31415,
+  "duration_s": 90,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "friendlyFactionOutlook": [
+      "Militarist",
+      "Honorable",
+      "Authoritarian"
+    ],
+    "hostileFactionOutlook": [
+      "Militarist",
+      "Corrupt",
+      "Xenophobe"
+    ],
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.directive_churn",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.regroup_latency",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.cohesion_uptime",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.profile_weight_influence",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.order_decision_profile_link",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.collective_profile_directive_link",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.leader_profile_directive_link",
+        "required": true
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 280.0,
+    "coneDegrees": 48.0,
+    "navConstantN": 3.5,
+    "breakOffDistance": 20.0,
+    "breakOffTicks": 95,
+    "rejoinRadius": 8.0,
+    "rejoinOffset": [
+      0.0,
+      0.0,
+      -12.0
+    ],
+    "jinkStrength": 0.15
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "wing-doctrine-alpha",
+      "position": [
+        -70.0,
+        0.0,
+        0.0
+      ],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 0,
+          "escortRelease_s": 0.0,
+          "pilotProfileIds": [
+            "alpha_wing_1",
+            "alpha_wing_2",
+            "alpha_wing_3",
+            "alpha_wing_4"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "wing-doctrine-beta",
+      "position": [
+        70.0,
+        0.0,
+        0.0
+      ],
+      "components": {
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 0,
+          "escortRelease_s": 0.0,
+          "pilotProfileIds": [
+            "beta_wing_1",
+            "beta_wing_2",
+            "beta_wing_3",
+            "beta_wing_4"
+          ]
+        }
+      }
+    }
+  ],
+  "actions": [],
+  "individuals": [
+    {
+      "id": "alpha_wing_1",
+      "law": 0.90,
+      "good": 0.20,
+      "integrity": 0.70,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.85
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.15
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.92,
+        "caution": 0.62,
+        "formationAdherence": 0.90,
+        "riskTolerance": 0.20,
+        "aggression": 0.55,
+        "patience": 0.78
+      }
+    },
+    {
+      "id": "alpha_wing_2",
+      "law": 0.76,
+      "good": 0.10,
+      "integrity": 0.65,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.70
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.20
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.10
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.84,
+        "caution": 0.58,
+        "formationAdherence": 0.82,
+        "riskTolerance": 0.30,
+        "aggression": 0.58,
+        "patience": 0.70
+      }
+    },
+    {
+      "id": "alpha_wing_3",
+      "law": 0.68,
+      "good": 0.05,
+      "integrity": 0.60,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.62
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.25
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.13
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.77,
+        "caution": 0.53,
+        "formationAdherence": 0.75,
+        "riskTolerance": 0.36,
+        "aggression": 0.60,
+        "patience": 0.64
+      }
+    },
+    {
+      "id": "alpha_wing_4",
+      "law": 0.72,
+      "good": 0.00,
+      "integrity": 0.56,
+      "stances": [
+        {
+          "stanceId": "Loyalist",
+          "weight": 0.66
+        },
+        {
+          "stanceId": "Fanatic",
+          "weight": 0.18
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.16
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.80,
+        "caution": 0.56,
+        "formationAdherence": 0.78,
+        "riskTolerance": 0.32,
+        "aggression": 0.57,
+        "patience": 0.66
+      }
+    },
+    {
+      "id": "beta_wing_1",
+      "law": -0.88,
+      "good": -0.20,
+      "integrity": -0.55,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.78
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.22
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.20,
+        "caution": 0.22,
+        "formationAdherence": 0.28,
+        "riskTolerance": 0.86,
+        "aggression": 0.84,
+        "patience": 0.24
+      }
+    },
+    {
+      "id": "beta_wing_2",
+      "law": -0.74,
+      "good": -0.12,
+      "integrity": -0.44,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.62
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.38
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.29,
+        "caution": 0.26,
+        "formationAdherence": 0.35,
+        "riskTolerance": 0.80,
+        "aggression": 0.78,
+        "patience": 0.30
+      }
+    },
+    {
+      "id": "beta_wing_3",
+      "law": -0.80,
+      "good": -0.04,
+      "integrity": -0.36,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.70
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.30
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.25,
+        "caution": 0.18,
+        "formationAdherence": 0.26,
+        "riskTolerance": 0.88,
+        "aggression": 0.81,
+        "patience": 0.22
+      }
+    },
+    {
+      "id": "beta_wing_4",
+      "law": -0.67,
+      "good": -0.08,
+      "integrity": -0.40,
+      "stances": [
+        {
+          "stanceId": "Mutinous",
+          "weight": 0.58
+        },
+        {
+          "stanceId": "Opportunist",
+          "weight": 0.42
+        }
+      ],
+      "behaviorDisposition": {
+        "enabled": true,
+        "compliance": 0.34,
+        "caution": 0.30,
+        "formationAdherence": 0.38,
+        "riskTolerance": 0.74,
+        "aggression": 0.74,
+        "patience": 0.34
+      }
+    }
+  ],
+  "personalRelations": [
+    {
+      "idA": "alpha_wing_1",
+      "idB": "alpha_wing_2",
+      "kind": "Comrade",
+      "score": 58,
+      "trust": 0.74,
+      "fear": 0.12
+    },
+    {
+      "idA": "alpha_wing_1",
+      "idB": "alpha_wing_3",
+      "kind": "Comrade",
+      "score": 46,
+      "trust": 0.66,
+      "fear": 0.10
+    },
+    {
+      "idA": "alpha_wing_2",
+      "idB": "alpha_wing_4",
+      "kind": "Friend",
+      "score": 41,
+      "trust": 0.62,
+      "fear": 0.08
+    },
+    {
+      "idA": "beta_wing_1",
+      "idB": "beta_wing_2",
+      "kind": "Rival",
+      "score": -34,
+      "trust": 0.20,
+      "fear": 0.55
+    },
+    {
+      "idA": "beta_wing_1",
+      "idB": "beta_wing_3",
+      "kind": "Rival",
+      "score": -46,
+      "trust": 0.16,
+      "fear": 0.62
+    },
+    {
+      "idA": "beta_wing_3",
+      "idB": "beta_wing_4",
+      "kind": "Rival",
+      "score": -28,
+      "trust": 0.24,
+      "fear": 0.48
+    }
+  ]
+}

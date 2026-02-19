@@ -204,6 +204,13 @@ namespace Space4X.Headless
         public const string CrewTransfer = "space4x.q.crew.transfer";
         public const string CollisionPhasing = "space4x.q.collision.phasing";
         public const string CombatAttackRun = "space4x.q.combat.attack_run";
+        public const string CombatDirectiveChurn = "space4x.q.combat.directive_churn";
+        public const string CombatRegroupLatency = "space4x.q.combat.regroup_latency";
+        public const string CombatCohesionUptime = "space4x.q.combat.cohesion_uptime";
+        public const string CombatProfileWeightInfluence = "space4x.q.combat.profile_weight_influence";
+        public const string CombatOrderDecisionProfileLink = "space4x.q.combat.order_decision_profile_link";
+        public const string CombatCollectiveProfileDirectiveLink = "space4x.q.combat.collective_profile_directive_link";
+        public const string CombatLeaderProfileDirectiveLink = "space4x.q.combat.leader_profile_directive_link";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -251,7 +258,14 @@ namespace Space4X.Headless
             new CrewSensorsCausalityQuestion(),
             new CrewTransferQuestion(),
             new CollisionPhasingQuestion(),
-            new CombatAttackRunQuestion()
+            new CombatAttackRunQuestion(),
+            new CombatDirectiveChurnQuestion(),
+            new CombatRegroupLatencyQuestion(),
+            new CombatCohesionUptimeQuestion(),
+            new CombatProfileWeightInfluenceQuestion(),
+            new CombatOrderDecisionProfileLinkQuestion(),
+            new CombatCollectiveProfileDirectiveLinkQuestion(),
+            new CombatLeaderProfileDirectiveLinkQuestion()
         };
 
         private static readonly Dictionary<string, IHeadlessQuestion> QuestionMap;
@@ -1100,6 +1114,591 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"attack_run_seen={attackSeen:0} cap_seen={capSeen:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatDirectiveChurnQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatDirectiveChurn;
+            private const float MaxTransitionsPerLeader = 8f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var wingSeen = signals.GetMetricOrDefault("space4x.combat.wing_directive_seen");
+                var transitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_transitions");
+                var breakTransitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_break_transitions");
+                var formTransitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_form_transitions");
+                var leaders = signals.GetMetricOrDefault("space4x.strikecraft.wing.leaders");
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["wing_directive_seen"] = wingSeen;
+                answer.Metrics["directive_transitions"] = transitions;
+                answer.Metrics["directive_break_transitions"] = breakTransitions;
+                answer.Metrics["directive_form_transitions"] = formTransitions;
+                answer.Metrics["wing_leaders"] = leaders;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (wingSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no wing directive observed";
+                    return answer;
+                }
+
+                if (transitions <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no directive transitions observed";
+                    return answer;
+                }
+
+                if (leaders > 0f)
+                {
+                    var transitionsPerLeader = transitions / leaders;
+                    answer.Metrics["directive_transitions_per_leader"] = transitionsPerLeader;
+                    if (transitionsPerLeader > MaxTransitionsPerLeader)
+                    {
+                        answer.Status = Space4XQuestionStatus.Fail;
+                        answer.Answer = $"directive_churn_high transitions_per_leader={transitionsPerLeader:0.##}";
+                        return answer;
+                    }
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"transitions={transitions:0} break={breakTransitions:0} form={formTransitions:0}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatRegroupLatencyQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatRegroupLatency;
+            private const float MaxAverageRegroupTicks = 240f;
+            private const float MaxPeakRegroupTicks = 360f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var transitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_transitions");
+                var breakTransitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_break_transitions");
+                var formTransitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_form_transitions");
+                var regroupSamples = signals.GetMetricOrDefault("space4x.combat.wing.regroup_samples");
+                var regroupAvgTicks = signals.GetMetricOrDefault("space4x.combat.wing.regroup_latency_ticks.avg");
+                var regroupMaxTicks = signals.GetMetricOrDefault("space4x.combat.wing.regroup_latency_ticks.max");
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["directive_transitions"] = transitions;
+                answer.Metrics["directive_break_transitions"] = breakTransitions;
+                answer.Metrics["directive_form_transitions"] = formTransitions;
+                answer.Metrics["regroup_samples"] = regroupSamples;
+                answer.Metrics["regroup_latency_ticks_avg"] = regroupAvgTicks;
+                answer.Metrics["regroup_latency_ticks_max"] = regroupMaxTicks;
+
+                if (strikeSeen <= 0f || transitions <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_directive_activity";
+                    answer.Answer = "directive activity not observed";
+                    return answer;
+                }
+
+                if (breakTransitions > 0f && formTransitions <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "break observed without regroup";
+                    return answer;
+                }
+
+                if (regroupSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_regroup_samples";
+                    answer.Answer = "regroup latency not sampled";
+                    return answer;
+                }
+
+                if (regroupAvgTicks > MaxAverageRegroupTicks || regroupMaxTicks > MaxPeakRegroupTicks)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"regroup_slow avg={regroupAvgTicks:0.##} max={regroupMaxTicks:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"regroup_avg_ticks={regroupAvgTicks:0.##} max_ticks={regroupMaxTicks:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatCohesionUptimeQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatCohesionUptime;
+            private const float MinCohesionUptimeRatio = 0.25f;
+            private const float MinAverageCohesion = 0.20f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var cohesionSamples = signals.GetMetricOrDefault("space4x.combat.wing.cohesion_samples");
+                var cohesionAvg = signals.GetMetricOrDefault("space4x.combat.wing.cohesion_avg");
+                var cohesionUptime = signals.GetMetricOrDefault("space4x.combat.wing.cohesion_uptime_ratio");
+                var wingMembers = signals.GetMetricOrDefault("space4x.strikecraft.wing.members");
+                var wingDistance = signals.GetMetricOrDefault("space4x.strikecraft.wing.avgDistance");
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["cohesion_samples"] = cohesionSamples;
+                answer.Metrics["cohesion_avg"] = cohesionAvg;
+                answer.Metrics["cohesion_uptime_ratio"] = cohesionUptime;
+                answer.Metrics["wing_members"] = wingMembers;
+                answer.Metrics["wing_avg_distance"] = wingDistance;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (cohesionSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_cohesion_samples";
+                    answer.Answer = "cohesion metrics unavailable";
+                    return answer;
+                }
+
+                if (cohesionUptime < MinCohesionUptimeRatio || cohesionAvg < MinAverageCohesion)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"cohesion_low avg={cohesionAvg:0.##} uptime={cohesionUptime:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"cohesion_avg={cohesionAvg:0.##} uptime={cohesionUptime:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatProfileWeightInfluenceQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatProfileWeightInfluence;
+            private const float MinDisciplineSeparation = 0.05f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var transitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_transitions");
+                var breakTransitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_break_transitions");
+                var formTransitions = signals.GetMetricOrDefault("space4x.combat.wing.directive_form_transitions");
+                var disciplineSamples = signals.GetMetricOrDefault("space4x.combat.wing.directive_discipline_samples");
+                var disciplineAvg = signals.GetMetricOrDefault("space4x.combat.wing.directive_discipline_avg");
+                var breakDisciplineAvg = signals.GetMetricOrDefault("space4x.combat.wing.directive_break_discipline_avg");
+                var formDisciplineAvg = signals.GetMetricOrDefault("space4x.combat.wing.directive_form_discipline_avg");
+                var separation = formDisciplineAvg - breakDisciplineAvg;
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["directive_transitions"] = transitions;
+                answer.Metrics["directive_break_transitions"] = breakTransitions;
+                answer.Metrics["directive_form_transitions"] = formTransitions;
+                answer.Metrics["directive_discipline_samples"] = disciplineSamples;
+                answer.Metrics["directive_discipline_avg"] = disciplineAvg;
+                answer.Metrics["directive_break_discipline_avg"] = breakDisciplineAvg;
+                answer.Metrics["directive_form_discipline_avg"] = formDisciplineAvg;
+                answer.Metrics["directive_discipline_separation"] = separation;
+
+                if (strikeSeen <= 0f || transitions <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_directive_activity";
+                    answer.Answer = "directive activity not observed";
+                    return answer;
+                }
+
+                if (disciplineSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_discipline_samples";
+                    answer.Answer = "discipline samples unavailable";
+                    return answer;
+                }
+
+                if (breakTransitions <= 0f || formTransitions <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "single_mode_directives";
+                    answer.Answer = "both break and form directives required";
+                    return answer;
+                }
+
+                if (separation < MinDisciplineSeparation)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"discipline_separation_low break={breakDisciplineAvg:0.##} form={formDisciplineAvg:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"discipline_break={breakDisciplineAvg:0.##} form={formDisciplineAvg:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatOrderDecisionProfileLinkQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatOrderDecisionProfileLink;
+            private const float MinDecisionSeparation = 0.05f;
+            private const float MinDispositionDelta = 0.03f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var decisionSamples = signals.GetMetricOrDefault("space4x.combat.order_decision.samples");
+                var obeyCount = signals.GetMetricOrDefault("space4x.combat.order_decision.obey");
+                var disobeyCount = signals.GetMetricOrDefault("space4x.combat.order_decision.disobey");
+                var obeyRatio = signals.GetMetricOrDefault("space4x.combat.order_decision.obey_ratio");
+                var obeyDisciplineAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.obey_discipline_avg");
+                var disobeyDisciplineAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.disobey_discipline_avg");
+                var obeyComplianceAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.obey_compliance_avg");
+                var obeyFormationAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.obey_formation_avg");
+                var obeyRiskAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.obey_risk_tolerance_avg");
+                var disobeyComplianceAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.disobey_compliance_avg");
+                var disobeyFormationAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.disobey_formation_avg");
+                var disobeyRiskAvg = signals.GetMetricOrDefault("space4x.combat.order_decision.disobey_risk_tolerance_avg");
+
+                var disciplineSeparation = obeyDisciplineAvg - disobeyDisciplineAvg;
+                var complianceSeparation = obeyComplianceAvg - disobeyComplianceAvg;
+                var formationSeparation = obeyFormationAvg - disobeyFormationAvg;
+                var riskSeparation = disobeyRiskAvg - obeyRiskAvg;
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["order_decision_samples"] = decisionSamples;
+                answer.Metrics["order_decision_obey"] = obeyCount;
+                answer.Metrics["order_decision_disobey"] = disobeyCount;
+                answer.Metrics["order_decision_obey_ratio"] = obeyRatio;
+                answer.Metrics["order_decision_obey_discipline_avg"] = obeyDisciplineAvg;
+                answer.Metrics["order_decision_disobey_discipline_avg"] = disobeyDisciplineAvg;
+                answer.Metrics["order_decision_obey_compliance_avg"] = obeyComplianceAvg;
+                answer.Metrics["order_decision_obey_formation_avg"] = obeyFormationAvg;
+                answer.Metrics["order_decision_obey_risk_tolerance_avg"] = obeyRiskAvg;
+                answer.Metrics["order_decision_disobey_compliance_avg"] = disobeyComplianceAvg;
+                answer.Metrics["order_decision_disobey_formation_avg"] = disobeyFormationAvg;
+                answer.Metrics["order_decision_disobey_risk_tolerance_avg"] = disobeyRiskAvg;
+                answer.Metrics["order_decision_discipline_separation"] = disciplineSeparation;
+                answer.Metrics["order_decision_compliance_separation"] = complianceSeparation;
+                answer.Metrics["order_decision_formation_separation"] = formationSeparation;
+                answer.Metrics["order_decision_risk_separation"] = riskSeparation;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (decisionSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_order_decision_samples";
+                    answer.Answer = "order decision samples unavailable";
+                    return answer;
+                }
+
+                if (obeyCount <= 0f || disobeyCount <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"insufficient_outcome_variance obey={obeyCount:0} disobey={disobeyCount:0}";
+                    return answer;
+                }
+
+                if (disciplineSeparation < MinDecisionSeparation)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"discipline_order_link_weak obey={obeyDisciplineAvg:0.##} disobey={disobeyDisciplineAvg:0.##}";
+                    return answer;
+                }
+
+                var dispositionChecks = 0;
+                if (complianceSeparation >= MinDispositionDelta)
+                {
+                    dispositionChecks++;
+                }
+
+                if (formationSeparation >= MinDispositionDelta)
+                {
+                    dispositionChecks++;
+                }
+
+                if (riskSeparation >= MinDispositionDelta)
+                {
+                    dispositionChecks++;
+                }
+
+                if (dispositionChecks < 2)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"disposition_link_weak comp={complianceSeparation:0.##} form={formationSeparation:0.##} risk={riskSeparation:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"obey={obeyCount:0} disobey={disobeyCount:0} d={disciplineSeparation:0.##} c={complianceSeparation:0.##} f={formationSeparation:0.##} r={riskSeparation:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatCollectiveProfileDirectiveLinkQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatCollectiveProfileDirectiveLink;
+            private const float MinSeparation = 0.03f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var collectiveSamples = signals.GetMetricOrDefault("space4x.combat.wing.collective_samples");
+                var breakSamples = signals.GetMetricOrDefault("space4x.combat.wing.collective_break_samples");
+                var formSamples = signals.GetMetricOrDefault("space4x.combat.wing.collective_form_samples");
+                var breakCompliance = signals.GetMetricOrDefault("space4x.combat.wing.collective_break_compliance_avg");
+                var formCompliance = signals.GetMetricOrDefault("space4x.combat.wing.collective_form_compliance_avg");
+                var breakFormation = signals.GetMetricOrDefault("space4x.combat.wing.collective_break_formation_avg");
+                var formFormation = signals.GetMetricOrDefault("space4x.combat.wing.collective_form_formation_avg");
+                var breakRisk = signals.GetMetricOrDefault("space4x.combat.wing.collective_break_risk_avg");
+                var formRisk = signals.GetMetricOrDefault("space4x.combat.wing.collective_form_risk_avg");
+
+                var complianceDelta = formCompliance - breakCompliance;
+                var formationDelta = formFormation - breakFormation;
+                var riskDelta = breakRisk - formRisk;
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["collective_samples"] = collectiveSamples;
+                answer.Metrics["collective_break_samples"] = breakSamples;
+                answer.Metrics["collective_form_samples"] = formSamples;
+                answer.Metrics["collective_break_compliance_avg"] = breakCompliance;
+                answer.Metrics["collective_form_compliance_avg"] = formCompliance;
+                answer.Metrics["collective_break_formation_avg"] = breakFormation;
+                answer.Metrics["collective_form_formation_avg"] = formFormation;
+                answer.Metrics["collective_break_risk_avg"] = breakRisk;
+                answer.Metrics["collective_form_risk_avg"] = formRisk;
+                answer.Metrics["collective_compliance_delta"] = complianceDelta;
+                answer.Metrics["collective_formation_delta"] = formationDelta;
+                answer.Metrics["collective_risk_delta"] = riskDelta;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (collectiveSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_collective_samples";
+                    answer.Answer = "collective profile samples unavailable";
+                    return answer;
+                }
+
+                if (breakSamples <= 0f || formSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "single_mode_collective_samples";
+                    answer.Answer = "both break and form collective samples required";
+                    return answer;
+                }
+
+                if (complianceDelta < MinSeparation ||
+                    formationDelta < MinSeparation ||
+                    riskDelta < MinSeparation)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"collective_link_weak c={complianceDelta:0.##} f={formationDelta:0.##} r={riskDelta:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"collective_ok c={complianceDelta:0.##} f={formationDelta:0.##} r={riskDelta:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class CombatLeaderProfileDirectiveLinkQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.CombatLeaderProfileDirectiveLink;
+            private const float MinSeparation = 0.03f;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.combat.strikecraft_seen", out var strikeSeen))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_combat_metrics";
+                    answer.Answer = "combat metrics unavailable";
+                    return answer;
+                }
+
+                var breakSamples = signals.GetMetricOrDefault("space4x.combat.wing.leader_break_samples");
+                var formSamples = signals.GetMetricOrDefault("space4x.combat.wing.leader_form_samples");
+                var breakCompliance = signals.GetMetricOrDefault("space4x.combat.wing.leader_break_compliance_avg");
+                var formCompliance = signals.GetMetricOrDefault("space4x.combat.wing.leader_form_compliance_avg");
+                var breakFormation = signals.GetMetricOrDefault("space4x.combat.wing.leader_break_formation_avg");
+                var formFormation = signals.GetMetricOrDefault("space4x.combat.wing.leader_form_formation_avg");
+                var breakRisk = signals.GetMetricOrDefault("space4x.combat.wing.leader_break_risk_avg");
+                var formRisk = signals.GetMetricOrDefault("space4x.combat.wing.leader_form_risk_avg");
+
+                var complianceDelta = formCompliance - breakCompliance;
+                var formationDelta = formFormation - breakFormation;
+                var riskDelta = breakRisk - formRisk;
+
+                answer.Metrics["strikecraft_seen"] = strikeSeen;
+                answer.Metrics["leader_break_samples"] = breakSamples;
+                answer.Metrics["leader_form_samples"] = formSamples;
+                answer.Metrics["leader_break_compliance_avg"] = breakCompliance;
+                answer.Metrics["leader_form_compliance_avg"] = formCompliance;
+                answer.Metrics["leader_break_formation_avg"] = breakFormation;
+                answer.Metrics["leader_form_formation_avg"] = formFormation;
+                answer.Metrics["leader_break_risk_avg"] = breakRisk;
+                answer.Metrics["leader_form_risk_avg"] = formRisk;
+                answer.Metrics["leader_compliance_delta"] = complianceDelta;
+                answer.Metrics["leader_formation_delta"] = formationDelta;
+                answer.Metrics["leader_risk_delta"] = riskDelta;
+
+                if (strikeSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_strikecraft";
+                    answer.Answer = "no strike craft observed";
+                    return answer;
+                }
+
+                if (breakSamples <= 0f || formSamples <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "single_mode_leader_samples";
+                    answer.Answer = "both break and form leader samples required";
+                    return answer;
+                }
+
+                if (complianceDelta < MinSeparation ||
+                    formationDelta < MinSeparation ||
+                    riskDelta < MinSeparation)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"leader_link_weak c={complianceDelta:0.##} f={formationDelta:0.##} r={riskDelta:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"leader_ok c={complianceDelta:0.##} f={formationDelta:0.##} r={riskDelta:0.##}";
                 return answer;
             }
         }

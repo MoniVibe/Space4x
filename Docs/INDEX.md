@@ -2,18 +2,15 @@
 
 Quick pointers to the active documentation:
 
+- **Role-first AGENTS:** Root `AGENTS.md` (choose role, claim slot). Slots: `Docs/Agents/SLOTS.md`. Canonical direction: PureDOTS `Docs/` (NORTH_STAR, DEMO_SLICE, etc.) or `TRI_PROJECT_BRIEFING` + `Docs/Headless/*`.
+
 - Project setup: `Docs/PROJECT_SETUP.md`
 - Headless workflows: `Docs/Headless/Space4X_HEADLESS.md`, `Docs/Headless/Godgame_HEADLESS.md`
 - Ops bus protocol: `../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`
 - MCP tools: `Docs/MCP_Tools_Usage.md`, `Docs/MCP_Tools_Debugging.md`
 - PureDOTS time/rewind: `Docs/PureDOTS_TimeIntegration.md`
-- Galaxy tamagotchi (2 TPS sim): `Docs/Conceptualization/Mechanics/GalaxyTamagotchi.md`
-- Civilization control set (LLM interface): `Docs/Conceptualization/Mechanics/CivilizationControlSet.md`
-- Entity progression & opportunities: `Docs/Conceptualization/Mechanics/EntityProgressionOpportunities.md`
-- Mission board (jobs & assignments): `Docs/Conceptualization/Mechanics/MissionBoard.md`
 - Scenario runner wiring: `Docs/PureDOTS_ScenarioRunner_Wiring.md`
 - Concept vision: `Docs/Conceptualization/GameVision.md`, `Docs/Conceptualization/CorePillars.md`, `Docs/Conceptualization/DesignPrinciples.md`
-- Profile glossary (locked terms): `../../puredots/Docs/Concepts/Core/Entity_Profile_Glossary.md`
 - Rolling status: `Docs/Progress.md`
 - Integration guide: `Docs/Guides/Space4X_PureDOTS_Entity_Mapping.md` (update or archive if stale)
 - **Error Prevention (REQUIRED):** `Docs/Guides/Unity_DOTS_Common_Errors.md`

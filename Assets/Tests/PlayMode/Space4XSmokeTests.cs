@@ -11,6 +11,7 @@ using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Unity.Rendering;
+using UnityEngine.Rendering;
 
 public class Space4XSmokeTests
 {
@@ -20,12 +21,14 @@ public class Space4XSmokeTests
     private const float SubSceneConversionTimeoutSeconds = 45f;
     private const float RenderAssignmentTimeoutSeconds = 45f;
     private const int FramesBeforeRenderCheck = 3;
+    private const int WarmupFramesForMaterialMeshInfo = 30;
     private const string SubSceneMissingMessage = "SubScene not loaded/baked; no ECS entities exist.";
 
     [UnityTest]
     public IEnumerator SmokeScene_HasCoreSingletonsAndRenderables()
     {
         yield return LoadSmokeSceneAndWaitForWorld();
+        AssertSrpConfigured();
 
         var em = RequireDefaultEntityManager();
 
@@ -44,20 +47,25 @@ public class Space4XSmokeTests
             SubSceneConversionTimeoutSeconds,
             SubSceneMissingMessage);
 
+        int catalogCount = 0;
+        yield return WaitForCondition(
+            () =>
+            {
+                catalogCount = CountEntities<RenderPresentationCatalog>(em);
+                return catalogCount > 0;
+            },
+            SubSceneConversionTimeoutSeconds,
+            () => BuildRenderGateFailure(
+                "Catalog=False",
+                em,
+                $"RenderPresentationCatalog count stayed at {catalogCount}."));
+
         for (int i = 0; i < FramesBeforeRenderCheck; i++)
         {
             yield return null;
         }
 
-        int materialMeshCount = 0;
-        yield return WaitForCondition(
-            () =>
-            {
-                materialMeshCount = CountEntities<MaterialMeshInfo>(em);
-                return materialMeshCount > 0;
-            },
-            RenderAssignmentTimeoutSeconds,
-            SubSceneMissingMessage);
+        yield return WaitForMaterialMeshInfoAfterWarmup(em);
 
         int carrierCount = 0;
         int miningVesselCount = 0;
@@ -152,6 +160,12 @@ public class Space4XSmokeTests
         return entityManager;
     }
 
+    private static void AssertSrpConfigured()
+    {
+        var pipeline = GraphicsSettings.currentRenderPipeline ?? QualitySettings.renderPipeline ?? GraphicsSettings.defaultRenderPipeline;
+        Assert.IsNotNull(pipeline, "Pure-green gate failed: SRP missing (GraphicsSettings.currentRenderPipeline is null).");
+    }
+
     private static void AssertCoreTimeSingletons(EntityManager em)
     {
         Assert.Greater(CountEntities<TimeState>(em), 0, "Missing TimeState singleton");
@@ -185,6 +199,49 @@ public class Space4XSmokeTests
 
         var message = failureMessageFactory != null ? failureMessageFactory() : "WaitForCondition failed.";
         Assert.Fail(message);
+    }
+
+    private static IEnumerator WaitForMaterialMeshInfoAfterWarmup(EntityManager em)
+    {
+        float deadline = Time.realtimeSinceStartup + RenderAssignmentTimeoutSeconds;
+        while (Time.realtimeSinceStartup <= deadline)
+        {
+            int materialMeshCount = CountEntities<MaterialMeshInfo>(em);
+            if (materialMeshCount > 0)
+            {
+                yield break;
+            }
+
+            for (int i = 0; i < WarmupFramesForMaterialMeshInfo; i++)
+            {
+                yield return null;
+            }
+
+            materialMeshCount = CountEntities<MaterialMeshInfo>(em);
+            if (materialMeshCount <= 0)
+            {
+                Assert.Fail(BuildRenderGateFailure(
+                    "MaterialMeshInfo=0 after warmup",
+                    em,
+                    $"MaterialMeshInfo count remained 0 after {WarmupFramesForMaterialMeshInfo} warmup frames."));
+            }
+        }
+
+        Assert.Fail(BuildRenderGateFailure(
+            "MaterialMeshInfo=0 after warmup",
+            em,
+            $"MaterialMeshInfo did not appear within {RenderAssignmentTimeoutSeconds:0.0}s."));
+    }
+
+    private static string BuildRenderGateFailure(string gate, EntityManager em, string detail)
+    {
+        int semanticCount = CountEntities<RenderSemanticKey>(em);
+        int catalogCount = CountEntities<RenderPresentationCatalog>(em);
+        int materialMeshCount = CountEntities<MaterialMeshInfo>(em);
+        int carrierCount = CountEntities<Carrier>(em);
+        int minerCount = CountEntities<MiningVessel>(em);
+        var srpName = GraphicsSettings.currentRenderPipeline?.GetType().Name ?? "None";
+        return $"Pure-green gate failed: {gate}. {detail} Snapshot: SRP={srpName}, Catalog={(catalogCount > 0)}, RenderSemanticKey={semanticCount}, MaterialMeshInfo={materialMeshCount}, Carrier={carrierCount}, MiningVessel={minerCount}.";
     }
 }
 #endif
