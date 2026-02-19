@@ -3,6 +3,10 @@
 Quick pointers to the active documentation:
 
 - Canonical direction (shared): `../../puredots/Docs/NORTH_STAR.md`, `../../puredots/Docs/DEMO_SLICE.md`, `../../puredots/Docs/ARCHITECTURE.md`, `../../puredots/Docs/PERF_GATES.md`, `../../puredots/Docs/NETPLAY_NOT_NOW.md`, `../../puredots/Docs/PROGRESS_HUB.md`
+- Shared content intent scope/rules: `../../puredots/Docs/ContentIntent/README.md`, `../../puredots/Docs/ContentIntent/PureDOTS_vs_GameSide_Ruleset.md`, `../../puredots/Docs/ContentIntent/MVP_Content_Taxonomy_v0.md`
+- Shared canonicity contract/set: `../../puredots/Docs/Canonicity/README.md`, `../../puredots/Docs/Canonicity/Canonicity_Contract_v0.md`, `../../puredots/Docs/Canonicity/Data_Contract_Canon_Sprint_v0.md`, `../../puredots/Docs/Canonicity/Canonical_Scenario_Set_v0.md`, `../../puredots/Docs/Canonicity/canonical_scenarios.v0.json`, `../../puredots/Docs/Canonicity/canonical_contracts.v0.json`, `../../puredots/Docs/Canonicity/canonical_contract_payloads.v0.json`
+- Shared data contracts: `../../puredots/Docs/Canonicity/Combat_Mining_DataContracts_v0.md`, `../../puredots/Docs/Canonicity/Schemas/contract.mining.v0.schema.json`, `../../puredots/Docs/Canonicity/Schemas/contract.combat.v0.schema.json`, `../../puredots/Docs/Canonicity/Schemas/contract.room_profile.v0.schema.json`, `../../puredots/Docs/Canonicity/Schemas/contract.scenario_envelope.v0.schema.json`, `../../puredots/Docs/Canonicity/Schemas/contract.mission_objective.v0.schema.json`, `../../puredots/Docs/Canonicity/Schemas/contract.loot_cache.v0.schema.json`, `../../puredots/Docs/Canonicity/Schemas/contract.encounter_profile.v0.schema.json`
+- Space4X adapter for shared content intent: `Docs/ContentIntent/ADAPTER_space4x_v0.md`
 - Project setup: `Docs/PROJECT_SETUP.md`
 - Headless workflows: `Docs/Headless/Space4X_HEADLESS.md`, `Docs/Headless/Godgame_HEADLESS.md`
 - Ops bus protocol: `../../puredots/Docs/Headless/OPS_BUS_PROTOCOL.md`
@@ -13,11 +17,21 @@ Quick pointers to the active documentation:
 - Entity progression & opportunities: `Docs/Conceptualization/Mechanics/EntityProgressionOpportunities.md`
 - Mission board (jobs & assignments): `Docs/Conceptualization/Mechanics/MissionBoard.md`
 - Scenario runner wiring: `Docs/PureDOTS_ScenarioRunner_Wiring.md`
+- Solar-system expansion architecture: `Docs/Simulation/Space4X_Solar_System_Expansion_Architecture.md`
+- Solar-system expansion execution plan: `Docs/Simulation/Space4X_Solar_System_Expansion_Plan.md`
+- Solar-system expansion Phase 0 checklist: `Docs/Simulation/Space4X_Solar_System_Phase0_Checklist.md`
+- Orbit-to-surface continuum contract: `Docs/Simulation/Space4X_Orbit_To_Surface_Continuum_Contract.md`
 - Concept vision: `Docs/Conceptualization/GameVision.md`, `Docs/Conceptualization/CorePillars.md`, `Docs/Conceptualization/DesignPrinciples.md`
 - Profile glossary (locked terms): `../../puredots/Docs/Concepts/Core/Entity_Profile_Glossary.md`
 - Rolling status: `Docs/Progress.md`
 - Integration guide: `Docs/Guides/Space4X_PureDOTS_Entity_Mapping.md` (update or archive if stale)
 - **Error Prevention (REQUIRED):** `Docs/Guides/Unity_DOTS_Common_Errors.md`
+- **Frontend + Rendering Contract (REQUIRED for menu/UI/camera work):** `Docs/Guides/Space4X_Frontend_Rendering_Contract.md`
+- **Camera/Control Debug Checklist:** `Docs/Guides/Space4X_Camera_Debug_Checklist.md`
+- **Presentation Nuisance Filter (Tier 1/2/3):** `Docs/Presentation/Space4X_Presentation_Nuisance_Filter.md`
+- **Mode 1 Headless One-Command Check:** `scripts/presentation_mode1_headless.ps1`
+- **Presentation Slice Plan (active):** `Docs/Presentation/Space4X_Presentation_Slice_v1.md`
+- **Long-term research log (append-only):** `Docs/Research/Space4X_LongTerm_Research_Log.md`
 - Active TODOs:
   - Phase 2 rewind/time: `Docs/TODO/Phase2_Demo_TODO.md`
   - Agent A (alignment/compliance/doctrine): `Docs/TODO/AgentA_Alignment.md`
