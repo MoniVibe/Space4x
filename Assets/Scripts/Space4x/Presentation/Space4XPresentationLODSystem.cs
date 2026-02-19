@@ -47,6 +47,16 @@ namespace Space4X.Presentation
                 ? config
                 : PresentationLODConfig.Default;
 
+            if (lodConfig.DisableLOD != 0)
+            {
+                new ForceLod0Job
+                {
+                    CurrentTick = ++_tick,
+                    ForcedCullDistance = math.max(1f, lodConfig.ForcedCullDistanceWhenDisabled)
+                }.ScheduleParallel();
+                return;
+            }
+
             var layerConfig = SystemAPI.TryGetSingleton<PresentationLayerConfig>(out var layerOverride)
                 ? layerOverride
                 : PresentationLayerConfig.Default;
@@ -79,6 +89,21 @@ namespace Space4X.Presentation
                 LayerLookup = _layerLookup,
                 CurrentTick = ++_tick
             }.ScheduleParallel();
+        }
+
+        [BurstCompile]
+        private partial struct ForceLod0Job : IJobEntity
+        {
+            public uint CurrentTick;
+            public float ForcedCullDistance;
+
+            public void Execute(ref RenderLODData lodData, ref RenderKey renderKey, ref RenderCullable cullable)
+            {
+                lodData.RecommendedLOD = 0;
+                lodData.LastUpdateTick = CurrentTick;
+                renderKey.LOD = 0;
+                cullable.CullDistance = math.max(cullable.CullDistance, ForcedCullDistance);
+            }
         }
 
         [BurstCompile]
@@ -261,12 +286,16 @@ namespace Space4X.Presentation
         public float FullDetailMaxDistance;
         public float ReducedDetailMaxDistance;
         public float ImpostorMaxDistance;
+        public byte DisableLOD;
+        public float ForcedCullDistanceWhenDisabled;
 
         public static PresentationLODConfig Default => new PresentationLODConfig
         {
             FullDetailMaxDistance = 2000f,
             ReducedDetailMaxDistance = 10000f,
-            ImpostorMaxDistance = 40000f
+            ImpostorMaxDistance = 40000f,
+            DisableLOD = 1,
+            ForcedCullDistanceWhenDisabled = 500000f
         };
     }
 
@@ -338,6 +367,13 @@ namespace Space4X.Presentation
     [DisallowMultipleComponent]
     public sealed class PresentationLODConfigAuthoring : MonoBehaviour
     {
+        [Header("Debug")]
+        [Tooltip("When enabled, forces all renderables to LOD0 and disables LOD-based culling.")]
+        public bool DisableLOD = true;
+
+        [Tooltip("Cull distance to apply while LOD is disabled.")]
+        public float ForcedCullDistanceWhenDisabled = PresentationLODConfig.Default.ForcedCullDistanceWhenDisabled;
+
         [Header("LOD Distance Thresholds")]
         [Tooltip("Distance threshold for FullDetail → ReducedDetail")]
         public float FullDetailMaxDistance = PresentationLODConfig.Default.FullDetailMaxDistance;
@@ -358,7 +394,9 @@ namespace Space4X.Presentation
             {
                 FullDetailMaxDistance = math.max(1f, authoring.FullDetailMaxDistance),
                 ReducedDetailMaxDistance = math.max(authoring.FullDetailMaxDistance, authoring.ReducedDetailMaxDistance),
-                ImpostorMaxDistance = math.max(authoring.ReducedDetailMaxDistance, authoring.ImpostorMaxDistance)
+                ImpostorMaxDistance = math.max(authoring.ReducedDetailMaxDistance, authoring.ImpostorMaxDistance),
+                DisableLOD = authoring.DisableLOD ? (byte)1 : (byte)0,
+                ForcedCullDistanceWhenDisabled = math.max(1f, authoring.ForcedCullDistanceWhenDisabled)
             });
         }
     }

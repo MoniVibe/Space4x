@@ -10,7 +10,6 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using PDStructuralChangePresentationSystemGroup = PureDOTS.Systems.StructuralChangePresentationSystemGroup;
-using PDUpdatePresentationSystemGroup = PureDOTS.Systems.UpdatePresentationSystemGroup;
 
 namespace Space4X.Presentation
 {
@@ -145,9 +144,8 @@ namespace Space4X.Presentation
         }
     }
 
-    [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XResourcePickupPresentationDriveSystem : ISystem
     {
         private ComponentLookup<SpawnResource> _spawnLookup;

@@ -13,12 +13,12 @@ namespace Space4X.Systems
     /// Recenters the world when entities drift far from origin to keep RenderBounds stable.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.ResourceSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup), OrderLast = true)]
     public partial struct Space4XFloatingOriginSystem : ISystem
     {
         private EntityQuery _carrierQuery;
         private EntityQuery _asteroidQuery;
+        private EntityQuery _playerFlagshipQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -27,12 +27,19 @@ namespace Space4X.Systems
             state.RequireForUpdate<RewindState>();
             _carrierQuery = SystemAPI.QueryBuilder().WithAll<Carrier, LocalTransform>().Build();
             _asteroidQuery = SystemAPI.QueryBuilder().WithAll<Asteroid, LocalTransform>().Build();
+            _playerFlagshipQuery = SystemAPI.QueryBuilder().WithAll<PlayerFlagshipTag>().Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton<Space4XFloatingOriginConfig>(out var config) || config.Enabled == 0)
+            {
+                return;
+            }
+
+            // Avoid sudden world-shift snaps while the player flagship camera is actively coupled to a ship.
+            if (!_playerFlagshipQuery.IsEmptyIgnoreFilter)
             {
                 return;
             }

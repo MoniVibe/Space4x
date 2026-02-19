@@ -11,7 +11,7 @@ using SystemEnv = System.Environment;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Telemetry.TelemetryExportSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XHeadlessReportSystem : ISystem

@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
     [UpdateAfter(typeof(Space4X.Systems.AI.VesselMovementSystem))]
     public partial struct Space4XHeadlessCollisionPhasingSystem : ISystem
     {
@@ -48,7 +48,16 @@ namespace Space4X.Headless
             _collisionEventQuery = state.GetEntityQuery(ComponentType.ReadOnly<PhysicsCollisionEventElement>());
             _missingProbeQuery = state.GetEntityQuery(new EntityQueryDesc
             {
-                All = new[] { ComponentType.ReadOnly<MiningState>() },
+                All = new[]
+                {
+                    ComponentType.ReadOnly<LocalTransform>(),
+                    ComponentType.ReadOnly<SpaceColliderData>()
+                },
+                Any = new[]
+                {
+                    ComponentType.ReadOnly<MiningState>(),
+                    ComponentType.ReadOnly<Space4XEngagement>()
+                },
                 None = new[] { ComponentType.ReadOnly<Space4XCollisionProbeState>() }
             });
 
@@ -133,6 +142,86 @@ namespace Space4X.Headless
                 var penetration = radiusSum - distance;
 
                 var probeState = probe.ValueRW;
+                if (probeState.Target != target)
+                {
+                    ResetProbe(ref probeState);
+                    probeState.Target = target;
+                }
+
+                var lastCollisionTick = ResolveLastCollisionTick(entity, target, probeState.LastCollisionTick);
+                probeState.LastCollisionTick = lastCollisionTick;
+
+                if (!overlap)
+                {
+                    ResetProbe(ref probeState);
+                    probe.ValueRW = probeState;
+                    continue;
+                }
+
+                if (probeState.OverlapTicks == 0)
+                {
+                    probeState.OverlapStartTick = tick;
+                }
+
+                if (tick > lastCollisionTick + CollisionGraceTicks)
+                {
+                    probeState.OverlapTicks++;
+                }
+                else
+                {
+                    probeState.OverlapTicks = 0;
+                }
+
+                if (probeState.Reported == 0 &&
+                    probeState.OverlapTicks >= OverlapTicksThreshold &&
+                    tick > lastCollisionTick + CollisionGraceTicks &&
+                    penetration > MinSeparationEpsilon)
+                {
+                    AppendBlackCat(ref state, entity, target, probeState.OverlapStartTick, tick, probeState.OverlapTicks, penetration, lastCollisionTick);
+                    probeState.Reported = 1;
+                }
+
+                probe.ValueRW = probeState;
+            }
+
+            foreach (var (engagement, transform, collider, probe, entity) in SystemAPI
+                         .Query<RefRO<Space4XEngagement>, RefRO<LocalTransform>, RefRO<SpaceColliderData>, RefRW<Space4XCollisionProbeState>>()
+                         .WithNone<MiningState>()
+                         .WithEntityAccess())
+            {
+                var target = engagement.ValueRO.PrimaryTarget;
+                if (target == Entity.Null)
+                {
+                    ResetProbe(ref probe.ValueRW);
+                    continue;
+                }
+
+                if (_dockedLookup.HasComponent(entity))
+                {
+                    ResetProbe(ref probe.ValueRW);
+                    continue;
+                }
+
+                if (!_transformLookup.HasComponent(target) || !_colliderLookup.HasComponent(target))
+                {
+                    ResetProbe(ref probe.ValueRW);
+                    continue;
+                }
+
+                var targetTransform = _transformLookup[target];
+                var targetCollider = _colliderLookup[target];
+                var radiusSum = math.max(0.1f, collider.ValueRO.Radius + targetCollider.Radius);
+                var distance = math.distance(transform.ValueRO.Position, targetTransform.Position);
+                var overlap = distance <= radiusSum * OverlapRatio;
+                var penetration = radiusSum - distance;
+
+                var probeState = probe.ValueRW;
+                if (probeState.Target != target)
+                {
+                    ResetProbe(ref probeState);
+                    probeState.Target = target;
+                }
+
                 var lastCollisionTick = ResolveLastCollisionTick(entity, target, probeState.LastCollisionTick);
                 probeState.LastCollisionTick = lastCollisionTick;
 
@@ -240,6 +329,7 @@ namespace Space4X.Headless
 
         private static void ResetProbe(ref Space4XCollisionProbeState probe)
         {
+            probe.Target = Entity.Null;
             probe.OverlapTicks = 0;
             probe.OverlapStartTick = 0;
             probe.LastCollisionTick = 0;
@@ -306,6 +396,7 @@ namespace Space4X.Headless
 
     public struct Space4XCollisionProbeState : IComponentData
     {
+        public Entity Target;
         public uint OverlapTicks;
         public uint OverlapStartTick;
         public uint LastCollisionTick;

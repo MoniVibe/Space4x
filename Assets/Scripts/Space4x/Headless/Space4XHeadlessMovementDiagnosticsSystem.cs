@@ -20,7 +20,7 @@ namespace Space4X.Headless
     /// <summary>
     /// Headless-only diagnostics for movement invariants and trace snapshots.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
     [UpdateAfter(typeof(Space4X.Systems.AI.VesselMovementSystem))]
     public partial struct Space4XHeadlessMovementDiagnosticsSystem : ISystem
     {

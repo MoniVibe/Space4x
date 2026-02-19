@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.PerceptionSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Comms.CommsTargetedMediumDeliverySystem))]
     public partial struct Space4XHeadlessCommsBeatSystem : ISystem
     {

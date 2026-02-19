@@ -16,7 +16,6 @@ namespace Space4X.Systems.AI
 {
     [BurstCompile]
     [UpdateInGroup(typeof(ResourceSystemGroup))]
-    [UpdateAfter(typeof(Space4XVesselIntentBridgeSystem))]
     [UpdateBefore(typeof(VesselMovementSystem))]
     public partial struct VesselAttackMoveGuidanceSystem : ISystem
     {

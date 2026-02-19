@@ -1,14 +1,27 @@
 {
+  "scenarioId": "scenario_space_01_scale_20k",
   "seed": 12345,
   "duration_s": 300,
   "spawn": [
     {
       "kind": "Carrier",
       "entityId": "carrier-scale-1",
-      "position": [ 0, 0 ],
+      "position": [
+        0,
+        0
+      ],
       "components": {
-        "Fleet": { "fleetId": "FLEET-SCALE", "posture": "Patrol", "shipCount": 200 },
-        "ResourceStorage": [ { "type": "Minerals", "capacity": 10000 } ]
+        "Fleet": {
+          "fleetId": "FLEET-SCALE",
+          "posture": "Patrol",
+          "shipCount": 200
+        },
+        "ResourceStorage": [
+          {
+            "type": "Minerals",
+            "capacity": 10000
+          }
+        ]
       }
     }
   ],

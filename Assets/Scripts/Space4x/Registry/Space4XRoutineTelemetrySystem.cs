@@ -9,7 +9,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Aggregates routine phase/goal counts for headless validation.
     /// </summary>
-    [UpdateInGroup(typeof(ResourceSystemGroup))]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4X.Systems.AI.Space4XRoutinePlannerSystem))]
     public partial struct Space4XRoutineTelemetrySystem : ISystem
     {

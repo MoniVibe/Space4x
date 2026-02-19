@@ -502,15 +502,15 @@ namespace Space4X.Registry
                 return new MiningVisualSettings
                 {
                     CarrierPrimitive = MiningPrimitive.Capsule,
-                    CarrierScale = 0.5f,
+                    CarrierScale = 1.6f,
                     CarrierColor = new Color(0.35f, 0.4f, 0.62f, 1f),
                     CarrierDescriptorKey = "space4x.vessel.carrier",
                     MiningVesselPrimitive = MiningPrimitive.Cylinder,
-                    MiningVesselScale = 0.02f,
+                    MiningVesselScale = 0.08f,
                     MiningVesselColor = new Color(0.25f, 0.52f, 0.84f, 1f),
                     MiningVesselDescriptorKey = "space4x.vessel.miner",
                     AsteroidPrimitive = MiningPrimitive.Sphere,
-                    AsteroidScale = 20f,
+                    AsteroidScale = 24f,
                     AsteroidColor = new Color(0.52f, 0.43f, 0.34f, 1f),
                     AsteroidDescriptorKey = "space4x.prop.asteroid",
                     EnableAttackMoveDebugLines = true,

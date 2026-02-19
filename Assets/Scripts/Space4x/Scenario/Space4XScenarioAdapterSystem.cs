@@ -28,7 +28,7 @@ namespace Space4X.Scenario
     /// Note: Not Burst-compiled because it uses string operations (init-time spawn code).
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
+    [CreateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
     public partial struct Space4XScenarioAdapterSystem : ISystem
     {
         private const string PerfGateModeEnv = "PERF_GATE_MODE";

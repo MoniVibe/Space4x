@@ -1,0 +1,39 @@
+{
+  "ok": false,
+  "status": "fail",
+  "recommendation": "PlayMode contract test failed; inspect test XML/log, then rerun.",
+  "unity_exe": "C:\\Program Files\\Unity\\Hub\\Editor\\6000.3.1f1\\Editor\\Unity.exe",
+  "project_path": "C:\\dev\\Tri\\space4x",
+  "test_filter": "Space4X.Tests.PlayMode.Space4XMode1CameraFollowContractTests",
+  "timed_out": false,
+  "unity_exit_code": 1,
+  "test_results": {
+    "found": false,
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "inconclusive": 0,
+    "skipped": 0,
+    "result": ""
+  },
+  "probe_path": "C:\\dev\\Tri\\space4x\\reports\\presentation_mode1_headless_20260218T230216196Z\\mode1_camera_probe.jsonl",
+  "mode1": {
+    "ok": false,
+    "mode1_status": "insufficient_evidence",
+    "reason": "camera_probe_missing",
+    "recommendation": "Generate probe evidence first: set SPACE4X_CAMERA_PROBE=1, run mode cycle (1->2->3->1), then rerun this check.",
+    "expected_probe_env": {
+      "SPACE4X_CAMERA_PROBE_OUT": "C:\\\\dev\\\\Tri\\\\space4x\\\\reports\\\\camera_mode1_probe.jsonl",
+      "SPACE4X_CAMERA_PROBE": "1"
+    },
+    "searched_roots": [
+      "C:\\dev\\Tri\\space4x\\reports",
+      "C:\\dev\\Tri\\reports"
+    ]
+  },
+  "artifacts": {
+    "envelope_json": "C:\\dev\\Tri\\space4x\\reports\\presentation_mode1_headless_20260218T230216196Z\\mode1_headless_envelope.json",
+    "playmode_results_xml": "C:\\dev\\Tri\\space4x\\reports\\presentation_mode1_headless_20260218T230216196Z\\mode1_playmode_results.xml",
+    "unity_log": "C:\\dev\\Tri\\space4x\\reports\\presentation_mode1_headless_20260218T230216196Z\\mode1_playmode_editor.log"
+  }
+}

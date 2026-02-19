@@ -1,0 +1,248 @@
+{
+  "scenarioId": "space4x_fleetcrawl_survivors_v1",
+  "seed": 19031,
+  "duration_s": 135,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true
+  },
+  "proofs": {
+    "mining": false
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "survivors-friendly-flagship",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 14000},
+          {"type": "RareMetals", "capacity": 7000}
+        ],
+        "Fleet": {
+          "fleetId": "SURV-ALPHA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 28
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "survivors-friendly-wing",
+      "position": [-110, 45],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 9500}
+        ],
+        "Fleet": {
+          "fleetId": "SURV-BETA",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 11.0,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 34
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "survivors-hostile-wave1",
+      "position": [420, 80],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 9000}
+        ],
+        "Fleet": {
+          "fleetId": "SURV-HOSTILE-W1",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 20
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "survivors-hostile-wave2",
+      "position": [540, -120],
+      "components": {
+        "ResourceStorage": [
+          {"type": "Minerals", "capacity": 10000}
+        ],
+        "Fleet": {
+          "fleetId": "SURV-HOSTILE-W2",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 13.0,
+          "isHostile": true,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 44
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "surv-miner-alpha-1",
+      "position": [0, 0],
+      "carrierId": "survivors-friendly-flagship",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.84,
+      "speed": 10.5,
+      "cargoCapacity": 120.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "surv-miner-alpha-2",
+      "position": [0, 0],
+      "carrierId": "survivors-friendly-flagship",
+      "resourceId": "RareMetals",
+      "miningEfficiency": 0.79,
+      "speed": 10.5,
+      "cargoCapacity": 96.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "surv-miner-beta-1",
+      "position": [-110, 45],
+      "carrierId": "survivors-friendly-wing",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.82,
+      "speed": 9.8,
+      "cargoCapacity": 96.0,
+      "startDocked": true
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "surv-miner-hostile-1",
+      "position": [420, 80],
+      "carrierId": "survivors-hostile-wave1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.72,
+      "speed": 10.8,
+      "cargoCapacity": 88.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "surv-deposit-core",
+      "position": [70, 18],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1450.0,
+      "gatherRatePerWorker": 12.0,
+      "maxSimultaneousWorkers": 5
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "surv-deposit-left",
+      "position": [-120, -90],
+      "resourceId": "Minerals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "surv-deposit-hostile-lane",
+      "position": [260, 64],
+      "resourceId": "Minerals",
+      "unitsRemaining": 980.0,
+      "gatherRatePerWorker": 10.5,
+      "maxSimultaneousWorkers": 4
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "surv-deposit-rare",
+      "position": [40, 98],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 520.0,
+      "gatherRatePerWorker": 7.8,
+      "maxSimultaneousWorkers": 2
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 10,
+      "kind": "MoveFleet",
+      "fleetId": "SURV-ALPHA",
+      "targetPosition": [120, 15],
+      "description": "Flagship pushes into contested resources."
+    },
+    {
+      "time_s": 22,
+      "kind": "MoveFleet",
+      "fleetId": "SURV-HOSTILE-W1",
+      "targetPosition": [240, 40],
+      "description": "Hostile wave one commits to center lane."
+    },
+    {
+      "time_s": 26,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "SURV-ALPHA",
+      "targetFleetId": "SURV-HOSTILE-W1",
+      "description": "Friendly alpha intercepts first hostile wave."
+    },
+    {
+      "time_s": 42,
+      "kind": "MoveFleet",
+      "fleetId": "SURV-HOSTILE-W2",
+      "targetPosition": [280, -30],
+      "description": "Hostile wave two enters from lower arc."
+    },
+    {
+      "time_s": 48,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "SURV-BETA",
+      "targetFleetId": "SURV-HOSTILE-W2",
+      "description": "Friendly wing attempts containment on second wave."
+    },
+    {
+      "time_s": 78,
+      "kind": "MoveFleet",
+      "fleetId": "SURV-ALPHA",
+      "targetPosition": [40, -35],
+      "description": "Regroup near logistics spine."
+    },
+    {
+      "time_s": 96,
+      "kind": "TriggerIntercept",
+      "requesterFleetId": "SURV-HOSTILE-W2",
+      "targetFleetId": "SURV-ALPHA",
+      "description": "Hostile commanders force a final pursuit."
+    },
+    {
+      "time_s": 110,
+      "kind": "MoveFleet",
+      "fleetId": "SURV-BETA",
+      "targetPosition": [70, 55],
+      "description": "Wing shifts to cover retreat corridor."
+    }
+  ]
+}

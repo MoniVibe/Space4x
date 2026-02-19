@@ -11,8 +11,7 @@ namespace Space4X.Registry
     /// Produces a compact "after action" battle report from existing combat telemetry metrics.
     /// Intended to support player-facing UI and debugging while we scale up fleet battles.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XCombatOutcomeCollectionSystem))]
+    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
     [UpdateAfter(typeof(Space4XCombatTelemetrySystem))]
     public partial struct Space4XBattleReportSystem : ISystem
     {

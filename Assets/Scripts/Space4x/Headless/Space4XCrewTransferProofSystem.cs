@@ -22,7 +22,7 @@ namespace Space4X.Headless
     /// Proves a crew entity survives transfer between ships and the ledger updates.
     /// Logs exactly one BANK PASS/FAIL line when the scenario ends.
     /// </summary>
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XCrewTransferProofSystem : ISystem
     {

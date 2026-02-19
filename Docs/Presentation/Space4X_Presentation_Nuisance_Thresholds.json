@@ -1,0 +1,31 @@
+{
+  "tier1": {
+    "movement": {
+      "max_naninf": 0,
+      "max_stuck": 0,
+      "max_teleport": 0,
+      "min_carrier_samples": 1,
+      "max_carrier_time_to_target_s": 95,
+      "max_carrier_turn_time_s": 9
+    },
+    "camera": {
+      "min_samples": 20,
+      "max_unaligned_ratio": 0.02,
+      "max_spin_deg_per_s": 140,
+      "max_yaw_delta_p95_deg": 50
+    }
+  },
+  "tier2": {
+    "movement": {
+      "max_heading_oscillation_score": 4,
+      "max_approach_mode_flip_rate": 2.5,
+      "max_carrier_overshoot_distance": 35,
+      "max_carrier_settle_time_s": 14
+    },
+    "camera": {
+      "max_unaligned_ratio_warn": 0.005,
+      "max_spin_deg_per_s_warn": 90,
+      "max_yaw_delta_p95_deg_warn": 30
+    }
+  }
+}

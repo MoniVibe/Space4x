@@ -6,6 +6,18 @@ This repo uses a hub-and-spoke model:
 
 Goal: keep the expensive truth (Buildbox headless verdict) serialized and consistent, while iterators move quickly.
 
+Machine role profiles:
+- Desktop validator: `Docs/Operations/AgentProfile_Desktop_Validator.md`
+- Desktop iterator: `Docs/Operations/AgentProfile_Desktop_Iterator.md`
+- Laptop iterator: `Docs/Operations/AgentProfile_Laptop_Iterator.md`
+- Iterator addendum: `iterators.md` and `Docs/Operations/ITERATORS.md`
+
+Role-by-session on desktop host:
+- Desktop can run validator sessions and iterator sessions.
+- If startup prompt says `you are iterator`, follow iterator contract and do not run greenifier/Buildbox queue loops.
+- If startup prompt says `you are validator`, follow validator contract.
+- Telebot/Codex thread ids are dynamic; queue intake and merge policy must not depend on fixed `codex_session_id`.
+
 ## Definitions
 
 Super green:
@@ -60,10 +72,20 @@ Stop conditions:
 Local intake ledger:
 - `C:\polish\queue\reports\pending_prs_to_greenify.md`
 
-Validator exec runner (buildbox machine):
+Validator loop runner (desktop/buildbox machine only):
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File C:\polish\queue\reports\validator_exec.ps1
+Remove-Item C:\polish\anviloop\ops\nightly_pr_greenifier.stop -ErrorAction SilentlyContinue
+pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\ops\bunker\nightly_space4x_pr_greenifier.ps1 -PollSec 120
 ```
+
+Stop file:
+```powershell
+New-Item -ItemType File C:\polish\anviloop\ops\nightly_pr_greenifier.stop -Force
+```
+
+Laptop policy:
+- Laptop is iterator-only.
+- Do not run greenifier/Buildbox validation on laptop hardware.
 
 ## Optional Burst Gate (Before Merge)
 
@@ -73,4 +95,3 @@ Recommended merge gate:
 3. Longer Burst-on matrix in nightlies
 
 Note: `PUREDOTS_DISABLE_BURST` disables Burst at runtime; it may not remove all build-time Burst cost.
-

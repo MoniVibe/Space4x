@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(Space4XHeadlessDiagnosticsSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XHeadlessInvariantExitOverrideSystem : ISystem

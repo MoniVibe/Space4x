@@ -10,7 +10,7 @@ namespace Space4X.Registry
     /// Publishes research counters to telemetry.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(ResearchTransferProcessingSystem))]
     public partial struct Space4XResearchTelemetrySystem : ISystem
     {

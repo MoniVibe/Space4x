@@ -15,7 +15,6 @@ namespace Space4X.Systems
     /// </summary>
     [BurstCompile]
     [UpdateInGroup(typeof(Space4XTransportAISystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.AI.AITaskResolutionSystem))]
     [UpdateBefore(typeof(VesselTargetingSystem))]
     public partial struct Space4XVesselAICommandBridgeSystem : ISystem
     {
@@ -176,4 +175,3 @@ namespace Space4X.Systems
         }
     }
 }
-

@@ -14,7 +14,7 @@ namespace Space4X.Scenario
     /// Ensures the canonical star + planetoid entities exist for Space4X scenarios.
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
+    [CreateAfter(typeof(PureDOTS.Systems.CoreSingletonBootstrapSystem))]
     public partial struct Space4XCelestialBootstrapSystem : ISystem
     {
         private bool _initialized;

@@ -7,7 +7,7 @@ using Unity.Entities;
 
 namespace Space4X.Registry
 {
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.CombatSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Combat.DamageApplicationSystem))]
     public partial struct Space4XCombatOutcomeCollectionSystem : ISystem
     {

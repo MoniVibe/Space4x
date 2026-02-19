@@ -6,6 +6,7 @@ using Space4X.Registry;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Entities.Graphics;
+using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
@@ -312,9 +313,33 @@ namespace Space4X.Diagnostics
                 ? em.GetComponentData<RenderTint>(entity).Value
                 : default;
             var hasTint = em.HasComponent<RenderTint>(entity);
+            var cameraInfo = BuildCameraInfo(transform.Position);
 
             Debug.Log(
-                $"[Space4XSmokePresentationCounts] Sample='{label}' Entity={entity} Pos={transform.Position} Scale={transform.Scale} LocalToWorld={(hasLocalToWorld ? localToWorldPos.ToString() : "missing")} RenderSemanticKey={semanticKey} RenderVariantKey={variantKey} MeshPresenterDefIndex={(hasMeshPresenter ? meshPresenter.DefIndex.ToString() : "none")} MeshPresenterEnabled={(hasMeshPresenter ? meshPresenterEnabled.ToString() : "n/a")} Material={materialMesh.Material} Mesh={materialMesh.Mesh} SubMesh={materialMesh.SubMesh} HasMaterialMeshIndexRange={materialMesh.HasMaterialMeshIndexRange} MaterialMeshIndexRange={materialMeshIndexRange} MaterialIndex={materialIndex} MeshIndex={meshIndex} RenderTint={(hasTint ? tint.ToString() : "none")}{timeInfo}");
+                $"[Space4XSmokePresentationCounts] Sample='{label}' Entity={entity} Pos={transform.Position} Scale={transform.Scale} LocalToWorld={(hasLocalToWorld ? localToWorldPos.ToString() : "missing")} RenderSemanticKey={semanticKey} RenderVariantKey={variantKey} MeshPresenterDefIndex={(hasMeshPresenter ? meshPresenter.DefIndex.ToString() : "none")} MeshPresenterEnabled={(hasMeshPresenter ? meshPresenterEnabled.ToString() : "n/a")} Material={materialMesh.Material} Mesh={materialMesh.Mesh} SubMesh={materialMesh.SubMesh} HasMaterialMeshIndexRange={materialMesh.HasMaterialMeshIndexRange} MaterialMeshIndexRange={materialMeshIndexRange} MaterialIndex={materialIndex} MeshIndex={meshIndex} RenderTint={(hasTint ? tint.ToString() : "none")}{cameraInfo}{timeInfo}");
+        }
+
+        private static string BuildCameraInfo(float3 samplePosition)
+        {
+            var camera = UnityEngine.Camera.main;
+            if (camera == null)
+            {
+                return " CameraMain=none";
+            }
+
+            var cameraTransform = camera.transform;
+            var cameraPosition = cameraTransform.position;
+            var sampleVector = (Vector3)samplePosition - cameraPosition;
+            var sampleDistance = sampleVector.magnitude;
+            var forwardDot = sampleDistance > 1e-4f
+                ? Vector3.Dot(cameraTransform.forward, sampleVector / sampleDistance)
+                : 0f;
+            var viewport = camera.WorldToViewportPoint((Vector3)samplePosition);
+            var inViewport = viewport.z > 0f
+                             && viewport.x >= 0f && viewport.x <= 1f
+                             && viewport.y >= 0f && viewport.y <= 1f;
+
+            return $" CameraMain='{camera.name}' CameraPos={cameraPosition} CameraForward={cameraTransform.forward} SampleDistance={sampleDistance:F2} ForwardDot={forwardDot:F3} Viewport={viewport} InViewport={inViewport}";
         }
     }
 }

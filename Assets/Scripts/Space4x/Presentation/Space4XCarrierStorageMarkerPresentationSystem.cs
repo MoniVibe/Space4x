@@ -10,7 +10,6 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using PDStructuralChangePresentationSystemGroup = PureDOTS.Systems.StructuralChangePresentationSystemGroup;
-using PDUpdatePresentationSystemGroup = PureDOTS.Systems.UpdatePresentationSystemGroup;
 
 namespace Space4X.Presentation
 {
@@ -157,9 +156,8 @@ namespace Space4X.Presentation
     }
 
     [BurstCompile]
-    [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XCarrierStorageMarkerDriveSystem : ISystem
     {
         private ComponentLookup<Carrier> _carrierLookup;

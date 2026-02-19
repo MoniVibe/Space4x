@@ -19,7 +19,7 @@ namespace Space4X.Systems
     /// DynamicBuffer&lt;QueuedIntent&gt; to enable queued intent promotion via IntentProcessingSystem.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
+    [UpdateInGroup(typeof(Space4X.Systems.AI.Space4XTransportAISystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.InterruptSystemGroup))]
     [UpdateBefore(typeof(Space4XVesselAICommandBridgeSystem))]
     public partial struct Space4XVesselIntentBridgeSystem : ISystem

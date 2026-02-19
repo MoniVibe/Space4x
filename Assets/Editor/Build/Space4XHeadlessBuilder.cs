@@ -63,7 +63,6 @@ namespace Space4X.Headless.Editor
             {
                 Directory.CreateDirectory(absoluteOutput);
                 using var renderPipelineScope = new RenderPipelineScope();
-                using var defineScope = new ScriptingDefineScope(BuildTargetGroup.Standalone, "HYBRID_RENDERER_DISABLED");
                 RunHeadlessPreflight(absoluteOutput);
                 EnsureLinuxServerSupport();
 

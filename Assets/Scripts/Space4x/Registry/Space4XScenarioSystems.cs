@@ -44,6 +44,7 @@ namespace Space4X.Registry
         private BufferLookup<WaypointPathPoint> _waypointPointsLookup;
         private ComponentLookup<WaypointDeviationState> _deviationLookup;
         private ComponentLookup<EntityIntent> _intentLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -66,6 +67,7 @@ namespace Space4X.Registry
             _waypointPointsLookup = state.GetBufferLookup<WaypointPathPoint>(true);
             _deviationLookup = state.GetComponentLookup<WaypointDeviationState>(false);
             _intentLookup = state.GetComponentLookup<EntityIntent>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -145,6 +147,7 @@ namespace Space4X.Registry
             _waypointPointsLookup.Update(ref state);
             _intentLookup.Update(ref state);
             _deviationLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
             var hasTimeState = SystemAPI.TryGetSingleton<TimeState>(out var timeState);
@@ -176,6 +179,11 @@ namespace Space4X.Registry
                          .Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<VesselMovement>, RefRW<LocalTransform>>()
                          .WithEntityAccess())
             {
+                if (_playerFlagshipLookup.HasComponent(entity))
+                {
+                    continue;
+                }
+
                 if (_intentLookup.HasComponent(entity))
                 {
                     var intent = _intentLookup[entity];
@@ -731,6 +739,7 @@ namespace Space4X.Registry
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
         private BufferLookup<ResourceStorage> _resourceStorageLookup;
         private EntityQuery _asteroidQuery;
 
@@ -740,6 +749,7 @@ namespace Space4X.Registry
             _transformLookup = state.GetComponentLookup<LocalTransform>(false);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(false);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
             _resourceStorageLookup = state.GetBufferLookup<ResourceStorage>(false);
 
             _asteroidQuery = SystemAPI.QueryBuilder()
@@ -762,6 +772,7 @@ namespace Space4X.Registry
             _transformLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
             _resourceStorageLookup.Update(ref state);
 
             // Use TimeState.FixedDeltaTime for consistency with PureDOTS patterns
@@ -793,6 +804,11 @@ namespace Space4X.Registry
 
             foreach (var (vessel, job, transform, entity) in SystemAPI.Query<RefRW<MiningVessel>, RefRW<MiningJob>, RefRW<LocalTransform>>().WithNone<MiningOrder>().WithEntityAccess())
             {
+                if (_playerFlagshipLookup.HasComponent(entity))
+                {
+                    continue;
+                }
+
                 var vesselData = vessel.ValueRO;
                 var jobData = job.ValueRO;
                 var position = transform.ValueRO.Position;
@@ -1014,4 +1030,3 @@ namespace Space4X.Registry
         }
     }
 }
-

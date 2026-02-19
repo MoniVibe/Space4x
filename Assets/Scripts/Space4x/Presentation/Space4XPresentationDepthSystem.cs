@@ -12,13 +12,13 @@ namespace Space4X.Presentation
 {
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XPresentationDepthSystem : ISystem
     {
         private ComponentLookup<PresentationScaleMultiplier> _scaleMultiplierLookup;
         private ComponentLookup<SimPoseSnapshot> _poseSnapshotLookup;
         private ComponentLookup<Space4XOrbitalBandState> _orbitalBandStateLookup;
         private ComponentLookup<Space4XFrameTransform> _frameTransformLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
         private const float CarrierAmplitude = 2.5f;
         private const float VesselAmplitude = 1.25f;
         private const float StrikeCraftAmplitude = 1.1f;
@@ -31,12 +31,12 @@ namespace Space4X.Presentation
         private const float PickupFrequency = 0.28f;
         private const float AsteroidFrequency = 0.05f;
 
-        private const float DefaultCarrierScale = 0.5f;
-        private const float DefaultCraftScale = 0.02f;
-        private const float DefaultStrikeCraftScale = 0.012f;
-        private const float DefaultPickupScale = 0.015f;
+        private const float DefaultCarrierScale = 0.35f;
+        private const float DefaultCraftScale = 0.1f;
+        private const float DefaultStrikeCraftScale = 0.06f;
+        private const float DefaultPickupScale = 0.03f;
         private const float DefaultAsteroidScale = 20f;
-        private const float DefaultProjectileScale = 0.008f;
+        private const float DefaultProjectileScale = 0.015f;
         private const float DefaultFleetImpostorScale = 0.4f;
         private const float AsteroidJitterMin = 0.85f;
         private const float AsteroidJitterMax = 1.15f;
@@ -53,6 +53,7 @@ namespace Space4X.Presentation
             _poseSnapshotLookup = state.GetComponentLookup<SimPoseSnapshot>(true);
             _orbitalBandStateLookup = state.GetComponentLookup<Space4XOrbitalBandState>(true);
             _frameTransformLookup = state.GetComponentLookup<Space4XFrameTransform>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
         }
 
         public void OnUpdate(ref SystemState state)
@@ -102,6 +103,7 @@ namespace Space4X.Presentation
                 _orbitalBandStateLookup.Update(ref state);
                 _frameTransformLookup.Update(ref state);
             }
+            _playerFlagshipLookup.Update(ref state);
 
             foreach (var (_, _, entity) in SystemAPI
                          .Query<RefRO<CarrierPresentationTag>, RefRO<LocalTransform>>()
@@ -180,7 +182,10 @@ namespace Space4X.Presentation
                 var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 31) * CarrierBaseOffset;
-                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * CarrierFrequency + phase) * CarrierAmplitude;
+                var isPlayerFlagship = _playerFlagshipLookup.HasComponent(entity);
+                float offset = disableDepthOffset || isPlayerFlagship
+                    ? 0f
+                    : baseOffset + math.sin(time * CarrierFrequency + phase) * CarrierAmplitude;
                 float baseScale = carrierScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -200,7 +205,10 @@ namespace Space4X.Presentation
                 var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 47) * CraftBaseOffset;
-                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * VesselFrequency + phase) * VesselAmplitude;
+                var isPlayerFlagship = _playerFlagshipLookup.HasComponent(entity);
+                float offset = disableDepthOffset || isPlayerFlagship
+                    ? 0f
+                    : baseOffset + math.sin(time * VesselFrequency + phase) * VesselAmplitude;
                 float baseScale = craftScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -220,7 +228,10 @@ namespace Space4X.Presentation
                 var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 53) * StrikeCraftBaseOffset;
-                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * StrikeCraftFrequency + phase) * StrikeCraftAmplitude;
+                var isPlayerFlagship = _playerFlagshipLookup.HasComponent(entity);
+                float offset = disableDepthOffset || isPlayerFlagship
+                    ? 0f
+                    : baseOffset + math.sin(time * StrikeCraftFrequency + phase) * StrikeCraftAmplitude;
                 float baseScale = DefaultStrikeCraftScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -240,7 +251,10 @@ namespace Space4X.Presentation
                 var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 61) * PickupBaseOffset;
-                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * PickupFrequency + phase) * PickupAmplitude;
+                var isPlayerFlagship = _playerFlagshipLookup.HasComponent(entity);
+                float offset = disableDepthOffset || isPlayerFlagship
+                    ? 0f
+                    : baseOffset + math.sin(time * PickupFrequency + phase) * PickupAmplitude;
                 float baseScale = DefaultPickupScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {
@@ -260,7 +274,10 @@ namespace Space4X.Presentation
                 var pose = ResolvePose(entity, transform.ValueRO, alpha, useBandScale, useRenderFrame, renderFrame);
                 float phase = PhaseFromEntity(entity);
                 float baseOffset = HashToSignedUnit(entity, 79) * AsteroidBaseOffset;
-                float offset = disableDepthOffset ? 0f : baseOffset + math.sin(time * AsteroidFrequency + phase) * AsteroidAmplitude;
+                var isPlayerFlagship = _playerFlagshipLookup.HasComponent(entity);
+                float offset = disableDepthOffset || isPlayerFlagship
+                    ? 0f
+                    : baseOffset + math.sin(time * AsteroidFrequency + phase) * AsteroidAmplitude;
                 float baseScale = asteroidBaseScale;
                 if (SystemAPI.HasComponent<PresentationScale>(entity))
                 {

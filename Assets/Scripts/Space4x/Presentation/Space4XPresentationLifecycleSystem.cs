@@ -5,6 +5,8 @@ using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Rendering;
 using Space4X.Registry;
+using Space4X.UI;
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -36,12 +38,12 @@ namespace Space4X.Presentation
         private bool _loggedFirstUpdate;
 
         private const ushort RenderSampleModulus = 1024;
-        private const float DefaultCarrierScale = 0.5f;
-        private const float DefaultMiningVesselScale = 0.02f;
+        private const float DefaultCarrierScale = 0.35f;
+        private const float DefaultMiningVesselScale = 0.1f;
         private const float DefaultIndividualScale = 0.003f;
-        private const float DefaultStrikeCraftScale = 0.012f;
-        private const float DefaultPickupScale = 0.015f;
-        private const float DefaultProjectileScale = 0.008f;
+        private const float DefaultStrikeCraftScale = 0.06f;
+        private const float DefaultPickupScale = 0.03f;
+        private const float DefaultProjectileScale = 0.015f;
         private const float DefaultFleetImpostorScale = 0.4f;
         private const float CarrierCapacityReference = 20f;
         private const float MiningCargoReference = 100f;
@@ -56,9 +58,10 @@ namespace Space4X.Presentation
         private const float PickupScaleMin = 0.5f;
         private const float PickupScaleMax = 3f;
 
-        private const int CarrierLightVariantIndex = 12;
-        private const int CarrierMediumVariantIndex = 13;
-        private const int CarrierHeavyVariantIndex = 10;
+        // Keep carrier variant overrides aligned with Space4XRenderCatalog_v2 (variants 0..8).
+        private const int CarrierSquareVariantIndex = 0;
+        private const int CarrierCapsuleVariantIndex = 1;
+        private const int CarrierSphereVariantIndex = 2;
 
         public void OnCreate(ref SystemState state)
         {
@@ -216,11 +219,14 @@ namespace Space4X.Presentation
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
-                    float scale = DefaultCarrierScale;
+                    var baseScale = hasVisualConfig
+                        ? math.max(0.01f, visualConfig.CarrierScale)
+                        : DefaultCarrierScale;
+                    float scale = baseScale;
                     if (SystemAPI.HasComponent<DockingCapacity>(entity))
                     {
                         var capacity = SystemAPI.GetComponentRO<DockingCapacity>(entity).ValueRO;
-                        scale = ResolveCarrierScale(capacity);
+                        scale = ResolveCarrierScale(capacity, baseScale);
                     }
                     ecb.AddComponent(entity, new PresentationScale { Value = scale });
                 }
@@ -285,7 +291,10 @@ namespace Space4X.Presentation
 
                 if (!SystemAPI.HasComponent<PresentationScale>(entity))
                 {
-                    float scale = ResolveMiningVesselScale(vessel.ValueRO.CargoCapacity);
+                    var baseScale = hasVisualConfig
+                        ? math.max(0.005f, visualConfig.MiningVesselScale)
+                        : DefaultMiningVesselScale;
+                    float scale = ResolveMiningVesselScale(vessel.ValueRO.CargoCapacity, baseScale);
                     ecb.AddComponent(entity, new PresentationScale { Value = scale });
                 }
                 if (!SystemAPI.HasComponent<PresentationLayer>(entity))
@@ -642,6 +651,11 @@ namespace Space4X.Presentation
 
         private int ResolveCarrierVariantIndex(ref SystemState state, Entity entity)
         {
+            if (SystemAPI.HasComponent<PlayerFlagshipTag>(entity))
+            {
+                return ResolvePlayerFlagshipVariantIndex();
+            }
+
             var hashSeed = entity.Index;
             if (SystemAPI.HasComponent<Carrier>(entity))
             {
@@ -656,10 +670,34 @@ namespace Space4X.Presentation
             var choice = math.abs(hashSeed) % 3;
             return choice switch
             {
-                0 => CarrierLightVariantIndex,
-                1 => CarrierMediumVariantIndex,
-                _ => CarrierHeavyVariantIndex
+                0 => CarrierSquareVariantIndex,
+                1 => CarrierCapsuleVariantIndex,
+                _ => CarrierSphereVariantIndex
             };
+        }
+
+        private static int ResolvePlayerFlagshipVariantIndex()
+        {
+            var presetId = Space4XRunStartSelection.ShipPresetId;
+            if (string.IsNullOrWhiteSpace(presetId))
+            {
+                return CarrierSquareVariantIndex;
+            }
+
+            if (presetId.Contains("sphere", StringComparison.OrdinalIgnoreCase) ||
+                presetId.Contains("frigate", StringComparison.OrdinalIgnoreCase))
+            {
+                return CarrierSphereVariantIndex;
+            }
+
+            if (presetId.Contains("capsule", StringComparison.OrdinalIgnoreCase) ||
+                presetId.Contains("interceptor", StringComparison.OrdinalIgnoreCase) ||
+                presetId.Contains("cylinder", StringComparison.OrdinalIgnoreCase))
+            {
+                return CarrierCapsuleVariantIndex;
+            }
+
+            return CarrierSquareVariantIndex;
         }
 
         private void RepairMissingPresentation(ref SystemState state, ref EntityCommandBuffer ecb)
@@ -933,38 +971,38 @@ namespace Space4X.Presentation
             };
         }
 
-        private static float ResolveCarrierScale(in DockingCapacity capacity)
+        private static float ResolveCarrierScale(in DockingCapacity capacity, float baseScale)
         {
             float total = capacity.MaxSmallCraft + capacity.MaxMediumCraft + capacity.MaxLargeCraft
                           + capacity.MaxExternalMooring + capacity.MaxUtility;
             if (total <= 0f)
             {
-                return DefaultCarrierScale;
+                return baseScale;
             }
 
             float normalized = math.max(0.1f, total / CarrierCapacityReference);
             float factor = math.sqrt(normalized);
             factor = math.clamp(factor, CarrierScaleMin, CarrierScaleMax);
-            return DefaultCarrierScale * factor;
+            return baseScale * factor;
         }
 
-        private static float ResolveMiningVesselScale(float cargoCapacity)
+        private static float ResolveMiningVesselScale(float cargoCapacity, float baseScale)
         {
             float normalized = math.max(0.1f, cargoCapacity / MiningCargoReference);
             float factor = math.sqrt(normalized);
             factor = math.clamp(factor, VesselScaleMin, VesselScaleMax);
-            return DefaultMiningVesselScale * factor;
+            return baseScale * factor;
         }
 
         private static float ResolveStrikeCraftScale(StrikeCraftRole role)
         {
             return role switch
             {
-                StrikeCraftRole.Interceptor => 0.009f,
-                StrikeCraftRole.Bomber => 0.016f,
-                StrikeCraftRole.Recon => 0.0105f,
-                StrikeCraftRole.Suppression => 0.013f,
-                StrikeCraftRole.EWar => 0.012f,
+                StrikeCraftRole.Interceptor => 0.045f,
+                StrikeCraftRole.Bomber => 0.08f,
+                StrikeCraftRole.Recon => 0.052f,
+                StrikeCraftRole.Suppression => 0.065f,
+                StrikeCraftRole.EWar => 0.06f,
                 _ => DefaultStrikeCraftScale
             };
         }

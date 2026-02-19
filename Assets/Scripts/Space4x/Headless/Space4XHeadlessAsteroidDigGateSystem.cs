@@ -12,7 +12,7 @@ using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Telemetry.TelemetryExportSystem))]
     [UpdateBefore(typeof(Space4XHeadlessDiagnosticsSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]

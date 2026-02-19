@@ -72,6 +72,26 @@ If a detail is critical (API choice, breaking change), ask the user once rather 
 - GetSingleton<T>() requires exactly one entity → never hack around it; ensure the singleton is baked/created by the canonical pipeline.
 - Any deviation from these rules is a design bug to correct, not tolerate.
 
+## 6.3. Frontend + Rendering Hard Rules (FleetCrawl Slice)
+
+- Required reading before touching menu/UI/camera/ship-select code:
+  - `Docs/Guides/Space4X_Frontend_Rendering_Contract.md`
+- Use UI Toolkit or uGUI for player-facing screens. `OnGUI` is debug-only and must be temporary.
+- Frontend state flow is explicit and finite:
+  - `MainMenu -> ShipSelect -> Loading -> InGame`
+- Input must switch by state (UI map vs gameplay map). Do not drive menus from gameplay input polling.
+- Scene transitions use `LoadSceneAsync`; use additive loading only with explicit unload ownership.
+- Namespace hygiene is mandatory in presentation scripts:
+  - Alias Unity types that collide (`UCamera`, `UInput`, `UTime`) and prefer clear locals like `mainCamera`.
+  - Import `Unity.Mathematics` (or alias `float3`) before using math primitives.
+- Rendering changes must preserve the canonical catalog pipeline and pass the preflight checklist in the contract doc.
+- Before requesting a manual visual review, run the presentation nuisance filter (`scripts/presentation_nuisance_filter.ps1`) and report Tier 1/Tier 2 status.
+- Preferred single-command headless check for Mode 1: `scripts/presentation_mode1_headless.ps1` (PlayMode contract + probe + nuisance verdict). Run on a machine without open Unity editors when possible.
+- For Mode 1 camera follow checks, prefer `scripts/presentation_mode1_check.ps1` (auto-discovers latest probe + run evidence).
+- If running inside Unity editor, use menu `Space4X/Diagnostics/Presentation Nuisance Filter` for dropdown-driven check execution.
+- Alternate menu path: `Tools/Space4X/Presentation Nuisance Filter`.
+- Tune nuisance gates in `Docs/Presentation/Space4X_Presentation_Nuisance_Thresholds.json` instead of hardcoding values in scripts.
+
 ## Cross-OS Workflow (WSL + Windows)
 
 - Preferred WSL root: `/home/oni/Tri` (ext4). Avoid `/mnt/c` for active work (drvfs I/O errors).
@@ -99,4 +119,13 @@ Artifacts expected per run:
 
 - Iterators do not trigger Buildbox/nightlies/queues. They push a branch + PR + intent card and add label `needs-validate`.
 - Validator is the only actor that runs Buildbox, applies fix-up commits, and merges.
+- Desktop host is dual-role by session:
+  - `you are validator` -> validator rules
+  - `you are iterator` -> iterator rules
+- Laptop stays iterator-only (no greenifier/Buildbox loops).
 - Workflow details: `Docs/VALIDATOR_WORKFLOW.md`.
+- Iterator addendum: `iterators.md` and `Docs/Operations/ITERATORS.md`.
+- Machine role profiles (use at agent startup):
+  - Desktop validator profile: `Docs/Operations/AgentProfile_Desktop_Validator.md`
+  - Desktop iterator profile: `Docs/Operations/AgentProfile_Desktop_Iterator.md`
+  - Laptop iterator profile: `Docs/Operations/AgentProfile_Laptop_Iterator.md`

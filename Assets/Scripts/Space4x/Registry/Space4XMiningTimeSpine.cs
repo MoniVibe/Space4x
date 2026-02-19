@@ -141,7 +141,6 @@ namespace Space4X.Registry
     /// </summary>
     [DisableAutoCreation]
     [UpdateInGroup(typeof(HistorySystemGroup))]
-    [UpdateAfter(typeof(ResourceSystemGroup))]
     public partial struct Space4XMiningTimeSpineRecordSystem : ISystem
     {
         public void OnCreate(ref SystemState state)

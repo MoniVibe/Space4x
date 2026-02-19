@@ -8,7 +8,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Publishes aggregated profile action metrics for headless validation.
     /// </summary>
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.Profile.ProfileMutationSystem))]
     public partial struct Space4XProfileMutationTelemetrySystem : ISystem
     {

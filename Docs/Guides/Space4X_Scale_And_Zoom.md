@@ -43,8 +43,30 @@ This appendix applies the shared framework in `puredots/Docs/Concepts/Core/Scale
 
 ## Current tuning touchpoints
 - `space4x/Assets/Scripts/Space4x/Presentation/Space4XPresentationDepthSystem.cs` (scale ranges for craft/carrier/asteroids).
+- `space4x/Assets/Scripts/Space4x/Presentation/Space4XPresentationLifecycleSystem.cs` (authoritative `PresentationScale` assignment for carriers/craft/strike craft/projectiles).
 - `space4x/Assets/Data/Space4XRenderCatalog_v2.asset` (mesh bounds that must match scale).
 - `puredots/Docs/Camera/Space4X_Camera_TruthSource.md` (zoom thresholds to align with tiers).
+
+## Presentation Slice Baseline (2026-02-18)
+- Runtime fallback (no visual singleton):
+  - Carrier `PresentationScale` baseline: `0.35` (further modulated by docking capacity).
+  - Mining vessel baseline: `0.10` (modulated by cargo capacity).
+  - Strike craft baseline: `0.06` (role variants around this range).
+  - Pickup baseline: `0.03`.
+  - Projectile baseline: `0.015`.
+- Authored mining visual defaults (`Space4XMiningScenarioAuthoring`):
+  - Carrier scale: `1.6`
+  - Mining vessel scale: `0.08`
+  - Asteroid scale: `24`
+
+## Guardrails
+- Carrier/craft readability target in gameplay view:
+  - Aim for on-screen ratio around `1:15` to `1:40` (craft:carrier), not `1:100+` unless intentionally cinematic.
+- Keep one owner for scale intent:
+  - Runtime fallback ownership lives in `Space4XPresentationLifecycleSystem`.
+  - Scene-specific overrides come from `Space4XMiningVisualConfig` singleton baked by `Space4XMiningScenarioAuthoring`.
+- Do not assume `LocalTransform.Scale` is the only visual truth:
+  - Final displayed size is produced in presentation systems and can combine simulation pose scale with presentation multipliers.
 
 ## Notes
 - Keep cull distances generous; use LOD rather than hard cutoffs.

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab5173a996a425b4a90e376d2c2664d4, type: 3}
+  m_Name: Space4XShipPresetCatalog
+  m_EditorClassIdentifier: Space4X.Gameplay::Space4X.UI.Space4XShipPresetCatalog
+  gameplayScenePath: Assets/Scenes/Demos/MiningCombatDemo.unity
+  minDifficulty: 1
+  maxDifficulty: 5
+  defaultDifficulty: 2
+  presets:
+  - presetId: ship.square.carrier
+    displayName: Square Carrier
+    description: Heavy frame, stable handling, strong opening survivability.
+  - presetId: ship.sphere.frigate
+    displayName: Sphere Frigate
+    description: Balanced profile with agile turn response and mid-range control.
+  - presetId: ship.capsule.interceptor
+    displayName: Capsule Interceptor
+    description: Fast acceleration with tighter margins and higher execution demand.

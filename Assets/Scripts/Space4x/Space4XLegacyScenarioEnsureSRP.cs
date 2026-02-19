@@ -1,4 +1,3 @@
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using PureDOTS.Runtime.Core;
 using Space4X.Presentation;
 using Space4X.Runtime;
@@ -58,4 +57,3 @@ public sealed class Space4XLegacyScenarioEnsureSRP : MonoBehaviour
 #endif
     }
 }
-#endif

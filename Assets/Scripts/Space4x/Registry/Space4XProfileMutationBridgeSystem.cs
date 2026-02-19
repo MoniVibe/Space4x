@@ -7,7 +7,7 @@ using Unity.Entities;
 
 namespace Space4X.Registry
 {
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.Profile.ProfileMutationSystem))]
     [BurstCompile]
     public partial struct Space4XProfileMutationPreSyncSystem : ISystem
@@ -63,7 +63,7 @@ namespace Space4X.Registry
         }
     }
 
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Profile.ProfileMutationSystem))]
     [BurstCompile]
     public partial struct Space4XProfileMutationPostSyncSystem : ISystem

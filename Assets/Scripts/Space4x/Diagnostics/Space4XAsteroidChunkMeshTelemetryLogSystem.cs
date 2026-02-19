@@ -12,7 +12,7 @@ namespace Space4X.Diagnostics
     [UpdateAfter(typeof(Space4XAsteroidChunkMeshSystem))]
     public partial struct Space4XAsteroidChunkMeshTelemetryLogSystem : ISystem
     {
-        private const double LogIntervalSeconds = 0.75;
+        private const double LogIntervalSeconds = 1.25;
         private double _nextLogTime;
 
         public void OnCreate(ref SystemState state)
@@ -49,7 +49,9 @@ namespace Space4X.Diagnostics
             }
 
             var stats = SystemAPI.GetComponent<Space4XAsteroidChunkMeshFrameStats>(queueEntity);
-            if (stats.ChunksBuiltThisFrame == 0 && stats.QueueLength == 0)
+            var underBudget = stats.TotalBuildMsThisFrame <= stats.BudgetMs * 1.15f;
+            var noPressure = stats.QueueLength == 0 && stats.SkippedDueToBudget == 0;
+            if ((stats.ChunksBuiltThisFrame == 0 && stats.QueueLength == 0) || (underBudget && noPressure))
             {
                 return;
             }

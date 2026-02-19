@@ -16,6 +16,12 @@ namespace Space4X.Systems.Orbitals
     [UpdateAfter(typeof(Space4x.Scenario.Space4XMiningScenarioSystem))]
     public partial struct Space4XOrbitBootstrapSystem : ISystem
     {
+        // Keep ambient orbital drift present but subtle at 1x speed for follow-camera readability.
+        private const float StarOrbitPeriodBaseSeconds = 48000f;
+        private const float StarOrbitPeriodSecondsPerRadius = 80f;
+        private const float AmbientOrbitPeriodBaseSeconds = 7200f;
+        private const float AmbientOrbitPeriodSecondsPerRadius = 30f;
+
         private bool _initialized;
 
         public void OnCreate(ref SystemState state)
@@ -106,7 +112,7 @@ namespace Space4X.Systems.Orbitals
                 state.EntityManager.AddComponentData(star, LocalTransform.FromPosition(position));
 
                 var radius = math.max(10f, math.length(new float2(position.x, position.z)));
-                var starPeriod = 24000f + radius * 40f;
+                var starPeriod = StarOrbitPeriodBaseSeconds + radius * StarOrbitPeriodSecondsPerRadius;
                 var phase = math.atan2(position.z, position.x);
 
                 state.EntityManager.AddComponentData(star, new Space4XOrbitAnchor
@@ -153,7 +159,7 @@ namespace Space4X.Systems.Orbitals
                 var starPosition = GetStarPosition(star, ref state);
                 var offset = position - starPosition;
                 var radius = math.max(4f, math.length(new float2(offset.x, offset.z)));
-                var period = 1200f + radius * 6f;
+                var period = AmbientOrbitPeriodBaseSeconds + radius * AmbientOrbitPeriodSecondsPerRadius;
                 var phase = math.atan2(offset.z, offset.x);
 
                 if (!state.EntityManager.HasComponent<Space4XOrbitAnchor>(entity))
@@ -247,6 +253,8 @@ namespace Space4X.Systems.Orbitals
     [UpdateBefore(typeof(Space4X.Systems.AI.Space4XTransportAISystemGroup))]
     public partial struct Space4XOrbitDriftSystem : ISystem
     {
+        // Damp ambient drift to keep it readable in 1x gameplay camera follow.
+        private const float DriftSpeedScale = 0.1f;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private ComponentLookup<HandHeldTag> _handHeldLookup;
 
@@ -292,7 +300,7 @@ namespace Space4X.Systems.Orbitals
 
                 var parentPosition = ResolveParentPosition(anchor.ValueRO.ParentStar, ref state);
                 var elapsedTicks = math.max(0u, currentTick - anchor.ValueRO.EpochTick);
-                var phase = anchor.ValueRO.Phase + anchor.ValueRO.AngularSpeed * elapsedTicks * deltaTime;
+                var phase = anchor.ValueRO.Phase + anchor.ValueRO.AngularSpeed * elapsedTicks * deltaTime * DriftSpeedScale;
                 var orbitPosition = parentPosition + new float3(
                     math.cos(phase) * anchor.ValueRO.Radius,
                     anchor.ValueRO.Height,
@@ -340,7 +348,7 @@ namespace Space4X.Systems.Orbitals
     }
 
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.GameplaySystemGroup))]
     [UpdateAfter(typeof(Space4XOrbitDriftSystem))]
     public partial struct Space4XMicroImpulseSystem : ISystem
     {

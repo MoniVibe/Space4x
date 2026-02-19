@@ -11,8 +11,7 @@ namespace Space4X.Headless
     /// <summary>
     /// Headless telemetry for seat feeds and captain briefs.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.AISystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     public partial struct Space4XSeatInterfaceTelemetrySystem : ISystem
     {
         private const uint ReportIntervalTicks = 30;

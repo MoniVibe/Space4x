@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Space4X.Systems.AI
 {
-    [UpdateInGroup(typeof(GameplaySystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.AISystemGroup), OrderLast = true)]
     [UpdateBefore(typeof(PureDOTS.Systems.Agency.ControlLinkHealthSystem))]
     public partial struct Space4XSmokeCompromiseBeatSystem : ISystem
     {

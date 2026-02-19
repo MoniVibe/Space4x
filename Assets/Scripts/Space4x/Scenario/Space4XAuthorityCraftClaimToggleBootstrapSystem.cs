@@ -9,7 +9,7 @@ namespace Space4x.Scenario
     /// Seeds the authority craft claim toggle from environment or defaults.
     /// </summary>
     [UpdateInGroup(typeof(InitializationSystemGroup))]
-    [UpdateAfter(typeof(CoreSingletonBootstrapSystem))]
+    [CreateAfter(typeof(CoreSingletonBootstrapSystem))]
     public partial struct Space4XAuthorityCraftClaimToggleBootstrapSystem : ISystem
     {
         private const string ClaimsEnabledEnv = "SPACE4X_AUTHORITY_CLAIMS_ENABLED";

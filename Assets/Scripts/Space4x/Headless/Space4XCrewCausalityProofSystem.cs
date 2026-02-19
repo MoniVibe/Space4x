@@ -23,7 +23,7 @@ namespace Space4X.Headless
     /// Headless proof that an injured sensors officer produces a worse sensors outcome.
     /// Logs exactly one BANK PASS/FAIL line when the scenario ends.
     /// </summary>
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XCrewCausalityProofSystem : ISystem
     {

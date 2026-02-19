@@ -12,7 +12,7 @@ namespace Space4x.Scenario
     /// Clears scenario MoveFleet intents once the carrier reaches its temporary target.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
     [UpdateAfter(typeof(Space4X.Systems.AI.VesselMovementSystem))]
     public partial struct Space4XScenarioMoveTargetArrivalSystem : ISystem
     {

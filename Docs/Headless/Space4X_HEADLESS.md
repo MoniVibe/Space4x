@@ -37,6 +37,7 @@
 - Player args: `-batchmode -nographics -logFile <path>`
 - Scenario args: `--scenario <scenario.json> --report <report.json>`
 - Test Runner CLI (licensed build lane only): `-runTests -testPlatform editmode|playmode -testResults <xml>`
+- Presentation Mode 1 contract check (recommended): `pwsh -NoProfile -File .\scripts\presentation_mode1_headless.ps1` (run on isolated lane; no open Unity editor instances)
 - Exit codes: `0` success, nonzero failure
 - Tests compile only when `UNITY_INCLUDE_TESTS` is enabled.
 - Resource/config assets required for headless builds must be validated in the PS build step.

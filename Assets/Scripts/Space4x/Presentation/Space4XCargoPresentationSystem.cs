@@ -4,12 +4,12 @@ using PureDOTS.Runtime.Rendering;
 using PureDOTS.Systems;
 using Space4X.Registry;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using PDStructuralChangePresentationSystemGroup = PureDOTS.Systems.StructuralChangePresentationSystemGroup;
-using PDUpdatePresentationSystemGroup = PureDOTS.Systems.UpdatePresentationSystemGroup;
 
 namespace Space4X.Presentation
 {
@@ -39,8 +39,7 @@ namespace Space4X.Presentation
             var config = EnsureConfig(ref state);
             _presentationLayerLookup.Update(ref state);
 
-            var endEcb = state.World.GetOrCreateSystemManaged<EndPresentationECBSystem>();
-            var ecb = endEcb.CreateCommandBuffer();
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (_, entity) in SystemAPI
                          .Query<RefRO<MiningVessel>>()
@@ -68,6 +67,9 @@ namespace Space4X.Presentation
 
                 ecb.AddComponent(entity, new CargoVisualLink { CargoEntity = cargoEntity });
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private Space4XCargoPresentationConfig EnsureConfig(ref SystemState state)
@@ -103,13 +105,22 @@ namespace Space4X.Presentation
             ecb.AddComponent<RenderThemeOverride>(entity);
             ecb.SetComponentEnabled<RenderThemeOverride>(entity, false);
 
-            ecb.AddComponent<MeshPresenter>(entity);
+            ecb.AddComponent(entity, new MeshPresenter
+            {
+                DefIndex = RenderPresentationConstants.UnassignedPresenterDefIndex
+            });
             ecb.SetComponentEnabled<MeshPresenter>(entity, false);
 
-            ecb.AddComponent<SpritePresenter>(entity);
+            ecb.AddComponent(entity, new SpritePresenter
+            {
+                DefIndex = RenderPresentationConstants.UnassignedPresenterDefIndex
+            });
             ecb.SetComponentEnabled<SpritePresenter>(entity, false);
 
-            ecb.AddComponent<DebugPresenter>(entity);
+            ecb.AddComponent(entity, new DebugPresenter
+            {
+                DefIndex = RenderPresentationConstants.UnassignedPresenterDefIndex
+            });
             ecb.SetComponentEnabled<DebugPresenter>(entity, false);
 
             ecb.AddComponent(entity, new RenderLODData
@@ -150,9 +161,8 @@ namespace Space4X.Presentation
     }
 
     [BurstCompile]
-    [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
+    [UpdateInGroup(typeof(Unity.Entities.PresentationSystemGroup))]
     [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XCargoPresentationDriveSystem : ISystem
     {
         private ComponentLookup<MiningVessel> _vesselLookup;

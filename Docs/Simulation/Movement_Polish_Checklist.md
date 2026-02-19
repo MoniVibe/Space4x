@@ -9,6 +9,12 @@ Purpose: define the “polished movement” target for ships in a realistic, ine
 - Movement is performance aware and deterministic.
 - Frame anchoring is stable (system vs galaxy drift is invisible to the player).
 
+## Simulation Contract (Non-Negotiable)
+- One movement authority per entity per tick.
+- Authoritative transform/velocity updates happen only in fixed-step simulation systems.
+- UI/MonoBehaviour layers emit intent, never final transform writes.
+- `LocalToWorld` is presentation output, not gameplay authority.
+
 ## Polished Movement Criteria
 1. Inertial feel is obvious within the first 5–10 seconds.
 2. Approach profile is stable and class-appropriate.

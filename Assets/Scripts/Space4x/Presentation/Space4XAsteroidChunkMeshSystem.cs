@@ -364,6 +364,28 @@ namespace Space4X.Presentation
             var queue = EntityManager.GetBuffer<Space4XAsteroidChunkRebuildRequest>(queueEntity);
             if (queue.Length == 0)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                if (EntityManager.HasComponent<Space4XAsteroidChunkMeshFrameStats>(queueEntity))
+                {
+                    var stats = EntityManager.GetComponentData<Space4XAsteroidChunkMeshFrameStats>(queueEntity);
+                    var statsConfig = Space4XAsteroidChunkMeshRebuildConfig.Default;
+                    if (EntityManager.HasComponent<Space4XAsteroidChunkMeshRebuildConfig>(queueEntity))
+                    {
+                        statsConfig = EntityManager.GetComponentData<Space4XAsteroidChunkMeshRebuildConfig>(queueEntity);
+                    }
+
+                    stats.ChunksBuiltThisFrame = 0;
+                    stats.TotalBuildMsThisFrame = 0f;
+                    stats.TotalVertsThisFrame = 0;
+                    stats.TotalIndicesThisFrame = 0;
+                    stats.LastChunkBuildMs = 0f;
+                    stats.QueueLength = 0;
+                    stats.SkippedDueToBudget = 0;
+                    stats.BudgetMs = statsConfig.MaxBuildMillisecondsPerFrame;
+                    stats.MinChunksPerFrame = math.max(1, statsConfig.MinChunksPerFrame);
+                    EntityManager.SetComponentData(queueEntity, stats);
+                }
+#endif
                 return;
             }
 

@@ -38,6 +38,8 @@ namespace Space4X.Systems
             var rightClicks = state.EntityManager.GetBuffer<RightClickEvent>(inputEntity);
             if (rightClicks.Length == 0)
                 return;
+            using var rightClickEvents = rightClicks.ToNativeArray(Allocator.Temp);
+            rightClicks.Clear();
 
             uint tick = 0;
             if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
@@ -45,12 +47,11 @@ namespace Space4X.Systems
                 tick = timeState.Tick;
             }
 
-            foreach (var evt in rightClicks)
+            foreach (var evt in rightClickEvents)
             {
                 ProcessRightClick(ref state, evt, tick);
             }
 
-            rightClicks.Clear();
         }
 
         private void ProcessRightClick(ref SystemState state, RightClickEvent evt, uint tick)

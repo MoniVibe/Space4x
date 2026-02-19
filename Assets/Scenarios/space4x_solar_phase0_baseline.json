@@ -1,0 +1,172 @@
+{
+  "scenarioId": "space4x_solar_phase0_baseline",
+  "seed": 42,
+  "duration_s": 180,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyFloatingOrigin": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1,
+      "surfaceScale": 0.55,
+      "orbitalScale": 0.9,
+      "deepScale": 1.3,
+      "surfaceEnterMultiplier": 0.3,
+      "surfaceExitMultiplier": 0.35,
+      "orbitalEnterMultiplier": 0.95,
+      "orbitalExitMultiplier": 1.05,
+      "minHoldTicks": 16
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "innerRadius": 100,
+      "outerRadius": 2200,
+      "distanceScale": 1.25,
+      "speedScale": 0.9,
+      "rangeScale": 1.15,
+      "presentationScale": 0.72,
+      "enterMultiplier": 0.95,
+      "exitMultiplier": 1.05
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.mining.progress",
+        "required": true
+      },
+      {
+        "id": "space4x.q.perf.summary",
+        "required": true
+      },
+      {
+        "id": "space4x.q.perf.budget",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "carrier-1",
+      "position": [0, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 300,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "missile-m-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "ResourceStorage": [
+          { "type": "Minerals", "capacity": 10000 },
+          { "type": "RareMetals", "capacity": 10000 }
+        ]
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-1",
+      "position": [12, -2],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "carrierId": "carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.82,
+      "speed": 5.0,
+      "cargoCapacity": 100.0
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-2",
+      "position": [16, 1],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "carrierId": "carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.78,
+      "speed": 5.0,
+      "cargoCapacity": 100.0
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "miner-3",
+      "position": [20, 3],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 200,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "carrierId": "carrier-1",
+      "resourceId": "Minerals",
+      "miningEfficiency": 0.86,
+      "speed": 5.0,
+      "cargoCapacity": 100.0
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-1",
+      "position": [60, 0],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1400.0,
+      "gatherRatePerWorker": 10.0,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "deposit-2",
+      "position": [95, 30],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 900.0,
+      "gatherRatePerWorker": 8.0,
+      "maxSimultaneousWorkers": 2
+    }
+  ],
+  "actions": []
+}
+

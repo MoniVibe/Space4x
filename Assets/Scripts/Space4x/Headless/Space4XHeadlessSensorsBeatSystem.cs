@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.PerceptionSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Perception.PerceptionUpdateSystem))]
     public partial struct Space4XHeadlessSensorsBeatSystem : ISystem
     {

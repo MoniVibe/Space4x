@@ -1068,6 +1068,8 @@ Before adding new code, verify:
 - [ ] **New Component?** → Verify all fields are blittable
 - [ ] **Using Lookup?** → Match lookup type to component interface
 - [ ] **Missing Type?** → Add appropriate `using` statement
+- [ ] **Unity type collisions?** → Alias `UCamera`/`UInput`/`UTime` and avoid variable name `main`
+- [ ] **Using float3?** → Add `using Unity.Mathematics;` or alias `float3`
 - [ ] **Burst Method?** → No strings, no Debug.Log, use FixedString
 - [ ] **Refactoring Fields?** → Update all usage sites first
 - [ ] **Modifying Buffer?** → Use indexed access, not foreach
@@ -1106,4 +1108,3 @@ Before adding new code, verify:
 
 **Last Updated:** 2025-11-27 (Round 2)  
 **Status:** Reference Guide - Active
-

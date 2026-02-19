@@ -9,7 +9,7 @@ using UnityTime = UnityEngine.Time;
 
 namespace Space4X.Headless
 {
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.HeadlessExitSystem))]
     public partial struct Space4XHeadlessForceExitSystem : ISystem
     {

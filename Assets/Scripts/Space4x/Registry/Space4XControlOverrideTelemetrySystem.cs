@@ -10,7 +10,7 @@ namespace Space4X.Registry
     /// <summary>
     /// Emits telemetry events for hostile control override start/end transitions.
     /// </summary>
-    [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.LateSimulationSystemGroup))]
     [UpdateBefore(typeof(PureDOTS.Systems.Telemetry.TelemetryExportSystem))]
     public partial struct Space4XControlOverrideTelemetrySystem : ISystem
     {
