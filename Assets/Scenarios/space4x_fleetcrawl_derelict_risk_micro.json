@@ -1,0 +1,160 @@
+{
+  "scenarioId": "space4x_fleetcrawl_derelict_risk_micro",
+  "seed": 19022,
+  "duration_s": 200,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "presentationScale": 0.75
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-derelict-flagship",
+      "position": [0, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 330,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "scanner-s-1",
+          "shield-s-1",
+          "armor-s-1",
+          "laser-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "ResourceStorage": [
+          { "type": "Minerals", "capacity": 15000 },
+          { "type": "RareMetals", "capacity": 10000 }
+        ],
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-DERELICT-FRIENDLY",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.0,
+          "isHostile": false,
+          "strikeCraftCount": 1,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 50
+        }
+      }
+    },
+    {
+      "kind": "MiningVessel",
+      "entityId": "fleetcrawl-derelict-salvager",
+      "position": [10, 0],
+      "ship": {
+        "hullId": "lcv-sparrow",
+        "massCap": 230,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "scanner-s-1",
+          "shield-s-1",
+          "armor-s-1",
+          "pd-s-1"
+        ]
+      },
+      "carrierId": "fleetcrawl-derelict-flagship",
+      "resourceId": "RareMetals",
+      "miningEfficiency": 0.72,
+      "speed": 6.0,
+      "cargoCapacity": 180.0,
+      "startDocked": true
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "fleetcrawl-derelict-cache",
+      "position": [90, 5],
+      "resourceId": "RareMetals",
+      "unitsRemaining": 800.0,
+      "gatherRatePerWorker": 8.0,
+      "maxSimultaneousWorkers": 2
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-derelict-raiders",
+      "position": [330, -30],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 290,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "laser-s-1",
+          "missile-m-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-DERELICT-HOSTILE",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 13.0,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 70
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 12.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-DERELICT-FRIENDLY",
+      "targetPosition": [84, 4],
+      "description": "Approach derelict cache lane."
+    },
+    {
+      "time_s": 66.0,
+      "kind": "TriggerIntercept",
+      "fleetId": "FLEETCRAWL-DERELICT-FRIENDLY",
+      "targetFleetId": "FLEETCRAWL-DERELICT-HOSTILE",
+      "description": "Raiders collapse onto salvage lane."
+    },
+    {
+      "time_s": 140.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-DERELICT-FRIENDLY",
+      "targetPosition": [150, 20],
+      "description": "Disengage toward extraction with haul."
+    }
+  ]
+}
