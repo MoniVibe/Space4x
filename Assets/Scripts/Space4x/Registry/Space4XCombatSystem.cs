@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Ships;
 using PureDOTS.Runtime.Steering;
 using PureDOTS.Runtime.Telemetry;
 using Space4X.Runtime;
+using Space4x.Fleetcrawl;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -57,6 +58,11 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XArmor> _armorLookup;
         private ComponentLookup<HullIntegrity> _hullLookup;
         private BufferLookup<DamageEvent> _damageEventLookup;
+        private ComponentLookup<FleetcrawlHeatRuntimeState> _fleetcrawlHeatRuntimeLookup;
+        private ComponentLookup<FleetcrawlHeatOutputState> _fleetcrawlHeatOutputLookup;
+        private ComponentLookup<FleetcrawlHeatsinkState> _fleetcrawlHeatsinkLookup;
+        private ComponentLookup<FleetcrawlHeatControlState> _fleetcrawlHeatControlLookup;
+        private BufferLookup<FleetcrawlHeatActionEvent> _fleetcrawlHeatActionLookup;
         private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
@@ -95,6 +101,11 @@ namespace Space4X.Registry
             _armorLookup = state.GetComponentLookup<Space4XArmor>(true);
             _hullLookup = state.GetComponentLookup<HullIntegrity>(false);
             _damageEventLookup = state.GetBufferLookup<DamageEvent>(false);
+            _fleetcrawlHeatRuntimeLookup = state.GetComponentLookup<FleetcrawlHeatRuntimeState>(false);
+            _fleetcrawlHeatOutputLookup = state.GetComponentLookup<FleetcrawlHeatOutputState>(false);
+            _fleetcrawlHeatsinkLookup = state.GetComponentLookup<FleetcrawlHeatsinkState>(false);
+            _fleetcrawlHeatControlLookup = state.GetComponentLookup<FleetcrawlHeatControlState>(true);
+            _fleetcrawlHeatActionLookup = state.GetBufferLookup<FleetcrawlHeatActionEvent>(false);
             _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -140,6 +151,11 @@ namespace Space4X.Registry
             _armorLookup.Update(ref state);
             _hullLookup.Update(ref state);
             _damageEventLookup.Update(ref state);
+            _fleetcrawlHeatRuntimeLookup.Update(ref state);
+            _fleetcrawlHeatOutputLookup.Update(ref state);
+            _fleetcrawlHeatsinkLookup.Update(ref state);
+            _fleetcrawlHeatControlLookup.Update(ref state);
+            _fleetcrawlHeatActionLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _shieldLookup.Update(ref state);
@@ -286,6 +302,44 @@ namespace Space4X.Registry
                     targetVelocity = _movementLookup[target].Velocity;
                 }
 
+                var fleetcrawlHeatActive =
+                    _fleetcrawlHeatRuntimeLookup.HasComponent(entity) &&
+                    _fleetcrawlHeatOutputLookup.HasComponent(entity) &&
+                    _fleetcrawlHeatsinkLookup.HasComponent(entity) &&
+                    _fleetcrawlHeatActionLookup.HasBuffer(entity);
+
+                var fleetcrawlHeatOutput = default(FleetcrawlHeatOutputState);
+                if (fleetcrawlHeatActive)
+                {
+                    var runtime = _fleetcrawlHeatRuntimeLookup[entity];
+                    var heatsink = _fleetcrawlHeatsinkLookup[entity];
+                    var actions = _fleetcrawlHeatActionLookup[entity];
+                    var safetyMode = FleetcrawlHeatSafetyMode.BalancedAutoVent;
+                    if (_fleetcrawlHeatControlLookup.HasComponent(entity))
+                    {
+                        var control = _fleetcrawlHeatControlLookup[entity];
+                        safetyMode = control.SafetyMode;
+                        if (control.HeatsinkEnabled == 0)
+                        {
+                            heatsink.BaseCapacity = 0f;
+                            heatsink.BaseAbsorbPerTick = 0f;
+                            heatsink.BaseVentPerTick = 0f;
+                        }
+                    }
+
+                    FleetcrawlHeatResolver.TickAdvanced(
+                        currentTick,
+                        actions,
+                        FleetcrawlResolvedHeatStats.Identity,
+                        ref runtime,
+                        ref heatsink,
+                        safetyMode,
+                        out fleetcrawlHeatOutput);
+                    _fleetcrawlHeatRuntimeLookup[entity] = runtime;
+                    _fleetcrawlHeatsinkLookup[entity] = heatsink;
+                    _fleetcrawlHeatOutputLookup[entity] = fleetcrawlHeatOutput;
+                }
+
                 var weaponBuffer = weapons;
 
                 // Process each weapon mount
@@ -377,6 +431,15 @@ namespace Space4X.Registry
                         continue;
                     }
 
+                    if (fleetcrawlHeatActive && FleetcrawlHeatResolver.ShouldSuppressFire(fleetcrawlHeatOutput))
+                    {
+                        if (mountDirty)
+                        {
+                            weaponBuffer[i] = mount;
+                        }
+                        continue;
+                    }
+
                     // Range check
                     if (distance > mount.Weapon.MaxRange * rangeScale)
                     {
@@ -440,6 +503,14 @@ namespace Space4X.Registry
                         }
                     }
 
+                    if (fleetcrawlHeatActive && FleetcrawlHeatResolver.ResolveJam(fleetcrawlHeatOutput, entity, i, currentTick))
+                    {
+                        mount.Weapon.CurrentCooldown = (ushort)math.max((int)mount.Weapon.CurrentCooldown, 2);
+                        mountDirty = true;
+                        weaponBuffer[i] = mount;
+                        continue;
+                    }
+
                     // Ammo check
                     if (mount.Weapon.AmmoPerShot > 0 && supply.ValueRO.Ammunition < mount.Weapon.AmmoPerShot)
                     {
@@ -458,6 +529,12 @@ namespace Space4X.Registry
                         var heatPenalty = math.saturate((heat - heatPenaltyStart) / math.max(0.0001f, 1f - heatPenaltyStart));
                         adjustedCooldown = (int)math.round(adjustedCooldown * (1f + heatPenalty * heatPenaltyScale));
                     }
+                    if (fleetcrawlHeatActive)
+                    {
+                        var outputCooldownMul = fleetcrawlHeatOutput.CooldownMultiplier > 0f ? fleetcrawlHeatOutput.CooldownMultiplier : 1f;
+                        var fireThrottleMul = fleetcrawlHeatOutput.FireRateThrottleMultiplier > 0f ? fleetcrawlHeatOutput.FireRateThrottleMultiplier : 1f;
+                        adjustedCooldown = (int)math.round(adjustedCooldown * outputCooldownMul * fireThrottleMul);
+                    }
                     adjustedCooldown = math.clamp(adjustedCooldown, 0, ushort.MaxValue);
 
                     // Fire weapon
@@ -467,6 +544,36 @@ namespace Space4X.Registry
                     mount.Heat01 = heat;
                     mountDirty = true;
                     weaponBuffer[i] = mount;
+
+                    if (fleetcrawlHeatActive)
+                    {
+                        var actions = _fleetcrawlHeatActionLookup[entity];
+                        actions.Add(new FleetcrawlHeatActionEvent
+                        {
+                            ModuleType = FleetcrawlModuleType.Weapon,
+                            Slot = FleetcrawlLimbSlot.Barrel,
+                            ComboTags = FleetcrawlComboTag.None,
+                            WeaponBehaviors = FleetcrawlWeaponBehaviorTag.None,
+                            BaseHeat = math.max(0f, heatPerShot),
+                            Scale = 1f
+                        });
+
+                        if (fleetcrawlHeatOutput.ThermalSelfDamagePerTick > 1e-5f && mount.SourceModule != Entity.Null)
+                        {
+                            if (!_limbDamageLookup.HasBuffer(mount.SourceModule))
+                            {
+                                ecb.AddBuffer<ModuleLimbDamageEvent>(mount.SourceModule);
+                            }
+
+                            ecb.AppendToBuffer(mount.SourceModule, new ModuleLimbDamageEvent
+                            {
+                                Family = ModuleLimbFamily.Cooling,
+                                LimbId = ModuleLimbId.Unknown,
+                                Damage = math.max(0.01f, fleetcrawlHeatOutput.ThermalSelfDamagePerTick * 0.25f),
+                                Tick = currentTick
+                            });
+                        }
+                    }
 
                     if (_dogfightTagLookup.HasComponent(entity))
                     {
