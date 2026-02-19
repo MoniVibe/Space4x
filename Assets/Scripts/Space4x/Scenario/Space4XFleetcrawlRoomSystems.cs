@@ -35,6 +35,24 @@ namespace Space4x.Scenario
     public enum Space4XRunStatTarget : byte { AllWeapons = 0, BeamWeapons = 1, Drones = 2 }
 
     public struct Space4XFleetcrawlSeeded : IComponentData { public FixedString64Bytes ScenarioId; }
+    public struct Space4XFleetcrawlScenarioContractConfig : IComponentData
+    {
+        public FixedString64Bytes ContractId;
+        public FixedString32Bytes RunDifficulty;
+        public int DepthStart;
+        public byte HasRoomPlan;
+    }
+
+    [InternalBufferCapacity(8)]
+    public struct Space4XFleetcrawlRoomPlanOverride : IBufferElementData
+    {
+        public FixedString64Bytes Archetype;
+        public FixedString32Bytes RoomClass;
+        public FixedString32Bytes SystemSize;
+        public int ThreatLevel;
+        public FixedString128Bytes WildcardsCsv;
+    }
+
     public struct Space4XRunPlayerTag : IComponentData { }
     public struct PlayerFlagshipTag : IComponentData { }
     public struct Space4XRunDroneTag : IComponentData { }
@@ -552,8 +570,12 @@ namespace Space4x.Scenario
                 OfferBoon = 0
             });
 
+            var appliedContractPlan = ApplyScenarioContractRooms(ref state, rooms, info.Seed, shortMode, dt);
 #if !UNITY_INCLUDE_TESTS
-            ApplyOptionalRoomProfile(rooms, shortMode, dt);
+            if (!appliedContractPlan)
+            {
+                ApplyOptionalRoomProfile(rooms, shortMode, dt);
+            }
 #endif
             var roomCount = rooms.Length;
 
@@ -605,6 +627,742 @@ namespace Space4x.Scenario
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
             Debug.Log($"[Fleetcrawl] Seeded run. rooms={roomCount} short_mode={(shortMode ? 1 : 0)} seed={runSeed}.");
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlContractProbe
+        {
+            public string contractId;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlRoomContractFile
+        {
+            public string contractId;
+            public FleetcrawlRunDifficultyProfile[] runDifficultyProfiles;
+            public FleetcrawlRoomClassProfile[] roomClassProfiles;
+            public FleetcrawlSystemSizeProfile[] systemSizeProfiles;
+            public FleetcrawlRoomArchetypeProfile[] roomArchetypes;
+            public FleetcrawlSpawnPackRef[] spawnPackRefs;
+            public FleetcrawlBudgetFormula budgetFormula;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlRunDifficultyProfile
+        {
+            public string id;
+            public float budgetMultiplier = 1f;
+            public float rewardMultiplier = 1f;
+            public float minibossChanceBonus = 0f;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlRoomClassProfile
+        {
+            public string id;
+            public float budgetMultiplier = 1f;
+            public float rewardMultiplier = 1f;
+            public int threatStepBonus = 0;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlSystemSizeProfile
+        {
+            public string id;
+            public int encounterSlots = 3;
+            public int hazardSlots = 1;
+            public int objectiveSlots = 1;
+            public int baseBudget = 100;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlBudgetShares
+        {
+            public float objective = 0.3f;
+            public float enemies = 0.5f;
+            public float hazards = 0.2f;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlRoomArchetypeProfile
+        {
+            public string id;
+            public string[] requiredPackTags;
+            public string[] optionalPackTags;
+            public FleetcrawlBudgetShares budgetShares;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlSpawnPackRef
+        {
+            public string id;
+            public string packType;
+            public int budgetCost = 0;
+            public string[] tags;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlBudgetFormula
+        {
+            public float depthStepMultiplier = 0.08f;
+            public float threatStepMultiplier = 0.1f;
+        }
+
+        private bool ApplyScenarioContractRooms(ref SystemState state, DynamicBuffer<Space4XFleetcrawlRoom> rooms, uint runSeed, bool shortMode, float dt)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XFleetcrawlScenarioContractConfig>(out var contractEntity))
+            {
+                return false;
+            }
+
+            var em = state.EntityManager;
+            if (!em.HasBuffer<Space4XFleetcrawlRoomPlanOverride>(contractEntity))
+            {
+                return false;
+            }
+
+            var contractConfig = em.GetComponentData<Space4XFleetcrawlScenarioContractConfig>(contractEntity);
+            if (contractConfig.ContractId.Length == 0 || contractConfig.HasRoomPlan == 0)
+            {
+                return false;
+            }
+
+            var planBuffer = em.GetBuffer<Space4XFleetcrawlRoomPlanOverride>(contractEntity);
+            if (planBuffer.Length == 0)
+            {
+                return false;
+            }
+
+            if (!TryLoadContractById(contractConfig.ContractId.ToString(), out var contractPath, out var contractFile))
+            {
+                Debug.LogWarning($"[Fleetcrawl] Contract room plan was requested but contract '{contractConfig.ContractId}' could not be resolved.");
+                return false;
+            }
+
+            var runDifficultyId = contractConfig.RunDifficulty.Length == 0 ? "normal" : contractConfig.RunDifficulty.ToString();
+            var runDifficulty = ResolveRunDifficultyProfile(contractFile, runDifficultyId);
+            if (runDifficulty == null)
+            {
+                Debug.LogWarning($"[Fleetcrawl] Contract '{contractConfig.ContractId}' is missing runDifficulty '{runDifficultyId}'.");
+                return false;
+            }
+
+            var budgetFormula = contractFile.budgetFormula ?? new FleetcrawlBudgetFormula();
+            var parsedRooms = new List<Space4XFleetcrawlRoom>(planBuffer.Length);
+            var depthStart = math.max(1, contractConfig.DepthStart);
+            for (var i = 0; i < planBuffer.Length; i++)
+            {
+                var plan = planBuffer[i];
+                if (!TryBuildRoomFromContractPlan(
+                        plan,
+                        i,
+                        depthStart + i,
+                        runSeed == 0u ? 9017u : runSeed,
+                        shortMode,
+                        dt,
+                        contractFile,
+                        runDifficulty,
+                        budgetFormula,
+                        out var room,
+                        out var budget,
+                        out var selectedPacks))
+                {
+                    Debug.LogWarning($"[Fleetcrawl] Contract room plan entry index={i} was invalid and was skipped.");
+                    continue;
+                }
+
+                parsedRooms.Add(room);
+                Debug.Log($"[Fleetcrawl] CONTRACT_ROOM index={i} depth={depthStart + i} run={runDifficulty.id} archetype={plan.Archetype} class={plan.RoomClass} size={plan.SystemSize} threat={plan.ThreatLevel} budget={budget} packs={selectedPacks}.");
+            }
+
+            if (parsedRooms.Count == 0)
+            {
+                Debug.LogWarning($"[Fleetcrawl] Contract '{contractConfig.ContractId}' produced zero valid rooms. Using built-in defaults.");
+                return false;
+            }
+
+            rooms.Clear();
+            for (var i = 0; i < parsedRooms.Count; i++)
+            {
+                rooms.Add(parsedRooms[i]);
+            }
+
+            Debug.Log($"[Fleetcrawl] Loaded contract room plan from '{contractPath}'. contract={contractConfig.ContractId} run={runDifficulty.id} rooms={parsedRooms.Count}.");
+            return true;
+        }
+
+        private bool TryBuildRoomFromContractPlan(
+            in Space4XFleetcrawlRoomPlanOverride plan,
+            int roomIndex,
+            int depth,
+            uint runSeed,
+            bool shortMode,
+            float dt,
+            FleetcrawlRoomContractFile contractFile,
+            FleetcrawlRunDifficultyProfile runDifficulty,
+            FleetcrawlBudgetFormula budgetFormula,
+            out Space4XFleetcrawlRoom room,
+            out int finalBudget,
+            out string selectedPacks)
+        {
+            room = default;
+            finalBudget = 0;
+            selectedPacks = "<none>";
+            if (contractFile == null)
+            {
+                return false;
+            }
+
+            var archetype = ResolveArchetype(contractFile, plan.Archetype.ToString());
+            if (archetype == null)
+            {
+                return false;
+            }
+
+            var roomClass = ResolveRoomClass(contractFile, plan.RoomClass.ToString()) ?? ResolveRoomClass(contractFile, "normal");
+            var systemSize = ResolveSystemSize(contractFile, plan.SystemSize.ToString()) ?? ResolveSystemSize(contractFile, "medium");
+            if (roomClass == null || systemSize == null)
+            {
+                return false;
+            }
+
+            var budgetShares = archetype.budgetShares ?? new FleetcrawlBudgetShares();
+            var depthMultiplier = 1f + math.max(0, depth - 1) * math.max(0f, budgetFormula.depthStepMultiplier);
+            var threatSteps = math.max(0, plan.ThreatLevel + roomClass.threatStepBonus - 1);
+            var threatMultiplier = 1f + threatSteps * math.max(0f, budgetFormula.threatStepMultiplier);
+            var baseBudget = math.max(20f, systemSize.baseBudget);
+            var budgetF = baseBudget
+                          * math.max(0.1f, runDifficulty.budgetMultiplier)
+                          * math.max(0.1f, roomClass.budgetMultiplier)
+                          * depthMultiplier
+                          * threatMultiplier;
+            finalBudget = math.max(1, (int)math.round(budgetF));
+
+            var roomClassId = NormalizeToken(plan.RoomClass.ToString(), "normal");
+            var isMiniBossClass = roomClassId.Equals("miniboss", StringComparison.OrdinalIgnoreCase);
+            var isEliteClass = roomClassId.Equals("elite", StringComparison.OrdinalIgnoreCase);
+            var kind = Space4XFleetcrawlRoomKind.Combat;
+            var endConditions = Space4XFleetcrawlRoomEndConditionFlags.Timer | Space4XFleetcrawlRoomEndConditionFlags.KillQuota;
+            var endLogic = Space4XFleetcrawlRoomEndLogic.AnyOf;
+
+            var waves = math.max(1, systemSize.encounterSlots + threatSteps / 2 + (isEliteClass ? 1 : 0));
+            var killQuota = math.max(8, (int)math.round(finalBudget * 0.35f));
+            var strikePerWave = math.max(4, (int)math.round(finalBudget * math.max(0.15f, budgetShares.enemies) / math.max(1, waves * 8f)));
+            var carrierPerWave = math.max(0, (int)math.round(finalBudget * math.max(0f, budgetShares.enemies - 0.35f) / 130f));
+            var miniBossEveryNWaves = 0;
+            var miniBossQuota = 0;
+            var miniBossCarrierCount = 0;
+            var bossQuota = 0;
+            var bossCarrierCount = 0;
+
+            if (isMiniBossClass)
+            {
+                endConditions |= Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota;
+                miniBossQuota = 1;
+                miniBossEveryNWaves = math.max(1, waves);
+                miniBossCarrierCount = math.max(1, 1 + threatSteps / 2);
+            }
+            else if (isEliteClass)
+            {
+                var eliteMiniBossChance = math.saturate(0.12f + runDifficulty.minibossChanceBonus);
+                var eliteRoll = DeterministicMix(runSeed, (uint)(roomIndex + 1), HashString(plan.Archetype.ToString()), 0xC0DEC0DEu) % 1000u;
+                if (eliteRoll < (uint)math.round(eliteMiniBossChance * 1000f))
+                {
+                    endConditions |= Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota;
+                    miniBossQuota = 1;
+                    miniBossEveryNWaves = math.max(1, waves);
+                    miniBossCarrierCount = 1;
+                }
+            }
+
+            var durationSec = ResolveDefaultDurationSeconds(kind, shortMode);
+            var budgetNormalized = math.saturate((finalBudget - 80f) / 260f);
+            durationSec *= math.lerp(0.92f, 1.25f, budgetNormalized);
+            durationSec = math.clamp(durationSec, shortMode ? 25f : 70f, shortMode ? 140f : 360f);
+
+            var waveIntervalSec = ResolveDefaultWaveIntervalSeconds(shortMode);
+            waveIntervalSec *= math.lerp(1.1f, 0.8f, budgetNormalized);
+            waveIntervalSec = math.clamp(waveIntervalSec, shortMode ? 7f : 18f, shortMode ? 26f : 70f);
+
+            var rewardMultiplier = math.max(0.1f, runDifficulty.rewardMultiplier) * math.max(0.1f, roomClass.rewardMultiplier);
+            var rewardCurrency = math.max(15, (int)math.round(finalBudget * rewardMultiplier));
+
+            var wildcards = ParseWildcardCsv(plan.WildcardsCsv);
+            var rewardHealRatio = 0.03f + math.min(0.05f, budgetShares.objective * 0.08f);
+            if (ContainsWildcard(wildcards, "distress_signal"))
+            {
+                rewardHealRatio += 0.03f;
+            }
+            if (ContainsWildcard(wildcards, "roaming_market"))
+            {
+                rewardHealRatio += 0.02f;
+            }
+
+            var rewardPom = math.clamp(0.03f + threatSteps * 0.015f + (isEliteClass ? 0.02f : 0f), 0f, 0.18f);
+            var rewardMaxHull = math.max(0f, threatSteps * 8f + (isMiniBossClass ? 25f : 0f));
+            var offerBoon = (byte)((isEliteClass || isMiniBossClass || threatSteps >= 3) ? 1 : 0);
+
+            selectedPacks = SelectPackSummary(contractFile.spawnPackRefs, archetype, wildcards, runSeed, roomIndex);
+
+            room = new Space4XFleetcrawlRoom
+            {
+                Kind = kind,
+                ReliefKind = Space4XFleetcrawlReliefKind.None,
+                EndConditions = endConditions,
+                EndLogic = endLogic,
+                DurationTicks = ToTicks(durationSec, dt),
+                WaveIntervalTicks = ToTicks(waveIntervalSec, dt),
+                PlannedWaves = waves,
+                KillQuota = killQuota,
+                MiniBossQuota = miniBossQuota,
+                BossQuota = bossQuota,
+                BaseStrikePerWave = strikePerWave,
+                BaseCarrierPerWave = carrierPerWave,
+                MiniBossEveryNWaves = miniBossEveryNWaves,
+                MiniBossCarrierCount = miniBossCarrierCount,
+                BossCarrierCount = bossCarrierCount,
+                RewardCurrency = rewardCurrency,
+                RewardHealRatio = math.clamp(rewardHealRatio, 0f, 0.2f),
+                RewardPomPct = rewardPom,
+                RewardMaxHullFlat = rewardMaxHull,
+                OfferBoon = offerBoon
+            };
+            return true;
+        }
+
+        private static string SelectPackSummary(
+            FleetcrawlSpawnPackRef[] packs,
+            FleetcrawlRoomArchetypeProfile archetype,
+            List<string> wildcards,
+            uint runSeed,
+            int roomIndex)
+        {
+            if (packs == null || packs.Length == 0)
+            {
+                return "<none>";
+            }
+
+            var selected = new List<string>(3);
+            var requiredTags = archetype != null ? archetype.requiredPackTags : null;
+            var optionalTags = archetype != null ? archetype.optionalPackTags : null;
+            var wildcardTags = BuildWildcardTags(wildcards);
+
+            for (var slot = 0; slot < 3; slot++)
+            {
+                var bestScore = int.MinValue;
+                var bestHash = uint.MaxValue;
+                var bestId = string.Empty;
+                for (var i = 0; i < packs.Length; i++)
+                {
+                    var pack = packs[i];
+                    if (pack == null || string.IsNullOrWhiteSpace(pack.id))
+                    {
+                        continue;
+                    }
+
+                    if (ContainsString(selected, pack.id))
+                    {
+                        continue;
+                    }
+
+                    var score = 0;
+                    score += ScoreTagMatches(pack.tags, requiredTags, 100);
+                    score += ScoreTagMatches(pack.tags, optionalTags, 15);
+                    score += ScoreTagMatches(pack.tags, wildcardTags, 20);
+                    if (score <= 0)
+                    {
+                        continue;
+                    }
+
+                    var hash = DeterministicMix(runSeed, (uint)(roomIndex + 1), (uint)(slot + 1), HashString(pack.id));
+                    if (score > bestScore || (score == bestScore && hash < bestHash))
+                    {
+                        bestScore = score;
+                        bestHash = hash;
+                        bestId = pack.id;
+                    }
+                }
+
+                if (bestScore <= 0 || string.IsNullOrWhiteSpace(bestId))
+                {
+                    break;
+                }
+
+                selected.Add(bestId);
+            }
+
+            if (selected.Count == 0)
+            {
+                return "<none>";
+            }
+
+            var result = selected[0];
+            for (var i = 1; i < selected.Count; i++)
+            {
+                result += "|";
+                result += selected[i];
+            }
+
+            return result;
+        }
+
+        private static int ScoreTagMatches(string[] sourceTags, string[] wantedTags, int matchScore)
+        {
+            if (sourceTags == null || wantedTags == null || sourceTags.Length == 0 || wantedTags.Length == 0)
+            {
+                return 0;
+            }
+
+            var total = 0;
+            for (var i = 0; i < wantedTags.Length; i++)
+            {
+                var wanted = wantedTags[i];
+                if (string.IsNullOrWhiteSpace(wanted))
+                {
+                    continue;
+                }
+
+                for (var j = 0; j < sourceTags.Length; j++)
+                {
+                    var source = sourceTags[j];
+                    if (source != null && source.Equals(wanted, StringComparison.OrdinalIgnoreCase))
+                    {
+                        total += matchScore;
+                        break;
+                    }
+                }
+            }
+
+            return total;
+        }
+
+        private static string[] BuildWildcardTags(List<string> wildcards)
+        {
+            if (wildcards == null || wildcards.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var tags = new List<string>(wildcards.Count);
+            for (var i = 0; i < wildcards.Count; i++)
+            {
+                var wildcard = NormalizeToken(wildcards[i], string.Empty);
+                if (wildcard.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!wildcard.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
+                {
+                    wildcard = $"wildcard.{wildcard}";
+                }
+                tags.Add(wildcard);
+            }
+
+            return tags.ToArray();
+        }
+
+        private static List<string> ParseWildcardCsv(in FixedString128Bytes wildcardsCsv)
+        {
+            var list = new List<string>(4);
+            var raw = wildcardsCsv.ToString();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return list;
+            }
+
+            var split = raw.Split('|');
+            for (var i = 0; i < split.Length; i++)
+            {
+                var token = NormalizeToken(split[i], string.Empty);
+                if (token.Length > 0)
+                {
+                    list.Add(token);
+                }
+            }
+
+            return list;
+        }
+
+        private static bool ContainsWildcard(List<string> wildcards, string token)
+        {
+            if (wildcards == null || wildcards.Count == 0)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < wildcards.Count; i++)
+            {
+                if (wildcards[i].Equals(token, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsString(List<string> values, string value)
+        {
+            for (var i = 0; i < values.Count; i++)
+            {
+                if (values[i].Equals(value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string NormalizeToken(string value, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return fallback;
+            }
+
+            return value.Trim().ToLowerInvariant();
+        }
+
+        private static FleetcrawlRunDifficultyProfile ResolveRunDifficultyProfile(FleetcrawlRoomContractFile contractFile, string runDifficultyId)
+        {
+            if (contractFile == null || contractFile.runDifficultyProfiles == null || contractFile.runDifficultyProfiles.Length == 0)
+            {
+                return null;
+            }
+
+            var normalized = NormalizeToken(runDifficultyId, "normal");
+            for (var i = 0; i < contractFile.runDifficultyProfiles.Length; i++)
+            {
+                var candidate = contractFile.runDifficultyProfiles[i];
+                if (candidate != null && NormalizeToken(candidate.id, string.Empty).Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            for (var i = 0; i < contractFile.runDifficultyProfiles.Length; i++)
+            {
+                var candidate = contractFile.runDifficultyProfiles[i];
+                if (candidate != null && NormalizeToken(candidate.id, string.Empty).Equals("normal", StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return contractFile.runDifficultyProfiles[0];
+        }
+
+        private static FleetcrawlRoomClassProfile ResolveRoomClass(FleetcrawlRoomContractFile contractFile, string roomClassId)
+        {
+            if (contractFile == null || contractFile.roomClassProfiles == null)
+            {
+                return null;
+            }
+
+            var normalized = NormalizeToken(roomClassId, string.Empty);
+            for (var i = 0; i < contractFile.roomClassProfiles.Length; i++)
+            {
+                var candidate = contractFile.roomClassProfiles[i];
+                if (candidate != null && NormalizeToken(candidate.id, string.Empty).Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static FleetcrawlSystemSizeProfile ResolveSystemSize(FleetcrawlRoomContractFile contractFile, string systemSizeId)
+        {
+            if (contractFile == null || contractFile.systemSizeProfiles == null)
+            {
+                return null;
+            }
+
+            var normalized = NormalizeToken(systemSizeId, string.Empty);
+            for (var i = 0; i < contractFile.systemSizeProfiles.Length; i++)
+            {
+                var candidate = contractFile.systemSizeProfiles[i];
+                if (candidate != null && NormalizeToken(candidate.id, string.Empty).Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static FleetcrawlRoomArchetypeProfile ResolveArchetype(FleetcrawlRoomContractFile contractFile, string archetypeId)
+        {
+            if (contractFile == null || contractFile.roomArchetypes == null)
+            {
+                return null;
+            }
+
+            var normalized = NormalizeToken(archetypeId, string.Empty);
+            for (var i = 0; i < contractFile.roomArchetypes.Length; i++)
+            {
+                var candidate = contractFile.roomArchetypes[i];
+                if (candidate != null && NormalizeToken(candidate.id, string.Empty).Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool TryLoadContractById(string contractId, out string contractPath, out FleetcrawlRoomContractFile contractFile)
+        {
+            contractPath = string.Empty;
+            contractFile = null;
+            if (string.IsNullOrWhiteSpace(contractId))
+            {
+                return false;
+            }
+
+            if (!TryResolveContractPath(contractId, out contractPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(contractPath);
+                contractFile = JsonUtility.FromJson<FleetcrawlRoomContractFile>(json);
+                return contractFile != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TryResolveContractPath(string contractId, out string contractPath)
+        {
+            contractPath = string.Empty;
+            var normalizedContractId = contractId.Trim();
+
+            var roots = new List<string>(2);
+            var scenarioPath = Environment.GetEnvironmentVariable("SPACE4X_SCENARIO_PATH");
+            if (!string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                try
+                {
+                    var scenarioDir = Path.GetDirectoryName(Path.GetFullPath(scenarioPath));
+                    if (!string.IsNullOrWhiteSpace(scenarioDir) && Directory.Exists(scenarioDir))
+                    {
+                        roots.Add(scenarioDir);
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            var scenariosRoot = Path.Combine(Application.dataPath, "Scenarios");
+            if (Directory.Exists(scenariosRoot))
+            {
+                var alreadyAdded = false;
+                for (var i = 0; i < roots.Count; i++)
+                {
+                    if (roots[i].Equals(scenariosRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        alreadyAdded = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyAdded)
+                {
+                    roots.Add(scenariosRoot);
+                }
+            }
+
+            for (var i = 0; i < roots.Count; i++)
+            {
+                var root = roots[i];
+                var direct = Path.Combine(root, $"{normalizedContractId}.json");
+                if (File.Exists(direct))
+                {
+                    contractPath = direct;
+                    return true;
+                }
+
+                var normalizedFileName = normalizedContractId.Replace('.', '_') + ".json";
+                var underscored = Path.Combine(root, normalizedFileName);
+                if (File.Exists(underscored))
+                {
+                    contractPath = underscored;
+                    return true;
+                }
+            }
+
+            for (var i = 0; i < roots.Count; i++)
+            {
+                var root = roots[i];
+                string[] files;
+                try
+                {
+                    files = Directory.GetFiles(root, "*.json", SearchOption.AllDirectories);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                for (var j = 0; j < files.Length; j++)
+                {
+                    var file = files[j];
+                    try
+                    {
+                        var probe = JsonUtility.FromJson<FleetcrawlContractProbe>(File.ReadAllText(file));
+                        if (probe != null && !string.IsNullOrWhiteSpace(probe.contractId) &&
+                            probe.contractId.Equals(normalizedContractId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            contractPath = file;
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static uint HashString(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 2166136261u;
+            }
+
+            var hash = 2166136261u;
+            for (var i = 0; i < value.Length; i++)
+            {
+                hash ^= value[i];
+                hash *= 16777619u;
+            }
+            return hash;
+        }
+
+        private static uint DeterministicMix(uint a, uint b, uint c, uint d)
+        {
+            var hash = 2166136261u;
+            hash ^= a;
+            hash *= 16777619u;
+            hash ^= b;
+            hash *= 16777619u;
+            hash ^= c;
+            hash *= 16777619u;
+            hash ^= d;
+            hash *= 16777619u;
+            return hash;
         }
 
         [Serializable]

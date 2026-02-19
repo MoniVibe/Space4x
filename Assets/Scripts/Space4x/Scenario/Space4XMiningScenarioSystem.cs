@@ -207,6 +207,7 @@ namespace Space4x.Scenario
             ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
             ApplyOrbitalBandConfig(scenarioConfig);
             ApplyRenderFrameConfig(scenarioConfig);
+            ApplyFleetcrawlContractConfig(scenarioConfig != null ? scenarioConfig.fleetCrawl : null);
             if (scenarioConfig == null)
             {
                 return;
@@ -219,6 +220,126 @@ namespace Space4x.Scenario
             {
                 ApplyFloatingOriginConfig();
             }
+        }
+
+        private void ApplyFleetcrawlContractConfig(FleetcrawlScenarioConfigData config)
+        {
+            if (config == null)
+            {
+                ClearFleetcrawlContractConfig();
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonEntity<Space4XFleetcrawlScenarioContractConfig>(out var configEntity))
+            {
+                configEntity = EntityManager.CreateEntity(typeof(Space4XFleetcrawlScenarioContractConfig));
+                EntityManager.AddBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
+            }
+            else if (!EntityManager.HasBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity))
+            {
+                EntityManager.AddBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
+            }
+
+            var contractId = string.IsNullOrWhiteSpace(config.contractId)
+                ? string.Empty
+                : config.contractId.Trim();
+            var runDifficulty = string.IsNullOrWhiteSpace(config.runDifficulty)
+                ? "normal"
+                : config.runDifficulty.Trim().ToLowerInvariant();
+            var depthStart = math.max(1, config.depthStart <= 0 ? 1 : config.depthStart);
+
+            var roomPlan = EntityManager.GetBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
+            roomPlan.Clear();
+            if (config.roomPlan != null)
+            {
+                for (var i = 0; i < config.roomPlan.Count; i++)
+                {
+                    var entry = config.roomPlan[i];
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+
+                    var archetype = string.IsNullOrWhiteSpace(entry.archetype) ? string.Empty : entry.archetype.Trim().ToLowerInvariant();
+                    var roomClass = string.IsNullOrWhiteSpace(entry.roomClass) ? "normal" : entry.roomClass.Trim().ToLowerInvariant();
+                    var systemSize = string.IsNullOrWhiteSpace(entry.systemSize) ? "medium" : entry.systemSize.Trim().ToLowerInvariant();
+                    var threatLevel = math.max(1, entry.threatLevel);
+                    if (string.IsNullOrWhiteSpace(archetype))
+                    {
+                        continue;
+                    }
+
+                    roomPlan.Add(new Space4XFleetcrawlRoomPlanOverride
+                    {
+                        Archetype = new FixedString64Bytes(TrimAscii(archetype, 63)),
+                        RoomClass = new FixedString32Bytes(TrimAscii(roomClass, 31)),
+                        SystemSize = new FixedString32Bytes(TrimAscii(systemSize, 31)),
+                        ThreatLevel = threatLevel,
+                        WildcardsCsv = BuildWildcardCsv(entry.wildcards)
+                    });
+                }
+            }
+
+            EntityManager.SetComponentData(configEntity, new Space4XFleetcrawlScenarioContractConfig
+            {
+                ContractId = new FixedString64Bytes(TrimAscii(contractId, 63)),
+                RunDifficulty = new FixedString32Bytes(TrimAscii(runDifficulty, 31)),
+                DepthStart = depthStart,
+                HasRoomPlan = (byte)(roomPlan.Length > 0 ? 1 : 0)
+            });
+
+            Debug.Log($"[Space4XMiningScenario] Fleetcrawl contract config applied. contract={contractId} run_difficulty={runDifficulty} depth_start={depthStart} room_plan={roomPlan.Length}.");
+        }
+
+        private void ClearFleetcrawlContractConfig()
+        {
+            if (SystemAPI.TryGetSingletonEntity<Space4XFleetcrawlScenarioContractConfig>(out var configEntity))
+            {
+                EntityManager.DestroyEntity(configEntity);
+            }
+        }
+
+        private static FixedString128Bytes BuildWildcardCsv(List<string> wildcards)
+        {
+            var csv = new FixedString128Bytes();
+            if (wildcards == null || wildcards.Count == 0)
+            {
+                return csv;
+            }
+
+            for (var i = 0; i < wildcards.Count; i++)
+            {
+                var token = wildcards[i];
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    continue;
+                }
+
+                var normalized = token.Trim().ToLowerInvariant();
+                if (normalized.Length == 0)
+                {
+                    continue;
+                }
+
+                if (csv.Length > 0)
+                {
+                    csv.Append('|');
+                }
+
+                csv.Append(new FixedString32Bytes(TrimAscii(normalized, 31)));
+            }
+
+            return csv;
+        }
+
+        private static string TrimAscii(string value, int maxLen)
+        {
+            if (string.IsNullOrEmpty(value) || maxLen <= 0)
+            {
+                return string.Empty;
+            }
+
+            return value.Length > maxLen ? value.Substring(0, maxLen) : value;
         }
 
         private void ApplySensorsBeatConfig(SensorsBeatConfigData beat)
@@ -3734,8 +3855,28 @@ namespace Space4x.Scenario
         public List<string> hostileFactionOutlook;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
+        public FleetcrawlScenarioConfigData fleetCrawl;
         public List<HeadlessQuestionConfigData> headlessQuestions;
         public List<CrewTemplateConfigData> crewTemplates;
+    }
+
+    [System.Serializable]
+    public class FleetcrawlScenarioConfigData
+    {
+        public string contractId;
+        public string runDifficulty;
+        public int depthStart;
+        public List<FleetcrawlRoomPlanEntryData> roomPlan;
+    }
+
+    [System.Serializable]
+    public class FleetcrawlRoomPlanEntryData
+    {
+        public string archetype;
+        public string roomClass;
+        public string systemSize;
+        public int threatLevel;
+        public List<string> wildcards;
     }
 
     [System.Serializable]
