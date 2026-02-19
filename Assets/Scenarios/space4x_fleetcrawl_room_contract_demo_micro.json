@@ -1,0 +1,130 @@
+{
+  "scenarioId": "space4x_fleetcrawl_room_contract_demo_micro",
+  "seed": 19041,
+  "duration_s": 200,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.mining.progress",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      }
+    ],
+    "fleetCrawl": {
+      "contractId": "space4x.fleetcrawl.room_contract.v1",
+      "runDifficulty": "hard",
+      "depthStart": 2,
+      "roomPlan": [
+        {
+          "archetype": "resource_room",
+          "roomClass": "normal",
+          "systemSize": "small",
+          "threatLevel": 2,
+          "wildcards": ["distress_signal"]
+        },
+        {
+          "archetype": "derelict_room",
+          "roomClass": "elite",
+          "systemSize": "medium",
+          "threatLevel": 4,
+          "wildcards": ["anomaly", "hazard"]
+        },
+        {
+          "archetype": "swarm_room",
+          "roomClass": "miniboss",
+          "systemSize": "medium",
+          "threatLevel": 5,
+          "wildcards": ["hazard"]
+        }
+      ]
+    }
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-contract-demo-flagship",
+      "position": [0, 0],
+      "components": {
+        "ResourceStorage": [
+          { "type": "Minerals", "capacity": 11000 },
+          { "type": "RareMetals", "capacity": 6000 }
+        ],
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
+          "posture": "Patrol",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 11.0,
+          "isHostile": false,
+          "strikeCraftCount": 2,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 50
+        }
+      }
+    },
+    {
+      "kind": "ResourceDeposit",
+      "entityId": "fleetcrawl-contract-demo-deposit",
+      "position": [70, 5],
+      "resourceId": "Minerals",
+      "unitsRemaining": 1350.0,
+      "gatherRatePerWorker": 10.5,
+      "maxSimultaneousWorkers": 3
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-contract-demo-hostile",
+      "position": [320, 60],
+      "components": {
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-CONTRACT-DEMO-HOSTILE",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.0,
+          "isHostile": true,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 72
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 12.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
+      "targetPosition": [65, 8],
+      "description": "Room 1: resource lane commit."
+    },
+    {
+      "time_s": 78.0,
+      "kind": "TriggerIntercept",
+      "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
+      "targetFleetId": "FLEETCRAWL-CONTRACT-DEMO-HOSTILE",
+      "description": "Room 2: elite pressure intercept."
+    },
+    {
+      "time_s": 142.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
+      "targetPosition": [120, -20],
+      "description": "Room 3: miniboss extraction vector."
+    }
+  ]
+}

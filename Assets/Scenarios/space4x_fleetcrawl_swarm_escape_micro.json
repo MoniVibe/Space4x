@@ -1,0 +1,179 @@
+{
+  "scenarioId": "space4x_fleetcrawl_swarm_escape_micro",
+  "seed": 19023,
+  "duration_s": 150,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "applyReferenceFrames": true,
+    "renderFrame": {
+      "enabled": 1,
+      "useBandScale": 1
+    },
+    "orbitalBand": {
+      "enabled": 1,
+      "presentationScale": 0.75
+    },
+    "headlessQuestions": [
+      {
+        "id": "space4x.q.combat.attack_run",
+        "required": true
+      },
+      {
+        "id": "space4x.q.combat.battle_summary",
+        "required": true
+      }
+    ]
+  },
+  "dogfightConfig": {
+    "acquireRadius": 310.0,
+    "coneDegrees": 48.0,
+    "navConstantN": 3.5,
+    "breakOffDistance": 20.0,
+    "breakOffTicks": 110,
+    "rejoinRadius": 8.0,
+    "rejoinOffset": [0.0, 0.0, -14.0],
+    "jinkStrength": 0.14
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-swarm-flagship",
+      "position": [0, 0],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 300,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-m-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "missile-m-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "ResourceStorage": [
+          { "type": "Minerals", "capacity": 6000 }
+        ],
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-SWARM-FRIENDLY",
+          "posture": "Retreating",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 10.5,
+          "isHostile": false,
+          "strikeCraftCount": 3,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 10
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-swarm-hostile-alpha",
+      "position": [220, 20],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 290,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "missile-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-SWARM-HOSTILE-ALPHA",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 13.0,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Interceptor",
+          "escortCount": 1,
+          "escortRelease_s": 0
+        }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "fleetcrawl-swarm-hostile-beta",
+      "position": [260, -35],
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 290,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "missile-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "Fleet": {
+          "fleetId": "FLEETCRAWL-SWARM-HOSTILE-BETA",
+          "posture": "Engaging",
+          "shipCount": 1
+        },
+        "Combat": {
+          "canIntercept": true,
+          "interceptSpeed": 12.5,
+          "isHostile": true,
+          "strikeCraftCount": 4,
+          "strikeCraftRole": "Fighter",
+          "escortCount": 1,
+          "escortRelease_s": 0
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "time_s": 3.0,
+      "kind": "TriggerIntercept",
+      "fleetId": "FLEETCRAWL-SWARM-FRIENDLY",
+      "targetFleetId": "FLEETCRAWL-SWARM-HOSTILE-ALPHA",
+      "description": "Swarm wave alpha engages."
+    },
+    {
+      "time_s": 8.0,
+      "kind": "TriggerIntercept",
+      "fleetId": "FLEETCRAWL-SWARM-FRIENDLY",
+      "targetFleetId": "FLEETCRAWL-SWARM-HOSTILE-BETA",
+      "description": "Swarm wave beta converges."
+    },
+    {
+      "time_s": 95.0,
+      "kind": "MoveFleet",
+      "fleetId": "FLEETCRAWL-SWARM-FRIENDLY",
+      "targetPosition": [130, -70],
+      "description": "Break through and escape corridor."
+    }
+  ]
+}
