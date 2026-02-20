@@ -1,4 +1,6 @@
 using PureDOTS.Runtime.Components;
+using Space4X.Registry;
+using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
@@ -76,7 +78,8 @@ namespace Space4x.Fleetcrawl
         public int PurchasesResolved;
     }
 
-    [InternalBufferCapacity(24)]
+    // Keep singleton archetype lean; catalogs can spill to heap-backed buffer storage.
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlCurrencyShopCatalogEntry : IBufferElementData
     {
         public FixedString64Bytes OfferId;
@@ -87,7 +90,7 @@ namespace Space4x.Fleetcrawl
         public FleetcrawlComboTag ComboTags;
     }
 
-    [InternalBufferCapacity(24)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlLootOfferCatalogEntry : IBufferElementData
     {
         public FixedString64Bytes OfferId;
@@ -105,7 +108,7 @@ namespace Space4x.Fleetcrawl
         public FleetcrawlComboTag ComboTags;
     }
 
-    [InternalBufferCapacity(12)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlCurrencyShopOfferEntry : IBufferElementData
     {
         public int SlotIndex;
@@ -116,7 +119,7 @@ namespace Space4x.Fleetcrawl
         public uint RollHash;
     }
 
-    [InternalBufferCapacity(12)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlLootOfferEntry : IBufferElementData
     {
         public int SlotIndex;
@@ -1337,7 +1340,7 @@ namespace Space4x.Fleetcrawl
             return before > 1e-6f ? math.max(0.01f, after / before) : math.max(0.01f, after);
         }
 
-        private static void ApplyDeltaToPlayers(ref SystemState state, in FleetcrawlResolvedUpgradeStats delta)
+        private void ApplyDeltaToPlayers(ref SystemState state, in FleetcrawlResolvedUpgradeStats delta)
         {
             foreach (var (carrierRef, movementRef) in SystemAPI.Query<RefRW<Carrier>, RefRW<VesselMovement>>().WithAll<Space4XRunPlayerTag>())
             {
@@ -1404,7 +1407,7 @@ namespace Space4x.Fleetcrawl
             em.SetComponentData(directorEntity, currency);
         }
 
-        private static void ClearPurchaseRequests(ref SystemState state)
+        private void ClearPurchaseRequests(ref SystemState state)
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (_, entity) in SystemAPI.Query<RefRO<FleetcrawlPurchaseRequest>>().WithEntityAccess())

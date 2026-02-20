@@ -441,7 +441,7 @@ namespace Space4x.Fleetcrawl
             uint tick)
         {
             var effectId = op.EffectId;
-            var maxStacks = math.max((byte)1, op.MaxStacks);
+            var maxStacks = math.max(1, (int)op.MaxStacks);
             var foundIndex = -1;
             for (var i = 0; i < pendingEffects.Length; i++)
             {
@@ -458,7 +458,7 @@ namespace Space4x.Fleetcrawl
             if (foundIndex >= 0)
             {
                 var existing = pendingEffects[foundIndex];
-                existing.Stacks = (byte)math.min(maxStacks, existing.Stacks + 1);
+                existing.Stacks = (byte)math.min(maxStacks, (int)existing.Stacks + 1);
                 existing.Magnitude += op.Magnitude;
                 existing.RemainingTicks = math.max(existing.RemainingTicks, math.max(1u, op.DurationTicks));
                 pendingEffects[foundIndex] = existing;
