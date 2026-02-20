@@ -921,6 +921,12 @@ namespace Space4X.Registry
             _moduleTargetLookup.Update(ref state);
             _moduleSlotLookup.Update(ref state);
             _moduleLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _engagementLookup.Update(ref state);
+            _shieldLookup.Update(ref state);
+            _armorLookup.Update(ref state);
+            _hullLookup.Update(ref state);
+            _damageEventLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 

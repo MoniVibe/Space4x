@@ -69,6 +69,24 @@ namespace Space4x.Scenario
             RequireForUpdate<TimeState>();
         }
 
+        public void RequestReloadForModeSwitch()
+        {
+            _hasLoaded = false;
+            _loggedPerfGateMissingScenario = false;
+            Enabled = true;
+
+            if (!EntityManager.IsCreated)
+            {
+                return;
+            }
+
+            DestroyEntitiesWith<Space4XScenarioRuntime>();
+            DestroyEntitiesWith<ScenarioInfo>();
+            DestroyEntitiesWith<Space4XFleetcrawlSeeded>();
+            DestroyEntitiesWith<Space4XFleetcrawlDirectorState>();
+            DestroyEntitiesWith<Space4x.Fleetcrawl.FleetcrawlOfferRuntimeTag>();
+        }
+
         protected override void OnUpdate()
         {
             if (_hasLoaded)
@@ -199,6 +217,17 @@ namespace Space4x.Scenario
 
             _hasLoaded = true;
             Enabled = false;
+        }
+
+        private void DestroyEntitiesWith<T>() where T : unmanaged, IComponentData
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            EntityManager.DestroyEntity(query);
         }
 
         private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)

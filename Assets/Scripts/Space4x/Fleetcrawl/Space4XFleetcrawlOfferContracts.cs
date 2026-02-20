@@ -188,7 +188,7 @@ namespace Space4x.Fleetcrawl
 
         public void OnUpdate(ref SystemState state)
         {
-            if (SystemAPI.TryGetSingleton<FleetcrawlOfferRuntimeTag>(out _))
+            if (SystemAPI.TryGetSingletonEntity<FleetcrawlOfferRuntimeTag>(out _))
             {
                 return;
             }

@@ -1,4 +1,6 @@
 using PureDOTS.Runtime.Core;
+using Space4x.Scenario;
+using Unity.Entities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
@@ -116,11 +118,32 @@ namespace Space4X.Modes
         private void SwitchMode(Space4XModeKind mode)
         {
             Space4XModeSelectionState.SetMode(mode, applyScenarioEnvironment: true);
+            RequestScenarioReloadAcrossWorlds();
 
             var active = SceneManager.GetActiveScene();
             if (active.IsValid())
             {
                 SceneManager.LoadScene(active.name, LoadSceneMode.Single);
+            }
+        }
+
+        private static void RequestScenarioReloadAcrossWorlds()
+        {
+            for (var i = 0; i < World.All.Count; i++)
+            {
+                var world = World.All[i];
+                if (world == null || !world.IsCreated)
+                {
+                    continue;
+                }
+
+                var miningScenarioSystem = world.GetExistingSystemManaged<Space4XMiningScenarioSystem>();
+                if (miningScenarioSystem == null)
+                {
+                    continue;
+                }
+
+                miningScenarioSystem.RequestReloadForModeSwitch();
             }
         }
 
