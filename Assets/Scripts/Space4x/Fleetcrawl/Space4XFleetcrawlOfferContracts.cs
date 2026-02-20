@@ -1339,7 +1339,7 @@ namespace Space4x.Fleetcrawl
             return before > 1e-6f ? math.max(0.01f, after / before) : math.max(0.01f, after);
         }
 
-        private static void ApplyDeltaToPlayers(ref SystemState state, in FleetcrawlResolvedUpgradeStats delta)
+        private void ApplyDeltaToPlayers(ref SystemState state, in FleetcrawlResolvedUpgradeStats delta)
         {
             foreach (var (carrierRef, movementRef) in SystemAPI.Query<RefRW<Carrier>, RefRW<VesselMovement>>().WithAll<Space4XRunPlayerTag>())
             {
