@@ -58,18 +58,22 @@ namespace Space4X.Systems
         {
             UnityEngine.Camera camera = ResolveOrderCamera();
             bool hasRay = camera != null;
-            if (!hasRay)
+            if (!hasRay && evt.HasWorldPoint == 0)
             {
                 return;
             }
 
-            UnityEngine.Ray ray = camera.ScreenPointToRay(new Vector3(evt.ScreenPos.x, evt.ScreenPos.y, 0f));
+            UnityEngine.Ray ray = default;
+            if (hasRay)
+            {
+                ray = camera.ScreenPointToRay(new Vector3(evt.ScreenPos.x, evt.ScreenPos.y, 0f));
+            }
 
-            Entity hitEntity = Entity.Null;
-            float3 hitPos = float3.zero;
-            bool hasHit = false;
+            Entity hitEntity = evt.HasHitEntity != 0 ? evt.HitEntity : Entity.Null;
+            float3 hitPos = evt.WorldPoint;
+            bool hasHit = evt.HasWorldPoint != 0;
 
-            if (hitEntity == Entity.Null)
+            if (hasRay && hitEntity == Entity.Null)
             {
                 if (RaycastForEntity(ref state, ray, 2000f, out var resolvedEntity, out var resolvedPosition))
                 {
@@ -82,13 +86,13 @@ namespace Space4X.Systems
                 }
             }
 
-            if (!hasHit)
+            if (!hasHit && hasRay)
             {
                 hasHit = TryProjectOnCommandPlane(ref state, inputEntity, ray, out hitPos);
             }
 
             // Legacy fallback: default world up plane at y = 0 when no other hit/projection is available.
-            if (!hasHit)
+            if (!hasHit && hasRay)
             {
                 var plane = new UnityEngine.Plane(Vector3.up, 0f);
                 if (plane.Raycast(ray, out var enter))
