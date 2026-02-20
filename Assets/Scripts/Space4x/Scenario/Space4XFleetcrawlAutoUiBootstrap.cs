@@ -8,6 +8,7 @@ namespace Space4x.Scenario
     internal static class Space4XFleetcrawlAutoUiBootstrap
     {
         private const string BootstrapObjectName = "Space4XFleetcrawlUI";
+        private const string SmokeSceneName = "TRI_Space4X_Smoke";
         private static bool _sceneHooked;
         private static bool _logged;
 
@@ -34,6 +35,33 @@ namespace Space4x.Scenario
         {
             if (Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)
             {
+                return;
+            }
+
+            // Legacy FleetCrawl main-menu flow owns startup and flagship controls.
+            // When that overlay is active, suppress the newer auto-HUD bootstrap path.
+            var legacyMenuOverlay = Object.FindFirstObjectByType<Space4X.UI.Space4XMainMenuOverlay>();
+            if (legacyMenuOverlay != null)
+            {
+                var staleOverlayForLegacy = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
+                if (staleOverlayForLegacy != null)
+                {
+                    Object.Destroy(staleOverlayForLegacy.gameObject);
+                }
+
+                return;
+            }
+
+            var activeScene = SceneManager.GetActiveScene();
+            if (activeScene.IsValid() &&
+                string.Equals(activeScene.name, SmokeSceneName, System.StringComparison.Ordinal))
+            {
+                var staleOverlayInShell = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
+                if (staleOverlayInShell != null)
+                {
+                    Object.Destroy(staleOverlayInShell.gameObject);
+                }
+
                 return;
             }
 
