@@ -2380,16 +2380,59 @@ namespace Space4X.Registry
             // Aggregate weapon tracking telemetry.
             uint shotsFiredTotal = 0;
             uint shotsHitTotal = 0;
+            float mountHeatSum = 0f;
+            float mountHeatMax = 0f;
+            int mountHeatSamples = 0;
+            int mountOverheated = 0;
             foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>())
             {
                 for (int i = 0; i < weapons.Length; i++)
                 {
                     shotsFiredTotal += weapons[i].ShotsFired;
                     shotsHitTotal += weapons[i].ShotsHit;
+
+                    var mountHeat = math.saturate(weapons[i].Heat01);
+                    mountHeatSum += mountHeat;
+                    mountHeatMax = math.max(mountHeatMax, mountHeat);
+                    mountHeatSamples++;
+                    if (mountHeat >= 0.999f)
+                    {
+                        mountOverheated++;
+                    }
                 }
             }
 
             uint shotsMissedTotal = shotsFiredTotal >= shotsHitTotal ? shotsFiredTotal - shotsHitTotal : 0;
+            var mountHeatAvg = mountHeatSamples > 0 ? mountHeatSum / mountHeatSamples : 0f;
+
+            float shipHeatSum = 0f;
+            float shipHeatMax = 0f;
+            int shipHeatSamples = 0;
+            int shipOverheated = 0;
+            float heatsinkFillSum = 0f;
+            int heatsinkFillSamples = 0;
+            foreach (var heatOutput in SystemAPI.Query<RefRO<FleetcrawlHeatOutputState>>())
+            {
+                var heat01 = math.saturate(heatOutput.ValueRO.Heat01);
+                shipHeatSum += heat01;
+                shipHeatMax = math.max(shipHeatMax, heat01);
+                shipHeatSamples++;
+
+                if (heatOutput.ValueRO.IsOverheated != 0)
+                {
+                    shipOverheated++;
+                }
+
+                if (heatOutput.ValueRO.HeatsinkCapacity > 1e-5f)
+                {
+                    var fill01 = math.saturate(heatOutput.ValueRO.HeatsinkStoredHeat / heatOutput.ValueRO.HeatsinkCapacity);
+                    heatsinkFillSum += fill01;
+                    heatsinkFillSamples++;
+                }
+            }
+
+            var shipHeatAvg = shipHeatSamples > 0 ? shipHeatSum / shipHeatSamples : 0f;
+            var heatsinkFillAvg = heatsinkFillSamples > 0 ? heatsinkFillSum / heatsinkFillSamples : 0f;
 
             // Aggregate damage by type since last tick.
             float deltaEnergy = 0f;
@@ -2512,6 +2555,17 @@ namespace Space4X.Registry
             metricBuffer.AddMetric("space4x.combat.shots.fired_delta", telemetry.ShotsFiredDelta, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.combat.shots.hit_delta", telemetry.ShotsHitDelta, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.combat.shots.missed_delta", telemetry.ShotsMissedDelta, TelemetryMetricUnit.Count);
+
+            metricBuffer.AddMetric("space4x.combat.heat.mount.avg01", mountHeatAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.mount.max01", mountHeatMax, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.mount.samples", mountHeatSamples, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.mount.overheated.count", mountOverheated, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.avg01", shipHeatAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.max01", shipHeatMax, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.samples", shipHeatSamples, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.overheated.count", shipOverheated, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.heatsink.fill.avg01", heatsinkFillAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.heatsink.fill.samples", heatsinkFillSamples, TelemetryMetricUnit.Count);
 
             metricBuffer.AddMetric("space4x.combat.damage.energy.total", telemetry.TotalDamageEnergy, TelemetryMetricUnit.Custom);
             metricBuffer.AddMetric("space4x.combat.damage.thermal.total", telemetry.TotalDamageThermal, TelemetryMetricUnit.Custom);
