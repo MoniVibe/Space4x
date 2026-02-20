@@ -1406,7 +1406,7 @@ namespace Space4x.Fleetcrawl
             em.SetComponentData(directorEntity, currency);
         }
 
-        private static void ClearPurchaseRequests(ref SystemState state)
+        private void ClearPurchaseRequests(ref SystemState state)
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (_, entity) in SystemAPI.Query<RefRO<FleetcrawlPurchaseRequest>>().WithEntityAccess())
