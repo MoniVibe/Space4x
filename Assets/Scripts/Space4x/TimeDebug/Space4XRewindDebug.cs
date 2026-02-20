@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using Space4X.Temporal;
+using System;
 using Unity.Entities;
 using UnityEngine;
 
@@ -31,6 +32,8 @@ namespace Space4X.TimeDebug
         private EntityQuery _controlQuery;
 
         private bool _previewHeld;
+        private bool _legacyInputDisabled;
+        private bool _legacyInputWarningLogged;
         private float _holdStartRealtime;
         private float _lastSentSpeed;
         private float _lastTickSampleTime;
@@ -52,9 +55,36 @@ namespace Space4X.TimeDebug
                 return;
             }
 
-            HandleInput();
+            TryHandleInput();
             LogStateTransitions();
             LogTickSample();
+        }
+
+        private void TryHandleInput()
+        {
+            if (_legacyInputDisabled)
+            {
+                return;
+            }
+
+            try
+            {
+                HandleInput();
+            }
+            catch (InvalidOperationException ex) when (IsLegacyInputUnavailable(ex))
+            {
+                _legacyInputDisabled = true;
+                _previewHeld = false;
+
+                if (_legacyInputWarningLogged)
+                {
+                    return;
+                }
+
+                _legacyInputWarningLogged = true;
+                UnityEngine.Debug.LogWarning(
+                    "[Space4XRewindDebug] Legacy Input API unavailable with current Player input handling. Rewind hotkeys disabled for this session.");
+            }
         }
 
         private bool TryBindWorld()
@@ -179,6 +209,18 @@ namespace Space4X.TimeDebug
         private void LogHotkeyGuide()
         {
             UnityEngine.Debug.Log($"[Space4XRewindDebug] Ready: hold {_previewKey} to scrub, release {_previewKey} to freeze preview, {_commitKey}=commit, {_cancelKey}/{_cancelAltKey}=cancel.");
+        }
+
+        private static bool IsLegacyInputUnavailable(Exception ex)
+        {
+            if (ex == null || string.IsNullOrWhiteSpace(ex.Message))
+            {
+                return false;
+            }
+
+            var message = ex.Message;
+            return message.IndexOf("active Input handling", StringComparison.OrdinalIgnoreCase) >= 0
+                   || message.IndexOf("Input System package", StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 #endif

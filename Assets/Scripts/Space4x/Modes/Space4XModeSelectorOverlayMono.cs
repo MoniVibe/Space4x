@@ -115,10 +115,7 @@ namespace Space4X.Modes
 
         private void SwitchMode(Space4XModeKind mode)
         {
-            if (!Space4XModeSelectionState.SetMode(mode, applyScenarioEnvironment: true))
-            {
-                return;
-            }
+            Space4XModeSelectionState.SetMode(mode, applyScenarioEnvironment: true);
 
             var active = SceneManager.GetActiveScene();
             if (active.IsValid())
