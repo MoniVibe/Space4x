@@ -1,15 +1,35 @@
 using PureDOTS.Runtime.Core;
 using Space4X.Modes.FleetCrawl;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Space4x.Scenario
 {
     internal static class Space4XFleetcrawlAutoUiBootstrap
     {
         private const string BootstrapObjectName = "Space4XFleetcrawlUI";
+        private static bool _sceneHooked;
         private static bool _logged;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void RegisterSceneHook()
+        {
+            if (_sceneHooked)
+            {
+                EnsureUiBootstrap();
+                return;
+            }
+
+            _sceneHooked = true;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            EnsureUiBootstrap();
+        }
+
+        private static void OnSceneLoaded(Scene _, LoadSceneMode __)
+        {
+            EnsureUiBootstrap();
+        }
+
         private static void EnsureUiBootstrap()
         {
             if (Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)

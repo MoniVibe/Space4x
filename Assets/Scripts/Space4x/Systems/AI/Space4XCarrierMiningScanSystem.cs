@@ -145,6 +145,8 @@ namespace Space4X.Systems.AI
             ecb.Dispose();
 
             _miningTargetLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _resourceStateLookup.Update(ref state);
 
             var fixedDt = math.max(1e-6f, timeState.FixedDeltaTime);
             var scanIntervalTicks = (uint)math.max(1f, math.ceil(ScanIntervalSeconds / fixedDt));

@@ -626,7 +626,7 @@ namespace Space4x.Fleetcrawl
             em.AddBuffer<FleetcrawlRolledLimbBufferElement>(runtime);
             em.AddBuffer<FleetcrawlOwnedItem>(runtime);
 
-            Debug.Log($"[FleetcrawlMeta] Loot/shop bootstrap ready. shop_catalog={shopCatalog.Length} loot_catalog={lootCatalog.Length} limbs={limbDefs.Length} affixes={affixDefs.Length} hulls={hullDefs.Length} trinkets={trinketDefs.Length} items={itemDefs.Length} sets={setDefs.Length}.");
+            Debug.Log("[FleetcrawlMeta] Loot/shop bootstrap ready.");
         }
     }
 

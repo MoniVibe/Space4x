@@ -19,6 +19,7 @@ namespace Space4X.Modes
         private const string SmokeScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
         private const string HeadlessBootstrapSceneName = "HeadlessBootstrap";
         private const string ObjectName = "Space4XModeSelectorOverlay";
+        private static bool s_sceneHooked;
 
         private readonly Rect _panelRect = new Rect(16f, 16f, 300f, 128f);
         private GUIStyle _panelStyle;
@@ -28,12 +29,27 @@ namespace Space4X.Modes
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            if (!s_sceneHooked)
+            {
+                s_sceneHooked = true;
+                SceneManager.sceneLoaded += OnSceneLoaded;
+            }
+
+            EnsureOverlayForScene(SceneManager.GetActiveScene());
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode _)
+        {
+            EnsureOverlayForScene(scene);
+        }
+
+        private static void EnsureOverlayForScene(Scene scene)
+        {
             if (Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)
             {
                 return;
             }
 
-            var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid())
             {
                 return;
