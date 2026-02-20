@@ -352,6 +352,8 @@ namespace Space4X.Registry
                     var heatPerShot = mount.HeatPerShot > 0f ? mount.HeatPerShot : defaultHeatPerShot;
                     var heat = math.clamp(mount.Heat01, 0f, 1f);
                     var coolingRating = mount.CoolingRating;
+                    var nuanceArchetype = Space4XWeaponFamilyNuance.ResolveArchetype(mount.Weapon);
+                    var nuanceProfile = Space4XWeaponFamilyNuance.ResolveProfile(nuanceArchetype);
 
                     if (mount.SourceModule != Entity.Null && _limbProfileLookup.HasComponent(mount.SourceModule))
                     {
@@ -359,6 +361,9 @@ namespace Space4X.Registry
                         heatCapacity = math.lerp(0.6f, 1.4f, (float)coolingRating);
                         heatDissipation = math.lerp(0.01f, 0.06f, (float)coolingRating);
                     }
+
+                    heatPerShot = Space4XWeaponFamilyNuance.ResolveHeatPerShot(heatPerShot, nuanceProfile);
+                    var ammoPerShot = Space4XWeaponFamilyNuance.ResolveAmmoPerShot(mount.Weapon.AmmoPerShot, nuanceProfile);
 
                     if (heat > 0f)
                     {
@@ -512,7 +517,7 @@ namespace Space4X.Registry
                     }
 
                     // Ammo check
-                    if (mount.Weapon.AmmoPerShot > 0 && supply.ValueRO.Ammunition < mount.Weapon.AmmoPerShot)
+                    if (ammoPerShot > 0 && supply.ValueRO.Ammunition < ammoPerShot)
                     {
                         if (mountDirty)
                         {
@@ -597,9 +602,9 @@ namespace Space4X.Registry
                     }
 
                     // Consume ammo
-                    if (mount.Weapon.AmmoPerShot > 0)
+                    if (ammoPerShot > 0)
                     {
-                        supply.ValueRW.Ammunition -= mount.Weapon.AmmoPerShot;
+                        supply.ValueRW.Ammunition -= ammoPerShot;
                     }
                 }
             }
@@ -980,6 +985,8 @@ namespace Space4X.Registry
                 for (int i = 0; i < weaponsBuffer.Length; i++)
                 {
                     var mount = weaponsBuffer[i];
+                    var nuanceArchetype = Space4XWeaponFamilyNuance.ResolveArchetype(mount.Weapon);
+                    var nuanceProfile = Space4XWeaponFamilyNuance.ResolveProfile(nuanceArchetype);
 
                     if (mount.CurrentTarget != target || mount.Weapon.CurrentCooldown != mount.Weapon.CooldownTicks)
                     {
@@ -1018,6 +1025,7 @@ namespace Space4X.Registry
 
                     var trackingPenalty = ResolveTrackingPenalty(mount.Weapon, distance, directionToTarget, relativeVelocity, gunnerySkill, combatTuning);
                     hitChance = math.clamp(hitChance * trackingPenalty, 0f, 1f);
+                    hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHitChanceMultiplier(nuanceProfile), 0f, 1f);
 
                     if (random.NextFloat() > hitChance)
                     {
@@ -1062,6 +1070,13 @@ namespace Space4X.Registry
                             targetPos);
                         rawDamage *= advantageMultiplier;
                     }
+
+                    var distanceDamageMultiplier = Space4XWeaponFamilyNuance.ResolveDistanceDamageMultiplier(
+                        distance,
+                        mount.Weapon.OptimalRange * rangeScale,
+                        mount.Weapon.MaxRange * rangeScale,
+                        nuanceProfile);
+                    rawDamage *= distanceDamageMultiplier;
 
                     // Apply damage to target
                     ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb);
