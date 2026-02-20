@@ -469,18 +469,19 @@ namespace Space4x.Fleetcrawl
         {
             var hash = ComputeItemRollHash(seed, roomIndex, level, FleetcrawlLootArchetype.HullSegment, stream);
             var quality = RollQualityTier(seed, roomIndex, level, FleetcrawlLimbSlot.Core, stream);
+            var preferredSegmentIdValue = preferredSegmentId;
             var segmentIndex = PickWeightedIndex(
                 segmentDefinitions,
                 segment =>
                     level >= math.max(1, segment.MinLevel) &&
                     quality >= segment.MinQuality &&
                     quality <= segment.MaxQuality &&
-                    (preferredSegmentId.Length == 0 || segment.SegmentId.Equals(preferredSegmentId)),
+                    (preferredSegmentIdValue.Length == 0 || segment.SegmentId.Equals(preferredSegmentIdValue)),
                 segment => segment.Weight,
                 hash ^ 0xA93B41C5u);
 
             var segment = segmentIndex >= 0 ? segmentDefinitions[segmentIndex] : default;
-            var itemId = segmentIndex >= 0 ? segment.SegmentId : preferredSegmentId;
+            var itemId = segmentIndex >= 0 ? segment.SegmentId : preferredSegmentIdValue;
             return new FleetcrawlRolledItem
             {
                 Archetype = FleetcrawlLootArchetype.HullSegment,
@@ -509,18 +510,19 @@ namespace Space4x.Fleetcrawl
         {
             var hash = ComputeItemRollHash(seed, roomIndex, level, FleetcrawlLootArchetype.Trinket, stream);
             var quality = RollQualityTier(seed, roomIndex, level, FleetcrawlLimbSlot.Utility, stream);
+            var preferredTrinketIdValue = preferredTrinketId;
             var trinketIndex = PickWeightedIndex(
                 trinketDefinitions,
                 trinket =>
                     level >= math.max(1, trinket.MinLevel) &&
                     quality >= trinket.MinQuality &&
                     quality <= trinket.MaxQuality &&
-                    (preferredTrinketId.Length == 0 || trinket.TrinketId.Equals(preferredTrinketId)),
+                    (preferredTrinketIdValue.Length == 0 || trinket.TrinketId.Equals(preferredTrinketIdValue)),
                 trinket => trinket.Weight,
                 hash ^ 0xD1B54A35u);
 
             var trinket = trinketIndex >= 0 ? trinketDefinitions[trinketIndex] : default;
-            var itemId = trinketIndex >= 0 ? trinket.TrinketId : preferredTrinketId;
+            var itemId = trinketIndex >= 0 ? trinket.TrinketId : preferredTrinketIdValue;
             return new FleetcrawlRolledItem
             {
                 Archetype = FleetcrawlLootArchetype.Trinket,
@@ -549,18 +551,19 @@ namespace Space4x.Fleetcrawl
         {
             var hash = ComputeItemRollHash(seed, roomIndex, level, FleetcrawlLootArchetype.GeneralItem, stream);
             var quality = RollQualityTier(seed, roomIndex, level, FleetcrawlLimbSlot.Utility, stream);
+            var preferredItemIdValue = preferredItemId;
             var itemIndex = PickWeightedIndex(
                 itemDefinitions,
                 item =>
                     level >= math.max(1, item.MinLevel) &&
                     quality >= item.MinQuality &&
                     quality <= item.MaxQuality &&
-                    (preferredItemId.Length == 0 || item.ItemId.Equals(preferredItemId)),
+                    (preferredItemIdValue.Length == 0 || item.ItemId.Equals(preferredItemIdValue)),
                 item => item.Weight,
                 hash ^ 0x94D049BBu);
 
             var item = itemIndex >= 0 ? itemDefinitions[itemIndex] : default;
-            var itemId = itemIndex >= 0 ? item.ItemId : preferredItemId;
+            var itemId = itemIndex >= 0 ? item.ItemId : preferredItemIdValue;
             var maxStack = math.max(1, item.MaxStackCount);
             var stackRoll = math.max(1, math.min(maxStack, 1 + (int)(hash % (uint)maxStack)));
             return new FleetcrawlRolledItem
