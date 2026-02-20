@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using UnityEngine;
+using SystemEnv = System.Environment;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Modes
 {
@@ -74,14 +76,14 @@ namespace Space4X.Modes
             }
 
             s_currentMode = mode;
-            Environment.SetEnvironmentVariable(ModeEnvVar, ToEnvToken(mode));
+            SystemEnv.SetEnvironmentVariable(ModeEnvVar, ToEnvToken(mode));
             if (applyScenarioEnvironment)
             {
                 ApplyScenarioEnvironment(mode);
             }
 
             ModeChanged?.Invoke(mode);
-            Debug.Log($"[Space4XModeSelection] mode={mode} scenario={GetScenarioId(mode)}");
+            UnityDebug.Log($"[Space4XModeSelection] mode={mode} scenario={GetScenarioId(mode)}");
             return true;
         }
 
@@ -111,12 +113,12 @@ namespace Space4X.Modes
         public static void ApplyScenarioEnvironment(Space4XModeKind mode)
         {
             var scenarioPath = GetScenarioPath(mode);
-            Environment.SetEnvironmentVariable(ScenarioPathEnvVar, scenarioPath);
+            SystemEnv.SetEnvironmentVariable(ScenarioPathEnvVar, scenarioPath);
         }
 
         public static Space4XModeKind ResolveModeFromEnvironment()
         {
-            var modeRaw = Environment.GetEnvironmentVariable(ModeEnvVar);
+            var modeRaw = SystemEnv.GetEnvironmentVariable(ModeEnvVar);
             if (!string.IsNullOrWhiteSpace(modeRaw))
             {
                 if (modeRaw.Trim().Equals("fleetcrawl", StringComparison.OrdinalIgnoreCase))
@@ -130,7 +132,7 @@ namespace Space4X.Modes
                 }
             }
 
-            var scenarioPath = Environment.GetEnvironmentVariable(ScenarioPathEnvVar);
+            var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnvVar);
             if (!string.IsNullOrWhiteSpace(scenarioPath) &&
                 scenarioPath.IndexOf("fleetcrawl", StringComparison.OrdinalIgnoreCase) >= 0)
             {
