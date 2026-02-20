@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using Space4X.Modes;
 using PureDOTS.Runtime.Scenarios;
 using Unity.Collections;
 using Unity.Entities;
@@ -10,7 +11,6 @@ namespace Space4x.Scenario
     [UpdateBefore(typeof(Space4XMiningScenarioSystem))]
     internal partial struct Space4XSmokeScenarioSelectorSystem : ISystem
     {
-        private const string ScenarioIdString = "space4x_smoke";
         private bool _injected;
 
         public void OnCreate(ref SystemState state)
@@ -40,19 +40,21 @@ namespace Space4x.Scenario
                 return;
             }
 
+            Space4XModeSelectionState.EnsureInitialized();
+            Space4XModeSelectionState.GetCurrentScenario(out var scenarioId, out _, out var seed);
+
             var scenarioEntity = state.EntityManager.CreateEntity(typeof(ScenarioInfo));
             state.EntityManager.SetComponentData(scenarioEntity, new ScenarioInfo
             {
-                ScenarioId = new FixedString64Bytes(ScenarioIdString),
-                Seed = 77,
+                ScenarioId = new FixedString64Bytes(scenarioId),
+                Seed = seed,
                 RunTicks = 240
             });
 
-            Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{ScenarioIdString}'.");
+            Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{scenarioId}' mode={Space4XModeSelectionState.CurrentMode}.");
             _injected = true;
             state.Enabled = false;
         }
     }
 }
 #endif
-

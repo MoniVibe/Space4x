@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Core;
+using Space4X.Modes.FleetCrawl;
 using UnityEngine;
 
 namespace Space4x.Scenario
@@ -13,6 +14,17 @@ namespace Space4x.Scenario
         {
             if (Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)
             {
+                return;
+            }
+
+            if (!Space4XFleetCrawlModePackage.IsActive)
+            {
+                var staleOverlay = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
+                if (staleOverlay != null)
+                {
+                    Object.Destroy(staleOverlay.gameObject);
+                }
+
                 return;
             }
 
@@ -31,7 +43,6 @@ namespace Space4x.Scenario
             }
 
             var go = new GameObject(BootstrapObjectName);
-            Object.DontDestroyOnLoad(go);
             EnsureComponent<Space4XFleetcrawlUiOverlayMono>(go);
             EnsureComponent<Space4XFleetcrawlManualPickInjectorMono>(go);
             EnsureComponent<Space4XFleetcrawlPlayerControlMono>(go);
