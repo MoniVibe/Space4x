@@ -167,6 +167,12 @@ namespace Space4X.Systems.AI
 
                 if (aiState.TargetEntity == Entity.Null)
                 {
+                    // Preserve explicit world-space move targets (RTS ground orders) when no target entity exists.
+                    if (!aiState.TargetPosition.Equals(float3.zero))
+                    {
+                        return;
+                    }
+
                     aiState.TargetPosition = float3.zero;
                     return;
                 }
@@ -269,7 +275,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
 
 
 

@@ -1,6 +1,11 @@
 using System;
+using PureDOTS.Input;
 using PureDOTS.Rendering;
+using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interaction;
+using PureDOTS.Runtime.Interrupts;
+using PureDOTS.Runtime.Ships;
+using PureDOTS.Runtime.Spatial;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Collections;
@@ -12,6 +17,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UCamera = UnityEngine.Camera;
+using UTime = UnityEngine.Time;
 
 namespace Space4X.UI
 {
@@ -50,9 +56,9 @@ namespace Space4X.UI
         [SerializeField] private float verticalAccelFromVesselMultiplier = 1f;
         [SerializeField] private float dampenerFromVesselMultiplier = 1.25f;
         [SerializeField] private float retroBrakeFromVesselMultiplier = 1.65f;
-        [SerializeField] private float minInheritedSpeed = 14f;
+        [SerializeField] private float minInheritedSpeed = 0.5f;
         [SerializeField] private float maxInheritedSpeed = 220f;
-        [SerializeField] private float minInheritedAcceleration = 18f;
+        [SerializeField] private float minInheritedAcceleration = 0.1f;
         [SerializeField] private float maxInheritedAcceleration = 280f;
 
         [Header("Mode Hotkeys")]
@@ -68,11 +74,26 @@ namespace Space4X.UI
 
         [Header("Mode 1 Mouse Steering Gate")]
         [SerializeField] private bool requireMouseHoldForCursorSteering = true;
+        [SerializeField] private bool cursorSteerTowardCameraFacing = true;
         [SerializeField] private bool cursorSteerWithLeftMouse = true;
         [SerializeField] private bool cursorSteerWithRightMouse = true;
         [SerializeField] private bool useClickAnchorDeadZoneSteering = true;
         [SerializeField] private float cursorSteerDeadZonePixels = 22f;
         [SerializeField] private float cursorSteerMaxOffsetPixels = 320f;
+        [SerializeField] private bool lockCursorInMode1Fighter = true;
+
+        [Header("Prototype Abilities")]
+        [SerializeField] private Key cycleAbilityKey = Key.None;
+        [SerializeField] private float shiftTapWindowSeconds = 0.35f;
+        [SerializeField] private float timeshipStopDurationSeconds = 2.5f;
+        [SerializeField] private float timeshipSlowDurationSeconds = 5f;
+        [SerializeField] private float timeshipSlowTimeScale = 0.25f;
+        [SerializeField] private float timeshipCooldownSeconds = 8f;
+        [SerializeField] private bool timeshipAllowSlowFallback = true;
+        [SerializeField] private bool timeshipGlobalStop = true;
+        [SerializeField] private float skipshipMinRange = 18f;
+        [SerializeField] private float skipshipMaxRange = 68f;
+        [SerializeField] private float skipshipCooldownSeconds = 2.5f;
 
         private World _world;
         private EntityManager _entityManager;
@@ -85,10 +106,18 @@ namespace Space4X.UI
         private Entity _flagship;
         private float3 _flagshipVelocityWorld;
         private UCamera _drivingCamera;
+        private Space4XFollowPlayerVessel _followPlayerVessel;
         private bool _queriesReady;
         private bool _cursorSteerAnchorActive;
         private bool _cursorSteerDeadZoneUnlocked;
         private Vector2 _cursorSteerAnchorPointer;
+        private bool _fighterCursorLockOwned;
+        private bool _cursorVisibleBeforeFighter;
+        private CursorLockMode _cursorLockBeforeFighter;
+        private Entity _rtsAutoSelectedFlagship;
+        private bool _shiftPressActive;
+        private float _shiftPressStartTime;
+        private bool _shiftHoldActivated;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private bool _loggedClaim;
 #endif
@@ -98,10 +127,18 @@ namespace Space4X.UI
             _flagship = Entity.Null;
             _flagshipVelocityWorld = float3.zero;
             _drivingCamera = GetComponent<UCamera>();
+            _followPlayerVessel = GetComponent<Space4XFollowPlayerVessel>();
             _queriesReady = false;
             _cursorSteerAnchorActive = false;
             _cursorSteerDeadZoneUnlocked = false;
             _cursorSteerAnchorPointer = Vector2.zero;
+            _fighterCursorLockOwned = false;
+            _cursorVisibleBeforeFighter = true;
+            _cursorLockBeforeFighter = CursorLockMode.None;
+            _rtsAutoSelectedFlagship = Entity.Null;
+            _shiftPressActive = false;
+            _shiftPressStartTime = 0f;
+            _shiftHoldActivated = false;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             _loggedClaim = false;
 #endif
@@ -110,6 +147,7 @@ namespace Space4X.UI
 
         private void OnDisable()
         {
+            RestoreFighterCursorStateIfNeeded();
             if (_queriesReady &&
                 _world != null &&
                 _world.IsCreated &&
@@ -119,13 +157,27 @@ namespace Space4X.UI
                 _entityManager.SetComponentData(_flagship, PlayerFlagshipFlightInput.Disabled);
             }
 
+            if (_queriesReady &&
+                _world != null &&
+                _world.IsCreated &&
+                IsValidTarget(_flagship) &&
+                _entityManager.HasComponent<MovementSuppressed>(_flagship))
+            {
+                _entityManager.SetComponentEnabled<MovementSuppressed>(_flagship, true);
+            }
+
             _flagship = Entity.Null;
             _flagshipVelocityWorld = float3.zero;
             _drivingCamera = null;
+            _followPlayerVessel = null;
             _queriesReady = false;
             _cursorSteerAnchorActive = false;
             _cursorSteerDeadZoneUnlocked = false;
             _cursorSteerAnchorPointer = Vector2.zero;
+            _fighterCursorLockOwned = false;
+            _rtsAutoSelectedFlagship = Entity.Null;
+            _shiftPressActive = false;
+            _shiftHoldActivated = false;
         }
 
         public void SnapClaimNow()
@@ -156,18 +208,24 @@ namespace Space4X.UI
                 return;
 
             var keyboard = Keyboard.current;
-            HandleModeHotkeys(keyboard);
+            if (ShouldHandleModeHotkeys())
+            {
+                HandleModeHotkeys(keyboard);
+            }
+            UpdateFighterCursorState();
 
             if (!EnsureClaimedFlagship())
                 return;
 
             if (Space4XControlModeState.CurrentMode == Space4XControlMode.Rts)
             {
+                PrepareFlagshipForRtsOrders();
                 SuppressFlagshipMovement();
                 MaintainHighlight(_flagship);
                 return;
             }
 
+            PrepareFlagshipForManualFlight();
             ApplyInput(keyboard);
             MaintainHighlight(_flagship);
         }
@@ -325,6 +383,42 @@ namespace Space4X.UI
             var strafeInput = 0f;
             var verticalInput = 0f;
             var rollInput = 0f;
+            var translationForward = new float3(0f, 0f, 1f);
+            var translationUp = new float3(0f, 1f, 0f);
+            var translationOverride = false;
+            var shiftHeld = keyboard.leftShiftKey.isPressed;
+            var shiftPressed = keyboard.leftShiftKey.wasPressedThisFrame;
+            var shiftReleased = keyboard.leftShiftKey.wasReleasedThisFrame;
+            if (shiftPressed)
+            {
+                _shiftPressActive = true;
+                _shiftPressStartTime = UTime.unscaledTime;
+                _shiftHoldActivated = false;
+            }
+
+            if (cycleAbilityKey != Key.None && keyboard[cycleAbilityKey].wasPressedThisFrame)
+            {
+                TryCycleAbilitySelection();
+            }
+            else if (shiftReleased && _shiftPressActive && !_shiftHoldActivated)
+            {
+                TryCycleAbilitySelection();
+            }
+            if (shiftReleased)
+            {
+                _shiftPressActive = false;
+                _shiftHoldActivated = false;
+            }
+
+            var shiftAbility = ResolveShiftAbility(_flagship);
+            var shiftTapWindow = Mathf.Max(0.05f, shiftTapWindowSeconds);
+            var shiftHeldDuration = _shiftPressActive ? UTime.unscaledTime - _shiftPressStartTime : 0f;
+            var shiftHoldReady = shiftHeld && _shiftPressActive && shiftHeldDuration >= shiftTapWindow;
+            var shiftHoldActivatedThisFrame = shiftHoldReady && !_shiftHoldActivated;
+            if (shiftHoldActivatedThisFrame)
+            {
+                _shiftHoldActivated = true;
+            }
 
             if (keyboard.wKey.isPressed) forwardInput += 1f;
             if (keyboard.sKey.isPressed) forwardInput -= 1f;
@@ -341,9 +435,9 @@ namespace Space4X.UI
             input.Roll = Mathf.Clamp(rollInput, -1f, 1f);
             input.TranslationBasisOverride = 0;
             input.AutoAlignToTranslation = 0;
-            input.TranslationForward = new float3(0f, 0f, 1f);
-            input.TranslationUp = new float3(0f, 1f, 0f);
-            input.BoostPressed = keyboard.leftShiftKey.isPressed ? (byte)1 : (byte)0;
+            input.TranslationForward = translationForward;
+            input.TranslationUp = translationUp;
+            input.BoostPressed = shiftAbility == ShipAbilityKind.BoostDrive && shiftHoldReady ? (byte)1 : (byte)0;
             input.RetroBrakePressed = retroBrakeKey != Key.None && keyboard[retroBrakeKey].isPressed ? (byte)1 : (byte)0;
             if (toggleDampenersKey != Key.None && keyboard[toggleDampenersKey].wasPressedThisFrame)
             {
@@ -351,13 +445,24 @@ namespace Space4X.UI
             }
 
             var controlMode = Space4XControlModeState.CurrentMode;
+            var fighterModeActive =
+                controlMode == Space4XControlMode.CursorOrient &&
+                Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient);
+            var cruiseHeadingHoldEnabled =
+                controlMode == Space4XControlMode.CruiseLook &&
+                Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CruiseLook);
             if (controlMode == Space4XControlMode.CruiseLook &&
-                TryGetCameraMovementBasis(out var translationForward, out var translationUp))
+                TryGetCameraMovementBasis(out var cameraForward, out var cameraUp))
             {
+                translationOverride = true;
+                translationForward = new float3(cameraForward.x, cameraForward.y, cameraForward.z);
+                translationUp = new float3(cameraUp.x, cameraUp.y, cameraUp.z);
                 input.TranslationBasisOverride = 1;
-                input.AutoAlignToTranslation = 1;
-                input.TranslationForward = new float3(translationForward.x, translationForward.y, translationForward.z);
-                input.TranslationUp = new float3(translationUp.x, translationUp.y, translationUp.z);
+                // Mode 2 always uses camera-relative translation.
+                // Variant toggle disables course correction while preserving heading.
+                input.AutoAlignToTranslation = cruiseHeadingHoldEnabled ? (byte)0 : (byte)1;
+                input.TranslationForward = translationForward;
+                input.TranslationUp = translationUp;
             }
 
             var cursorSteeringHeld = controlMode == Space4XControlMode.CursorOrient && IsCursorSteeringHeld();
@@ -377,13 +482,27 @@ namespace Space4X.UI
                 input.CursorLookDirection = new float3(0f, 0f, 1f);
                 input.CursorUpDirection = new float3(0f, 1f, 0f);
             }
+            input.FighterSteeringMode = fighterModeActive ? (byte)1 : (byte)0;
+
+            if (shiftHoldActivatedThisFrame)
+            {
+                switch (shiftAbility)
+                {
+                    case ShipAbilityKind.SkipDrive:
+                        TryQueueSkipJump(forwardInput, strafeInput, translationOverride, translationForward, translationUp);
+                        break;
+                    case ShipAbilityKind.TimeCore:
+                        TryQueueTimeStop();
+                        break;
+                }
+            }
 
             SetFlightInputIntent(_flagship, input);
         }
 
         private bool IsCursorSteeringHeld()
         {
-            if (!requireMouseHoldForCursorSteering)
+            if (!IsCursorHoldGateEnabled())
                 return true;
 
             var eventSystem = EventSystem.current;
@@ -401,9 +520,14 @@ namespace Space4X.UI
 
         private bool IsCursorSteeringOutsideDeadZone()
         {
+            if (ShouldUseCameraFacingCursorSteering())
+            {
+                return true;
+            }
+
             // Anchor click is neutral; steering only engages once pointer exits deadzone radius.
             if (!useClickAnchorDeadZoneSteering ||
-                !requireMouseHoldForCursorSteering ||
+                !IsCursorHoldGateEnabled() ||
                 !_cursorSteerAnchorActive)
             {
                 return true;
@@ -434,7 +558,7 @@ namespace Space4X.UI
 
         private void UpdateCursorSteeringAnchor(bool steeringHeld)
         {
-            if (!useClickAnchorDeadZoneSteering || !requireMouseHoldForCursorSteering)
+            if (!useClickAnchorDeadZoneSteering || !IsCursorHoldGateEnabled())
             {
                 _cursorSteerAnchorActive = false;
                 _cursorSteerDeadZoneUnlocked = false;
@@ -470,6 +594,13 @@ namespace Space4X.UI
                 upDirection = camera.transform.up.normalized;
             }
 
+            if (ShouldUseCameraFacingCursorSteering() &&
+                camera.transform.forward.sqrMagnitude > 0.0001f)
+            {
+                lookDirection = camera.transform.forward.normalized;
+                return true;
+            }
+
             var mouse = Mouse.current;
             if (mouse != null)
             {
@@ -500,7 +631,7 @@ namespace Space4X.UI
         {
             steerPointer = pointer;
             if (!useClickAnchorDeadZoneSteering ||
-                !requireMouseHoldForCursorSteering ||
+                !IsCursorHoldGateEnabled() ||
                 !_cursorSteerAnchorActive)
             {
                 return false;
@@ -533,6 +664,40 @@ namespace Space4X.UI
                 Mathf.Clamp(mappedPointer.x, 0f, maxX),
                 Mathf.Clamp(mappedPointer.y, 0f, maxY));
             return true;
+        }
+
+        private bool IsCursorHoldGateEnabled()
+        {
+            if (!requireMouseHoldForCursorSteering)
+            {
+                return false;
+            }
+
+            // Mode 1 default and fighter variant are always-on steering.
+            return false;
+        }
+
+        private bool ShouldUseCameraFacingCursorSteering()
+        {
+            if (Space4XControlModeState.CurrentMode != Space4XControlMode.CursorOrient ||
+                !cursorSteerTowardCameraFacing)
+            {
+                return false;
+            }
+
+            if (Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient))
+            {
+                // Fighter mode ignores world cursor ray and steers directly by camera facing.
+                return true;
+            }
+
+            if (_followPlayerVessel == null)
+            {
+                _followPlayerVessel = GetComponent<Space4XFollowPlayerVessel>();
+            }
+
+            // Only force camera-facing steering when mode 1 camera is running in independent orbit mode.
+            return _followPlayerVessel == null || _followPlayerVessel.CursorModeUsesIndependentCamera;
         }
 
         private bool TryGetCameraMovementBasis(out Vector3 forward, out Vector3 up)
@@ -623,9 +788,199 @@ namespace Space4X.UI
             input.CursorSteeringActive = 0;
             input.CursorLookDirection = new float3(0f, 0f, 1f);
             input.CursorUpDirection = new float3(0f, 1f, 0f);
+            input.FighterSteeringMode = 0;
             input.ToggleDampenersRequested = 0;
             SetFlightInputIntent(_flagship, input);
             _flagshipVelocityWorld = float3.zero;
+        }
+
+        private void PrepareFlagshipForRtsOrders()
+        {
+            if (!IsValidTarget(_flagship))
+            {
+                _rtsAutoSelectedFlagship = Entity.Null;
+                return;
+            }
+
+            if (_entityManager.HasComponent<MovementSuppressed>(_flagship))
+            {
+                _entityManager.SetComponentEnabled<MovementSuppressed>(_flagship, false);
+            }
+
+            if (!_entityManager.HasComponent<SelectableTag>(_flagship))
+            {
+                _entityManager.AddComponent<SelectableTag>(_flagship);
+            }
+
+            if (_entityManager.HasComponent<SelectionOwner>(_flagship))
+            {
+                var owner = _entityManager.GetComponentData<SelectionOwner>(_flagship);
+                if (owner.PlayerId != 0)
+                {
+                    owner.PlayerId = 0;
+                    _entityManager.SetComponentData(_flagship, owner);
+                }
+            }
+            else
+            {
+                _entityManager.AddComponentData(_flagship, new SelectionOwner { PlayerId = 0 });
+            }
+
+            // Auto-select once when entering RTS for immediate command usability.
+            if (_rtsAutoSelectedFlagship != _flagship)
+            {
+                SeedRtsMomentumFromManualFlight();
+
+                if (!_entityManager.HasComponent<SelectedTag>(_flagship))
+                {
+                    _entityManager.AddComponent<SelectedTag>(_flagship);
+                }
+
+                _rtsAutoSelectedFlagship = _flagship;
+            }
+            else
+            {
+                // Keep flagship commandable if selection was cleared and nothing else is selected.
+                using var selectedQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<SelectedTag>());
+                if (selectedQuery.IsEmptyIgnoreFilter && !_entityManager.HasComponent<SelectedTag>(_flagship))
+                {
+                    _entityManager.AddComponent<SelectedTag>(_flagship);
+                }
+            }
+
+            ApplyRtsDefaultHoldBehavior();
+        }
+
+        private void PrepareFlagshipForManualFlight()
+        {
+            _rtsAutoSelectedFlagship = Entity.Null;
+            if (!IsValidTarget(_flagship))
+            {
+                return;
+            }
+
+            if (_entityManager.HasComponent<MovementSuppressed>(_flagship))
+            {
+                _entityManager.SetComponentEnabled<MovementSuppressed>(_flagship, true);
+            }
+        }
+
+        private void SeedRtsMomentumFromManualFlight()
+        {
+            if (!IsValidTarget(_flagship))
+            {
+                return;
+            }
+
+            if (!_entityManager.HasComponent<ShipFlightRuntimeState>(_flagship) ||
+                !_entityManager.HasComponent<VesselMovement>(_flagship))
+            {
+                return;
+            }
+
+            var runtime = _entityManager.GetComponentData<ShipFlightRuntimeState>(_flagship);
+            var movement = _entityManager.GetComponentData<VesselMovement>(_flagship);
+            var seedVelocity = runtime.VelocityWorld;
+            if (math.lengthsq(seedVelocity) <= 1e-6f)
+            {
+                // Fallback when runtime velocity was cleared during a mode edge.
+                seedVelocity = movement.Velocity;
+            }
+
+            movement.Velocity = seedVelocity;
+            movement.CurrentSpeed = math.length(seedVelocity);
+            movement.IsMoving = movement.CurrentSpeed > 0.001f ? (byte)1 : (byte)0;
+            _entityManager.SetComponentData(_flagship, movement);
+        }
+
+        private void ApplyRtsDefaultHoldBehavior()
+        {
+            if (!IsValidTarget(_flagship))
+            {
+                return;
+            }
+
+            if (HasPendingRtsOrders(_flagship) || _entityManager.HasComponent<AttackMoveIntent>(_flagship))
+            {
+                return;
+            }
+
+            var holdPosition = _entityManager.HasComponent<LocalTransform>(_flagship)
+                ? _entityManager.GetComponentData<LocalTransform>(_flagship).Position
+                : float3.zero;
+
+            if (_entityManager.HasComponent<EntityIntent>(_flagship))
+            {
+                var intent = _entityManager.GetComponentData<EntityIntent>(_flagship);
+                intent.Mode = IntentMode.MoveTo;
+                intent.TargetEntity = Entity.Null;
+                intent.TargetPosition = holdPosition;
+                intent.TriggeringInterrupt = InterruptType.None;
+                intent.Priority = InterruptPriority.Normal;
+                intent.IsValid = 1;
+                _entityManager.SetComponentData(_flagship, intent);
+            }
+
+            if (_entityManager.HasComponent<VesselAIState>(_flagship))
+            {
+                var aiState = _entityManager.GetComponentData<VesselAIState>(_flagship);
+                // Model hold-position as an explicit world-space move directive so movement stays module-driven
+                // instead of falling into no-target hard stop.
+                aiState.CurrentGoal = VesselAIState.Goal.Patrol;
+                aiState.CurrentState = VesselAIState.State.MovingToTarget;
+                aiState.TargetEntity = Entity.Null;
+                aiState.TargetPosition = holdPosition;
+                aiState.StateTimer = 0f;
+                _entityManager.SetComponentData(_flagship, aiState);
+            }
+
+            if (_entityManager.HasComponent<MovementCommand>(_flagship))
+            {
+                var command = _entityManager.GetComponentData<MovementCommand>(_flagship);
+                command.TargetPosition = holdPosition;
+                command.ArrivalThreshold = 1f;
+                _entityManager.SetComponentData(_flagship, command);
+            }
+        }
+
+        private bool HasPendingRtsOrders(Entity entity)
+        {
+            return _entityManager.HasBuffer<OrderQueueElement>(entity) &&
+                   _entityManager.GetBuffer<OrderQueueElement>(entity).Length > 0;
+        }
+
+        private void UpdateFighterCursorState()
+        {
+            var fighterActive = lockCursorInMode1Fighter &&
+                Space4XControlModeState.CurrentMode == Space4XControlMode.CursorOrient &&
+                Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient);
+            if (fighterActive)
+            {
+                if (!_fighterCursorLockOwned)
+                {
+                    _cursorVisibleBeforeFighter = Cursor.visible;
+                    _cursorLockBeforeFighter = Cursor.lockState;
+                    _fighterCursorLockOwned = true;
+                }
+
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                return;
+            }
+
+            RestoreFighterCursorStateIfNeeded();
+        }
+
+        private void RestoreFighterCursorStateIfNeeded()
+        {
+            if (!_fighterCursorLockOwned)
+            {
+                return;
+            }
+
+            Cursor.lockState = _cursorLockBeforeFighter;
+            Cursor.visible = _cursorVisibleBeforeFighter;
+            _fighterCursorLockOwned = false;
         }
 
         private void HandleModeHotkeys(Keyboard keyboard)
@@ -635,16 +990,27 @@ namespace Space4X.UI
 
             if (cursorModeHotkey != Key.None && keyboard[cursorModeHotkey].wasPressedThisFrame)
             {
-                Space4XControlModeState.SetMode(Space4XControlMode.CursorOrient);
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.CursorOrient);
             }
             else if (cruiseModeHotkey != Key.None && keyboard[cruiseModeHotkey].wasPressedThisFrame)
             {
-                Space4XControlModeState.SetMode(Space4XControlMode.CruiseLook);
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.CruiseLook);
             }
             else if (rtsModeHotkey != Key.None && keyboard[rtsModeHotkey].wasPressedThisFrame)
             {
-                Space4XControlModeState.SetMode(Space4XControlMode.Rts);
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
+        }
+
+        private bool ShouldHandleModeHotkeys()
+        {
+            if (_followPlayerVessel == null)
+            {
+                _followPlayerVessel = GetComponent<Space4XFollowPlayerVessel>();
+            }
+
+            // Follow camera owns mode hotkeys when present to avoid duplicate 1/2/3 processing.
+            return _followPlayerVessel == null || !_followPlayerVessel.isActiveAndEnabled;
         }
 
         private void MaintainHighlight(Entity entity)
@@ -807,13 +1173,15 @@ namespace Space4X.UI
             if (inheritMovementFromClaimedVessel && _entityManager.HasComponent<VesselMovement>(entity))
             {
                 var movement = _entityManager.GetComponentData<VesselMovement>(entity);
-                var baseSpeed = Mathf.Clamp(movement.BaseSpeed, minInheritedSpeed, maxInheritedSpeed);
+                var minSpeedFloor = Mathf.Min(minInheritedSpeed, 0.1f);
+                var minAccelFloor = Mathf.Min(minInheritedAcceleration, 0.05f);
+                var baseSpeed = Mathf.Clamp(movement.BaseSpeed, minSpeedFloor, maxInheritedSpeed);
                 var baseAcceleration = movement.Acceleration > 0f
                     ? movement.Acceleration
-                    : Mathf.Max(minInheritedAcceleration, baseSpeed * 2f);
+                    : Mathf.Max(minAccelFloor, baseSpeed * 0.5f);
                 var baseDeceleration = movement.Deceleration > 0f
                     ? movement.Deceleration
-                    : Mathf.Max(minInheritedAcceleration, baseSpeed * 2.5f);
+                    : Mathf.Max(minAccelFloor, baseSpeed * 0.8f);
 
                 var reverseRatio = Mathf.Max(0f, reverseSpeedFromVesselMultiplier);
                 var strafeRatio = Mathf.Max(0f, strafeSpeedFromVesselMultiplier);
@@ -831,17 +1199,17 @@ namespace Space4X.UI
                     }
                 }
 
-                profile.MaxForwardSpeed = Mathf.Clamp(baseSpeed * Mathf.Max(0.01f, forwardSpeedFromVesselMultiplier), minInheritedSpeed, maxInheritedSpeed);
-                profile.MaxReverseSpeed = Mathf.Clamp(baseSpeed * reverseRatio, minInheritedSpeed * 0.5f, maxInheritedSpeed);
-                profile.MaxStrafeSpeed = Mathf.Clamp(baseSpeed * strafeRatio, minInheritedSpeed * 0.5f, maxInheritedSpeed);
-                profile.MaxVerticalSpeed = Mathf.Clamp(baseSpeed * verticalRatio, minInheritedSpeed * 0.5f, maxInheritedSpeed);
+                profile.MaxForwardSpeed = Mathf.Clamp(baseSpeed * Mathf.Max(0.01f, forwardSpeedFromVesselMultiplier), minSpeedFloor, maxInheritedSpeed);
+                profile.MaxReverseSpeed = Mathf.Clamp(baseSpeed * reverseRatio, minSpeedFloor * 0.5f, maxInheritedSpeed);
+                profile.MaxStrafeSpeed = Mathf.Clamp(baseSpeed * strafeRatio, minSpeedFloor * 0.5f, maxInheritedSpeed);
+                profile.MaxVerticalSpeed = Mathf.Clamp(baseSpeed * verticalRatio, minSpeedFloor * 0.5f, maxInheritedSpeed);
 
-                profile.ForwardAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, forwardAccelFromVesselMultiplier), minInheritedAcceleration, maxInheritedAcceleration);
-                profile.ReverseAcceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, reverseAccelFromVesselMultiplier), minInheritedAcceleration, maxInheritedAcceleration);
-                profile.StrafeAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, strafeAccelFromVesselMultiplier), minInheritedAcceleration, maxInheritedAcceleration);
-                profile.VerticalAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, verticalAccelFromVesselMultiplier), minInheritedAcceleration, maxInheritedAcceleration);
-                profile.DampenerDeceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, dampenerFromVesselMultiplier), minInheritedAcceleration, maxInheritedAcceleration);
-                profile.RetroBrakeAcceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, retroBrakeFromVesselMultiplier), minInheritedAcceleration, maxInheritedAcceleration);
+                profile.ForwardAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, forwardAccelFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
+                profile.ReverseAcceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, reverseAccelFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
+                profile.StrafeAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, strafeAccelFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
+                profile.VerticalAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, verticalAccelFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
+                profile.DampenerDeceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, dampenerFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
+                profile.RetroBrakeAcceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, retroBrakeFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
             }
 
             profile = profile.Sanitized();
@@ -850,6 +1218,10 @@ namespace Space4X.UI
 
             var runtimeState = ResolveFlightRuntimeState(entity, profile);
             runtimeState.VelocityWorld = float3.zero;
+            runtimeState.AngularSpeedRadians = 0f;
+            runtimeState.ForwardThrottle = 0f;
+            runtimeState.StrafeThrottle = 0f;
+            runtimeState.VerticalThrottle = 0f;
             SetFlightRuntimeState(entity, runtimeState);
             ResolveFlightInputIntent(entity);
 
@@ -877,6 +1249,7 @@ namespace Space4X.UI
             if (!_entityManager.Exists(entity))
                 return;
 
+            ApplyAbilityModulesFromSelection(entity);
             var variantIndex = ResolveFlagshipVariantIndexFromPreset();
             if (_entityManager.HasComponent<RenderVariantOverride>(entity))
             {
@@ -916,6 +1289,402 @@ namespace Space4X.UI
             return squareVariant;
         }
 
+        private void ApplyAbilityModulesFromSelection(Entity entity)
+        {
+            if (!_entityManager.Exists(entity))
+                return;
+
+            var isSkipShip = IsSkipShipPreset();
+            var isTimeShip = IsTimeShipPreset();
+            var primaryAbility = ShipAbilityKind.BoostDrive;
+            if (isTimeShip)
+            {
+                primaryAbility = ShipAbilityKind.TimeCore;
+            }
+            else if (isSkipShip)
+            {
+                primaryAbility = ShipAbilityKind.SkipDrive;
+            }
+
+            if (primaryAbility == ShipAbilityKind.SkipDrive)
+            {
+                var config = new SkipDriveModuleConfig
+                {
+                    MinRange = Mathf.Max(0f, skipshipMinRange),
+                    MaxRange = Mathf.Max(skipshipMaxRange, skipshipMinRange),
+                    CooldownSeconds = Mathf.Max(0f, skipshipCooldownSeconds),
+                    ChargeTimeSeconds = 0f,
+                    OriginDamageRadius = 0f,
+                    OriginDamage = 0f,
+                    DestinationDamageRadius = 0f,
+                    DestinationDamage = 0f,
+                    AllowPhaseShift = 0,
+                    PhaseDurationSeconds = 0f,
+                    AllowCloak = 0,
+                    CloakDurationSeconds = 0f
+                };
+
+                if (_entityManager.HasComponent<SkipDriveModuleConfig>(entity))
+                {
+                    _entityManager.SetComponentData(entity, config);
+                }
+                else
+                {
+                    _entityManager.AddComponentData(entity, config);
+                }
+
+                if (!_entityManager.HasComponent<SkipJumpState>(entity))
+                {
+                    _entityManager.AddComponentData(entity, new SkipJumpState());
+                }
+            }
+            else
+            {
+                if (_entityManager.HasComponent<SkipDriveModuleConfig>(entity))
+                {
+                    _entityManager.RemoveComponent<SkipDriveModuleConfig>(entity);
+                }
+                if (_entityManager.HasComponent<SkipJumpState>(entity))
+                {
+                    _entityManager.RemoveComponent<SkipJumpState>(entity);
+                }
+            }
+
+            if (primaryAbility == ShipAbilityKind.TimeCore)
+            {
+                var config = new TimeCoreModuleConfig
+                {
+                    StopDurationSeconds = Mathf.Max(0f, timeshipStopDurationSeconds),
+                    SlowDurationSeconds = Mathf.Max(0f, timeshipSlowDurationSeconds),
+                    SlowTimeScale = Mathf.Clamp(timeshipSlowTimeScale, 0.01f, 1f),
+                    CooldownSeconds = Mathf.Max(0f, timeshipCooldownSeconds),
+                    AllowSlowFallback = timeshipAllowSlowFallback ? (byte)1 : (byte)0,
+                    GlobalStop = timeshipGlobalStop ? (byte)1 : (byte)0
+                };
+
+                if (_entityManager.HasComponent<TimeCoreModuleConfig>(entity))
+                {
+                    _entityManager.SetComponentData(entity, config);
+                }
+                else
+                {
+                    _entityManager.AddComponentData(entity, config);
+                }
+            }
+            else
+            {
+                if (_entityManager.HasComponent<TimeCoreModuleConfig>(entity))
+                {
+                    _entityManager.RemoveComponent<TimeCoreModuleConfig>(entity);
+                }
+            }
+
+            if (primaryAbility == ShipAbilityKind.BoostDrive)
+            {
+                var config = new BoostDriveModuleConfig
+                {
+                    BoostMultiplier = Mathf.Max(1f, boostMultiplier),
+                    BoostDurationSeconds = 0f,
+                    CooldownSeconds = 0f,
+                    EnergyCost = 0f,
+                    DisablesBaseBoost = 0
+                };
+
+                if (_entityManager.HasComponent<BoostDriveModuleConfig>(entity))
+                {
+                    _entityManager.SetComponentData(entity, config);
+                }
+                else
+                {
+                    _entityManager.AddComponentData(entity, config);
+                }
+            }
+            else
+            {
+                if (_entityManager.HasComponent<BoostDriveModuleConfig>(entity))
+                {
+                    _entityManager.RemoveComponent<BoostDriveModuleConfig>(entity);
+                }
+            }
+
+            EnsureAbilitySelection(entity, primaryAbility);
+        }
+
+        private ShipAbilityKind ResolveShiftAbility(Entity entity)
+        {
+            if (!IsValidTarget(entity))
+                return ShipAbilityKind.None;
+
+            if (_entityManager.HasComponent<ShipAbilityModule>(entity))
+            {
+                var selection = _entityManager.GetComponentData<ShipAbilityModule>(entity).Kind;
+                if (IsAbilityAvailable(entity, selection))
+                    return selection;
+            }
+
+            if (IsAbilityAvailable(entity, ShipAbilityKind.TimeCore))
+                return ShipAbilityKind.TimeCore;
+            if (IsAbilityAvailable(entity, ShipAbilityKind.SkipDrive))
+                return ShipAbilityKind.SkipDrive;
+            if (IsAbilityAvailable(entity, ShipAbilityKind.BoostDrive))
+                return ShipAbilityKind.BoostDrive;
+
+            return ShipAbilityKind.None;
+        }
+
+        private void TryCycleAbilitySelection()
+        {
+            if (!IsValidTarget(_flagship))
+                return;
+
+            var available = new ShipAbilityKind[3];
+            var availableCount = 0;
+
+            if (IsAbilityAvailable(_flagship, ShipAbilityKind.TimeCore))
+            {
+                available[availableCount++] = ShipAbilityKind.TimeCore;
+            }
+
+            if (IsAbilityAvailable(_flagship, ShipAbilityKind.SkipDrive))
+            {
+                available[availableCount++] = ShipAbilityKind.SkipDrive;
+            }
+
+            if (IsAbilityAvailable(_flagship, ShipAbilityKind.BoostDrive))
+            {
+                available[availableCount++] = ShipAbilityKind.BoostDrive;
+            }
+
+            if (availableCount == 0)
+                return;
+
+            var current = ShipAbilityKind.None;
+            if (_entityManager.HasComponent<ShipAbilityModule>(_flagship))
+            {
+                current = _entityManager.GetComponentData<ShipAbilityModule>(_flagship).Kind;
+            }
+
+            var nextIndex = 0;
+            for (var i = 0; i < availableCount; i++)
+            {
+                if (available[i] != current)
+                    continue;
+
+                nextIndex = (i + 1) % availableCount;
+                break;
+            }
+
+            var next = available[nextIndex];
+            if (_entityManager.HasComponent<ShipAbilityModule>(_flagship))
+            {
+                _entityManager.SetComponentData(_flagship, new ShipAbilityModule { Kind = next });
+            }
+            else
+            {
+                _entityManager.AddComponentData(_flagship, new ShipAbilityModule { Kind = next });
+            }
+        }
+
+        private bool IsAbilityAvailable(Entity entity, ShipAbilityKind ability)
+        {
+            if (!IsValidTarget(entity))
+                return false;
+
+            switch (ability)
+            {
+                case ShipAbilityKind.TimeCore:
+                    return _entityManager.HasComponent<TimeCoreModuleConfig>(entity);
+                case ShipAbilityKind.SkipDrive:
+                    return _entityManager.HasComponent<SkipDriveModuleConfig>(entity);
+                case ShipAbilityKind.BoostDrive:
+                    if (_entityManager.HasComponent<BoostDriveModuleConfig>(entity))
+                        return true;
+                    return !_entityManager.HasComponent<TimeCoreModuleConfig>(entity) &&
+                           !_entityManager.HasComponent<SkipDriveModuleConfig>(entity);
+                default:
+                    return false;
+            }
+        }
+
+        private void EnsureAbilitySelection(Entity entity, ShipAbilityKind primaryAbility)
+        {
+            if (!IsValidTarget(entity))
+                return;
+
+            var hasTime = _entityManager.HasComponent<TimeCoreModuleConfig>(entity);
+            var hasSkip = _entityManager.HasComponent<SkipDriveModuleConfig>(entity);
+            var hasBoost = _entityManager.HasComponent<BoostDriveModuleConfig>(entity);
+
+            if (!hasTime && !hasSkip && !hasBoost)
+            {
+                if (_entityManager.HasComponent<ShipAbilityModule>(entity))
+                {
+                    _entityManager.RemoveComponent<ShipAbilityModule>(entity);
+                }
+                return;
+            }
+
+            if (_entityManager.HasComponent<ShipAbilityModule>(entity))
+            {
+                var current = _entityManager.GetComponentData<ShipAbilityModule>(entity).Kind;
+                if (IsAbilityAvailable(entity, current))
+                {
+                    return;
+                }
+            }
+
+            var desired = primaryAbility;
+            if (!IsAbilityAvailable(entity, desired))
+            {
+                desired = hasTime ? ShipAbilityKind.TimeCore
+                    : hasSkip ? ShipAbilityKind.SkipDrive
+                    : ShipAbilityKind.BoostDrive;
+            }
+
+            if (_entityManager.HasComponent<ShipAbilityModule>(entity))
+            {
+                _entityManager.SetComponentData(entity, new ShipAbilityModule { Kind = desired });
+            }
+            else
+            {
+                _entityManager.AddComponentData(entity, new ShipAbilityModule { Kind = desired });
+            }
+        }
+
+        private static bool IsSkipShipPreset()
+        {
+            var presetId = Space4XRunStartSelection.ShipPresetId;
+            return !string.IsNullOrWhiteSpace(presetId) &&
+                   presetId.IndexOf("skipship", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsTimeShipPreset()
+        {
+            var presetId = Space4XRunStartSelection.ShipPresetId;
+            return !string.IsNullOrWhiteSpace(presetId) &&
+                   presetId.IndexOf("timeship", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private void TryQueueTimeStop()
+        {
+            if (!IsValidTarget(_flagship))
+                return;
+
+            if (_entityManager.HasComponent<TimeStopRequest>(_flagship))
+                return;
+
+            if (!_entityManager.HasComponent<TimeCoreModuleConfig>(_flagship))
+                return;
+
+            var config = _entityManager.GetComponentData<TimeCoreModuleConfig>(_flagship);
+            var duration = Mathf.Max(0f, config.StopDurationSeconds);
+            var mode = TimeStopMode.Stop;
+            var timeScale = 0f;
+
+            if (duration <= 0f && config.AllowSlowFallback != 0)
+            {
+                duration = Mathf.Max(0.01f, config.SlowDurationSeconds);
+                mode = TimeStopMode.Slow;
+                timeScale = Mathf.Clamp(config.SlowTimeScale, 0.01f, 1f);
+            }
+
+            if (duration <= 0f)
+                return;
+
+            _entityManager.AddComponentData(_flagship, new TimeStopRequest
+            {
+                Source = _flagship,
+                DurationSeconds = duration,
+                TimeScale = timeScale,
+                Mode = mode
+            });
+        }
+
+        private void TryQueueSkipJump(float forwardInput, float strafeInput, bool translationOverride, float3 translationForward, float3 translationUp)
+        {
+            if (!IsValidTarget(_flagship))
+                return;
+
+            if (_entityManager.HasComponent<SkipJumpRequest>(_flagship))
+                return;
+
+            if (!_entityManager.HasComponent<SkipDriveModuleConfig>(_flagship))
+                return;
+
+            var config = _entityManager.GetComponentData<SkipDriveModuleConfig>(_flagship);
+            var direction = ResolveSkipDirection(forwardInput, strafeInput, translationOverride, translationForward, translationUp);
+            if (math.lengthsq(direction) < 0.0001f)
+            {
+                direction = ResolveShipForward(_flagship);
+            }
+
+            var distance = ResolveSkipDistance(config);
+            var origin = _entityManager.GetComponentData<LocalTransform>(_flagship).Position;
+            var destination = origin + (direction * distance);
+
+            _entityManager.AddComponentData(_flagship, new SkipJumpRequest
+            {
+                Destination = destination,
+                MinRange = config.MinRange,
+                MaxRange = config.MaxRange,
+                ClampToRange = 1
+            });
+        }
+
+        private static float ResolveSkipDistance(in SkipDriveModuleConfig config)
+        {
+            var maxRange = math.max(0f, config.MaxRange);
+            var minRange = math.max(0f, config.MinRange);
+            var distance = maxRange > 0.01f ? maxRange : math.max(1f, minRange);
+            if (distance < minRange)
+            {
+                distance = minRange;
+            }
+
+            return distance;
+        }
+
+        private float3 ResolveSkipDirection(float forwardInput, float strafeInput, bool translationOverride, float3 translationForward, float3 translationUp)
+        {
+            var hasInput = math.abs(forwardInput) > 0.001f || math.abs(strafeInput) > 0.001f;
+            if (!hasInput)
+            {
+                return ResolveShipForward(_flagship);
+            }
+
+            float3 forward;
+            float3 right;
+
+            if (translationOverride)
+            {
+                forward = math.normalizesafe(translationForward, new float3(0f, 0f, 1f));
+                right = math.cross(math.normalizesafe(translationUp, new float3(0f, 1f, 0f)), forward);
+                right = math.normalizesafe(right, new float3(1f, 0f, 0f));
+            }
+            else
+            {
+                var transform = _entityManager.GetComponentData<LocalTransform>(_flagship);
+                forward = math.mul(transform.Rotation, new float3(0f, 0f, 1f));
+                right = math.mul(transform.Rotation, new float3(1f, 0f, 0f));
+                forward = math.normalizesafe(forward, new float3(0f, 0f, 1f));
+                right = math.normalizesafe(right, new float3(1f, 0f, 0f));
+            }
+
+            var direction = (forward * forwardInput) + (right * strafeInput);
+            return math.normalizesafe(direction, forward);
+        }
+
+        private float3 ResolveShipForward(Entity entity)
+        {
+            if (!_entityManager.Exists(entity) || !_entityManager.HasComponent<LocalTransform>(entity))
+            {
+                return new float3(0f, 0f, 1f);
+            }
+
+            var transform = _entityManager.GetComponentData<LocalTransform>(entity);
+            return math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), new float3(0f, 0f, 1f));
+        }
+
         private ShipFlightProfile ResolveFlightProfile(Entity entity)
         {
             if (_entityManager.HasComponent<ShipFlightProfile>(entity))
@@ -942,13 +1711,21 @@ namespace Space4X.UI
             {
                 var runtime = _entityManager.GetComponentData<ShipFlightRuntimeState>(entity);
                 runtime.InertialDampenersEnabled = runtime.InertialDampenersEnabled != 0 ? (byte)1 : (byte)0;
+                runtime.AngularSpeedRadians = math.max(0f, runtime.AngularSpeedRadians);
+                runtime.ForwardThrottle = math.clamp(runtime.ForwardThrottle, -1f, 1f);
+                runtime.StrafeThrottle = math.clamp(runtime.StrafeThrottle, -1f, 1f);
+                runtime.VerticalThrottle = math.clamp(runtime.VerticalThrottle, -1f, 1f);
                 return runtime;
             }
 
             var created = new ShipFlightRuntimeState
             {
                 VelocityWorld = _flagshipVelocityWorld,
-                InertialDampenersEnabled = profile.DefaultInertialDampenersEnabled != 0 ? (byte)1 : (byte)0
+                InertialDampenersEnabled = profile.DefaultInertialDampenersEnabled != 0 ? (byte)1 : (byte)0,
+                AngularSpeedRadians = 0f,
+                ForwardThrottle = 0f,
+                StrafeThrottle = 0f,
+                VerticalThrottle = 0f
             };
             _entityManager.AddComponentData(entity, created);
             return created;

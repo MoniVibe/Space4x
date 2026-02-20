@@ -1,15 +1,5 @@
 {
   "dependencies": {
-    "com.coplaydev.coplay": {
-      "version": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {
-        "com.unity.inputsystem": "1.1.1",
-        "com.unity.cloud.gltfast": "6.12.1"
-      },
-      "hash": "e5e69b3cb3c00b219e315fea34d92a980cf9b11b"
-    },
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
       "depth": 0,

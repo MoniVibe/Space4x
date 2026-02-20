@@ -4,7 +4,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using Coplay.Controllers.Functions;
 
 public static class SetupSpace4XURP
 {

@@ -61,6 +61,8 @@ namespace Space4X.UI
             minDifficulty = 1;
             maxDifficulty = 5;
             defaultDifficulty = 2;
+            var timeShipProfile = CreateTimeShipProfile();
+            var skipShipProfile = CreateSkipShipProfile();
             presets = new[]
             {
                 new Space4XShipPresetEntry(
@@ -77,7 +79,65 @@ namespace Space4X.UI
                     "ship.capsule.interceptor",
                     "Capsule Interceptor",
                     "Fast acceleration with tighter margins and higher execution demand.",
-                    Space4XShipPreviewShape.Capsule)
+                    Space4XShipPreviewShape.Capsule),
+                new Space4XShipPresetEntry(
+                    "ship.timeship.chronos",
+                    "Timeship Chronos",
+                    "Concept hull: no shields, brief time-stop bursts to reposition.",
+                    Space4XShipPreviewShape.Cylinder,
+                    timeShipProfile),
+                new Space4XShipPresetEntry(
+                    "ship.skipship.shift",
+                    "Skipship Shift",
+                    "Concept hull: no boost, instant short-range skip jumps.",
+                    Space4XShipPreviewShape.Sphere,
+                    skipShipProfile)
+            };
+        }
+
+        internal static ShipFlightProfile CreateTimeShipProfile()
+        {
+            return new ShipFlightProfile
+            {
+                MaxForwardSpeed = 150f,
+                MaxReverseSpeed = 92f,
+                MaxStrafeSpeed = 74f,
+                MaxVerticalSpeed = 64f,
+                ForwardAcceleration = 124f,
+                ReverseAcceleration = 110f,
+                StrafeAcceleration = 94f,
+                VerticalAcceleration = 82f,
+                BoostMultiplier = 1.35f,
+                PassiveDriftDrag = 0.03f,
+                DampenerDeceleration = 92f,
+                RetroBrakeAcceleration = 132f,
+                RollSpeedDegrees = 72f,
+                CursorTurnSharpness = 11.5f,
+                MaxCursorPitchDegrees = 68f,
+                DefaultInertialDampenersEnabled = 1
+            };
+        }
+
+        internal static ShipFlightProfile CreateSkipShipProfile()
+        {
+            return new ShipFlightProfile
+            {
+                MaxForwardSpeed = 240f,
+                MaxReverseSpeed = 140f,
+                MaxStrafeSpeed = 150f,
+                MaxVerticalSpeed = 130f,
+                ForwardAcceleration = 200f,
+                ReverseAcceleration = 176f,
+                StrafeAcceleration = 182f,
+                VerticalAcceleration = 168f,
+                BoostMultiplier = 1f,
+                PassiveDriftDrag = 0.01f,
+                DampenerDeceleration = 40f,
+                RetroBrakeAcceleration = 78f,
+                RollSpeedDegrees = 130f,
+                CursorTurnSharpness = 15f,
+                MaxCursorPitchDegrees = 74f,
+                DefaultInertialDampenersEnabled = 0
             };
         }
     }
@@ -128,11 +188,23 @@ namespace Space4X.UI
                     "Sphere Frigate",
                     "Fallback preset: balanced starter hull.",
                     Space4XShipPreviewShape.Sphere),
-                _ => new Space4XShipPresetEntry(
+                2 => new Space4XShipPresetEntry(
                     "ship.capsule.interceptor",
                     "Capsule Interceptor",
                     "Fallback preset: agile starter hull.",
-                    Space4XShipPreviewShape.Capsule)
+                    Space4XShipPreviewShape.Capsule),
+                3 => new Space4XShipPresetEntry(
+                    "ship.timeship.chronos",
+                    "Timeship Chronos",
+                    "Fallback preset: temporal hull.",
+                    Space4XShipPreviewShape.Cylinder,
+                    Space4XShipPresetCatalog.CreateTimeShipProfile()),
+                _ => new Space4XShipPresetEntry(
+                    "ship.skipship.shift",
+                    "Skipship Shift",
+                    "Fallback preset: skip-jump hull.",
+                    Space4XShipPreviewShape.Sphere,
+                    Space4XShipPresetCatalog.CreateSkipShipProfile())
             };
         }
     }

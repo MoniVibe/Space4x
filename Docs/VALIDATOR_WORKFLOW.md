@@ -10,6 +10,7 @@ Machine role profiles:
 - Desktop validator: `Docs/Operations/AgentProfile_Desktop_Validator.md`
 - Desktop iterator: `Docs/Operations/AgentProfile_Desktop_Iterator.md`
 - Laptop iterator: `Docs/Operations/AgentProfile_Laptop_Iterator.md`
+- Validator addendum: `validator.md`
 - Iterator addendum: `iterators.md` and `Docs/Operations/ITERATORS.md`
 
 Role-by-session on desktop host:
@@ -36,6 +37,20 @@ Iterators propose, they do not prove:
 - Push branch and open a PR.
 - Add label `needs-validate`.
 - Stop. Do not trigger Buildbox / nightlies / queues.
+- Once `needs-validate` is set, freeze that PR branch unless validator requests targeted follow-up on the same branch.
+- New iteration should go to a new short-lived PR branch by default.
+
+Validator intake gate (auto-pickup):
+- PR base must be `main`.
+- PR must be ready for review (not draft).
+- PR must include `needs-validate`.
+- PR is skipped when labeled `blocked`, `do-not-merge`, or `needs-intent-card`.
+- Stacked PRs targeting non-`main` branches are intentionally ignored until retargeted.
+
+Stacked branch policy:
+- If iterators need shared base work, validate and merge the base PR to `main` first.
+- Child PRs stay draft/off-queue until retargeted to `main`.
+- After retarget, add `needs-validate` and hand off.
 
 PR intent card (required in PR description):
 - Summary (1-5 bullets)
@@ -82,6 +97,78 @@ Stop file:
 ```powershell
 New-Item -ItemType File C:\polish\anviloop\ops\nightly_pr_greenifier.stop -Force
 ```
+
+Greenness annotation:
+- Added by validator after workflow completion and evidence collection.
+- Score model:
+  - `workflow_success` = 50 points
+  - `result_zip_present` = 30 points
+  - `playmode_pass` = 20 points
+- Grade bands:
+  - `supergreen` = 100
+  - `green` = 80-99
+  - `yellow` = 50-79
+  - `red` = 0-49
+- Stored in `C:\polish\anviloop\reports\nightly_pr_greenifier_state.json` as:
+  - `greenScore`
+  - `greenGrade`
+  - `greenChecks`
+  - `greenMissing`
+
+Quick view:
+```powershell
+$state = Get-Content C:\polish\anviloop\reports\nightly_pr_greenifier_state.json -Raw | ConvertFrom-Json
+$state.prs.PSObject.Properties |
+  Sort-Object { [int]$_.Name } |
+  ForEach-Object {
+    [pscustomobject]@{
+      Pr = [int]$_.Name
+      Outcome = $_.Value.outcome
+      Score = $_.Value.greenScore
+      Grade = $_.Value.greenGrade
+      RunUrl = $_.Value.runUrl
+      UpdatedUtc = $_.Value.updatedAt
+    }
+  } | Format-Table -AutoSize
+```
+
+## Red-Run Playbook (Validator)
+
+Use this exact loop when a queued PR gets `yellow` or `red`:
+
+1. Confirm latest validator verdict for that PR.
+```powershell
+$pr = 88
+$state = Get-Content C:\polish\anviloop\reports\nightly_pr_greenifier_state.json -Raw | ConvertFrom-Json
+$state.prs.$pr | Select-Object outcome,reason,greenScore,greenGrade,greenMissing,runUrl,summary,playmode,resultZip,updatedAt
+```
+2. Open evidence in priority order and extract first actionable error.
+```powershell
+$summary = ($state.prs.$pr).summary
+if ($summary) { Get-Content $summary -Tail 120 }
+```
+3. Apply minimal fix on PR branch, push fix-up commit, keep label `needs-validate`.
+4. Let validator loop pick up new SHA automatically.
+5. Repeat until `greenScore=100` (`greenGrade=supergreen`) and outcome is mergeable.
+
+Same-SHA rerun rule:
+- Greenifier skips already-failed SHAs to avoid reprocessing loops.
+- To rerun without code changes, clear only that PR state entry:
+```powershell
+$pr = "88"
+$path = "C:\polish\anviloop\reports\nightly_pr_greenifier_state.json"
+$json = Get-Content $path -Raw | ConvertFrom-Json
+$h = @{}
+foreach ($p in $json.prs.PSObject.Properties) { $h[$p.Name] = $p.Value }
+$h.Remove($pr) | Out-Null
+[pscustomobject]@{ prs = $h } | ConvertTo-Json -Depth 8 | Set-Content $path -Encoding utf8
+```
+
+Classification guide:
+- `red` (0-49): workflow failed or no lane artifacts. Fix compile/runtime blocker first.
+- `yellow` (50-79): workflow reached success path but missing zip/playmode proof.
+- `green` (80-99): almost there; usually playmode artifact/probe issue.
+- `supergreen` (100): full pass, merge candidate.
 
 Laptop policy:
 - Laptop is iterator-only.

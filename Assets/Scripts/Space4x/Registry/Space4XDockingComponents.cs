@@ -399,6 +399,37 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Per-host queue policy for docking request throughput.
+    /// </summary>
+    public struct DockingQueuePolicy : IComponentData
+    {
+        /// <summary>
+        /// Max successful dock operations processed per tick.
+        /// </summary>
+        public byte MaxProcessedPerTick;
+
+        public static DockingQueuePolicy Default => new DockingQueuePolicy
+        {
+            MaxProcessedPerTick = 1
+        };
+
+        public static DockingQueuePolicy StationDefault => new DockingQueuePolicy
+        {
+            MaxProcessedPerTick = 2
+        };
+    }
+
+    /// <summary>
+    /// Rolling queue counters for the current simulation tick.
+    /// </summary>
+    public struct DockingQueueState : IComponentData
+    {
+        public uint LastTick;
+        public ushort PendingRequests;
+        public ushort ProcessedRequests;
+    }
+
+    /// <summary>
     /// Per-tick throughput remaining for docking transfers.
     /// </summary>
     public struct DockingThroughputState : IComponentData

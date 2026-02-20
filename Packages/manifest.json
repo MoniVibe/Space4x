@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.coplaydev.coplay": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
     "com.moni.puredots": "file:../../puredots/Packages/com.moni.puredots",
     "com.unity.ai.navigation": "2.0.9",

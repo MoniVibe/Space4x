@@ -67,8 +67,9 @@ namespace Space4X.Authoring
                 for (int i = 0; i < authoring.hulls.Count; i++)
                 {
                     var hullData = authoring.hulls[i];
+                    ref var hullSpec = ref hullArray[i];
                     var slotCount = hullData.slots != null ? hullData.slots.Count : 0;
-                    var slotsArray = builder.Allocate(ref hullArray[i].Slots, slotCount);
+                    var slotsArray = builder.Allocate(ref hullSpec.Slots, slotCount);
 
                     for (int j = 0; j < slotCount; j++)
                     {
@@ -81,37 +82,52 @@ namespace Space4X.Authoring
                     }
 
                     var loadoutCount = hullData.builtInModuleLoadouts != null ? hullData.builtInModuleLoadouts.Count : 0;
-                    var loadoutsArray = builder.Allocate(ref hullArray[i].BuiltInModuleLoadouts, loadoutCount);
+                    var loadoutsArray = builder.Allocate(ref hullSpec.BuiltInModuleLoadouts, loadoutCount);
                     for (int k = 0; k < loadoutCount; k++)
                     {
                         loadoutsArray[k] = new FixedString64Bytes(hullData.builtInModuleLoadouts[k] ?? string.Empty);
                     }
 
-                    hullArray[i] = new HullSpec
+                    builder.Allocate(ref hullSpec.AllowedSegmentFamilies, 0);
+                    builder.Allocate(ref hullSpec.RequiredSegmentRoles, 0);
+                    builder.Allocate(ref hullSpec.DefaultSegmentIds, 0);
+
+                    hullSpec.Id = new FixedString64Bytes(hullData.id ?? string.Empty);
+                    hullSpec.BaseMassTons = math.max(0f, hullData.baseMassTons);
+                    hullSpec.FieldRefitAllowed = hullData.fieldRefitAllowed;
+                    hullSpec.Class = ResolveClass(hullData.category);
+                    hullSpec.MinSegmentCount = 0;
+                    hullSpec.MaxSegmentCount = 0;
+                    hullSpec.Category = hullData.category;
+                    hullSpec.HangarCapacity = math.max(0f, hullData.hangarCapacity);
+                    hullSpec.PresentationArchetype = new FixedString64Bytes(hullData.presentationArchetype ?? string.Empty);
+                    hullSpec.DefaultStyleTokens = new StyleTokens
                     {
-                        Id = new FixedString64Bytes(hullData.id ?? string.Empty),
-                        BaseMassTons = math.max(0f, hullData.baseMassTons),
-                        FieldRefitAllowed = hullData.fieldRefitAllowed,
-                        Category = hullData.category,
-                        HangarCapacity = math.max(0f, hullData.hangarCapacity),
-                        PresentationArchetype = new FixedString64Bytes(hullData.presentationArchetype ?? string.Empty),
-                        DefaultStyleTokens = new StyleTokens
-                        {
-                            Palette = hullData.defaultPalette,
-                            Roughness = hullData.defaultRoughness,
-                            Pattern = hullData.defaultPattern
-                        },
-                        Variant = hullData.variant
+                        Palette = hullData.defaultPalette,
+                        Roughness = hullData.defaultRoughness,
+                        Pattern = hullData.defaultPattern
                     };
+                    hullSpec.Variant = hullData.variant;
                 }
 
                 var blobAsset = builder.CreateBlobAssetReference<HullCatalogBlob>(Allocator.Persistent);
-                builder.Dispose();
 
                 var entity = GetEntity(TransformUsageFlags.None);
                 AddComponent(entity, new HullCatalogSingleton { Catalog = blobAsset });
             }
+
+            private static HullClass ResolveClass(HullCategory category)
+            {
+                return category switch
+                {
+                    HullCategory.Escort => HullClass.Escort,
+                    HullCategory.Carrier => HullClass.Carrier,
+                    HullCategory.Station => HullClass.Station,
+                    HullCategory.Freighter => HullClass.Freighter,
+                    HullCategory.CapitalShip => HullClass.Battleship,
+                    _ => HullClass.Other
+                };
+            }
         }
     }
 }
-

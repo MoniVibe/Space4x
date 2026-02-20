@@ -26,6 +26,14 @@ namespace Space4X.UI
     [DisallowMultipleComponent]
     public sealed class Space4XFollowPlayerVessel : MonoBehaviour
     {
+        // Orbit pitch envelopes by control mode:
+        // Mode 1 (CursorOrient): full sphere (~360 total pitch travel).
+        // Mode 2 (CruiseLook): half sphere (~180 total pitch travel).
+        private const float CursorModePitchMinDegrees = -179.5f;
+        private const float CursorModePitchMaxDegrees = 179.5f;
+        private const float CruiseModePitchMinDegrees = -89.95f;
+        private const float CruiseModePitchMaxDegrees = 89.95f;
+
         [SerializeField] private float followDistance = 26f;
         [SerializeField] private float followHeight = 10f;
         [SerializeField] private float lookHeight = 2f;
@@ -38,9 +46,15 @@ namespace Space4X.UI
 
         [Header("Cursor Mode")]
         [SerializeField] private bool cursorModeFollowsShipHeading = true;
+        [SerializeField] private bool cursorModeIndependentCamera = true;
         [SerializeField] private float cursorHeadingFollowSharpness = 10f;
         [SerializeField] private float cursorHeadingOffsetDegrees = 0f;
         [SerializeField] private float cursorManualYawOffsetLimitDegrees = 75f;
+
+        [Header("Mode 1 Alt Offset")]
+        [SerializeField] private float cursorAltPositionUnitsPerPixel = 0.03f;
+        [SerializeField] private float cursorAltPositionLateralLimit = 24f;
+        [SerializeField] private float cursorAltPositionVerticalLimit = 24f;
 
         [Header("Mode Hotkeys")]
         [SerializeField] private Key cursorModeHotkey = Key.Digit1;
@@ -52,8 +66,14 @@ namespace Space4X.UI
         [SerializeField] private float orbitPitchSensitivity = 0.18f;
         [SerializeField] private bool useOrbitClickAnchorDeadZone = true;
         [SerializeField] private float orbitClickDeadZonePixels = 20f;
-        [SerializeField] private float minPitchDegrees = 8f;
-        [SerializeField] private float maxPitchDegrees = 80f;
+        [SerializeField] private float minPitchDegrees = -179f;
+        [SerializeField] private float maxPitchDegrees = 179f;
+        [SerializeField] private float cruiseMinPitchDegrees = -89.95f;
+        [SerializeField] private float cruiseMaxPitchDegrees = 89.95f;
+        [SerializeField] private bool cruiseModeIndependentCamera = true;
+        [SerializeField] private bool enableCruiseMovementRecentre = false;
+        [SerializeField] private float cruiseAltDoubleTapSeconds = 0.35f;
+        [SerializeField] private float cruiseMovementRecentreSharpness = 8f;
         [SerializeField] private float minFollowDistance = 6f;
         [SerializeField] private float maxFollowDistance = 52f;
         [SerializeField] private float zoomDistancePerNotch = 1.8f;
@@ -108,9 +128,15 @@ namespace Space4X.UI
         private float _cursorHeadingYawDegrees;
         private bool _cursorHeadingYawInitialized;
         private float _cursorManualYawOffsetDegrees;
+        private float _cursorAltLateralOffsetUnits;
+        private float _cursorAltVerticalOffsetUnits;
         private float _orbitPitchDegrees;
         private float _cruiseYawDegrees;
+        private float _cruiseYawOffsetDegrees;
         private bool _cruiseInitialized;
+        private bool _cruiseOrbitAdjustedThisFrame;
+        private bool _altPressedLastFrame;
+        private float _lastAltTapAt;
         private UCamera _hostCamera;
         private Space4XCameraRigController _rtsRigController;
         private CameraRigApplier _rtsRigApplier;
@@ -155,7 +181,12 @@ namespace Space4X.UI
             _cursorHeadingYawDegrees = 0f;
             _cursorHeadingYawInitialized = false;
             _cursorManualYawOffsetDegrees = 0f;
+            _cursorAltLateralOffsetUnits = 0f;
+            _cursorAltVerticalOffsetUnits = 0f;
             _cruiseInitialized = false;
+            _cruiseYawOffsetDegrees = 0f;
+            _altPressedLastFrame = false;
+            _lastAltTapAt = -1000f;
             _hasCachedTargetPose = false;
             _interpolatedPoseTarget = Entity.Null;
             _interpolatedPoseTick = 0u;
@@ -194,7 +225,10 @@ namespace Space4X.UI
             HandleModeHotkeys();
             SuppressConflictingCameraDrivers();
             if (_currentMode == Space4XControlMode.Rts)
+            {
+                ApplyRtsModeToggleVariant();
                 return;
+            }
 
             // Defensive guard: ensure RTS camera components cannot stay enabled after mode switches.
             if ((_rtsRigController != null && _rtsRigController.enabled) ||
@@ -213,7 +247,9 @@ namespace Space4X.UI
             _cachedTargetRotation = targetRotation;
             _hasCachedTargetPose = true;
 
+            UpdateCruiseAltDoubleTapReset(targetRotation);
             HandleCameraOrbitInput(targetPosition, targetRotation);
+            ApplyCruiseMovementRecentre(targetRotation);
             ApplyFollow(targetPosition, targetRotation, snap: ShouldSnapFollowToTarget());
         }
 
@@ -265,6 +301,7 @@ namespace Space4X.UI
         public float DebugOrbitDeadZonePixels => orbitClickDeadZonePixels;
         public bool DebugInterpolateControlledFlagshipPose => interpolateControlledFlagshipPose;
         public bool DebugControlledPoseInterpolationActive => _controlledPoseInterpolationActive;
+        public bool CursorModeUsesIndependentCamera => IsCursorModeIndependentCamera();
 
         public void ConfigureForFlagshipIntro()
         {
@@ -294,9 +331,10 @@ namespace Space4X.UI
         private void ApplyFollow(Vector3 targetPosition, Quaternion targetRotation, bool snap)
         {
             if (_currentMode == Space4XControlMode.CursorOrient &&
-                cursorModeFollowsShipHeading &&
+                IsCursorModeShipHeadingFollowActive() &&
                 TryBuildShipAlignedPose(targetPosition, targetRotation, out var shipAlignedPosition, out var shipAlignedRotation))
             {
+                shipAlignedPosition = ApplyCursorPositionOffset(shipAlignedPosition, targetRotation);
                 ApplyCameraPose(shipAlignedPosition, shipAlignedRotation, snap);
                 return;
             }
@@ -305,7 +343,7 @@ namespace Space4X.UI
             var yaw = baseYaw;
             if (_currentMode == Space4XControlMode.CursorOrient)
             {
-                if (cursorModeFollowsShipHeading)
+                if (IsCursorModeShipHeadingFollowActive())
                 {
                     yaw = ResolveCursorHeadingYaw(targetRotation, snap);
                 }
@@ -318,7 +356,7 @@ namespace Space4X.UI
             else if (_currentMode == Space4XControlMode.CruiseLook)
             {
                 EnsureCruiseOrbitInitialized(targetPosition, targetRotation);
-                yaw = _cruiseYawDegrees;
+                yaw = ResolveCruiseYaw(targetRotation);
             }
 
             var clampedDistance = Mathf.Clamp(followDistance, minFollowDistance, maxFollowDistance);
@@ -340,7 +378,11 @@ namespace Space4X.UI
             if (lookDirection.sqrMagnitude < 0.0001f)
                 return;
 
-            var desiredRotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
+            var desiredUp = _currentMode == Space4XControlMode.CursorOrient
+                ? orbitRotation * Vector3.up
+                : Vector3.up;
+            var desiredRotation = ResolveLookRotation(lookDirection, desiredUp);
+            desiredPosition = ApplyCursorPositionOffset(desiredPosition, targetRotation);
             ApplyCameraPose(desiredPosition, desiredRotation, snap);
         }
 
@@ -418,6 +460,7 @@ namespace Space4X.UI
 
         private void HandleCameraOrbitInput(Vector3 targetPosition, Quaternion targetRotation)
         {
+            _cruiseOrbitAdjustedThisFrame = false;
             var mouse = Mouse.current;
             if (mouse == null)
                 return;
@@ -438,31 +481,73 @@ namespace Space4X.UI
 
             var keyboard = Keyboard.current;
             var altPressed = keyboard != null && (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed);
+            var fighterModeActive =
+                _currentMode == Space4XControlMode.CursorOrient &&
+                Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient);
             var cruiseRotate = _currentMode == Space4XControlMode.CruiseLook && mouse.rightButton.isPressed;
-            var orbitEngaged = altPressed || cruiseRotate;
-            if (!TryResolveOrbitInputDelta(mouse, orbitEngaged, out var delta))
+            var cursorRotate = _currentMode == Space4XControlMode.CursorOrient && mouse.rightButton.isPressed;
+            var orbitEngaged = fighterModeActive || altPressed || cruiseRotate || cursorRotate;
+            Vector2 delta;
+            if (fighterModeActive)
+            {
+                // Fighter mode uses raw mouse delta every frame (no click-gate / deadzone anchor).
+                ResetOrbitInputAnchor();
+                delta = mouse.delta.ReadValue();
+                if (delta.sqrMagnitude < 0.0001f)
+                {
+                    return;
+                }
+            }
+            else if (!TryResolveOrbitInputDelta(mouse, orbitEngaged, out delta))
+            {
                 return;
+            }
 
             if (_currentMode == Space4XControlMode.CursorOrient)
             {
-                _cursorManualYawOffsetDegrees = Mathf.Clamp(
-                    _cursorManualYawOffsetDegrees + (delta.x * orbitYawSensitivity),
-                    -Mathf.Max(0f, cursorManualYawOffsetLimitDegrees),
-                    Mathf.Max(0f, cursorManualYawOffsetLimitDegrees));
-
-                if (!cursorModeFollowsShipHeading)
+                if (IsCursorModeShipHeadingFollowActive())
+                {
+                    var yawLimit = Mathf.Max(0f, cursorManualYawOffsetLimitDegrees);
+                    _cursorManualYawOffsetDegrees = Mathf.Clamp(
+                        NormalizeDegrees(_cursorManualYawOffsetDegrees + (delta.x * orbitYawSensitivity)),
+                        -yawLimit,
+                        yawLimit);
+                    _cursorAltVerticalOffsetUnits = Mathf.Clamp(
+                        _cursorAltVerticalOffsetUnits + (delta.y * cursorAltPositionUnitsPerPixel),
+                        -Mathf.Abs(cursorAltPositionVerticalLimit),
+                        Mathf.Abs(cursorAltPositionVerticalLimit));
+                }
+                else
                 {
                     EnsureCursorOrbitInitialized(targetPosition, targetRotation);
                     _cursorWorldYawDegrees = NormalizeDegrees(_cursorWorldYawDegrees + (delta.x * orbitYawSensitivity));
+                    _orbitPitchDegrees = Mathf.Clamp(
+                        _orbitPitchDegrees - (delta.y * orbitPitchSensitivity),
+                        ResolveModeMinPitchDegrees(),
+                        ResolveModeMaxPitchDegrees());
+                    _cursorManualYawOffsetDegrees = 0f;
+                    _cursorAltLateralOffsetUnits = 0f;
+                    _cursorAltVerticalOffsetUnits = 0f;
                 }
+                return;
+            }
+
+            EnsureCruiseOrbitInitialized(targetPosition, targetRotation);
+            if (IsCruiseModeIndependentCamera())
+            {
+                _cruiseYawDegrees = NormalizeDegrees(_cruiseYawDegrees + (delta.x * orbitYawSensitivity));
             }
             else
             {
-                EnsureCruiseOrbitInitialized(targetPosition, targetRotation);
-                _cruiseYawDegrees = NormalizeDegrees(_cruiseYawDegrees + (delta.x * orbitYawSensitivity));
+                _cruiseYawOffsetDegrees = NormalizeDegrees(_cruiseYawOffsetDegrees + (delta.x * orbitYawSensitivity));
+                _cruiseYawDegrees = ResolveCruiseYaw(targetRotation);
             }
+            _cruiseOrbitAdjustedThisFrame = true;
 
-            _orbitPitchDegrees = Mathf.Clamp(_orbitPitchDegrees - (delta.y * orbitPitchSensitivity), minPitchDegrees, maxPitchDegrees);
+            _orbitPitchDegrees = Mathf.Clamp(
+                _orbitPitchDegrees - (delta.y * orbitPitchSensitivity),
+                ResolveModeMinPitchDegrees(),
+                ResolveModeMaxPitchDegrees());
         }
 
         private bool TryResolveOrbitInputDelta(Mouse mouse, bool orbitEngaged, out Vector2 delta)
@@ -549,7 +634,10 @@ namespace Space4X.UI
             var distance = Mathf.Max(0.01f, toCamera.magnitude);
             followDistance = Mathf.Clamp(distance, minFollowDistance, maxFollowDistance);
             var normalized = toCamera / distance;
-            _orbitPitchDegrees = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(normalized.y, -1f, 1f)) * Mathf.Rad2Deg, minPitchDegrees, maxPitchDegrees);
+            _orbitPitchDegrees = Mathf.Clamp(
+                Mathf.Asin(Mathf.Clamp(normalized.y, -1f, 1f)) * Mathf.Rad2Deg,
+                ResolveModeMinPitchDegrees(),
+                ResolveModeMaxPitchDegrees());
             _cursorWorldYawDegrees = NormalizeDegrees(Mathf.Atan2(-normalized.x, -normalized.z) * Mathf.Rad2Deg);
             _cursorWorldYawInitialized = true;
         }
@@ -574,8 +662,22 @@ namespace Space4X.UI
             var distance = Mathf.Max(0.01f, toCamera.magnitude);
             followDistance = Mathf.Clamp(distance, minFollowDistance, maxFollowDistance);
             var normalized = toCamera / distance;
-            _orbitPitchDegrees = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(normalized.y, -1f, 1f)) * Mathf.Rad2Deg, minPitchDegrees, maxPitchDegrees);
-            _cruiseYawDegrees = NormalizeDegrees(Mathf.Atan2(-normalized.x, -normalized.z) * Mathf.Rad2Deg);
+            _orbitPitchDegrees = Mathf.Clamp(
+                Mathf.Asin(Mathf.Clamp(normalized.y, -1f, 1f)) * Mathf.Rad2Deg,
+                ResolveModeMinPitchDegrees(),
+                ResolveModeMaxPitchDegrees());
+            var worldYaw = NormalizeDegrees(Mathf.Atan2(-normalized.x, -normalized.z) * Mathf.Rad2Deg);
+            if (IsCruiseModeIndependentCamera())
+            {
+                _cruiseYawDegrees = worldYaw;
+                _cruiseYawOffsetDegrees = 0f;
+            }
+            else
+            {
+                var shipYaw = ResolveCruiseBaseYaw(targetRotation, worldYaw);
+                _cruiseYawOffsetDegrees = NormalizeDegrees(worldYaw - shipYaw);
+                _cruiseYawDegrees = NormalizeDegrees(shipYaw + _cruiseYawOffsetDegrees);
+            }
             _cruiseInitialized = true;
         }
 
@@ -973,15 +1075,15 @@ namespace Space4X.UI
 
             if (cursorModeHotkey != Key.None && keyboard[cursorModeHotkey].wasPressedThisFrame)
             {
-                Space4XControlModeState.SetMode(Space4XControlMode.CursorOrient);
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.CursorOrient);
             }
             else if (cruiseModeHotkey != Key.None && keyboard[cruiseModeHotkey].wasPressedThisFrame)
             {
-                Space4XControlModeState.SetMode(Space4XControlMode.CruiseLook);
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.CruiseLook);
             }
             else if (rtsModeHotkey != Key.None && keyboard[rtsModeHotkey].wasPressedThisFrame)
             {
-                Space4XControlModeState.SetMode(Space4XControlMode.Rts);
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
         }
 
@@ -989,17 +1091,21 @@ namespace Space4X.UI
         {
             _currentMode = mode;
             ResetOrbitInputAnchor();
+            _altPressedLastFrame = false;
             if (_currentMode == Space4XControlMode.Rts)
             {
                 SetRtsCameraEnabled(true);
+                ApplyRtsModeToggleVariant();
             }
             else
             {
                 SetRtsCameraEnabled(false);
+                _orbitPitchDegrees = Mathf.Clamp(_orbitPitchDegrees, ResolveModeMinPitchDegrees(), ResolveModeMaxPitchDegrees());
                 if (_currentMode == Space4XControlMode.CursorOrient)
                 {
                     _cursorWorldYawInitialized = false;
                     _cursorHeadingYawInitialized = false;
+                    _cursorManualYawOffsetDegrees = 0f;
                 }
                 if (_currentMode == Space4XControlMode.CruiseLook)
                 {
@@ -1027,6 +1133,11 @@ namespace Space4X.UI
             if (_rtsRigApplier != null)
             {
                 _rtsRigApplier.enabled = enabled;
+            }
+
+            if (enabled)
+            {
+                ApplyRtsModeToggleVariant();
             }
         }
 
@@ -1066,7 +1177,41 @@ namespace Space4X.UI
         {
             var safeDistance = Mathf.Max(0.1f, distance);
             var pitch = Mathf.Atan2(Mathf.Max(0f, height), safeDistance) * Mathf.Rad2Deg;
-            return Mathf.Clamp(pitch, minPitchDegrees, maxPitchDegrees);
+            return Mathf.Clamp(pitch, ResolveModeMinPitchDegrees(), ResolveModeMaxPitchDegrees());
+        }
+
+        private float ResolveModeMinPitchDegrees()
+        {
+            return _currentMode switch
+            {
+                Space4XControlMode.CursorOrient => CursorModePitchMinDegrees,
+                Space4XControlMode.CruiseLook => CruiseModePitchMinDegrees,
+                _ => minPitchDegrees
+            };
+        }
+
+        private float ResolveModeMaxPitchDegrees()
+        {
+            return _currentMode switch
+            {
+                Space4XControlMode.CursorOrient => CursorModePitchMaxDegrees,
+                Space4XControlMode.CruiseLook => CruiseModePitchMaxDegrees,
+                _ => maxPitchDegrees
+            };
+        }
+
+        private static Quaternion ResolveLookRotation(Vector3 forward, Vector3 preferredUp)
+        {
+            var forwardSafe = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+            var upSafe = preferredUp.sqrMagnitude > 0.0001f ? preferredUp.normalized : Vector3.up;
+            var alignment = Mathf.Abs(Vector3.Dot(forwardSafe, upSafe));
+            if (alignment > 0.999f)
+            {
+                // Avoid LookRotation degeneracy when forward and up become nearly parallel.
+                upSafe = Mathf.Abs(Vector3.Dot(forwardSafe, Vector3.up)) < 0.999f ? Vector3.up : Vector3.right;
+            }
+
+            return Quaternion.LookRotation(forwardSafe, upSafe);
         }
 
         private void ApplyFramingForTarget(Entity target, bool resetZoom)
@@ -1134,6 +1279,7 @@ namespace Space4X.UI
             _cursorWorldYawInitialized = true;
             _cursorHeadingYawDegrees = NormalizeDegrees(yaw + cursorHeadingOffsetDegrees);
             _cursorHeadingYawInitialized = true;
+            _cruiseYawOffsetDegrees = 0f;
             _cruiseYawDegrees = yaw;
             _cruiseInitialized = true;
             _orbitPitchDegrees = DerivePitchFromHeightAndDistance(followHeight, followDistance);
@@ -1146,6 +1292,9 @@ namespace Space4X.UI
             _cursorHeadingYawDegrees = 0f;
             _cursorHeadingYawInitialized = false;
             _cursorManualYawOffsetDegrees = 0f;
+            _cursorAltLateralOffsetUnits = 0f;
+            _cursorAltVerticalOffsetUnits = 0f;
+            _cruiseYawOffsetDegrees = 0f;
             _cruiseInitialized = false;
             ResetOrbitInputAnchor();
         }
@@ -1162,9 +1311,17 @@ namespace Space4X.UI
         {
             followSharpness = Mathf.Max(0.01f, followSharpness);
             cursorHeadingFollowSharpness = Mathf.Max(0.01f, cursorHeadingFollowSharpness);
+            cursorManualYawOffsetLimitDegrees = Mathf.Clamp(cursorManualYawOffsetLimitDegrees, 0f, 180f);
+            cursorAltPositionUnitsPerPixel = Mathf.Clamp(cursorAltPositionUnitsPerPixel, 0.001f, 1f);
+            cursorAltPositionLateralLimit = Mathf.Max(0f, cursorAltPositionLateralLimit);
+            cursorAltPositionVerticalLimit = Mathf.Max(0f, cursorAltPositionVerticalLimit);
+            cruiseMovementRecentreSharpness = Mathf.Clamp(cruiseMovementRecentreSharpness, 0.01f, 40f);
             orbitClickDeadZonePixels = Mathf.Max(0f, orbitClickDeadZonePixels);
-            minPitchDegrees = Mathf.Clamp(minPitchDegrees, -89f, 89f);
-            maxPitchDegrees = Mathf.Clamp(maxPitchDegrees, minPitchDegrees, 89f);
+            minPitchDegrees = Mathf.Clamp(minPitchDegrees, -179.5f, 179.5f);
+            maxPitchDegrees = Mathf.Clamp(maxPitchDegrees, minPitchDegrees, 179.5f);
+            cruiseMinPitchDegrees = Mathf.Clamp(cruiseMinPitchDegrees, -89.95f, 89.95f);
+            cruiseMaxPitchDegrees = Mathf.Clamp(cruiseMaxPitchDegrees, cruiseMinPitchDegrees, 89.95f);
+            cruiseAltDoubleTapSeconds = Mathf.Clamp(cruiseAltDoubleTapSeconds, 0.1f, 1f);
             minFollowDistance = Mathf.Max(0.25f, minFollowDistance);
             maxFollowDistance = Mathf.Max(minFollowDistance, maxFollowDistance);
             minTargetRadius = Mathf.Max(0.01f, minTargetRadius);
@@ -1203,6 +1360,196 @@ namespace Space4X.UI
             var compensated = lookHeight - (currentFollowHeight * lookHeightCompensationFromFollowHeight);
             var maxHeight = ResolveMaxFollowHeight(distance);
             return Mathf.Clamp(compensated, -maxHeight, maxHeight);
+        }
+
+        private Vector3 ApplyCursorPositionOffset(Vector3 desiredPosition, Quaternion targetRotation)
+        {
+            if (_currentMode != Space4XControlMode.CursorOrient)
+            {
+                return desiredPosition;
+            }
+
+            if (Mathf.Abs(_cursorAltLateralOffsetUnits) < 0.0001f &&
+                Mathf.Abs(_cursorAltVerticalOffsetUnits) < 0.0001f)
+            {
+                return desiredPosition;
+            }
+
+            var shipForward = targetRotation * Vector3.forward;
+            if (shipForward.sqrMagnitude < 0.0001f)
+            {
+                shipForward = Vector3.forward;
+            }
+            else
+            {
+                shipForward.Normalize();
+            }
+
+            var shipUp = targetRotation * Vector3.up;
+            if (shipUp.sqrMagnitude < 0.0001f)
+            {
+                shipUp = Vector3.up;
+            }
+            else
+            {
+                shipUp.Normalize();
+            }
+
+            var shipRight = Vector3.Cross(shipUp, shipForward);
+            if (shipRight.sqrMagnitude < 0.0001f)
+            {
+                shipRight = targetRotation * Vector3.right;
+            }
+            if (shipRight.sqrMagnitude < 0.0001f)
+            {
+                shipRight = Vector3.right;
+            }
+            shipRight.Normalize();
+
+            return desiredPosition
+                   + (shipRight * _cursorAltLateralOffsetUnits)
+                   + (shipUp * _cursorAltVerticalOffsetUnits);
+        }
+
+        private void UpdateCruiseAltDoubleTapReset(Quaternion targetRotation)
+        {
+            var keyboard = Keyboard.current;
+            var altPressed = keyboard != null && (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed);
+            if (_currentMode == Space4XControlMode.CruiseLook && altPressed && !_altPressedLastFrame)
+            {
+                var now = UTime.unscaledTime;
+                if (now - _lastAltTapAt <= cruiseAltDoubleTapSeconds)
+                {
+                    SnapOrbitBehindTarget(targetRotation);
+                    _lastAltTapAt = -1000f;
+                }
+                else
+                {
+                    _lastAltTapAt = now;
+                }
+            }
+
+            _altPressedLastFrame = altPressed;
+        }
+
+        private void ApplyCruiseMovementRecentre(Quaternion targetRotation)
+        {
+            if (_currentMode != Space4XControlMode.CruiseLook)
+            {
+                return;
+            }
+
+            if (!enableCruiseMovementRecentre)
+            {
+                return;
+            }
+
+            // Mode 2 variant is heading-hold; only auto-recenter in default cruise behavior.
+            if (Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CruiseLook))
+            {
+                return;
+            }
+
+            if (_cruiseOrbitAdjustedThisFrame || !IsCruiseMovementInputPressed())
+            {
+                return;
+            }
+
+            var dt = Mathf.Max(UTime.unscaledDeltaTime, 0f);
+            var gain = 1f - Mathf.Exp(-cruiseMovementRecentreSharpness * dt);
+            _cruiseYawOffsetDegrees = Mathf.LerpAngle(_cruiseYawOffsetDegrees, 0f, gain);
+            _cruiseYawDegrees = ResolveCruiseYaw(targetRotation);
+        }
+
+        private static bool IsCruiseMovementInputPressed()
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return false;
+            }
+
+            return keyboard.wKey.isPressed ||
+                   keyboard.aKey.isPressed ||
+                   keyboard.sKey.isPressed ||
+                   keyboard.dKey.isPressed ||
+                   keyboard.spaceKey.isPressed ||
+                   keyboard.leftCtrlKey.isPressed ||
+                   keyboard.cKey.isPressed;
+        }
+
+        private void ApplyRtsModeToggleVariant()
+        {
+            if (_currentMode != Space4XControlMode.Rts)
+            {
+                return;
+            }
+
+            if (_rtsRigController == null)
+            {
+                var camera = ResolveHostCamera();
+                if (camera != null)
+                {
+                    _rtsRigController = camera.GetComponent<Space4XCameraRigController>();
+                }
+            }
+
+            if (_rtsRigController == null || !_rtsRigController.enabled)
+            {
+                return;
+            }
+
+            var variantEnabled = Space4XControlModeState.IsVariantEnabled(Space4XControlMode.Rts);
+            // Mode 3 defaults to free-form god camera travel.
+            // Variant toggle enables planar lock.
+            _rtsRigController.SetYAxisLocked(variantEnabled);
+        }
+
+        private float ResolveCruiseBaseYaw(Quaternion targetRotation, float fallbackYaw)
+        {
+            return NormalizeDegrees(ResolveStableYaw(targetRotation, fallbackYaw) + behindYawOffsetDegrees);
+        }
+
+        private float ResolveCruiseYaw(Quaternion targetRotation)
+        {
+            if (IsCruiseModeIndependentCamera())
+            {
+                _cruiseYawDegrees = NormalizeDegrees(_cruiseYawDegrees);
+                return _cruiseYawDegrees;
+            }
+
+            var baseYaw = ResolveCruiseBaseYaw(targetRotation, _cruiseYawDegrees);
+            _cruiseYawDegrees = NormalizeDegrees(baseYaw + _cruiseYawOffsetDegrees);
+            return _cruiseYawDegrees;
+        }
+
+        private bool IsCursorModeIndependentCamera()
+        {
+            if (_currentMode == Space4XControlMode.CursorOrient &&
+                Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient))
+            {
+                // Fighter mode owns camera heading directly.
+                return true;
+            }
+
+            return cursorModeIndependentCamera;
+        }
+
+        private bool IsCursorModeShipHeadingFollowActive()
+        {
+            return cursorModeFollowsShipHeading && !IsCursorModeIndependentCamera();
+        }
+
+        private bool IsCruiseModeIndependentCamera()
+        {
+            if (_currentMode == Space4XControlMode.CruiseLook &&
+                !Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CruiseLook))
+            {
+                // Default mode 2 should let ship align to current camera facing, not pull camera to ship heading.
+                return true;
+            }
+
+            return cruiseModeIndependentCamera;
         }
 
         private void ApplyInterpolatedTargetPose(Entity target, ref Vector3 position, ref Quaternion rotation)

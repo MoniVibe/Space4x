@@ -10,6 +10,7 @@ using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Space;
 using PureDOTS.Runtime.Spatial;
 using PureDOTS.Runtime.Interaction;
+using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Space4X.Registry;
@@ -90,6 +91,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private ComponentLookup<PlanetGravityField> _planetGravityLookup;
+        private ComponentLookup<EntityIntent> _intentLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -153,6 +155,7 @@ namespace Space4X.Systems.AI
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _planetGravityLookup = state.GetComponentLookup<PlanetGravityField>(true);
+            _intentLookup = state.GetComponentLookup<EntityIntent>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -291,6 +294,7 @@ namespace Space4X.Systems.AI
             _colliderSpecLookup.Update(ref state);
             _movementSuppressedLookup.Update(ref state);
             _planetGravityLookup.Update(ref state);
+            _intentLookup.Update(ref state);
 
             var hasSpatialGrid = SystemAPI.TryGetSingleton<SpatialGridConfig>(out var spatialConfig);
             var spatialRanges = new NativeArray<SpatialGridCellRange>(0, Allocator.TempJob);
@@ -402,6 +406,7 @@ namespace Space4X.Systems.AI
                 ColliderSpecLookup = _colliderSpecLookup,
                 MovementSuppressedLookup = _movementSuppressedLookup,
                 PlanetGravityLookup = _planetGravityLookup,
+                IntentLookup = _intentLookup,
                 HasSpatialGrid = hasSpatialGrid ? (byte)1 : (byte)0,
                 SpatialConfig = spatialConfig,
                 SpatialRanges = spatialRanges,
@@ -489,6 +494,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<PhysicsColliderSpec> ColliderSpecLookup;
             [ReadOnly] public ComponentLookup<MovementSuppressed> MovementSuppressedLookup;
             [ReadOnly] public ComponentLookup<PlanetGravityField> PlanetGravityLookup;
+            [ReadOnly] public ComponentLookup<EntityIntent> IntentLookup;
             public byte HasSpatialGrid;
             public SpatialGridConfig SpatialConfig;
             [ReadOnly] public NativeArray<SpatialGridCellRange> SpatialRanges;
@@ -519,7 +525,9 @@ namespace Space4X.Systems.AI
                     turnRateState.HeadingHoldUntilTick = 0;
                     turnRateState.AttackRunCommitUntilTick = 0;
                     turnRateState.AttackRunCooldownUntilTick = 0;
+                    turnRateState.BrakingCommitUntilTick = 0;
                     turnRateState.AttackRunTarget = Entity.Null;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                 }
 
                 if (!IsFinite(transform.Position) || !IsFinite(transform.Rotation.value) || !IsFinite(movement.Velocity))
@@ -528,6 +536,8 @@ namespace Space4X.Systems.AI
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     turnRateState.LastAngularSpeed = 0f;
+                    turnRateState.BrakingCommitUntilTick = 0;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                     if (hasDebug)
                     {
                         debugState.NaNInfCount += 1;
@@ -543,6 +553,8 @@ namespace Space4X.Systems.AI
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     turnRateState.LastAngularSpeed = 0f;
+                    turnRateState.BrakingCommitUntilTick = 0;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                     throttleState.RampTicks = 0;
                     return;
                 }
@@ -557,6 +569,8 @@ namespace Space4X.Systems.AI
                         movement.CurrentSpeed = 0f;
                         movement.IsMoving = 0;
                         turnRateState.LastAngularSpeed = 0f;
+                        turnRateState.BrakingCommitUntilTick = 0;
+                        turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                         return;
                     }
                 }
@@ -576,7 +590,20 @@ namespace Space4X.Systems.AI
                         hasPriorityTarget = true;
                     }
                 }
-                var noTarget = aiState.TargetEntity == Entity.Null && !hasAttackMove && !hasPriorityTarget;
+                var hasIntentTarget = false;
+                if (IntentLookup.HasComponent(entity))
+                {
+                    var intent = IntentLookup[entity];
+                    hasIntentTarget = intent.IsValid != 0 && intent.Mode != IntentMode.Idle;
+                }
+
+                var hasWorldTarget = aiState.TargetEntity == Entity.Null &&
+                                     math.lengthsq(aiState.TargetPosition - transform.Position) > 0.0001f;
+                var noTarget = aiState.TargetEntity == Entity.Null &&
+                               !hasAttackMove &&
+                               !hasPriorityTarget &&
+                               !hasIntentTarget &&
+                               !hasWorldTarget;
 
                 // Don't move if mining - stay in place to gather resources
                 if (forceHold && !inertialEnabled)
@@ -585,6 +612,8 @@ namespace Space4X.Systems.AI
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     turnRateState.LastAngularSpeed = 0f;
+                    turnRateState.BrakingCommitUntilTick = 0;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                     throttleState.RampTicks = 0;
                     UpdateDecisionTrace(entity, DecisionReasonCode.MiningHold, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
@@ -597,6 +626,8 @@ namespace Space4X.Systems.AI
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     turnRateState.LastAngularSpeed = 0f;
+                    turnRateState.BrakingCommitUntilTick = 0;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                     throttleState.RampTicks = 0;
                     UpdateDecisionTrace(entity, DecisionReasonCode.NoTarget, Entity.Null, 0f, Entity.Null, ref debugState, hasDebug);
                     return;
@@ -894,6 +925,11 @@ namespace Space4X.Systems.AI
                 var currentSpeed = math.length(movement.Velocity);
                 var currentSpeedSq = currentSpeed * currentSpeed;
                 movement.CurrentSpeed = currentSpeed;
+                if (turnRateState.BrakingCommitUntilTick != 0 && CurrentTick >= turnRateState.BrakingCommitUntilTick)
+                {
+                    turnRateState.BrakingCommitUntilTick = 0;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
+                }
                 var startingMove = movement.IsMoving == 0;
                 if (startingMove || movement.MoveStartTick == 0)
                 {
@@ -912,6 +948,8 @@ namespace Space4X.Systems.AI
                     movement.CurrentSpeed = 0f;
                     movement.IsMoving = 0;
                     turnRateState.LastAngularSpeed = 0f;
+                    turnRateState.BrakingCommitUntilTick = 0;
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
                     UpdateMoveIntent(entity, aiState.TargetEntity, targetPosition, MoveIntentType.Hold, ref debugState, hasDebug);
                     UpdateMovePlan(entity, MovePlanMode.Arrive, float3.zero, 0f, 0f, ref debugState, hasDebug);
                     UpdateDecisionTrace(entity, DecisionReasonCode.Arrived, aiState.TargetEntity, 1f, Entity.Null, ref debugState, hasDebug);
@@ -1278,31 +1316,79 @@ namespace Space4X.Systems.AI
                     deceleration *= 1.6f;
                 }
                 var desiredVelocity = direction * desiredSpeed;
+                var brakingPressure = 0f;
                 if (currentSpeedSq > 1e-4f)
                 {
-                    var retrogradeWeight = 0f;
                     if (overshoot)
                     {
-                        retrogradeWeight = 1f;
+                        brakingPressure = 1f;
                     }
                     else if (distanceScaled < slowdownDistance)
                     {
-                        retrogradeWeight = math.saturate((slowdownDistance - distanceScaled) / math.max(1e-4f, slowdownDistance));
+                        brakingPressure = math.saturate((slowdownDistance - distanceScaled) / math.max(1e-4f, slowdownDistance));
                     }
 
                     if (predictiveRetroWeight > 0f)
                     {
-                        retrogradeWeight = math.max(retrogradeWeight, predictiveRetroWeight);
+                        brakingPressure = math.max(brakingPressure, predictiveRetroWeight);
                     }
+                }
 
-                    if (retrogradeWeight > 0f)
+                var brakingDecision = KinematicBrakingUtility.Evaluate(new KinematicBrakingDecisionInput
+                {
+                    Velocity = movement.Velocity,
+                    DesiredDirection = direction,
+                    ForwardDirection = math.forward(transform.Rotation),
+                    CurrentSpeed = currentSpeed,
+                    CurrentSpeedSq = currentSpeedSq,
+                    BaseSpeed = baseSpeed,
+                    TurnSpeed = movement.TurnSpeed,
+                    BaseRotationSpeed = BaseRotationSpeed,
+                    EngineScale = engineScale,
+                    RotationMultiplier = rotationMultiplier,
+                    TurnNorm = turnNorm,
+                    Acceleration = acceleration,
+                    Deceleration = deceleration,
+                    ThrustAuthority = thrustAuthority,
+                    TurnAuthority = turnAuthority,
+                    EngineVectoring = engineVectoring,
+                    EngineResponse = engineResponse,
+                    CapitalShipTurnMultiplier = MotionConfig.CapitalShipTurnMultiplier,
+                    FlipBurnMinSpeedRatio = MotionConfig.FlipBurnMinSpeedRatio,
+                    FlipBurnAdvantageThreshold = MotionConfig.FlipBurnAdvantageThreshold,
+                    FlipBurnCombatPenalty = MotionConfig.FlipBurnCombatPenalty,
+                    FlipBurnCommitSeconds = MotionConfig.FlipBurnCommitSeconds,
+                    BrakingPressure = brakingPressure,
+                    DeltaTime = DeltaTime,
+                    CurrentTick = CurrentTick,
+                    ActiveCommitUntilTick = turnRateState.BrakingCommitUntilTick,
+                    ActiveManeuver = ToKinematicBrakingManeuver(turnRateState.BrakingManeuver),
+                    InertialEnabled = inertialEnabled ? (byte)1 : (byte)0,
+                    IdleCoast = idleCoast ? (byte)1 : (byte)0,
+                    IsCapitalShip = isCarrier ? (byte)1 : (byte)0,
+                    CombatIntent = combatIntent ? (byte)1 : (byte)0
+                });
+                var selectedBrakingManeuver = FromKinematicBrakingManeuver(brakingDecision.SelectedManeuver);
+                turnRateState.BrakingManeuver = FromKinematicBrakingManeuver(brakingDecision.ActiveManeuver);
+                turnRateState.BrakingCommitUntilTick = brakingDecision.ActiveCommitUntilTick;
+
+                if (currentSpeedSq > 1e-4f)
+                {
+                    var retroDir = math.normalizesafe(-movement.Velocity, direction);
+                    if (selectedBrakingManeuver == VesselBrakingManeuver.FlipAndBurn)
                     {
+                        direction = retroDir;
+                        desiredVelocity = retroDir * desiredSpeed;
+                    }
+                    else if (selectedBrakingManeuver == VesselBrakingManeuver.RetroBurn)
+                    {
+                        var retrogradeWeight = brakingPressure;
                         var retrogradeBoost = MotionConfig.RetrogradeBoost;
-                        if (retrogradeBoost > 0f)
+                        if (retrogradeBoost > 0f && retrogradeWeight > 0f)
                         {
                             retrogradeWeight = math.saturate(retrogradeWeight * (1f + retrogradeBoost));
                         }
-                        var retroDir = math.normalizesafe(-movement.Velocity, direction);
+
                         var retroVelocity = retroDir * desiredSpeed;
                         desiredVelocity = math.lerp(desiredVelocity, retroVelocity, retrogradeWeight);
                         direction = math.normalizesafe(math.lerp(direction, retroDir, retrogradeWeight), retroDir);
@@ -1316,41 +1402,55 @@ namespace Space4X.Systems.AI
 
                 if (!idleCoast)
                 {
-                    direction = ApplyHeadingHold(
-                        direction,
-                        math.forward(transform.Rotation),
-                        ref turnRateState,
-                        CurrentTick,
-                        hasDebug ? debugState.LastIntentChangeTick : 0u,
-                        hasDebug ? debugState.LastPlanChangeTick : 0u,
-                        currentSpeed,
-                        baseSpeed,
-                        combatManeuver,
-                        discipline,
-                        intelligence,
-                        pilotStabilityBias,
-                        pilotResponseMultiplier,
-                        reactionHoldTicks);
+                    var committedFlipAndBurn = turnRateState.BrakingManeuver == VesselBrakingManeuver.FlipAndBurn &&
+                        turnRateState.BrakingCommitUntilTick != 0 &&
+                        CurrentTick < turnRateState.BrakingCommitUntilTick;
 
-                    var stabilizedDirection = StabilizeDirection(
-                        direction,
-                        math.forward(transform.Rotation),
-                        ref turnRateState,
-                        discipline,
-                        intelligence,
-                        chaotic,
-                        currentSpeed,
-                        baseSpeed,
-                        DeltaTime,
-                        forceStop,
-                        pilotStabilityBias,
-                        pilotResponseMultiplier,
-                        pilotJitter);
-                    if (math.lengthsq(stabilizedDirection - direction) > 1e-6f)
+                    if (!committedFlipAndBurn)
                     {
-                        var desiredSpeedMag = math.length(desiredVelocity);
-                        desiredVelocity = stabilizedDirection * desiredSpeedMag;
-                        direction = stabilizedDirection;
+                        direction = ApplyHeadingHold(
+                            direction,
+                            math.forward(transform.Rotation),
+                            ref turnRateState,
+                            CurrentTick,
+                            hasDebug ? debugState.LastIntentChangeTick : 0u,
+                            hasDebug ? debugState.LastPlanChangeTick : 0u,
+                            currentSpeed,
+                            baseSpeed,
+                            combatManeuver,
+                            discipline,
+                            intelligence,
+                            pilotStabilityBias,
+                            pilotResponseMultiplier,
+                            reactionHoldTicks);
+
+                        var stabilizedDirection = StabilizeDirection(
+                            direction,
+                            math.forward(transform.Rotation),
+                            ref turnRateState,
+                            discipline,
+                            intelligence,
+                            chaotic,
+                            currentSpeed,
+                            baseSpeed,
+                            DeltaTime,
+                            forceStop,
+                            pilotStabilityBias,
+                            pilotResponseMultiplier,
+                            pilotJitter);
+                        if (math.lengthsq(stabilizedDirection - direction) > 1e-6f)
+                        {
+                            var desiredSpeedMag = math.length(desiredVelocity);
+                            desiredVelocity = stabilizedDirection * desiredSpeedMag;
+                            direction = stabilizedDirection;
+                        }
+                    }
+                    else
+                    {
+                        turnRateState.HeadingHoldUntilTick = 0;
+                        turnRateState.LastDesiredDirection = direction;
+                        turnRateState.LastDesiredTick = CurrentTick;
+                        turnRateState.SmoothedDirection = direction;
                     }
 
                     if (controlErrorStrength > 1e-4f)
@@ -1366,6 +1466,12 @@ namespace Space4X.Systems.AI
                 }
 
                 var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
+                if (turnRateState.BrakingManeuver == VesselBrakingManeuver.FlipAndBurn &&
+                    turnRateState.BrakingCommitUntilTick != 0 &&
+                    CurrentTick < turnRateState.BrakingCommitUntilTick)
+                {
+                    accelLimit = math.max(accelLimit, acceleration);
+                }
                 var maxDelta = accelLimit * DeltaTime;
                 var throttle = 1f;
                 if (inertialEnabled)
@@ -1554,6 +1660,12 @@ namespace Space4X.Systems.AI
                 if (idleCoast && movement.CurrentSpeed <= 0.01f)
                 {
                     movement.IsMoving = 0;
+                }
+                if (movement.CurrentSpeed <= 0.02f &&
+                    turnRateState.BrakingManeuver != VesselBrakingManeuver.None)
+                {
+                    turnRateState.BrakingManeuver = VesselBrakingManeuver.None;
+                    turnRateState.BrakingCommitUntilTick = 0;
                 }
                 movement.LastMoveTick = CurrentTick;
 
@@ -2451,6 +2563,26 @@ namespace Space4X.Systems.AI
             {
                 var value01 = seed * (1f / uint.MaxValue);
                 return value01 * 2f - 1f;
+            }
+
+            private static KinematicBrakingManeuver ToKinematicBrakingManeuver(VesselBrakingManeuver maneuver)
+            {
+                return maneuver switch
+                {
+                    VesselBrakingManeuver.RetroBurn => KinematicBrakingManeuver.RetroBurn,
+                    VesselBrakingManeuver.FlipAndBurn => KinematicBrakingManeuver.FlipAndBurn,
+                    _ => KinematicBrakingManeuver.None
+                };
+            }
+
+            private static VesselBrakingManeuver FromKinematicBrakingManeuver(KinematicBrakingManeuver maneuver)
+            {
+                return maneuver switch
+                {
+                    KinematicBrakingManeuver.RetroBurn => VesselBrakingManeuver.RetroBurn,
+                    KinematicBrakingManeuver.FlipAndBurn => VesselBrakingManeuver.FlipAndBurn,
+                    _ => VesselBrakingManeuver.None
+                };
             }
 
             private MoveIntentType ResolveIntentType(Entity vesselEntity, VesselAIState aiState)

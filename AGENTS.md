@@ -119,13 +119,28 @@ Artifacts expected per run:
 
 - Iterators do not trigger Buildbox/nightlies/queues. They push a branch + PR + intent card and add label `needs-validate`.
 - Validator is the only actor that runs Buildbox, applies fix-up commits, and merges.
+- Validator intake is strict: PR must target `main`, be ready (not draft), include `needs-validate`, and not be `blocked`/`do-not-merge`/`needs-intent-card`.
+- Stacked PRs (`feat/* -> feat/*`) are allowed for iteration, but validator will ignore them until retargeted to `main`.
 - Desktop host is dual-role by session:
   - `you are validator` -> validator rules
   - `you are iterator` -> iterator rules
 - Laptop stays iterator-only (no greenifier/Buildbox loops).
 - Workflow details: `Docs/VALIDATOR_WORKFLOW.md`.
+- Red-run handling loop: `Docs/VALIDATOR_WORKFLOW.md` (section `Red-Run Playbook (Validator)`).
+- Validator addendum: `validator.md`.
 - Iterator addendum: `iterators.md` and `Docs/Operations/ITERATORS.md`.
 - Machine role profiles (use at agent startup):
   - Desktop validator profile: `Docs/Operations/AgentProfile_Desktop_Validator.md`
   - Desktop iterator profile: `Docs/Operations/AgentProfile_Desktop_Iterator.md`
   - Laptop iterator profile: `Docs/Operations/AgentProfile_Laptop_Iterator.md`
+
+## Skill Awareness
+
+- Do not assume only `skill-creator`/`skill-installer`.
+- Discover skills from all active surfaces:
+  - Session-provided Codex skills: run `skills list`.
+  - CodexBridge skill root: `CODEX_SKILLS_ROOT` (or `%USERPROFILE%\.codex\skills`) via `codexbridge/skills.ps1`.
+  - Headless operator skills: `C:\dev\Tri\Tools\HeadlessRebuildTool\.agents\skills\SKILLS_INDEX.md`.
+- Broker tip: set `CODEX_SKILLS_ROOT=C:\dev\Tri\Tools\HeadlessRebuildTool\.agents\skills` to expose the headless skill pack through telebot `skills list`.
+- For buildbox/headless/queue work, prefer the HeadlessRebuildTool `.agents/skills/*` catalog.
+- If a named/matching skill is unavailable in-session, state it and continue with fallback.

@@ -18,9 +18,8 @@ namespace Space4X.Registry
         private ComponentLookup<CrewSkills> _skillsLookup;
         private ComponentLookup<SkillExperienceGain> _xpLookup;
         private ComponentLookup<ModuleStatAggregate> _aggregateLookup;
-        private ComponentLookup<ModuleSlotRequirement> _slotRequirementLookup;
-        private ComponentLookup<CarrierHullId> _hullIdLookup;
         private ComponentLookup<ModuleTypeId> _moduleTypeLookup;
+        private BufferLookup<CarrierHullSegment> _hullSegmentLookup;
         private EntityQuery _carrierQuery;
 
         public void OnCreate(ref SystemState state)
@@ -33,9 +32,8 @@ namespace Space4X.Registry
             _skillsLookup = state.GetComponentLookup<CrewSkills>(false);
             _xpLookup = state.GetComponentLookup<SkillExperienceGain>(false);
             _aggregateLookup = state.GetComponentLookup<ModuleStatAggregate>(true);
-            _slotRequirementLookup = state.GetComponentLookup<ModuleSlotRequirement>(true);
-            _hullIdLookup = state.GetComponentLookup<CarrierHullId>(true);
             _moduleTypeLookup = state.GetComponentLookup<ModuleTypeId>(true);
+            _hullSegmentLookup = state.GetBufferLookup<CarrierHullSegment>(true);
             _carrierQuery = SystemAPI.QueryBuilder()
                 .WithAll<CarrierModuleSlot, ModuleRefitRequest>()
                 .Build();
@@ -61,9 +59,8 @@ namespace Space4X.Registry
             _skillsLookup.Update(ref state);
             _xpLookup.Update(ref state);
             _aggregateLookup.Update(ref state);
-            _slotRequirementLookup.Update(ref state);
-            _hullIdLookup.Update(ref state);
             _moduleTypeLookup.Update(ref state);
+            _hullSegmentLookup.Update(ref state);
 
             var hasSkillLog = SystemAPI.TryGetSingletonBuffer<SkillChangeLogEntry>(out var skillLog);
             var hasMaintenanceLog = SystemAPI.TryGetSingletonBuffer<ModuleMaintenanceCommandLogEntry>(out var maintenanceLog);
@@ -90,11 +87,27 @@ namespace Space4X.Registry
 
                 var facility = _facilityLookup[entity];
                 var hasInFacilityTag = state.EntityManager.HasComponent<InRefitFacilityTag>(entity);
-                var hullId = _hullIdLookup.HasComponent(entity) ? _hullIdLookup[entity].HullId : default;
-                
-                if (!ModuleCatalogUtility.CanPerformFieldRefit(ref state, hullId, hasInFacilityTag))
+                var hasHullId = Space4XModuleCompatibilityUtility.TryResolveHullId(state.EntityManager, entity, out var hullId);
+
+                if (hasHullId)
+                {
+                    if (!ModuleCatalogUtility.CanPerformFieldRefit(ref state, hullId, hasInFacilityTag))
+                    {
+                        continue;
+                    }
+                }
+                else if (!hasInFacilityTag)
                 {
                     continue;
+                }
+
+                if (hasHullId && _hullSegmentLookup.HasBuffer(entity))
+                {
+                    var segments = _hullSegmentLookup[entity];
+                    if (!ModuleCatalogUtility.TryValidateHullSegmentAssembly(ref state, hullId, segments, out _))
+                    {
+                        continue;
+                    }
                 }
 
                 var requestIndex = GetNextRequestIndex(requests);
@@ -108,7 +121,7 @@ namespace Space4X.Registry
                 }
 
                 var slot = slots[slotIndex];
-                if (!ValidateTarget(ref state, slot.SlotSize, request.TargetModule))
+                if (!ValidateTarget(ref state, entity, slot, request.TargetModule))
                 {
                     requests.RemoveAt(requestIndex);
                     continue;
@@ -173,7 +186,7 @@ namespace Space4X.Registry
             return _aggregateLookup.HasComponent(entity) ? math.max(0f, _aggregateLookup[entity].RefitRateMultiplier) : 1f;
         }
 
-        private bool ValidateTarget(ref SystemState state, ModuleSlotSize slotSize, Entity target)
+        private static bool ValidateTarget(ref SystemState state, Entity host, in CarrierModuleSlot slot, Entity target)
         {
             if (target == Entity.Null)
             {
@@ -185,12 +198,9 @@ namespace Space4X.Registry
                 return false;
             }
 
-            if (_slotRequirementLookup.HasComponent(target))
-            {
-                return _slotRequirementLookup[target].SlotSize == slotSize;
-            }
-
-            return true;
+            var layout = default(DynamicBuffer<Space4XCarrierModuleSocketLayout>);
+            var compatibility = Space4XModuleCompatibilityUtility.ValidateModuleForSlot(state.EntityManager, host, target, slot, layout);
+            return compatibility == Space4XModuleCompatibilityCode.Success;
         }
 
         private static int FindSlotIndex(DynamicBuffer<CarrierModuleSlot> slots, int slotIndex)

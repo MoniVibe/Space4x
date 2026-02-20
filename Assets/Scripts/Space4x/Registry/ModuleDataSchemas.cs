@@ -52,6 +52,42 @@ namespace Space4X.Registry
         Other = 255
     }
 
+    public enum HullClass : byte
+    {
+        Escort = 0,
+        LightCarrier = 1,
+        Carrier = 2,
+        Battleship = 3,
+        Dreadnaught = 4,
+        Station = 5,
+        Freighter = 6,
+        Other = 255
+    }
+
+    public enum HullSegmentRole : byte
+    {
+        General = 0,
+        Bridge = 1,
+        EngineStern = 2,
+        Command = 3,
+        Research = 4,
+        Spinal = 5,
+        Utility = 6,
+        Production = 7,
+        Other = 255
+    }
+
+    public enum HullSegmentValidationError : byte
+    {
+        None = 0,
+        HullSpecMissing = 1,
+        SegmentSpecMissing = 2,
+        SegmentCountOutOfRange = 3,
+        SegmentFamilyNotAllowed = 4,
+        RequiredRoleMissing = 5,
+        RequiredRoleExceeded = 6
+    }
+
     public enum ModuleFunction : byte
     {
         None = 0,
@@ -165,12 +201,42 @@ namespace Space4X.Registry
         public MountSize Size;
     }
 
+    public struct HullSegmentRoleRequirement
+    {
+        public HullSegmentRole Role;
+        public byte MinCount;
+        public byte MaxCount;
+    }
+
+    public struct HullSegmentSpec
+    {
+        public FixedString64Bytes Id;
+        public FixedString64Bytes FamilyId;
+        public HullSegmentRole Role;
+        public byte IsGeneralPurpose;
+        public float MassCapacityTons;
+        public float CargoCapacityUnits;
+        public float PowerCapacityMW;
+        public byte WeaponHardpoints;
+        public byte ArmorSlots;
+        public byte ShieldSlots;
+        public byte EngineSlots;
+        public byte InternalSlots;
+        public byte FacilitySlots;
+    }
+
     public struct HullSpec
     {
         public FixedString64Bytes Id;
         public float BaseMassTons;
         public bool FieldRefitAllowed;
+        public HullClass Class;
+        public byte MinSegmentCount;
+        public byte MaxSegmentCount;
         public BlobArray<HullSlot> Slots;
+        public BlobArray<FixedString64Bytes> AllowedSegmentFamilies;
+        public BlobArray<HullSegmentRoleRequirement> RequiredSegmentRoles;
+        public BlobArray<FixedString64Bytes> DefaultSegmentIds;
         // Prefab generation metadata
         public HullCategory Category;
         public float HangarCapacity; // Total hangar capacity (sum of hangar modules)
@@ -206,6 +272,11 @@ namespace Space4X.Registry
         public BlobArray<HullSpec> Hulls;
     }
 
+    public struct HullSegmentCatalogBlob
+    {
+        public BlobArray<HullSegmentSpec> Segments;
+    }
+
     public struct ModuleCatalogSingleton : IComponentData
     {
         public BlobAssetReference<ModuleCatalogBlob> Catalog;
@@ -214,6 +285,11 @@ namespace Space4X.Registry
     public struct HullCatalogSingleton : IComponentData
     {
         public BlobAssetReference<HullCatalogBlob> Catalog;
+    }
+
+    public struct HullSegmentCatalogSingleton : IComponentData
+    {
+        public BlobAssetReference<HullSegmentCatalogBlob> Catalog;
     }
 
     public struct RefitRepairTuningSingleton : IComponentData
@@ -260,6 +336,13 @@ namespace Space4X.Registry
     }
 
     public struct HullSocketTag : IComponentData { }
+
+    [InternalBufferCapacity(4)]
+    public struct CarrierHullSegment : IBufferElementData
+    {
+        public byte SegmentIndex;
+        public FixedString64Bytes SegmentId;
+    }
 
     // Runtime components for prefab attributes
     public struct HangarCapacity : IComponentData
@@ -324,6 +407,18 @@ namespace Space4X.Registry
         public float FacilityZoneRadius;
         public FixedString64Bytes PresentationArchetype;
         public StyleTokens DefaultStyleTokens;
+        public Space4XStationSpecialization Specialization;
+        public Space4XStationServiceFlags Services;
+        public byte Tier;
+        public float ServiceScale;
+        public byte HasServiceProfileOverride;
+        public float MinStandingForApproach;
+        public float MinStandingForDock;
+        public float WarningRadiusMeters;
+        public float NoFlyRadiusMeters;
+        public byte EnforceNoFlyZone;
+        public byte DenyDockingWithoutStanding;
+        public byte HasAccessPolicyOverride;
     }
 
     public struct ResourceSpec
@@ -1255,4 +1350,3 @@ namespace Space4X.Registry
         public BlobAssetReference<AggregateComboTableBlob> Table;
     }
 }
-

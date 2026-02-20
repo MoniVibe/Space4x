@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Resource;
+using PureDOTS.Runtime.Interaction;
 using Space4X.Runtime;
 using Space4X.Registry;
 using Unity.Burst;
@@ -36,6 +37,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<ResourceSourceState> _resourceStateLookup;
         private ComponentLookup<MiningState> _miningStateLookup;
         private ComponentLookup<LocalTransform> _targetTransformLookup;
+        private ComponentLookup<PlayerFlagshipTag> _flagshipTagLookup;
+        private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -64,6 +67,8 @@ namespace Space4X.Systems.AI
             _resourceStateLookup = state.GetComponentLookup<ResourceSourceState>(true);
             _miningStateLookup = state.GetComponentLookup<MiningState>(true);
             _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _flagshipTagLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
+            _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
         }
 
         [BurstCompile]
@@ -131,6 +136,8 @@ namespace Space4X.Systems.AI
                         _resourceStateLookup.Update(ref state);
                         _miningStateLookup.Update(ref state);
                         _targetTransformLookup.Update(ref state);
+                        _flagshipTagLookup.Update(ref state);
+                        _movementSuppressedLookup.Update(ref state);
 
                         var latchConfig = Space4XMiningLatchConfig.Default;
                         if (SystemAPI.TryGetSingleton<Space4XMiningLatchConfig>(out var latchConfigSingleton))
@@ -154,6 +161,8 @@ namespace Space4X.Systems.AI
                             ResourceStateLookup = _resourceStateLookup,
                             MiningStateLookup = _miningStateLookup,
                             TargetTransformLookup = _targetTransformLookup,
+                            FlagshipTagLookup = _flagshipTagLookup,
+                            MovementSuppressedLookup = _movementSuppressedLookup,
                             DeltaTime = timeState.FixedDeltaTime,
                             CurrentTick = timeState.Tick,
                             LatchSurfaceEpsilon = surfaceEpsilon
@@ -209,12 +218,22 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<ResourceSourceState> ResourceStateLookup;
             [ReadOnly] public ComponentLookup<MiningState> MiningStateLookup;
             [ReadOnly] public ComponentLookup<LocalTransform> TargetTransformLookup;
+            [ReadOnly] public ComponentLookup<PlayerFlagshipTag> FlagshipTagLookup;
+            [ReadOnly] public ComponentLookup<MovementSuppressed> MovementSuppressedLookup;
             public float DeltaTime;
             public uint CurrentTick;
             public float LatchSurfaceEpsilon;
 
             public void Execute(ref VesselAIState aiState, in MiningVessel vessel, in LocalTransform transform, Entity entity)
             {
+                // Player flagship under RTS command handoff should not receive autonomous mining retargets.
+                if (FlagshipTagLookup.HasComponent(entity) &&
+                    MovementSuppressedLookup.HasComponent(entity) &&
+                    !MovementSuppressedLookup.IsComponentEnabled(entity))
+                {
+                    return;
+                }
+
                 aiState.StateTimer += DeltaTime;
 
                 // Check if vessel has MiningOrder that needs target assignment

@@ -37,6 +37,16 @@ namespace Space4X.Authoring
         [Tooltip("0 disables retrograde weighting boost.")]
         [Range(0f, 2f)] public float retrogradeBoost = 0f;
 
+        [Header("Braking Strategy")]
+        [Tooltip("Required relative improvement for flip-and-burn over retro-burn.")]
+        [Range(0f, 0.75f)] public float flipBurnAdvantageThreshold = 0.15f;
+        [Tooltip("Minimum time to stay committed to selected braking maneuver.")]
+        [Range(0f, 2f)] public float flipBurnCommitSeconds = 0.6f;
+        [Tooltip("Minimum speed ratio (current/base) before flip-and-burn is considered.")]
+        [Range(0f, 2f)] public float flipBurnMinSpeedRatio = 0.35f;
+        [Tooltip("Extra threshold added during combat before choosing flip-and-burn.")]
+        [Range(0f, 1f)] public float flipBurnCombatPenalty = 0.2f;
+
         [Header("Capital Ship Baseline")]
         [Range(0.3f, 1f)] public float capitalShipSpeedMultiplier = 0.85f;
         [Range(0.3f, 1f)] public float capitalShipTurnMultiplier = 0.8f;
@@ -76,6 +86,10 @@ namespace Space4X.Authoring
             intelligentTurnMultiplier = math.clamp(intelligentTurnMultiplier, 0.8f, 1.5f);
             intelligentSlowdownMultiplier = math.clamp(intelligentSlowdownMultiplier, 0.5f, 1.2f);
             retrogradeBoost = math.clamp(retrogradeBoost, 0f, 2f);
+            flipBurnAdvantageThreshold = math.clamp(flipBurnAdvantageThreshold, 0f, 0.75f);
+            flipBurnCommitSeconds = math.max(0f, flipBurnCommitSeconds);
+            flipBurnMinSpeedRatio = math.clamp(flipBurnMinSpeedRatio, 0f, 2f);
+            flipBurnCombatPenalty = math.clamp(flipBurnCombatPenalty, 0f, 1f);
             capitalShipSpeedMultiplier = math.clamp(capitalShipSpeedMultiplier, 0.3f, 1f);
             capitalShipTurnMultiplier = math.clamp(capitalShipTurnMultiplier, 0.3f, 1f);
             capitalShipAccelerationMultiplier = math.clamp(capitalShipAccelerationMultiplier, 0.3f, 1f);
@@ -116,6 +130,10 @@ namespace Space4X.Authoring
                     IntelligentTurnMultiplier = authoring.intelligentTurnMultiplier,
                     IntelligentSlowdownMultiplier = authoring.intelligentSlowdownMultiplier,
                     RetrogradeBoost = authoring.retrogradeBoost,
+                    FlipBurnAdvantageThreshold = authoring.flipBurnAdvantageThreshold,
+                    FlipBurnCommitSeconds = authoring.flipBurnCommitSeconds,
+                    FlipBurnMinSpeedRatio = authoring.flipBurnMinSpeedRatio,
+                    FlipBurnCombatPenalty = authoring.flipBurnCombatPenalty,
                     CapitalShipSpeedMultiplier = authoring.capitalShipSpeedMultiplier,
                     CapitalShipTurnMultiplier = authoring.capitalShipTurnMultiplier,
                     CapitalShipAccelerationMultiplier = authoring.capitalShipAccelerationMultiplier,

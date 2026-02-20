@@ -15,6 +15,8 @@ Use this profile for agents running on laptop/low-RAM machines.
 - Open PR with intent card.
 - Mark PR ready and add `needs-validate`.
 - Stop after handoff to validator.
+- After `needs-validate`, freeze that PR branch unless validator asks for targeted follow-up on the same branch.
+- If new ideas arrive while queued, open a new short-lived branch/PR instead of mutating the queued PR.
 
 ## Required PR Handoff
 
@@ -54,3 +56,5 @@ Include this in PR description:
 ## Required Addendum
 
 - Follow `iterators.md` and `Docs/Operations/ITERATORS.md` for the full iterator contract shared with desktop iterator sessions.
+- Validate skill availability with `skills list`; do not assume only two skills.
+- Also check `codexbridge/skills.ps1` root and `C:\dev\Tri\Tools\HeadlessRebuildTool\.agents\skills\SKILLS_INDEX.md`.

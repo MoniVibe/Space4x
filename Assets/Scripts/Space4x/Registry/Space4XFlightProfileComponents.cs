@@ -154,5 +154,9 @@ namespace Space4X.Registry
     {
         public float3 VelocityWorld;
         public byte InertialDampenersEnabled;
+        public float AngularSpeedRadians;
+        public float ForwardThrottle;
+        public float StrafeThrottle;
+        public float VerticalThrottle;
     }
 }

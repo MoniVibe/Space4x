@@ -1,7 +1,9 @@
+using PureDOTS.Runtime.AI;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Telemetry;
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
@@ -78,6 +80,49 @@ namespace Space4X.Registry
             }
 
             var pending = _pendingQuery.CalculateEntityCount();
+            var managedPilots = 0;
+            var sumDirectiveAggression = 0f;
+            var sumDirectiveCaution = 0f;
+            var sumCommandTrust = 0f;
+            var sumEffectiveAggression = 0f;
+            var sumEffectiveCaution = 0f;
+            var sumDirectivePressure = 0f;
+            var sumTrustPressure = 0f;
+            var sumSharedSelfPressure = 0f;
+            var sumSharedKinPressure = 0f;
+            var sumSharedLoyaltyPressure = 0f;
+            var sharedPressureSamples = 0;
+            var intentDriveLookup = SystemAPI.GetComponentLookup<VillagerIntentDrive>(true);
+            intentDriveLookup.Update(ref state);
+
+            foreach (var (directive, trust, runtime, entity) in SystemAPI.Query<
+                         RefRO<Space4XPilotDirective>,
+                         RefRO<Space4XPilotTrust>,
+                         RefRO<Space4XPilotBehaviorRuntime>>()
+                     .WithAll<Space4XPilotManagedTag>()
+                     .WithEntityAccess())
+            {
+                managedPilots++;
+                sumDirectiveAggression += (float)directive.ValueRO.AggressionBias;
+                sumDirectiveCaution += (float)directive.ValueRO.CautionBias;
+                sumCommandTrust += (float)trust.ValueRO.CommandTrust;
+                sumEffectiveAggression += runtime.ValueRO.Effective.Aggression;
+                sumEffectiveCaution += runtime.ValueRO.Effective.Caution;
+                sumDirectivePressure += runtime.ValueRO.DirectivePressure;
+                sumTrustPressure += runtime.ValueRO.TrustPressure;
+
+                if (intentDriveLookup.HasComponent(entity))
+                {
+                    var drive = intentDriveLookup[entity];
+                    sumSharedSelfPressure += drive.SelfPreservationPressure;
+                    sumSharedKinPressure += drive.KinshipPressure;
+                    sumSharedLoyaltyPressure += drive.LoyaltyPressure;
+                    sharedPressureSamples++;
+                }
+            }
+
+            var managedPilotDenom = math.max(1, managedPilots);
+            var sharedPressureDenom = math.max(1, sharedPressureSamples);
 
             metricBuffer.AddMetric("space4x.profile.actions.total", total, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.profile.actions.obey", obey, TelemetryMetricUnit.Count);
@@ -85,6 +130,18 @@ namespace Space4X.Registry
             metricBuffer.AddMetric("space4x.profile.actions.mining", mining, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.profile.actions.issued", issued, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.profile.pending", pending, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.pilot.manager.count", managedPilots, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.pilot.manager.directive.aggression_bias_avg", sumDirectiveAggression / managedPilotDenom, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.pilot.manager.directive.caution_bias_avg", sumDirectiveCaution / managedPilotDenom, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.pilot.manager.trust.command_avg", sumCommandTrust / managedPilotDenom, TelemetryMetricUnit.Custom);
+            metricBuffer.AddMetric("space4x.pilot.manager.effective.aggression_avg", sumEffectiveAggression / managedPilotDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.effective.caution_avg", sumEffectiveCaution / managedPilotDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.pressure.directive_avg", sumDirectivePressure / managedPilotDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.pressure.trust_avg", sumTrustPressure / managedPilotDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.shared.self_pressure_avg", sumSharedSelfPressure / sharedPressureDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.shared.kin_pressure_avg", sumSharedKinPressure / sharedPressureDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.shared.loyalty_pressure_avg", sumSharedLoyaltyPressure / sharedPressureDenom, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.pilot.manager.shared.sample_count", sharedPressureSamples, TelemetryMetricUnit.Count);
         }
     }
 }

@@ -2,6 +2,12 @@
 
 Use this profile for agents running on the desktop/buildbox machine.
 
+## Required Addendum
+
+- Follow `validator.md` and `Docs/VALIDATOR_WORKFLOW.md` for the full validator contract.
+- Validate skill availability with `skills list`; do not assume only two skills.
+- For validation/buildbox/queue workflows, prefer `C:\dev\Tri\Tools\HeadlessRebuildTool\.agents\skills\SKILLS_INDEX.md`.
+
 ## Role
 
 - You are `validator`.
@@ -64,3 +70,38 @@ Health check:
 ```powershell
 Get-Content C:\polish\anviloop\logs\nightly_pr_greenifier.log -Tail 40
 ```
+
+Greenness snapshot:
+
+```powershell
+$state = Get-Content C:\polish\anviloop\reports\nightly_pr_greenifier_state.json -Raw | ConvertFrom-Json
+$state.prs.PSObject.Properties |
+  Sort-Object { [int]$_.Name } |
+  ForEach-Object {
+    [pscustomobject]@{
+      Pr = [int]$_.Name
+      Outcome = $_.Value.outcome
+      Score = $_.Value.greenScore
+      Grade = $_.Value.greenGrade
+      UpdatedUtc = $_.Value.updatedAt
+    }
+  } | Format-Table -AutoSize
+```
+
+Scoring model:
+- `workflow_success` = 50
+- `result_zip_present` = 30
+- `playmode_pass` = 20
+- Grade bands: `supergreen` (100), `green` (80-99), `yellow` (50-79), `red` (0-49)
+
+## Red-Run Playbook
+
+1. Read PR verdict from state (`greenScore`, `greenGrade`, `greenMissing`, `runUrl`).
+2. Open evidence in order and identify first actionable failure.
+3. Checkout PR branch, apply minimal fix, push fix-up commit.
+4. Keep PR ready with `needs-validate`; do not close queue labels mid-loop.
+5. Re-check state after next run; continue until `supergreen` or stop condition reached.
+
+Same-SHA rerun note:
+- Failed SHAs are cached and skipped by greenifier.
+- Rerun same SHA only by removing that PR entry from `C:\polish\anviloop\reports\nightly_pr_greenifier_state.json`.

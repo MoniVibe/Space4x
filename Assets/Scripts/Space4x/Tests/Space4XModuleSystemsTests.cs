@@ -3,6 +3,7 @@ using NUnit.Framework;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
 using Space4X.Registry;
+using Unity.Collections;
 using Unity.Entities;
 
 namespace Space4X.Tests
@@ -283,6 +284,63 @@ namespace Space4X.Tests
         }
 
         [Test]
+        public void RefitRejectsTargetWhenModuleMountDoesNotMatchHostSocket()
+        {
+            SetTimeAndRewind(0.5f, RewindMode.Record);
+            EnsureCatalogBootstrap();
+
+            var targetModule = _entityManager.CreateEntity(typeof(ModuleTypeId), typeof(ModuleSlotRequirement));
+            _entityManager.SetComponentData(targetModule, new ModuleTypeId
+            {
+                Value = new FixedString64Bytes("missile-m-1")
+            });
+            _entityManager.SetComponentData(targetModule, new ModuleSlotRequirement
+            {
+                SlotSize = ModuleSlotSize.Medium
+            });
+
+            var carrier = _entityManager.CreateEntity(typeof(ModuleRefitFacility), typeof(CarrierHullId));
+            _entityManager.SetComponentData(carrier, new ModuleRefitFacility
+            {
+                RefitRatePerSecond = 1f,
+                SupportsFieldRefit = 1
+            });
+            _entityManager.SetComponentData(carrier, new CarrierHullId
+            {
+                HullId = new FixedString64Bytes("cv-mule")
+            });
+
+            var slots = _entityManager.AddBuffer<CarrierModuleSlot>(carrier);
+            slots.Add(new CarrierModuleSlot
+            {
+                SlotIndex = 0,
+                SlotSize = ModuleSlotSize.Medium,
+                CurrentModule = Entity.Null,
+                TargetModule = Entity.Null,
+                State = ModuleSlotState.Empty
+            });
+
+            var requests = _entityManager.AddBuffer<ModuleRefitRequest>(carrier);
+            requests.Add(new ModuleRefitRequest
+            {
+                SlotIndex = 0,
+                TargetModule = targetModule,
+                Priority = 0,
+                RequestTick = 1,
+                RequiredWork = 0.25f
+            });
+
+            var system = _world.GetOrCreateSystem<Space4XCarrierModuleRefitSystem>();
+            system.Update(_world.Unmanaged);
+
+            requests = _entityManager.GetBuffer<ModuleRefitRequest>(carrier);
+            slots = _entityManager.GetBuffer<CarrierModuleSlot>(carrier);
+            Assert.AreEqual(0, requests.Length);
+            Assert.AreEqual(ModuleSlotState.Empty, slots[0].State);
+            Assert.AreEqual(Entity.Null, slots[0].CurrentModule);
+        }
+
+        [Test]
         public void StationOverhaulRepairsBeyondFieldCap()
         {
             SetTimeAndRewind(0.25f, RewindMode.Record);
@@ -381,6 +439,82 @@ namespace Space4X.Tests
             Assert.AreEqual(5u, telemetry.LastUpdateTick);
         }
 
+        [Test]
+        public void HullSegmentValidationAcceptsGeneralSegmentsForCarrierClass()
+        {
+            EnsureCatalogBootstrap();
+
+            var hullId = new FixedString64Bytes("cv-mule");
+            var carrier = _entityManager.CreateEntity(typeof(CarrierHullId));
+            _entityManager.SetComponentData(carrier, new CarrierHullId { HullId = hullId });
+            var segments = _entityManager.AddBuffer<CarrierHullSegment>(carrier);
+            segments.Add(new CarrierHullSegment { SegmentIndex = 0, SegmentId = new FixedString64Bytes("carrier-bridge-m1") });
+            segments.Add(new CarrierHullSegment { SegmentIndex = 1, SegmentId = new FixedString64Bytes("carrier-stern-m1") });
+            segments.Add(new CarrierHullSegment { SegmentIndex = 2, SegmentId = new FixedString64Bytes("segment-command-general-s1") });
+
+            var isValid = ModuleCatalogUtility.TryValidateHullSegmentAssembly(_entityManager, hullId, segments, out var error);
+            Assert.IsTrue(isValid);
+            Assert.AreEqual(HullSegmentValidationError.None, error);
+        }
+
+        [Test]
+        public void HullSegmentValidationRejectsIncompatibleFamily()
+        {
+            EnsureCatalogBootstrap();
+
+            var hullId = new FixedString64Bytes("cv-mule");
+            var carrier = _entityManager.CreateEntity(typeof(CarrierHullId));
+            _entityManager.SetComponentData(carrier, new CarrierHullId { HullId = hullId });
+            var segments = _entityManager.AddBuffer<CarrierHullSegment>(carrier);
+            segments.Add(new CarrierHullSegment { SegmentIndex = 0, SegmentId = new FixedString64Bytes("escort-bridge-s1") });
+            segments.Add(new CarrierHullSegment { SegmentIndex = 1, SegmentId = new FixedString64Bytes("carrier-stern-m1") });
+            segments.Add(new CarrierHullSegment { SegmentIndex = 2, SegmentId = new FixedString64Bytes("segment-command-general-s1") });
+
+            var isValid = ModuleCatalogUtility.TryValidateHullSegmentAssembly(_entityManager, hullId, segments, out var error);
+            Assert.IsFalse(isValid);
+            Assert.AreEqual(HullSegmentValidationError.SegmentFamilyNotAllowed, error);
+        }
+
+        [Test]
+        public void HullSegmentValidationRejectsMissingRequiredRole()
+        {
+            EnsureCatalogBootstrap();
+
+            var hullId = new FixedString64Bytes("cv-mule");
+            var carrier = _entityManager.CreateEntity(typeof(CarrierHullId));
+            _entityManager.SetComponentData(carrier, new CarrierHullId { HullId = hullId });
+            var segments = _entityManager.AddBuffer<CarrierHullSegment>(carrier);
+            segments.Add(new CarrierHullSegment { SegmentIndex = 0, SegmentId = new FixedString64Bytes("carrier-keel-m1") });
+            segments.Add(new CarrierHullSegment { SegmentIndex = 1, SegmentId = new FixedString64Bytes("segment-command-general-s1") });
+            segments.Add(new CarrierHullSegment { SegmentIndex = 2, SegmentId = new FixedString64Bytes("segment-research-general-s1") });
+
+            var isValid = ModuleCatalogUtility.TryValidateHullSegmentAssembly(_entityManager, hullId, segments, out var error);
+            Assert.IsFalse(isValid);
+            Assert.AreEqual(HullSegmentValidationError.RequiredRoleMissing, error);
+        }
+
+        [Test]
+        public void CarrierHullSegmentBootstrapAddsDefaultSegments()
+        {
+            EnsureCatalogBootstrap();
+
+            var carrier = _entityManager.CreateEntity(typeof(CarrierHullId));
+            _entityManager.SetComponentData(carrier, new CarrierHullId
+            {
+                HullId = new FixedString64Bytes("cv-mule")
+            });
+
+            var bootstrapSystem = _world.GetOrCreateSystem<Space4XCarrierHullSegmentBootstrapSystem>();
+            bootstrapSystem.Update(_world.Unmanaged);
+
+            Assert.IsTrue(_entityManager.HasBuffer<CarrierHullSegment>(carrier));
+            var segments = _entityManager.GetBuffer<CarrierHullSegment>(carrier);
+            Assert.AreEqual(3, segments.Length);
+            Assert.AreEqual(new FixedString64Bytes("carrier-bridge-m1"), segments[0].SegmentId);
+            Assert.AreEqual(new FixedString64Bytes("carrier-keel-m1"), segments[1].SegmentId);
+            Assert.AreEqual(new FixedString64Bytes("carrier-stern-m1"), segments[2].SegmentId);
+        }
+
         private void SetTimeAndRewind(float fixedDeltaTime, RewindMode mode)
         {
             var timeEntity = _entityManager.CreateEntityQuery(ComponentType.ReadWrite<TimeState>()).GetSingletonEntity();
@@ -403,6 +537,12 @@ namespace Space4X.Tests
         private Entity GetMaintenanceEntity()
         {
             return _entityManager.CreateEntityQuery(ComponentType.ReadOnly<ModuleMaintenanceLog>()).GetSingletonEntity();
+        }
+
+        private void EnsureCatalogBootstrap()
+        {
+            var bootstrapSystem = _world.GetOrCreateSystem<ModuleCatalogBootstrapSystem>();
+            bootstrapSystem.Update(_world.Unmanaged);
         }
     }
 }

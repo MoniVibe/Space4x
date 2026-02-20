@@ -15,6 +15,8 @@ Use this profile for iterator sessions running on the desktop/buildbox machine.
 - Open PR with intent card.
 - Mark PR ready and add `needs-validate`.
 - Stop after handoff.
+- After `needs-validate`, freeze that PR branch unless validator asks for targeted follow-up on the same branch.
+- If new ideas arrive while queued, open a new short-lived branch/PR instead of mutating the queued PR.
 
 ## Not Allowed
 
@@ -26,3 +28,5 @@ Use this profile for iterator sessions running on the desktop/buildbox machine.
 ## Required Addendum
 
 - Follow `iterators.md` and `Docs/Operations/ITERATORS.md` for full iterator contract.
+- Validate skill availability with `skills list`; do not assume only two skills.
+- Also check `codexbridge/skills.ps1` root and `C:\dev\Tri\Tools\HeadlessRebuildTool\.agents\skills\SKILLS_INDEX.md`.

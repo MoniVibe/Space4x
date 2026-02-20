@@ -36,8 +36,20 @@ namespace Space4X.Runtime
         public uint HeadingHoldUntilTick;
         public uint AttackRunCommitUntilTick;
         public uint AttackRunCooldownUntilTick;
+        public uint BrakingCommitUntilTick;
         public Entity AttackRunTarget;
+        public VesselBrakingManeuver BrakingManeuver;
         public byte Initialized;
+    }
+
+    /// <summary>
+    /// Active high-speed braking maneuver selected by movement planning.
+    /// </summary>
+    public enum VesselBrakingManeuver : byte
+    {
+        None = 0,
+        RetroBurn = 1,
+        FlipAndBurn = 2
     }
 
     /// <summary>
@@ -205,6 +217,10 @@ namespace Space4X.Runtime
         public float IntelligentTurnMultiplier;
         public float IntelligentSlowdownMultiplier;
         public float RetrogradeBoost;
+        public float FlipBurnAdvantageThreshold;
+        public float FlipBurnCommitSeconds;
+        public float FlipBurnMinSpeedRatio;
+        public float FlipBurnCombatPenalty;
         public float CapitalShipSpeedMultiplier;
         public float CapitalShipTurnMultiplier;
         public float CapitalShipAccelerationMultiplier;
@@ -239,6 +255,10 @@ namespace Space4X.Runtime
             IntelligentTurnMultiplier = 1.15f,
             IntelligentSlowdownMultiplier = 0.9f,
             RetrogradeBoost = 0f,
+            FlipBurnAdvantageThreshold = 0.15f,
+            FlipBurnCommitSeconds = 0.6f,
+            FlipBurnMinSpeedRatio = 0.35f,
+            FlipBurnCombatPenalty = 0.2f,
             CapitalShipSpeedMultiplier = 0.85f,
             CapitalShipTurnMultiplier = 0.8f,
             CapitalShipAccelerationMultiplier = 0.75f,

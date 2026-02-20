@@ -137,6 +137,12 @@ namespace Space4X.Camera
 
         public bool IsFollowSelectedActive => _followSelected;
         public bool IsCinematicActive => _cinematicActive;
+        public bool IsYAxisLocked => yAxisLocked;
+
+        public void SetYAxisLocked(bool locked)
+        {
+            yAxisLocked = locked;
+        }
 
         private void OnEnable()
         {
@@ -283,6 +289,8 @@ namespace Space4X.Camera
 
         private void LateUpdate()
         {
+            PublishCommandPlaneState();
+
             var state = new CameraRigState
             {
                 Focus = _position,
@@ -483,6 +491,72 @@ namespace Space4X.Camera
                     }
                 }
             }
+        }
+
+        private void PublishCommandPlaneState()
+        {
+            if (!TryEnsureRtsInputQuery(out var entityManager))
+            {
+                return;
+            }
+
+            if (_rtsInputQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var rtsEntity = _rtsInputQuery.GetSingletonEntity();
+            bool hasState = entityManager.HasComponent<RtsCommandPlaneState>(rtsEntity);
+            var planeState = hasState
+                ? entityManager.GetComponentData<RtsCommandPlaneState>(rtsEntity)
+                : CreateDefaultCommandPlaneState();
+
+            float planeHeight = planeState.HasLastCommandPoint != 0
+                ? planeState.LastCommandPoint.y
+                : planeState.PlaneHeight;
+
+            if (math.abs(planeHeight) < 1e-3f && planeState.HasLastCommandPoint == 0)
+            {
+                planeHeight = EstimateCommandPlaneAnchor().y;
+            }
+
+            Vector3 anchor = EstimateCommandPlaneAnchor();
+            planeState.PlaneNormal = new float3(0f, 1f, 0f);
+            planeState.PlaneHeight = planeHeight;
+            planeState.PlaneOrigin = new float3(anchor.x, planeHeight, anchor.z);
+
+            if (hasState)
+            {
+                entityManager.SetComponentData(rtsEntity, planeState);
+            }
+            else
+            {
+                entityManager.AddComponentData(rtsEntity, planeState);
+            }
+        }
+
+        private RtsCommandPlaneState CreateDefaultCommandPlaneState()
+        {
+            Vector3 anchor = EstimateCommandPlaneAnchor();
+            return new RtsCommandPlaneState
+            {
+                PlaneOrigin = new float3(anchor.x, anchor.y, anchor.z),
+                PlaneNormal = new float3(0f, 1f, 0f),
+                PlaneHeight = anchor.y,
+                LastCommandPoint = float3.zero,
+                HasLastCommandPoint = 0
+            };
+        }
+
+        private Vector3 EstimateCommandPlaneAnchor()
+        {
+            if (TryGetSelectedWorldPosition(out var selectedPosition, out _))
+            {
+                return selectedPosition;
+            }
+
+            float distance = Mathf.Clamp(defaultFocusDistance, minZoomDistance, maxZoomDistance);
+            return _position + (_rotation * Vector3.forward * distance);
         }
 
         private bool TryEnsureRtsInputQuery(out EntityManager entityManager)

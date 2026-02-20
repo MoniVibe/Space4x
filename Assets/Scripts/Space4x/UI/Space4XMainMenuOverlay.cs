@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using PureDOTS.Runtime.Core;
+using Space4X.Registry;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -18,6 +19,11 @@ namespace Space4X.UI
     {
         private const string SmokeSceneName = "TRI_Space4X_Smoke";
         private const string ShipPresetCatalogResourcePath = "UI/Space4XShipPresetCatalog";
+        private static readonly Color StatBarBackground = new Color(0.06f, 0.10f, 0.14f, 0.95f);
+        private static readonly Color StatBarBorder = new Color(0.28f, 0.45f, 0.58f, 0.65f);
+        private static readonly Color SpeedAccent = new Color(0.40f, 0.84f, 0.95f, 1f);
+        private static readonly Color AgilityAccent = new Color(0.58f, 0.89f, 0.56f, 1f);
+        private static readonly Color ControlAccent = new Color(0.96f, 0.70f, 0.34f, 1f);
 
         private enum FrontendState : byte
         {
@@ -41,6 +47,8 @@ namespace Space4X.UI
         private Label _statusLabel;
         private Label _shipLabel;
         private Label _shipDescriptionLabel;
+        private Label _shipRoleLabel;
+        private Label _shipTraitLabel;
         private Label _difficultyValueLabel;
         private SliderInt _difficultySlider;
         private PlayerInput _playerInput;
@@ -51,6 +59,10 @@ namespace Space4X.UI
         private Material _shipPreviewMaterial;
         private Space4XShipPreviewShape _shipPreviewShape;
         private float _shipPreviewSpin;
+        private VisualElement _shipStatsPanel;
+        private VisualElement _speedBarFill;
+        private VisualElement _agilityBarFill;
+        private VisualElement _controlBarFill;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -280,6 +292,33 @@ namespace Space4X.UI
             _shipDescriptionLabel.style.whiteSpace = WhiteSpace.Normal;
             _shipDescriptionLabel.style.marginTop = 4f;
             container.Add(_shipDescriptionLabel);
+
+            _shipRoleLabel = CreateBodyLabel(string.Empty);
+            _shipRoleLabel.style.marginTop = 6f;
+            _shipRoleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _shipRoleLabel.style.color = new Color(0.92f, 0.92f, 0.86f, 1f);
+            container.Add(_shipRoleLabel);
+
+            _shipTraitLabel = CreateBodyLabel(string.Empty);
+            _shipTraitLabel.style.marginTop = 2f;
+            _shipTraitLabel.style.color = new Color(0.82f, 0.88f, 0.94f, 1f);
+            container.Add(_shipTraitLabel);
+
+            var statsHeader = CreateBodyLabel("Flight Profile (relative)");
+            statsHeader.style.marginTop = 6f;
+            statsHeader.style.fontSize = 12;
+            statsHeader.style.color = new Color(0.82f, 0.86f, 0.92f, 1f);
+            container.Add(statsHeader);
+
+            _shipStatsPanel = new VisualElement();
+            _shipStatsPanel.style.flexDirection = FlexDirection.Column;
+            _shipStatsPanel.style.marginTop = 2f;
+            _shipStatsPanel.style.marginBottom = 6f;
+            container.Add(_shipStatsPanel);
+
+            _shipStatsPanel.Add(CreateStatRow("Speed", out _speedBarFill, SpeedAccent));
+            _shipStatsPanel.Add(CreateStatRow("Agility", out _agilityBarFill, AgilityAccent));
+            _shipStatsPanel.Add(CreateStatRow("Control", out _controlBarFill, ControlAccent));
 
             container.Add(CreateSpacer(8f));
             container.Add(CreateBodyLabel("Difficulty"));
@@ -569,6 +608,11 @@ namespace Space4X.UI
                 _shipDescriptionLabel.text = preset.Description;
             }
 
+            if (_shipTraitLabel != null)
+            {
+                _shipTraitLabel.text = ResolveTraitLabel(preset.PresetId);
+            }
+
             if (_difficultyValueLabel != null)
             {
                 _difficultyValueLabel.text = $"Difficulty: {_difficulty}";
@@ -580,6 +624,7 @@ namespace Space4X.UI
             }
 
             UpdateShipPreview(preset);
+            UpdateShipStatBars(preset);
         }
 
         private static Label CreateTitleLabel(string text)
@@ -598,6 +643,149 @@ namespace Space4X.UI
             label.style.fontSize = 13;
             label.style.color = new Color(0.89f, 0.93f, 0.98f, 1f);
             return label;
+        }
+
+        private static VisualElement CreateStatRow(string label, out VisualElement fill, Color accent)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.marginTop = 4f;
+
+            var labelElement = CreateBodyLabel(label);
+            labelElement.style.width = 70f;
+            labelElement.style.fontSize = 12;
+            labelElement.style.unityFontStyleAndWeight = FontStyle.Bold;
+            labelElement.style.color = new Color(0.84f, 0.90f, 0.96f, 1f);
+            row.Add(labelElement);
+
+            var bar = new VisualElement();
+            bar.style.flexGrow = 1f;
+            bar.style.height = 10f;
+            bar.style.marginLeft = 6f;
+            bar.style.backgroundColor = StatBarBackground;
+            bar.style.borderTopWidth = 1f;
+            bar.style.borderRightWidth = 1f;
+            bar.style.borderBottomWidth = 1f;
+            bar.style.borderLeftWidth = 1f;
+            bar.style.borderTopColor = StatBarBorder;
+            bar.style.borderRightColor = StatBarBorder;
+            bar.style.borderBottomColor = StatBarBorder;
+            bar.style.borderLeftColor = StatBarBorder;
+            bar.style.borderTopLeftRadius = 4f;
+            bar.style.borderTopRightRadius = 4f;
+            bar.style.borderBottomLeftRadius = 4f;
+            bar.style.borderBottomRightRadius = 4f;
+            bar.style.overflow = Overflow.Hidden;
+
+            fill = new VisualElement();
+            fill.style.height = Length.Percent(100);
+            fill.style.width = Length.Percent(0);
+            fill.style.backgroundColor = accent;
+            bar.Add(fill);
+
+            row.Add(bar);
+            return row;
+        }
+
+        private void UpdateShipStatBars(in Space4XShipPresetEntry preset)
+        {
+            if (_shipRoleLabel != null)
+            {
+                _shipRoleLabel.text = ResolveRoleLabel(preset.PresetId);
+            }
+
+            var profile = preset.FlightProfile;
+            var speed = ScoreSpeed(profile);
+            var agility = ScoreAgility(profile);
+            var control = ScoreControl(profile);
+
+            SetBarFill(_speedBarFill, speed, SpeedAccent);
+            SetBarFill(_agilityBarFill, agility, AgilityAccent);
+            SetBarFill(_controlBarFill, control, ControlAccent);
+        }
+
+        private static string ResolveRoleLabel(string presetId)
+        {
+            if (string.IsNullOrWhiteSpace(presetId))
+                return "Role: Unknown";
+
+            if (presetId.IndexOf("carrier", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Role: Carrier";
+            if (presetId.IndexOf("frigate", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Role: Frigate";
+            if (presetId.IndexOf("interceptor", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Role: Interceptor";
+            if (presetId.IndexOf("timeship", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Role: Timeship";
+            if (presetId.IndexOf("skipship", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Role: Skipship";
+
+            return "Role: Custom";
+        }
+
+        private static string ResolveTraitLabel(string presetId)
+        {
+            if (string.IsNullOrWhiteSpace(presetId))
+                return "Concept: Unknown";
+
+            if (presetId.IndexOf("timeship", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Concept: Time Stop (no shields)";
+            if (presetId.IndexOf("skipship", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Concept: Skip Jump (no boost)";
+            if (presetId.IndexOf("carrier", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Concept: Heavy frame, steady drift";
+            if (presetId.IndexOf("frigate", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Concept: Balanced response";
+            if (presetId.IndexOf("interceptor", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Concept: High thrust, tight margins";
+
+            return "Concept: Experimental";
+        }
+
+        private static float ScoreSpeed(in ShipFlightProfile profile)
+        {
+            var baseSpeed = (profile.MaxForwardSpeed * 0.65f) +
+                            (profile.MaxStrafeSpeed * 0.2f) +
+                            (profile.MaxVerticalSpeed * 0.15f);
+            var boostScale = Mathf.Lerp(1f, 1.15f, Mathf.InverseLerp(1.2f, 2.2f, profile.BoostMultiplier));
+            var blended = baseSpeed * boostScale;
+            return NormalizeToPercent(blended, 80f, 210f);
+        }
+
+        private static float ScoreAgility(in ShipFlightProfile profile)
+        {
+            var agility = (profile.CursorTurnSharpness * 6f) +
+                          (profile.RollSpeedDegrees * 0.5f) +
+                          (profile.StrafeAcceleration * 0.2f);
+            return NormalizeToPercent(agility, 80f, 180f);
+        }
+
+        private static float ScoreControl(in ShipFlightProfile profile)
+        {
+            var control = (profile.DampenerDeceleration * 0.55f) +
+                          (profile.RetroBrakeAcceleration * 0.35f) +
+                          (profile.PassiveDriftDrag * 220f);
+            return NormalizeToPercent(control, 45f, 90f);
+        }
+
+        private static float NormalizeToPercent(float value, float min, float max)
+        {
+            if (max <= min + 0.001f)
+                return 0f;
+
+            var normalized = Mathf.Clamp01((value - min) / (max - min));
+            return normalized * 100f;
+        }
+
+        private static void SetBarFill(VisualElement fill, float percent, Color accent)
+        {
+            if (fill == null)
+                return;
+
+            var clamped = Mathf.Clamp(percent, 0f, 100f);
+            fill.style.width = Length.Percent(clamped);
+            fill.style.backgroundColor = Color.Lerp(StatBarBackground, accent, clamped / 100f);
         }
 
         private static VisualElement CreateSpacer(float height)
@@ -679,7 +867,7 @@ namespace Space4X.UI
 
             if (_shipPreviewMaterial != null)
             {
-                _shipPreviewMaterial.color = GetPreviewColor(preset.PreviewShape);
+                _shipPreviewMaterial.color = GetPreviewColor(preset);
             }
         }
 
@@ -758,6 +946,22 @@ namespace Space4X.UI
                 Space4XShipPreviewShape.Cylinder => new Color(0.58f, 0.89f, 0.56f, 1f),
                 _ => new Color(0.92f, 0.92f, 0.98f, 1f)
             };
+        }
+
+        private static Color GetPreviewColor(in Space4XShipPresetEntry preset)
+        {
+            var presetId = preset.PresetId ?? string.Empty;
+            if (presetId.IndexOf("timeship", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return new Color(0.54f, 0.70f, 0.98f, 1f);
+            }
+
+            if (presetId.IndexOf("skipship", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return new Color(0.98f, 0.58f, 0.28f, 1f);
+            }
+
+            return GetPreviewColor(preset.PreviewShape);
         }
 
         private void SetShipPreviewVisible(bool visible)

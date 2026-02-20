@@ -39,6 +39,8 @@ namespace Space4X.Registry
         private ComponentLookup<VesselPilotLink> _pilotLinkLookup;
         private ComponentLookup<PilotProficiency> _pilotProficiencyLookup;
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
+        private ComponentLookup<Space4XPilotDirective> _pilotDirectiveLookup;
+        private ComponentLookup<Space4XPilotTrust> _pilotTrustLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
         private ComponentLookup<Space4XMiningToolProfile> _toolProfileLookup;
         private ComponentLookup<Space4XFocusModifiers> _focusLookup;
@@ -160,6 +162,8 @@ namespace Space4X.Registry
             _pilotLinkLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _pilotProficiencyLookup = state.GetComponentLookup<PilotProficiency>(true);
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
+            _pilotDirectiveLookup = state.GetComponentLookup<Space4XPilotDirective>(true);
+            _pilotTrustLookup = state.GetComponentLookup<Space4XPilotTrust>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
             _toolProfileLookup = state.GetComponentLookup<Space4XMiningToolProfile>(true);
             _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
@@ -239,6 +243,8 @@ namespace Space4X.Registry
             _crewSkillsLookup.Update(ref state);
             _pilotLinkLookup.Update(ref state);
             _behaviorDispositionLookup.Update(ref state);
+            _pilotDirectiveLookup.Update(ref state);
+            _pilotTrustLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
             _asteroidVolumeLookup.Update(ref state);
             _terrainVolumeLookup.Update(ref state);
@@ -448,7 +454,8 @@ namespace Space4X.Registry
                 var toolProfile = ResolveToolProfile(entity);
                 var toolKind = toolProfile.ToolKind;
                 var toolShape = ResolveToolShape(toolProfile);
-                var disposition = ResolveBehaviorDisposition(entity);
+                var profileEntity = ResolveProfileEntity(entity);
+                var disposition = ResolveBehaviorDisposition(entity, profileEntity);
                 var pilotSkill = ResolvePilotSkill01(entity);
                 var pilotEfficiency = ResolvePilotEfficiencyMultiplier(pilotSkill);
                 var pilotSafety = ResolvePilotSafetyMultiplier(pilotSkill);
@@ -469,6 +476,7 @@ namespace Space4X.Registry
                 miningState.ValueRW.ToolInstability01 = toolInstability01;
                 var returnRatio = ResolveCargoReturnRatio(disposition);
                 returnRatio = AdjustCargoReturnRatio(returnRatio, pilotSkill, logisticsMultiplier, toolHeat01, toolInstability01);
+                returnRatio = ApplyPilotManagerRiskBias(returnRatio, profileEntity);
                 var isCargoFull = vesselData.CurrentCargo >= vesselData.CargoCapacity * returnRatio;
                 var isAsteroidEmpty = _resourceStateLookup.HasComponent(target) &&
                                       _resourceStateLookup[target].UnitsRemaining <= 0f;
@@ -1560,9 +1568,8 @@ namespace Space4X.Registry
             state.EntityManager.AddBuffer<PlayEffectRequest>(_effectStreamEntity);
         }
 
-        private BehaviorDisposition ResolveBehaviorDisposition(Entity miner)
+        private BehaviorDisposition ResolveBehaviorDisposition(Entity miner, Entity profileEntity)
         {
-            var profileEntity = ResolveProfileEntity(miner);
             if (_behaviorDispositionLookup.HasComponent(profileEntity))
             {
                 return _behaviorDispositionLookup[profileEntity];
@@ -1574,6 +1581,34 @@ namespace Space4X.Registry
             }
 
             return BehaviorDisposition.Default;
+        }
+
+        private float ApplyPilotManagerRiskBias(float returnRatio, Entity profileEntity)
+        {
+            if (profileEntity == Entity.Null)
+            {
+                return returnRatio;
+            }
+
+            var bias = 0f;
+            if (_pilotDirectiveLookup.HasComponent(profileEntity))
+            {
+                var directive = _pilotDirectiveLookup[profileEntity];
+                var riskDirective = math.clamp((float)directive.RiskBias, -1f, 1f);
+                var cautionDirective = math.clamp((float)directive.CautionBias, -1f, 1f);
+                bias += riskDirective * 0.08f;
+                bias -= cautionDirective * 0.06f;
+            }
+
+            if (_pilotTrustLookup.HasComponent(profileEntity))
+            {
+                var trust = _pilotTrustLookup[profileEntity];
+                var commandTrust = math.clamp((float)trust.CommandTrust, -1f, 1f);
+                bias += math.saturate(-commandTrust) * 0.06f;
+                bias -= math.saturate(commandTrust) * 0.03f;
+            }
+
+            return math.clamp(returnRatio + bias, 0.5f, 0.99f);
         }
 
         private float ResolveLogisticsOpsMultiplier(Entity miner, Entity carrier, in CraftOperatorTuning tuning)

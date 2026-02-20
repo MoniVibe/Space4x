@@ -140,7 +140,20 @@ namespace Space4X.Systems.AI
 
                 if (!movementEnabled)
                 {
+                    // RTS handoff path: when flagship movement suppression is disabled,
+                    // leave movement/intent ownership to AI/order systems.
+                    if (!movementSuppressed)
+                    {
+                        input.ToggleDampenersRequested = 0;
+                        inputRef.ValueRW = input;
+                        continue;
+                    }
+
                     runtime.VelocityWorld = float3.zero;
+                    runtime.AngularSpeedRadians = 0f;
+                    runtime.ForwardThrottle = 0f;
+                    runtime.StrafeThrottle = 0f;
+                    runtime.VerticalThrottle = 0f;
                     runtimeRef.ValueRW = runtime;
 
                     if (hasMovement)
@@ -158,27 +171,57 @@ namespace Space4X.Systems.AI
                 }
 
                 var velocity = runtime.VelocityWorld;
+                var angularSpeed = math.max(0f, runtime.AngularSpeedRadians);
+                var forwardThrottle = math.clamp(runtime.ForwardThrottle, -1f, 1f);
+                var strafeThrottle = math.clamp(runtime.StrafeThrottle, -1f, 1f);
+                var verticalThrottle = math.clamp(runtime.VerticalThrottle, -1f, 1f);
                 var boost = input.BoostPressed != 0 ? math.max(1f, profile.BoostMultiplier) : 1f;
                 var forwardInput = math.clamp(input.Forward, -1f, 1f);
                 var strafeInput = math.clamp(input.Strafe, -1f, 1f);
                 var verticalInput = math.clamp(input.Vertical, -1f, 1f);
                 var rollInput = math.clamp(input.Roll, -1f, 1f);
+                var fighterSteeringMode = input.FighterSteeringMode != 0;
+                var turnNorm = math.saturate(profile.CursorTurnSharpness / 12f);
+                // Keep ship turn response profile-driven instead of camera-sensitivity-driven.
+                var maxAngularSpeed = math.radians(math.lerp(8f, 24f, turnNorm));
+                var angularAcceleration = math.radians(math.lerp(24f, 90f, turnNorm));
+                // Allow larger heading error so camera motion does not visually force 1:1 ship parity.
+                var maxCursorLeadAngle = math.radians(math.lerp(28f, 170f, turnNorm));
+                var speedReference = math.max(0.1f, profile.MaxForwardSpeed * boost);
                 var substepCount = (int)tickStepCount;
                 for (var step = 0; step < substepCount; step++)
                 {
-                    if (input.CursorSteeringActive != 0 &&
-                        math.lengthsq(input.CursorLookDirection) > 1e-6f)
-                    {
-                        var lookDirection = math.normalizesafe(input.CursorLookDirection, new float3(0f, 0f, 1f));
-                        var upDirection = math.normalizesafe(input.CursorUpDirection, new float3(0f, 1f, 0f));
-                        var desired = quaternion.LookRotationSafe(lookDirection, upDirection);
-                        var gain = 1f - math.exp(-math.max(0.01f, profile.CursorTurnSharpness) * dt);
-                        transform.Rotation = math.normalize(math.slerp(transform.Rotation, desired, math.saturate(gain)));
-                    }
-
+                    var speedNorm = math.saturate(math.length(velocity) / speedReference);
+                    var turnAuthority = math.lerp(1f, 0.45f, speedNorm);
+                    var maxAngularSpeedStep = maxAngularSpeed * turnAuthority;
+                    var angularAccelerationStep = angularAcceleration * turnAuthority;
                     var shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), new float3(0f, 0f, 1f));
                     var shipRight = math.normalizesafe(math.mul(transform.Rotation, new float3(1f, 0f, 0f)), new float3(1f, 0f, 0f));
                     var shipUp = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 1f, 0f)), new float3(0f, 1f, 0f));
+
+                    if (input.CursorSteeringActive != 0 &&
+                        math.lengthsq(input.CursorLookDirection) > 1e-6f)
+                    {
+                        var lookDirection = math.normalizesafe(input.CursorLookDirection, shipForward);
+                        if (!fighterSteeringMode)
+                        {
+                            lookDirection = ClampDirectionLead(shipForward, lookDirection, maxCursorLeadAngle);
+                        }
+
+                        var upDirection = math.normalizesafe(input.CursorUpDirection, shipUp);
+                        var desired = quaternion.LookRotationSafe(lookDirection, upDirection);
+                        transform.Rotation = RotateTowardsWithInertia(
+                            transform.Rotation,
+                            desired,
+                            ref angularSpeed,
+                            maxAngularSpeedStep,
+                            angularAccelerationStep,
+                            dt);
+                    }
+
+                    shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), shipForward);
+                    shipRight = math.normalizesafe(math.mul(transform.Rotation, new float3(1f, 0f, 0f)), shipRight);
+                    shipUp = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 1f, 0f)), shipUp);
 
                     var translationForward = shipForward;
                     var translationRight = shipRight;
@@ -198,20 +241,36 @@ namespace Space4X.Systems.AI
                         translationUp = math.normalizesafe(math.cross(translationForward, translationRight), shipUp);
                     }
 
-                    if (math.abs(forwardInput) > 0.001f)
+                    var forwardResponse = math.abs(forwardInput) > 0.001f
+                        ? ResolveThrottleResponse(
+                            forwardInput >= 0f ? profile.ForwardAcceleration : profile.ReverseAcceleration,
+                            forwardInput >= 0f ? profile.MaxForwardSpeed : profile.MaxReverseSpeed)
+                        : ResolveThrottleResponse(profile.DampenerDeceleration, math.max(profile.MaxForwardSpeed, profile.MaxReverseSpeed));
+                    var strafeResponse = math.abs(strafeInput) > 0.001f
+                        ? ResolveThrottleResponse(profile.StrafeAcceleration, profile.MaxStrafeSpeed)
+                        : ResolveThrottleResponse(profile.DampenerDeceleration, profile.MaxStrafeSpeed);
+                    var verticalResponse = math.abs(verticalInput) > 0.001f
+                        ? ResolveThrottleResponse(profile.VerticalAcceleration, profile.MaxVerticalSpeed)
+                        : ResolveThrottleResponse(profile.DampenerDeceleration, profile.MaxVerticalSpeed);
+
+                    forwardThrottle = MoveTowards(forwardThrottle, forwardInput, forwardResponse * dt);
+                    strafeThrottle = MoveTowards(strafeThrottle, strafeInput, strafeResponse * dt);
+                    verticalThrottle = MoveTowards(verticalThrottle, verticalInput, verticalResponse * dt);
+
+                    if (math.abs(forwardThrottle) > 0.001f)
                     {
-                        var acceleration = forwardInput >= 0f ? profile.ForwardAcceleration : profile.ReverseAcceleration;
-                        velocity += translationForward * (forwardInput * math.max(0f, acceleration) * boost * dt);
+                        var acceleration = forwardThrottle >= 0f ? profile.ForwardAcceleration : profile.ReverseAcceleration;
+                        velocity += translationForward * (forwardThrottle * math.max(0f, acceleration) * boost * dt);
                     }
 
-                    if (math.abs(strafeInput) > 0.001f)
+                    if (math.abs(strafeThrottle) > 0.001f)
                     {
-                        velocity += translationRight * (strafeInput * math.max(0f, profile.StrafeAcceleration) * boost * dt);
+                        velocity += translationRight * (strafeThrottle * math.max(0f, profile.StrafeAcceleration) * boost * dt);
                     }
 
-                    if (math.abs(verticalInput) > 0.001f)
+                    if (math.abs(verticalThrottle) > 0.001f)
                     {
-                        velocity += translationUp * (verticalInput * math.max(0f, profile.VerticalAcceleration) * boost * dt);
+                        velocity += translationUp * (verticalThrottle * math.max(0f, profile.VerticalAcceleration) * boost * dt);
                     }
 
                     var localVelocityX = math.dot(velocity, translationRight);
@@ -225,20 +284,23 @@ namespace Space4X.Systems.AI
                     if (input.RetroBrakePressed != 0)
                     {
                         velocity = MoveTowardsVector(velocity, float3.zero, math.max(0f, profile.RetroBrakeAcceleration) * boost * dt);
+                        forwardThrottle = MoveTowards(forwardThrottle, 0f, forwardResponse * dt);
+                        strafeThrottle = MoveTowards(strafeThrottle, 0f, strafeResponse * dt);
+                        verticalThrottle = MoveTowards(verticalThrottle, 0f, verticalResponse * dt);
                     }
                     else if (runtime.InertialDampenersEnabled != 0)
                     {
-                        if (math.abs(strafeInput) < 0.001f)
+                        if (math.abs(strafeInput) < 0.001f && math.abs(strafeThrottle) < 0.02f)
                         {
                             localVelocityX = MoveTowards(localVelocityX, 0f, math.max(0f, profile.DampenerDeceleration) * dt);
                         }
 
-                        if (math.abs(verticalInput) < 0.001f)
+                        if (math.abs(verticalInput) < 0.001f && math.abs(verticalThrottle) < 0.02f)
                         {
                             localVelocityY = MoveTowards(localVelocityY, 0f, math.max(0f, profile.DampenerDeceleration) * dt);
                         }
 
-                        if (math.abs(forwardInput) < 0.001f)
+                        if (math.abs(forwardInput) < 0.001f && math.abs(forwardThrottle) < 0.02f)
                         {
                             localVelocityZ = MoveTowards(localVelocityZ, 0f, math.max(0f, profile.DampenerDeceleration) * dt);
                         }
@@ -256,6 +318,8 @@ namespace Space4X.Systems.AI
 
                     if (input.AutoAlignToTranslation != 0 && input.CursorSteeringActive == 0)
                     {
+                        // Mode 2 default: only reorient while movement input is actively held.
+                        // (WASD + vertical keys)
                         var desiredTravel = translationForward * forwardInput +
                                             translationRight * strafeInput +
                                             translationUp * verticalInput;
@@ -263,12 +327,24 @@ namespace Space4X.Systems.AI
                         {
                             desiredTravel = math.normalizesafe(desiredTravel, shipForward);
                             var desiredRotation = quaternion.LookRotationSafe(desiredTravel, translationUp);
-                            var alignSharpness = math.max(0.01f, profile.CursorTurnSharpness * 0.65f);
-                            var alignGain = 1f - math.exp(-alignSharpness * dt);
-                            transform.Rotation = math.normalize(math.slerp(transform.Rotation, desiredRotation, math.saturate(alignGain)));
+                            transform.Rotation = RotateTowardsWithInertia(
+                                transform.Rotation,
+                                desiredRotation,
+                                ref angularSpeed,
+                                maxAngularSpeedStep,
+                                angularAccelerationStep,
+                                dt);
 
                             shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), shipForward);
                         }
+                        else
+                        {
+                            angularSpeed = MoveTowards(angularSpeed, 0f, angularAccelerationStep * dt);
+                        }
+                    }
+                    else if (input.CursorSteeringActive == 0)
+                    {
+                        angularSpeed = MoveTowards(angularSpeed, 0f, angularAccelerationStep * dt);
                     }
 
                     transform.Position += velocity * dt;
@@ -282,6 +358,10 @@ namespace Space4X.Systems.AI
                 }
 
                 runtime.VelocityWorld = velocity;
+                runtime.AngularSpeedRadians = angularSpeed;
+                runtime.ForwardThrottle = forwardThrottle;
+                runtime.StrafeThrottle = strafeThrottle;
+                runtime.VerticalThrottle = verticalThrottle;
                 runtimeRef.ValueRW = runtime;
                 transformRef.ValueRW = transform;
 
@@ -378,6 +458,58 @@ namespace Space4X.Systems.AI
             }
 
             return current + delta / distance * maxDelta;
+        }
+
+        private static float ResolveThrottleResponse(float acceleration, float maxSpeed)
+        {
+            var safeSpeed = math.max(0.1f, maxSpeed);
+            var response = math.max(0.15f, math.max(0.01f, acceleration) / safeSpeed);
+            return math.clamp(response, 0.15f, 3f);
+        }
+
+        private static float3 ClampDirectionLead(float3 currentForward, float3 desiredForward, float maxLeadRadians)
+        {
+            var current = math.normalizesafe(currentForward, new float3(0f, 0f, 1f));
+            var desired = math.normalizesafe(desiredForward, current);
+            maxLeadRadians = math.max(0f, maxLeadRadians);
+
+            var dot = math.clamp(math.dot(current, desired), -1f, 1f);
+            var angle = math.acos(dot);
+            if (angle <= maxLeadRadians || angle <= 1e-5f)
+            {
+                return desired;
+            }
+
+            var t = math.saturate(maxLeadRadians / angle);
+            return math.normalizesafe(math.lerp(current, desired, t), current);
+        }
+
+        private static quaternion RotateTowardsWithInertia(
+            quaternion current,
+            quaternion desired,
+            ref float angularSpeed,
+            float maxAngularSpeed,
+            float angularAcceleration,
+            float dt)
+        {
+            var currentNorm = math.normalize(current);
+            var desiredNorm = math.normalize(desired);
+            var dot = math.clamp(math.dot(currentNorm, desiredNorm), -1f, 1f);
+            var angle = math.acos(math.min(1f, math.abs(dot))) * 2f;
+            if (angle <= 1e-4f)
+            {
+                angularSpeed = MoveTowards(angularSpeed, 0f, angularAcceleration * dt);
+                return desiredNorm;
+            }
+
+            maxAngularSpeed = math.max(0f, maxAngularSpeed);
+            angularAcceleration = math.max(0f, angularAcceleration);
+            var desiredSpeed = math.min(maxAngularSpeed, angle / math.max(1e-4f, dt));
+            angularSpeed = MoveTowards(angularSpeed, desiredSpeed, angularAcceleration * dt);
+            angularSpeed = math.clamp(angularSpeed, 0f, maxAngularSpeed);
+            var step = math.min(angle, angularSpeed * dt);
+            var t = math.saturate(step / angle);
+            return math.normalize(math.slerp(currentNorm, desiredNorm, t));
         }
     }
 }

@@ -26,6 +26,7 @@ namespace Space4X.Registry
         public byte TranslationBasisOverride;
         public byte AutoAlignToTranslation;
         public byte CursorSteeringActive;
+        public byte FighterSteeringMode;
         public byte BoostPressed;
         public byte RetroBrakePressed;
         public byte ToggleDampenersRequested;
@@ -44,6 +45,7 @@ namespace Space4X.Registry
             TranslationBasisOverride = 0,
             AutoAlignToTranslation = 0,
             CursorSteeringActive = 0,
+            FighterSteeringMode = 0,
             BoostPressed = 0,
             RetroBrakePressed = 0,
             ToggleDampenersRequested = 0,

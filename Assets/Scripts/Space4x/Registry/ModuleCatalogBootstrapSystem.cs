@@ -28,6 +28,11 @@ namespace Space4X.Registry
                 CreateDefaultHullCatalog(ref state);
             }
 
+            if (!SystemAPI.TryGetSingletonEntity<HullSegmentCatalogSingleton>(out _))
+            {
+                CreateDefaultHullSegmentCatalog(ref state);
+            }
+
             if (!SystemAPI.TryGetSingletonEntity<RefitRepairTuningSingleton>(out _))
             {
                 CreateDefaultTuning(ref state);
@@ -108,6 +113,15 @@ namespace Space4X.Registry
                 {
                     hullRef.ValueRO.Catalog.Dispose();
                     hullRef.ValueRW.Catalog = default;
+                }
+            }
+
+            foreach (var segmentRef in SystemAPI.Query<RefRW<HullSegmentCatalogSingleton>>())
+            {
+                if (segmentRef.ValueRO.Catalog.IsCreated)
+                {
+                    segmentRef.ValueRO.Catalog.Dispose();
+                    segmentRef.ValueRW.Catalog = default;
                 }
             }
 
@@ -256,7 +270,19 @@ namespace Space4X.Registry
             ref var catalogBlob = ref builder.ConstructRoot<HullCatalogBlob>();
             var hullArray = builder.Allocate(ref catalogBlob.Hulls, 2);
 
-            var sparrowSlots = builder.Allocate(ref hullArray[0].Slots, 7);
+            ref var sparrow = ref hullArray[0];
+            sparrow.Id = new FixedString64Bytes("lcv-sparrow");
+            sparrow.BaseMassTons = 300f;
+            sparrow.FieldRefitAllowed = true;
+            sparrow.Class = HullClass.Escort;
+            sparrow.MinSegmentCount = 2;
+            sparrow.MaxSegmentCount = 4;
+            sparrow.Category = HullCategory.Escort;
+            sparrow.HangarCapacity = 0f;
+            sparrow.PresentationArchetype = new FixedString64Bytes("escort");
+            sparrow.DefaultStyleTokens = new StyleTokens { Palette = 0, Roughness = 128, Pattern = 0 };
+
+            var sparrowSlots = builder.Allocate(ref sparrow.Slots, 7);
             sparrowSlots[0] = new HullSlot { Type = MountType.Core, Size = MountSize.S };
             sparrowSlots[1] = new HullSlot { Type = MountType.Engine, Size = MountSize.S };
             sparrowSlots[2] = new HullSlot { Type = MountType.Hangar, Size = MountSize.S };
@@ -264,18 +290,43 @@ namespace Space4X.Registry
             sparrowSlots[4] = new HullSlot { Type = MountType.Weapon, Size = MountSize.S };
             sparrowSlots[5] = new HullSlot { Type = MountType.Defense, Size = MountSize.S };
             sparrowSlots[6] = new HullSlot { Type = MountType.Utility, Size = MountSize.S };
-            hullArray[0] = new HullSpec 
-            { 
-                Id = new FixedString64Bytes("lcv-sparrow"), 
-                BaseMassTons = 300f, 
-                FieldRefitAllowed = true,
-                Category = HullCategory.Escort,
-                HangarCapacity = 0f,
-                PresentationArchetype = new FixedString64Bytes("escort"),
-                DefaultStyleTokens = new StyleTokens { Palette = 0, Roughness = 128, Pattern = 0 }
+
+            var sparrowFamilies = builder.Allocate(ref sparrow.AllowedSegmentFamilies, 2);
+            sparrowFamilies[0] = new FixedString64Bytes("escort");
+            sparrowFamilies[1] = new FixedString64Bytes("general");
+
+            var sparrowRoleRequirements = builder.Allocate(ref sparrow.RequiredSegmentRoles, 2);
+            sparrowRoleRequirements[0] = new HullSegmentRoleRequirement
+            {
+                Role = HullSegmentRole.Bridge,
+                MinCount = 1,
+                MaxCount = 1
+            };
+            sparrowRoleRequirements[1] = new HullSegmentRoleRequirement
+            {
+                Role = HullSegmentRole.EngineStern,
+                MinCount = 1,
+                MaxCount = 1
             };
 
-            var muleSlots = builder.Allocate(ref hullArray[1].Slots, 10);
+            var sparrowDefaultSegments = builder.Allocate(ref sparrow.DefaultSegmentIds, 2);
+            sparrowDefaultSegments[0] = new FixedString64Bytes("escort-bridge-s1");
+            sparrowDefaultSegments[1] = new FixedString64Bytes("escort-stern-s1");
+            builder.Allocate(ref sparrow.BuiltInModuleLoadouts, 0);
+
+            ref var mule = ref hullArray[1];
+            mule.Id = new FixedString64Bytes("cv-mule");
+            mule.BaseMassTons = 700f;
+            mule.FieldRefitAllowed = false;
+            mule.Class = HullClass.Carrier;
+            mule.MinSegmentCount = 3;
+            mule.MaxSegmentCount = 6;
+            mule.Category = HullCategory.Carrier;
+            mule.HangarCapacity = 8f;
+            mule.PresentationArchetype = new FixedString64Bytes("carrier");
+            mule.DefaultStyleTokens = new StyleTokens { Palette = 0, Roughness = 128, Pattern = 0 };
+
+            var muleSlots = builder.Allocate(ref mule.Slots, 10);
             muleSlots[0] = new HullSlot { Type = MountType.Core, Size = MountSize.M };
             muleSlots[1] = new HullSlot { Type = MountType.Engine, Size = MountSize.M };
             muleSlots[2] = new HullSlot { Type = MountType.Hangar, Size = MountSize.M };
@@ -286,21 +337,183 @@ namespace Space4X.Registry
             muleSlots[7] = new HullSlot { Type = MountType.Defense, Size = MountSize.M };
             muleSlots[8] = new HullSlot { Type = MountType.Utility, Size = MountSize.M };
             muleSlots[9] = new HullSlot { Type = MountType.Utility, Size = MountSize.M };
-            hullArray[1] = new HullSpec 
-            { 
-                Id = new FixedString64Bytes("cv-mule"), 
-                BaseMassTons = 700f, 
-                FieldRefitAllowed = false,
-                Category = HullCategory.Carrier,
-                HangarCapacity = 8f, // 2x M hangar slots
-                PresentationArchetype = new FixedString64Bytes("carrier"),
-                DefaultStyleTokens = new StyleTokens { Palette = 0, Roughness = 128, Pattern = 0 }
+
+            var muleFamilies = builder.Allocate(ref mule.AllowedSegmentFamilies, 2);
+            muleFamilies[0] = new FixedString64Bytes("carrier");
+            muleFamilies[1] = new FixedString64Bytes("general");
+
+            var muleRoleRequirements = builder.Allocate(ref mule.RequiredSegmentRoles, 2);
+            muleRoleRequirements[0] = new HullSegmentRoleRequirement
+            {
+                Role = HullSegmentRole.Bridge,
+                MinCount = 1,
+                MaxCount = 1
             };
+            muleRoleRequirements[1] = new HullSegmentRoleRequirement
+            {
+                Role = HullSegmentRole.EngineStern,
+                MinCount = 1,
+                MaxCount = 1
+            };
+
+            var muleDefaultSegments = builder.Allocate(ref mule.DefaultSegmentIds, 3);
+            muleDefaultSegments[0] = new FixedString64Bytes("carrier-bridge-m1");
+            muleDefaultSegments[1] = new FixedString64Bytes("carrier-keel-m1");
+            muleDefaultSegments[2] = new FixedString64Bytes("carrier-stern-m1");
+            builder.Allocate(ref mule.BuiltInModuleLoadouts, 0);
 
             var blobAsset = builder.CreateBlobAssetReference<HullCatalogBlob>(Allocator.Persistent);
 
             var entity = state.EntityManager.CreateEntity();
             state.EntityManager.AddComponentData(entity, new HullCatalogSingleton { Catalog = blobAsset });
+        }
+
+        private void CreateDefaultHullSegmentCatalog(ref SystemState state)
+        {
+            using var builder = new BlobBuilder(Allocator.Temp);
+            ref var catalogBlob = ref builder.ConstructRoot<HullSegmentCatalogBlob>();
+            var segmentArray = builder.Allocate(ref catalogBlob.Segments, 8);
+
+            segmentArray[0] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("escort-bridge-s1"),
+                FamilyId = new FixedString64Bytes("escort"),
+                Role = HullSegmentRole.Bridge,
+                IsGeneralPurpose = 0,
+                MassCapacityTons = 160f,
+                CargoCapacityUnits = 40f,
+                PowerCapacityMW = 85f,
+                WeaponHardpoints = 1,
+                ArmorSlots = 1,
+                ShieldSlots = 1,
+                EngineSlots = 0,
+                InternalSlots = 2,
+                FacilitySlots = 0
+            };
+
+            segmentArray[1] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("escort-stern-s1"),
+                FamilyId = new FixedString64Bytes("escort"),
+                Role = HullSegmentRole.EngineStern,
+                IsGeneralPurpose = 0,
+                MassCapacityTons = 180f,
+                CargoCapacityUnits = 60f,
+                PowerCapacityMW = 65f,
+                WeaponHardpoints = 1,
+                ArmorSlots = 1,
+                ShieldSlots = 1,
+                EngineSlots = 2,
+                InternalSlots = 1,
+                FacilitySlots = 0
+            };
+
+            segmentArray[2] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("carrier-bridge-m1"),
+                FamilyId = new FixedString64Bytes("carrier"),
+                Role = HullSegmentRole.Bridge,
+                IsGeneralPurpose = 0,
+                MassCapacityTons = 320f,
+                CargoCapacityUnits = 120f,
+                PowerCapacityMW = 160f,
+                WeaponHardpoints = 1,
+                ArmorSlots = 2,
+                ShieldSlots = 2,
+                EngineSlots = 0,
+                InternalSlots = 3,
+                FacilitySlots = 1
+            };
+
+            segmentArray[3] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("carrier-keel-m1"),
+                FamilyId = new FixedString64Bytes("carrier"),
+                Role = HullSegmentRole.Spinal,
+                IsGeneralPurpose = 0,
+                MassCapacityTons = 420f,
+                CargoCapacityUnits = 180f,
+                PowerCapacityMW = 140f,
+                WeaponHardpoints = 2,
+                ArmorSlots = 2,
+                ShieldSlots = 1,
+                EngineSlots = 0,
+                InternalSlots = 2,
+                FacilitySlots = 2
+            };
+
+            segmentArray[4] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("carrier-stern-m1"),
+                FamilyId = new FixedString64Bytes("carrier"),
+                Role = HullSegmentRole.EngineStern,
+                IsGeneralPurpose = 0,
+                MassCapacityTons = 360f,
+                CargoCapacityUnits = 100f,
+                PowerCapacityMW = 120f,
+                WeaponHardpoints = 1,
+                ArmorSlots = 2,
+                ShieldSlots = 2,
+                EngineSlots = 3,
+                InternalSlots = 2,
+                FacilitySlots = 0
+            };
+
+            segmentArray[5] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("segment-command-general-s1"),
+                FamilyId = new FixedString64Bytes("general"),
+                Role = HullSegmentRole.Command,
+                IsGeneralPurpose = 1,
+                MassCapacityTons = 120f,
+                CargoCapacityUnits = 50f,
+                PowerCapacityMW = 75f,
+                WeaponHardpoints = 0,
+                ArmorSlots = 1,
+                ShieldSlots = 1,
+                EngineSlots = 0,
+                InternalSlots = 3,
+                FacilitySlots = 0
+            };
+
+            segmentArray[6] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("segment-research-general-s1"),
+                FamilyId = new FixedString64Bytes("general"),
+                Role = HullSegmentRole.Research,
+                IsGeneralPurpose = 1,
+                MassCapacityTons = 110f,
+                CargoCapacityUnits = 40f,
+                PowerCapacityMW = 95f,
+                WeaponHardpoints = 0,
+                ArmorSlots = 1,
+                ShieldSlots = 1,
+                EngineSlots = 0,
+                InternalSlots = 3,
+                FacilitySlots = 1
+            };
+
+            segmentArray[7] = new HullSegmentSpec
+            {
+                Id = new FixedString64Bytes("segment-production-general-s1"),
+                FamilyId = new FixedString64Bytes("general"),
+                Role = HullSegmentRole.Production,
+                IsGeneralPurpose = 1,
+                MassCapacityTons = 140f,
+                CargoCapacityUnits = 80f,
+                PowerCapacityMW = 100f,
+                WeaponHardpoints = 0,
+                ArmorSlots = 1,
+                ShieldSlots = 1,
+                EngineSlots = 0,
+                InternalSlots = 2,
+                FacilitySlots = 2
+            };
+
+            var blobAsset = builder.CreateBlobAssetReference<HullSegmentCatalogBlob>(Allocator.Persistent);
+
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, new HullSegmentCatalogSingleton { Catalog = blobAsset });
         }
 
         private void CreateDefaultTuning(ref SystemState state)

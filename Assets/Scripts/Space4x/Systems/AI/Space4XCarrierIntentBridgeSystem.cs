@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Agency;
 using PureDOTS.Runtime.Authority;
+using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Profile;
 using Space4X.Registry;
@@ -28,6 +29,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private BufferLookup<ResolvedControl> _resolvedControlLookup;
+        private ComponentLookup<PlayerFlagshipTag> _flagshipTagLookup;
+        private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -45,6 +48,8 @@ namespace Space4X.Systems.AI
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _resolvedControlLookup = state.GetBufferLookup<ResolvedControl>(true);
+            _flagshipTagLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
+            _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -128,12 +133,22 @@ namespace Space4X.Systems.AI
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
             _resolvedControlLookup.Update(ref state);
+            _flagshipTagLookup.Update(ref state);
+            _movementSuppressedLookup.Update(ref state);
 
             foreach (var (target, intent, transform, entity) in SystemAPI
                          .Query<RefRO<CarrierMiningTarget>, RefRW<EntityIntent>, RefRO<LocalTransform>>()
                          .WithAll<Carrier>()
                          .WithEntityAccess())
             {
+                // Player flagship in RTS command mode should not be overwritten by autonomous carrier mining intent.
+                if (_flagshipTagLookup.HasComponent(entity) &&
+                    _movementSuppressedLookup.HasComponent(entity) &&
+                    !_movementSuppressedLookup.IsComponentEnabled(entity))
+                {
+                    continue;
+                }
+
                 if (target.ValueRO.TargetEntity == Entity.Null)
                 {
                     if (intent.ValueRO.IsValid != 0 && intent.ValueRO.Mode != IntentMode.Idle)

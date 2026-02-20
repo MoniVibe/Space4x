@@ -184,6 +184,23 @@ namespace Space4X.Headless
             buffer.AddMetric("space4x.survivors.hostile_alive", hostileAlive, TelemetryMetricUnit.Count);
             buffer.AddMetric("space4x.survivors.hostile_attrition_ratio", hostileAttrition, TelemetryMetricUnit.Custom);
             buffer.AddMetric("space4x.survivors.damage_signal_count", damageSignalCount, TelemetryMetricUnit.Count);
+
+            if (SystemAPI.TryGetSingleton<Space4XFleetCrawlPacingRuntimeState>(out var pacing))
+            {
+                buffer.AddMetric("space4x.fleetcrawl.pacing.room_time_s", pacing.RoomTimeSeconds, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.target_room_s", pacing.TargetRoomSeconds, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.room_pressure", pacing.RoomPressure, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.run_debt", pacing.RunDebt, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.threat_scalar", pacing.ThreatScalar, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.wave_budget_mult", pacing.WaveBudgetMultiplier, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.elite_chance", pacing.EliteChance, TelemetryMetricUnit.Ratio);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.hazard_rate_mult", pacing.HazardRateMultiplier, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.reward_decay_mult", pacing.RewardDecayMultiplier, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.enemy_speed_mult", pacing.EnemySpeedMultiplier, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.enemy_damage_mult", pacing.EnemyDamageMultiplier, TelemetryMetricUnit.Custom);
+                buffer.AddMetric("space4x.fleetcrawl.pacing.enemy_cooldown_mult", pacing.EnemyCooldownMultiplier, TelemetryMetricUnit.Custom);
+            }
+
             _telemetryLogged = 1;
         }
 
