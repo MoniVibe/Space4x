@@ -78,6 +78,26 @@ namespace Space4X.Tests
             Assert.Greater(torpedoHot, missileHot);
             Assert.AreEqual(1f, kineticHot, 1e-4f);
         }
+
+        [Test]
+        public void HazardOcclusion_BeamsResistAndBlastAssists()
+        {
+            var laserProfile = Space4XWeaponFamilyNuance.ResolveProfile(
+                Space4XWeaponFamilyNuance.ResolveArchetype(Space4XWeapon.Laser(WeaponSize.Medium)));
+            var kineticProfile = Space4XWeaponFamilyNuance.ResolveProfile(
+                Space4XWeaponFamilyNuance.ResolveArchetype(Space4XWeapon.Kinetic(WeaponSize.Medium)));
+            var torpedoProfile = Space4XWeaponFamilyNuance.ResolveProfile(
+                Space4XWeaponFamilyNuance.ResolveArchetype(Space4XWeapon.Torpedo(WeaponSize.Medium)));
+
+            var beamOccluded = Space4XWeaponFamilyNuance.ResolveHazardOcclusionHitChanceMultiplier(1f, 0f, laserProfile);
+            var kineticOccluded = Space4XWeaponFamilyNuance.ResolveHazardOcclusionHitChanceMultiplier(1f, 0f, kineticProfile);
+            var torpedoNoBlast = Space4XWeaponFamilyNuance.ResolveHazardOcclusionHitChanceMultiplier(1f, 0f, torpedoProfile);
+            var torpedoBlast = Space4XWeaponFamilyNuance.ResolveHazardOcclusionHitChanceMultiplier(1f, 12f, torpedoProfile);
+
+            Assert.Greater(beamOccluded, kineticOccluded);
+            Assert.Greater(torpedoBlast, torpedoNoBlast);
+            Assert.LessOrEqual(beamOccluded, 1f);
+        }
     }
 }
 #endif

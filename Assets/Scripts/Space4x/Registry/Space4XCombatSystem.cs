@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Math;
 using PureDOTS.Runtime.Ships;
 using PureDOTS.Runtime.Steering;
 using PureDOTS.Runtime.Telemetry;
@@ -866,6 +867,8 @@ namespace Space4X.Registry
         private ComponentLookup<HullIntegrity> _hullLookup;
         private ComponentLookup<FleetcrawlHeatOutputState> _fleetcrawlHeatOutputLookup;
         private ComponentLookup<ShipPowerFocus> _shipPowerFocusLookup;
+        private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
+        private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
         private BufferLookup<DamageEvent> _damageEventLookup;
         private const float SubsystemDamageFraction = 0.25f;
         private const float AntiSubsystemDamageMultiplier = 1.5f;
@@ -910,6 +913,8 @@ namespace Space4X.Registry
             _hullLookup = state.GetComponentLookup<HullIntegrity>(false);
             _fleetcrawlHeatOutputLookup = state.GetComponentLookup<FleetcrawlHeatOutputState>(true);
             _shipPowerFocusLookup = state.GetComponentLookup<ShipPowerFocus>(true);
+            _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
+            _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
             _damageEventLookup = state.GetBufferLookup<DamageEvent>(false);
         }
 
@@ -968,9 +973,22 @@ namespace Space4X.Registry
             _hullLookup.Update(ref state);
             _fleetcrawlHeatOutputLookup.Update(ref state);
             _shipPowerFocusLookup.Update(ref state);
+            _asteroidVolumeLookup.Update(ref state);
+            _physicalLookup.Update(ref state);
             _damageEventLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var hazardSpheres = new NativeList<float4>(Allocator.Temp);
+            foreach (var (hazardTransform, hazardEntity) in SystemAPI.Query<RefRO<LocalTransform>>()
+                         .WithAll<Asteroid>()
+                         .WithEntityAccess())
+            {
+                var radius = ResolveCombatHazardRadius(hazardEntity);
+                if (radius > 0.1f)
+                {
+                    hazardSpheres.Add(new float4(hazardTransform.ValueRO.Position, radius));
+                }
+            }
 
             foreach (var (weapons, engagement, transform, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>>()
@@ -1070,6 +1088,11 @@ namespace Space4X.Registry
                     hitChance = math.clamp(hitChance * trackingPenalty, 0f, 1f);
                     hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHitChanceMultiplier(nuanceProfile), 0f, 1f);
                     hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(targetHeatSignature01, nuanceProfile), 0f, 1f);
+                    var laneOcclusion01 = ResolveHazardPathOcclusion01(transform.ValueRO.Position, targetTransform.Position, mount.Weapon, hazardSpheres);
+                    hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHazardOcclusionHitChanceMultiplier(
+                        laneOcclusion01,
+                        ResolveProjectedBlastRadius(mount.Weapon),
+                        nuanceProfile), 0f, 1f);
                     hitChance = math.clamp(hitChance * stealthHitMultiplier, 0f, 1f);
 
                     if (random.NextFloat() > hitChance)
@@ -1130,6 +1153,7 @@ namespace Space4X.Registry
                 }
             }
 
+            hazardSpheres.Dispose();
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
         }
@@ -1471,6 +1495,73 @@ namespace Space4X.Registry
             var maxScale = math.max(minScale, tuning.TrackingPenaltyMaxScale);
             var skillFactor = math.lerp(basePenalty * maxScale, basePenalty * minScale, math.saturate(gunnerySkill));
             return math.saturate(1f - omega * skillFactor);
+        }
+
+        private float ResolveCombatHazardRadius(Entity hazardEntity)
+        {
+            var radius = 0f;
+            if (_asteroidVolumeLookup.HasComponent(hazardEntity))
+            {
+                radius = math.max(radius, _asteroidVolumeLookup[hazardEntity].Radius);
+            }
+
+            if (_physicalLookup.HasComponent(hazardEntity))
+            {
+                radius = math.max(radius, _physicalLookup[hazardEntity].Radius);
+            }
+
+            return radius > 0f ? radius : 8f;
+        }
+
+        private static float ResolveHazardPathOcclusion01(
+            float3 start,
+            float3 end,
+            in Space4XWeapon weapon,
+            NativeList<float4> hazardSpheres)
+        {
+            if (hazardSpheres.Length == 0)
+            {
+                return 0f;
+            }
+
+            var pathRadius = ResolveProjectilePathRadius(weapon);
+            var occlusion = 0f;
+            for (var i = 0; i < hazardSpheres.Length; i++)
+            {
+                var hazard = hazardSpheres[i];
+                var sample = SegmentGeometry.ResolveSegmentSphereOcclusion01(start, end, hazard.xyz, hazard.w, pathRadius);
+                occlusion = math.max(occlusion, sample);
+                if (occlusion >= 0.999f)
+                {
+                    break;
+                }
+            }
+
+            return math.saturate(occlusion);
+        }
+
+        private static float ResolveProjectilePathRadius(in Space4XWeapon weapon)
+        {
+            var baseRadius = weapon.Delivery switch
+            {
+                WeaponDelivery.Beam => 0.15f,
+                WeaponDelivery.Guided => 1.1f,
+                WeaponDelivery.Bus => 1.35f,
+                _ => 0.8f
+            };
+            return baseRadius * (1f + 0.2f * (int)weapon.Size);
+        }
+
+        private static float ResolveProjectedBlastRadius(in Space4XWeapon weapon)
+        {
+            var sizeScale = 1f + 0.25f * (int)weapon.Size;
+            return weapon.Type switch
+            {
+                WeaponType.Missile => 8f * sizeScale,
+                WeaponType.Torpedo => 12f * sizeScale,
+                WeaponType.Flak => 10f * sizeScale,
+                _ => 0f
+            };
         }
 
         private float ResolveRangeScale(Entity entity)
