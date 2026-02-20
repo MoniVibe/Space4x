@@ -26,7 +26,7 @@ namespace Space4x.Fleetcrawl
         UnsafeNoReduction = 2
     }
 
-    [InternalBufferCapacity(32)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlHeatModifierDefinition : IBufferElementData
     {
         public FixedString64Bytes ModifierId;

@@ -82,7 +82,7 @@ namespace Space4x.Fleetcrawl
         Unique = 1
     }
 
-    [InternalBufferCapacity(32)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlModuleLimbDefinition : IBufferElementData
     {
         public FixedString64Bytes LimbId;
@@ -102,7 +102,7 @@ namespace Space4x.Fleetcrawl
         public float DamageMultiplier;
     }
 
-    [InternalBufferCapacity(32)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlLimbAffixDefinition : IBufferElementData
     {
         public FixedString64Bytes AffixId;
@@ -119,7 +119,7 @@ namespace Space4x.Fleetcrawl
         public float DamageMultiplier;
     }
 
-    [InternalBufferCapacity(24)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlHullSegmentDefinition : IBufferElementData
     {
         public FixedString64Bytes SegmentId;
@@ -139,7 +139,7 @@ namespace Space4x.Fleetcrawl
         public float DamageMultiplier;
     }
 
-    [InternalBufferCapacity(24)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlTrinketDefinition : IBufferElementData
     {
         public FixedString64Bytes TrinketId;
@@ -156,7 +156,7 @@ namespace Space4x.Fleetcrawl
         public float DamageMultiplier;
     }
 
-    [InternalBufferCapacity(24)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlGeneralItemDefinition : IBufferElementData
     {
         public FixedString64Bytes ItemId;
@@ -173,7 +173,7 @@ namespace Space4x.Fleetcrawl
         public float DamageMultiplier;
     }
 
-    [InternalBufferCapacity(16)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlSetBonusDefinition : IBufferElementData
     {
         public FixedString64Bytes SetId;
@@ -259,13 +259,13 @@ namespace Space4x.Fleetcrawl
         }
     }
 
-    [InternalBufferCapacity(8)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlRolledLimbBufferElement : IBufferElementData
     {
         public FleetcrawlRolledLimb Value;
     }
 
-    [InternalBufferCapacity(24)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlOwnedItem : IBufferElementData
     {
         public FleetcrawlRolledItem Value;

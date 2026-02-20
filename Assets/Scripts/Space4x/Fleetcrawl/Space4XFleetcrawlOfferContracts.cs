@@ -78,7 +78,8 @@ namespace Space4x.Fleetcrawl
         public int PurchasesResolved;
     }
 
-    [InternalBufferCapacity(24)]
+    // Keep singleton archetype lean; catalogs can spill to heap-backed buffer storage.
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlCurrencyShopCatalogEntry : IBufferElementData
     {
         public FixedString64Bytes OfferId;
@@ -89,7 +90,7 @@ namespace Space4x.Fleetcrawl
         public FleetcrawlComboTag ComboTags;
     }
 
-    [InternalBufferCapacity(24)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlLootOfferCatalogEntry : IBufferElementData
     {
         public FixedString64Bytes OfferId;
@@ -107,7 +108,7 @@ namespace Space4x.Fleetcrawl
         public FleetcrawlComboTag ComboTags;
     }
 
-    [InternalBufferCapacity(12)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlCurrencyShopOfferEntry : IBufferElementData
     {
         public int SlotIndex;
@@ -118,7 +119,7 @@ namespace Space4x.Fleetcrawl
         public uint RollHash;
     }
 
-    [InternalBufferCapacity(12)]
+    [InternalBufferCapacity(1)]
     public struct FleetcrawlLootOfferEntry : IBufferElementData
     {
         public int SlotIndex;
