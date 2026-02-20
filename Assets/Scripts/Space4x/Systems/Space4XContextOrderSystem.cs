@@ -38,6 +38,8 @@ namespace Space4X.Systems
             var rightClicks = state.EntityManager.GetBuffer<RightClickEvent>(inputEntity);
             if (rightClicks.Length == 0)
                 return;
+            using var rightClickEvents = rightClicks.ToNativeArray(Allocator.Temp);
+            rightClicks.Clear();
 
             uint tick = 0;
             if (SystemAPI.TryGetSingleton<TimeState>(out var timeState))
@@ -45,34 +47,55 @@ namespace Space4X.Systems
                 tick = timeState.Tick;
             }
 
-            foreach (var evt in rightClicks)
+            foreach (var evt in rightClickEvents)
             {
-                ProcessRightClick(ref state, evt, tick);
+                ProcessRightClick(ref state, inputEntity, evt, tick);
             }
 
-            rightClicks.Clear();
         }
 
-        private void ProcessRightClick(ref SystemState state, RightClickEvent evt, uint tick)
+        private void ProcessRightClick(ref SystemState state, Entity inputEntity, RightClickEvent evt, uint tick)
         {
-            UnityEngine.Camera camera = UnityEngine.Camera.main;
-            if (camera == null)
+            UnityEngine.Camera camera = ResolveOrderCamera();
+            bool hasRay = camera != null;
+            if (!hasRay)
+            {
                 return;
+            }
 
             UnityEngine.Ray ray = camera.ScreenPointToRay(new Vector3(evt.ScreenPos.x, evt.ScreenPos.y, 0f));
 
-            Entity hitEntity;
-            float3 hitPos;
-            bool hasHit = RaycastForEntity(ref state, ray, 2000f, out hitEntity, out hitPos);
+            Entity hitEntity = Entity.Null;
+            float3 hitPos = float3.zero;
+            bool hasHit = false;
 
-            // Default ground plane hit if no collider hit
+            if (hitEntity == Entity.Null)
+            {
+                if (RaycastForEntity(ref state, ray, 2000f, out var resolvedEntity, out var resolvedPosition))
+                {
+                    hitEntity = resolvedEntity;
+                    if (!hasHit)
+                    {
+                        hasHit = true;
+                        hitPos = resolvedPosition;
+                    }
+                }
+            }
+
+            if (!hasHit)
+            {
+                hasHit = TryProjectOnCommandPlane(ref state, inputEntity, ray, out hitPos);
+            }
+
+            // Legacy fallback: default world up plane at y = 0 when no other hit/projection is available.
             if (!hasHit)
             {
                 var plane = new UnityEngine.Plane(Vector3.up, 0f);
                 if (plane.Raycast(ray, out var enter))
                 {
                     hasHit = true;
-                    hitPos = ray.origin + ray.direction * enter;
+                    var world = ray.GetPoint(enter);
+                    hitPos = new float3(world.x, world.y, world.z);
                 }
             }
 
@@ -123,7 +146,65 @@ namespace Space4X.Systems
                 }
             }
 
+            if (hasHit)
+            {
+                UpdateCommandPlaneStateFromOrder(ref state, inputEntity, hitPos);
+            }
+
             selected.Dispose();
+        }
+
+        private bool TryProjectOnCommandPlane(ref SystemState state, Entity inputEntity, UnityEngine.Ray ray, out float3 projectedPoint)
+        {
+            projectedPoint = float3.zero;
+            if (!state.EntityManager.HasComponent<RtsCommandPlaneState>(inputEntity))
+            {
+                return false;
+            }
+
+            var planeState = state.EntityManager.GetComponentData<RtsCommandPlaneState>(inputEntity);
+            float3 normal = planeState.PlaneNormal;
+            if (math.lengthsq(normal) < 1e-6f)
+            {
+                normal = new float3(0f, 1f, 0f);
+            }
+            else
+            {
+                normal = math.normalize(normal);
+            }
+
+            float3 origin = planeState.PlaneOrigin;
+            if (math.abs(normal.y) > 0.999f)
+            {
+                origin = new float3(origin.x, planeState.PlaneHeight, origin.z);
+            }
+
+            var plane = new UnityEngine.Plane(
+                new Vector3(normal.x, normal.y, normal.z),
+                new Vector3(origin.x, origin.y, origin.z));
+            if (!plane.Raycast(ray, out float enter))
+            {
+                return false;
+            }
+
+            Vector3 world = ray.GetPoint(enter);
+            projectedPoint = new float3(world.x, world.y, world.z);
+            return true;
+        }
+
+        private void UpdateCommandPlaneStateFromOrder(ref SystemState state, Entity inputEntity, float3 commandPoint)
+        {
+            if (!state.EntityManager.HasComponent<RtsCommandPlaneState>(inputEntity))
+            {
+                return;
+            }
+
+            var planeState = state.EntityManager.GetComponentData<RtsCommandPlaneState>(inputEntity);
+            planeState.LastCommandPoint = commandPoint;
+            planeState.HasLastCommandPoint = 1;
+            planeState.PlaneHeight = commandPoint.y;
+            planeState.PlaneOrigin = commandPoint;
+            state.EntityManager.SetComponentData(inputEntity, planeState);
         }
 
         private void ApplyAttackMoveSourceHint(ref SystemState state, Entity entity, uint tick)
@@ -234,6 +315,18 @@ namespace Space4X.Systems
             }
 
             return false;
+        }
+
+        private static UnityEngine.Camera ResolveOrderCamera()
+        {
+            var main = UnityEngine.Camera.main;
+            if (main != null)
+            {
+                return main;
+            }
+
+            // RTS camera can be untagged in some scene slices; fall back to first active camera.
+            return UnityEngine.Object.FindFirstObjectByType<UnityEngine.Camera>();
         }
     }
 }
