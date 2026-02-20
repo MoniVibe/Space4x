@@ -1019,7 +1019,10 @@ namespace Space4X.Registry
                 var relativeVelocity = targetVelocity - attackerVelocity;
                 var rangeScale = ResolveRangeScale(entity);
                 var weaponsBuffer = weapons;
-                var stealthHitMultiplier = ResolveStealthHitMultiplier(target, focusDetectionBonus);
+                var targetHeatSignature01 = _fleetcrawlHeatOutputLookup.HasComponent(target)
+                    ? FleetcrawlHeatResolver.ResolveHeatSignature01(_fleetcrawlHeatOutputLookup[target])
+                    : 0f;
+                var stealthHitMultiplier = ResolveStealthHitMultiplier(target, focusDetectionBonus, targetHeatSignature01);
 
                 // Process weapons that just fired (cooldown == max)
                 for (int i = 0; i < weaponsBuffer.Length; i++)
@@ -1066,6 +1069,7 @@ namespace Space4X.Registry
                     var trackingPenalty = ResolveTrackingPenalty(mount.Weapon, distance, directionToTarget, relativeVelocity, gunnerySkill, combatTuning);
                     hitChance = math.clamp(hitChance * trackingPenalty, 0f, 1f);
                     hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHitChanceMultiplier(nuanceProfile), 0f, 1f);
+                    hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(targetHeatSignature01, nuanceProfile), 0f, 1f);
                     hitChance = math.clamp(hitChance * stealthHitMultiplier, 0f, 1f);
 
                     if (random.NextFloat() > hitChance)
@@ -1130,7 +1134,7 @@ namespace Space4X.Registry
             ecb.Dispose();
         }
 
-        private float ResolveStealthHitMultiplier(Entity target, float attackerDetectionBonus)
+        private float ResolveStealthHitMultiplier(Entity target, float attackerDetectionBonus, float targetHeatSignature01)
         {
             if (!_shipPowerFocusLookup.HasComponent(target) ||
                 _shipPowerFocusLookup[target].Mode != ShipPowerFocusMode.Stealth)
@@ -1138,14 +1142,7 @@ namespace Space4X.Registry
                 return 1f;
             }
 
-            var heatSignature01 = 0f;
-            if (_fleetcrawlHeatOutputLookup.HasComponent(target))
-            {
-                var heatOutput = _fleetcrawlHeatOutputLookup[target];
-                heatSignature01 = FleetcrawlHeatResolver.ResolveHeatSignature01(heatOutput);
-            }
-
-            heatSignature01 = math.saturate(heatSignature01 + attackerDetectionBonus * 0.6f);
+            var heatSignature01 = math.saturate(targetHeatSignature01 + attackerDetectionBonus * 0.6f);
             return math.lerp(0.55f, 1f, heatSignature01);
         }
 

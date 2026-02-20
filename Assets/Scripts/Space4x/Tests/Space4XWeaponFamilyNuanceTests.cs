@@ -55,6 +55,29 @@ namespace Space4X.Tests
 
             Assert.AreEqual(0, ammo);
         }
+
+        [Test]
+        public void GuidedWeapons_HeatSeekBonusScalesWithTargetHeat()
+        {
+            var missile = Space4XWeapon.Missile(WeaponSize.Medium);
+            var missileProfile = Space4XWeaponFamilyNuance.ResolveProfile(Space4XWeaponFamilyNuance.ResolveArchetype(missile));
+
+            var torpedo = Space4XWeapon.Torpedo(WeaponSize.Medium);
+            var torpedoProfile = Space4XWeaponFamilyNuance.ResolveProfile(Space4XWeaponFamilyNuance.ResolveArchetype(torpedo));
+
+            var kinetic = Space4XWeapon.Kinetic(WeaponSize.Medium);
+            var kineticProfile = Space4XWeaponFamilyNuance.ResolveProfile(Space4XWeaponFamilyNuance.ResolveArchetype(kinetic));
+
+            var missileCold = Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(0f, missileProfile);
+            var missileHot = Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(1f, missileProfile);
+            var torpedoHot = Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(1f, torpedoProfile);
+            var kineticHot = Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(1f, kineticProfile);
+
+            Assert.AreEqual(1f, missileCold, 1e-4f);
+            Assert.Greater(missileHot, missileCold);
+            Assert.Greater(torpedoHot, missileHot);
+            Assert.AreEqual(1f, kineticHot, 1e-4f);
+        }
     }
 }
 #endif

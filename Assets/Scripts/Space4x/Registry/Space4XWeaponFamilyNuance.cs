@@ -22,6 +22,7 @@ namespace Space4X.Registry
         public readonly float DamageFarMultiplier;
         public readonly float DamageFalloffStart01;
         public readonly float DamageFalloffEnd01;
+        public readonly float HeatSeekSignatureGain;
 
         public Space4XWeaponFamilyNuanceProfile(
             float heatMultiplier,
@@ -30,7 +31,8 @@ namespace Space4X.Registry
             float damageNearMultiplier,
             float damageFarMultiplier,
             float damageFalloffStart01,
-            float damageFalloffEnd01)
+            float damageFalloffEnd01,
+            float heatSeekSignatureGain)
         {
             HeatMultiplier = heatMultiplier;
             AmmoMultiplier = ammoMultiplier;
@@ -39,6 +41,7 @@ namespace Space4X.Registry
             DamageFarMultiplier = damageFarMultiplier;
             DamageFalloffStart01 = damageFalloffStart01;
             DamageFalloffEnd01 = damageFalloffEnd01;
+            HeatSeekSignatureGain = heatSeekSignatureGain;
         }
     }
 
@@ -68,7 +71,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1.02f,
                     damageFarMultiplier: 0.95f,
                     damageFalloffStart01: 0.4f,
-                    damageFalloffEnd01: 1f),
+                    damageFalloffEnd01: 1f,
+                    heatSeekSignatureGain: 0f),
                 Space4XWeaponNuanceArchetype.Kinetic => new Space4XWeaponFamilyNuanceProfile(
                     heatMultiplier: 0.8f,
                     ammoMultiplier: 1f,
@@ -76,7 +80,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1f,
                     damageFarMultiplier: 0.9f,
                     damageFalloffStart01: 0.5f,
-                    damageFalloffEnd01: 1f),
+                    damageFalloffEnd01: 1f,
+                    heatSeekSignatureGain: 0f),
                 Space4XWeaponNuanceArchetype.GuidedMissile => new Space4XWeaponFamilyNuanceProfile(
                     heatMultiplier: 0.95f,
                     ammoMultiplier: 1.8f,
@@ -84,7 +89,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1f,
                     damageFarMultiplier: 1f,
                     damageFalloffStart01: 1f,
-                    damageFalloffEnd01: 1f),
+                    damageFalloffEnd01: 1f,
+                    heatSeekSignatureGain: 0.28f),
                 Space4XWeaponNuanceArchetype.GuidedHeavy => new Space4XWeaponFamilyNuanceProfile(
                     heatMultiplier: 1.05f,
                     ammoMultiplier: 2.3f,
@@ -92,7 +98,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1.08f,
                     damageFarMultiplier: 0.96f,
                     damageFalloffStart01: 0.7f,
-                    damageFalloffEnd01: 1f),
+                    damageFalloffEnd01: 1f,
+                    heatSeekSignatureGain: 0.4f),
                 Space4XWeaponNuanceArchetype.DissipativePlasma => new Space4XWeaponFamilyNuanceProfile(
                     heatMultiplier: 1.35f,
                     ammoMultiplier: 0f,
@@ -100,7 +107,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1.08f,
                     damageFarMultiplier: 0.42f,
                     damageFalloffStart01: 0.35f,
-                    damageFalloffEnd01: 1f),
+                    damageFalloffEnd01: 1f,
+                    heatSeekSignatureGain: 0f),
                 Space4XWeaponNuanceArchetype.DissipativeFlame => new Space4XWeaponFamilyNuanceProfile(
                     heatMultiplier: 1.25f,
                     ammoMultiplier: 0f,
@@ -108,7 +116,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1.15f,
                     damageFarMultiplier: 0.25f,
                     damageFalloffStart01: 0.2f,
-                    damageFalloffEnd01: 0.8f),
+                    damageFalloffEnd01: 0.8f,
+                    heatSeekSignatureGain: 0f),
                 _ => new Space4XWeaponFamilyNuanceProfile(
                     heatMultiplier: 1f,
                     ammoMultiplier: 1f,
@@ -116,7 +125,8 @@ namespace Space4X.Registry
                     damageNearMultiplier: 1f,
                     damageFarMultiplier: 1f,
                     damageFalloffStart01: 1f,
-                    damageFalloffEnd01: 1f)
+                    damageFalloffEnd01: 1f,
+                    heatSeekSignatureGain: 0f)
             };
         }
 
@@ -143,6 +153,13 @@ namespace Space4X.Registry
         public static float ResolveHitChanceMultiplier(in Space4XWeaponFamilyNuanceProfile profile)
         {
             return math.clamp(profile.HitChanceMultiplier, 0.05f, 1.5f);
+        }
+
+        public static float ResolveHeatSeekHitChanceMultiplier(float targetHeatSignature01, in Space4XWeaponFamilyNuanceProfile profile)
+        {
+            var heat01 = math.saturate(targetHeatSignature01);
+            var gain = math.max(0f, profile.HeatSeekSignatureGain);
+            return math.clamp(1f + gain * heat01, 1f, 1.6f);
         }
 
         public static float ResolveDistanceDamageMultiplier(
