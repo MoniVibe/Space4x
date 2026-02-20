@@ -316,6 +316,48 @@ namespace Space4X.Registry
 
     public struct CarrierTag : IComponentData { }
 
+    public enum Space4XStationSpecialization : byte
+    {
+        General = 0,
+        Industrial = 1,
+        Military = 2,
+        Scientific = 3,
+        Logistics = 4,
+        Trade = 5
+    }
+
+    [Flags]
+    public enum Space4XStationServiceFlags : uint
+    {
+        None = 0,
+        Refit = 1u << 0,
+        Repair = 1u << 1,
+        Trade = 1u << 2,
+        Manufacturing = 1u << 3,
+        Research = 1u << 4,
+        Recruitment = 1u << 5
+    }
+
+    public struct Space4XStationServiceProfileOverride : IComponentData
+    {
+        public byte Enabled;
+        public Space4XStationSpecialization Specialization;
+        public Space4XStationServiceFlags Services;
+        public byte Tier;
+        public float ServiceScale;
+    }
+
+    public struct Space4XStationAccessPolicyOverride : IComponentData
+    {
+        public byte Enabled;
+        public float MinStandingForApproach;
+        public float MinStandingForDock;
+        public float WarningRadiusMeters;
+        public float NoFlyRadiusMeters;
+        public byte EnforceNoFlyZone;
+        public byte DenyDockingWithoutStanding;
+    }
+
     // Additional catalog types for North Star expansion
     public struct StationSpec
     {
@@ -323,6 +365,18 @@ namespace Space4X.Registry
         public bool HasRefitFacility;
         public float FacilityZoneRadius;
         public FixedString64Bytes PresentationArchetype;
+        public Space4XStationSpecialization Specialization;
+        public Space4XStationServiceFlags Services;
+        public byte Tier;
+        public float ServiceScale;
+        public byte HasServiceProfileOverride;
+        public float MinStandingForApproach;
+        public float MinStandingForDock;
+        public float WarningRadiusMeters;
+        public float NoFlyRadiusMeters;
+        public byte EnforceNoFlyZone;
+        public byte DenyDockingWithoutStanding;
+        public byte HasAccessPolicyOverride;
         public StyleTokens DefaultStyleTokens;
     }
 
@@ -1255,4 +1309,3 @@ namespace Space4X.Registry
         public BlobAssetReference<AggregateComboTableBlob> Table;
     }
 }
-
