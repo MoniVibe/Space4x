@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Steering;
 using PureDOTS.Runtime.Telemetry;
 using Space4X.Runtime;
 using Space4x.Fleetcrawl;
+using Space4x.Scenario;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -63,6 +64,7 @@ namespace Space4X.Registry
         private ComponentLookup<FleetcrawlHeatsinkState> _fleetcrawlHeatsinkLookup;
         private ComponentLookup<FleetcrawlHeatControlState> _fleetcrawlHeatControlLookup;
         private BufferLookup<FleetcrawlHeatActionEvent> _fleetcrawlHeatActionLookup;
+        private ComponentLookup<Space4XRunPlayerTag> _runPlayerLookup;
         private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
@@ -106,6 +108,7 @@ namespace Space4X.Registry
             _fleetcrawlHeatsinkLookup = state.GetComponentLookup<FleetcrawlHeatsinkState>(false);
             _fleetcrawlHeatControlLookup = state.GetComponentLookup<FleetcrawlHeatControlState>(true);
             _fleetcrawlHeatActionLookup = state.GetBufferLookup<FleetcrawlHeatActionEvent>(false);
+            _runPlayerLookup = state.GetComponentLookup<Space4XRunPlayerTag>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -156,6 +159,7 @@ namespace Space4X.Registry
             _fleetcrawlHeatsinkLookup.Update(ref state);
             _fleetcrawlHeatControlLookup.Update(ref state);
             _fleetcrawlHeatActionLookup.Update(ref state);
+            _runPlayerLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _shieldLookup.Update(ref state);
@@ -184,6 +188,23 @@ namespace Space4X.Registry
             const float defaultHeatDissipation = 0.02f;
             const float defaultHeatPerShot = 0.1f;
             const float defaultHeatCapacity = 1f;
+
+            var resolvedPlayerHeatStats = FleetcrawlResolvedHeatStats.Identity;
+            var hasResolvedPlayerHeatStats = false;
+            if (SystemAPI.TryGetSingletonEntity<FleetcrawlOfferRuntimeTag>(out var runtimeEntity))
+            {
+                var em = state.EntityManager;
+                if (em.HasBuffer<FleetcrawlRolledLimbBufferElement>(runtimeEntity) &&
+                    em.HasBuffer<FleetcrawlOwnedItem>(runtimeEntity) &&
+                    em.HasBuffer<FleetcrawlHeatModifierDefinition>(runtimeEntity))
+                {
+                    var rolledLimbs = em.GetBuffer<FleetcrawlRolledLimbBufferElement>(runtimeEntity);
+                    var ownedItems = em.GetBuffer<FleetcrawlOwnedItem>(runtimeEntity);
+                    var heatDefinitions = em.GetBuffer<FleetcrawlHeatModifierDefinition>(runtimeEntity);
+                    resolvedPlayerHeatStats = FleetcrawlHeatResolver.ResolveAggregate(rolledLimbs, ownedItems, heatDefinitions);
+                    hasResolvedPlayerHeatStats = true;
+                }
+            }
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
@@ -327,10 +348,16 @@ namespace Space4X.Registry
                         }
                     }
 
+                    var heatStats = FleetcrawlResolvedHeatStats.Identity;
+                    if (hasResolvedPlayerHeatStats && _runPlayerLookup.HasComponent(entity))
+                    {
+                        heatStats = resolvedPlayerHeatStats;
+                    }
+
                     FleetcrawlHeatResolver.TickAdvanced(
                         currentTick,
                         actions,
-                        FleetcrawlResolvedHeatStats.Identity,
+                        heatStats,
                         ref runtime,
                         ref heatsink,
                         safetyMode,
@@ -550,10 +577,10 @@ namespace Space4X.Registry
                         var actions = _fleetcrawlHeatActionLookup[entity];
                         actions.Add(new FleetcrawlHeatActionEvent
                         {
-                            ModuleType = FleetcrawlModuleType.Weapon,
-                            Slot = FleetcrawlLimbSlot.Barrel,
-                            ComboTags = FleetcrawlComboTag.None,
-                            WeaponBehaviors = FleetcrawlWeaponBehaviorTag.None,
+                            ModuleType = ResolveHeatModuleType(mount.Weapon),
+                            Slot = ResolveHeatSlot(mount.Weapon),
+                            ComboTags = ResolveHeatComboTags(mount.Weapon),
+                            WeaponBehaviors = ResolveHeatWeaponBehavior(mount.Weapon),
                             BaseHeat = math.max(0f, heatPerShot),
                             Scale = 1f
                         });
@@ -787,6 +814,48 @@ namespace Space4X.Registry
             var rot = quaternion.AxisAngle(math.up(), math.radians(degrees));
             return math.normalizesafe(math.mul(rot, direction), direction);
         }
+
+        private static FleetcrawlModuleType ResolveHeatModuleType(in Space4XWeapon weapon)
+        {
+            return weapon.Type == WeaponType.Ion ? FleetcrawlModuleType.Reactor : FleetcrawlModuleType.Weapon;
+        }
+
+        private static FleetcrawlLimbSlot ResolveHeatSlot(in Space4XWeapon weapon)
+        {
+            return weapon.Type switch
+            {
+                WeaponType.PointDefense => FleetcrawlLimbSlot.Stabilizer,
+                WeaponType.Plasma => FleetcrawlLimbSlot.Cooling,
+                _ => FleetcrawlLimbSlot.Barrel
+            };
+        }
+
+        private static FleetcrawlComboTag ResolveHeatComboTags(in Space4XWeapon weapon)
+        {
+            return weapon.Type switch
+            {
+                WeaponType.Kinetic => FleetcrawlComboTag.Kinetic | FleetcrawlComboTag.Siege,
+                WeaponType.Missile => FleetcrawlComboTag.Support | FleetcrawlComboTag.Drone,
+                WeaponType.Torpedo => FleetcrawlComboTag.Siege,
+                WeaponType.Ion => FleetcrawlComboTag.Flux | FleetcrawlComboTag.Arc,
+                WeaponType.Plasma => FleetcrawlComboTag.Flux | FleetcrawlComboTag.Vanguard,
+                _ => FleetcrawlComboTag.None
+            };
+        }
+
+        private static FleetcrawlWeaponBehaviorTag ResolveHeatWeaponBehavior(in Space4XWeapon weapon)
+        {
+            return weapon.Type switch
+            {
+                WeaponType.Laser => FleetcrawlWeaponBehaviorTag.BeamFork,
+                WeaponType.Kinetic => FleetcrawlWeaponBehaviorTag.Pierce,
+                WeaponType.Missile => FleetcrawlWeaponBehaviorTag.BurnPayload,
+                WeaponType.Flak => FleetcrawlWeaponBehaviorTag.Ricochet,
+                WeaponType.Ion => FleetcrawlWeaponBehaviorTag.Ionize,
+                WeaponType.PointDefense => FleetcrawlWeaponBehaviorTag.DroneFocus,
+                _ => FleetcrawlWeaponBehaviorTag.None
+            };
+        }
     }
 
     /// <summary>
@@ -828,6 +897,7 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XShield> _shieldLookup;
         private ComponentLookup<Space4XArmor> _armorLookup;
         private ComponentLookup<HullIntegrity> _hullLookup;
+        private ComponentLookup<FleetcrawlHeatOutputState> _fleetcrawlHeatOutputLookup;
         private BufferLookup<DamageEvent> _damageEventLookup;
         private const float SubsystemDamageFraction = 0.25f;
         private const float AntiSubsystemDamageMultiplier = 1.5f;
@@ -870,6 +940,7 @@ namespace Space4X.Registry
             _shieldLookup = state.GetComponentLookup<Space4XShield>(false);
             _armorLookup = state.GetComponentLookup<Space4XArmor>(true);
             _hullLookup = state.GetComponentLookup<HullIntegrity>(false);
+            _fleetcrawlHeatOutputLookup = state.GetComponentLookup<FleetcrawlHeatOutputState>(true);
             _damageEventLookup = state.GetBufferLookup<DamageEvent>(false);
         }
 
@@ -926,6 +997,7 @@ namespace Space4X.Registry
             _shieldLookup.Update(ref state);
             _armorLookup.Update(ref state);
             _hullLookup.Update(ref state);
+            _fleetcrawlHeatOutputLookup.Update(ref state);
             _damageEventLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -1030,6 +1102,12 @@ namespace Space4X.Registry
 
                     // Hit - calculate damage
                     float rawDamage = mount.Weapon.BaseDamage;
+
+                    if (_fleetcrawlHeatOutputLookup.HasComponent(entity))
+                    {
+                        var heatOutput = _fleetcrawlHeatOutputLookup[entity];
+                        rawDamage *= math.max(0.05f, heatOutput.DamageMultiplier);
+                    }
 
                     // Critical hit check
                     bool isCritical = CombatMath.RollCritical(0.05f, hitSeed + 1);
