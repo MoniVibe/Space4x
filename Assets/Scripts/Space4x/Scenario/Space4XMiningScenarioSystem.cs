@@ -75,7 +75,7 @@ namespace Space4x.Scenario
             _loggedPerfGateMissingScenario = false;
             Enabled = true;
 
-            if (!EntityManager.IsCreated)
+            if (World == null || !World.IsCreated)
             {
                 return;
             }
