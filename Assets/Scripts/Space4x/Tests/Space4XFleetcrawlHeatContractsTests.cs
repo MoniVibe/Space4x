@@ -368,6 +368,30 @@ namespace Space4X.Tests
             Assert.AreEqual(1.1f, merged.DecelerationMultiplier, 1e-4f);
             Assert.AreEqual(1.1f, merged.TurnRateMultiplier, 1e-4f);
         }
+
+        [Test]
+        public void ResolveHeatSignature01_IncreasesWithHeatsinkAndOverheat()
+        {
+            var cold = new FleetcrawlHeatOutputState
+            {
+                Heat01 = 0.2f,
+                HeatsinkStoredHeat = 0f,
+                HeatsinkCapacity = 0f,
+                IsOverheated = 0
+            };
+            var hot = new FleetcrawlHeatOutputState
+            {
+                Heat01 = 0.2f,
+                HeatsinkStoredHeat = 30f,
+                HeatsinkCapacity = 60f,
+                IsOverheated = 1
+            };
+
+            var coldSignature = FleetcrawlHeatResolver.ResolveHeatSignature01(cold);
+            var hotSignature = FleetcrawlHeatResolver.ResolveHeatSignature01(hot);
+            Assert.Greater(hotSignature, coldSignature);
+            Assert.LessOrEqual(hotSignature, 1f);
+        }
     }
 }
 #endif
