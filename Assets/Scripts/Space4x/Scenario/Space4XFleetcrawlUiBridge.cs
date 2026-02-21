@@ -16,6 +16,13 @@ namespace Space4x.Scenario
         public int OfferIndex;
     }
 
+    public struct Space4XFleetcrawlOfferPreview
+    {
+        public Space4XRunRewardKind RewardKind;
+        public Space4XRunBlueprintKind BlueprintKind;
+        public FixedString64Bytes RewardId;
+    }
+
     internal static class Space4XFleetcrawlUiBridge
     {
         public static bool IsFleetcrawlScenario(in FixedString64Bytes scenarioId)
@@ -67,19 +74,194 @@ namespace Space4x.Scenario
 
         public static FixedString64Bytes ResolveBoonOfferIdAt(uint seed, int roomIndex, int offerIndex)
         {
-            var start = (int)(DeterministicMix(seed, (uint)(roomIndex + 1), (uint)Space4XRunGateKind.Boon + 17u, 0xA5A5A5A5u) % 4u);
-            var index = (start + math.clamp(offerIndex, 0, 2)) % 4;
-            return ResolveBoonId(index);
+            ResolveGateOffers(seed, roomIndex, Space4XRunGateKind.Boon, out var offerA, out var offerB, out var offerC);
+            var clampedIndex = math.clamp(offerIndex, 0, 2);
+            return clampedIndex switch
+            {
+                0 => offerA.RewardId,
+                1 => offerB.RewardId,
+                _ => offerC.RewardId
+            };
         }
 
-        private static FixedString64Bytes ResolveBoonId(int index)
+        public static void ResolveGateOffers(
+            uint seed,
+            int roomIndex,
+            Space4XRunGateKind gateKind,
+            out Space4XFleetcrawlOfferPreview offerA,
+            out Space4XFleetcrawlOfferPreview offerB,
+            out Space4XFleetcrawlOfferPreview offerC)
+        {
+            var start = (int)(DeterministicMix(seed, (uint)(roomIndex + 1), (uint)gateKind + 17u, 0xA5A5A5A5u) % 4u);
+            switch (gateKind)
+            {
+                case Space4XRunGateKind.Boon:
+                    offerA = GetBoonOffer(start % 4);
+                    offerB = GetBoonOffer((start + 1) % 4);
+                    offerC = GetBoonOffer((start + 2) % 4);
+                    break;
+                case Space4XRunGateKind.Blueprint:
+                    offerA = GetBlueprintOffer(start % 4);
+                    offerB = GetBlueprintOffer((start + 1) % 4);
+                    offerC = GetBlueprintOffer((start + 2) % 4);
+                    break;
+                default:
+                    offerA = GetReliefOffer(0);
+                    offerB = GetReliefOffer(1);
+                    offerC = GetReliefOffer(2);
+                    break;
+            }
+        }
+
+        public static Space4XFleetcrawlOfferPreview ResolvePickedOffer(
+            uint seed,
+            int roomIndex,
+            Space4XRunGateKind gateKind,
+            int offerIndex)
+        {
+            ResolveGateOffers(seed, roomIndex, gateKind, out var offerA, out var offerB, out var offerC);
+            return math.clamp(offerIndex, 0, 2) switch
+            {
+                0 => offerA,
+                1 => offerB,
+                _ => offerC
+            };
+        }
+
+        public static string DescribeOffer(in Space4XFleetcrawlOfferPreview offer)
+        {
+            return offer.RewardKind switch
+            {
+                Space4XRunRewardKind.Boon => $"Boon: {DescribePerk(offer.RewardId)}",
+                Space4XRunRewardKind.ModuleBlueprint => $"Blueprint: {DescribeBlueprint(offer.RewardId)}",
+                Space4XRunRewardKind.Currency => "Relief: Currency cache (+35).",
+                Space4XRunRewardKind.Heal => "Relief: Hull patch (+8%).",
+                Space4XRunRewardKind.Reroll => "Relief: Reroll token (+1).",
+                _ => offer.RewardId.ToString()
+            };
+        }
+
+        public static string DescribePerk(in FixedString64Bytes perkId)
+        {
+            if (perkId.Equals(new FixedString64Bytes("perk_beam_chain_small")))
+            {
+                return "Beam hits chain to 1 nearby target (low chance).";
+            }
+            if (perkId.Equals(new FixedString64Bytes("perk_convert_kinetic_to_beam_100")))
+            {
+                return "All kinetic damage converts to beam.";
+            }
+            if (perkId.Equals(new FixedString64Bytes("perk_drones_use_beam")))
+            {
+                return "Drones swap to beam weapon family.";
+            }
+            if (perkId.Equals(new FixedString64Bytes("perk_beam_damage_mult_small")))
+            {
+                return "Beam damage multiplier (small stack).";
+            }
+
+            return perkId.ToString();
+        }
+
+        public static string DescribeBlueprint(in FixedString64Bytes blueprintId)
+        {
+            if (blueprintId.Equals(new FixedString64Bytes("weapon_laser_prismworks_coreA_lensBeam")))
+            {
+                return "Weapon laser build: Prismworks beam bias.";
+            }
+            if (blueprintId.Equals(new FixedString64Bytes("weapon_kinetic_baseline_coreB_barrelKinetic")))
+            {
+                return "Weapon kinetic build: baseline kinetic output.";
+            }
+            if (blueprintId.Equals(new FixedString64Bytes("reactor_prismworks_coreA_coolingStable")))
+            {
+                return "Reactor build: higher damage and better cooldowns.";
+            }
+            if (blueprintId.Equals(new FixedString64Bytes("hangar_prismworks_guidanceDroneLink_lensBeam")))
+            {
+                return "Hangar build: drone wing reinforcement.";
+            }
+
+            return blueprintId.ToString();
+        }
+
+        private static Space4XFleetcrawlOfferPreview GetBoonOffer(int index)
         {
             return index switch
             {
-                0 => new FixedString64Bytes("perk_convert_kinetic_to_beam_100"),
-                1 => new FixedString64Bytes("perk_drones_use_beam"),
-                2 => new FixedString64Bytes("perk_beam_chain_small"),
-                _ => new FixedString64Bytes("perk_beam_damage_mult_small")
+                0 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Boon,
+                    RewardId = new FixedString64Bytes("perk_convert_kinetic_to_beam_100")
+                },
+                1 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Boon,
+                    RewardId = new FixedString64Bytes("perk_drones_use_beam")
+                },
+                2 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Boon,
+                    RewardId = new FixedString64Bytes("perk_beam_chain_small")
+                },
+                _ => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Boon,
+                    RewardId = new FixedString64Bytes("perk_beam_damage_mult_small")
+                }
+            };
+        }
+
+        private static Space4XFleetcrawlOfferPreview GetBlueprintOffer(int index)
+        {
+            return index switch
+            {
+                0 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Weapon,
+                    RewardId = new FixedString64Bytes("weapon_laser_prismworks_coreA_lensBeam")
+                },
+                1 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Weapon,
+                    RewardId = new FixedString64Bytes("weapon_kinetic_baseline_coreB_barrelKinetic")
+                },
+                2 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Reactor,
+                    RewardId = new FixedString64Bytes("reactor_prismworks_coreA_coolingStable")
+                },
+                _ => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.ModuleBlueprint,
+                    BlueprintKind = Space4XRunBlueprintKind.Hangar,
+                    RewardId = new FixedString64Bytes("hangar_prismworks_guidanceDroneLink_lensBeam")
+                }
+            };
+        }
+
+        private static Space4XFleetcrawlOfferPreview GetReliefOffer(int index)
+        {
+            return index switch
+            {
+                0 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Currency,
+                    RewardId = new FixedString64Bytes("relief_currency_cache")
+                },
+                1 => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Heal,
+                    RewardId = new FixedString64Bytes("relief_hull_patch")
+                },
+                _ => new Space4XFleetcrawlOfferPreview
+                {
+                    RewardKind = Space4XRunRewardKind.Reroll,
+                    RewardId = new FixedString64Bytes("relief_reroll_token")
+                }
             };
         }
 
