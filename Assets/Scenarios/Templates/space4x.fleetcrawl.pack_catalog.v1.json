@@ -1,0 +1,39 @@
+{
+  "catalogId": "space4x.fleetcrawl.pack_catalog.v1",
+  "description": "Template for FleetCrawl room pack catalogs.",
+  "spawnPackRefs": [
+    {
+      "id": "pack.objective.sample.v1",
+      "packType": "objective",
+      "budgetCost": 20,
+      "weight": 10,
+      "maxPerRoom": 1,
+      "tags": ["objective.sample", "size.small"]
+    },
+    {
+      "id": "pack.enemy.sample.v1",
+      "packType": "enemy",
+      "budgetCost": 24,
+      "weight": 10,
+      "maxPerRoom": 1,
+      "tags": ["enemy.sample", "size.small"]
+    },
+    {
+      "id": "pack.hazard.sample.v1",
+      "packType": "hazard",
+      "budgetCost": 16,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["hazard.sample", "wildcard.hazard"]
+    },
+    {
+      "id": "pack.wildcard.sample.v1",
+      "packType": "wildcard",
+      "budgetCost": 12,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["wildcard.sample"],
+      "requiresAnyTags": ["wildcard.sample"]
+    }
+  ]
+}

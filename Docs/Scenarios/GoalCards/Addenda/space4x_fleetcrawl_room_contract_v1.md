@@ -14,6 +14,8 @@ This avoids a hard-coded room-per-combination explosion while preserving determi
 ## Data Files
 - Contract template: `Assets/Scenarios/Templates/space4x.fleetcrawl.room_contract.v1.json`
 - Concrete contract: `Assets/Scenarios/space4x_fleetcrawl_room_contract_v1.json`
+- Pack catalog template: `Assets/Scenarios/Templates/space4x.fleetcrawl.pack_catalog.v1.json`
+- Pack catalog: `Assets/Scenarios/space4x_fleetcrawl_pack_catalog_v1.json`
 - Demo scenario: `Assets/Scenarios/space4x_fleetcrawl_room_contract_demo_micro.json`
 
 ## Contract Types
@@ -31,7 +33,7 @@ This avoids a hard-coded room-per-combination explosion while preserving determi
 
 4. `SpawnPackRef`
 - Reusable pack references for hazards, enemy waves, objectives, or wildcard content.
-- Fields: `id`, `packType`, `budgetCost`, `tags`, `prefabRefs`.
+- Fields: `id`, `packType`, `budgetCost`, `weight`, `maxPerRoom`, `tags`, `requiresAnyTags`, `requiresAllTags`, `incompatibleWithTags`, `incompatiblePackIds`, `prefabRefs`.
 - `prefabRefs` intentionally support the "JSON prefab" mental model (`prefabId` + count range).
 
 ## Runtime Budget Rule

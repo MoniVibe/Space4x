@@ -1,5 +1,6 @@
 {
   "contractId": "space4x.fleetcrawl.room_contract.v1",
+  "packCatalogId": "space4x.fleetcrawl.pack_catalog.v1",
   "version": 1,
   "active": true,
   "notes": "Two-layer difficulty: runDifficulty and roomClass. Room composition uses archetype x systemSize x wildcard tags.",

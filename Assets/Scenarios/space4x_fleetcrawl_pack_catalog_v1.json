@@ -1,0 +1,152 @@
+{
+  "catalogId": "space4x.fleetcrawl.pack_catalog.v1",
+  "version": 1,
+  "notes": "FleetCrawl pack catalog for deterministic room assembly. Keep room contract focused on pacing and budgets.",
+  "spawnPackRefs": [
+    {
+      "id": "pack.objective.mining.cluster.v1",
+      "packType": "objective",
+      "budgetCost": 26,
+      "weight": 12,
+      "maxPerRoom": 1,
+      "tags": ["objective.mining", "size.small", "size.medium"]
+    },
+    {
+      "id": "pack.objective.mining.deepfield.v1",
+      "packType": "objective",
+      "budgetCost": 34,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["objective.mining", "size.medium", "size.large", "wildcard.distress"],
+      "requiresAnyTags": ["wildcard.distress", "wildcard.market"]
+    },
+    {
+      "id": "pack.objective.salvage.derelict.v1",
+      "packType": "objective",
+      "budgetCost": 28,
+      "weight": 10,
+      "maxPerRoom": 1,
+      "tags": ["objective.salvage", "size.small", "size.medium", "wildcard.anomaly"]
+    },
+    {
+      "id": "pack.objective.salvage.blackbox.v1",
+      "packType": "objective",
+      "budgetCost": 32,
+      "weight": 7,
+      "maxPerRoom": 1,
+      "tags": ["objective.salvage", "size.medium", "size.large", "wildcard.distress"],
+      "requiresAnyTags": ["wildcard.anomaly", "wildcard.distress"]
+    },
+    {
+      "id": "pack.enemy.swarm.interceptor.light.v1",
+      "packType": "enemy",
+      "budgetCost": 30,
+      "weight": 12,
+      "maxPerRoom": 2,
+      "tags": ["enemy.swarm", "enemy.light", "size.small", "size.medium"]
+    },
+    {
+      "id": "pack.enemy.swarm.interceptor.heavy.v1",
+      "packType": "enemy",
+      "budgetCost": 44,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["enemy.swarm", "enemy.heavy", "size.medium", "size.large"]
+    },
+    {
+      "id": "pack.enemy.raider.picket.v1",
+      "packType": "enemy",
+      "budgetCost": 27,
+      "weight": 10,
+      "maxPerRoom": 2,
+      "tags": ["enemy.raider", "enemy.light", "size.small", "size.medium"]
+    },
+    {
+      "id": "pack.enemy.raider.gunline.v1",
+      "packType": "enemy",
+      "budgetCost": 41,
+      "weight": 7,
+      "maxPerRoom": 1,
+      "tags": ["enemy.raider", "enemy.heavy", "size.medium", "size.large"]
+    },
+    {
+      "id": "pack.enemy.pirate.ambush.v1",
+      "packType": "enemy",
+      "budgetCost": 35,
+      "weight": 6,
+      "maxPerRoom": 1,
+      "tags": ["enemy.light", "wildcard.distress", "size.small", "size.medium"],
+      "requiresAnyTags": ["wildcard.distress"],
+      "incompatibleWithTags": ["wildcard.market"]
+    },
+    {
+      "id": "pack.hazard.asteroid.field.small.v1",
+      "packType": "hazard",
+      "budgetCost": 22,
+      "weight": 11,
+      "maxPerRoom": 2,
+      "tags": ["hazard.asteroid", "wildcard.hazard", "size.small", "size.medium"]
+    },
+    {
+      "id": "pack.hazard.radiation.band.v1",
+      "packType": "hazard",
+      "budgetCost": 25,
+      "weight": 9,
+      "maxPerRoom": 1,
+      "tags": ["hazard.radiation", "wildcard.anomaly", "size.medium", "size.large"]
+    },
+    {
+      "id": "pack.hazard.minefield.frontier.v1",
+      "packType": "hazard",
+      "budgetCost": 31,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["hazard.minefield", "wildcard.hazard", "size.medium", "size.large"],
+      "incompatiblePackIds": ["pack.hazard.asteroid.field.small.v1"]
+    },
+    {
+      "id": "pack.hazard.nebula.ion.v1",
+      "packType": "hazard",
+      "budgetCost": 29,
+      "weight": 7,
+      "maxPerRoom": 1,
+      "tags": ["hazard.nebula", "wildcard.anomaly", "size.large"]
+    },
+    {
+      "id": "pack.wildcard.market.roaming.v1",
+      "packType": "wildcard",
+      "budgetCost": 18,
+      "weight": 10,
+      "maxPerRoom": 1,
+      "tags": ["wildcard.market"],
+      "requiresAnyTags": ["wildcard.market"]
+    },
+    {
+      "id": "pack.wildcard.distress.convoy.v1",
+      "packType": "wildcard",
+      "budgetCost": 20,
+      "weight": 9,
+      "maxPerRoom": 1,
+      "tags": ["wildcard.distress"],
+      "requiresAnyTags": ["wildcard.distress"]
+    },
+    {
+      "id": "pack.wildcard.anomaly.relay.v1",
+      "packType": "wildcard",
+      "budgetCost": 23,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["wildcard.anomaly"],
+      "requiresAnyTags": ["wildcard.anomaly"]
+    },
+    {
+      "id": "pack.wildcard.hazard.echo.v1",
+      "packType": "wildcard",
+      "budgetCost": 16,
+      "weight": 6,
+      "maxPerRoom": 1,
+      "tags": ["wildcard.hazard"],
+      "requiresAnyTags": ["wildcard.hazard"]
+    }
+  ]
+}
