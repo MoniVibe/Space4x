@@ -31,6 +31,7 @@ namespace Space4X.Systems.Interaction
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<Space4XControlModeRuntimeState>();
             _celestialLookup = state.GetComponentLookup<Space4XCelestialManipulable>(true);
             _holdLookup = state.GetComponentLookup<Space4XCelestialHoldState>(false);
             _heldLookup = state.GetComponentLookup<HandHeldTag>(true);
@@ -40,6 +41,12 @@ namespace Space4X.Systems.Interaction
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var modeState = SystemAPI.GetSingleton<Space4XControlModeRuntimeState>();
+            if (modeState.IsDivineHandEnabled == 0)
+            {
+                return;
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             uint currentTick = timeState.Tick;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -168,11 +175,18 @@ namespace Space4X.Systems.Interaction
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<Space4XControlModeRuntimeState>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var modeState = SystemAPI.GetSingleton<Space4XControlModeRuntimeState>();
+            if (modeState.IsDivineHandEnabled == 0)
+            {
+                return;
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             float deltaTime = timeState.FixedDeltaTime > 0f ? timeState.FixedDeltaTime : timeState.DeltaTime;
 

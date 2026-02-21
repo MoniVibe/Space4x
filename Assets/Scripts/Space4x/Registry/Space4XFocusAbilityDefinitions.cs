@@ -419,6 +419,16 @@ namespace Space4X.Registry
         }
 
         /// <summary>
+        /// Gets special-energy activation cost for this ability.
+        /// </summary>
+        public static float GetSpecialEnergyActivationCost(Space4XFocusAbilityType ability)
+        {
+            var drainRate = GetDrainRate(ability);
+            // Keep costs in a practical range while scaling with ability intensity.
+            return math.clamp(drainRate * 28f, 2f, 16f);
+        }
+
+        /// <summary>
         /// Gets whether ability requires a target.
         /// </summary>
         public static bool RequiresTarget(Space4XFocusAbilityType ability)
@@ -617,4 +627,3 @@ namespace Space4X.Registry
         }
     }
 }
-

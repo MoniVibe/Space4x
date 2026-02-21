@@ -39,7 +39,10 @@ namespace Space4X.Camera
         [Header("Movement")]
         [SerializeField] private float moveSpeed = 30f;
         [SerializeField] private float verticalSpeed = 20f;
-        [SerializeField] private float panSpeedPerPixel = 0.1f;
+        [SerializeField] private float panSpeedPerPixel = 0.35f;
+        [SerializeField] private float fastMoveMultiplier = 4f;
+        [SerializeField] private float altitudeMoveScale = 0.02f;
+        [SerializeField] private float maxAltitudeMoveScale = 6f;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 0.2f;
@@ -322,8 +325,20 @@ namespace Space4X.Camera
             Vector3 right = movementRotation * Vector3.right;
             Vector3 up = yAxisLocked ? Vector3.up : movementRotation * Vector3.up;
 
-            Vector3 worldMove = (forward * planar.y + right * planar.x) * (moveSpeed * dt);
-            Vector3 verticalMove = up * (verticalInput * verticalSpeed * dt);
+            var keyboard = Keyboard.current;
+            var fastMovePressed = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+            var moveScale = 1f + math.abs(_position.y) * math.max(0f, altitudeMoveScale);
+            moveScale = Mathf.Clamp(moveScale, 1f, Mathf.Max(1f, maxAltitudeMoveScale));
+            if (fastMovePressed)
+            {
+                moveScale *= Mathf.Max(1f, fastMoveMultiplier);
+            }
+
+            var planarSpeed = math.max(0.01f, moveSpeed) * moveScale;
+            var verticalUnits = math.max(0.01f, verticalSpeed) * (fastMovePressed ? Mathf.Max(1f, fastMoveMultiplier) : 1f);
+
+            Vector3 worldMove = (forward * planar.y + right * planar.x) * (planarSpeed * dt);
+            Vector3 verticalMove = up * (verticalInput * verticalUnits * dt);
 
             _position += worldMove + verticalMove;
         }
@@ -389,7 +404,9 @@ namespace Space4X.Camera
                 return;
             }
 
-            bool panAllowed = inputRouter == null || (inputRouter.LeftClickAction?.IsPressed() ?? false);
+            var leftPressed = inputRouter != null && (inputRouter.LeftClickAction?.IsPressed() ?? false);
+            var middlePressed = inputRouter != null && (inputRouter.MiddleClickAction?.IsPressed() ?? false);
+            bool panAllowed = inputRouter == null || leftPressed || middlePressed;
             if (!panAllowed)
             {
                 _isDraggingPan = false;
@@ -430,7 +447,10 @@ namespace Space4X.Camera
             Vector3 right = yawRotation * Vector3.right;
             Vector3 forward = yawRotation * Vector3.forward;
 
-            Vector3 pan = (-right * panDelta.x - forward * panDelta.y) * panSpeedPerPixel;
+            var panScale = 1f + math.abs(_position.y) * math.max(0f, altitudeMoveScale);
+            panScale = Mathf.Clamp(panScale, 1f, Mathf.Max(1f, maxAltitudeMoveScale));
+            var effectivePanSpeed = math.max(0.2f, panSpeedPerPixel) * panScale;
+            Vector3 pan = (-right * panDelta.x - forward * panDelta.y) * effectivePanSpeed;
             _position += pan;
         }
 
@@ -878,31 +898,139 @@ namespace Space4X.Camera
         private Vector2 ReadMoveInput()
         {
             var action = moveAction != null ? moveAction.action : moveProfileAction;
-            return action != null ? action.ReadValue<Vector2>() : Vector2.zero;
+            if (action != null)
+            {
+                var value = action.ReadValue<Vector2>();
+                if (value.sqrMagnitude > 1e-6f)
+                {
+                    return value;
+                }
+            }
+
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return Vector2.zero;
+            }
+
+            float x = 0f;
+            float y = 0f;
+            if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) x -= 1f;
+            if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) x += 1f;
+            if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) y += 1f;
+            if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) y -= 1f;
+            return new Vector2(x, y);
         }
 
         private float ReadVerticalInput()
         {
             var action = verticalAction != null ? verticalAction.action : verticalProfileAction;
-            return action != null ? action.ReadValue<float>() : 0f;
+            if (action != null)
+            {
+                var value = action.ReadValue<float>();
+                if (math.abs(value) > 1e-6f)
+                {
+                    return value;
+                }
+            }
+
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return 0f;
+            }
+
+            float v = 0f;
+            if (keyboard.eKey.isPressed || keyboard.pageUpKey.isPressed || keyboard.spaceKey.isPressed) v += 1f;
+            if (keyboard.qKey.isPressed || keyboard.pageDownKey.isPressed || keyboard.leftCtrlKey.isPressed || keyboard.cKey.isPressed) v -= 1f;
+            return v;
         }
 
         private Vector2 ReadOrbitDelta()
         {
             var action = orbitAction != null ? orbitAction.action : orbitProfileAction;
-            return action != null ? action.ReadValue<Vector2>() : Vector2.zero;
+            if (action != null)
+            {
+                var value = action.ReadValue<Vector2>();
+                if (value.sqrMagnitude > 1e-6f)
+                {
+                    return value;
+                }
+            }
+
+            if (inputRouter != null && (inputRouter.MiddleClickAction?.IsPressed() ?? false))
+            {
+                return inputRouter.PointerDelta;
+            }
+
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.middleButton.isPressed)
+            {
+                return mouse.delta.ReadValue();
+            }
+
+            return Vector2.zero;
         }
 
         private Vector2 ReadPanDelta()
         {
             var action = panAction != null ? panAction.action : panProfileAction;
-            return action != null ? action.ReadValue<Vector2>() : Vector2.zero;
+            if (action != null)
+            {
+                var value = action.ReadValue<Vector2>();
+                if (value.sqrMagnitude > 1e-6f)
+                {
+                    return value;
+                }
+            }
+
+            if (inputRouter != null)
+            {
+                var middlePressed = inputRouter.MiddleClickAction?.IsPressed() ?? false;
+                var leftPressed = inputRouter.LeftClickAction?.IsPressed() ?? false;
+                if (middlePressed || leftPressed)
+                {
+                    return inputRouter.PointerDelta;
+                }
+            }
+
+            var mouse = Mouse.current;
+            if (mouse != null && (mouse.middleButton.isPressed || mouse.leftButton.isPressed))
+            {
+                return mouse.delta.ReadValue();
+            }
+
+            return Vector2.zero;
         }
 
         private float ReadZoomValue()
         {
             var action = zoomAction != null ? zoomAction.action : zoomProfileAction;
-            return action != null ? action.ReadValue<float>() : 0f;
+            if (action != null)
+            {
+                var value = action.ReadValue<float>();
+                if (math.abs(value) > 1e-6f)
+                {
+                    return value;
+                }
+            }
+
+            if (inputRouter != null)
+            {
+                var scroll = inputRouter.ScrollValue;
+                if (scroll.sqrMagnitude > 1e-6f)
+                {
+                    return scroll.y;
+                }
+            }
+
+            var mouse = Mouse.current;
+            if (mouse == null)
+            {
+                return 0f;
+            }
+
+            return mouse.scroll.ReadValue().y;
         }
 
         private bool ReadYAxisToggle()

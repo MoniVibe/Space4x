@@ -59,6 +59,10 @@ namespace Space4X.Authoring
         [Tooltip("Material density (for mass calculations). Rock: 3.0, Ship: 2.0, Soft: 0.8")]
         public float density = 2f;
 
+        [Header("Impact Physics")]
+        [Tooltip("Authored impact mass used by collision damage math when body is kinematic.")]
+        [Min(0.05f)] public float impactMass = 8f;
+
         [Header("Priority")]
         [Tooltip("Physics processing priority (0-255, higher = more important)")]
         [Range(0, 255)]
@@ -149,7 +153,7 @@ namespace Space4X.Authoring
             // Add PhysicsInteractionConfig
             AddComponent(entity, new PhysicsInteractionConfig
             {
-                Mass = 1f, // Kinematic, mass doesn't matter
+                Mass = math.max(0.05f, authoring.impactMass),
                 CollisionRadius = authoring.radius,
                 Restitution = 0f,
                 Friction = 0f,

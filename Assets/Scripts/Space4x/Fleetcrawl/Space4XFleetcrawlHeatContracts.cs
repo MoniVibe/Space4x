@@ -421,6 +421,15 @@ namespace Space4x.Fleetcrawl
             return merged;
         }
 
+        public static float ResolveHeatSignature01(in FleetcrawlHeatOutputState heatOutput)
+        {
+            var heat01 = math.saturate(heatOutput.Heat01);
+            var heatsinkFill01 = heatOutput.HeatsinkCapacity > 1e-5f
+                ? math.saturate(heatOutput.HeatsinkStoredHeat / heatOutput.HeatsinkCapacity)
+                : 0f;
+            return math.saturate(heat01 + heatsinkFill01 * 0.35f + (heatOutput.IsOverheated != 0 ? 0.2f : 0f));
+        }
+
         public static bool ShouldSuppressFire(in FleetcrawlHeatOutputState output)
         {
             return output.SuppressFire != 0;

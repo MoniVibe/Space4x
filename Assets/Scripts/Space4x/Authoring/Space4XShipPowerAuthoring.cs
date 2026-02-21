@@ -55,6 +55,17 @@ namespace Space4X.Authoring
         [Header("Focus")]
         public ShipPowerFocusMode DefaultFocusMode = ShipPowerFocusMode.Balanced;
 
+        [Header("Special Energy")]
+        public bool AddSpecialEnergy = true;
+        public float SpecialEnergyBaseMax = 40f;
+        public float SpecialEnergyBaseRegenPerSecond = 3f;
+        public float SpecialEnergyReactorOutputToMax = 0.02f;
+        public float SpecialEnergyReactorOutputToRegen = 0.0015f;
+        [Range(0f, 2f)] public float SpecialEnergyReactorEfficiencyRegenMultiplier = 1f;
+        [Range(0f, 1f)] public float SpecialEnergyRestartRegenPenaltyMultiplier = 0.2f;
+        [Range(0f, 3f)] public float SpecialEnergyActivationCostMultiplier = 1f;
+        [Range(0f, 1f)] public float SpecialEnergyStartFill01 = 1f;
+
         [Header("Consumers")]
         public ShipPowerConsumerSettings MobilityConsumer = ShipPowerConsumerSettings.Create(300f, 0.2f, 10, 8000f, 2500f);
         public ShipPowerConsumerSettings WeaponsConsumer = ShipPowerConsumerSettings.Create(800f, 0.25f, 30, 8000f, 2500f);
@@ -214,6 +225,39 @@ namespace Space4X.Authoring
                     RestartTimer = 0f,
                     Mode = RestartMode.Cold
                 });
+
+                if (authoring.AddSpecialEnergy)
+                {
+                    var specialConfig = new ShipSpecialEnergyConfig
+                    {
+                        BaseMax = math.max(0f, authoring.SpecialEnergyBaseMax),
+                        BaseRegenPerSecond = math.max(0f, authoring.SpecialEnergyBaseRegenPerSecond),
+                        ReactorOutputToMax = math.max(0f, authoring.SpecialEnergyReactorOutputToMax),
+                        ReactorOutputToRegen = math.max(0f, authoring.SpecialEnergyReactorOutputToRegen),
+                        ReactorEfficiencyRegenMultiplier = math.max(0f, authoring.SpecialEnergyReactorEfficiencyRegenMultiplier),
+                        RestartRegenPenaltyMultiplier = math.clamp(authoring.SpecialEnergyRestartRegenPenaltyMultiplier, 0f, 1f),
+                        ActivationCostMultiplier = math.max(0.05f, authoring.SpecialEnergyActivationCostMultiplier)
+                    };
+
+                    var initialMax = math.max(0f, specialConfig.BaseMax + math.max(0f, output) * specialConfig.ReactorOutputToMax);
+                    var initialRegen = math.max(0f, specialConfig.BaseRegenPerSecond + math.max(0f, output) * specialConfig.ReactorOutputToRegen);
+                    initialRegen *= math.max(0f, efficiency) * specialConfig.ReactorEfficiencyRegenMultiplier;
+                    var initialCurrent = initialMax * math.saturate(authoring.SpecialEnergyStartFill01);
+
+                    AddComponent(entity, specialConfig);
+                    AddComponent(entity, new ShipSpecialEnergyState
+                    {
+                        Current = initialCurrent,
+                        EffectiveMax = initialMax,
+                        EffectiveRegenPerSecond = initialRegen,
+                        LastSpent = 0f,
+                        LastSpendTick = 0,
+                        FailedSpendAttempts = 0,
+                        LastUpdatedTick = 0
+                    });
+                    AddBuffer<ShipSpecialEnergyPassiveModifier>(entity);
+                    AddBuffer<ShipSpecialEnergySpendRequest>(entity);
+                }
 
                 var consumers = AddBuffer<ShipPowerConsumer>(entity);
                 AddConsumer(this, entity, consumers, ShipPowerConsumerType.Mobility, authoring.MobilityConsumer);

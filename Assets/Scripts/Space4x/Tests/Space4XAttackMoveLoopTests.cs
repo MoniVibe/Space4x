@@ -95,6 +95,140 @@ namespace Space4X.Tests
         }
 
         [Test]
+        public void ContextOrder_QueueFlag_AppendsOrders()
+        {
+            using var world = new World("Space4XAttackMoveQueueTests");
+            var entityManager = world.EntityManager;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _restoreRendering = RuntimeMode.IsRenderingEnabled == false;
+            if (_restoreRendering)
+            {
+                RuntimeMode.ForceRenderingEnabled(true, "AttackMoveQueueInputTest");
+            }
+#endif
+
+            CreateMainCamera();
+
+            var selected = entityManager.CreateEntity(typeof(SelectedTag), typeof(SelectionOwner));
+            entityManager.SetComponentData(selected, new SelectionOwner { PlayerId = 0 });
+
+            var inputEntity = entityManager.CreateEntity(typeof(RtsInputSingletonTag));
+            var clicks = entityManager.AddBuffer<RightClickEvent>(inputEntity);
+            var system = world.GetOrCreateSystem<Space4XContextOrderSystem>();
+
+            clicks.Add(new RightClickEvent
+            {
+                ScreenPos = new float2(360f, 220f),
+                Queue = 0,
+                Ctrl = 0,
+                PlayerId = 0
+            });
+            system.Update(world.Unmanaged);
+
+            clicks.Add(new RightClickEvent
+            {
+                ScreenPos = new float2(380f, 240f),
+                Queue = 1,
+                Ctrl = 0,
+                PlayerId = 0
+            });
+            system.Update(world.Unmanaged);
+
+            var orders = entityManager.GetBuffer<OrderQueueElement>(selected);
+            Assert.AreEqual(2, orders.Length, "Shift-queue should append a second order.");
+            Assert.AreEqual(OrderKind.Move, orders[0].Order.Kind, "First order should remain move.");
+            Assert.AreEqual(OrderKind.Move, orders[1].Order.Kind, "Queued order should also be move.");
+        }
+
+        [Test]
+        public void ContextOrder_UsesContextualEnemyAndFriendlyResolution()
+        {
+            using var world = new World("Space4XContextOrderContextualTests");
+            var entityManager = world.EntityManager;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _restoreRendering = RuntimeMode.IsRenderingEnabled == false;
+            if (_restoreRendering)
+            {
+                RuntimeMode.ForceRenderingEnabled(true, "ContextualOrderInputTest");
+            }
+#endif
+
+            var selected = entityManager.CreateEntity(typeof(SelectedTag), typeof(SelectionOwner));
+            entityManager.SetComponentData(selected, new SelectionOwner { PlayerId = 0 });
+
+            var friendlyAffiliation = entityManager.CreateEntity();
+            var enemyAffiliation = entityManager.CreateEntity();
+
+            var selectedAffiliations = entityManager.AddBuffer<AffiliationTag>(selected);
+            selectedAffiliations.Add(new AffiliationTag
+            {
+                Type = AffiliationType.Fleet,
+                Target = friendlyAffiliation,
+                Loyalty = (half)1f
+            });
+
+            var enemy = entityManager.CreateEntity();
+            var enemyAffiliations = entityManager.AddBuffer<AffiliationTag>(enemy);
+            enemyAffiliations.Add(new AffiliationTag
+            {
+                Type = AffiliationType.Fleet,
+                Target = enemyAffiliation,
+                Loyalty = (half)1f
+            });
+
+            var friendlyTarget = entityManager.CreateEntity();
+            var friendlyAffiliations = entityManager.AddBuffer<AffiliationTag>(friendlyTarget);
+            friendlyAffiliations.Add(new AffiliationTag
+            {
+                Type = AffiliationType.Fleet,
+                Target = friendlyAffiliation,
+                Loyalty = (half)1f
+            });
+
+            var inputEntity = entityManager.CreateEntity(typeof(RtsInputSingletonTag));
+            var clicks = entityManager.AddBuffer<RightClickEvent>(inputEntity);
+            var system = world.GetOrCreateSystem<Space4XContextOrderSystem>();
+
+            clicks.Add(new RightClickEvent
+            {
+                ScreenPos = new float2(200f, 120f),
+                Queue = 0,
+                Ctrl = 0,
+                PlayerId = 0,
+                HasWorldPoint = 1,
+                WorldPoint = new float3(5f, 0f, 7f),
+                HasHitEntity = 1,
+                HitEntity = enemy
+            });
+            system.Update(world.Unmanaged);
+
+            var orders = entityManager.GetBuffer<OrderQueueElement>(selected);
+            Assert.AreEqual(1, orders.Length, "Enemy click should issue an order.");
+            Assert.AreEqual(OrderKind.Attack, orders[0].Order.Kind, "Enemy click should resolve to attack.");
+            Assert.AreEqual(enemy, orders[0].Order.TargetEntity, "Enemy should become attack target.");
+
+            clicks.Add(new RightClickEvent
+            {
+                ScreenPos = new float2(210f, 130f),
+                Queue = 0,
+                Ctrl = 0,
+                PlayerId = 0,
+                HasWorldPoint = 1,
+                WorldPoint = new float3(6f, 0f, 7f),
+                HasHitEntity = 1,
+                HitEntity = friendlyTarget
+            });
+            system.Update(world.Unmanaged);
+
+            orders = entityManager.GetBuffer<OrderQueueElement>(selected);
+            Assert.AreEqual(1, orders.Length, "Non-queued click should replace prior order.");
+            Assert.AreEqual(OrderKind.Move, orders[0].Order.Kind, "Friendly click should resolve to move/follow.");
+            Assert.AreEqual(friendlyTarget, orders[0].Order.TargetEntity, "Friendly target should be preserved in move order.");
+        }
+
+        [Test]
         public void AttackMove_FiresWhileInRange_StopsOutOfRange_ContinuesMoving()
         {
             using var harness = new ISystemTestHarness(fixedDelta: 0.1f);
