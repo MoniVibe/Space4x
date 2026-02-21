@@ -26,6 +26,9 @@ namespace Space4x.Scenario
             var go = new GameObject(BootstrapObjectName);
             Object.DontDestroyOnLoad(go);
             go.AddComponent<Space4XFleetcrawlUiOverlayMono>();
+            go.AddComponent<Space4XFleetcrawlCommandMailboxMono>();
+            go.AddComponent<Space4XFleetcrawlStarterLoadoutOverrideMono>();
+            go.AddComponent<Space4XFleetcrawlMetaProgressionMono>();
             go.AddComponent<Space4XFleetcrawlPlayerControlMono>();
             go.AddComponent<Space4XFleetcrawlCameraFollowMono>();
             LogOnce("spawned");
