@@ -12,7 +12,7 @@ namespace Space4X.Presentation.Overlay
         public static bool GetKeyDown(KeyCode key)
         {
 #if ENABLE_LEGACY_INPUT_MANAGER
-            return Input.GetKeyDown(key);
+            return global::UnityEngine.Input.GetKeyDown(key);
 #elif ENABLE_INPUT_SYSTEM
             return TryGetKey(key, out var keyControl) && keyControl.wasPressedThisFrame;
 #else
@@ -23,7 +23,7 @@ namespace Space4X.Presentation.Overlay
         public static bool GetKey(KeyCode key)
         {
 #if ENABLE_LEGACY_INPUT_MANAGER
-            return Input.GetKey(key);
+            return global::UnityEngine.Input.GetKey(key);
 #elif ENABLE_INPUT_SYSTEM
             return TryGetKey(key, out var keyControl) && keyControl.isPressed;
 #else
@@ -34,7 +34,7 @@ namespace Space4X.Presentation.Overlay
         public static bool GetMouseButtonDown(int button)
         {
 #if ENABLE_LEGACY_INPUT_MANAGER
-            return Input.GetMouseButtonDown(button);
+            return global::UnityEngine.Input.GetMouseButtonDown(button);
 #elif ENABLE_INPUT_SYSTEM
             var mouse = Mouse.current;
             if (mouse == null)
@@ -57,7 +57,7 @@ namespace Space4X.Presentation.Overlay
         public static bool TryGetMousePosition(out Vector2 position)
         {
 #if ENABLE_LEGACY_INPUT_MANAGER
-            position = Input.mousePosition;
+            position = global::UnityEngine.Input.mousePosition;
             return true;
 #elif ENABLE_INPUT_SYSTEM
             var mouse = Mouse.current;
