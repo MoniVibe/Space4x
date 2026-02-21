@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using Space4X.Progression;
 using Space4X.BattleSlice;
 using Space4x.Scenario;
 using Unity.Collections;
@@ -34,6 +35,8 @@ namespace Space4X.Camera
         private bool _fleetcrawlDirectorQueryValid;
         private EntityQuery _enemyTelegraphQuery;
         private bool _enemyTelegraphQueryValid;
+        private EntityQuery _persistentProgressionQuery;
+        private bool _persistentProgressionQueryValid;
         private Space4XCameraRigController _rigController;
         private GUIStyle _panelStyle;
         private GUIStyle _labelStyle;
@@ -88,6 +91,10 @@ namespace Space4X.Camera
             public int TelegraphNormalBurst;
             public int TelegraphMiniBurst;
             public int TelegraphBossBurst;
+            public float PersistentThrustGeneratedTotal;
+            public uint PersistentMissilesFiredTotal;
+            public uint PersistentKineticAmmoSpentTotal;
+            public bool HasPersistentProgression;
         }
 
         private void OnEnable()
@@ -102,6 +109,7 @@ namespace Space4X.Camera
             DisposeQuery(ref _battleFighterQuery, ref _battleFighterQueryValid);
             DisposeQuery(ref _fleetcrawlDirectorQuery, ref _fleetcrawlDirectorQueryValid);
             DisposeQuery(ref _enemyTelegraphQuery, ref _enemyTelegraphQueryValid);
+            DisposeQuery(ref _persistentProgressionQuery, ref _persistentProgressionQueryValid);
         }
 
         private void Update()
@@ -171,6 +179,13 @@ namespace Space4X.Camera
                 GUILayout.Label(BuildFleetcrawlObjectiveText(in _snapshot), _labelStyle);
                 GUILayout.Label(
                     $"Telegraphs: windup N:{_snapshot.TelegraphNormalWindup} M:{_snapshot.TelegraphMiniWindup} B:{_snapshot.TelegraphBossWindup} | burst N:{_snapshot.TelegraphNormalBurst} M:{_snapshot.TelegraphMiniBurst} B:{_snapshot.TelegraphBossBurst}",
+                    _labelStyle);
+            }
+
+            if (_snapshot.HasPersistentProgression)
+            {
+                GUILayout.Label(
+                    $"Retained progression thrust={_snapshot.PersistentThrustGeneratedTotal:0.0} missiles={_snapshot.PersistentMissilesFiredTotal} kinetic_ammo={_snapshot.PersistentKineticAmmoSpentTotal}",
                     _labelStyle);
             }
 
@@ -357,6 +372,16 @@ namespace Space4X.Camera
                 }
             }
 
+            if (TryGetFirstEntity(entityManager, _persistentProgressionQuery, out var progressionEntity) &&
+                entityManager.HasComponent<Space4XPersistentProgressionState>(progressionEntity))
+            {
+                var persistent = entityManager.GetComponentData<Space4XPersistentProgressionState>(progressionEntity);
+                snapshot.PersistentThrustGeneratedTotal = persistent.TotalThrustGenerated;
+                snapshot.PersistentMissilesFiredTotal = persistent.TotalMissilesFired;
+                snapshot.PersistentKineticAmmoSpentTotal = persistent.TotalKineticAmmoSpent;
+                snapshot.HasPersistentProgression = true;
+            }
+
             _snapshot = snapshot;
         }
 
@@ -407,6 +432,12 @@ namespace Space4X.Camera
                     ComponentType.ReadOnly<Space4XEnemyTelegraphState>(),
                     ComponentType.ReadOnly<Space4XRunEnemyTag>());
                 _enemyTelegraphQueryValid = true;
+            }
+
+            if (!_persistentProgressionQueryValid)
+            {
+                _persistentProgressionQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XPersistentProgressionState>());
+                _persistentProgressionQueryValid = true;
             }
 
             return true;
