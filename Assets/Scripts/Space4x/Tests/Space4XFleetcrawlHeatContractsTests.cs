@@ -349,6 +349,63 @@ namespace Space4X.Tests
         }
 
         [Test]
+        public void EmergencyVent_DumpAndCost_AreDeterministic()
+        {
+            var runtime = new FleetcrawlHeatRuntimeState
+            {
+                CurrentHeat = 80f,
+                BaseHeatCapacity = 100f,
+                BaseDissipationPerTick = 0f,
+                BaseOverheatThreshold01 = 0.85f,
+                BaseRecoveryThreshold01 = 0.4f,
+                IsOverheated = 1
+            };
+            var heatsink = new FleetcrawlHeatsinkState
+            {
+                StoredHeat = 20f,
+                BaseCapacity = 50f,
+                BaseAbsorbPerTick = 10f,
+                BaseVentPerTick = 3f
+            };
+
+            var dumpAmount = FleetcrawlHeatResolver.ResolveEmergencyVentDumpAmount(
+                runtime,
+                heatsink,
+                requestedIntensity01: 0.5f,
+                minFraction: 0.35f,
+                maxFraction: 0.9f);
+            Assert.AreEqual(50f, dumpAmount, 1e-4f);
+
+            var dumped = FleetcrawlHeatResolver.ApplyEmergencyVent(ref runtime, ref heatsink, dumpAmount, out var dumpedRuntime, out var dumpedHeatsink);
+            Assert.AreEqual(50f, dumped, 1e-4f);
+            Assert.AreEqual(50f, dumpedRuntime, 1e-4f);
+            Assert.AreEqual(0f, dumpedHeatsink, 1e-4f);
+            Assert.AreEqual(30f, runtime.CurrentHeat, 1e-4f);
+            Assert.AreEqual(20f, heatsink.StoredHeat, 1e-4f);
+
+            var supplyCost = FleetcrawlHeatResolver.ResolveEmergencyVentSupplyCost(dumped, baseSupplyCost: 20, supplyCostPerHeat: 0.45f);
+            Assert.AreEqual(43, supplyCost);
+            var shardCost = FleetcrawlHeatResolver.ResolveEmergencyVentShardFallbackCost(13, minShardCost: 2, shardsPerSupplyShortfall: 0.2f);
+            Assert.AreEqual(3, shardCost);
+        }
+
+        [Test]
+        public void EmergencyVent_FireLockState_ExpiresDeterministically()
+        {
+            var control = new FleetcrawlHeatControlState
+            {
+                SafetyMode = FleetcrawlHeatSafetyMode.BalancedAutoVent,
+                HeatsinkEnabled = 1,
+                EmergencyVentCooldownUntilTick = 320u,
+                EmergencyVentFireLockUntilTick = 112u
+            };
+
+            Assert.IsTrue(FleetcrawlHeatResolver.IsEmergencyVentFireLocked(control, 111u));
+            Assert.IsFalse(FleetcrawlHeatResolver.IsEmergencyVentFireLocked(control, 112u));
+            Assert.IsFalse(FleetcrawlHeatResolver.IsEmergencyVentFireLocked(control, 130u));
+        }
+
+        [Test]
         public void ApplyHeatToUpgradeStats_UsesEngineAndThrottleMultipliers()
         {
             var baseStats = FleetcrawlResolvedUpgradeStats.Identity;
