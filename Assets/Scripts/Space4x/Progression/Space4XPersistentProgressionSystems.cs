@@ -16,6 +16,10 @@ namespace Space4X.Progression
         public float TotalThrustGenerated;
         public uint TotalMissilesFired;
         public uint TotalKineticAmmoSpent;
+        public Space4XRunMetaProficiencyState RetainedMetaProficiency;
+        public Space4XRunMetaUnlockFlags RetainedMetaUnlockFlags;
+        public int RetainedMetaShards;
+        public int RetainedMetaRoomChallengeClears;
         public uint Revision;
         public byte Dirty;
         public double LastSavedWorldSeconds;
@@ -44,6 +48,131 @@ namespace Space4X.Progression
             var entity = state.EntityManager.CreateEntity(typeof(Space4XPersistentProgressionState));
             var loaded = Space4XPersistentProgressionStorage.LoadOrDefault();
             state.EntityManager.SetComponentData(entity, loaded);
+        }
+    }
+
+    public struct Space4XPersistentMetaHydratedTag : IComponentData
+    {
+    }
+
+    [UpdateInGroup(typeof(InitializationSystemGroup))]
+    [UpdateAfter(typeof(Space4XFleetcrawlBootstrapSystem))]
+    public partial struct Space4XPersistentMetaHydrationSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<Space4XPersistentProgressionState>();
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingleton<Space4XPersistentProgressionState>(out var persistent))
+            {
+                return;
+            }
+
+            var em = state.EntityManager;
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            foreach (var (meta, unlocks, resources, entity) in SystemAPI.Query<
+                         RefRW<Space4XRunMetaProficiencyState>,
+                         RefRW<Space4XRunMetaUnlockState>,
+                         RefRW<Space4XRunMetaResourceState>>()
+                     .WithAll<Space4XFleetcrawlDirectorState>()
+                     .WithNone<Space4XPersistentMetaHydratedTag>()
+                     .WithEntityAccess())
+            {
+                var runMeta = meta.ValueRO;
+                Space4XPersistentProgressionMath.MergeMetaProficiencyMax(ref runMeta, in persistent.RetainedMetaProficiency);
+                meta.ValueRW = runMeta;
+
+                var mergedFlags = (Space4XRunMetaUnlockFlags)((ushort)unlocks.ValueRO.Flags | (ushort)persistent.RetainedMetaUnlockFlags);
+                unlocks.ValueRW = new Space4XRunMetaUnlockState
+                {
+                    Flags = mergedFlags,
+                    UnlockCount = (byte)math.min(255, math.countbits((uint)(ushort)mergedFlags))
+                };
+
+                var runResources = resources.ValueRO;
+                runResources.Shards = math.max(runResources.Shards, persistent.RetainedMetaShards);
+                runResources.RoomChallengeClears = math.max(runResources.RoomChallengeClears, persistent.RetainedMetaRoomChallengeClears);
+                resources.ValueRW = runResources;
+
+                ecb.AddComponent<Space4XPersistentMetaHydratedTag>(entity);
+            }
+
+            ecb.Playback(em);
+            ecb.Dispose();
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(Space4XFleetcrawlMetaProficiencySystem))]
+    public partial struct Space4XPersistentMetaProficiencySyncSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<Space4XPersistentProgressionState>();
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            if (!SystemAPI.TryGetSingletonEntity<Space4XFleetcrawlDirectorState>(out var directorEntity))
+            {
+                return;
+            }
+
+            var em = state.EntityManager;
+            if (!em.HasComponent<Space4XRunMetaProficiencyState>(directorEntity) ||
+                !em.HasComponent<Space4XRunMetaUnlockState>(directorEntity) ||
+                !em.HasComponent<Space4XRunMetaResourceState>(directorEntity))
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingletonRW<Space4XPersistentProgressionState>(out var progression))
+            {
+                return;
+            }
+
+            var persistent = progression.ValueRO;
+            var changed = false;
+
+            var runMeta = em.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
+            changed |= Space4XPersistentProgressionMath.MergeMetaProficiencyMax(ref persistent.RetainedMetaProficiency, in runMeta);
+
+            var runUnlocks = em.GetComponentData<Space4XRunMetaUnlockState>(directorEntity);
+            var mergedFlags = (Space4XRunMetaUnlockFlags)((ushort)persistent.RetainedMetaUnlockFlags | (ushort)runUnlocks.Flags);
+            if (mergedFlags != persistent.RetainedMetaUnlockFlags)
+            {
+                persistent.RetainedMetaUnlockFlags = mergedFlags;
+                changed = true;
+            }
+
+            var runResources = em.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
+            var mergedShards = math.max(persistent.RetainedMetaShards, runResources.Shards);
+            if (mergedShards != persistent.RetainedMetaShards)
+            {
+                persistent.RetainedMetaShards = mergedShards;
+                changed = true;
+            }
+
+            var mergedRoomChallengeClears = math.max(persistent.RetainedMetaRoomChallengeClears, runResources.RoomChallengeClears);
+            if (mergedRoomChallengeClears != persistent.RetainedMetaRoomChallengeClears)
+            {
+                persistent.RetainedMetaRoomChallengeClears = mergedRoomChallengeClears;
+                changed = true;
+            }
+
+            if (!changed)
+            {
+                return;
+            }
+
+            persistent.Revision += 1;
+            persistent.Dirty = 1;
+            progression.ValueRW = persistent;
         }
     }
 
@@ -261,9 +390,67 @@ namespace Space4X.Progression
         public byte Initialized;
     }
 
+    internal static class Space4XPersistentProgressionMath
+    {
+        public static bool MergeMetaProficiencyMax(
+            ref Space4XRunMetaProficiencyState target,
+            in Space4XRunMetaProficiencyState candidate)
+        {
+            var changed = false;
+
+            changed |= MaxAssign(ref target.DamageDealtEnergy, candidate.DamageDealtEnergy);
+            changed |= MaxAssign(ref target.DamageDealtThermal, candidate.DamageDealtThermal);
+            changed |= MaxAssign(ref target.DamageDealtEM, candidate.DamageDealtEM);
+            changed |= MaxAssign(ref target.DamageDealtRadiation, candidate.DamageDealtRadiation);
+            changed |= MaxAssign(ref target.DamageDealtCaustic, candidate.DamageDealtCaustic);
+            changed |= MaxAssign(ref target.DamageDealtKinetic, candidate.DamageDealtKinetic);
+            changed |= MaxAssign(ref target.DamageDealtExplosive, candidate.DamageDealtExplosive);
+
+            changed |= MaxAssign(ref target.DamageMitigatedEnergy, candidate.DamageMitigatedEnergy);
+            changed |= MaxAssign(ref target.DamageMitigatedThermal, candidate.DamageMitigatedThermal);
+            changed |= MaxAssign(ref target.DamageMitigatedEM, candidate.DamageMitigatedEM);
+            changed |= MaxAssign(ref target.DamageMitigatedRadiation, candidate.DamageMitigatedRadiation);
+            changed |= MaxAssign(ref target.DamageMitigatedCaustic, candidate.DamageMitigatedCaustic);
+            changed |= MaxAssign(ref target.DamageMitigatedKinetic, candidate.DamageMitigatedKinetic);
+            changed |= MaxAssign(ref target.DamageMitigatedExplosive, candidate.DamageMitigatedExplosive);
+
+            changed |= MaxAssign(ref target.CloakSeconds, candidate.CloakSeconds);
+            changed |= MaxAssign(ref target.TimeStopRequestedSeconds, candidate.TimeStopRequestedSeconds);
+            changed |= MaxAssign(ref target.MissileDamageDealt, candidate.MissileDamageDealt);
+
+            changed |= MaxAssign(ref target.CraftShotDown, candidate.CraftShotDown);
+            changed |= MaxAssign(ref target.CapitalShipsDestroyed, candidate.CapitalShipsDestroyed);
+            changed |= MaxAssign(ref target.HiddenCachesFound, candidate.HiddenCachesFound);
+
+            return changed;
+        }
+
+        private static bool MaxAssign(ref float target, float candidate)
+        {
+            if (candidate <= target)
+            {
+                return false;
+            }
+
+            target = candidate;
+            return true;
+        }
+
+        private static bool MaxAssign(ref int target, int candidate)
+        {
+            if (candidate <= target)
+            {
+                return false;
+            }
+
+            target = candidate;
+            return true;
+        }
+    }
+
     internal static class Space4XPersistentProgressionStorage
     {
-        private const int CurrentSchemaVersion = 1;
+        private const int CurrentSchemaVersion = 2;
         private const string FileName = "space4x_fleetcrawl_progression_v1.json";
 
         public static Space4XPersistentProgressionState LoadOrDefault()
@@ -274,6 +461,10 @@ namespace Space4X.Progression
                 TotalThrustGenerated = 0f,
                 TotalMissilesFired = 0,
                 TotalKineticAmmoSpent = 0,
+                RetainedMetaProficiency = new Space4XRunMetaProficiencyState(),
+                RetainedMetaUnlockFlags = Space4XRunMetaUnlockFlags.None,
+                RetainedMetaShards = 0,
+                RetainedMetaRoomChallengeClears = 0,
                 Revision = 0,
                 Dirty = 0,
                 LastSavedWorldSeconds = 0d
@@ -303,6 +494,32 @@ namespace Space4X.Progression
                 state.TotalThrustGenerated = math.max(0f, payload.totalThrustGenerated);
                 state.TotalMissilesFired = (uint)math.max(0, payload.totalMissilesFired);
                 state.TotalKineticAmmoSpent = (uint)math.max(0, payload.totalKineticAmmoSpent);
+                state.RetainedMetaProficiency = new Space4XRunMetaProficiencyState
+                {
+                    DamageDealtEnergy = math.max(0f, payload.metaDamageDealtEnergy),
+                    DamageDealtThermal = math.max(0f, payload.metaDamageDealtThermal),
+                    DamageDealtEM = math.max(0f, payload.metaDamageDealtEM),
+                    DamageDealtRadiation = math.max(0f, payload.metaDamageDealtRadiation),
+                    DamageDealtCaustic = math.max(0f, payload.metaDamageDealtCaustic),
+                    DamageDealtKinetic = math.max(0f, payload.metaDamageDealtKinetic),
+                    DamageDealtExplosive = math.max(0f, payload.metaDamageDealtExplosive),
+                    DamageMitigatedEnergy = math.max(0f, payload.metaDamageMitigatedEnergy),
+                    DamageMitigatedThermal = math.max(0f, payload.metaDamageMitigatedThermal),
+                    DamageMitigatedEM = math.max(0f, payload.metaDamageMitigatedEM),
+                    DamageMitigatedRadiation = math.max(0f, payload.metaDamageMitigatedRadiation),
+                    DamageMitigatedCaustic = math.max(0f, payload.metaDamageMitigatedCaustic),
+                    DamageMitigatedKinetic = math.max(0f, payload.metaDamageMitigatedKinetic),
+                    DamageMitigatedExplosive = math.max(0f, payload.metaDamageMitigatedExplosive),
+                    CloakSeconds = math.max(0f, payload.metaCloakSeconds),
+                    TimeStopRequestedSeconds = math.max(0f, payload.metaTimeStopRequestedSeconds),
+                    MissileDamageDealt = math.max(0f, payload.metaMissileDamageDealt),
+                    CraftShotDown = math.max(0, payload.metaCraftShotDown),
+                    CapitalShipsDestroyed = math.max(0, payload.metaCapitalShipsDestroyed),
+                    HiddenCachesFound = math.max(0, payload.metaHiddenCachesFound)
+                };
+                state.RetainedMetaUnlockFlags = (Space4XRunMetaUnlockFlags)(ushort)math.max(0, payload.metaUnlockFlags);
+                state.RetainedMetaShards = math.max(0, payload.metaShards);
+                state.RetainedMetaRoomChallengeClears = math.max(0, payload.metaRoomChallengeClears);
             }
             catch (Exception ex)
             {
@@ -333,7 +550,30 @@ namespace Space4X.Progression
                     schemaVersion = CurrentSchemaVersion,
                     totalThrustGenerated = math.max(0f, state.TotalThrustGenerated),
                     totalMissilesFired = (int)math.max(0u, state.TotalMissilesFired),
-                    totalKineticAmmoSpent = (int)math.max(0u, state.TotalKineticAmmoSpent)
+                    totalKineticAmmoSpent = (int)math.max(0u, state.TotalKineticAmmoSpent),
+                    metaDamageDealtEnergy = math.max(0f, state.RetainedMetaProficiency.DamageDealtEnergy),
+                    metaDamageDealtThermal = math.max(0f, state.RetainedMetaProficiency.DamageDealtThermal),
+                    metaDamageDealtEM = math.max(0f, state.RetainedMetaProficiency.DamageDealtEM),
+                    metaDamageDealtRadiation = math.max(0f, state.RetainedMetaProficiency.DamageDealtRadiation),
+                    metaDamageDealtCaustic = math.max(0f, state.RetainedMetaProficiency.DamageDealtCaustic),
+                    metaDamageDealtKinetic = math.max(0f, state.RetainedMetaProficiency.DamageDealtKinetic),
+                    metaDamageDealtExplosive = math.max(0f, state.RetainedMetaProficiency.DamageDealtExplosive),
+                    metaDamageMitigatedEnergy = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedEnergy),
+                    metaDamageMitigatedThermal = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedThermal),
+                    metaDamageMitigatedEM = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedEM),
+                    metaDamageMitigatedRadiation = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedRadiation),
+                    metaDamageMitigatedCaustic = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedCaustic),
+                    metaDamageMitigatedKinetic = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedKinetic),
+                    metaDamageMitigatedExplosive = math.max(0f, state.RetainedMetaProficiency.DamageMitigatedExplosive),
+                    metaCloakSeconds = math.max(0f, state.RetainedMetaProficiency.CloakSeconds),
+                    metaTimeStopRequestedSeconds = math.max(0f, state.RetainedMetaProficiency.TimeStopRequestedSeconds),
+                    metaMissileDamageDealt = math.max(0f, state.RetainedMetaProficiency.MissileDamageDealt),
+                    metaCraftShotDown = math.max(0, state.RetainedMetaProficiency.CraftShotDown),
+                    metaCapitalShipsDestroyed = math.max(0, state.RetainedMetaProficiency.CapitalShipsDestroyed),
+                    metaHiddenCachesFound = math.max(0, state.RetainedMetaProficiency.HiddenCachesFound),
+                    metaUnlockFlags = math.max(0, (int)(ushort)state.RetainedMetaUnlockFlags),
+                    metaShards = math.max(0, state.RetainedMetaShards),
+                    metaRoomChallengeClears = math.max(0, state.RetainedMetaRoomChallengeClears)
                 };
 
                 var json = JsonUtility.ToJson(payload, false);
@@ -365,6 +605,29 @@ namespace Space4X.Progression
             public float totalThrustGenerated;
             public int totalMissilesFired;
             public int totalKineticAmmoSpent;
+            public float metaDamageDealtEnergy;
+            public float metaDamageDealtThermal;
+            public float metaDamageDealtEM;
+            public float metaDamageDealtRadiation;
+            public float metaDamageDealtCaustic;
+            public float metaDamageDealtKinetic;
+            public float metaDamageDealtExplosive;
+            public float metaDamageMitigatedEnergy;
+            public float metaDamageMitigatedThermal;
+            public float metaDamageMitigatedEM;
+            public float metaDamageMitigatedRadiation;
+            public float metaDamageMitigatedCaustic;
+            public float metaDamageMitigatedKinetic;
+            public float metaDamageMitigatedExplosive;
+            public float metaCloakSeconds;
+            public float metaTimeStopRequestedSeconds;
+            public float metaMissileDamageDealt;
+            public int metaCraftShotDown;
+            public int metaCapitalShipsDestroyed;
+            public int metaHiddenCachesFound;
+            public int metaUnlockFlags;
+            public int metaShards;
+            public int metaRoomChallengeClears;
         }
     }
 }
