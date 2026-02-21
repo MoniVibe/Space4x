@@ -10,6 +10,13 @@ namespace Space4X.Diagnostics
     {
         private const string SmokeSceneName = "TRI_Space4X_Smoke";
         private const string ForceRenderEnvVar = "PUREDOTS_FORCE_RENDER";
+        private const string LaptopValidationProbeMarker = "[Space4X Laptop Probe 2026-02-21T07:10Z]";
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void EmitLaptopValidationProbe()
+        {
+            Debug.Log($"{LaptopValidationProbeMarker} checkout reached editor domain reload.");
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsurePresentationForSmokeScene()
