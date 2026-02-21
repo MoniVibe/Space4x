@@ -49,6 +49,7 @@ namespace Space4x.Scenario
         private const float DefaultSpawnVerticalRange = 60f;
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
+        private const string FleetCrawlScenarioId = "space4x_fleetcrawl_micro";
         private bool _hasLoaded;
         private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
@@ -91,6 +92,15 @@ namespace Space4x.Scenario
         {
             if (_hasLoaded)
             {
+                Enabled = false;
+                return;
+            }
+
+            if (SystemAPI.TryGetSingleton<ScenarioInfo>(out var info) &&
+                info.ScenarioId.Equals(new FixedString64Bytes(FleetCrawlScenarioId)))
+            {
+                Debug.Log("[Space4XMiningScenario] ScenarioId='space4x_fleetcrawl_micro' handled by Fleet Crawl runtime systems.");
+                _hasLoaded = true;
                 Enabled = false;
                 return;
             }
