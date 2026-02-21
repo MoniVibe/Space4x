@@ -405,6 +405,9 @@ namespace Space4x.Scenario
     [UpdateAfter(typeof(Space4X.Registry.Space4XCombatTelemetrySystem))]
     public partial struct Space4XFleetcrawlRoomDirectorSystem : ISystem
     {
+        private const int StrikeCraftKillBounty = 3;
+        private const int CarrierKillBounty = 12;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
@@ -434,6 +437,7 @@ namespace Space4x.Scenario
 
             var dt = ResolveFixedDelta(time);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var bountyEarned = 0;
             foreach (var (hull, entity) in SystemAPI.Query<RefRO<HullIntegrity>>().WithAll<Space4XRunEnemyTag>().WithNone<Space4XRunEnemyDestroyedCounted>().WithEntityAccess())
             {
                 if (hull.ValueRO.Current > 0f)
@@ -442,7 +446,15 @@ namespace Space4x.Scenario
                 }
 
                 director.EnemiesDestroyedInRoom++;
+                bountyEarned += SystemAPI.HasComponent<CarrierTag>(entity) ? CarrierKillBounty : StrikeCraftKillBounty;
                 ecb.AddComponent<Space4XRunEnemyDestroyedCounted>(entity);
+            }
+
+            if (bountyEarned > 0)
+            {
+                var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
+                currency.Value += bountyEarned;
+                state.EntityManager.SetComponentData(directorEntity, currency);
             }
 
             if (director.Initialized == 0)
