@@ -4,10 +4,14 @@ using System.IO;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interrupts;
+using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Modularity;
 using PureDOTS.Runtime.Perception;
+using PureDOTS.Runtime.Platform;
+using PureDOTS.Runtime.Profile;
 using PureDOTS.Runtime.Scenarios;
 using PureDOTS.Runtime.Spatial;
+using Space4X.Progression;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Collections;
@@ -77,6 +81,15 @@ namespace Space4x.Scenario
     {
         public int Shards;
         public int RoomChallengeClears;
+    }
+
+    public struct Space4XRunStartingCaptainState : IComponentData
+    {
+        public FixedString64Bytes ProfileId;
+        public int CandidatePoolSize;
+        public Space4XRunMetaUnlockFlags UnlockFlags;
+        public byte ForcedSelection;
+        public byte RandomSelection;
     }
 
     [InternalBufferCapacity(8)]
@@ -239,6 +252,20 @@ namespace Space4x.Scenario
             });
             em.AddComponentData(e, new EntityIntent { Mode = IntentMode.Idle, TargetEntity = Entity.Null, TargetPosition = position, TriggeringInterrupt = InterruptType.None, IntentSetTick = 0, Priority = InterruptPriority.Low, IsValid = 0 });
             em.AddBuffer<Interrupt>(e);
+            em.AddComponentData(e, new CaptainOrder
+            {
+                Type = CaptainOrderType.None,
+                Status = CaptainOrderStatus.None,
+                Priority = 0,
+                TargetEntity = Entity.Null,
+                TargetPosition = position,
+                IssuedTick = 0u,
+                TimeoutTick = 0u,
+                IssuingAuthority = Entity.Null
+            });
+            em.AddComponentData(e, CaptainState.Default);
+            em.AddComponentData(e, CaptainReadiness.Standard);
+            em.AddBuffer<PlatformCrewMember>(e);
 
             var hull = HullIntegrity.HeavyCarrier;
             em.AddComponentData(e, hull);
@@ -422,7 +449,18 @@ namespace Space4x.Scenario
     public partial struct Space4XFleetcrawlBootstrapSystem : ISystem
     {
         private const string RoomProfilePathEnv = "SPACE4X_FLEETCRAWL_ROOMS_PATH";
+        private const string StartingCaptainEnv = "SPACE4X_FLEETCRAWL_STARTING_CAPTAIN_ID";
+        private const string StartingCaptainRollSeedEnv = "SPACE4X_FLEETCRAWL_STARTING_CAPTAIN_ROLL_SEED";
         private static readonly char[] EndConditionSplitChars = { '|', ',', ';', '+', ' ' };
+        private static readonly FixedString64Bytes BaselineCaptainProfileId = "baseline";
+        private static readonly FixedString64Bytes StrikerCaptainProfileId = "captain_striker";
+        private static readonly FixedString64Bytes BulwarkCaptainProfileId = "captain_bulwark";
+        private static readonly FixedString64Bytes ShadowCaptainProfileId = "captain_shadow";
+        private static readonly FixedString64Bytes ChronoCaptainProfileId = "captain_chrono";
+        private static readonly FixedString64Bytes OrdnanceCaptainProfileId = "captain_ordnance";
+        private static readonly FixedString64Bytes InterceptorCaptainProfileId = "captain_interceptor";
+        private static readonly FixedString64Bytes ReaperCaptainProfileId = "captain_reaper";
+        private static readonly FixedString64Bytes QuartermasterCaptainProfileId = "captain_quartermaster";
         private EntityQuery _seededQuery;
         private EntityQuery _directorQuery;
 
@@ -455,6 +493,7 @@ namespace Space4x.Scenario
             var reliefDur = shortMode ? 20f : 28f;
             var bossDur = shortMode ? 78f : 210f;
             var waveInt = shortMode ? 10f : 24f;
+            var runSeed = info.Seed == 0u ? 9017u : info.Seed;
 
             var directorEntity = state.EntityManager.CreateEntity(
                 typeof(Space4XFleetcrawlDirectorState),
@@ -467,7 +506,8 @@ namespace Space4x.Scenario
                 typeof(Space4XRunMetaResourceState),
                 typeof(Space4XRunMetaProficiencyState),
                 typeof(Space4XRunMetaProficiencyConfig),
-                typeof(Space4XRunMetaUnlockState));
+                typeof(Space4XRunMetaUnlockState),
+                typeof(Space4XRunStartingCaptainState));
             state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunPerkOp>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunInstalledBlueprint>(directorEntity);
@@ -605,7 +645,6 @@ namespace Space4x.Scenario
 
             Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, new float3(-120f, 0f, 0f), 0, 6, true, -1, -1);
 
-            var runSeed = info.Seed == 0u ? 9017u : info.Seed;
             state.EntityManager.SetComponentData(directorEntity, new Space4XFleetcrawlDirectorState
             {
                 Initialized = 0,
@@ -644,10 +683,386 @@ namespace Space4x.Scenario
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunMetaProficiencyState());
             state.EntityManager.SetComponentData(directorEntity, Space4XRunMetaProficiencyConfig.Default);
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunMetaUnlockState());
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunStartingCaptainState
+            {
+                ProfileId = new FixedString64Bytes("baseline"),
+                CandidatePoolSize = 1,
+                UnlockFlags = Space4XRunMetaUnlockFlags.None,
+                ForcedSelection = 0,
+                RandomSelection = 1
+            });
+
+            var unlockFlags = Space4XRunMetaUnlockFlags.None;
+            if (SystemAPI.TryGetSingleton<Space4XPersistentProgressionState>(out var persistent))
+            {
+                unlockFlags = persistent.RetainedMetaUnlockFlags;
+            }
+
+            var captainRollSeed = ResolveStartingCaptainRollSeed(runSeed);
+            var captainSelection = ResolveStartingCaptainSelection(captainRollSeed, unlockFlags);
+            ApplyStartingCaptainProfile(ref state, flagship, in captainSelection);
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunStartingCaptainState
+            {
+                ProfileId = captainSelection.ProfileId,
+                CandidatePoolSize = captainSelection.CandidatePoolSize,
+                UnlockFlags = captainSelection.UnlockFlags,
+                ForcedSelection = (byte)(captainSelection.ForcedSelection ? 1 : 0),
+                RandomSelection = (byte)(captainSelection.RandomSelection ? 1 : 0)
+            });
+            Debug.Log($"[Fleetcrawl] Starting captain profile={captainSelection.ProfileId} pool={captainSelection.CandidatePoolSize} forced={(captainSelection.ForcedSelection ? 1 : 0)} unlock_flags={captainSelection.UnlockFlags} roll_seed={captainRollSeed}.");
 
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
             Debug.Log($"[Fleetcrawl] Seeded run. rooms={roomCount} short_mode={(shortMode ? 1 : 0)} seed={runSeed}.");
+        }
+
+        private static StartingCaptainSelection ResolveStartingCaptainSelection(
+            uint rollSeed,
+            Space4XRunMetaUnlockFlags unlockFlags)
+        {
+            using var candidates = new NativeList<FixedString64Bytes>(8, Allocator.Temp);
+            AddUniqueProfile(candidates, BaselineCaptainProfileId);
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.DamageTypeSpecialist) != 0)
+            {
+                AddUniqueProfile(candidates, StrikerCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.MitigationSpecialist) != 0)
+            {
+                AddUniqueProfile(candidates, BulwarkCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.CloakOperator) != 0)
+            {
+                AddUniqueProfile(candidates, ShadowCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.ChronoOperator) != 0)
+            {
+                AddUniqueProfile(candidates, ChronoCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.OrdnanceSpecialist) != 0)
+            {
+                AddUniqueProfile(candidates, OrdnanceCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.InterceptorSpecialist) != 0)
+            {
+                AddUniqueProfile(candidates, InterceptorCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.CapitalHunter) != 0)
+            {
+                AddUniqueProfile(candidates, ReaperCaptainProfileId);
+            }
+
+            if ((unlockFlags & Space4XRunMetaUnlockFlags.CacheHunter) != 0)
+            {
+                AddUniqueProfile(candidates, QuartermasterCaptainProfileId);
+            }
+
+            var profile = BaselineCaptainProfileId;
+            var forcedSelection = false;
+            var randomSelection = true;
+
+            var forcedRaw = Environment.GetEnvironmentVariable(StartingCaptainEnv);
+            if (!string.IsNullOrWhiteSpace(forcedRaw))
+            {
+                var forced = new FixedString64Bytes(forcedRaw.Trim());
+                if (ContainsProfile(candidates, forced))
+                {
+                    profile = forced;
+                    forcedSelection = true;
+                    randomSelection = false;
+                }
+            }
+
+            if (!forcedSelection && candidates.Length > 0)
+            {
+                var hash = math.hash(new uint2(rollSeed, (uint)(ushort)unlockFlags ^ 0x9E3779B9u));
+                var index = (int)(hash % (uint)candidates.Length);
+                profile = candidates[index];
+            }
+
+            return new StartingCaptainSelection
+            {
+                ProfileId = profile,
+                CandidatePoolSize = math.max(1, candidates.Length),
+                UnlockFlags = unlockFlags,
+                ForcedSelection = forcedSelection,
+                RandomSelection = randomSelection
+            };
+        }
+
+        private static uint ResolveStartingCaptainRollSeed(uint runSeed)
+        {
+            if (TryParseUintEnvironment(StartingCaptainRollSeedEnv, out var overriddenSeed))
+            {
+                return overriddenSeed;
+            }
+
+            var tickCount = (uint)Environment.TickCount;
+            return math.hash(new uint2(runSeed ^ 0xA511E9B3u, tickCount ^ 0x4F1BBCDCu));
+        }
+
+        private static bool TryParseUintEnvironment(string envName, out uint value)
+        {
+            value = 0u;
+            var raw = Environment.GetEnvironmentVariable(envName);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            return uint.TryParse(raw.Trim(), out value);
+        }
+
+        private static void ApplyStartingCaptainProfile(
+            ref SystemState state,
+            Entity flagship,
+            in StartingCaptainSelection selection)
+        {
+            var em = state.EntityManager;
+            if (!em.Exists(flagship))
+            {
+                return;
+            }
+
+            var captain = em.CreateEntity();
+            em.AddComponent<SimIndividualTag>(captain);
+            em.AddComponentData(captain, new IndividualProfileId { Id = selection.ProfileId });
+
+            var template = ResolveCaptainTemplate(selection.ProfileId);
+            em.AddComponentData(captain, template.Alignment);
+            em.AddComponentData(captain, template.Behavior);
+            em.AddComponentData(captain, template.Stats);
+            em.AddComponentData(captain, template.Physique);
+            em.AddComponentData(captain, template.Capacities);
+            em.AddComponentData(captain, template.Personality);
+
+            if (!em.HasBuffer<PlatformCrewMember>(flagship))
+            {
+                em.AddBuffer<PlatformCrewMember>(flagship);
+            }
+
+            var crew = em.GetBuffer<PlatformCrewMember>(flagship);
+            crew.Add(new PlatformCrewMember
+            {
+                CrewEntity = captain,
+                RoleId = 0
+            });
+        }
+
+        private static CaptainProfileTemplate ResolveCaptainTemplate(in FixedString64Bytes profileId)
+        {
+            if (profileId.Equals(StrikerCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(-0.1f, -0.2f, 0.2f),
+                    Behavior = BehaviorDisposition.FromValues(0.45f, 0.35f, 0.4f, 0.82f, 0.88f, 0.25f),
+                    Stats = BuildStats(74f, 90f, 48f, 40f, 46f, 72f),
+                    Physique = BuildPhysique(56f, 68f, 70f, 6, 7, 8, 120f),
+                    Capacities = BuildCapacities(1.05f, 1f, 1f, 1.2f, 1.1f),
+                    Personality = PersonalityAxes.FromValues(0.55f, 0.45f, 0.8f, -0.25f, 0.42f)
+                };
+            }
+
+            if (profileId.Equals(BulwarkCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(0.5f, 0.3f, 0.7f),
+                    Behavior = BehaviorDisposition.FromValues(0.88f, 0.87f, 0.91f, 0.28f, 0.35f, 0.82f),
+                    Stats = BuildStats(88f, 72f, 84f, 62f, 70f, 90f),
+                    Physique = BuildPhysique(62f, 50f, 84f, 7, 5, 9, 140f),
+                    Capacities = BuildCapacities(1f, 1f, 1.12f, 0.94f, 1.08f),
+                    Personality = PersonalityAxes.FromValues(-0.2f, -0.4f, -0.35f, 0.7f, 0.85f)
+                };
+            }
+
+            if (profileId.Equals(ShadowCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(-0.25f, -0.35f, -0.2f),
+                    Behavior = BehaviorDisposition.FromValues(0.38f, 0.58f, 0.36f, 0.78f, 0.7f, 0.66f),
+                    Stats = BuildStats(66f, 82f, 54f, 62f, 68f, 63f),
+                    Physique = BuildPhysique(46f, 88f, 64f, 4, 9, 6, 135f),
+                    Capacities = BuildCapacities(1.15f, 1f, 1f, 1.15f, 0.95f),
+                    Personality = PersonalityAxes.FromValues(0.35f, 0.2f, 0.5f, -0.4f, 0.15f)
+                };
+            }
+
+            if (profileId.Equals(ChronoCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(0.2f, 0.1f, 0.8f),
+                    Behavior = BehaviorDisposition.FromValues(0.76f, 0.74f, 0.79f, 0.44f, 0.46f, 0.78f),
+                    Stats = BuildStats(90f, 80f, 70f, 72f, 78f, 86f),
+                    Physique = BuildPhysique(48f, 62f, 92f, 4, 6, 10, 165f),
+                    Capacities = BuildCapacities(1.08f, 1f, 1.14f, 1.05f, 1f),
+                    Personality = PersonalityAxes.FromValues(0.1f, -0.1f, 0.2f, 0.3f, 0.95f)
+                };
+            }
+
+            if (profileId.Equals(OrdnanceCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(-0.15f, -0.08f, 0.58f),
+                    Behavior = BehaviorDisposition.FromValues(0.72f, 0.68f, 0.82f, 0.58f, 0.54f, 0.74f),
+                    Stats = BuildStats(84f, 78f, 76f, 54f, 74f, 72f),
+                    Physique = BuildPhysique(52f, 62f, 78f, 5, 6, 8, 155f),
+                    Capacities = BuildCapacities(1.1f, 1.12f, 1.1f, 1.04f, 0.9f),
+                    Personality = PersonalityAxes.FromValues(0.28f, 0.14f, 0.6f, 0.24f, 0.72f)
+                };
+            }
+
+            if (profileId.Equals(InterceptorCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(0.12f, -0.06f, 0.44f),
+                    Behavior = BehaviorDisposition.FromValues(0.6f, 0.66f, 0.58f, 0.74f, 0.72f, 0.46f),
+                    Stats = BuildStats(70f, 86f, 58f, 48f, 64f, 69f),
+                    Physique = BuildPhysique(54f, 92f, 66f, 5, 10, 6, 142f),
+                    Capacities = BuildCapacities(1.18f, 1f, 1f, 1.2f, 1.08f),
+                    Personality = PersonalityAxes.FromValues(0.48f, 0.42f, 0.46f, -0.22f, 0.4f)
+                };
+            }
+
+            if (profileId.Equals(ReaperCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(-0.4f, -0.5f, 0.35f),
+                    Behavior = BehaviorDisposition.FromValues(0.34f, 0.3f, 0.38f, 0.88f, 0.92f, 0.2f),
+                    Stats = BuildStats(82f, 94f, 56f, 44f, 52f, 78f),
+                    Physique = BuildPhysique(66f, 62f, 72f, 7, 6, 7, 175f),
+                    Capacities = BuildCapacities(1f, 1.08f, 1f, 1.18f, 1.2f),
+                    Personality = PersonalityAxes.FromValues(0.7f, 0.72f, 0.82f, -0.45f, 0.34f)
+                };
+            }
+
+            if (profileId.Equals(QuartermasterCaptainProfileId))
+            {
+                return new CaptainProfileTemplate
+                {
+                    Alignment = AlignmentTriplet.FromFloats(0.35f, 0.25f, 0.62f),
+                    Behavior = BehaviorDisposition.FromValues(0.82f, 0.73f, 0.84f, 0.36f, 0.32f, 0.88f),
+                    Stats = BuildStats(78f, 66f, 92f, 74f, 70f, 80f),
+                    Physique = BuildPhysique(44f, 58f, 84f, 4, 5, 9, 110f),
+                    Capacities = BuildCapacities(1f, 1.1f, 1.05f, 0.95f, 0.98f),
+                    Personality = PersonalityAxes.FromValues(-0.1f, -0.35f, -0.2f, 0.62f, 0.5f)
+                };
+            }
+
+            return new CaptainProfileTemplate
+            {
+                Alignment = AlignmentTriplet.FromFloats(0f, 0f, 0f),
+                Behavior = BehaviorDisposition.FromValues(0.7f, 0.6f, 0.65f, 0.45f, 0.4f, 0.6f),
+                Stats = BuildStats(65f, 60f, 60f, 55f, 50f, 60f),
+                Physique = BuildPhysique(50f, 50f, 50f, 5, 5, 5, 0f),
+                Capacities = BuildCapacities(1f, 1f, 1f, 1f, 1f),
+                Personality = PersonalityAxes.FromValues(0f, 0f, 0f, 0f, 0f)
+            };
+        }
+
+        private static IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
+        {
+            return new IndividualStats
+            {
+                Command = (half)math.clamp(command, 0f, 100f),
+                Tactics = (half)math.clamp(tactics, 0f, 100f),
+                Logistics = (half)math.clamp(logistics, 0f, 100f),
+                Diplomacy = (half)math.clamp(diplomacy, 0f, 100f),
+                Engineering = (half)math.clamp(engineering, 0f, 100f),
+                Resolve = (half)math.clamp(resolve, 0f, 100f)
+            };
+        }
+
+        private static PhysiqueFinesseWill BuildPhysique(
+            float physique,
+            float finesse,
+            float will,
+            int physiqueInclination,
+            int finesseInclination,
+            int willInclination,
+            float generalXp)
+        {
+            return new PhysiqueFinesseWill
+            {
+                Physique = (half)math.clamp(physique, 0f, 100f),
+                Finesse = (half)math.clamp(finesse, 0f, 100f),
+                Will = (half)math.clamp(will, 0f, 100f),
+                PhysiqueInclination = (byte)math.clamp(physiqueInclination, 1, 10),
+                FinesseInclination = (byte)math.clamp(finesseInclination, 1, 10),
+                WillInclination = (byte)math.clamp(willInclination, 1, 10),
+                GeneralXP = math.max(0f, generalXp)
+            };
+        }
+
+        private static DerivedCapacities BuildCapacities(
+            float sight,
+            float manipulation,
+            float consciousness,
+            float reactionTime,
+            float boarding)
+        {
+            return new DerivedCapacities
+            {
+                Sight = math.max(0.1f, sight),
+                Manipulation = math.max(0.1f, manipulation),
+                Consciousness = math.max(0.1f, consciousness),
+                ReactionTime = math.max(0.1f, reactionTime),
+                Boarding = math.max(0.1f, boarding)
+            };
+        }
+
+        private static void AddUniqueProfile(NativeList<FixedString64Bytes> profiles, in FixedString64Bytes profileId)
+        {
+            if (ContainsProfile(profiles, profileId))
+            {
+                return;
+            }
+
+            profiles.Add(profileId);
+        }
+
+        private static bool ContainsProfile(NativeList<FixedString64Bytes> profiles, in FixedString64Bytes profileId)
+        {
+            for (var i = 0; i < profiles.Length; i++)
+            {
+                if (profiles[i].Equals(profileId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private struct StartingCaptainSelection
+        {
+            public FixedString64Bytes ProfileId;
+            public int CandidatePoolSize;
+            public Space4XRunMetaUnlockFlags UnlockFlags;
+            public bool ForcedSelection;
+            public bool RandomSelection;
+        }
+
+        private struct CaptainProfileTemplate
+        {
+            public AlignmentTriplet Alignment;
+            public BehaviorDisposition Behavior;
+            public IndividualStats Stats;
+            public PhysiqueFinesseWill Physique;
+            public DerivedCapacities Capacities;
+            public PersonalityAxes Personality;
         }
 
         [Serializable]

@@ -92,6 +92,11 @@ namespace Space4X.Camera
             public int TelegraphNormalBurst;
             public int TelegraphMiniBurst;
             public int TelegraphBossBurst;
+            public FixedString64Bytes FleetcrawlStartingCaptainProfileId;
+            public int FleetcrawlStartingCaptainPoolSize;
+            public Space4XRunMetaUnlockFlags FleetcrawlStartingCaptainUnlockFlags;
+            public bool FleetcrawlStartingCaptainForced;
+            public bool FleetcrawlStartingCaptainRandom;
             public float PersistentThrustGeneratedTotal;
             public uint PersistentMissilesFiredTotal;
             public uint PersistentKineticAmmoSpentTotal;
@@ -177,6 +182,9 @@ namespace Space4X.Camera
                     _labelStyle);
                 GUILayout.Label(
                     $"Challenge {_snapshot.FleetcrawlChallengeKind} risk={_snapshot.FleetcrawlChallengeRisk} spawn={_snapshot.FleetcrawlChallengeSpawnMultiplier:0.00}x xp={_snapshot.FleetcrawlChallengeExperienceMultiplier:0.00}x currency={_snapshot.FleetcrawlChallengeCurrencyMultiplier:0.00}x",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Captain {_snapshot.FleetcrawlStartingCaptainProfileId} pool={_snapshot.FleetcrawlStartingCaptainPoolSize} forced={(_snapshot.FleetcrawlStartingCaptainForced ? 1 : 0)} random={(_snapshot.FleetcrawlStartingCaptainRandom ? 1 : 0)} unlock_flags={_snapshot.FleetcrawlStartingCaptainUnlockFlags}",
                     _labelStyle);
                 GUILayout.Label(BuildFleetcrawlObjectiveText(in _snapshot), _labelStyle);
                 GUILayout.Label(
@@ -347,6 +355,15 @@ namespace Space4X.Camera
                         snapshot.FleetcrawlChallengeSpawnMultiplier = challenge.SpawnMultiplier;
                         snapshot.FleetcrawlChallengeCurrencyMultiplier = challenge.CurrencyMultiplier;
                         snapshot.FleetcrawlChallengeExperienceMultiplier = challenge.ExperienceMultiplier;
+                    }
+                    if (entityManager.HasComponent<Space4XRunStartingCaptainState>(directorEntity))
+                    {
+                        var captain = entityManager.GetComponentData<Space4XRunStartingCaptainState>(directorEntity);
+                        snapshot.FleetcrawlStartingCaptainProfileId = captain.ProfileId;
+                        snapshot.FleetcrawlStartingCaptainPoolSize = captain.CandidatePoolSize;
+                        snapshot.FleetcrawlStartingCaptainUnlockFlags = captain.UnlockFlags;
+                        snapshot.FleetcrawlStartingCaptainForced = captain.ForcedSelection != 0;
+                        snapshot.FleetcrawlStartingCaptainRandom = captain.RandomSelection != 0;
                     }
                 }
             }
