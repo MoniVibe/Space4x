@@ -1,6 +1,7 @@
 #if UNITY_EDITOR || UNITY_INCLUDE_TESTS
 using NUnit.Framework;
 using PureDOTS.Runtime.Math;
+using PureDOTS.Runtime.Resources;
 
 namespace Space4X.Tests
 {
@@ -30,6 +31,31 @@ namespace Space4X.Tests
             var spent = ResourcePoolMath.TrySpend(ref current, 8f);
             Assert.IsFalse(spent);
             Assert.AreEqual(5f, current, 1e-4f);
+        }
+
+        [Test]
+        public void AccumulateModifier_UsesMultiplicativeComposition()
+        {
+            var accumulator = ResourcePoolModifier.Identity;
+            ResourcePoolMath.AccumulateModifier(ref accumulator, new ResourcePoolModifier
+            {
+                AdditiveMax = 10f,
+                MultiplicativeMax = 1.2f,
+                AdditiveRegenPerSecond = 1f,
+                MultiplicativeRegen = 0.9f
+            });
+            ResourcePoolMath.AccumulateModifier(ref accumulator, new ResourcePoolModifier
+            {
+                AdditiveMax = -5f,
+                MultiplicativeMax = 0.5f,
+                AdditiveRegenPerSecond = 2f,
+                MultiplicativeRegen = 1.1f
+            });
+
+            Assert.AreEqual(5f, accumulator.AdditiveMax, 1e-4f);
+            Assert.AreEqual(0.6f, accumulator.MultiplicativeMax, 1e-4f);
+            Assert.AreEqual(3f, accumulator.AdditiveRegenPerSecond, 1e-4f);
+            Assert.AreEqual(0.99f, accumulator.MultiplicativeRegen, 1e-4f);
         }
     }
 }

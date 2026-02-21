@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Math;
+using PureDOTS.Runtime.Resources;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Unity.Burst;
@@ -120,21 +121,14 @@ namespace Space4X.Systems.Power
             foreach (var (reactor, config, energy, entity) in
                      SystemAPI.Query<RefRO<ShipReactorSpec>, RefRO<ShipSpecialEnergyConfig>, RefRW<ShipSpecialEnergyState>>().WithEntityAccess())
             {
-                var additiveMax = 0f;
-                var multiplicativeMax = 1f;
-                var additiveRegen = 0f;
-                var multiplicativeRegen = 1f;
+                var poolModifier = ResourcePoolModifier.Identity;
 
                 if (_passiveLookup.HasBuffer(entity))
                 {
                     var modifiers = _passiveLookup[entity];
                     for (var i = 0; i < modifiers.Length; i++)
                     {
-                        var modifier = modifiers[i];
-                        additiveMax += modifier.AdditiveMax;
-                        multiplicativeMax *= modifier.MultiplicativeMax <= 0f ? 1f : modifier.MultiplicativeMax;
-                        additiveRegen += modifier.AdditiveRegenPerSecond;
-                        multiplicativeRegen *= modifier.MultiplicativeRegen <= 0f ? 1f : modifier.MultiplicativeRegen;
+                        ResourcePoolMath.AccumulateModifier(ref poolModifier, modifiers[i].PoolModifier);
                     }
                 }
 
@@ -150,8 +144,8 @@ namespace Space4X.Systems.Power
                     }
                 }
 
-                var effectiveMax = ResourcePoolMath.ResolveModifiedMax(baseMax, additiveMax, multiplicativeMax);
-                var effectiveRegen = ResourcePoolMath.ResolveModifiedRate(baseRegen, additiveRegen, multiplicativeRegen);
+                var effectiveMax = ResourcePoolMath.ResolveModifiedMax(baseMax, poolModifier.AdditiveMax, poolModifier.MultiplicativeMax);
+                var effectiveRegen = ResourcePoolMath.ResolveModifiedRate(baseRegen, poolModifier.AdditiveRegenPerSecond, poolModifier.MultiplicativeRegen);
                 var current = ResourcePoolMath.ClampCurrent(energy.ValueRO.Current, effectiveMax);
                 var spentThisTick = energy.ValueRO.LastSpendTick == time.Tick
                     ? math.max(0f, energy.ValueRO.LastSpent)
@@ -164,7 +158,7 @@ namespace Space4X.Systems.Power
                     var activationCostScale = math.max(0.05f, config.ValueRO.ActivationCostMultiplier);
                     for (var i = 0; i < requests.Length; i++)
                     {
-                        var requestedAmount = math.max(0f, requests[i].Amount) * activationCostScale;
+                        var requestedAmount = ResourcePoolMath.ResolveSpendCost(requests[i].Amount, activationCostScale);
                         if (ResourcePoolMath.TrySpend(ref current, requestedAmount))
                         {
                             spentThisTick += requestedAmount;

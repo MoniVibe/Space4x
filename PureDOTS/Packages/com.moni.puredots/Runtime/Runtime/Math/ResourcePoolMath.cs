@@ -1,4 +1,5 @@
 using Unity.Mathematics;
+using PureDOTS.Runtime.Resources;
 
 namespace PureDOTS.Runtime.Math
 {
@@ -7,6 +8,14 @@ namespace PureDOTS.Runtime.Math
     /// </summary>
     public static class ResourcePoolMath
     {
+        public static void AccumulateModifier(ref ResourcePoolModifier accumulator, in ResourcePoolModifier modifier)
+        {
+            accumulator.AdditiveMax += modifier.AdditiveMax;
+            accumulator.MultiplicativeMax *= modifier.MultiplicativeMax <= 0f ? 1f : modifier.MultiplicativeMax;
+            accumulator.AdditiveRegenPerSecond += modifier.AdditiveRegenPerSecond;
+            accumulator.MultiplicativeRegen *= modifier.MultiplicativeRegen <= 0f ? 1f : modifier.MultiplicativeRegen;
+        }
+
         public static float ResolveModifiedMax(float baseMax, float additiveMax, float multiplicativeMax)
         {
             var safeBase = math.max(0f, baseMax);
@@ -48,6 +57,11 @@ namespace PureDOTS.Runtime.Math
 
             current = math.max(0f, current - spend);
             return true;
+        }
+
+        public static float ResolveSpendCost(float amount, float costMultiplier)
+        {
+            return math.max(0f, amount) * math.max(0f, costMultiplier);
         }
     }
 }
