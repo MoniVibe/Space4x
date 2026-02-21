@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Movement;
+using PureDOTS.Runtime.Progression;
 using PureDOTS.Systems;
 using Space4X.Runtime;
 using Unity.Burst;
@@ -85,6 +86,34 @@ namespace Space4X.Registry
                 _practiceLookup[pilot] = practice;
             }
 
+            foreach (var (pilotLink, engagement) in SystemAPI.Query<RefRO<VesselPilotLink>, RefRO<Space4XEngagement>>())
+            {
+                var pilot = pilotLink.ValueRO.Pilot;
+                if (pilot == Entity.Null || !_practiceLookup.HasComponent(pilot))
+                {
+                    continue;
+                }
+
+                if (engagement.ValueRO.Phase != EngagementPhase.Engaged &&
+                    engagement.ValueRO.Phase != EngagementPhase.Approaching)
+                {
+                    continue;
+                }
+
+                var practice = _practiceLookup[pilot];
+                if (engagement.ValueRO.Phase == EngagementPhase.Engaged)
+                {
+                    practice.DogfightSeconds += deltaSeconds;
+                    practice.GunnerySeconds += deltaSeconds;
+                }
+                else
+                {
+                    practice.DogfightSeconds += deltaSeconds * 0.4f;
+                }
+
+                _practiceLookup[pilot] = practice;
+            }
+
             foreach (var (pilotLink, profile, entity) in SystemAPI.Query<RefRO<StrikeCraftPilotLink>, RefRO<StrikeCraftProfile>>()
                 .WithEntityAccess())
             {
@@ -117,6 +146,12 @@ namespace Space4X.Registry
                 {
                     practice.DogfightSeconds += deltaSeconds;
                 }
+
+                if (profile.ValueRO.Phase == AttackRunPhase.Execute || _dogfightTagLookup.HasComponent(entity))
+                {
+                    practice.GunnerySeconds += deltaSeconds;
+                }
+
                 _practiceLookup[pilot] = practice;
             }
 
@@ -125,20 +160,46 @@ namespace Space4X.Registry
             {
                 ResolvePilotStats(entity, out var physique01, out var finesse01, out var will01, out var wisdom01);
 
-                var aptitude = ComputeAptitude(config.NavigationAptitude, physique01, finesse01, will01);
-                var wisdomFactor = math.lerp(config.WisdomMultiplierMin, config.WisdomMultiplierMax, wisdom01);
-                var aptitudeFactor = math.lerp(config.AptitudeMultiplierMin, config.AptitudeMultiplierMax, aptitude);
-                var effectiveSeconds = practice.ValueRO.NavigationSeconds * wisdomFactor * aptitudeFactor;
+                var navigationAptitude = ComputeAptitude(config.NavigationAptitude, physique01, finesse01, will01);
+                var dogfightAptitude = ComputeAptitude(config.DogfightAptitude, physique01, finesse01, will01);
+                var gunneryAptitude = ComputeAptitude(config.GunneryAptitude, physique01, finesse01, will01);
 
-                var skill01 = config.SecondsToMastery > 0f
-                    ? math.saturate(effectiveSeconds / config.SecondsToMastery)
-                    : 0f;
+                var navigationSkill01 = ProgressionMath.ResolveSkill01FromPractice(
+                    practice.ValueRO.NavigationSeconds,
+                    config.SecondsToMastery,
+                    wisdom01,
+                    navigationAptitude,
+                    config.WisdomMultiplierMin,
+                    config.WisdomMultiplierMax,
+                    config.AptitudeMultiplierMin,
+                    config.AptitudeMultiplierMax);
+                var dogfightSkill01 = ProgressionMath.ResolveSkill01FromPractice(
+                    practice.ValueRO.DogfightSeconds,
+                    config.SecondsToMastery,
+                    wisdom01,
+                    dogfightAptitude,
+                    config.WisdomMultiplierMin,
+                    config.WisdomMultiplierMax,
+                    config.AptitudeMultiplierMin,
+                    config.AptitudeMultiplierMax);
+                var gunnerySkill01 = ProgressionMath.ResolveSkill01FromPractice(
+                    practice.ValueRO.GunnerySeconds,
+                    config.SecondsToMastery,
+                    wisdom01,
+                    gunneryAptitude,
+                    config.WisdomMultiplierMin,
+                    config.WisdomMultiplierMax,
+                    config.AptitudeMultiplierMin,
+                    config.AptitudeMultiplierMax);
 
-                proficiency.ValueRW.ControlMult = math.lerp(config.ControlMin, config.ControlMax, skill01);
-                proficiency.ValueRW.TurnRateMult = math.lerp(config.TurnMin, config.TurnMax, skill01);
-                proficiency.ValueRW.EnergyMult = math.lerp(config.EnergyMax, config.EnergyMin, skill01);
-                proficiency.ValueRW.Jitter = math.lerp(config.JitterMax, config.JitterMin, skill01);
-                proficiency.ValueRW.ReactionSec = math.lerp(config.ReactionMax, config.ReactionMin, skill01);
+                var controlSkill01 = math.saturate(navigationSkill01 * 0.55f + dogfightSkill01 * 0.45f);
+                var reactionSkill01 = math.saturate(dogfightSkill01 * 0.65f + gunnerySkill01 * 0.35f);
+
+                proficiency.ValueRW.ControlMult = math.lerp(config.ControlMin, config.ControlMax, controlSkill01);
+                proficiency.ValueRW.TurnRateMult = math.lerp(config.TurnMin, config.TurnMax, dogfightSkill01);
+                proficiency.ValueRW.EnergyMult = math.lerp(config.EnergyMax, config.EnergyMin, navigationSkill01);
+                proficiency.ValueRW.Jitter = math.lerp(config.JitterMax, config.JitterMin, gunnerySkill01);
+                proficiency.ValueRW.ReactionSec = math.lerp(config.ReactionMax, config.ReactionMin, reactionSkill01);
             }
         }
 

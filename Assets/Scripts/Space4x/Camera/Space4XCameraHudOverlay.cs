@@ -68,6 +68,15 @@ namespace Space4X.Camera
             public int FleetcrawlExperienceToNext;
             public int FleetcrawlUnspentUpgrades;
             public int FleetcrawlMetaShards;
+            public int FleetcrawlMetaUnlocks;
+            public float FleetcrawlMetaDamageDealt;
+            public float FleetcrawlMetaDamageMitigated;
+            public float FleetcrawlMetaCloakSeconds;
+            public float FleetcrawlMetaTimeStopSeconds;
+            public float FleetcrawlMetaMissileDamage;
+            public int FleetcrawlMetaCraftShotDown;
+            public int FleetcrawlMetaCapitalKills;
+            public int FleetcrawlMetaCachesFound;
             public Space4XFleetcrawlChallengeKind FleetcrawlChallengeKind;
             public int FleetcrawlChallengeRisk;
             public float FleetcrawlChallengeSpawnMultiplier;
@@ -149,6 +158,12 @@ namespace Space4X.Camera
                     _labelStyle);
                 GUILayout.Label(
                     $"Progress lvl={_snapshot.FleetcrawlLevel} xp={_snapshot.FleetcrawlExperience}/{_snapshot.FleetcrawlExperienceToNext} unspent={_snapshot.FleetcrawlUnspentUpgrades} shards={_snapshot.FleetcrawlMetaShards}",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Meta unlocks={_snapshot.FleetcrawlMetaUnlocks} dealt={_snapshot.FleetcrawlMetaDamageDealt:0} mitigated={_snapshot.FleetcrawlMetaDamageMitigated:0} cloak={_snapshot.FleetcrawlMetaCloakSeconds:0.0}s stop={_snapshot.FleetcrawlMetaTimeStopSeconds:0.0}s",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Meta ordnance={_snapshot.FleetcrawlMetaMissileDamage:0} craft={_snapshot.FleetcrawlMetaCraftShotDown} capital={_snapshot.FleetcrawlMetaCapitalKills} caches={_snapshot.FleetcrawlMetaCachesFound}",
                     _labelStyle);
                 GUILayout.Label(
                     $"Challenge {_snapshot.FleetcrawlChallengeKind} risk={_snapshot.FleetcrawlChallengeRisk} spawn={_snapshot.FleetcrawlChallengeSpawnMultiplier:0.00}x xp={_snapshot.FleetcrawlChallengeExperienceMultiplier:0.00}x currency={_snapshot.FleetcrawlChallengeCurrencyMultiplier:0.00}x",
@@ -273,6 +288,35 @@ namespace Space4X.Camera
                     {
                         var meta = entityManager.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
                         snapshot.FleetcrawlMetaShards = meta.Shards;
+                    }
+                    if (entityManager.HasComponent<Space4XRunMetaUnlockState>(directorEntity))
+                    {
+                        var metaUnlocks = entityManager.GetComponentData<Space4XRunMetaUnlockState>(directorEntity);
+                        snapshot.FleetcrawlMetaUnlocks = metaUnlocks.UnlockCount;
+                    }
+                    if (entityManager.HasComponent<Space4XRunMetaProficiencyState>(directorEntity))
+                    {
+                        var metaProficiency = entityManager.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
+                        snapshot.FleetcrawlMetaDamageDealt = metaProficiency.DamageDealtEnergy +
+                                                            metaProficiency.DamageDealtThermal +
+                                                            metaProficiency.DamageDealtEM +
+                                                            metaProficiency.DamageDealtRadiation +
+                                                            metaProficiency.DamageDealtCaustic +
+                                                            metaProficiency.DamageDealtKinetic +
+                                                            metaProficiency.DamageDealtExplosive;
+                        snapshot.FleetcrawlMetaDamageMitigated = metaProficiency.DamageMitigatedEnergy +
+                                                                metaProficiency.DamageMitigatedThermal +
+                                                                metaProficiency.DamageMitigatedEM +
+                                                                metaProficiency.DamageMitigatedRadiation +
+                                                                metaProficiency.DamageMitigatedCaustic +
+                                                                metaProficiency.DamageMitigatedKinetic +
+                                                                metaProficiency.DamageMitigatedExplosive;
+                        snapshot.FleetcrawlMetaCloakSeconds = metaProficiency.CloakSeconds;
+                        snapshot.FleetcrawlMetaTimeStopSeconds = metaProficiency.TimeStopRequestedSeconds;
+                        snapshot.FleetcrawlMetaMissileDamage = metaProficiency.MissileDamageDealt;
+                        snapshot.FleetcrawlMetaCraftShotDown = metaProficiency.CraftShotDown;
+                        snapshot.FleetcrawlMetaCapitalKills = metaProficiency.CapitalShipsDestroyed;
+                        snapshot.FleetcrawlMetaCachesFound = metaProficiency.HiddenCachesFound;
                     }
                     if (entityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
                     {

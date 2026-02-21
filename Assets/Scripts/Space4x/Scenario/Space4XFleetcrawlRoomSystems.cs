@@ -464,13 +464,17 @@ namespace Space4x.Scenario
                 typeof(Space4XRunBoonSet),
                 typeof(Space4XRunProgressionState),
                 typeof(Space4XRunChallengeState),
-                typeof(Space4XRunMetaResourceState));
+                typeof(Space4XRunMetaResourceState),
+                typeof(Space4XRunMetaProficiencyState),
+                typeof(Space4XRunMetaProficiencyConfig),
+                typeof(Space4XRunMetaUnlockState));
             state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunPerkOp>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunInstalledBlueprint>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunUnlockedManufacturer>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunUnlockedPart>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunGateRewardRecord>(directorEntity);
+            state.EntityManager.AddBuffer<Space4XRunMetaUnlockRecord>(directorEntity);
             var rooms = state.EntityManager.GetBuffer<Space4XFleetcrawlRoom>(directorEntity);
             rooms.Add(new Space4XFleetcrawlRoom
             {
@@ -637,6 +641,9 @@ namespace Space4x.Scenario
                 Shards = 0,
                 RoomChallengeClears = 0
             });
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunMetaProficiencyState());
+            state.EntityManager.SetComponentData(directorEntity, Space4XRunMetaProficiencyConfig.Default);
+            state.EntityManager.SetComponentData(directorEntity, new Space4XRunMetaUnlockState());
 
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
@@ -1311,6 +1318,8 @@ namespace Space4x.Scenario
 
             var bountyEarned = 0;
             var experienceEarned = 0;
+            var craftShotDown = 0;
+            var capitalShipsDestroyed = 0;
             foreach (var (hull, enemyTag, entity) in SystemAPI.Query<RefRO<HullIntegrity>, RefRO<Space4XRunEnemyTag>>().WithNone<Space4XRunEnemyDestroyedCounted>().WithEntityAccess())
             {
                 if (hull.ValueRO.Current > 0f)
@@ -1335,6 +1344,17 @@ namespace Space4x.Scenario
                         break;
                 }
 
+                if (!SystemAPI.HasComponent<CarrierTag>(entity))
+                {
+                    craftShotDown++;
+                }
+
+                if (enemyTag.ValueRO.EnemyClass == Space4XFleetcrawlEnemyClass.Boss ||
+                    SystemAPI.HasComponent<FactionCapitalTag>(entity))
+                {
+                    capitalShipsDestroyed++;
+                }
+
                 bountyEarned += bounty;
                 experienceEarned += experience;
                 ecb.AddComponent<Space4XRunEnemyDestroyedCounted>(entity);
@@ -1349,6 +1369,15 @@ namespace Space4x.Scenario
             if (experienceEarned > 0)
             {
                 AwardExperience(ref state, directorEntity, ref director, experienceEarned);
+            }
+
+            if ((craftShotDown > 0 || capitalShipsDestroyed > 0) &&
+                state.EntityManager.HasComponent<Space4XRunMetaProficiencyState>(directorEntity))
+            {
+                var metaProgress = state.EntityManager.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
+                metaProgress.CraftShotDown += craftShotDown;
+                metaProgress.CapitalShipsDestroyed += capitalShipsDestroyed;
+                state.EntityManager.SetComponentData(directorEntity, metaProgress);
             }
 
             if (director.Initialized == 0)
@@ -2257,6 +2286,13 @@ namespace Space4x.Scenario
                         var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
                         currency.Value += 35;
                         state.EntityManager.SetComponentData(directorEntity, currency);
+                        if (offer.RewardId.Equals(new FixedString64Bytes("relief_currency_cache")) &&
+                            state.EntityManager.HasComponent<Space4XRunMetaProficiencyState>(directorEntity))
+                        {
+                            var metaProgress = state.EntityManager.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
+                            metaProgress.HiddenCachesFound += 1;
+                            state.EntityManager.SetComponentData(directorEntity, metaProgress);
+                        }
                         break;
                     }
                 case Space4XRunRewardKind.Heal:
