@@ -1515,15 +1515,15 @@ namespace Space4x.Scenario
             var wildcardBudget = math.max(0, finalBudget - assignedBudget);
             if (wildcardTags.Length == 0)
             {
-                var fallbackWildcard = NormalizeToken(unknownSelectionRules.fallbackWildcard, string.Empty);
-                if (fallbackWildcard.Length > 0)
+                var fallbackWildcardTag = NormalizeToken(unknownSelectionRules.fallbackWildcard, string.Empty);
+                if (fallbackWildcardTag.Length > 0)
                 {
-                    if (!fallbackWildcard.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
+                    if (!fallbackWildcardTag.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
                     {
-                        fallbackWildcard = $"wildcard.{fallbackWildcard}";
+                        fallbackWildcardTag = $"wildcard.{fallbackWildcardTag}";
                     }
 
-                    wildcardTags = new[] { fallbackWildcard };
+                    wildcardTags = new[] { fallbackWildcardTag };
                 }
             }
 

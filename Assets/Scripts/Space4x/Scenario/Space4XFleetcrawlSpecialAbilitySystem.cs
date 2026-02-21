@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using PureDOTS.Runtime.Math;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;

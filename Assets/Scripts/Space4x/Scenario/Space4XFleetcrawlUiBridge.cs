@@ -32,6 +32,16 @@ namespace Space4x.Scenario
         public FixedString64Bytes RewardId;
     }
 
+    public struct Space4XFleetcrawlBlueprintDefinition
+    {
+        public FixedString64Bytes BlueprintId;
+        public FixedString64Bytes BaseModuleId;
+        public FixedString64Bytes ManufacturerId;
+        public FixedString64Bytes PartA;
+        public FixedString64Bytes PartB;
+        public Space4XRunBlueprintKind Kind;
+    }
+
     public enum Space4XFleetcrawlInputMode : byte
     {
         Auto = 0,
@@ -270,6 +280,92 @@ namespace Space4x.Scenario
                 Space4XFleetcrawlPurchaseKind.Heal => "Heal",
                 Space4XFleetcrawlPurchaseKind.RerollToken => "Reroll token",
                 _ => kind.ToString()
+            };
+        }
+
+        public static bool TryResolveBlueprintDefinition(string blueprintId, out Space4XFleetcrawlBlueprintDefinition definition)
+        {
+            var normalized = string.IsNullOrWhiteSpace(blueprintId) ? string.Empty : blueprintId.Trim();
+            return TryResolveBlueprintDefinition(new FixedString64Bytes(normalized), out definition);
+        }
+
+        public static bool TryResolveBlueprintDefinition(
+            in FixedString64Bytes blueprintId,
+            out Space4XFleetcrawlBlueprintDefinition definition)
+        {
+            if (blueprintId.Equals(new FixedString64Bytes("weapon_laser_prismworks_coreA_lensBeam")))
+            {
+                definition = new Space4XFleetcrawlBlueprintDefinition
+                {
+                    BlueprintId = blueprintId,
+                    BaseModuleId = new FixedString64Bytes("weapon_laser"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    PartA = new FixedString64Bytes("coreA"),
+                    PartB = new FixedString64Bytes("lensBeam"),
+                    Kind = Space4XRunBlueprintKind.Weapon
+                };
+                return true;
+            }
+
+            if (blueprintId.Equals(new FixedString64Bytes("weapon_kinetic_baseline_coreB_barrelKinetic")))
+            {
+                definition = new Space4XFleetcrawlBlueprintDefinition
+                {
+                    BlueprintId = blueprintId,
+                    BaseModuleId = new FixedString64Bytes("weapon_kinetic"),
+                    ManufacturerId = new FixedString64Bytes("baseline"),
+                    PartA = new FixedString64Bytes("coreB"),
+                    PartB = new FixedString64Bytes("barrelKinetic"),
+                    Kind = Space4XRunBlueprintKind.Weapon
+                };
+                return true;
+            }
+
+            if (blueprintId.Equals(new FixedString64Bytes("reactor_prismworks_coreA_coolingStable")))
+            {
+                definition = new Space4XFleetcrawlBlueprintDefinition
+                {
+                    BlueprintId = blueprintId,
+                    BaseModuleId = new FixedString64Bytes("reactor"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    PartA = new FixedString64Bytes("coreA"),
+                    PartB = new FixedString64Bytes("coolingStable"),
+                    Kind = Space4XRunBlueprintKind.Reactor
+                };
+                return true;
+            }
+
+            if (blueprintId.Equals(new FixedString64Bytes("hangar_prismworks_guidanceDroneLink_lensBeam")))
+            {
+                definition = new Space4XFleetcrawlBlueprintDefinition
+                {
+                    BlueprintId = blueprintId,
+                    BaseModuleId = new FixedString64Bytes("hangar"),
+                    ManufacturerId = new FixedString64Bytes("prismworks"),
+                    PartA = new FixedString64Bytes("guidanceDroneLink"),
+                    PartB = new FixedString64Bytes("lensBeam"),
+                    Kind = Space4XRunBlueprintKind.Hangar
+                };
+                return true;
+            }
+
+            definition = default;
+            return false;
+        }
+
+        public static Space4XRunInstalledBlueprint ToInstalledBlueprint(
+            in Space4XFleetcrawlBlueprintDefinition definition,
+            byte version)
+        {
+            return new Space4XRunInstalledBlueprint
+            {
+                BlueprintId = definition.BlueprintId,
+                BaseModuleId = definition.BaseModuleId,
+                ManufacturerId = definition.ManufacturerId,
+                PartA = definition.PartA,
+                PartB = definition.PartB,
+                Kind = definition.Kind,
+                Version = version
             };
         }
 

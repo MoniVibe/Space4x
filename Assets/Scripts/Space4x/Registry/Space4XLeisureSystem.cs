@@ -422,7 +422,7 @@ namespace Space4X.Registry
                                       aggregate.Overcrowding * 0.65f;
                 leisureStrength = math.clamp(leisureStrength, -0.9f, 0.6f);
 
-                UpsertMoraleModifier(ref moraleModifiers, MoraleModifierSource.Leisure, leisureStrength, currentTick, 0u);
+                UpsertMoraleModifier(moraleModifiers, MoraleModifierSource.Leisure, leisureStrength, currentTick, 0u);
 
                 var espionagePressure = aggregate.EspionageRisk * (1f - (float)security.CounterIntelLevel);
                 var poisonPressure = aggregate.PoisonRisk * (1f - (float)security.FoodSafetyLevel);
@@ -478,7 +478,7 @@ namespace Space4X.Registry
                             Tick = currentTick
                         });
 
-                        UpsertMoraleModifier(ref moraleModifiers, MoraleModifierSource.Espionage, -severity, currentTick, 120u);
+                        UpsertMoraleModifier(moraleModifiers, MoraleModifierSource.Espionage, -severity, currentTick, 120u);
 
                         if (_suspicionLookup.HasComponent(entity))
                         {
@@ -626,7 +626,7 @@ namespace Space4X.Registry
         }
 
         private static void UpsertMoraleModifier(
-            ref DynamicBuffer<MoraleModifier> buffer,
+            DynamicBuffer<MoraleModifier> buffer,
             MoraleModifierSource source,
             float strength,
             uint currentTick,
