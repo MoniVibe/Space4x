@@ -128,7 +128,7 @@ namespace Space4x.Scenario
             return Space4XFleetcrawlPurchaseKind.Unknown;
         }
 
-        private static bool ApplyPurchase(
+        private bool ApplyPurchase(
             ref SystemState state,
             Space4XFleetcrawlPurchaseKind kind,
             ref Space4XRunReactiveModifiers modifiers,
