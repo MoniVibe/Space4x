@@ -28,23 +28,17 @@ namespace Space4X.Orders
                 if (faction.ValueRO.Type != FactionType.Empire && faction.ValueRO.Type != FactionType.Player)
                     continue;
 
+                DynamicBuffer<EmpireDirective> directives;
                 if (!state.EntityManager.HasBuffer<EmpireDirective>(entity))
                 {
-                    ecb.AddBuffer<EmpireDirective>(entity);
+                    directives = ecb.AddBuffer<EmpireDirective>(entity);
                 }
-            }
-
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
-
-            foreach (var (faction, entity) in SystemAPI.Query<RefRO<Space4XFaction>>().WithAll<EmpireDirective>().WithEntityAccess())
-            {
-                if (faction.ValueRO.Type != FactionType.Empire && faction.ValueRO.Type != FactionType.Player)
-                    continue;
-
-                var directives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
-                if (directives.Length > 0)
-                    continue;
+                else
+                {
+                    directives = state.EntityManager.GetBuffer<EmpireDirective>(entity);
+                    if (directives.Length > 0)
+                        continue;
+                }
 
                 AddDirective(ref directives, EmpireDirectiveType.SecureResources, math.clamp((float)faction.ValueRO.TradeFocus * 100f, 0f, 100f), currentTick);
                 AddDirective(ref directives, EmpireDirectiveType.Expand, math.clamp((float)faction.ValueRO.ExpansionDrive * 100f, 0f, 100f), currentTick);
@@ -52,6 +46,9 @@ namespace Space4X.Orders
                 AddDirective(ref directives, EmpireDirectiveType.MilitaryPosture, math.clamp((float)faction.ValueRO.MilitaryFocus * 100f, 0f, 100f), currentTick);
                 AddDirective(ref directives, EmpireDirectiveType.TradeBias, math.clamp((float)faction.ValueRO.TradeFocus * 90f, 0f, 100f), currentTick);
             }
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         private static void AddDirective(ref DynamicBuffer<EmpireDirective> directives, EmpireDirectiveType directiveType, float basePriority, uint currentTick)

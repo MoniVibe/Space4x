@@ -24,7 +24,6 @@ namespace Space4X.Systems
     [UpdateBefore(typeof(Space4XVesselAICommandBridgeSystem))]
     public partial struct Space4XVesselIntentBridgeSystem : ISystem
     {
-        private ComponentLookup<VesselAIState> _aiStateLookup;
         private ComponentLookup<MiningVessel> _miningVesselLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
         private ComponentLookup<AttackMoveIntent> _attackMoveLookup;
@@ -42,7 +41,6 @@ namespace Space4X.Systems
         {
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
-            _aiStateLookup = state.GetComponentLookup<VesselAIState>(false);
             _miningVesselLookup = state.GetComponentLookup<MiningVessel>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
             _attackMoveLookup = state.GetComponentLookup<AttackMoveIntent>(false);
@@ -69,11 +67,6 @@ namespace Space4X.Systems
                 return;
             }
 
-            // This system performs immediate ComponentLookup reads/writes on VesselAIState.
-            // Ensure writer jobs (for example VesselTargetingSystem) are completed first.
-            state.CompleteDependency();
-
-            _aiStateLookup.Update(ref state);
             _miningVesselLookup.Update(ref state);
             _asteroidLookup.Update(ref state);
             _attackMoveLookup.Update(ref state);
@@ -95,9 +88,8 @@ namespace Space4X.Systems
             var hasStructuralChanges = false;
 
             // Process all entities with EntityIntent and VesselAIState
-            foreach (var (intent, entity) in
-                SystemAPI.Query<RefRW<EntityIntent>>()
-                .WithAll<VesselAIState>()
+            foreach (var (intent, aiStateRef, entity) in
+                SystemAPI.Query<RefRW<EntityIntent>, RefRW<VesselAIState>>()
                 .WithEntityAccess())
             {
                 // Skip if intent is invalid or idle
@@ -106,17 +98,12 @@ namespace Space4X.Systems
                     // If intent is invalid and AI state is idle, clear intent
                     if (intent.ValueRO.IsValid == 0)
                     {
-                        var existingAiState = _aiStateLookup[entity];
+                        var existingAiState = aiStateRef.ValueRO;
                         if (existingAiState.CurrentGoal == VesselAIState.Goal.None && existingAiState.CurrentState == VesselAIState.State.Idle)
                         {
                             IntentService.ClearIntent(ref intent.ValueRW);
                         }
                     }
-                    continue;
-                }
-
-                if (!_aiStateLookup.HasComponent(entity))
-                {
                     continue;
                 }
 
@@ -127,7 +114,7 @@ namespace Space4X.Systems
                     TryApplyAttackMoveIntent(entity, intent.ValueRO, timeState.Tick, ref ecb, ref hasStructuralChanges);
                 }
 
-                var aiState = _aiStateLookup[entity];
+                var aiState = aiStateRef.ValueRO;
                 var newGoal = MapIntentToGoal(intent.ValueRO, entity);
 
                 // Only update if goal changed or if we need to update target
@@ -157,7 +144,7 @@ namespace Space4X.Systems
 
                 if (shouldUpdate)
                 {
-                    _aiStateLookup[entity] = aiState;
+                    aiStateRef.ValueRW = aiState;
                 }
 
                 // Check if intent should be cleared (goal completed or invalid)

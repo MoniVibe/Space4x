@@ -1,13 +1,14 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": {
-      "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
+    "com.coplaydev.coplay": {
+      "version": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
       "depth": 0,
       "source": "git",
       "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.2"
+        "com.unity.inputsystem": "1.1.1",
+        "com.unity.cloud.gltfast": "6.12.1"
       },
-      "hash": "4c9beaffdefadee03c07f00eb3e3b6c5294fc99d"
+      "hash": "e5e69b3cb3c00b219e315fea34d92a980cf9b11b"
     },
     "com.moni.puredots": {
       "version": "file:../../puredots/Packages/com.moni.puredots",
@@ -146,8 +147,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.nuget.newtonsoft-json": {
-      "version": "3.2.2",
-      "depth": 1,
+      "version": "3.2.1",
+      "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"

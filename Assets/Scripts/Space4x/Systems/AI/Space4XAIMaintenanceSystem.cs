@@ -58,9 +58,7 @@ namespace Space4X.Systems.AI
                 AlignmentLookup = _alignmentLookup
             };
 
-            // Writes through ComponentLookup<PreFlightCheck>; run single-threaded to
-            // avoid parallel write restrictions on lookup containers.
-            state.Dependency = job.Schedule(state.Dependency);
+            state.Dependency = job.ScheduleParallel(state.Dependency);
         }
 
         [BurstCompile]
@@ -68,7 +66,7 @@ namespace Space4X.Systems.AI
         public partial struct ProcessMaintenanceJob : IJobEntity
         {
             public uint CurrentTick;
-            public ComponentLookup<PreFlightCheck> PreFlightLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<PreFlightCheck> PreFlightLookup;
             [ReadOnly] public ComponentLookup<VesselStanceComponent> StanceLookup;
             [ReadOnly] public BufferLookup<AIOrder> OrderLookup;
             [ReadOnly] public ComponentLookup<AlignmentTriplet> AlignmentLookup;

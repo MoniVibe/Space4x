@@ -500,7 +500,6 @@ namespace Space4X.Registry
 
         public void OnUpdate(ref SystemState state)
         {
-            var entityManager = state.EntityManager;
             if (SystemAPI.TryGetSingletonEntity<Space4XResourceDistributionConfig>(out var entity))
             {
                 EnsureDefaults(ref state, entity);
@@ -508,58 +507,50 @@ namespace Space4X.Registry
                 return;
             }
 
-            entity = entityManager.CreateEntity(typeof(Space4XResourceDistributionConfig));
-            entityManager.SetComponentData(entity, Space4XResourceDistributionConfig.Default);
-            entityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
+            entity = state.EntityManager.CreateEntity(typeof(Space4XResourceDistributionConfig));
+            state.EntityManager.SetComponentData(entity, Space4XResourceDistributionConfig.Default);
+            state.EntityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+            state.EntityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
             {
                 BiasChance = Space4XResourceDistributionConfig.Default.BiasChance
             });
-            if (!entityManager.HasBuffer<Space4XResourceWeightEntry>(entity))
-            {
-                entityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
-            }
+            state.EntityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
 
-            if (!entityManager.HasBuffer<Space4XResourceWeightBaselineEntry>(entity))
-            {
-                entityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
-            }
-
-            var weights = entityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
-            Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
-            var baselineBuffer = entityManager.GetBuffer<Space4XResourceWeightBaselineEntry>(entity);
-            Space4XResourceDistributionBaselines.CopyWeightsToBaseline(weights, ref baselineBuffer);
-            entityManager.SetName(entity, "Space4XResourceDistributionConfig");
+            var buffer = state.EntityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
+            Space4XResourceDistributionDefaults.PopulateDefaults(ref buffer);
+            var baselineBuffer = state.EntityManager.GetBuffer<Space4XResourceWeightBaselineEntry>(entity);
+            Space4XResourceDistributionBaselines.CopyWeightsToBaseline(buffer, ref baselineBuffer);
+            state.EntityManager.SetName(entity, "Space4XResourceDistributionConfig");
             state.Enabled = false;
         }
 
         private void EnsureDefaults(ref SystemState state, Entity entity)
         {
-            var entityManager = state.EntityManager;
-            if (!entityManager.HasBuffer<Space4XResourceWeightEntry>(entity))
+            if (!state.EntityManager.HasBuffer<Space4XResourceWeightEntry>(entity))
             {
-                entityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+                var buffer = state.EntityManager.AddBuffer<Space4XResourceWeightEntry>(entity);
+                Space4XResourceDistributionDefaults.PopulateDefaults(ref buffer);
+                return;
             }
 
-            if (!entityManager.HasComponent<Space4XResourceDistributionBaselineConfig>(entity))
-            {
-                entityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
-                {
-                    BiasChance = entityManager.GetComponentData<Space4XResourceDistributionConfig>(entity).BiasChance
-                });
-            }
-
-            if (!entityManager.HasBuffer<Space4XResourceWeightBaselineEntry>(entity))
-            {
-                entityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
-            }
-
-            var weights = entityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
+            var weights = state.EntityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
             if (weights.Length != (int)ResourceType.Count)
             {
                 Space4XResourceDistributionDefaults.PopulateDefaults(ref weights);
             }
 
-            var baselineBuffer = entityManager.GetBuffer<Space4XResourceWeightBaselineEntry>(entity);
+            if (!state.EntityManager.HasComponent<Space4XResourceDistributionBaselineConfig>(entity))
+            {
+                state.EntityManager.AddComponentData(entity, new Space4XResourceDistributionBaselineConfig
+                {
+                    BiasChance = state.EntityManager.GetComponentData<Space4XResourceDistributionConfig>(entity).BiasChance
+                });
+            }
+
+            var baselineBuffer = state.EntityManager.HasBuffer<Space4XResourceWeightBaselineEntry>(entity)
+                ? state.EntityManager.GetBuffer<Space4XResourceWeightBaselineEntry>(entity)
+                : state.EntityManager.AddBuffer<Space4XResourceWeightBaselineEntry>(entity);
+            weights = state.EntityManager.GetBuffer<Space4XResourceWeightEntry>(entity);
 
             if (baselineBuffer.Length != weights.Length)
             {

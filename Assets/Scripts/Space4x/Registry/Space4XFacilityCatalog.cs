@@ -86,6 +86,34 @@ namespace Space4X.Registry
                     DisplayName = "Gas Scooper",
                     Description = "Atmospheric intake and fuel distillation.",
                     FacilityClass = "scooper"
+                },
+                new FacilityFamilyDefinition
+                {
+                    Id = "shipyard",
+                    DisplayName = "Shipyard",
+                    Description = "Hull assembly and drydock operations.",
+                    FacilityClass = "shipyard"
+                },
+                new FacilityFamilyDefinition
+                {
+                    Id = "module_fabrication",
+                    DisplayName = "Module Fabrication",
+                    Description = "Module assembly and fitting lines.",
+                    FacilityClass = "module_facility"
+                },
+                new FacilityFamilyDefinition
+                {
+                    Id = "research_lab",
+                    DisplayName = "Research Lab",
+                    Description = "Scientific research and prototype development.",
+                    FacilityClass = "research"
+                },
+                new FacilityFamilyDefinition
+                {
+                    Id = "habitation",
+                    DisplayName = "Habitation",
+                    Description = "Housing blocks and life support stacks.",
+                    FacilityClass = "habitation"
                 }
             };
             hulls = new[]
@@ -199,6 +227,93 @@ namespace Space4X.Registry
                         new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
                         new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
                     }
+                },
+                new FacilityHullDefinition
+                {
+                    Id = "hull.shipyard.core",
+                    DisplayName = "Orbital Drydock Core",
+                    Description = "Massive hull for shipyard assembly bays.",
+                    FacilityFamilyId = "shipyard",
+                    ManufacturerId = "aegis_forge",
+                    BaseMassTons = 480f,
+                    BaseIntegrity = 520f,
+                    BaseQuality01 = 0.6f,
+                    AttachmentSlots = new[]
+                    {
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Production, Count = 3, MaxMassTons = 160f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Utility, Count = 2, MaxMassTons = 110f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Power, Count = 2, MaxMassTons = 140f }
+                    },
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
+                    }
+                },
+                new FacilityHullDefinition
+                {
+                    Id = "hull.module_fab.core",
+                    DisplayName = "Module Fabrication Core",
+                    Description = "Assembly hull for module lines.",
+                    FacilityFamilyId = "module_fabrication",
+                    ManufacturerId = "orion_coilworks",
+                    BaseMassTons = 320f,
+                    BaseIntegrity = 300f,
+                    BaseQuality01 = 0.65f,
+                    AttachmentSlots = new[]
+                    {
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Production, Count = 2, MaxMassTons = 110f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Utility, Count = 2, MaxMassTons = 80f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Power, Count = 1, MaxMassTons = 90f }
+                    },
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
+                    }
+                },
+                new FacilityHullDefinition
+                {
+                    Id = "hull.research.core",
+                    DisplayName = "Research Core",
+                    Description = "Laboratory hull with sensor arrays.",
+                    FacilityFamilyId = "research_lab",
+                    ManufacturerId = "lumen_covenant",
+                    BaseMassTons = 260f,
+                    BaseIntegrity = 230f,
+                    BaseQuality01 = 0.68f,
+                    AttachmentSlots = new[]
+                    {
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Production, Count = 1, MaxMassTons = 90f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Utility, Count = 2, MaxMassTons = 85f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Power, Count = 1, MaxMassTons = 80f }
+                    },
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
+                    }
+                },
+                new FacilityHullDefinition
+                {
+                    Id = "hull.habitation.core",
+                    DisplayName = "Habitation Core",
+                    Description = "Habitat ring hull for population support.",
+                    FacilityFamilyId = "habitation",
+                    ManufacturerId = "lumen_covenant",
+                    BaseMassTons = 340f,
+                    BaseIntegrity = 280f,
+                    BaseQuality01 = 0.64f,
+                    AttachmentSlots = new[]
+                    {
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Utility, Count = 3, MaxMassTons = 100f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Power, Count = 1, MaxMassTons = 90f }
+                    },
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
+                    }
                 }
             };
             organs = new[]
@@ -216,7 +331,17 @@ namespace Space4X.Registry
                 new FacilityOrganDefinition { Id = "smelter.aegis.m1", DisplayName = "Aegis Smelter Core", SlotType = "smelter", ManufacturerId = "aegis_forge", Quality = 0.7f, Efficiency = 0.65f, Throughput = 0.6f, Stability = 0.7f, PowerDraw = 0.6f, Reliability = 0.75f },
                 new FacilityOrganDefinition { Id = "intake.orion.m1", DisplayName = "Orion Intake Array", SlotType = "intake", ManufacturerId = "orion_coilworks", Quality = 0.66f, Efficiency = 0.6f, Throughput = 0.65f, Stability = 0.6f, PowerDraw = 0.55f, Reliability = 0.68f },
                 new FacilityOrganDefinition { Id = "compressor.orion.m1", DisplayName = "Orion Compressor", SlotType = "compressor", ManufacturerId = "orion_coilworks", Quality = 0.64f, Efficiency = 0.6f, Throughput = 0.6f, Stability = 0.6f, PowerDraw = 0.55f, Reliability = 0.66f },
-                new FacilityOrganDefinition { Id = "scrubber.aegis.m1", DisplayName = "Aegis Scrubber", SlotType = "scrubber", ManufacturerId = "aegis_forge", Quality = 0.68f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.65f, PowerDraw = 0.5f, Reliability = 0.7f }
+                new FacilityOrganDefinition { Id = "scrubber.aegis.m1", DisplayName = "Aegis Scrubber", SlotType = "scrubber", ManufacturerId = "aegis_forge", Quality = 0.68f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.65f, PowerDraw = 0.5f, Reliability = 0.7f },
+                new FacilityOrganDefinition { Id = "gantry.aegis.m1", DisplayName = "Aegis Assembly Gantry", SlotType = "gantry", ManufacturerId = "aegis_forge", Quality = 0.7f, Efficiency = 0.65f, Throughput = 0.7f, Stability = 0.7f, PowerDraw = 0.7f, Reliability = 0.76f },
+                new FacilityOrganDefinition { Id = "assembler.aegis.m1", DisplayName = "Aegis Assembly Core", SlotType = "assembler", ManufacturerId = "aegis_forge", Quality = 0.68f, Efficiency = 0.66f, Throughput = 0.66f, Stability = 0.68f, PowerDraw = 0.6f, Reliability = 0.74f },
+                new FacilityOrganDefinition { Id = "calibration.orion.m1", DisplayName = "Orion Calibration Rig", SlotType = "calibration", ManufacturerId = "orion_coilworks", Quality = 0.67f, Efficiency = 0.64f, Throughput = 0.6f, Stability = 0.7f, PowerDraw = 0.5f, Reliability = 0.72f },
+                new FacilityOrganDefinition { Id = "nanoforge.orion.m1", DisplayName = "Orion Nano Forge", SlotType = "nanoforge", ManufacturerId = "orion_coilworks", Quality = 0.7f, Efficiency = 0.66f, Throughput = 0.62f, Stability = 0.68f, PowerDraw = 0.65f, Reliability = 0.7f },
+                new FacilityOrganDefinition { Id = "labcore.lumen.m1", DisplayName = "Lumen Lab Core", SlotType = "lab_core", ManufacturerId = "lumen_covenant", Quality = 0.72f, Efficiency = 0.7f, Throughput = 0.6f, Stability = 0.75f, PowerDraw = 0.6f, Reliability = 0.78f },
+                new FacilityOrganDefinition { Id = "analyzer.lumen.m1", DisplayName = "Lumen Analyzer", SlotType = "analyzer", ManufacturerId = "lumen_covenant", Quality = 0.7f, Efficiency = 0.68f, Throughput = 0.58f, Stability = 0.72f, PowerDraw = 0.55f, Reliability = 0.76f },
+                new FacilityOrganDefinition { Id = "datagrid.lumen.m1", DisplayName = "Lumen Data Grid", SlotType = "datagrid", ManufacturerId = "lumen_covenant", Quality = 0.69f, Efficiency = 0.66f, Throughput = 0.6f, Stability = 0.7f, PowerDraw = 0.5f, Reliability = 0.74f },
+                new FacilityOrganDefinition { Id = "life_support.lumen.m1", DisplayName = "Lumen Life Support", SlotType = "life_support", ManufacturerId = "lumen_covenant", Quality = 0.66f, Efficiency = 0.62f, Throughput = 0.58f, Stability = 0.7f, PowerDraw = 0.5f, Reliability = 0.72f },
+                new FacilityOrganDefinition { Id = "recycler.aegis.m1", DisplayName = "Aegis Habitat Recycler", SlotType = "recycler", ManufacturerId = "aegis_forge", Quality = 0.64f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.65f, PowerDraw = 0.45f, Reliability = 0.7f },
+                new FacilityOrganDefinition { Id = "hydro.orion.m1", DisplayName = "Orion Hydro Module", SlotType = "hydro", ManufacturerId = "orion_coilworks", Quality = 0.63f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.6f, PowerDraw = 0.45f, Reliability = 0.68f }
             };
             limbs = new[]
             {
@@ -348,6 +473,110 @@ namespace Space4X.Registry
                     CargoCapacityBonus = 0f,
                     MassTons = 80f,
                     Quality01 = 0.63f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.shipyard_bay",
+                    DisplayName = "Shipyard Bay",
+                    Description = "Heavy assembly bay for hull construction.",
+                    LimbType = FacilityLimbTypeIds.Production,
+                    ManufacturerId = "aegis_forge",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "gantry", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "assembler", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "calibration", Count = 1 }
+                    },
+                    SupportedProcessIds = new[] { "proc.shipyard_lcv_sparrow", "proc.shipyard_cv_mule" },
+                    Tags = new[] { "shipyard", "hull" },
+                    ProcessSlots = 2,
+                    ParallelChainSlots = 1,
+                    ThroughputMultiplier = 1.15f,
+                    QualityMultiplier = 1.05f,
+                    PowerDraw = 0.9f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 120f,
+                    Quality01 = 0.62f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.module_fab_line",
+                    DisplayName = "Module Fabrication Line",
+                    Description = "Assembly line for core ship modules.",
+                    LimbType = FacilityLimbTypeIds.Production,
+                    ManufacturerId = "orion_coilworks",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "nanoforge", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "assembler", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "calibration", Count = 1 }
+                    },
+                    SupportedProcessIds = new[] { "proc.module_engine_mk1", "proc.module_shield_s1", "proc.module_laser_s1" },
+                    Tags = new[] { "module", "assembly" },
+                    ProcessSlots = 2,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1.05f,
+                    QualityMultiplier = 1.02f,
+                    PowerDraw = 0.75f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 90f,
+                    Quality01 = 0.64f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.research_lab",
+                    DisplayName = "Research Lab",
+                    Description = "Scientific lab for research output.",
+                    LimbType = FacilityLimbTypeIds.Training,
+                    ManufacturerId = "lumen_covenant",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "lab_core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "analyzer", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "datagrid", Count = 1 }
+                    },
+                    SupportedProcessIds = new[] { "proc.research_packet" },
+                    Tags = new[] { "research", "lab" },
+                    ProcessSlots = 1,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1.05f,
+                    QualityMultiplier = 1.1f,
+                    PowerDraw = 0.6f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 70f,
+                    Quality01 = 0.68f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.habitation_ring",
+                    DisplayName = "Habitation Ring",
+                    Description = "Habitat limb providing crew housing.",
+                    LimbType = FacilityLimbTypeIds.Cargo,
+                    ManufacturerId = "lumen_covenant",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "life_support", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "recycler", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "hydro", Count = 1 }
+                    },
+                    SupportedProcessIds = Array.Empty<string>(),
+                    Tags = new[] { "habitation", "housing" },
+                    ProcessSlots = 0,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1f,
+                    QualityMultiplier = 1f,
+                    PowerDraw = 0.5f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0.6f,
+                    MassTons = 105f,
+                    Quality01 = 0.64f,
                     CustomMadeDefault = false
                 },
                 new FacilityLimbDefinition
@@ -623,6 +852,133 @@ namespace Space4X.Registry
                     PowerCost = 1.0f,
                     LaborCost = 0.8f,
                     MinTechTier = 1
+                },
+                new FacilityProcessDefinition
+                {
+                    Id = "proc.shipyard_lcv_sparrow",
+                    DisplayName = "Assemble LCV Sparrow",
+                    Description = "Assemble a light courier hull.",
+                    Stage = ProductionStage.Crafting,
+                    AllowedLimbIds = new[] { "limb.shipyard_bay" },
+                    Inputs = new[]
+                    {
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_parts", Quantity = 30f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_alloy", Quantity = 40f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_ingot", Quantity = 20f, MinPurity01 = 0f, MinQuality01 = 0f }
+                    },
+                    Outputs = new[]
+                    {
+                        new FacilityProcessOutputDefinition { ResourceId = "lcv-sparrow", Quantity = 1f, QualityFloor01 = 0.5f, IsByproduct = false }
+                    },
+                    BaseTimeSeconds = 40f,
+                    PowerCost = 2.2f,
+                    LaborCost = 1.2f,
+                    MinTechTier = 1
+                },
+                new FacilityProcessDefinition
+                {
+                    Id = "proc.shipyard_cv_mule",
+                    DisplayName = "Assemble CV Mule",
+                    Description = "Assemble a carrier hull.",
+                    Stage = ProductionStage.Crafting,
+                    AllowedLimbIds = new[] { "limb.shipyard_bay" },
+                    Inputs = new[]
+                    {
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_parts", Quantity = 60f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_alloy", Quantity = 80f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_ingot", Quantity = 40f, MinPurity01 = 0f, MinQuality01 = 0f }
+                    },
+                    Outputs = new[]
+                    {
+                        new FacilityProcessOutputDefinition { ResourceId = "cv-mule", Quantity = 1f, QualityFloor01 = 0.55f, IsByproduct = false }
+                    },
+                    BaseTimeSeconds = 60f,
+                    PowerCost = 2.6f,
+                    LaborCost = 1.4f,
+                    MinTechTier = 2
+                },
+                new FacilityProcessDefinition
+                {
+                    Id = "proc.module_engine_mk1",
+                    DisplayName = "Assemble Engine Mk1",
+                    Description = "Assemble a basic engine module.",
+                    Stage = ProductionStage.Crafting,
+                    AllowedLimbIds = new[] { "limb.module_fab_line" },
+                    Inputs = new[]
+                    {
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_parts", Quantity = 6f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_alloy", Quantity = 8f, MinPurity01 = 0f, MinQuality01 = 0f }
+                    },
+                    Outputs = new[]
+                    {
+                        new FacilityProcessOutputDefinition { ResourceId = "engine-mk1", Quantity = 1f, QualityFloor01 = 0.5f, IsByproduct = false }
+                    },
+                    BaseTimeSeconds = 14f,
+                    PowerCost = 1.1f,
+                    LaborCost = 1.0f,
+                    MinTechTier = 1
+                },
+                new FacilityProcessDefinition
+                {
+                    Id = "proc.module_shield_s1",
+                    DisplayName = "Assemble Shield S1",
+                    Description = "Assemble a small shield module.",
+                    Stage = ProductionStage.Crafting,
+                    AllowedLimbIds = new[] { "limb.module_fab_line" },
+                    Inputs = new[]
+                    {
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_parts", Quantity = 5f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_alloy", Quantity = 7f, MinPurity01 = 0f, MinQuality01 = 0f }
+                    },
+                    Outputs = new[]
+                    {
+                        new FacilityProcessOutputDefinition { ResourceId = "shield-s-1", Quantity = 1f, QualityFloor01 = 0.5f, IsByproduct = false }
+                    },
+                    BaseTimeSeconds = 13f,
+                    PowerCost = 1.05f,
+                    LaborCost = 1.0f,
+                    MinTechTier = 1
+                },
+                new FacilityProcessDefinition
+                {
+                    Id = "proc.module_laser_s1",
+                    DisplayName = "Assemble Laser S1",
+                    Description = "Assemble a small laser module.",
+                    Stage = ProductionStage.Crafting,
+                    AllowedLimbIds = new[] { "limb.module_fab_line" },
+                    Inputs = new[]
+                    {
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_parts", Quantity = 5f, MinPurity01 = 0f, MinQuality01 = 0f },
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_alloy", Quantity = 6f, MinPurity01 = 0f, MinQuality01 = 0f }
+                    },
+                    Outputs = new[]
+                    {
+                        new FacilityProcessOutputDefinition { ResourceId = "laser-s-1", Quantity = 1f, QualityFloor01 = 0.5f, IsByproduct = false }
+                    },
+                    BaseTimeSeconds = 12f,
+                    PowerCost = 1.0f,
+                    LaborCost = 0.9f,
+                    MinTechTier = 1
+                },
+                new FacilityProcessDefinition
+                {
+                    Id = "proc.research_packet",
+                    DisplayName = "Research Packet",
+                    Description = "Convert supplies into research output.",
+                    Stage = ProductionStage.Crafting,
+                    AllowedLimbIds = new[] { "limb.research_lab" },
+                    Inputs = new[]
+                    {
+                        new FacilityProcessInputDefinition { ResourceId = "space4x_supplies", Quantity = 12f, MinPurity01 = 0f, MinQuality01 = 0f }
+                    },
+                    Outputs = new[]
+                    {
+                        new FacilityProcessOutputDefinition { ResourceId = "space4x_research", Quantity = 5f, QualityFloor01 = 0.5f, IsByproduct = false }
+                    },
+                    BaseTimeSeconds = 10f,
+                    PowerCost = 0.8f,
+                    LaborCost = 0.9f,
+                    MinTechTier = 1
                 }
             };
             models = new[]
@@ -832,6 +1188,175 @@ namespace Space4X.Registry
                         {
                             new FacilityStaffRoleDefinition { RoleId = "technician", MinCount = 2, MaxCount = 3, WagePerSecond = 0.02f, SkillRequirement01 = 0.45f },
                             new FacilityStaffRoleDefinition { RoleId = "operator", MinCount = 1, MaxCount = 2, WagePerSecond = 0.03f, SkillRequirement01 = 0.5f }
+                        },
+                        PayrollVariance01 = 0.15f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.shipyard_drydock",
+                    DisplayName = "Orbital Shipyard",
+                    Description = "Drydock facility for hull assembly.",
+                    FacilityFamilyId = "shipyard",
+                    ManufacturerId = "aegis_forge",
+                    HullId = "hull.shipyard.core",
+                    BlueprintId = "bp_facility_shipyard",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.shipyard_bay",
+                        "limb.power_booster",
+                        "limb.cargo_buffer",
+                        "limb.facility_head"
+                    },
+                    DefaultProcessIds = new[] { "proc.shipyard_lcv_sparrow", "proc.shipyard_cv_mule" },
+                    DefaultStaffingProfileId = "staffing.standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 12500f,
+                        PermitCostCredits = 1200f,
+                        ConstructionTimeSeconds = 520f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 80f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_alloy", UnitsRequired = 60f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_ingot", UnitsRequired = 40f }
+                        },
+                        PayrollBudgetPerSecond = 0.8f,
+                        MaintenanceBudgetPerSecond = 0.45f,
+                        EmployerTaxRate01 = 0.1f,
+                        EmployeeTaxWithholding01 = 0.08f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "engineer", MinCount = 3, MaxCount = 6, WagePerSecond = 0.05f, SkillRequirement01 = 0.6f },
+                            new FacilityStaffRoleDefinition { RoleId = "operator", MinCount = 2, MaxCount = 4, WagePerSecond = 0.04f, SkillRequirement01 = 0.55f }
+                        },
+                        PayrollVariance01 = 0.2f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.module_fab",
+                    DisplayName = "Module Fabrication Bay",
+                    Description = "Module assembly facility for core ship systems.",
+                    FacilityFamilyId = "module_fabrication",
+                    ManufacturerId = "orion_coilworks",
+                    HullId = "hull.module_fab.core",
+                    BlueprintId = "bp_facility_module_fab",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.module_fab_line",
+                        "limb.automation_line",
+                        "limb.power_booster"
+                    },
+                    DefaultProcessIds = new[] { "proc.module_engine_mk1", "proc.module_shield_s1", "proc.module_laser_s1" },
+                    DefaultStaffingProfileId = "staffing.standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 7200f,
+                        PermitCostCredits = 640f,
+                        ConstructionTimeSeconds = 320f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 36f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_alloy", UnitsRequired = 20f }
+                        },
+                        PayrollBudgetPerSecond = 0.5f,
+                        MaintenanceBudgetPerSecond = 0.24f,
+                        EmployerTaxRate01 = 0.08f,
+                        EmployeeTaxWithholding01 = 0.06f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "engineer", MinCount = 2, MaxCount = 4, WagePerSecond = 0.04f, SkillRequirement01 = 0.55f },
+                            new FacilityStaffRoleDefinition { RoleId = "operator", MinCount = 2, MaxCount = 4, WagePerSecond = 0.03f, SkillRequirement01 = 0.5f }
+                        },
+                        PayrollVariance01 = 0.18f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.research_lab",
+                    DisplayName = "Research Lab",
+                    Description = "Research facility for knowledge production.",
+                    FacilityFamilyId = "research_lab",
+                    ManufacturerId = "lumen_covenant",
+                    HullId = "hull.research.core",
+                    BlueprintId = "bp_facility_research",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.research_lab",
+                        "limb.training_suite",
+                        "limb.relations_office"
+                    },
+                    DefaultProcessIds = new[] { "proc.research_packet" },
+                    DefaultStaffingProfileId = "staffing.standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 6800f,
+                        PermitCostCredits = 600f,
+                        ConstructionTimeSeconds = 300f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 28f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_supplies", UnitsRequired = 14f }
+                        },
+                        PayrollBudgetPerSecond = 0.48f,
+                        MaintenanceBudgetPerSecond = 0.22f,
+                        EmployerTaxRate01 = 0.08f,
+                        EmployeeTaxWithholding01 = 0.06f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "researcher", MinCount = 3, MaxCount = 5, WagePerSecond = 0.045f, SkillRequirement01 = 0.6f },
+                            new FacilityStaffRoleDefinition { RoleId = "technician", MinCount = 1, MaxCount = 2, WagePerSecond = 0.03f, SkillRequirement01 = 0.45f }
+                        },
+                        PayrollVariance01 = 0.2f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.habitation_block",
+                    DisplayName = "Habitation Block",
+                    Description = "Housing and life support facility.",
+                    FacilityFamilyId = "habitation",
+                    ManufacturerId = "lumen_covenant",
+                    HullId = "hull.habitation.core",
+                    BlueprintId = "bp_facility_habitation",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.habitation_ring",
+                        "limb.power_booster",
+                        "limb.legal_battery"
+                    },
+                    DefaultProcessIds = Array.Empty<string>(),
+                    DefaultStaffingProfileId = "staffing.standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 5600f,
+                        PermitCostCredits = 520f,
+                        ConstructionTimeSeconds = 260f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 30f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_supplies", UnitsRequired = 16f }
+                        },
+                        PayrollBudgetPerSecond = 0.32f,
+                        MaintenanceBudgetPerSecond = 0.18f,
+                        EmployerTaxRate01 = 0.07f,
+                        EmployeeTaxWithholding01 = 0.05f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "steward", MinCount = 2, MaxCount = 4, WagePerSecond = 0.02f, SkillRequirement01 = 0.4f }
                         },
                         PayrollVariance01 = 0.15f
                     }

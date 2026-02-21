@@ -1,7 +1,5 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Systems;
-using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -10,21 +8,15 @@ namespace Space4X.Registry
     /// <summary>
     /// Maintains normalized [0..1] stat snapshots for individual entities.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(GameplaySystemGroup))]
     [UpdateBefore(typeof(Space4XPilotProficiencySystem))]
     public partial struct Space4XIndividualStatNormalizationSystem : ISystem
     {
-        private ComponentLookup<PureDOTS.Runtime.Stats.WisdomStat> _wisdomLookup;
-
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
-            _wisdomLookup = state.GetComponentLookup<PureDOTS.Runtime.Stats.WisdomStat>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var em = state.EntityManager;
@@ -38,46 +30,28 @@ namespace Space4X.Registry
             }
 
             ecb.Playback(em);
-
-            _wisdomLookup.Update(ref state);
-
-            var job = new NormalizeJob
+            foreach (var (normalized, stats, physique, entity) in SystemAPI
+                         .Query<RefRW<Space4XNormalizedIndividualStats>, RefRO<IndividualStats>, RefRO<PhysiqueFinesseWill>>()
+                         .WithEntityAccess())
             {
-                WisdomLookup = _wisdomLookup
-            };
-            state.Dependency = job.Schedule(state.Dependency);
-            state.Dependency.Complete();
-        }
+                normalized.ValueRW.Command = math.saturate((float)stats.ValueRO.Command / 100f);
+                normalized.ValueRW.Tactics = math.saturate((float)stats.ValueRO.Tactics / 100f);
+                normalized.ValueRW.Logistics = math.saturate((float)stats.ValueRO.Logistics / 100f);
+                normalized.ValueRW.Diplomacy = math.saturate((float)stats.ValueRO.Diplomacy / 100f);
+                normalized.ValueRW.Engineering = math.saturate((float)stats.ValueRO.Engineering / 100f);
+                normalized.ValueRW.Resolve = math.saturate((float)stats.ValueRO.Resolve / 100f);
 
-        [BurstCompile]
-        public partial struct NormalizeJob : IJobEntity
-        {
-            [ReadOnly] public ComponentLookup<PureDOTS.Runtime.Stats.WisdomStat> WisdomLookup;
+                normalized.ValueRW.Physique = math.saturate((float)physique.ValueRO.Physique / 100f);
+                normalized.ValueRW.Finesse = math.saturate((float)physique.ValueRO.Finesse / 100f);
+                normalized.ValueRW.Will = math.saturate((float)physique.ValueRO.Will / 100f);
 
-            void Execute(
-                Entity entity,
-                ref Space4XNormalizedIndividualStats normalized,
-                in IndividualStats stats,
-                in PhysiqueFinesseWill physique)
-            {
-                normalized.Command = math.saturate((float)stats.Command / 100f);
-                normalized.Tactics = math.saturate((float)stats.Tactics / 100f);
-                normalized.Logistics = math.saturate((float)stats.Logistics / 100f);
-                normalized.Diplomacy = math.saturate((float)stats.Diplomacy / 100f);
-                normalized.Engineering = math.saturate((float)stats.Engineering / 100f);
-                normalized.Resolve = math.saturate((float)stats.Resolve / 100f);
-
-                normalized.Physique = math.saturate((float)physique.Physique / 100f);
-                normalized.Finesse = math.saturate((float)physique.Finesse / 100f);
-                normalized.Will = math.saturate((float)physique.Will / 100f);
-
-                var wisdom = normalized.Will;
-                if (WisdomLookup.HasComponent(entity))
+                var wisdom = normalized.ValueRW.Will;
+                if (em.HasComponent<PureDOTS.Runtime.Stats.WisdomStat>(entity))
                 {
-                    wisdom = math.saturate(WisdomLookup[entity].Wisdom / 100f);
+                    wisdom = math.saturate(em.GetComponentData<PureDOTS.Runtime.Stats.WisdomStat>(entity).Wisdom / 100f);
                 }
 
-                normalized.Wisdom = wisdom;
+                normalized.ValueRW.Wisdom = wisdom;
             }
         }
     }

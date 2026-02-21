@@ -1,20 +1,16 @@
 using System;
 using System.Collections;
-using System.IO;
-using Space4X.Modes;
 using PureDOTS.Runtime.Core;
 using Space4X.Registry;
-using Space4x.Scenario;
-using Unity.Entities;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
+using UCamera = UnityEngine.Camera;
+using UTime = UnityEngine.Time;
 #if UNITY_EDITOR
 using UnityEditor.SceneManagement;
 #endif
-using UCamera = UnityEngine.Camera;
-using UTime = UnityEngine.Time;
 
 namespace Space4X.UI
 {
@@ -26,6 +22,9 @@ namespace Space4X.UI
     {
         private const string SmokeSceneName = "TRI_Space4X_Smoke";
         private const string ShipPresetCatalogResourcePath = "UI/Space4XShipPresetCatalog";
+        private const string AutoStartRunEnv = "SPACE4X_AUTOSTART_RUN";
+        private const string AutoStartPresetEnv = "SPACE4X_AUTOSTART_PRESET";
+        private const string AutoStartDifficultyEnv = "SPACE4X_AUTOSTART_DIFFICULTY";
         private static readonly Color StatBarBackground = new Color(0.06f, 0.10f, 0.14f, 0.95f);
         private static readonly Color StatBarBorder = new Color(0.28f, 0.45f, 0.58f, 0.65f);
         private static readonly Color SpeedAccent = new Color(0.40f, 0.84f, 0.95f, 1f);
@@ -56,17 +55,16 @@ namespace Space4X.UI
         private Label _shipDescriptionLabel;
         private Label _shipRoleLabel;
         private Label _shipTraitLabel;
-        private Label _shipManufacturerLabel;
-        private Label _shipOutlookLabel;
-        private Label _shipModuleOriginsLabel;
-        private Label _shipConsumablesLabel;
-        private Label _shipCrewLabel;
+        private Label _shipArchetypeLabel;
+        private Label _shipHullSegmentsLabel;
+        private Label _shipStartingModulesLabel;
+        private Label _shipMetaPerksLabel;
+        private Label _shipMetaLevelLabel;
         private Label _difficultyValueLabel;
         private SliderInt _difficultySlider;
         private PlayerInput _playerInput;
         private Coroutine _startRunRoutine;
         private Space4XShipPresetCatalog _shipCatalog;
-        private Space4XManufacturingCatalog _manufacturingCatalog;
         private bool _runActive;
         private GameObject _shipPreviewObject;
         private Material _shipPreviewMaterial;
@@ -76,6 +74,7 @@ namespace Space4X.UI
         private VisualElement _speedBarFill;
         private VisualElement _agilityBarFill;
         private VisualElement _controlBarFill;
+        private bool _autoRunBootstrapAttempted;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -83,15 +82,11 @@ namespace Space4X.UI
             if (Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)
                 return;
 
-            Space4XModeSelectionState.EnsureInitialized();
-            if (!Space4XModeSelectionState.IsFleetCrawlModeActive)
-                return;
-
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid() || !string.Equals(scene.name, SmokeSceneName, StringComparison.Ordinal))
                 return;
 
-            if (UnityEngine.Object.FindFirstObjectByType<Space4XMainMenuOverlay>() != null)
+            if (UnityEngine.Object.FindAnyObjectByType<Space4XMainMenuOverlay>() != null)
                 return;
 
             var go = new GameObject("Space4X Main Menu Overlay");
@@ -101,19 +96,12 @@ namespace Space4X.UI
 
         private void OnEnable()
         {
-            Space4XModeSelectionState.EnsureInitialized();
-            if (!Space4XModeSelectionState.IsFleetCrawlModeActive)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
             SceneManager.sceneLoaded += OnSceneLoaded;
             LoadShipCatalog();
-            LoadManufacturingCatalog();
             EnsureUiDocument();
             BuildUi();
             ShowMenu(FrontendState.MainMenu);
+            TryAutoStartRunFromEnvironment();
         }
 
         private void OnDisable()
@@ -136,13 +124,6 @@ namespace Space4X.UI
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            Space4XModeSelectionState.EnsureInitialized();
-            if (!Space4XModeSelectionState.IsFleetCrawlModeActive)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
             if (_state == FrontendState.InGame)
             {
                 HideMenu();
@@ -151,13 +132,6 @@ namespace Space4X.UI
 
         private void Update()
         {
-            Space4XModeSelectionState.EnsureInitialized();
-            if (!Space4XModeSelectionState.IsFleetCrawlModeActive)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
             if (Keyboard.current == null)
                 return;
 
@@ -202,7 +176,6 @@ namespace Space4X.UI
             if (_document.panelSettings == null)
             {
                 _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
-                _panelSettings.themeStyleSheet = FindThemeStyleSheet();
                 _document.panelSettings = _panelSettings;
             }
         }
@@ -344,6 +317,38 @@ namespace Space4X.UI
             _shipTraitLabel.style.color = new Color(0.82f, 0.88f, 0.94f, 1f);
             container.Add(_shipTraitLabel);
 
+            var loadoutHeader = CreateBodyLabel("Archetype Loadout");
+            loadoutHeader.style.marginTop = 6f;
+            loadoutHeader.style.fontSize = 12;
+            loadoutHeader.style.color = new Color(0.82f, 0.86f, 0.92f, 1f);
+            container.Add(loadoutHeader);
+
+            _shipArchetypeLabel = CreateBodyLabel(string.Empty);
+            _shipArchetypeLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipArchetypeLabel.style.marginTop = 2f;
+            container.Add(_shipArchetypeLabel);
+
+            _shipHullSegmentsLabel = CreateBodyLabel(string.Empty);
+            _shipHullSegmentsLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipHullSegmentsLabel.style.marginTop = 2f;
+            container.Add(_shipHullSegmentsLabel);
+
+            _shipStartingModulesLabel = CreateBodyLabel(string.Empty);
+            _shipStartingModulesLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipStartingModulesLabel.style.marginTop = 2f;
+            container.Add(_shipStartingModulesLabel);
+
+            _shipMetaPerksLabel = CreateBodyLabel(string.Empty);
+            _shipMetaPerksLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipMetaPerksLabel.style.marginTop = 2f;
+            container.Add(_shipMetaPerksLabel);
+
+            _shipMetaLevelLabel = CreateBodyLabel(string.Empty);
+            _shipMetaLevelLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipMetaLevelLabel.style.marginTop = 2f;
+            _shipMetaLevelLabel.style.color = new Color(0.88f, 0.95f, 0.84f, 1f);
+            container.Add(_shipMetaLevelLabel);
+
             var statsHeader = CreateBodyLabel("Flight Profile (relative)");
             statsHeader.style.marginTop = 6f;
             statsHeader.style.fontSize = 12;
@@ -359,40 +364,6 @@ namespace Space4X.UI
             _shipStatsPanel.Add(CreateStatRow("Speed", out _speedBarFill, SpeedAccent));
             _shipStatsPanel.Add(CreateStatRow("Agility", out _agilityBarFill, AgilityAccent));
             _shipStatsPanel.Add(CreateStatRow("Control", out _controlBarFill, ControlAccent));
-
-            var manufacturingHeader = CreateBodyLabel("Manufacturing Snapshot");
-            manufacturingHeader.style.marginTop = 6f;
-            manufacturingHeader.style.fontSize = 12;
-            manufacturingHeader.style.color = new Color(0.82f, 0.86f, 0.92f, 1f);
-            container.Add(manufacturingHeader);
-
-            _shipManufacturerLabel = CreateBodyLabel(string.Empty);
-            _shipManufacturerLabel.style.whiteSpace = WhiteSpace.Normal;
-            _shipManufacturerLabel.style.fontSize = 12;
-            container.Add(_shipManufacturerLabel);
-
-            _shipOutlookLabel = CreateBodyLabel(string.Empty);
-            _shipOutlookLabel.style.whiteSpace = WhiteSpace.Normal;
-            _shipOutlookLabel.style.fontSize = 12;
-            container.Add(_shipOutlookLabel);
-
-            _shipModuleOriginsLabel = CreateBodyLabel(string.Empty);
-            _shipModuleOriginsLabel.style.whiteSpace = WhiteSpace.Normal;
-            _shipModuleOriginsLabel.style.fontSize = 12;
-            _shipModuleOriginsLabel.style.marginTop = 4f;
-            container.Add(_shipModuleOriginsLabel);
-
-            _shipConsumablesLabel = CreateBodyLabel(string.Empty);
-            _shipConsumablesLabel.style.whiteSpace = WhiteSpace.Normal;
-            _shipConsumablesLabel.style.fontSize = 12;
-            _shipConsumablesLabel.style.marginTop = 4f;
-            container.Add(_shipConsumablesLabel);
-
-            _shipCrewLabel = CreateBodyLabel(string.Empty);
-            _shipCrewLabel.style.whiteSpace = WhiteSpace.Normal;
-            _shipCrewLabel.style.fontSize = 12;
-            _shipCrewLabel.style.marginTop = 4f;
-            container.Add(_shipCrewLabel);
 
             container.Add(CreateSpacer(8f));
             container.Add(CreateBodyLabel("Difficulty"));
@@ -489,14 +460,17 @@ namespace Space4X.UI
 
             Space4XControlModeState.ResetToDefaultForRun();
             var preset = _shipCatalog.GetPresetOrFallback(_shipIndex);
-            var configuredScenePath = string.IsNullOrWhiteSpace(_shipCatalog.GameplayScenePath)
+            var requestedScenePath = string.IsNullOrWhiteSpace(_shipCatalog.GameplayScenePath)
                 ? Space4XShipPresetCatalog.DefaultGameplayScenePath
                 : _shipCatalog.GameplayScenePath;
-            var scenePath = ResolveGameplayScenePath(configuredScenePath);
+            var scenePath = ResolvePlayableScenePath(requestedScenePath, out var usedFallbackScene);
+
+            if (usedFallbackScene)
+            {
+                SetStatus($"Scene '{requestedScenePath}' is not loadable in active Build Profiles. Using current scene.");
+            }
 
             Space4XRunStartSelection.Set(preset, _difficulty, scenePath);
-            UnityEngine.Debug.Log($"[Space4XRunStart] Requested scenario id='{Space4XRunStartSelection.ScenarioId}' path='{Space4XRunStartSelection.ScenarioPath}' scene='{scenePath}' preset='{preset.PresetId}'.");
-            RequestScenarioReloadAcrossWorlds();
             _startRunRoutine = StartCoroutine(StartRunAsync(scenePath, preset));
         }
 
@@ -514,9 +488,25 @@ namespace Space4X.UI
                 yield break;
             }
 
-            if (!TryLoadSceneSingle(scenePath, out var loadOp, out var loadError))
+            var activeScene = SceneManager.GetActiveScene();
+            var reloadingCurrentScene = string.Equals(activeScene.path, scenePath, StringComparison.OrdinalIgnoreCase);
+
+            var loadOp = LoadGameplayScene(scenePath, reloadingCurrentScene);
+            if (loadOp == null)
             {
-                SetStatus($"Run start failed: {loadError}");
+                if (reloadingCurrentScene)
+                {
+                    // Keep manual testing unblocked even if reload is unavailable.
+                    ActivateGameplayCameraFocus();
+                    _runActive = true;
+                    SetState(FrontendState.InGame);
+                    HideMenu();
+                    SetStatus($"Run started without scene reload: {preset.DisplayName}, difficulty {_difficulty}, meta L{Space4XRunStartSelection.ActiveMetaProgressionLevel}, scenario {Space4XRunStartSelection.ScenarioId}.");
+                    _startRunRoutine = null;
+                    yield break;
+                }
+
+                SetStatus($"Run start failed: could not load scene '{scenePath}'. Add it to Build Settings.");
                 ShowMenu(FrontendState.ShipSelect);
                 _startRunRoutine = null;
                 yield break;
@@ -535,129 +525,24 @@ namespace Space4X.UI
             _runActive = true;
             SetState(FrontendState.InGame);
             HideMenu();
-            SetStatus($"Run started: {preset.DisplayName}, difficulty {_difficulty}, scenario {Space4XRunStartSelection.ScenarioId}.");
+            SetStatus($"Run started: {preset.DisplayName}, difficulty {_difficulty}, meta L{Space4XRunStartSelection.ActiveMetaProgressionLevel}, scenario {Space4XRunStartSelection.ScenarioId}.");
             _startRunRoutine = null;
         }
 
-        private static bool TryLoadSceneSingle(string scenePath, out AsyncOperation loadOp, out string loadError)
+        private static AsyncOperation LoadGameplayScene(string scenePath, bool reloadingCurrentScene)
         {
-            loadOp = null;
-            loadError = null;
-
-            if (string.IsNullOrWhiteSpace(scenePath))
-            {
-                loadError = "gameplay scene path is empty.";
-                return false;
-            }
-
-            var normalizedPath = scenePath.Replace('\\', '/');
-
 #if UNITY_EDITOR
-            if (File.Exists(normalizedPath))
+            if (reloadingCurrentScene && !string.IsNullOrWhiteSpace(scenePath))
             {
-                try
-                {
-                    loadOp = EditorSceneManager.LoadSceneAsyncInPlayMode(
-                        normalizedPath,
-                        new LoadSceneParameters(LoadSceneMode.Single));
-                }
-                catch (Exception ex)
-                {
-                    loadError = ex.Message;
-                }
-
-                if (loadOp != null)
-                {
-                    return true;
-                }
+                return EditorSceneManager.LoadSceneAsyncInPlayMode(scenePath, new LoadSceneParameters(LoadSceneMode.Single));
             }
 #endif
-
-            try
-            {
-                loadOp = SceneManager.LoadSceneAsync(normalizedPath, LoadSceneMode.Single);
-            }
-            catch (Exception ex)
-            {
-                loadError = ex.Message;
-            }
-
-            if (loadOp != null)
-            {
-                return true;
-            }
-
-            if (string.IsNullOrWhiteSpace(loadError))
-            {
-                loadError = $"could not load scene '{normalizedPath}'. Add it to Build Profiles.";
-            }
-
-            return false;
-        }
-
-        private static string ResolveGameplayScenePath(string configuredScenePath)
-        {
-            if (string.IsNullOrWhiteSpace(configuredScenePath))
-            {
-                return Space4XShipPresetCatalog.DefaultGameplayScenePath;
-            }
-
-            var normalizedPath = configuredScenePath.Replace('\\', '/');
-#if UNITY_EDITOR
-            if (!File.Exists(normalizedPath))
-            {
-                return Space4XShipPresetCatalog.DefaultGameplayScenePath;
-            }
-#endif
-            return normalizedPath;
-        }
-
-        private static void RequestScenarioReloadAcrossWorlds()
-        {
-            for (var i = 0; i < World.All.Count; i++)
-            {
-                var world = World.All[i];
-                if (world == null || !world.IsCreated)
-                {
-                    continue;
-                }
-
-                var miningScenarioSystem = world.GetExistingSystemManaged<Space4XMiningScenarioSystem>();
-                if (miningScenarioSystem == null)
-                {
-                    continue;
-                }
-
-                miningScenarioSystem.RequestReloadForModeSwitch();
-            }
-        }
-
-        private static ThemeStyleSheet FindThemeStyleSheet()
-        {
-            var panels = Resources.FindObjectsOfTypeAll<PanelSettings>();
-            for (var i = 0; i < panels.Length; i++)
-            {
-                if (panels[i] != null && panels[i].themeStyleSheet != null)
-                {
-                    return panels[i].themeStyleSheet;
-                }
-            }
-
-            var themes = Resources.FindObjectsOfTypeAll<ThemeStyleSheet>();
-            for (var i = 0; i < themes.Length; i++)
-            {
-                if (themes[i] != null)
-                {
-                    return themes[i];
-                }
-            }
-
-            return null;
+            return SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Single);
         }
 
         private bool ActivateGameplayCameraFocus()
         {
-            var mainCamera = UCamera.main ?? UnityEngine.Object.FindFirstObjectByType<UCamera>();
+            var mainCamera = UCamera.main ?? UnityEngine.Object.FindAnyObjectByType<UCamera>();
             if (mainCamera == null)
             {
                 SetStatus("Run warning: no camera found after scene load.");
@@ -705,7 +590,7 @@ namespace Space4X.UI
 
         private static void SetFlagshipControlEnabled(bool enabled)
         {
-            var mainCamera = UCamera.main ?? UnityEngine.Object.FindFirstObjectByType<UCamera>();
+            var mainCamera = UCamera.main ?? UnityEngine.Object.FindAnyObjectByType<UCamera>();
             if (mainCamera == null)
                 return;
 
@@ -723,6 +608,78 @@ namespace Space4X.UI
             ShowMenu(FrontendState.ShipSelect);
         }
 
+        private void TryAutoStartRunFromEnvironment()
+        {
+            if (_autoRunBootstrapAttempted)
+                return;
+
+            _autoRunBootstrapAttempted = true;
+            if (!IsTruthy(System.Environment.GetEnvironmentVariable(AutoStartRunEnv)))
+                return;
+
+            var requestedPresetId = System.Environment.GetEnvironmentVariable(AutoStartPresetEnv);
+            var requestedDifficultyRaw = System.Environment.GetEnvironmentVariable(AutoStartDifficultyEnv);
+
+            var presetMatched = false;
+            if (!string.IsNullOrWhiteSpace(requestedPresetId) &&
+                TryFindPresetIndexById(requestedPresetId, out var presetIndex))
+            {
+                _shipIndex = presetIndex;
+                presetMatched = true;
+            }
+            else
+            {
+                _shipIndex = Mathf.Clamp(_shipIndex, 0, Math.Max(0, _shipCatalog.PresetCount - 1));
+            }
+
+            if (!string.IsNullOrWhiteSpace(requestedDifficultyRaw) &&
+                int.TryParse(requestedDifficultyRaw, out var requestedDifficulty))
+            {
+                _difficulty = _shipCatalog.ClampDifficulty(requestedDifficulty);
+            }
+            else
+            {
+                _difficulty = _shipCatalog.ClampDifficulty(_difficulty <= 0 ? _shipCatalog.DefaultDifficulty : _difficulty);
+            }
+
+            ShowMenu(FrontendState.ShipSelect);
+            var preset = _shipCatalog.GetPresetOrFallback(_shipIndex);
+            SetStatus(presetMatched
+                ? $"Auto-starting run with preset '{preset.DisplayName}' on difficulty {_difficulty}."
+                : $"Auto-starting run with fallback preset '{preset.DisplayName}' on difficulty {_difficulty}.");
+            StartRun();
+        }
+
+        private bool TryFindPresetIndexById(string presetId, out int index)
+        {
+            index = 0;
+            if (string.IsNullOrWhiteSpace(presetId) || _shipCatalog == null || !_shipCatalog.HasPresets)
+                return false;
+
+            for (var i = 0; i < _shipCatalog.PresetCount; i++)
+            {
+                var preset = _shipCatalog.GetPresetOrFallback(i);
+                if (string.Equals(preset.PresetId, presetId, StringComparison.OrdinalIgnoreCase))
+                {
+                    index = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            return value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("on", StringComparison.OrdinalIgnoreCase);
+        }
+
         private void SwitchActionMap(string mapName)
         {
             if (string.IsNullOrWhiteSpace(mapName))
@@ -730,7 +687,7 @@ namespace Space4X.UI
 
             if (_playerInput == null)
             {
-                _playerInput = UnityEngine.Object.FindFirstObjectByType<PlayerInput>();
+                _playerInput = UnityEngine.Object.FindAnyObjectByType<PlayerInput>();
             }
 
             if (_playerInput == null || _playerInput.actions == null)
@@ -758,18 +715,6 @@ namespace Space4X.UI
 
             _difficulty = _shipCatalog.ClampDifficulty(_difficulty <= 0 ? _shipCatalog.DefaultDifficulty : _difficulty);
             _shipIndex = Mathf.Clamp(_shipIndex, 0, Math.Max(0, _shipCatalog.PresetCount - 1));
-        }
-
-        private void LoadManufacturingCatalog()
-        {
-            _manufacturingCatalog = Resources.Load<Space4XManufacturingCatalog>(Space4XManufacturingCatalog.ResourcePath);
-            if (_manufacturingCatalog == null || _manufacturingCatalog.Manufacturers == null || _manufacturingCatalog.Manufacturers.Length == 0)
-            {
-                _manufacturingCatalog = Space4XManufacturingCatalog.CreateRuntimeFallback();
-                _status = string.IsNullOrWhiteSpace(_status)
-                    ? "Manufacturing catalog missing - using runtime defaults."
-                    : $"{_status} Manufacturing catalog missing - using runtime defaults.";
-            }
         }
 
         private void SetStatus(string value)
@@ -805,6 +750,31 @@ namespace Space4X.UI
                 _shipTraitLabel.text = ResolveTraitLabel(preset.PresetId);
             }
 
+            if (_shipArchetypeLabel != null)
+            {
+                _shipArchetypeLabel.text = $"Archetype: {preset.Archetype}";
+            }
+
+            if (_shipHullSegmentsLabel != null)
+            {
+                _shipHullSegmentsLabel.text = FormatListLabel("Hull Segments", preset.HullSegments, "None");
+            }
+
+            if (_shipStartingModulesLabel != null)
+            {
+                _shipStartingModulesLabel.text = FormatListLabel("Starting Modules", preset.StartingModules, "None");
+            }
+
+            if (_shipMetaPerksLabel != null)
+            {
+                _shipMetaPerksLabel.text = FormatListLabel("Meta Perks", preset.MetaPerks, "None");
+            }
+
+            if (_shipMetaLevelLabel != null)
+            {
+                _shipMetaLevelLabel.text = $"Meta Level: {Space4XRunStartSelection.MetaProgressionLevel} (session)";
+            }
+
             if (_difficultyValueLabel != null)
             {
                 _difficultyValueLabel.text = $"Difficulty: {_difficulty}";
@@ -813,39 +783,6 @@ namespace Space4X.UI
             if (_difficultySlider != null && _difficultySlider.value != _difficulty)
             {
                 _difficultySlider.value = _difficulty;
-            }
-
-            var preview = _manufacturingCatalog != null
-                ? _manufacturingCatalog.CreatePreview(
-                    preset.PresetId,
-                    preset.StartingModules,
-                    _difficulty,
-                    Space4XRunStartSelection.ResolveScenarioSeedForDifficulty(_difficulty))
-                : Space4XManufacturingPreview.Empty;
-
-            if (_shipManufacturerLabel != null)
-            {
-                _shipManufacturerLabel.text = preview.ManufacturerSummary;
-            }
-
-            if (_shipOutlookLabel != null)
-            {
-                _shipOutlookLabel.text = preview.OutlookSummary;
-            }
-
-            if (_shipModuleOriginsLabel != null)
-            {
-                _shipModuleOriginsLabel.text = FormatMultilineLabel("Module Origins", preview.ModuleOrigins);
-            }
-
-            if (_shipConsumablesLabel != null)
-            {
-                _shipConsumablesLabel.text = FormatMultilineLabel("Consumables", preview.Consumables);
-            }
-
-            if (_shipCrewLabel != null)
-            {
-                _shipCrewLabel.text = FormatMultilineLabel("Crew", preview.CrewRoster);
             }
 
             UpdateShipPreview(preset);
@@ -868,21 +805,6 @@ namespace Space4X.UI
             label.style.fontSize = 13;
             label.style.color = new Color(0.89f, 0.93f, 0.98f, 1f);
             return label;
-        }
-
-        private static string FormatMultilineLabel(string label, string[] entries)
-        {
-            if (entries == null || entries.Length == 0)
-                return $"{label}: None";
-
-            var lines = new string[entries.Length];
-            for (var i = 0; i < entries.Length; i++)
-            {
-                var entry = string.IsNullOrWhiteSpace(entries[i]) ? "Unknown" : entries[i];
-                lines[i] = $"- {entry}";
-            }
-
-            return $"{label}:\n{string.Join("\n", lines)}";
         }
 
         private static VisualElement CreateStatRow(string label, out VisualElement fill, Color accent)
@@ -964,6 +886,46 @@ namespace Space4X.UI
             return "Role: Custom";
         }
 
+        private static string ResolvePlayableScenePath(string requestedPath, out bool usedFallbackScene)
+        {
+            usedFallbackScene = false;
+            if (IsSceneLoadable(requestedPath))
+            {
+                return requestedPath;
+            }
+
+            var activeScene = SceneManager.GetActiveScene();
+            if (activeScene.IsValid() && !string.IsNullOrWhiteSpace(activeScene.path))
+            {
+                usedFallbackScene = true;
+                return activeScene.path;
+            }
+
+            return requestedPath;
+        }
+
+        private static bool IsSceneLoadable(string scenePath)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath))
+            {
+                return false;
+            }
+
+            var activeScene = SceneManager.GetActiveScene();
+            if (activeScene.IsValid() &&
+                !string.IsNullOrWhiteSpace(activeScene.path) &&
+                string.Equals(activeScene.path, scenePath, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (SceneUtility.GetBuildIndexByScenePath(scenePath) >= 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
         private static string ResolveTraitLabel(string presetId)
         {
             if (string.IsNullOrWhiteSpace(presetId))
@@ -981,6 +943,16 @@ namespace Space4X.UI
                 return "Concept: High thrust, tight margins";
 
             return "Concept: Experimental";
+        }
+
+        private static string FormatListLabel(string label, string[] values, string emptyFallback)
+        {
+            if (values == null || values.Length == 0)
+            {
+                return $"{label}: {emptyFallback}";
+            }
+
+            return $"{label}: {string.Join(", ", values)}";
         }
 
         private static float ScoreSpeed(in ShipFlightProfile profile)
@@ -1087,7 +1059,7 @@ namespace Space4X.UI
 
         private void UpdateShipPreview(in Space4XShipPresetEntry preset)
         {
-            var mainCamera = UCamera.main ?? UnityEngine.Object.FindFirstObjectByType<UCamera>();
+            var mainCamera = UCamera.main ?? UnityEngine.Object.FindAnyObjectByType<UCamera>();
             if (mainCamera == null)
                 return;
 

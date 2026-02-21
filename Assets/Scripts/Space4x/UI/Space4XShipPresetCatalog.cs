@@ -16,7 +16,7 @@ namespace Space4X.UI
     [CreateAssetMenu(fileName = "Space4XShipPresetCatalog", menuName = "Space4X/UI/Ship Preset Catalog")]
     public sealed class Space4XShipPresetCatalog : ScriptableObject
     {
-        public const string DefaultGameplayScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
+        public const string DefaultGameplayScenePath = "Assets/Scenes/Demos/MiningCombatDemo.unity";
 
         [SerializeField] private string gameplayScenePath = DefaultGameplayScenePath;
         [SerializeField] private int minDifficulty = 1;
@@ -63,77 +63,63 @@ namespace Space4X.UI
             defaultDifficulty = 2;
             var timeShipProfile = CreateTimeShipProfile();
             var skipShipProfile = CreateSkipShipProfile();
+            var carrierSegments = new[] { "carrier-bridge-m1", "carrier-keel-m1", "carrier-stern-m1" };
+            var escortSegments = new[] { "escort-bridge-s1", "escort-stern-s1" };
+            var chronoSegments = new[] { "segment-command-general-s1", "segment-research-general-s1", "segment-production-general-s1" };
+            var carrierModules = new[] { "reactor-mk1", "engine-mk1", "hangar-s-1", "shield-s-1", "armor-s-1", "pd-s-1", "scanner-s-1" };
+            var frigateModules = new[] { "reactor-mk1", "engine-mk1", "laser-s-1", "shield-s-1", "repair-s-1", "scanner-s-1" };
+            var interceptorModules = new[] { "reactor-mk1", "engine-mk1", "missile-s-1", "laser-s-1", "armor-s-1", "scanner-s-1" };
+            var chronoModules = new[] { "reactor-mk1", "engine-mk1", "scanner-s-1", "shield-s-1", "repair-s-1" };
+            var skipModules = new[] { "reactor-mk1", "engine-mk1", "laser-s-1", "pd-s-1", "scanner-s-1" };
             presets = new[]
             {
                 new Space4XShipPresetEntry(
                     "ship.square.carrier",
                     "Square Carrier",
                     "Heavy frame, stable handling, strong opening survivability.",
-                    Space4XShipPreviewShape.Cube,
-                    startingModules: new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "hangar-s-1",
-                        "laser-s-1",
-                        "shield-s-1",
-                        "repair-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Cube,
+                    archetype: "Bulwark Carrier",
+                    hullSegments: carrierSegments,
+                    startingModules: carrierModules,
+                    metaPerks: new[] { "Reinforced bulkheads", "Emergency hangar launch", "Shield warm start" }),
                 new Space4XShipPresetEntry(
                     "ship.sphere.frigate",
                     "Sphere Frigate",
                     "Balanced profile with agile turn response and mid-range control.",
-                    Space4XShipPreviewShape.Sphere,
-                    startingModules: new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "pd-s-1",
-                        "shield-s-1",
-                        "scanner-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Sphere,
+                    archetype: "Balanced Frigate",
+                    hullSegments: escortSegments,
+                    startingModules: frigateModules,
+                    metaPerks: new[] { "Targeting uplink", "Adaptive thrusters", "Reserve capacitors" }),
                 new Space4XShipPresetEntry(
                     "ship.capsule.interceptor",
                     "Capsule Interceptor",
                     "Fast acceleration with tighter margins and higher execution demand.",
-                    Space4XShipPreviewShape.Capsule,
-                    startingModules: new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "missile-s-1",
-                        "pd-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Capsule,
+                    archetype: "Strike Interceptor",
+                    hullSegments: escortSegments,
+                    startingModules: interceptorModules,
+                    metaPerks: new[] { "Overclocked burst", "Evasive blink", "Kill chain bonus" }),
                 new Space4XShipPresetEntry(
                     "ship.timeship.chronos",
                     "Timeship Chronos",
                     "Concept hull: no shields, brief time-stop bursts to reposition.",
-                    Space4XShipPreviewShape.Cylinder,
-                    timeShipProfile,
-                    new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "armor-s-1",
-                        "scanner-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Cylinder,
+                    flightProfile: timeShipProfile,
+                    archetype: "Temporal Vanguard",
+                    hullSegments: chronoSegments,
+                    startingModules: chronoModules,
+                    metaPerks: new[] { "Chrono charge", "Phase anchor", "Stasis wake" }),
                 new Space4XShipPresetEntry(
                     "ship.skipship.shift",
                     "Skipship Shift",
                     "Concept hull: no boost, instant short-range skip jumps.",
-                    Space4XShipPreviewShape.Sphere,
-                    skipShipProfile,
-                    new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "missile-s-1",
-                        "armor-s-1"
-                    })
+                    previewShape: Space4XShipPreviewShape.Sphere,
+                    flightProfile: skipShipProfile,
+                    archetype: "Skip Skirmisher",
+                    hullSegments: escortSegments,
+                    startingModules: skipModules,
+                    metaPerks: new[] { "Skip echo", "Drift stabilizers", "Blink reserve" })
             };
         }
 
@@ -155,6 +141,13 @@ namespace Space4X.UI
                 RetroBrakeAcceleration = 132f,
                 RollSpeedDegrees = 72f,
                 CursorTurnSharpness = 11.5f,
+                MaxAngularSpeedDegrees = 30f,
+                AngularAccelerationDegrees = 92f,
+                AngularDampingDegrees = 105f,
+                AngularDeadbandDegrees = 0.55f,
+                MaxCursorLeadDegrees = 148f,
+                TurnAuthorityAtMaxSpeed = 0.52f,
+                AngularOvershootRatio = 0.16f,
                 MaxCursorPitchDegrees = 68f,
                 DefaultInertialDampenersEnabled = 1
             };
@@ -178,6 +171,13 @@ namespace Space4X.UI
                 RetroBrakeAcceleration = 78f,
                 RollSpeedDegrees = 130f,
                 CursorTurnSharpness = 15f,
+                MaxAngularSpeedDegrees = 44f,
+                AngularAccelerationDegrees = 142f,
+                AngularDampingDegrees = 156f,
+                AngularDeadbandDegrees = 0.4f,
+                MaxCursorLeadDegrees = 172f,
+                TurnAuthorityAtMaxSpeed = 0.64f,
+                AngularOvershootRatio = 0.08f,
                 MaxCursorPitchDegrees = 74f,
                 DefaultInertialDampenersEnabled = 0
             };
@@ -190,9 +190,12 @@ namespace Space4X.UI
         [SerializeField] private string presetId;
         [SerializeField] private string displayName;
         [SerializeField] [TextArea(2, 4)] private string description;
+        [SerializeField] private string archetype;
+        [SerializeField] private string[] hullSegments;
+        [SerializeField] private string[] startingModules;
+        [SerializeField] private string[] metaPerks;
         [SerializeField] private Space4XShipPreviewShape previewShape;
         [SerializeField] private ShipFlightProfile flightProfile;
-        [SerializeField] private string[] startingModules;
 
         public Space4XShipPresetEntry(
             string presetId,
@@ -200,24 +203,33 @@ namespace Space4X.UI
             string description,
             Space4XShipPreviewShape previewShape = Space4XShipPreviewShape.Cube,
             ShipFlightProfile flightProfile = default,
-            string[] startingModules = null)
+            string archetype = null,
+            string[] hullSegments = null,
+            string[] startingModules = null,
+            string[] metaPerks = null)
         {
             this.presetId = presetId;
             this.displayName = displayName;
             this.description = description;
+            this.archetype = archetype;
+            this.hullSegments = hullSegments;
+            this.startingModules = startingModules;
+            this.metaPerks = metaPerks;
             this.previewShape = previewShape;
             this.flightProfile = flightProfile;
-            this.startingModules = startingModules;
         }
 
         public string PresetId => string.IsNullOrWhiteSpace(presetId) ? "ship.unknown" : presetId;
         public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? PresetId : displayName;
         public string Description => description ?? string.Empty;
+        public string Archetype => string.IsNullOrWhiteSpace(archetype) ? "Unknown Archetype" : archetype;
+        public string[] HullSegments => hullSegments ?? Array.Empty<string>();
+        public string[] StartingModules => startingModules ?? Array.Empty<string>();
+        public string[] MetaPerks => metaPerks ?? Array.Empty<string>();
         public Space4XShipPreviewShape PreviewShape => previewShape;
         public ShipFlightProfile FlightProfile => flightProfile.IsConfigured
             ? flightProfile.Sanitized()
             : ShipFlightProfile.CreateDefault(PresetId);
-        public string[] StartingModules => startingModules ?? Array.Empty<string>();
         public bool IsValid => !string.IsNullOrWhiteSpace(presetId) || !string.IsNullOrWhiteSpace(displayName);
 
         public static Space4XShipPresetEntry CreateFallback(int index)
@@ -228,71 +240,49 @@ namespace Space4X.UI
                     "ship.square.carrier",
                     "Square Carrier",
                     "Fallback preset: heavy starter hull.",
-                    Space4XShipPreviewShape.Cube,
-                    startingModules: new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "hangar-s-1",
-                        "laser-s-1",
-                        "shield-s-1",
-                        "repair-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Cube,
+                    archetype: "Bulwark Carrier",
+                    hullSegments: new[] { "carrier-bridge-m1", "carrier-keel-m1", "carrier-stern-m1" },
+                    startingModules: new[] { "reactor-mk1", "engine-mk1", "hangar-s-1", "shield-s-1", "armor-s-1", "pd-s-1", "scanner-s-1" },
+                    metaPerks: new[] { "Reinforced bulkheads", "Emergency hangar launch", "Shield warm start" }),
                 1 => new Space4XShipPresetEntry(
                     "ship.sphere.frigate",
                     "Sphere Frigate",
                     "Fallback preset: balanced starter hull.",
-                    Space4XShipPreviewShape.Sphere,
-                    startingModules: new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "pd-s-1",
-                        "shield-s-1",
-                        "scanner-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Sphere,
+                    archetype: "Balanced Frigate",
+                    hullSegments: new[] { "escort-bridge-s1", "escort-stern-s1" },
+                    startingModules: new[] { "reactor-mk1", "engine-mk1", "laser-s-1", "shield-s-1", "repair-s-1", "scanner-s-1" },
+                    metaPerks: new[] { "Targeting uplink", "Adaptive thrusters", "Reserve capacitors" }),
                 2 => new Space4XShipPresetEntry(
                     "ship.capsule.interceptor",
                     "Capsule Interceptor",
                     "Fallback preset: agile starter hull.",
-                    Space4XShipPreviewShape.Capsule,
-                    startingModules: new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "missile-s-1",
-                        "pd-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Capsule,
+                    archetype: "Strike Interceptor",
+                    hullSegments: new[] { "escort-bridge-s1", "escort-stern-s1" },
+                    startingModules: new[] { "reactor-mk1", "engine-mk1", "missile-s-1", "laser-s-1", "armor-s-1", "scanner-s-1" },
+                    metaPerks: new[] { "Overclocked burst", "Evasive blink", "Kill chain bonus" }),
                 3 => new Space4XShipPresetEntry(
                     "ship.timeship.chronos",
                     "Timeship Chronos",
                     "Fallback preset: temporal hull.",
-                    Space4XShipPreviewShape.Cylinder,
-                    Space4XShipPresetCatalog.CreateTimeShipProfile(),
-                    new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "armor-s-1",
-                        "scanner-s-1"
-                    }),
+                    previewShape: Space4XShipPreviewShape.Cylinder,
+                    flightProfile: Space4XShipPresetCatalog.CreateTimeShipProfile(),
+                    archetype: "Temporal Vanguard",
+                    hullSegments: new[] { "segment-command-general-s1", "segment-research-general-s1", "segment-production-general-s1" },
+                    startingModules: new[] { "reactor-mk1", "engine-mk1", "scanner-s-1", "shield-s-1", "repair-s-1" },
+                    metaPerks: new[] { "Chrono charge", "Phase anchor", "Stasis wake" }),
                 _ => new Space4XShipPresetEntry(
                     "ship.skipship.shift",
                     "Skipship Shift",
                     "Fallback preset: skip-jump hull.",
-                    Space4XShipPreviewShape.Sphere,
-                    Space4XShipPresetCatalog.CreateSkipShipProfile(),
-                    new[]
-                    {
-                        "reactor-mk1",
-                        "engine-mk1",
-                        "laser-s-1",
-                        "missile-s-1",
-                        "armor-s-1"
-                    })
+                    previewShape: Space4XShipPreviewShape.Sphere,
+                    flightProfile: Space4XShipPresetCatalog.CreateSkipShipProfile(),
+                    archetype: "Skip Skirmisher",
+                    hullSegments: new[] { "escort-bridge-s1", "escort-stern-s1" },
+                    startingModules: new[] { "reactor-mk1", "engine-mk1", "laser-s-1", "pd-s-1", "scanner-s-1" },
+                    metaPerks: new[] { "Skip echo", "Drift stabilizers", "Blink reserve" })
             };
         }
     }

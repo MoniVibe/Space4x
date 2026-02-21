@@ -4,8 +4,10 @@ using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Interrupts;
+using PureDOTS.Runtime.Modules;
 using PureDOTS.Runtime.Ships;
 using PureDOTS.Runtime.Spatial;
+using Space4X.Input;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Unity.Collections;
@@ -56,20 +58,33 @@ namespace Space4X.UI
         [SerializeField] private float verticalAccelFromVesselMultiplier = 1f;
         [SerializeField] private float dampenerFromVesselMultiplier = 1.25f;
         [SerializeField] private float retroBrakeFromVesselMultiplier = 1.65f;
+        [SerializeField] private float angularSpeedFromVesselMultiplier = 1f;
+        [SerializeField] private float angularAccelerationFromVesselMultiplier = 3f;
+        [SerializeField] private float angularDampingFromVesselMultiplier = 3.6f;
         [SerializeField] private float minInheritedSpeed = 0.5f;
         [SerializeField] private float maxInheritedSpeed = 220f;
         [SerializeField] private float minInheritedAcceleration = 0.1f;
         [SerializeField] private float maxInheritedAcceleration = 280f;
+        [SerializeField] private float minInheritedAngularSpeedDegrees = 8f;
+        [SerializeField] private float maxInheritedAngularSpeedDegrees = 180f;
+        [SerializeField] private float minInheritedAngularAccelerationDegrees = 20f;
+        [SerializeField] private float maxInheritedAngularAccelerationDegrees = 720f;
 
         [Header("Mode Hotkeys")]
         [SerializeField] private Key cursorModeHotkey = Key.Digit1;
         [SerializeField] private Key cruiseModeHotkey = Key.Digit2;
         [SerializeField] private Key rtsModeHotkey = Key.Digit3;
-        [SerializeField] private Key divineHandModeHotkey = Key.Digit4;
 
         [Header("Attitude")]
         [SerializeField] private float rollSpeedDegrees = 75f;
         [SerializeField] private float cursorTurnSharpness = 12f;
+        [SerializeField] private float maxAngularSpeedDegrees = 24f;
+        [SerializeField] private float angularAccelerationDegrees = 90f;
+        [SerializeField] private float angularDampingDegrees = 110f;
+        [SerializeField] [Range(0f, 8f)] private float angularDeadbandDegrees = 0.6f;
+        [SerializeField] [Range(1f, 179f)] private float maxCursorLeadDegrees = 150f;
+        [SerializeField] [Range(0.05f, 1f)] private float turnAuthorityAtMaxSpeed = 0.45f;
+        [SerializeField] [Range(0f, 0.75f)] private float angularOvershootRatio = 0.18f;
         [SerializeField] private float maxCursorPitchDegrees = 65f;
         [SerializeField] private Color highlightColor = new Color(0.25f, 0.95f, 0.65f, 1f);
 
@@ -218,8 +233,7 @@ namespace Space4X.UI
             if (!EnsureClaimedFlagship())
                 return;
 
-            if (Space4XControlModeState.CurrentMode == Space4XControlMode.Rts ||
-                Space4XControlModeState.CurrentMode == Space4XControlMode.DivineHand)
+            if (Space4XControlModeState.CurrentMode == Space4XControlMode.Rts)
             {
                 PrepareFlagshipForRtsOrders();
                 SuppressFlagshipMovement();
@@ -515,7 +529,9 @@ namespace Space4X.UI
             if (mouse == null)
                 return false;
 
-            var leftHeld = cursorSteerWithLeftMouse && mouse.leftButton.isPressed;
+            var leftHeld = cursorSteerWithLeftMouse &&
+                           mouse.leftButton.isPressed &&
+                           !Space4XRtsSelectionRectangleOverlay.IsSelectionDragActive;
             var rightHeld = cursorSteerWithRightMouse && mouse.rightButton.isPressed;
             return leftHeld || rightHeld;
         }
@@ -1002,10 +1018,6 @@ namespace Space4X.UI
             {
                 Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
-            else if (divineHandModeHotkey != Key.None && keyboard[divineHandModeHotkey].wasPressedThisFrame)
-            {
-                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.DivineHand);
-            }
         }
 
         private bool ShouldHandleModeHotkeys()
@@ -1015,7 +1027,7 @@ namespace Space4X.UI
                 _followPlayerVessel = GetComponent<Space4XFollowPlayerVessel>();
             }
 
-            // Follow camera owns mode hotkeys when present to avoid duplicate 1/2/3/4 processing.
+            // Follow camera owns mode hotkeys when present to avoid duplicate 1/2/3 processing.
             return _followPlayerVessel == null || !_followPlayerVessel.isActiveAndEnabled;
         }
 
@@ -1093,9 +1105,9 @@ namespace Space4X.UI
             {
                 All = new[]
                 {
+                    ComponentType.ReadOnly<VesselMovement>(),
                     ComponentType.ReadOnly<LocalTransform>(),
-                    ComponentType.ReadOnly<LocalToWorld>(),
-                    ComponentType.ReadOnly<MaterialMeshInfo>()
+                    ComponentType.ReadOnly<LocalToWorld>()
                 }
             });
 
@@ -1216,6 +1228,45 @@ namespace Space4X.UI
                 profile.VerticalAcceleration = Mathf.Clamp(baseAcceleration * Mathf.Max(0.01f, verticalAccelFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
                 profile.DampenerDeceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, dampenerFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
                 profile.RetroBrakeAcceleration = Mathf.Clamp(baseDeceleration * Mathf.Max(0.01f, retroBrakeFromVesselMultiplier), minAccelFloor, maxInheritedAcceleration);
+
+                var baseTurnSpeedRadians = movement.TurnSpeed > 0f ? movement.TurnSpeed : 2f;
+                var baseTurnSpeedDegrees = baseTurnSpeedRadians * Mathf.Rad2Deg;
+                var derivedMaxAngularSpeed = Mathf.Clamp(
+                    baseTurnSpeedDegrees * Mathf.Max(0.01f, angularSpeedFromVesselMultiplier),
+                    minInheritedAngularSpeedDegrees,
+                    maxInheritedAngularSpeedDegrees);
+                var derivedAngularAcceleration = Mathf.Clamp(
+                    derivedMaxAngularSpeed * Mathf.Max(0.01f, angularAccelerationFromVesselMultiplier),
+                    minInheritedAngularAccelerationDegrees,
+                    maxInheritedAngularAccelerationDegrees);
+                var derivedAngularDamping = Mathf.Clamp(
+                    derivedMaxAngularSpeed * Mathf.Max(0.01f, angularDampingFromVesselMultiplier),
+                    minInheritedAngularAccelerationDegrees,
+                    maxInheritedAngularAccelerationDegrees);
+                profile.MaxAngularSpeedDegrees = derivedMaxAngularSpeed;
+                profile.AngularAccelerationDegrees = derivedAngularAcceleration;
+                profile.AngularDampingDegrees = derivedAngularDamping;
+
+                var derivedTurnAuthority = profile.TurnAuthorityAtMaxSpeed;
+                if (_entityManager.HasComponent<ModuleCapabilityOutput>(entity))
+                {
+                    var capability = _entityManager.GetComponentData<ModuleCapabilityOutput>(entity);
+                    if (capability.TurnAuthority > 0f)
+                    {
+                        derivedTurnAuthority = Mathf.Clamp((float)capability.TurnAuthority, 0.05f, 1f);
+                    }
+                }
+
+                if (_entityManager.HasComponent<EnginePerformanceOutput>(entity))
+                {
+                    var engineOutput = _entityManager.GetComponentData<EnginePerformanceOutput>(entity);
+                    if (engineOutput.TurnAuthority > 0f)
+                    {
+                        derivedTurnAuthority = Mathf.Clamp((float)engineOutput.TurnAuthority, 0.05f, 1f);
+                    }
+                }
+
+                profile.TurnAuthorityAtMaxSpeed = derivedTurnAuthority;
             }
 
             profile = profile.Sanitized();
@@ -1246,6 +1297,13 @@ namespace Space4X.UI
             retroBrakeAcceleration = profile.RetroBrakeAcceleration;
             rollSpeedDegrees = profile.RollSpeedDegrees;
             cursorTurnSharpness = profile.CursorTurnSharpness;
+            maxAngularSpeedDegrees = profile.MaxAngularSpeedDegrees;
+            angularAccelerationDegrees = profile.AngularAccelerationDegrees;
+            angularDampingDegrees = profile.AngularDampingDegrees;
+            angularDeadbandDegrees = profile.AngularDeadbandDegrees;
+            maxCursorLeadDegrees = profile.MaxCursorLeadDegrees;
+            turnAuthorityAtMaxSpeed = profile.TurnAuthorityAtMaxSpeed;
+            angularOvershootRatio = profile.AngularOvershootRatio;
             maxCursorPitchDegrees = profile.MaxCursorPitchDegrees;
             inertialDampeners = runtimeState.InertialDampenersEnabled != 0;
         }
@@ -1800,6 +1858,13 @@ namespace Space4X.UI
                 RetroBrakeAcceleration = retroBrakeAcceleration,
                 RollSpeedDegrees = rollSpeedDegrees,
                 CursorTurnSharpness = cursorTurnSharpness,
+                MaxAngularSpeedDegrees = maxAngularSpeedDegrees,
+                AngularAccelerationDegrees = angularAccelerationDegrees,
+                AngularDampingDegrees = angularDampingDegrees,
+                AngularDeadbandDegrees = angularDeadbandDegrees,
+                MaxCursorLeadDegrees = maxCursorLeadDegrees,
+                TurnAuthorityAtMaxSpeed = turnAuthorityAtMaxSpeed,
+                AngularOvershootRatio = angularOvershootRatio,
                 MaxCursorPitchDegrees = maxCursorPitchDegrees,
                 DefaultInertialDampenersEnabled = inertialDampeners ? (byte)1 : (byte)0
             }.Sanitized();

@@ -49,7 +49,6 @@ namespace Space4x.Scenario
         private const float DefaultSpawnVerticalRange = 60f;
         private const string RefitScenarioFile = "space4x_refit.json";
         private const string ResearchScenarioFile = "space4x_research_mvp.json";
-        private const string FleetCrawlScenarioId = "space4x_fleetcrawl_micro";
         private bool _hasLoaded;
         private bool _loggedPerfGateMissingScenario;
         private MiningScenarioJson _scenarioData;
@@ -70,37 +69,10 @@ namespace Space4x.Scenario
             RequireForUpdate<TimeState>();
         }
 
-        public void RequestReloadForModeSwitch()
-        {
-            _hasLoaded = false;
-            _loggedPerfGateMissingScenario = false;
-            Enabled = true;
-
-            if (World == null || !World.IsCreated)
-            {
-                return;
-            }
-
-            DestroyEntitiesWith<Space4XScenarioRuntime>();
-            DestroyEntitiesWith<ScenarioInfo>();
-            DestroyEntitiesWith<Space4XFleetcrawlSeeded>();
-            DestroyEntitiesWith<Space4XFleetcrawlDirectorState>();
-            DestroyEntitiesWith<Space4x.Fleetcrawl.FleetcrawlOfferRuntimeTag>();
-        }
-
         protected override void OnUpdate()
         {
             if (_hasLoaded)
             {
-                Enabled = false;
-                return;
-            }
-
-            if (SystemAPI.TryGetSingleton<ScenarioInfo>(out var info) &&
-                info.ScenarioId.Equals(new FixedString64Bytes(FleetCrawlScenarioId)))
-            {
-                Debug.Log("[Space4XMiningScenario] ScenarioId='space4x_fleetcrawl_micro' handled by Fleet Crawl runtime systems.");
-                _hasLoaded = true;
                 Enabled = false;
                 return;
             }
@@ -113,26 +85,6 @@ namespace Space4x.Scenario
                 {
                     Debug.LogWarning($"[Space4XMiningScenario] Override missing, falling back to ScenarioInfo: {scenarioPath}");
                     scenarioPath = null;
-                }
-                else if (hasScenarioInfo)
-                {
-                    // Keep ScenarioInfo id aligned with the resolved file path so scenario-gated
-                    // systems (FleetCrawl UI/rooms/etc.) do not read stale ids.
-                    var resolvedScenarioId = Path.GetFileNameWithoutExtension(scenarioPath);
-                    if (!string.IsNullOrWhiteSpace(resolvedScenarioId))
-                    {
-                        var resolvedFixed = new FixedString64Bytes(resolvedScenarioId);
-                        if (!scenarioInfo.ScenarioId.Equals(resolvedFixed))
-                        {
-                            scenarioInfo.ScenarioId = resolvedFixed;
-                            if (SystemAPI.TryGetSingletonEntity<ScenarioInfo>(out var scenarioEntity))
-                            {
-                                EntityManager.SetComponentData(scenarioEntity, scenarioInfo);
-                            }
-
-                            Debug.Log($"[Space4XMiningScenario] ScenarioInfo id aligned to '{resolvedScenarioId}' from path '{scenarioPath}'.");
-                        }
-                    }
                 }
             }
 
@@ -249,15 +201,21 @@ namespace Space4x.Scenario
             Enabled = false;
         }
 
-        private void DestroyEntitiesWith<T>() where T : unmanaged, IComponentData
+        public void RequestReloadForModeSwitch()
         {
-            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
-            if (query.IsEmptyIgnoreFilter)
-            {
-                return;
-            }
-
-            EntityManager.DestroyEntity(query);
+            _hasLoaded = false;
+            _loggedPerfGateMissingScenario = false;
+            _scenarioData = null;
+            _spawnedEntities = null;
+            _profileEntities = null;
+            _scenarioPath = null;
+            _templateRoot = null;
+            _useSmokeMotionTuning = false;
+            _isCollisionScenario = false;
+            _applyDefaultModuleLoadouts = false;
+            _friendlyAffiliationEntity = Entity.Null;
+            _hostileAffiliationEntity = Entity.Null;
+            Enabled = true;
         }
 
         private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)
@@ -266,7 +224,6 @@ namespace Space4x.Scenario
             ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
             ApplyOrbitalBandConfig(scenarioConfig);
             ApplyRenderFrameConfig(scenarioConfig);
-            ApplyFleetcrawlContractConfig(scenarioConfig != null ? scenarioConfig.fleetCrawl : null);
             if (scenarioConfig == null)
             {
                 return;
@@ -279,126 +236,6 @@ namespace Space4x.Scenario
             {
                 ApplyFloatingOriginConfig();
             }
-        }
-
-        private void ApplyFleetcrawlContractConfig(FleetcrawlScenarioConfigData config)
-        {
-            if (config == null)
-            {
-                ClearFleetcrawlContractConfig();
-                return;
-            }
-
-            if (!SystemAPI.TryGetSingletonEntity<Space4XFleetcrawlScenarioContractConfig>(out var configEntity))
-            {
-                configEntity = EntityManager.CreateEntity(typeof(Space4XFleetcrawlScenarioContractConfig));
-                EntityManager.AddBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
-            }
-            else if (!EntityManager.HasBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity))
-            {
-                EntityManager.AddBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
-            }
-
-            var contractId = string.IsNullOrWhiteSpace(config.contractId)
-                ? string.Empty
-                : config.contractId.Trim();
-            var runDifficulty = string.IsNullOrWhiteSpace(config.runDifficulty)
-                ? "normal"
-                : config.runDifficulty.Trim().ToLowerInvariant();
-            var depthStart = math.max(1, config.depthStart <= 0 ? 1 : config.depthStart);
-
-            var roomPlan = EntityManager.GetBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
-            roomPlan.Clear();
-            if (config.roomPlan != null)
-            {
-                for (var i = 0; i < config.roomPlan.Count; i++)
-                {
-                    var entry = config.roomPlan[i];
-                    if (entry == null)
-                    {
-                        continue;
-                    }
-
-                    var archetype = string.IsNullOrWhiteSpace(entry.archetype) ? string.Empty : entry.archetype.Trim().ToLowerInvariant();
-                    var roomClass = string.IsNullOrWhiteSpace(entry.roomClass) ? "normal" : entry.roomClass.Trim().ToLowerInvariant();
-                    var systemSize = string.IsNullOrWhiteSpace(entry.systemSize) ? "medium" : entry.systemSize.Trim().ToLowerInvariant();
-                    var threatLevel = math.max(1, entry.threatLevel);
-                    if (string.IsNullOrWhiteSpace(archetype))
-                    {
-                        continue;
-                    }
-
-                    roomPlan.Add(new Space4XFleetcrawlRoomPlanOverride
-                    {
-                        Archetype = new FixedString64Bytes(TrimAscii(archetype, 63)),
-                        RoomClass = new FixedString32Bytes(TrimAscii(roomClass, 31)),
-                        SystemSize = new FixedString32Bytes(TrimAscii(systemSize, 31)),
-                        ThreatLevel = threatLevel,
-                        WildcardsCsv = BuildWildcardCsv(entry.wildcards)
-                    });
-                }
-            }
-
-            EntityManager.SetComponentData(configEntity, new Space4XFleetcrawlScenarioContractConfig
-            {
-                ContractId = new FixedString64Bytes(TrimAscii(contractId, 63)),
-                RunDifficulty = new FixedString32Bytes(TrimAscii(runDifficulty, 31)),
-                DepthStart = depthStart,
-                HasRoomPlan = (byte)(roomPlan.Length > 0 ? 1 : 0)
-            });
-
-            Debug.Log($"[Space4XMiningScenario] Fleetcrawl contract config applied. contract={contractId} run_difficulty={runDifficulty} depth_start={depthStart} room_plan={roomPlan.Length}.");
-        }
-
-        private void ClearFleetcrawlContractConfig()
-        {
-            if (SystemAPI.TryGetSingletonEntity<Space4XFleetcrawlScenarioContractConfig>(out var configEntity))
-            {
-                EntityManager.DestroyEntity(configEntity);
-            }
-        }
-
-        private static FixedString128Bytes BuildWildcardCsv(List<string> wildcards)
-        {
-            var csv = new FixedString128Bytes();
-            if (wildcards == null || wildcards.Count == 0)
-            {
-                return csv;
-            }
-
-            for (var i = 0; i < wildcards.Count; i++)
-            {
-                var token = wildcards[i];
-                if (string.IsNullOrWhiteSpace(token))
-                {
-                    continue;
-                }
-
-                var normalized = token.Trim().ToLowerInvariant();
-                if (normalized.Length == 0)
-                {
-                    continue;
-                }
-
-                if (csv.Length > 0)
-                {
-                    csv.Append('|');
-                }
-
-                csv.Append(new FixedString32Bytes(TrimAscii(normalized, 31)));
-            }
-
-            return csv;
-        }
-
-        private static string TrimAscii(string value, int maxLen)
-        {
-            if (string.IsNullOrEmpty(value) || maxLen <= 0)
-            {
-                return string.Empty;
-            }
-
-            return value.Length > maxLen ? value.Substring(0, maxLen) : value;
         }
 
         private void ApplySensorsBeatConfig(SensorsBeatConfigData beat)
@@ -2415,14 +2252,17 @@ namespace Space4x.Scenario
             EnsureModuleOwnerState(owner, loadoutKind);
 
             EntityManager.AddBuffer<CarrierModuleSlot>(owner);
-            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
-            {
-                EntityManager.AddBuffer<ModuleAttachment>(owner);
-            }
-
             var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
-            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
             slots.Clear();
+            DynamicBuffer<ModuleAttachment> attachments;
+            if (EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
+            }
+            else
+            {
+                attachments = EntityManager.AddBuffer<ModuleAttachment>(owner);
+            }
             attachments.Clear();
 
             switch (loadoutKind)
@@ -2507,26 +2347,24 @@ namespace Space4x.Scenario
 
             EnsureModuleOwnerState(owner, loadoutKind);
 
+            DynamicBuffer<CarrierModuleSlot> slots;
             if (EntityManager.HasBuffer<CarrierModuleSlot>(owner))
             {
-                if (EntityManager.GetBuffer<CarrierModuleSlot>(owner).Length > 0)
+                slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
+                if (slots.Length > 0)
                 {
                     return false;
                 }
+                slots.Clear();
             }
             else
             {
-                EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+                slots = EntityManager.AddBuffer<CarrierModuleSlot>(owner);
             }
 
-            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
-            {
-                EntityManager.AddBuffer<ModuleAttachment>(owner);
-            }
-
-            var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
-            var attachments = EntityManager.GetBuffer<ModuleAttachment>(owner);
-            slots.Clear();
+            var attachments = EntityManager.HasBuffer<ModuleAttachment>(owner)
+                ? EntityManager.GetBuffer<ModuleAttachment>(owner)
+                : EntityManager.AddBuffer<ModuleAttachment>(owner);
             attachments.Clear();
 
             var totalMass = 0f;
@@ -2593,6 +2431,16 @@ namespace Space4x.Scenario
             {
                 massTons = 0f;
                 return false;
+            }
+
+            if (!EntityManager.HasBuffer<CarrierModuleSlot>(owner))
+            {
+                EntityManager.AddBuffer<CarrierModuleSlot>(owner);
+            }
+
+            if (!EntityManager.HasBuffer<ModuleAttachment>(owner))
+            {
+                EntityManager.AddBuffer<ModuleAttachment>(owner);
             }
 
             var slots = EntityManager.GetBuffer<CarrierModuleSlot>(owner);
@@ -3914,28 +3762,8 @@ namespace Space4x.Scenario
         public List<string> hostileFactionOutlook;
         public SensorsBeatConfigData sensorsBeat;
         public CommsBeatConfigData commsBeat;
-        public FleetcrawlScenarioConfigData fleetCrawl;
         public List<HeadlessQuestionConfigData> headlessQuestions;
         public List<CrewTemplateConfigData> crewTemplates;
-    }
-
-    [System.Serializable]
-    public class FleetcrawlScenarioConfigData
-    {
-        public string contractId;
-        public string runDifficulty;
-        public int depthStart;
-        public List<FleetcrawlRoomPlanEntryData> roomPlan;
-    }
-
-    [System.Serializable]
-    public class FleetcrawlRoomPlanEntryData
-    {
-        public string archetype;
-        public string roomClass;
-        public string systemSize;
-        public int threatLevel;
-        public List<string> wildcards;
     }
 
     [System.Serializable]

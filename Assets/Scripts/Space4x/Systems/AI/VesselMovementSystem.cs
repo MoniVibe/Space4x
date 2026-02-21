@@ -16,6 +16,7 @@ using Space4X.Registry;
 using Space4X.Physics;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
@@ -68,7 +69,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<BehaviorDisposition> _behaviorDispositionLookup;
         private BufferLookup<DepartmentStatsBuffer> _departmentStatsLookup;
         private ComponentLookup<TargetPriority> _priorityLookup;
-        private ComponentLookup<LocalToWorld> _targetTransformLookup;
+        private ComponentLookup<LocalTransform> _targetTransformLookup;
         private ComponentLookup<Space4XEngagement> _engagementLookup;
         private BufferLookup<WeaponMountBuffer> _weaponLookup;
         private ComponentLookup<Asteroid> _asteroidLookup;
@@ -89,6 +90,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private ComponentLookup<PlanetGravityField> _planetGravityLookup;
+        private NativeArray<SpatialGridCellRange> _emptySpatialRanges;
+        private NativeArray<SpatialGridEntry> _emptySpatialEntries;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -131,7 +134,7 @@ namespace Space4X.Systems.AI
             _behaviorDispositionLookup = state.GetComponentLookup<BehaviorDisposition>(true);
             _departmentStatsLookup = state.GetBufferLookup<DepartmentStatsBuffer>(true);
             _priorityLookup = state.GetComponentLookup<TargetPriority>(true);
-            _targetTransformLookup = state.GetComponentLookup<LocalToWorld>(true);
+            _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
             _engagementLookup = state.GetComponentLookup<Space4XEngagement>(true);
             _weaponLookup = state.GetBufferLookup<WeaponMountBuffer>(true);
             _asteroidLookup = state.GetComponentLookup<Asteroid>(true);
@@ -152,6 +155,8 @@ namespace Space4X.Systems.AI
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _planetGravityLookup = state.GetComponentLookup<PlanetGravityField>(true);
+            _emptySpatialRanges = new NativeArray<SpatialGridCellRange>(0, Allocator.Persistent);
+            _emptySpatialEntries = new NativeArray<SpatialGridEntry>(0, Allocator.Persistent);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -207,6 +212,20 @@ namespace Space4X.Systems.AI
             _roleCaptain.Append('a');
             _roleCaptain.Append('i');
             _roleCaptain.Append('n');
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_emptySpatialRanges.IsCreated)
+            {
+                _emptySpatialRanges.Dispose();
+            }
+
+            if (_emptySpatialEntries.IsCreated)
+            {
+                _emptySpatialEntries.Dispose();
+            }
         }
 
         [BurstCompile]
@@ -292,14 +311,8 @@ namespace Space4X.Systems.AI
             _planetGravityLookup.Update(ref state);
 
             var hasSpatialGrid = SystemAPI.TryGetSingleton<SpatialGridConfig>(out var spatialConfig);
-            var spatialRanges = CollectionHelper.CreateNativeArray<SpatialGridCellRange>(
-                0,
-                state.WorldUpdateAllocator,
-                NativeArrayOptions.UninitializedMemory);
-            var spatialEntries = CollectionHelper.CreateNativeArray<SpatialGridEntry>(
-                0,
-                state.WorldUpdateAllocator,
-                NativeArrayOptions.UninitializedMemory);
+            NativeArray<SpatialGridCellRange> spatialRanges = _emptySpatialRanges;
+            NativeArray<SpatialGridEntry> spatialEntries = _emptySpatialEntries;
             if (hasSpatialGrid)
             {
                 var gridEntity = SystemAPI.GetSingletonEntity<SpatialGridConfig>();
@@ -462,7 +475,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<BehaviorDisposition> BehaviorDispositionLookup;
             [ReadOnly] public BufferLookup<DepartmentStatsBuffer> DepartmentStatsLookup;
             [ReadOnly] public ComponentLookup<TargetPriority> PriorityLookup;
-            [ReadOnly] public ComponentLookup<LocalToWorld> TargetTransformLookup;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] public ComponentLookup<LocalTransform> TargetTransformLookup;
             [ReadOnly] public ComponentLookup<Space4XEngagement> EngagementLookup;
             [ReadOnly] public BufferLookup<WeaponMountBuffer> WeaponLookup;
             [ReadOnly] public ComponentLookup<Asteroid> AsteroidLookup;

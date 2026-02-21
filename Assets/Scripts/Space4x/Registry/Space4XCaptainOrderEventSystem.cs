@@ -71,6 +71,12 @@ namespace Space4X.Registry
                 });
             }
 
+            if (pendingInit.Length > 0)
+            {
+                stream = SystemAPI.GetComponentRW<ProfileActionEventStream>(streamEntity);
+                buffer = SystemAPI.GetBuffer<ProfileActionEvent>(streamEntity);
+            }
+
             _issuedByLookup.Update(ref state);
 
             foreach (var (order, eventState, entity) in SystemAPI.Query<RefRO<CaptainOrder>, RefRW<CaptainOrderEventState>>()
