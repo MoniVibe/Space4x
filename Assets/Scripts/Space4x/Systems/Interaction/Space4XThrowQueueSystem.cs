@@ -31,6 +31,7 @@ namespace Space4X.Systems.Interaction
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
             state.RequireForUpdate<HandInputFrame>();
+            state.RequireForUpdate<Space4XControlModeRuntimeState>();
 
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _physicsVelocityLookup = state.GetComponentLookup<Unity.Physics.PhysicsVelocity>(false);
@@ -51,6 +52,12 @@ namespace Space4X.Systems.Interaction
 
         public void OnUpdate(ref SystemState state)
         {
+            var modeState = SystemAPI.GetSingleton<Space4XControlModeRuntimeState>();
+            if (modeState.IsDivineHandEnabled == 0)
+            {
+                return;
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             var rewindState = SystemAPI.GetSingleton<RewindState>();
 

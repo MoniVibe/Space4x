@@ -45,6 +45,11 @@ namespace Space4X.Input
             {
                 go.AddComponent<Space4XRtsClassicCommandMono>();
             }
+
+            if (go.GetComponent<Space4XRtsInputModeGateMono>() == null)
+            {
+                go.AddComponent<Space4XRtsInputModeGateMono>();
+            }
         }
     }
 }

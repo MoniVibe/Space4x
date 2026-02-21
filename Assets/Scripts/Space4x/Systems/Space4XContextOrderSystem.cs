@@ -38,6 +38,16 @@ namespace Space4X.Systems
                 return;
 
             var rightClicks = state.EntityManager.GetBuffer<RightClickEvent>(inputEntity);
+            if (Space4XControlModeState.CurrentMode != Space4XControlMode.Rts)
+            {
+                if (rightClicks.Length > 0)
+                {
+                    rightClicks.Clear();
+                }
+
+                return;
+            }
+
             if (rightClicks.Length == 0)
                 return;
             using var rightClickEvents = rightClicks.ToNativeArray(Allocator.Temp);
