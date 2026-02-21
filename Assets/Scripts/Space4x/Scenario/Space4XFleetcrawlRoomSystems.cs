@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using PureDOTS.Environment;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Interrupts;
@@ -19,14 +17,8 @@ using UnityEngine;
 namespace Space4x.Scenario
 {
     public enum Space4XFleetcrawlRoomKind : byte { Combat = 0, Relief = 1, Boss = 2 }
-    [Flags]
-    public enum Space4XFleetcrawlRoomEndConditionFlags : byte { Timer = 1, KillQuota = 2, BossQuota = 4, MiniBossQuota = 8 }
-    public enum Space4XFleetcrawlRoomEndLogic : byte { AnyOf = 0, AllOf = 1 }
-    public enum Space4XFleetcrawlReliefKind : byte { None = 0, Recovery = 1, Arsenal = 2, Salvage = 3 }
-    public enum Space4XFleetcrawlDifficultyStatus : byte { Calm = 0, Pressured = 1, Overrun = 2, Recovery = 3 }
-    public enum Space4XFleetcrawlEnemyClass : byte { Normal = 0, MiniBoss = 1, Boss = 2 }
+    public enum Space4XFleetcrawlEnemyTier : byte { Small = 0, Elite = 1, Boss = 2 }
     public enum Space4XFleetcrawlBoonType : byte { ChainLightning = 0, MissileVolley = 1, BoostCooldown = 2, ShieldRegen = 3 }
-    public enum Space4XFleetcrawlChallengeKind : byte { None = 0, Swarm = 1, Hazard = 2, Nemesis = 3 }
     public enum Space4XRunGateKind : byte { Boon = 0, Blueprint = 1, Relief = 2 }
     public enum Space4XRunRewardKind : byte { None = 0, Boon = 1, ModuleBlueprint = 2, ManufacturerUnlock = 3, PartUnlock = 4, Currency = 5, Heal = 6, Reroll = 7 }
     public enum Space4XRunPerkOpKind : byte { AddStat = 0, MulStat = 1, AddTag = 2, RemoveTag = 3, ConvertDamage = 4, ReplaceAttackFamily = 5 }
@@ -38,16 +30,7 @@ namespace Space4x.Scenario
     public struct Space4XRunPlayerTag : IComponentData { }
     public struct PlayerFlagshipTag : IComponentData { }
     public struct Space4XRunDroneTag : IComponentData { }
-    public struct Space4XRunEnemyTag : IComponentData { public int RoomIndex; public int WaveIndex; public Space4XFleetcrawlEnemyClass EnemyClass; }
-    public struct Space4XEnemyTelegraphState : IComponentData
-    {
-        public uint NextTelegraphTick;
-        public uint TelegraphUntilTick;
-        public uint BurstUntilTick;
-        public byte IsTelegraphing;
-        public byte IsBursting;
-        public byte Initialized;
-    }
+    public struct Space4XRunEnemyTag : IComponentData { public int RoomIndex; public int WaveIndex; }
     public struct Space4XRunEnemyDestroyedCounted : IComponentData { }
     public struct Space4XRunChainLightningSource : IComponentData { }
     public struct Space4XRunDamageEventCursor : IComponentData { public int ProcessedCount; }
@@ -55,29 +38,6 @@ namespace Space4x.Scenario
     public struct Space4XRunRerollTokens : IComponentData { public int Value; }
     public struct Space4XRunReactiveModifiers : IComponentData { public float DamageMul; public float CooldownMul; }
     public struct Space4XRunBoonSet : IComponentData { public byte ChainLightning; public byte MissileVolley; public byte BoostCooldown; public byte ShieldRegen; }
-    public struct Space4XRunProgressionState : IComponentData
-    {
-        public int Level;
-        public int Experience;
-        public int ExperienceToNext;
-        public int UnspentUpgrades;
-        public int TotalExperienceEarned;
-    }
-    public struct Space4XRunChallengeState : IComponentData
-    {
-        public Space4XFleetcrawlChallengeKind Kind;
-        public byte Active;
-        public byte RiskTier;
-        public int RoomIndex;
-        public float SpawnMultiplier;
-        public float CurrencyMultiplier;
-        public float ExperienceMultiplier;
-    }
-    public struct Space4XRunMetaResourceState : IComponentData
-    {
-        public int Shards;
-        public int RoomChallengeClears;
-    }
 
     [InternalBufferCapacity(8)]
     public struct Space4XRunPerkOp : IBufferElementData
@@ -137,34 +97,22 @@ namespace Space4x.Scenario
         public int WavesSpawnedInRoom;
         public int EnemiesSpawnedInRoom;
         public int EnemiesDestroyedInRoom;
-        public int MiniBossesDestroyedInRoom;
-        public int BossesDestroyedInRoom;
         public float DamageSnapshotAtRoomStart;
         public uint StableDigest;
         public uint Seed;
-        public Space4XFleetcrawlDifficultyStatus DifficultyStatus;
         public byte RunCompleted;
-        public byte RunFailed;
     }
 
     [InternalBufferCapacity(8)]
     public struct Space4XFleetcrawlRoom : IBufferElementData
     {
+        public int RoomIndex;
         public Space4XFleetcrawlRoomKind Kind;
-        public Space4XFleetcrawlReliefKind ReliefKind;
-        public Space4XFleetcrawlRoomEndConditionFlags EndConditions;
-        public Space4XFleetcrawlRoomEndLogic EndLogic;
         public uint DurationTicks;
+        public uint MinDurationTicks;
         public uint WaveIntervalTicks;
         public int PlannedWaves;
-        public int KillQuota;
-        public int MiniBossQuota;
-        public int BossQuota;
-        public int BaseStrikePerWave;
-        public int BaseCarrierPerWave;
-        public int MiniBossEveryNWaves;
-        public int MiniBossCarrierCount;
-        public int BossCarrierCount;
+        public byte GateOptionCount;
         public int RewardCurrency;
         public float RewardHealRatio;
         public float RewardPomPct;
@@ -174,15 +122,7 @@ namespace Space4x.Scenario
 
     internal static class Space4XFleetcrawlSpawnUtil
     {
-        public static Entity SpawnCarrier(
-            ref SystemState state,
-            float3 position,
-            byte side,
-            in FixedString64Bytes id,
-            bool playerTag,
-            int roomIndex,
-            int waveIndex,
-            Space4XFleetcrawlEnemyClass enemyClass = Space4XFleetcrawlEnemyClass.Normal)
+        public static Entity SpawnCarrier(ref SystemState state, float3 position, byte side, in FixedString64Bytes id, bool playerTag, int roomIndex, int waveIndex)
         {
             var em = state.EntityManager;
             var e = em.CreateEntity();
@@ -270,23 +210,14 @@ namespace Space4x.Scenario
             if (playerTag && side == 0) em.AddComponent<PlayerFlagshipTag>(e);
             if (side == 1)
             {
-                em.AddComponentData(e, new Space4XRunEnemyTag { RoomIndex = roomIndex, WaveIndex = waveIndex, EnemyClass = enemyClass });
+                em.AddComponentData(e, new Space4XRunEnemyTag { RoomIndex = roomIndex, WaveIndex = waveIndex });
                 em.AddComponentData(e, new Space4XRunDamageEventCursor { ProcessedCount = 0 });
             }
 
             return e;
         }
 
-        public static void SpawnStrikeWing(
-            ref SystemState state,
-            float3 anchor,
-            byte side,
-            int count,
-            bool playerTag,
-            int roomIndex,
-            int waveIndex,
-            bool droneTag = false,
-            Space4XFleetcrawlEnemyClass enemyClass = Space4XFleetcrawlEnemyClass.Normal)
+        public static void SpawnStrikeWing(ref SystemState state, float3 anchor, byte side, int count, bool playerTag, int roomIndex, int waveIndex, bool droneTag = false)
         {
             var em = state.EntityManager;
             for (var i = 0; i < count; i++)
@@ -340,7 +271,7 @@ namespace Space4x.Scenario
                 if (playerTag && droneTag) em.AddComponent<Space4XRunDroneTag>(e);
                 if (side == 1)
                 {
-                    em.AddComponentData(e, new Space4XRunEnemyTag { RoomIndex = roomIndex, WaveIndex = waveIndex, EnemyClass = enemyClass });
+                    em.AddComponentData(e, new Space4XRunEnemyTag { RoomIndex = roomIndex, WaveIndex = waveIndex });
                     em.AddComponentData(e, new Space4XRunDamageEventCursor { ProcessedCount = 0 });
                 }
             }
@@ -381,21 +312,133 @@ namespace Space4x.Scenario
         }
     }
 
+    internal static class Space4XFleetcrawlRunConfig
+    {
+        private const int DefaultShortRoomCount = 10;
+        private const int DefaultLongRoomCount = 18;
+        private const int DefaultBossCadence = 4;
+        private const int DefaultReliefCadence = 3;
+
+        public static int ResolveBossCadence()
+        {
+            return ResolvePositiveIntFromEnv("SPACE4X_FLEETCRAWL_BOSS_CADENCE", DefaultBossCadence, 2, 12);
+        }
+
+        public static int ResolveReliefCadence(int bossCadence)
+        {
+            var resolved = ResolvePositiveIntFromEnv("SPACE4X_FLEETCRAWL_RELIEF_CADENCE", DefaultReliefCadence, 2, 8);
+            if (resolved == bossCadence)
+            {
+                return math.max(2, resolved + 1);
+            }
+
+            return resolved;
+        }
+
+        public static int ResolveRoomCount(bool shortMode)
+        {
+            var fallback = shortMode ? DefaultShortRoomCount : DefaultLongRoomCount;
+            var maxRooms = shortMode ? 16 : 36;
+            return ResolvePositiveIntFromEnv("SPACE4X_FLEETCRAWL_ROOM_COUNT", fallback, 3, maxRooms);
+        }
+
+        public static Space4XFleetcrawlRoomKind ResolveRoomKind(int roomIndex, int bossCadence, int reliefCadence)
+        {
+            var ordinal = roomIndex + 1;
+            if (ordinal > 0 && ordinal % bossCadence == 0)
+            {
+                return Space4XFleetcrawlRoomKind.Boss;
+            }
+
+            if (ordinal > 0 && ordinal % reliefCadence == 0)
+            {
+                return Space4XFleetcrawlRoomKind.Relief;
+            }
+
+            return Space4XFleetcrawlRoomKind.Combat;
+        }
+
+        public static Space4XFleetcrawlRoom BuildRoomTemplate(int roomIndex, bool shortMode, float dt, int bossCadence, int reliefCadence)
+        {
+            var kind = ResolveRoomKind(roomIndex, bossCadence, reliefCadence);
+            var roomRamp = math.max(0, roomIndex / 2);
+
+            var room = new Space4XFleetcrawlRoom
+            {
+                RoomIndex = roomIndex,
+                Kind = kind,
+                GateOptionCount = (byte)(kind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3),
+                OfferBoon = kind == Space4XFleetcrawlRoomKind.Relief ? (byte)0 : (byte)1
+            };
+
+            if (kind == Space4XFleetcrawlRoomKind.Relief)
+            {
+                var reliefDuration = shortMode ? 20f : 45f;
+                room.DurationTicks = ToTicks(reliefDuration, dt);
+                room.MinDurationTicks = ToTicks(shortMode ? 8f : 20f, dt);
+                room.WaveIntervalTicks = 0;
+                room.PlannedWaves = 0;
+                room.RewardCurrency = 35 + roomIndex * 7;
+                room.RewardHealRatio = math.min(0.18f, 0.07f + roomRamp * 0.01f);
+                room.RewardPomPct = 0f;
+                room.RewardMaxHullFlat = 0f;
+                return room;
+            }
+
+            if (kind == Space4XFleetcrawlRoomKind.Boss)
+            {
+                var bossDuration = shortMode ? 75f : 420f;
+                room.DurationTicks = ToTicks(bossDuration, dt);
+                room.MinDurationTicks = ToTicks(shortMode ? 24f : 150f, dt);
+                room.WaveIntervalTicks = ToTicks(shortMode ? 12f : 36f, dt);
+                room.PlannedWaves = (shortMode ? 4 : 7) + math.min(4, roomIndex / math.max(1, bossCadence));
+                room.RewardCurrency = 220 + roomIndex * 32;
+                room.RewardHealRatio = math.min(0.22f, 0.1f + roomRamp * 0.01f);
+                room.RewardPomPct = math.min(0.18f, 0.1f + roomRamp * 0.01f);
+                room.RewardMaxHullFlat = 45f + roomRamp * 12f;
+                return room;
+            }
+
+            var combatDuration = shortMode ? 45f : 300f;
+            var combatWaveInterval = shortMode
+                ? math.max(7f, 12f - roomRamp)
+                : math.max(24f, 45f - roomRamp * 2f);
+            room.DurationTicks = ToTicks(combatDuration, dt);
+            room.MinDurationTicks = ToTicks(shortMode ? 14f : 90f, dt);
+            room.WaveIntervalTicks = ToTicks(combatWaveInterval, dt);
+            room.PlannedWaves = (shortMode ? 4 : 6) + math.min(5, roomRamp);
+            room.RewardCurrency = 75 + roomIndex * 18;
+            room.RewardHealRatio = math.min(0.15f, 0.05f + roomRamp * 0.005f);
+            room.RewardPomPct = math.min(0.12f, 0.045f + roomRamp * 0.008f);
+            room.RewardMaxHullFlat = 16f + roomRamp * 6f;
+            return room;
+        }
+
+        private static int ResolvePositiveIntFromEnv(string envName, int fallback, int minValue, int maxValue)
+        {
+            var raw = Environment.GetEnvironmentVariable(envName);
+            if (string.IsNullOrWhiteSpace(raw) || !int.TryParse(raw, out var parsed))
+            {
+                return fallback;
+            }
+
+            return math.clamp(parsed, minValue, maxValue);
+        }
+
+        private static uint ToTicks(float sec, float dt)
+        {
+            return (uint)math.max(1f, math.round(math.max(0.01f, sec) / math.max(1e-6f, dt)));
+        }
+    }
+
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(Space4XMiningScenarioSystem))]
     public partial struct Space4XFleetcrawlBootstrapSystem : ISystem
     {
-        private const string RoomProfilePathEnv = "SPACE4X_FLEETCRAWL_ROOMS_PATH";
-        private static readonly char[] EndConditionSplitChars = { '|', ',', ';', '+', ' ' };
-        private EntityQuery _seededQuery;
-        private EntityQuery _directorQuery;
-
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<ScenarioInfo>();
             state.RequireForUpdate<TimeState>();
-            _seededQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XFleetcrawlSeeded>());
-            _directorQuery = state.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XFleetcrawlDirectorState>());
         }
 
         public void OnUpdate(ref SystemState state)
@@ -407,155 +450,33 @@ namespace Space4x.Scenario
                 return;
             }
 
-            // Guard against repeated bootstrap in multi-world/test harness flows.
-            if (!_seededQuery.IsEmptyIgnoreFilter || !_directorQuery.IsEmptyIgnoreFilter)
+            if (SystemAPI.TryGetSingleton<Space4XFleetcrawlSeeded>(out _))
             {
                 return;
             }
 
             var dt = math.max(1e-6f, ResolveFixedDelta(SystemAPI.GetSingleton<TimeState>()));
             var shortMode = scenarioId.Contains("micro", StringComparison.OrdinalIgnoreCase) || IsTruthy(Environment.GetEnvironmentVariable("SPACE4X_FLEETCRAWL_SHORT"));
-            var combatDur = shortMode ? 45f : 150f;
-            var reliefDur = shortMode ? 20f : 28f;
-            var bossDur = shortMode ? 78f : 210f;
-            var waveInt = shortMode ? 10f : 24f;
+            var bossCadence = Space4XFleetcrawlRunConfig.ResolveBossCadence();
+            var reliefCadence = Space4XFleetcrawlRunConfig.ResolveReliefCadence(bossCadence);
+            var roomCount = Space4XFleetcrawlRunConfig.ResolveRoomCount(shortMode);
 
             var directorEntity = state.EntityManager.CreateEntity(
                 typeof(Space4XFleetcrawlDirectorState),
                 typeof(RunCurrency),
                 typeof(Space4XRunRerollTokens),
                 typeof(Space4XRunReactiveModifiers),
-                typeof(Space4XRunBoonSet),
-                typeof(Space4XRunProgressionState),
-                typeof(Space4XRunChallengeState),
-                typeof(Space4XRunMetaResourceState));
-            state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
+                typeof(Space4XRunBoonSet));
+            var rooms = state.EntityManager.AddBuffer<Space4XFleetcrawlRoom>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunPerkOp>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunInstalledBlueprint>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunUnlockedManufacturer>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunUnlockedPart>(directorEntity);
             state.EntityManager.AddBuffer<Space4XRunGateRewardRecord>(directorEntity);
-            var rooms = state.EntityManager.GetBuffer<Space4XFleetcrawlRoom>(directorEntity);
-            rooms.Add(new Space4XFleetcrawlRoom
+            for (var roomIndex = 0; roomIndex < roomCount; roomIndex++)
             {
-                Kind = Space4XFleetcrawlRoomKind.Combat,
-                ReliefKind = Space4XFleetcrawlReliefKind.None,
-                EndConditions = Space4XFleetcrawlRoomEndConditionFlags.Timer | Space4XFleetcrawlRoomEndConditionFlags.KillQuota,
-                EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
-                DurationTicks = ToTicks(combatDur, dt),
-                WaveIntervalTicks = ToTicks(waveInt, dt),
-                PlannedWaves = shortMode ? 4 : 5,
-                KillQuota = shortMode ? 24 : 50,
-                MiniBossQuota = 1,
-                BossQuota = 0,
-                BaseStrikePerWave = shortMode ? 9 : 11,
-                BaseCarrierPerWave = 0,
-                MiniBossEveryNWaves = shortMode ? 2 : 3,
-                MiniBossCarrierCount = 1,
-                BossCarrierCount = 0,
-                RewardCurrency = 80,
-                RewardHealRatio = 0.06f,
-                RewardPomPct = 0.05f,
-                RewardMaxHullFlat = 20f,
-                OfferBoon = 1
-            });
-            rooms.Add(new Space4XFleetcrawlRoom
-            {
-                Kind = Space4XFleetcrawlRoomKind.Relief,
-                ReliefKind = Space4XFleetcrawlReliefKind.Recovery,
-                EndConditions = Space4XFleetcrawlRoomEndConditionFlags.Timer,
-                EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
-                DurationTicks = ToTicks(reliefDur, dt),
-                WaveIntervalTicks = 0,
-                PlannedWaves = 0,
-                KillQuota = 0,
-                MiniBossQuota = 0,
-                BossQuota = 0,
-                BaseStrikePerWave = 0,
-                BaseCarrierPerWave = 0,
-                MiniBossEveryNWaves = 0,
-                MiniBossCarrierCount = 0,
-                BossCarrierCount = 0,
-                RewardCurrency = 40,
-                RewardHealRatio = 0.12f,
-                RewardPomPct = 0f,
-                RewardMaxHullFlat = 0f,
-                OfferBoon = 0
-            });
-            rooms.Add(new Space4XFleetcrawlRoom
-            {
-                Kind = Space4XFleetcrawlRoomKind.Combat,
-                ReliefKind = Space4XFleetcrawlReliefKind.None,
-                EndConditions = Space4XFleetcrawlRoomEndConditionFlags.Timer | Space4XFleetcrawlRoomEndConditionFlags.KillQuota,
-                EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
-                DurationTicks = ToTicks(combatDur, dt),
-                WaveIntervalTicks = ToTicks(waveInt, dt),
-                PlannedWaves = shortMode ? 5 : 6,
-                KillQuota = shortMode ? 34 : 78,
-                MiniBossQuota = 2,
-                BossQuota = 0,
-                BaseStrikePerWave = shortMode ? 10 : 12,
-                BaseCarrierPerWave = 1,
-                MiniBossEveryNWaves = 2,
-                MiniBossCarrierCount = 1,
-                BossCarrierCount = 0,
-                RewardCurrency = 120,
-                RewardHealRatio = 0.05f,
-                RewardPomPct = 0.08f,
-                RewardMaxHullFlat = 30f,
-                OfferBoon = 1
-            });
-            rooms.Add(new Space4XFleetcrawlRoom
-            {
-                Kind = Space4XFleetcrawlRoomKind.Boss,
-                ReliefKind = Space4XFleetcrawlReliefKind.None,
-                EndConditions = Space4XFleetcrawlRoomEndConditionFlags.Timer | Space4XFleetcrawlRoomEndConditionFlags.BossQuota,
-                EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
-                DurationTicks = ToTicks(bossDur, dt),
-                WaveIntervalTicks = ToTicks(waveInt, dt),
-                PlannedWaves = shortMode ? 4 : 5,
-                KillQuota = 0,
-                MiniBossQuota = 1,
-                BossQuota = shortMode ? 1 : 2,
-                BaseStrikePerWave = shortMode ? 8 : 9,
-                BaseCarrierPerWave = 0,
-                MiniBossEveryNWaves = shortMode ? 2 : 3,
-                MiniBossCarrierCount = 1,
-                BossCarrierCount = shortMode ? 1 : 2,
-                RewardCurrency = 220,
-                RewardHealRatio = 0.12f,
-                RewardPomPct = 0.1f,
-                RewardMaxHullFlat = 60f,
-                OfferBoon = 1
-            });
-            rooms.Add(new Space4XFleetcrawlRoom
-            {
-                Kind = Space4XFleetcrawlRoomKind.Relief,
-                ReliefKind = Space4XFleetcrawlReliefKind.Arsenal,
-                EndConditions = Space4XFleetcrawlRoomEndConditionFlags.Timer,
-                EndLogic = Space4XFleetcrawlRoomEndLogic.AnyOf,
-                DurationTicks = ToTicks(reliefDur, dt),
-                WaveIntervalTicks = 0,
-                PlannedWaves = 0,
-                KillQuota = 0,
-                MiniBossQuota = 0,
-                BossQuota = 0,
-                BaseStrikePerWave = 0,
-                BaseCarrierPerWave = 0,
-                MiniBossEveryNWaves = 0,
-                MiniBossCarrierCount = 0,
-                BossCarrierCount = 0,
-                RewardCurrency = 75,
-                RewardHealRatio = 0.08f,
-                RewardPomPct = 0.03f,
-                RewardMaxHullFlat = 0f,
-                OfferBoon = 0
-            });
-
-#if !UNITY_INCLUDE_TESTS
-            ApplyOptionalRoomProfile(rooms, shortMode, dt);
-#endif
-            var roomCount = rooms.Length;
+                rooms.Add(Space4XFleetcrawlRunConfig.BuildRoomTemplate(roomIndex, shortMode, dt, bossCadence, reliefCadence));
+            }
 
             var flagship = Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, new float3(-120f, 0f, 0f), 0, new FixedString64Bytes("player-flagship"), true, -1, -1);
             if (!state.EntityManager.HasComponent<PlayerFlagshipTag>(flagship))
@@ -566,360 +487,16 @@ namespace Space4x.Scenario
             Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, new float3(-120f, 0f, 0f), 0, 6, true, -1, -1);
 
             var runSeed = info.Seed == 0u ? 9017u : info.Seed;
-            state.EntityManager.SetComponentData(directorEntity, new Space4XFleetcrawlDirectorState
-            {
-                Initialized = 0,
-                CurrentRoomIndex = -1,
-                StableDigest = math.hash(new uint2(1u, runSeed)),
-                Seed = runSeed,
-                DifficultyStatus = Space4XFleetcrawlDifficultyStatus.Calm
-            });
+            state.EntityManager.SetComponentData(directorEntity, new Space4XFleetcrawlDirectorState { Initialized = 0, CurrentRoomIndex = -1, StableDigest = math.hash(new uint2(1u, runSeed)), Seed = runSeed });
             state.EntityManager.SetComponentData(directorEntity, new RunCurrency { Value = 0 });
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunRerollTokens { Value = 0 });
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunReactiveModifiers { DamageMul = 1f, CooldownMul = 1f });
             state.EntityManager.SetComponentData(directorEntity, new Space4XRunBoonSet());
-            state.EntityManager.SetComponentData(directorEntity, new Space4XRunProgressionState
-            {
-                Level = 1,
-                Experience = 0,
-                ExperienceToNext = 30,
-                UnspentUpgrades = 0,
-                TotalExperienceEarned = 0
-            });
-            state.EntityManager.SetComponentData(directorEntity, new Space4XRunChallengeState
-            {
-                Kind = Space4XFleetcrawlChallengeKind.None,
-                Active = 0,
-                RiskTier = 0,
-                RoomIndex = -1,
-                SpawnMultiplier = 1f,
-                CurrencyMultiplier = 1f,
-                ExperienceMultiplier = 1f
-            });
-            state.EntityManager.SetComponentData(directorEntity, new Space4XRunMetaResourceState
-            {
-                Shards = 0,
-                RoomChallengeClears = 0
-            });
 
             var seed = state.EntityManager.CreateEntity(typeof(Space4XFleetcrawlSeeded));
             state.EntityManager.SetComponentData(seed, new Space4XFleetcrawlSeeded { ScenarioId = info.ScenarioId });
-            Debug.Log($"[Fleetcrawl] Seeded run. rooms={roomCount} short_mode={(shortMode ? 1 : 0)} seed={runSeed}.");
+            Debug.Log($"[Fleetcrawl] Seeded run. rooms={rooms.Length} short_mode={(shortMode ? 1 : 0)} seed={runSeed} boss_cadence={bossCadence} relief_cadence={reliefCadence}.");
         }
-
-        [Serializable]
-        private sealed class FleetcrawlRoomProfileFile
-        {
-            public FleetcrawlRoomProfileEntry[] rooms;
-        }
-
-        [Serializable]
-        private sealed class FleetcrawlRoomProfileEntry
-        {
-            public string kind;
-            public string reliefKind;
-            public string endConditions;
-            public string endLogic;
-            public float durationSeconds;
-            public float waveIntervalSeconds;
-            public int plannedWaves;
-            public int killQuota;
-            public int miniBossQuota;
-            public int bossQuota;
-            public int baseStrikePerWave;
-            public int baseCarrierPerWave;
-            public int miniBossEveryNWaves;
-            public int miniBossCarrierCount;
-            public int bossCarrierCount;
-            public int rewardCurrency;
-            public float rewardHealRatio;
-            public float rewardPomPct;
-            public float rewardMaxHullFlat;
-            public bool offerBoon;
-        }
-
-        private void ApplyOptionalRoomProfile(DynamicBuffer<Space4XFleetcrawlRoom> rooms, bool shortMode, float dt)
-        {
-            var profilePathValue = Environment.GetEnvironmentVariable(RoomProfilePathEnv);
-            if (string.IsNullOrWhiteSpace(profilePathValue))
-            {
-                return;
-            }
-
-            string profilePath;
-            try
-            {
-                profilePath = Path.GetFullPath(profilePathValue);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[Fleetcrawl] Ignoring room profile. Invalid {RoomProfilePathEnv}='{profilePathValue}'. error={ex.Message}");
-                return;
-            }
-
-            if (!File.Exists(profilePath))
-            {
-                Debug.LogWarning($"[Fleetcrawl] Ignoring room profile. {RoomProfilePathEnv}='{profilePathValue}' resolved to '{profilePath}', but file was not found.");
-                return;
-            }
-
-            FleetcrawlRoomProfileFile profile;
-            try
-            {
-                var json = File.ReadAllText(profilePath);
-                profile = JsonUtility.FromJson<FleetcrawlRoomProfileFile>(json);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[Fleetcrawl] Failed to parse room profile '{profilePath}'. error={ex.Message}");
-                return;
-            }
-
-            if (profile == null || profile.rooms == null || profile.rooms.Length == 0)
-            {
-                Debug.LogWarning($"[Fleetcrawl] Room profile '{profilePath}' had no rooms. Keeping built-in defaults.");
-                return;
-            }
-
-            var parsedRooms = new List<Space4XFleetcrawlRoom>(profile.rooms.Length);
-            for (var i = 0; i < profile.rooms.Length; i++)
-            {
-                if (!TryBuildRoomFromProfile(profile.rooms[i], shortMode, dt, out var room))
-                {
-                    Debug.LogWarning($"[Fleetcrawl] Skipping invalid room profile entry index={i} in '{profilePath}'.");
-                    continue;
-                }
-
-                parsedRooms.Add(room);
-            }
-
-            if (parsedRooms.Count == 0)
-            {
-                Debug.LogWarning($"[Fleetcrawl] Room profile '{profilePath}' had zero valid rooms. Keeping built-in defaults.");
-                return;
-            }
-
-            rooms.Clear();
-            for (var i = 0; i < parsedRooms.Count; i++)
-            {
-                rooms.Add(parsedRooms[i]);
-            }
-
-            Debug.Log($"[Fleetcrawl] Loaded room profile from '{profilePath}'. rooms={parsedRooms.Count}.");
-        }
-
-        private bool TryBuildRoomFromProfile(FleetcrawlRoomProfileEntry entry, bool shortMode, float dt, out Space4XFleetcrawlRoom room)
-        {
-            room = default;
-            if (entry == null || !TryParseRoomKind(entry.kind, out var kind))
-            {
-                return false;
-            }
-
-            var relief = ParseReliefKindOrDefault(entry.reliefKind, kind);
-            var endConditions = ParseEndConditionFlags(entry.endConditions, ResolveDefaultEndConditions(kind));
-            var endLogic = ParseEndLogicOrDefault(entry.endLogic);
-            var durationSeconds = entry.durationSeconds > 0f ? entry.durationSeconds : ResolveDefaultDurationSeconds(kind, shortMode);
-            var waveIntervalSeconds = entry.waveIntervalSeconds > 0f ? entry.waveIntervalSeconds : ResolveDefaultWaveIntervalSeconds(shortMode);
-            if (kind == Space4XFleetcrawlRoomKind.Relief)
-            {
-                waveIntervalSeconds = 0f;
-            }
-
-            room = new Space4XFleetcrawlRoom
-            {
-                Kind = kind,
-                ReliefKind = relief,
-                EndConditions = endConditions,
-                EndLogic = endLogic,
-                DurationTicks = ToTicks(durationSeconds, dt),
-                WaveIntervalTicks = waveIntervalSeconds > 0f ? ToTicks(waveIntervalSeconds, dt) : 0u,
-                PlannedWaves = math.max(0, entry.plannedWaves),
-                KillQuota = math.max(0, entry.killQuota),
-                MiniBossQuota = math.max(0, entry.miniBossQuota),
-                BossQuota = math.max(0, entry.bossQuota),
-                BaseStrikePerWave = math.max(0, entry.baseStrikePerWave),
-                BaseCarrierPerWave = math.max(0, entry.baseCarrierPerWave),
-                MiniBossEveryNWaves = math.max(0, entry.miniBossEveryNWaves),
-                MiniBossCarrierCount = math.max(0, entry.miniBossCarrierCount),
-                BossCarrierCount = math.max(0, entry.bossCarrierCount),
-                RewardCurrency = math.max(0, entry.rewardCurrency),
-                RewardHealRatio = math.max(0f, entry.rewardHealRatio),
-                RewardPomPct = math.max(0f, entry.rewardPomPct),
-                RewardMaxHullFlat = math.max(0f, entry.rewardMaxHullFlat),
-                OfferBoon = (byte)(entry.offerBoon ? 1 : 0)
-            };
-
-            if (kind == Space4XFleetcrawlRoomKind.Relief)
-            {
-                room.PlannedWaves = 0;
-                room.KillQuota = 0;
-                room.MiniBossQuota = 0;
-                room.BossQuota = 0;
-                room.BaseStrikePerWave = 0;
-                room.BaseCarrierPerWave = 0;
-                room.MiniBossEveryNWaves = 0;
-                room.MiniBossCarrierCount = 0;
-                room.BossCarrierCount = 0;
-                room.EndConditions = room.EndConditions == 0 ? Space4XFleetcrawlRoomEndConditionFlags.Timer : room.EndConditions;
-            }
-            else
-            {
-                if (room.PlannedWaves <= 0)
-                {
-                    room.PlannedWaves = kind == Space4XFleetcrawlRoomKind.Boss ? 4 : 5;
-                }
-
-                if (room.BaseStrikePerWave <= 0 && room.BaseCarrierPerWave <= 0)
-                {
-                    room.BaseStrikePerWave = kind == Space4XFleetcrawlRoomKind.Boss
-                        ? (shortMode ? 8 : 10)
-                        : (shortMode ? 9 : 12);
-                }
-            }
-
-            if ((room.EndConditions & Space4XFleetcrawlRoomEndConditionFlags.KillQuota) != 0 && room.KillQuota <= 0)
-            {
-                room.KillQuota = kind == Space4XFleetcrawlRoomKind.Boss ? (shortMode ? 22 : 70) : (shortMode ? 24 : 80);
-            }
-
-            if ((room.EndConditions & Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota) != 0 && room.MiniBossQuota <= 0)
-            {
-                room.MiniBossQuota = 1;
-            }
-
-            if ((room.EndConditions & Space4XFleetcrawlRoomEndConditionFlags.BossQuota) != 0 && room.BossQuota <= 0)
-            {
-                room.BossQuota = 1;
-            }
-
-            return true;
-        }
-
-        private static Space4XFleetcrawlRoomEndConditionFlags ResolveDefaultEndConditions(Space4XFleetcrawlRoomKind kind)
-        {
-            switch (kind)
-            {
-                case Space4XFleetcrawlRoomKind.Relief:
-                    return Space4XFleetcrawlRoomEndConditionFlags.Timer;
-                case Space4XFleetcrawlRoomKind.Boss:
-                    return Space4XFleetcrawlRoomEndConditionFlags.Timer | Space4XFleetcrawlRoomEndConditionFlags.BossQuota;
-                default:
-                    return Space4XFleetcrawlRoomEndConditionFlags.Timer | Space4XFleetcrawlRoomEndConditionFlags.KillQuota;
-            }
-        }
-
-        private static float ResolveDefaultDurationSeconds(Space4XFleetcrawlRoomKind kind, bool shortMode)
-        {
-            switch (kind)
-            {
-                case Space4XFleetcrawlRoomKind.Relief:
-                    return shortMode ? 20f : 45f;
-                case Space4XFleetcrawlRoomKind.Boss:
-                    return shortMode ? 75f : 420f;
-                default:
-                    return shortMode ? 45f : 300f;
-            }
-        }
-
-        private static float ResolveDefaultWaveIntervalSeconds(bool shortMode) => shortMode ? 10f : 45f;
-
-        private static Space4XFleetcrawlRoomEndConditionFlags ParseEndConditionFlags(string raw, Space4XFleetcrawlRoomEndConditionFlags fallback)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                return fallback;
-            }
-
-            var flags = (Space4XFleetcrawlRoomEndConditionFlags)0;
-            var tokens = raw.Split(EndConditionSplitChars, StringSplitOptions.RemoveEmptyEntries);
-            for (var i = 0; i < tokens.Length; i++)
-            {
-                var token = tokens[i].Trim();
-                if (token.Length == 0)
-                {
-                    continue;
-                }
-
-                if (Enum.TryParse<Space4XFleetcrawlRoomEndConditionFlags>(token, true, out var parsed))
-                {
-                    flags |= parsed;
-                    continue;
-                }
-
-                switch (token.ToLowerInvariant())
-                {
-                    case "time":
-                    case "timer":
-                        flags |= Space4XFleetcrawlRoomEndConditionFlags.Timer;
-                        break;
-                    case "kill":
-                    case "kills":
-                    case "killquota":
-                        flags |= Space4XFleetcrawlRoomEndConditionFlags.KillQuota;
-                        break;
-                    case "boss":
-                    case "bossquota":
-                        flags |= Space4XFleetcrawlRoomEndConditionFlags.BossQuota;
-                        break;
-                    case "mini":
-                    case "miniboss":
-                    case "minibossquota":
-                        flags |= Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota;
-                        break;
-                }
-            }
-
-            return flags == 0 ? fallback : flags;
-        }
-
-        private static Space4XFleetcrawlRoomEndLogic ParseEndLogicOrDefault(string raw)
-        {
-            if (!string.IsNullOrWhiteSpace(raw) && Enum.TryParse<Space4XFleetcrawlRoomEndLogic>(raw, true, out var parsed))
-            {
-                return parsed;
-            }
-
-            if (!string.IsNullOrWhiteSpace(raw))
-            {
-                switch (raw.Trim().ToLowerInvariant())
-                {
-                    case "all":
-                    case "allof":
-                        return Space4XFleetcrawlRoomEndLogic.AllOf;
-                    case "any":
-                    case "anyof":
-                        return Space4XFleetcrawlRoomEndLogic.AnyOf;
-                }
-            }
-
-            return Space4XFleetcrawlRoomEndLogic.AnyOf;
-        }
-
-        private static Space4XFleetcrawlReliefKind ParseReliefKindOrDefault(string raw, Space4XFleetcrawlRoomKind roomKind)
-        {
-            if (!string.IsNullOrWhiteSpace(raw) && Enum.TryParse<Space4XFleetcrawlReliefKind>(raw, true, out var parsed))
-            {
-                return parsed;
-            }
-
-            return roomKind == Space4XFleetcrawlRoomKind.Relief
-                ? Space4XFleetcrawlReliefKind.Recovery
-                : Space4XFleetcrawlReliefKind.None;
-        }
-
-        private static bool TryParseRoomKind(string raw, out Space4XFleetcrawlRoomKind kind)
-        {
-            if (!string.IsNullOrWhiteSpace(raw) && Enum.TryParse<Space4XFleetcrawlRoomKind>(raw, true, out kind))
-            {
-                return true;
-            }
-
-            kind = default;
-            return false;
-        }
-
-        private static uint ToTicks(float sec, float dt) => (uint)math.max(1f, math.round(math.max(0.01f, sec) / math.max(1e-6f, dt)));
 
         private float ResolveFixedDelta(in TimeState time)
         {
@@ -944,279 +521,11 @@ namespace Space4x.Scenario
     }
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Space4XFleetcrawlRoomDirectorSystem))]
-    public partial struct Space4XFleetcrawlEnemyTelegraphSystem : ISystem
-    {
-        private struct EnemyTelegraphProfile
-        {
-            public uint WarmupTicks;
-            public uint WarmupJitterTicks;
-            public uint TelegraphTicks;
-            public uint BurstTicks;
-            public uint CycleTicks;
-            public uint CycleJitterTicks;
-            public float StrikeRange;
-            public float StrikeDamage;
-            public float ShieldShare;
-            public float ArmorShare;
-        }
-
-        public void OnCreate(ref SystemState state)
-        {
-            state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
-            state.RequireForUpdate<Space4XRunEnemyTag>();
-        }
-
-        public void OnUpdate(ref SystemState state)
-        {
-            var em = state.EntityManager;
-            var tick = SystemAPI.GetSingleton<TimeState>().Tick;
-            var director = SystemAPI.GetSingleton<Space4XFleetcrawlDirectorState>();
-            if (director.RunCompleted != 0)
-            {
-                return;
-            }
-
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
-            foreach (var (enemyTag, entity) in SystemAPI.Query<RefRO<Space4XRunEnemyTag>>().WithNone<Space4XEnemyTelegraphState>().WithEntityAccess())
-            {
-                var profile = ResolveProfile(enemyTag.ValueRO.EnemyClass);
-                var hash = math.hash(new uint3((uint)entity.Index, (uint)entity.Version, (uint)math.max(0, enemyTag.ValueRO.WaveIndex + 13)));
-                var warmup = profile.WarmupTicks + ResolveJitter(hash, profile.WarmupJitterTicks);
-                ecb.AddComponent(entity, new Space4XEnemyTelegraphState
-                {
-                    NextTelegraphTick = tick + math.max(1u, warmup),
-                    Initialized = 1
-                });
-            }
-            ecb.Playback(em);
-            ecb.Dispose();
-            var normalStrikesThisTick = 0;
-            var miniBossStrikesThisTick = 0;
-            var bossStrikesThisTick = 0;
-
-            foreach (var (enemyTag, hull, transform, telegraphRef, weapons, entity) in SystemAPI
-                         .Query<RefRO<Space4XRunEnemyTag>, RefRO<HullIntegrity>, RefRO<LocalTransform>, RefRW<Space4XEnemyTelegraphState>, DynamicBuffer<WeaponMount>>()
-                         .WithEntityAccess())
-            {
-                if (hull.ValueRO.Current <= 0f)
-                {
-                    continue;
-                }
-
-                var profile = ResolveProfile(enemyTag.ValueRO.EnemyClass);
-                var telegraph = telegraphRef.ValueRO;
-                if (telegraph.Initialized == 0 || telegraph.NextTelegraphTick == 0u)
-                {
-                    var initHash = math.hash(new uint3((uint)entity.Index, (uint)entity.Version, (uint)math.max(0, enemyTag.ValueRO.RoomIndex + 19)));
-                    telegraph.Initialized = 1;
-                    telegraph.NextTelegraphTick = tick + profile.WarmupTicks + ResolveJitter(initHash, profile.WarmupJitterTicks);
-                }
-
-                if (tick >= telegraph.NextTelegraphTick && tick >= telegraph.BurstUntilTick)
-                {
-                    telegraph.TelegraphUntilTick = tick + math.max(1u, profile.TelegraphTicks);
-                    telegraph.BurstUntilTick = telegraph.TelegraphUntilTick + math.max(1u, profile.BurstTicks);
-                    var cycleHash = math.hash(new uint3((uint)entity.Index, tick, (uint)enemyTag.ValueRO.EnemyClass + 31u));
-                    telegraph.NextTelegraphTick = tick + math.max(1u, profile.CycleTicks) + ResolveJitter(cycleHash, profile.CycleJitterTicks);
-                }
-
-                var telegraphingNow = tick < telegraph.TelegraphUntilTick;
-                var burstingNow = !telegraphingNow && tick < telegraph.BurstUntilTick;
-                if (telegraph.IsTelegraphing == 0 && telegraphingNow)
-                {
-                    Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_START class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index}.");
-                }
-                if (telegraph.IsTelegraphing != 0 && !telegraphingNow)
-                {
-                    Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_RELEASE class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index}.");
-                }
-
-                if (telegraph.IsBursting == 0 && burstingNow)
-                {
-                    if (TryConsumeStrikeBudget(enemyTag.ValueRO.EnemyClass, ref normalStrikesThisTick, ref miniBossStrikesThisTick, ref bossStrikesThisTick))
-                    {
-                        TriggerTelegraphedStrike(ref state, entity, transform.ValueRO.Position, enemyTag.ValueRO.EnemyClass, profile, tick, out var hits);
-                        Debug.Log($"[Fleetcrawl] ENEMY_TELEGRAPH_STRIKE class={enemyTag.ValueRO.EnemyClass} room={enemyTag.ValueRO.RoomIndex} wave={enemyTag.ValueRO.WaveIndex} entity={entity.Index} hits={hits}.");
-                    }
-                }
-
-                telegraph.IsTelegraphing = (byte)(telegraphingNow ? 1 : 0);
-                telegraph.IsBursting = (byte)(burstingNow ? 1 : 0);
-                telegraphRef.ValueRW = telegraph;
-
-                var weaponBuffer = weapons;
-                for (var i = 0; i < weaponBuffer.Length; i++)
-                {
-                    var mount = weaponBuffer[i];
-                    mount.IsEnabled = (byte)(telegraphingNow ? 0 : 1);
-                    weaponBuffer[i] = mount;
-                }
-            }
-        }
-
-        private static EnemyTelegraphProfile ResolveProfile(Space4XFleetcrawlEnemyClass enemyClass)
-        {
-            switch (enemyClass)
-            {
-                case Space4XFleetcrawlEnemyClass.MiniBoss:
-                    return new EnemyTelegraphProfile
-                    {
-                        WarmupTicks = 84u,
-                        WarmupJitterTicks = 36u,
-                        TelegraphTicks = 40u,
-                        BurstTicks = 36u,
-                        CycleTicks = 196u,
-                        CycleJitterTicks = 34u,
-                        StrikeRange = 50f,
-                        StrikeDamage = 26f,
-                        ShieldShare = 0.30f,
-                        ArmorShare = 0.14f
-                    };
-                case Space4XFleetcrawlEnemyClass.Boss:
-                    return new EnemyTelegraphProfile
-                    {
-                        WarmupTicks = 104u,
-                        WarmupJitterTicks = 48u,
-                        TelegraphTicks = 56u,
-                        BurstTicks = 50u,
-                        CycleTicks = 236u,
-                        CycleJitterTicks = 42u,
-                        StrikeRange = 60f,
-                        StrikeDamage = 42f,
-                        ShieldShare = 0.34f,
-                        ArmorShare = 0.18f
-                    };
-                default:
-                    return new EnemyTelegraphProfile
-                    {
-                        WarmupTicks = 68u,
-                        WarmupJitterTicks = 28u,
-                        TelegraphTicks = 32u,
-                        BurstTicks = 26u,
-                        CycleTicks = 164u,
-                        CycleJitterTicks = 28u,
-                        StrikeRange = 34f,
-                        StrikeDamage = 12f,
-                        ShieldShare = 0.24f,
-                        ArmorShare = 0.10f
-                    };
-            }
-        }
-
-        private static bool TryConsumeStrikeBudget(
-            Space4XFleetcrawlEnemyClass enemyClass,
-            ref int normalStrikesThisTick,
-            ref int miniBossStrikesThisTick,
-            ref int bossStrikesThisTick)
-        {
-            switch (enemyClass)
-            {
-                case Space4XFleetcrawlEnemyClass.Boss:
-                    if (bossStrikesThisTick >= 1) return false;
-                    bossStrikesThisTick++;
-                    return true;
-                case Space4XFleetcrawlEnemyClass.MiniBoss:
-                    if (miniBossStrikesThisTick >= 1) return false;
-                    miniBossStrikesThisTick++;
-                    return true;
-                default:
-                    if (normalStrikesThisTick >= 2) return false;
-                    normalStrikesThisTick++;
-                    return true;
-            }
-        }
-
-        private static uint ResolveJitter(uint hash, uint maxExclusive)
-        {
-            if (maxExclusive <= 1u)
-            {
-                return 0u;
-            }
-
-            return hash % maxExclusive;
-        }
-
-        private void TriggerTelegraphedStrike(
-            ref SystemState state,
-            Entity source,
-            float3 sourcePos,
-            Space4XFleetcrawlEnemyClass enemyClass,
-            in EnemyTelegraphProfile profile,
-            uint tick,
-            out int hits)
-        {
-            hits = 0;
-            var maxRangeSq = profile.StrikeRange * profile.StrikeRange;
-            var weaponType = ResolveTelegraphWeaponType(enemyClass);
-            foreach (var (transform, hull, side, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>().WithAll<Space4XRunPlayerTag, PlayerFlagshipTag>().WithEntityAccess())
-            {
-                if (side.ValueRO.Side != 0 || hull.ValueRO.Current <= 0f)
-                {
-                    continue;
-                }
-
-                var distSq = math.distancesq(sourcePos, transform.ValueRO.Position);
-                if (distSq > maxRangeSq)
-                {
-                    continue;
-                }
-
-                if (!state.EntityManager.HasBuffer<DamageEvent>(entity))
-                {
-                    continue;
-                }
-
-                var distance = math.sqrt(distSq);
-                var range01 = math.saturate(distance / math.max(1f, profile.StrikeRange));
-                var falloff = math.lerp(1f, 0.55f, range01);
-                var raw = profile.StrikeDamage * falloff;
-                var shieldDamage = raw * profile.ShieldShare;
-                var armorDamage = raw * profile.ArmorShare;
-                var hullDamage = raw * math.max(0f, 1f - profile.ShieldShare - profile.ArmorShare);
-                var damageEvents = state.EntityManager.GetBuffer<DamageEvent>(entity);
-                damageEvents.Add(new DamageEvent
-                {
-                    Source = source,
-                    WeaponType = weaponType,
-                    RawDamage = raw,
-                    ShieldDamage = shieldDamage,
-                    ArmorDamage = armorDamage,
-                    HullDamage = hullDamage,
-                    Tick = tick,
-                    IsCritical = 0
-                });
-                hits++;
-            }
-        }
-
-        private static WeaponType ResolveTelegraphWeaponType(Space4XFleetcrawlEnemyClass enemyClass)
-        {
-            switch (enemyClass)
-            {
-                case Space4XFleetcrawlEnemyClass.Boss:
-                    return WeaponType.Missile;
-                case Space4XFleetcrawlEnemyClass.MiniBoss:
-                    return WeaponType.Ion;
-                default:
-                    return WeaponType.Laser;
-            }
-        }
-    }
-
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Space4X.Registry.Space4XCombatTelemetrySystem))]
     public partial struct Space4XFleetcrawlRoomDirectorSystem : ISystem
     {
-        private const int StrikeCraftKillBounty = 3;
-        private const int CarrierKillBounty = 12;
-        private const int MiniBossKillBonus = 8;
-        private const int BossKillBonus = 22;
-        private const int StrikeCraftKillExperience = 4;
-        private const int CarrierKillExperience = 10;
-        private const int MiniBossKillExperienceBonus = 12;
-        private const int BossKillExperienceBonus = 28;
+        private const int DeterministicBossCadence = 4;
+        private const int DeterministicReliefCadence = 3;
 
         public void OnCreate(ref SystemState state)
         {
@@ -1247,35 +556,7 @@ namespace Space4x.Scenario
 
             var dt = ResolveFixedDelta(time);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
-            var flagshipAlive = false;
-            foreach (var hull in SystemAPI.Query<RefRO<HullIntegrity>>().WithAll<PlayerFlagshipTag>())
-            {
-                if (hull.ValueRO.Current > 0f)
-                {
-                    flagshipAlive = true;
-                    break;
-                }
-            }
-
-            if (!flagshipAlive)
-            {
-                director.RunCompleted = 1;
-                director.RunFailed = 1;
-                foreach (var (_, entity) in SystemAPI.Query<RefRO<Space4XRunEnemyTag>>().WithEntityAccess())
-                {
-                    ecb.DestroyEntity(entity);
-                }
-
-                Debug.Log($"[Fleetcrawl] Run failed. reason=flagship_destroyed currency={state.EntityManager.GetComponentData<RunCurrency>(directorEntity).Value} digest={director.StableDigest}.");
-                state.EntityManager.SetComponentData(directorEntity, director);
-                ecb.Playback(state.EntityManager);
-                ecb.Dispose();
-                return;
-            }
-
-            var bountyEarned = 0;
-            var experienceEarned = 0;
-            foreach (var (hull, enemyTag, entity) in SystemAPI.Query<RefRO<HullIntegrity>, RefRO<Space4XRunEnemyTag>>().WithNone<Space4XRunEnemyDestroyedCounted>().WithEntityAccess())
+            foreach (var (hull, entity) in SystemAPI.Query<RefRO<HullIntegrity>>().WithAll<Space4XRunEnemyTag>().WithNone<Space4XRunEnemyDestroyedCounted>().WithEntityAccess())
             {
                 if (hull.ValueRO.Current > 0f)
                 {
@@ -1283,36 +564,7 @@ namespace Space4x.Scenario
                 }
 
                 director.EnemiesDestroyedInRoom++;
-                var bounty = SystemAPI.HasComponent<CarrierTag>(entity) ? CarrierKillBounty : StrikeCraftKillBounty;
-                var experience = SystemAPI.HasComponent<CarrierTag>(entity) ? CarrierKillExperience : StrikeCraftKillExperience;
-                switch (enemyTag.ValueRO.EnemyClass)
-                {
-                    case Space4XFleetcrawlEnemyClass.MiniBoss:
-                        director.MiniBossesDestroyedInRoom++;
-                        bounty += MiniBossKillBonus;
-                        experience += MiniBossKillExperienceBonus;
-                        break;
-                    case Space4XFleetcrawlEnemyClass.Boss:
-                        director.BossesDestroyedInRoom++;
-                        bounty += BossKillBonus;
-                        experience += BossKillExperienceBonus;
-                        break;
-                }
-
-                bountyEarned += bounty;
-                experienceEarned += experience;
                 ecb.AddComponent<Space4XRunEnemyDestroyedCounted>(entity);
-            }
-
-            if (bountyEarned > 0)
-            {
-                var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
-                currency.Value += bountyEarned;
-                state.EntityManager.SetComponentData(directorEntity, currency);
-            }
-            if (experienceEarned > 0)
-            {
-                AwardExperience(ref state, directorEntity, ref director, experienceEarned);
             }
 
             if (director.Initialized == 0)
@@ -1325,16 +577,7 @@ namespace Space4x.Scenario
             }
 
             var room = rooms[director.CurrentRoomIndex];
-            var previousStatus = director.DifficultyStatus;
-            UpdateDifficultyStatus(ref state, ref director, room, time.Tick);
-            if (previousStatus != director.DifficultyStatus)
-            {
-                Debug.Log($"[Fleetcrawl] DIFFICULTY room={director.CurrentRoomIndex} status={director.DifficultyStatus}.");
-            }
-
-            var roomShouldEnd = ShouldEndRoom(room, director, time.Tick);
-            if (!roomShouldEnd &&
-                (room.Kind == Space4XFleetcrawlRoomKind.Combat || room.Kind == Space4XFleetcrawlRoomKind.Boss) &&
+            if ((room.Kind == Space4XFleetcrawlRoomKind.Combat || room.Kind == Space4XFleetcrawlRoomKind.Boss) &&
                 time.Tick >= director.NextWaveTick &&
                 time.Tick < director.RoomEndTick &&
                 director.WavesSpawnedInRoom < room.PlannedWaves)
@@ -1343,9 +586,19 @@ namespace Space4x.Scenario
                 director.NextWaveTick = time.Tick + math.max(1u, room.WaveIntervalTicks);
             }
 
-            if (roomShouldEnd)
+            var timedOut = time.Tick >= director.RoomEndTick;
+            var minDurationReached = time.Tick >= director.RoomStartTick + math.max(1u, room.MinDurationTicks);
+            var wavesCompleted = room.PlannedWaves <= 0 || director.WavesSpawnedInRoom >= room.PlannedWaves;
+            var clearedByKills = room.Kind != Space4XFleetcrawlRoomKind.Relief &&
+                                 minDurationReached &&
+                                 wavesCompleted &&
+                                 director.EnemiesSpawnedInRoom > 0 &&
+                                 director.EnemiesDestroyedInRoom >= director.EnemiesSpawnedInRoom;
+
+            if (timedOut || clearedByKills)
             {
-                FinalizeRoom(ref state, ref director, room, dt);
+                var completion = timedOut ? "timeout" : "cleared";
+                FinalizeRoom(ref state, ref director, room, completion, dt);
                 foreach (var (_, entity) in SystemAPI.Query<RefRO<Space4XRunEnemyTag>>().WithEntityAccess())
                 {
                     ecb.DestroyEntity(entity);
@@ -1355,8 +608,7 @@ namespace Space4x.Scenario
                 if (nextRoom >= rooms.Length)
                 {
                     director.RunCompleted = 1;
-                    director.RunFailed = 0;
-                    Debug.Log($"[Fleetcrawl] Run complete. currency={state.EntityManager.GetComponentData<RunCurrency>(directorEntity).Value} digest={director.StableDigest}.");
+                    Debug.Log($"[Fleetcrawl] Run complete. rooms_total={rooms.Length} currency={state.EntityManager.GetComponentData<RunCurrency>(directorEntity).Value} digest={director.StableDigest}.");
                 }
                 else
                 {
@@ -1372,16 +624,6 @@ namespace Space4x.Scenario
         private void StartRoom(ref SystemState state, ref Space4XFleetcrawlDirectorState director, DynamicBuffer<Space4XFleetcrawlRoom> rooms, int roomIndex, uint tick, float dt)
         {
             var room = rooms[roomIndex];
-            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
-            if (state.EntityManager.HasComponent<Space4XRunPendingGatePick>(directorEntity))
-            {
-                state.EntityManager.RemoveComponent<Space4XRunPendingGatePick>(directorEntity);
-            }
-            if (state.EntityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
-            {
-                state.EntityManager.RemoveComponent<Space4XRunPendingBoonPick>(directorEntity);
-            }
-
             director.Initialized = 1;
             director.CurrentRoomIndex = roomIndex;
             director.RoomStartTick = tick;
@@ -1389,19 +631,8 @@ namespace Space4x.Scenario
             director.WavesSpawnedInRoom = 0;
             director.EnemiesSpawnedInRoom = 0;
             director.EnemiesDestroyedInRoom = 0;
-            director.MiniBossesDestroyedInRoom = 0;
-            director.BossesDestroyedInRoom = 0;
             director.DamageSnapshotAtRoomStart = SumPlayerDamage(ref state);
             director.NextWaveTick = director.RoomEndTick;
-            director.DifficultyStatus = Space4XFleetcrawlDifficultyStatus.Calm;
-            director.RunFailed = 0;
-            var challenge = ResolveChallengeForRoom(director.Seed, roomIndex, room);
-            if (!state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
-            {
-                state.EntityManager.AddComponentData(directorEntity, challenge);
-            }
-            state.EntityManager.SetComponentData(directorEntity, challenge);
-            ConsumeOnePendingUpgrade(ref state, directorEntity, ref director, roomIndex);
 
             if (room.Kind == Space4XFleetcrawlRoomKind.Combat || room.Kind == Space4XFleetcrawlRoomKind.Boss)
             {
@@ -1409,7 +640,7 @@ namespace Space4x.Scenario
                 director.NextWaveTick = tick + math.max(1u, room.WaveIntervalTicks);
             }
 
-            Debug.Log($"[Fleetcrawl] ROOM_START index={roomIndex} kind={room.Kind} relief={room.ReliefKind} challenge={challenge.Kind} risk={challenge.RiskTier} duration_s={(director.RoomEndTick - director.RoomStartTick) * dt:0.0} waves={room.PlannedWaves} end={room.EndLogic}:{room.EndConditions}.");
+            Debug.Log($"[Fleetcrawl] ROOM_START index={roomIndex} kind={room.Kind} duration_s={(director.RoomEndTick - director.RoomStartTick) * dt:0.0} min_s={room.MinDurationTicks * dt:0.0} waves={room.PlannedWaves} gates={math.clamp((int)room.GateOptionCount, 2, 3)}.");
         }
 
         private void SpawnWave(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int roomIndex, int waveIndex, uint tick)
@@ -1421,208 +652,107 @@ namespace Space4x.Scenario
                 break;
             }
 
+            var composition = ResolveWaveComposition(director.Seed, roomIndex, waveIndex, room.Kind);
             var carrierCount = 0;
             var strikeCount = 0;
-            var spawnScale = ResolveSpawnScale(director.DifficultyStatus);
-            var challengeSpawnScale = 1f;
-            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
-            if (state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
+            if (composition.BossCount > 0)
             {
-                var challenge = state.EntityManager.GetComponentData<Space4XRunChallengeState>(directorEntity);
-                if (challenge.Active != 0 && challenge.RoomIndex == roomIndex)
+                for (var i = 0; i < composition.BossCount; i++)
                 {
-                    challengeSpawnScale = math.max(0.65f, challenge.SpawnMultiplier);
-                }
-            }
-            var totalSpawnScale = spawnScale * challengeSpawnScale;
-            var strikePerWave = math.max(0, room.BaseStrikePerWave);
-            var carrierPerWave = math.max(0, room.BaseCarrierPerWave);
-            if (room.Kind == Space4XFleetcrawlRoomKind.Relief)
-            {
-                strikePerWave = 0;
-                carrierPerWave = 0;
-            }
-
-            strikePerWave = math.max(0, (int)math.round(strikePerWave * totalSpawnScale));
-            carrierPerWave = math.max(0, (int)math.round(carrierPerWave * totalSpawnScale));
-
-            if (strikePerWave > 0)
-            {
-                Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, anchor + new float3(60f + waveIndex * 6f, 0f, 0f), 1, strikePerWave, false, roomIndex, waveIndex);
-                strikeCount += strikePerWave;
-            }
-
-            if (carrierPerWave > 0)
-            {
-                for (var i = 0; i < carrierPerWave; i++)
-                {
-                    var lateral = (i - (carrierPerWave - 1) * 0.5f) * 12f;
-                    Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, anchor + new float3(82f, 0f, lateral), 1, new FixedString64Bytes($"carrier-{roomIndex}-{waveIndex}-{i}"), false, roomIndex, waveIndex);
+                    var bossPos = anchor + BuildWaveOffset(director.Seed, roomIndex, waveIndex, 100 + i, 96f);
+                    Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, bossPos, 1, new FixedString64Bytes($"boss-{roomIndex}-{waveIndex}-{i}"), false, roomIndex, waveIndex);
                     carrierCount++;
+                    var escorts = 8 + math.min(6, roomIndex / 2 + waveIndex);
+                    Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, bossPos + new float3(-6f, 0f, 10f), 1, escorts, false, roomIndex, waveIndex);
+                    strikeCount += escorts;
                 }
             }
 
-            var shouldSpawnMini = room.MiniBossEveryNWaves > 0 &&
-                                  waveIndex > 0 &&
-                                  (waveIndex % room.MiniBossEveryNWaves == 0);
-            if (shouldSpawnMini && room.MiniBossCarrierCount > 0)
+            for (var i = 0; i < composition.EliteCount; i++)
             {
-                var miniCount = math.max(1, (int)math.round(room.MiniBossCarrierCount * math.max(0.75f, totalSpawnScale)));
-                for (var i = 0; i < miniCount; i++)
-                {
-                    var miniOffset = new float3(95f, 0f, (i - (miniCount - 1) * 0.5f) * 10f);
-                    Space4XFleetcrawlSpawnUtil.SpawnCarrier(
-                        ref state,
-                        anchor + miniOffset,
-                        1,
-                        new FixedString64Bytes($"mini-{roomIndex}-{waveIndex}-{i}"),
-                        false,
-                        roomIndex,
-                        waveIndex,
-                        Space4XFleetcrawlEnemyClass.MiniBoss);
-                    carrierCount++;
-                }
+                var elitePos = anchor + BuildWaveOffset(director.Seed, roomIndex, waveIndex, 40 + i, 82f);
+                Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, elitePos, 1, new FixedString64Bytes($"elite-{roomIndex}-{waveIndex}-{i}"), false, roomIndex, waveIndex);
+                carrierCount++;
+                var escorts = 4 + (int)(DeterministicMix(director.Seed, (uint)(roomIndex + 1), (uint)(waveIndex + 1), (uint)(i + 1)) % 4u);
+                Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, elitePos + new float3(-4f, 0f, 8f), 1, escorts, false, roomIndex, waveIndex);
+                strikeCount += escorts;
             }
 
-            if (room.Kind == Space4XFleetcrawlRoomKind.Boss && waveIndex == 1 && room.BossCarrierCount > 0)
+            if (composition.SmallCount > 0)
             {
-                var bossCount = math.max(1, (int)math.round(room.BossCarrierCount * math.max(0.8f, challengeSpawnScale)));
-                for (var i = 0; i < bossCount; i++)
-                {
-                    var bossOffset = new float3(102f, 0f, (i - (bossCount - 1) * 0.5f) * 16f);
-                    Space4XFleetcrawlSpawnUtil.SpawnCarrier(
-                        ref state,
-                        anchor + bossOffset,
-                        1,
-                        new FixedString64Bytes($"boss-{roomIndex}-{waveIndex}-{i}"),
-                        false,
-                        roomIndex,
-                        waveIndex,
-                        Space4XFleetcrawlEnemyClass.Boss);
-                    carrierCount++;
-                }
-
-                var supportStrike = math.max(strikeCount, strikePerWave + 6);
-                if (supportStrike > strikeCount)
-                {
-                    var extra = supportStrike - strikeCount;
-                    Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, anchor + new float3(86f, 0f, 0f), 1, extra, false, roomIndex, waveIndex);
-                    strikeCount = supportStrike;
-                }
+                var swarmPos = anchor + BuildWaveOffset(director.Seed, roomIndex, waveIndex, 7, 66f);
+                Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, swarmPos, 1, composition.SmallCount, false, roomIndex, waveIndex);
+                strikeCount += composition.SmallCount;
             }
 
             director.WavesSpawnedInRoom++;
             director.EnemiesSpawnedInRoom += carrierCount + strikeCount;
-            director.StableDigest = math.hash(new uint2(director.StableDigest, (uint)(roomIndex * 257 + waveIndex * 31 + director.EnemiesSpawnedInRoom)));
-            Debug.Log($"[Fleetcrawl] WAVE room={roomIndex} wave={waveIndex} tick={tick} carriers={carrierCount} strike={strikeCount}.");
+            director.StableDigest = math.hash(new uint4(
+                director.StableDigest,
+                (uint)(roomIndex * 257 + waveIndex * 31 + director.EnemiesSpawnedInRoom),
+                composition.ThreatScore,
+                (uint)(composition.SmallCount + composition.EliteCount * 5 + composition.BossCount * 13)));
+            Debug.Log($"[Fleetcrawl] WAVE room={roomIndex} wave={waveIndex} tick={tick} small={composition.SmallCount} elite={composition.EliteCount} boss={composition.BossCount} carriers={carrierCount} strike={strikeCount} threat={composition.ThreatScore}.");
         }
 
-        private static float ResolveSpawnScale(Space4XFleetcrawlDifficultyStatus status)
+        private readonly struct WaveComposition
         {
-            switch (status)
+            public readonly int SmallCount;
+            public readonly int EliteCount;
+            public readonly int BossCount;
+            public readonly uint ThreatScore;
+
+            public WaveComposition(int smallCount, int eliteCount, int bossCount)
             {
-                case Space4XFleetcrawlDifficultyStatus.Pressured:
-                    return 0.85f;
-                case Space4XFleetcrawlDifficultyStatus.Overrun:
-                    return 0.72f;
-                case Space4XFleetcrawlDifficultyStatus.Recovery:
-                    return 1.22f;
-                default:
-                    return 1f;
+                SmallCount = math.max(0, smallCount);
+                EliteCount = math.max(0, eliteCount);
+                BossCount = math.max(0, bossCount);
+                ThreatScore = (uint)(SmallCount + EliteCount * 5 + BossCount * 14);
             }
         }
 
-        private void UpdateDifficultyStatus(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, uint tick)
+        private static WaveComposition ResolveWaveComposition(uint seed, int roomIndex, int waveIndex, Space4XFleetcrawlRoomKind kind)
         {
-            var hullRatioSum = 0f;
-            var hullCount = 0;
-            foreach (var hull in SystemAPI.Query<RefRO<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
+            if (kind == Space4XFleetcrawlRoomKind.Relief)
             {
-                hullCount++;
-                hullRatioSum += hull.ValueRO.Max > 1e-6f
-                    ? math.saturate(hull.ValueRO.Current / hull.ValueRO.Max)
-                    : 0f;
+                return new WaveComposition(0, 0, 0);
             }
 
-            var hullRatio = hullCount > 0 ? hullRatioSum / hullCount : 1f;
-            var pressureRatio = director.EnemiesSpawnedInRoom > 0
-                ? math.saturate((director.EnemiesSpawnedInRoom - director.EnemiesDestroyedInRoom) / (float)math.max(1, director.EnemiesSpawnedInRoom))
-                : 0f;
-            var elapsed = tick > director.RoomStartTick ? tick - director.RoomStartTick : 0u;
-            var roomDuration = math.max(1u, room.DurationTicks);
-            var progress = math.saturate(elapsed / (float)roomDuration);
-            var next = Space4XFleetcrawlDifficultyStatus.Calm;
+            var roomRamp = math.max(0, roomIndex);
+            var waveRamp = math.max(0, waveIndex - 1);
+            var hash = DeterministicMix(seed, (uint)(roomIndex + 1), (uint)(waveIndex + 17), (uint)kind + 0x51ED270Bu);
+            var smallJitter = (int)(hash % 3u);
+            var eliteJitter = (int)((hash >> 4) % 2u);
 
-            if (hullRatio < 0.35f || pressureRatio > 0.72f)
+            if (kind == Space4XFleetcrawlRoomKind.Boss)
             {
-                next = Space4XFleetcrawlDifficultyStatus.Overrun;
-            }
-            else if (hullRatio < 0.55f || pressureRatio > 0.46f)
-            {
-                next = Space4XFleetcrawlDifficultyStatus.Pressured;
-            }
-            else if (hullRatio > 0.82f && pressureRatio < 0.18f && progress > 0.28f)
-            {
-                next = Space4XFleetcrawlDifficultyStatus.Recovery;
+                var small = math.min(28, 6 + roomRamp + waveRamp * 2 + smallJitter);
+                var elite = math.min(7, math.max(1, 1 + roomRamp / 4 + waveRamp / 2 + eliteJitter));
+                var boss = waveIndex == 1 ? 1 : 0; // single boss with trickle adds in later waves
+                return new WaveComposition(small, elite, boss);
             }
 
-            director.DifficultyStatus = next;
+            var combatSmall = math.min(32, math.max(6, 8 + roomRamp + waveRamp * 3 + smallJitter));
+            var combatElite = math.min(7, math.max(0, (waveIndex >= 2 ? 1 : 0) + roomRamp / 3 + eliteJitter + math.max(0, waveRamp - 2) / 2));
+            var combatBoss = roomRamp >= 5 && waveIndex >= math.max(4, 6 - roomRamp / 3) ? 1 : 0;
+            return new WaveComposition(combatSmall, combatElite, combatBoss);
         }
 
-        private static bool ShouldEndRoom(in Space4XFleetcrawlRoom room, in Space4XFleetcrawlDirectorState director, uint tick)
+        private static float3 BuildWaveOffset(uint seed, int roomIndex, int waveIndex, int ordinal, float baseDistance)
         {
-            var conditions = room.EndConditions;
-            if (conditions == 0)
-            {
-                conditions = Space4XFleetcrawlRoomEndConditionFlags.Timer;
-            }
-
-            var timerSatisfied = (conditions & Space4XFleetcrawlRoomEndConditionFlags.Timer) != 0 &&
-                                 tick >= director.RoomEndTick;
-            var killSatisfied = (conditions & Space4XFleetcrawlRoomEndConditionFlags.KillQuota) != 0 &&
-                                director.EnemiesDestroyedInRoom >= math.max(1, room.KillQuota);
-            var bossSatisfied = (conditions & Space4XFleetcrawlRoomEndConditionFlags.BossQuota) != 0 &&
-                                director.BossesDestroyedInRoom >= math.max(1, room.BossQuota);
-            var miniSatisfied = (conditions & Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota) != 0 &&
-                                director.MiniBossesDestroyedInRoom >= math.max(1, room.MiniBossQuota);
-            var logicAll = room.EndLogic == Space4XFleetcrawlRoomEndLogic.AllOf;
-
-            if (logicAll)
-            {
-                var all = true;
-                if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.Timer) != 0) all &= timerSatisfied;
-                if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.KillQuota) != 0) all &= killSatisfied;
-                if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.BossQuota) != 0) all &= bossSatisfied;
-                if ((conditions & Space4XFleetcrawlRoomEndConditionFlags.MiniBossQuota) != 0) all &= miniSatisfied;
-                return all;
-            }
-
-            return timerSatisfied || killSatisfied || bossSatisfied || miniSatisfied;
+            var hash = DeterministicMix(seed, (uint)(roomIndex + 1), (uint)(waveIndex * 37 + ordinal * 17 + 13), 0x9E3779B9u);
+            var angle = ((hash & 1023u) / 1024f) * (math.PI * 2f);
+            var distanceJitter = (((hash >> 10) & 255u) / 255f) - 0.5f;
+            var distance = baseDistance + distanceJitter * 18f + ordinal * 0.8f;
+            var yOffset = ((((hash >> 18) & 15u) / 15f) - 0.5f) * 4f;
+            return new float3(math.cos(angle) * distance, yOffset, math.sin(angle) * distance);
         }
 
-        private void FinalizeRoom(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, float dt)
+        private void FinalizeRoom(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, string completion, float dt)
         {
             var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
-            var challenge = state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity)
-                ? state.EntityManager.GetComponentData<Space4XRunChallengeState>(directorEntity)
-                : new Space4XRunChallengeState
-                {
-                    Kind = Space4XFleetcrawlChallengeKind.None,
-                    Active = 0,
-                    RiskTier = 0,
-                    RoomIndex = director.CurrentRoomIndex,
-                    SpawnMultiplier = 1f,
-                    CurrencyMultiplier = 1f,
-                    ExperienceMultiplier = 1f
-                };
-            var challengeActive = challenge.Active != 0 && challenge.RoomIndex == director.CurrentRoomIndex;
             var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
-            var roomCurrencyReward = room.RewardCurrency;
-            if (challengeActive)
-            {
-                roomCurrencyReward = math.max(1, (int)math.round(roomCurrencyReward * math.max(1f, challenge.CurrencyMultiplier)));
-            }
-            currency.Value += roomCurrencyReward;
+            currency.Value += room.RewardCurrency;
             state.EntityManager.SetComponentData(directorEntity, currency);
 
             foreach (var hull in SystemAPI.Query<RefRW<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
@@ -1656,296 +786,14 @@ namespace Space4x.Scenario
                 }
             }
 
-            var roomExperience = ResolveRoomCompletionExperience(room.Kind);
-            if (roomExperience > 0)
-            {
-                AwardExperience(ref state, directorEntity, ref director, roomExperience);
-            }
-            var progression = state.EntityManager.HasComponent<Space4XRunProgressionState>(directorEntity)
-                ? state.EntityManager.GetComponentData<Space4XRunProgressionState>(directorEntity)
-                : new Space4XRunProgressionState { Level = 1, ExperienceToNext = 30 };
-            if (!state.EntityManager.HasComponent<Space4XRunMetaResourceState>(directorEntity))
-            {
-                state.EntityManager.AddComponentData(directorEntity, new Space4XRunMetaResourceState());
-            }
-            var meta = state.EntityManager.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
-            meta.Shards += ResolveMetaShardReward(room.Kind, challengeActive ? challenge.RiskTier : (byte)0);
-            if (challengeActive)
-            {
-                meta.RoomChallengeClears++;
-            }
-            state.EntityManager.SetComponentData(directorEntity, meta);
-
-            ApplyReliefRoomBonus(ref state, directorEntity, room);
-
             var gateSummary = ResolveRoomGates(ref state, ref director, room);
             var buildDigest = ComputeBuildDigest(state.EntityManager, directorEntity, director.Seed);
             var dps = math.max(0f, (SumPlayerDamage(ref state) - director.DamageSnapshotAtRoomStart) / math.max(1e-6f, (director.RoomEndTick - director.RoomStartTick) * dt));
             var digestRoom = math.hash(new uint4((uint)director.CurrentRoomIndex, (uint)director.WavesSpawnedInRoom, (uint)director.EnemiesDestroyedInRoom, (uint)math.max(0, currency.Value)));
-            var progressionDigest = math.hash(new uint2((uint)math.max(0, progression.Level), (uint)math.max(0, progression.TotalExperienceEarned)));
-            director.StableDigest = math.hash(new uint4(
-                director.StableDigest ^ digestRoom,
-                (uint)math.round(dps * 100f),
-                buildDigest ^ progressionDigest,
-                director.Seed ^ (uint)math.max(0, meta.Shards)));
+            director.StableDigest = math.hash(new uint4(director.StableDigest ^ digestRoom, (uint)math.round(dps * 100f), buildDigest, director.Seed));
             var perks = state.EntityManager.GetBuffer<Space4XRunPerkOp>(directorEntity);
             var installed = state.EntityManager.GetBuffer<Space4XRunInstalledBlueprint>(directorEntity);
-            Debug.Log($"[Fleetcrawl] ROOM_END index={director.CurrentRoomIndex} kind={room.Kind} relief={room.ReliefKind} challenge={challenge.Kind} risk={challenge.RiskTier} status={director.DifficultyStatus} waves={director.WavesSpawnedInRoom} killed={director.EnemiesDestroyedInRoom}/{director.EnemiesSpawnedInRoom} miniboss_kills={director.MiniBossesDestroyedInRoom} boss_kills={director.BossesDestroyedInRoom} gates={gateSummary} perks={perks.Length} blueprints={FormatInstalledBlueprints(installed)} currency={currency.Value} xp={progression.Experience}/{progression.ExperienceToNext} lvl={progression.Level} shards={meta.Shards} dps={dps:0.0} digest={director.StableDigest}.");
-        }
-
-        private static Space4XRunChallengeState ResolveChallengeForRoom(uint seed, int roomIndex, in Space4XFleetcrawlRoom room)
-        {
-            var challenge = new Space4XRunChallengeState
-            {
-                Kind = Space4XFleetcrawlChallengeKind.None,
-                Active = 0,
-                RiskTier = 0,
-                RoomIndex = roomIndex,
-                SpawnMultiplier = 1f,
-                CurrencyMultiplier = 1f,
-                ExperienceMultiplier = 1f
-            };
-
-            if (room.Kind == Space4XFleetcrawlRoomKind.Relief)
-            {
-                return challenge;
-            }
-
-            var roll = (int)(DeterministicMix(seed, (uint)(roomIndex + 1), (uint)room.Kind + 41u, 0x5EED1234u) % 100u);
-            if (room.Kind == Space4XFleetcrawlRoomKind.Boss && roll < 55)
-            {
-                roll = 55;
-            }
-            if (roll < 45)
-            {
-                return challenge;
-            }
-
-            if (roll < 75)
-            {
-                challenge.Kind = Space4XFleetcrawlChallengeKind.Swarm;
-                challenge.Active = 1;
-                challenge.RiskTier = 1;
-                challenge.SpawnMultiplier = 1.18f;
-                challenge.CurrencyMultiplier = 1.25f;
-                challenge.ExperienceMultiplier = 1.20f;
-                return challenge;
-            }
-
-            if (roll < 93)
-            {
-                challenge.Kind = Space4XFleetcrawlChallengeKind.Hazard;
-                challenge.Active = 1;
-                challenge.RiskTier = 2;
-                challenge.SpawnMultiplier = 1.10f;
-                challenge.CurrencyMultiplier = 1.45f;
-                challenge.ExperienceMultiplier = 1.35f;
-                return challenge;
-            }
-
-            challenge.Kind = Space4XFleetcrawlChallengeKind.Nemesis;
-            challenge.Active = 1;
-            challenge.RiskTier = 3;
-            challenge.SpawnMultiplier = 1.32f;
-            challenge.CurrencyMultiplier = 1.75f;
-            challenge.ExperienceMultiplier = 1.6f;
-            return challenge;
-        }
-
-        private static int ResolveRoomCompletionExperience(Space4XFleetcrawlRoomKind roomKind)
-        {
-            switch (roomKind)
-            {
-                case Space4XFleetcrawlRoomKind.Boss:
-                    return 44;
-                case Space4XFleetcrawlRoomKind.Relief:
-                    return 10;
-                default:
-                    return 24;
-            }
-        }
-
-        private static int ResolveMetaShardReward(Space4XFleetcrawlRoomKind roomKind, byte challengeRisk)
-        {
-            var baseReward = roomKind == Space4XFleetcrawlRoomKind.Boss ? 3 :
-                roomKind == Space4XFleetcrawlRoomKind.Relief ? 1 : 2;
-            return baseReward + math.max(0, (int)challengeRisk);
-        }
-
-        private void AwardExperience(ref SystemState state, Entity directorEntity, ref Space4XFleetcrawlDirectorState director, int amount)
-        {
-            if (amount <= 0)
-            {
-                return;
-            }
-
-            if (!state.EntityManager.HasComponent<Space4XRunProgressionState>(directorEntity))
-            {
-                state.EntityManager.AddComponentData(directorEntity, new Space4XRunProgressionState
-                {
-                    Level = 1,
-                    Experience = 0,
-                    ExperienceToNext = 30,
-                    UnspentUpgrades = 0,
-                    TotalExperienceEarned = 0
-                });
-            }
-
-            var adjustedAmount = amount;
-            if (state.EntityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
-            {
-                var challenge = state.EntityManager.GetComponentData<Space4XRunChallengeState>(directorEntity);
-                if (challenge.Active != 0 && challenge.RoomIndex == director.CurrentRoomIndex)
-                {
-                    adjustedAmount = math.max(1, (int)math.round(adjustedAmount * math.max(1f, challenge.ExperienceMultiplier)));
-                }
-            }
-
-            var progression = state.EntityManager.GetComponentData<Space4XRunProgressionState>(directorEntity);
-            progression.Experience += adjustedAmount;
-            progression.TotalExperienceEarned += adjustedAmount;
-
-            while (progression.Experience >= progression.ExperienceToNext)
-            {
-                progression.Experience -= progression.ExperienceToNext;
-                progression.Level++;
-                progression.UnspentUpgrades++;
-                progression.ExperienceToNext = ResolveNextLevelExperience(progression.ExperienceToNext, progression.Level);
-                ApplyLevelUpBonuses(ref state);
-            }
-
-            state.EntityManager.SetComponentData(directorEntity, progression);
-            director.StableDigest = math.hash(new uint4(
-                director.StableDigest,
-                (uint)math.max(0, progression.Level),
-                (uint)math.max(0, progression.TotalExperienceEarned),
-                0x6B9D8AF1u));
-        }
-
-        private static int ResolveNextLevelExperience(int currentRequirement, int level)
-        {
-            var baseline = math.max(24, currentRequirement);
-            return math.max(30, (int)math.round(baseline * 1.24f + 10f + math.max(0, level - 1) * 2f));
-        }
-
-        private void ApplyLevelUpBonuses(ref SystemState state)
-        {
-            HealPlayers(ref state, 0.06f);
-            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
-            {
-                var weaponBuffer = weapons;
-                for (var i = 0; i < weaponBuffer.Length; i++)
-                {
-                    var mount = weaponBuffer[i];
-                    mount.Weapon.BaseDamage *= 1.04f;
-                    mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * 0.98f));
-                    weaponBuffer[i] = mount;
-                }
-            }
-        }
-
-        private void ConsumeOnePendingUpgrade(ref SystemState state, Entity directorEntity, ref Space4XFleetcrawlDirectorState director, int roomIndex)
-        {
-            if (!state.EntityManager.HasComponent<Space4XRunProgressionState>(directorEntity))
-            {
-                return;
-            }
-
-            var progression = state.EntityManager.GetComponentData<Space4XRunProgressionState>(directorEntity);
-            if (progression.UnspentUpgrades <= 0)
-            {
-                return;
-            }
-
-            var choice = (int)(DeterministicMix(
-                    director.Seed,
-                    (uint)(roomIndex + 1),
-                    (uint)math.max(1, progression.Level),
-                    (uint)math.max(0, progression.UnspentUpgrades)) % 3u);
-
-            switch (choice)
-            {
-                case 0:
-                    ApplyAutoUpgradeFirepower(ref state);
-                    break;
-                case 1:
-                    ApplyAutoUpgradeHull(ref state);
-                    break;
-                default:
-                    ApplyAutoUpgradeThrusters(ref state);
-                    break;
-            }
-
-            progression.UnspentUpgrades = math.max(0, progression.UnspentUpgrades - 1);
-            state.EntityManager.SetComponentData(directorEntity, progression);
-            director.StableDigest = math.hash(new uint4(
-                director.StableDigest,
-                (uint)choice,
-                (uint)math.max(0, progression.Level),
-                (uint)math.max(0, progression.UnspentUpgrades)));
-            Debug.Log($"[Fleetcrawl] LEVEL_PICK room={roomIndex} pick={choice} level={progression.Level} unspent={progression.UnspentUpgrades}.");
-        }
-
-        private void ApplyAutoUpgradeFirepower(ref SystemState state)
-        {
-            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4XRunPlayerTag>())
-            {
-                var weaponBuffer = weapons;
-                for (var i = 0; i < weaponBuffer.Length; i++)
-                {
-                    var mount = weaponBuffer[i];
-                    mount.Weapon.BaseDamage *= 1.09f;
-                    mount.Weapon.CooldownTicks = (ushort)math.max(1, (int)math.round(mount.Weapon.CooldownTicks * 0.95f));
-                    weaponBuffer[i] = mount;
-                }
-            }
-        }
-
-        private void ApplyAutoUpgradeHull(ref SystemState state)
-        {
-            foreach (var hull in SystemAPI.Query<RefRW<HullIntegrity>>().WithAll<Space4XRunPlayerTag>())
-            {
-                var hullData = hull.ValueRO;
-                hullData.Max += 18f;
-                hullData.BaseMax += 18f;
-                hullData.Current = math.min(hullData.Max, hullData.Current + hullData.Max * 0.12f);
-                hull.ValueRW = hullData;
-            }
-        }
-
-        private void ApplyAutoUpgradeThrusters(ref SystemState state)
-        {
-            ApplyFlightMultipliers(ref state, 1.05f, 1.08f, 1.04f, 1.10f, playerOnly: true);
-            ApplyFlightMultipliers(ref state, 1.03f, 1.06f, 1.02f, 1.06f, playerOnly: false);
-        }
-
-        private void ApplyReliefRoomBonus(ref SystemState state, Entity directorEntity, in Space4XFleetcrawlRoom room)
-        {
-            if (room.Kind != Space4XFleetcrawlRoomKind.Relief || room.ReliefKind == Space4XFleetcrawlReliefKind.None)
-            {
-                return;
-            }
-
-            switch (room.ReliefKind)
-            {
-                case Space4XFleetcrawlReliefKind.Recovery:
-                    HealPlayers(ref state, 0.10f);
-                    break;
-                case Space4XFleetcrawlReliefKind.Arsenal:
-                    ApplyBeamDamageMultiplier(ref state, 1.04f);
-                    break;
-                case Space4XFleetcrawlReliefKind.Salvage:
-                    {
-                        var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
-                        currency.Value += 25;
-                        state.EntityManager.SetComponentData(directorEntity, currency);
-
-                        var reroll = state.EntityManager.GetComponentData<Space4XRunRerollTokens>(directorEntity);
-                        reroll.Value += 1;
-                        state.EntityManager.SetComponentData(directorEntity, reroll);
-                        break;
-                    }
-            }
+            Debug.Log($"[Fleetcrawl] ROOM_END index={director.CurrentRoomIndex} kind={room.Kind} completion={completion} waves={director.WavesSpawnedInRoom} killed={director.EnemiesDestroyedInRoom}/{director.EnemiesSpawnedInRoom} gates={gateSummary} perks={perks.Length} blueprints={FormatInstalledBlueprints(installed)} currency={currency.Value} dps={dps:0.0} digest={director.StableDigest}.");
         }
 
         private struct RewardOffer
@@ -1972,7 +820,7 @@ namespace Space4x.Scenario
                 for (var roomIndex = 0; roomIndex < roomTotal; roomIndex++)
                 {
                     var roomKind = ResolveDeterministicRoomKind(roomIndex);
-                    var gateCount = roomKind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
+                    var gateCount = ResolveGateCountForRoomKind(roomKind);
                     for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
                     {
                         var gateKind = ResolveGateKindForDeterminism(roomIndex, gateOrdinal);
@@ -1985,7 +833,6 @@ namespace Space4x.Scenario
                         {
                             blueprintBits |= 1u << ((roomIndex * 3 + pick) % 4);
                         }
-
                         digest = DeterministicMix(digest, (uint)gateKind, (uint)pick, (uint)roomIndex + 1u);
                     }
                 }
@@ -1999,66 +846,39 @@ namespace Space4x.Scenario
             var summary = new FixedString512Bytes();
             var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
             var records = state.EntityManager.GetBuffer<Space4XRunGateRewardRecord>(directorEntity);
-            var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(room.Kind);
-            var gateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(director.Seed, director.CurrentRoomIndex, gateCount);
-            var gateSource = "auto";
-            if (state.EntityManager.HasComponent<Space4XRunPendingGatePick>(directorEntity))
-            {
-                var pending = state.EntityManager.GetComponentData<Space4XRunPendingGatePick>(directorEntity);
-                if (pending.RoomIndex == director.CurrentRoomIndex && pending.GateOrdinal >= 0 && pending.GateOrdinal < gateCount)
-                {
-                    gateOrdinal = pending.GateOrdinal;
-                    gateSource = "manual";
-                }
+            var gateCount = math.clamp((int)room.GateOptionCount, 2, 3);
 
-                state.EntityManager.RemoveComponent<Space4XRunPendingGatePick>(directorEntity);
+            for (var gateOrdinal = 0; gateOrdinal < gateCount; gateOrdinal++)
+            {
+                var gateKind = ResolveGateKind(room, gateOrdinal);
+                ResolveOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
+                var pick = PickOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
+                var picked = pick switch
+                {
+                    0 => offerA,
+                    1 => offerB,
+                    _ => offerC
+                };
+
+                Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId}.");
+                ApplyOffer(ref state, directorEntity, picked, director.CurrentRoomIndex);
+                records.Add(new Space4XRunGateRewardRecord
+                {
+                    RoomIndex = director.CurrentRoomIndex,
+                    GateKind = gateKind,
+                    RewardKind = picked.Kind,
+                    RewardId = picked.RewardId
+                });
+
+                if (summary.Length > 0)
+                {
+                    summary.Append(" | ");
+                }
+                summary.Append(gateKind.ToString());
+                summary.Append(":");
+                summary.Append(picked.RewardId);
             }
 
-            var gateKind = ResolveGateKind(room, gateOrdinal);
-            ResolveOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
-            var pick = PickOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
-            var pickSource = "auto";
-            if (gateKind == Space4XRunGateKind.Boon && state.EntityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
-            {
-                var pending = state.EntityManager.GetComponentData<Space4XRunPendingBoonPick>(directorEntity);
-                if (pending.RoomIndex == director.CurrentRoomIndex && pending.OfferIndex >= 0 && pending.OfferIndex < 3)
-                {
-                    pick = pending.OfferIndex;
-                    pickSource = "manual";
-                }
-
-                state.EntityManager.RemoveComponent<Space4XRunPendingBoonPick>(directorEntity);
-            }
-            else if (state.EntityManager.HasComponent<Space4XRunPendingBoonPick>(directorEntity))
-            {
-                var staleBoonPick = state.EntityManager.GetComponentData<Space4XRunPendingBoonPick>(directorEntity);
-                if (staleBoonPick.RoomIndex <= director.CurrentRoomIndex)
-                {
-                    state.EntityManager.RemoveComponent<Space4XRunPendingBoonPick>(directorEntity);
-                }
-            }
-
-            var picked = pick switch
-            {
-                0 => offerA,
-                1 => offerB,
-                _ => offerC
-            };
-
-            Debug.Log($"[Fleetcrawl] GATE_CHOICE room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal}/{gateCount} gate={gateKind} source={gateSource}.");
-            Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId} source={pickSource}.");
-            ApplyOffer(ref state, directorEntity, picked, director.CurrentRoomIndex);
-            records.Add(new Space4XRunGateRewardRecord
-            {
-                RoomIndex = director.CurrentRoomIndex,
-                GateKind = gateKind,
-                RewardKind = picked.Kind,
-                RewardId = picked.RewardId
-            });
-
-            summary.Append(gateKind.ToString());
-            summary.Append(":");
-            summary.Append(picked.RewardId);
             return summary;
         }
 
@@ -2094,14 +914,12 @@ namespace Space4x.Scenario
 
         private static Space4XFleetcrawlRoomKind ResolveDeterministicRoomKind(int roomIndex)
         {
-            var pattern = roomIndex % 5;
-            return pattern switch
-            {
-                1 => Space4XFleetcrawlRoomKind.Relief,
-                3 => Space4XFleetcrawlRoomKind.Boss,
-                4 => Space4XFleetcrawlRoomKind.Relief,
-                _ => Space4XFleetcrawlRoomKind.Combat
-            };
+            return Space4XFleetcrawlRunConfig.ResolveRoomKind(roomIndex, DeterministicBossCadence, DeterministicReliefCadence);
+        }
+
+        private static int ResolveGateCountForRoomKind(Space4XFleetcrawlRoomKind roomKind)
+        {
+            return roomKind == Space4XFleetcrawlRoomKind.Relief ? 2 : 3;
         }
 
         private static void ResolveOffers(uint seed, int roomIndex, Space4XRunGateKind gateKind, out RewardOffer offerA, out RewardOffer offerB, out RewardOffer offerC)
@@ -2474,8 +1292,6 @@ namespace Space4x.Scenario
                     weaponBuffer[i] = mount;
                 }
             }
-
-            ApplyFlightMultipliers(ref state, 1.00f, 1.12f, 1.08f, 1.12f, playerOnly: true);
         }
 
         private void SpawnHangarDronesFromBlueprint(ref SystemState state, Entity directorEntity, int roomIndex)
@@ -2493,49 +1309,6 @@ namespace Space4x.Scenario
                 HasPerkOp(perkOps, new FixedString64Bytes("perk_convert_kinetic_to_beam_100")))
             {
                 ConvertDroneWeaponsToBeam(ref state);
-            }
-
-            ApplyFlightMultipliers(ref state, 1.04f, 1.00f, 1.00f, 1.06f, playerOnly: true);
-            ApplyFlightMultipliers(ref state, 1.08f, 1.12f, 1.00f, 1.12f, playerOnly: false);
-        }
-
-        private void ApplyFlightMultipliers(
-            ref SystemState state,
-            float speedMul,
-            float accelMul,
-            float decelMul,
-            float turnMul,
-            bool playerOnly)
-        {
-            foreach (var (carrierRef, movementRef, entity) in SystemAPI
-                         .Query<RefRW<Carrier>, RefRW<VesselMovement>>()
-                         .WithAll<Space4XRunPlayerTag>()
-                         .WithEntityAccess())
-            {
-                var isDrone = state.EntityManager.HasComponent<Space4XRunDroneTag>(entity);
-                if (playerOnly && isDrone)
-                {
-                    continue;
-                }
-
-                if (!playerOnly && !isDrone)
-                {
-                    continue;
-                }
-
-                var carrier = carrierRef.ValueRO;
-                carrier.Speed *= speedMul;
-                carrier.Acceleration *= accelMul;
-                carrier.Deceleration *= decelMul;
-                carrier.TurnSpeed *= turnMul;
-                carrierRef.ValueRW = carrier;
-
-                var movement = movementRef.ValueRO;
-                movement.BaseSpeed *= speedMul;
-                movement.Acceleration *= accelMul;
-                movement.Deceleration *= decelMul;
-                movement.TurnSpeed *= turnMul;
-                movementRef.ValueRW = movement;
             }
         }
 
