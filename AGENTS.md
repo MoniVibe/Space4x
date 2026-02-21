@@ -133,6 +133,7 @@ Artifacts expected per run:
   - Desktop validator profile: `Docs/Operations/AgentProfile_Desktop_Validator.md`
   - Desktop iterator profile: `Docs/Operations/AgentProfile_Desktop_Iterator.md`
   - Laptop iterator profile: `Docs/Operations/AgentProfile_Laptop_Iterator.md`
+  - FleetCrawl parity lessons/runbook: `Docs/Operations/FleetCrawl_Parity_Incident_Lessons_2026-02-21.md`
 
 ## Skill Awareness
 
