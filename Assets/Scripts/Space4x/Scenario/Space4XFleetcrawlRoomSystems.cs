@@ -636,15 +636,31 @@ namespace Space4x.Scenario
         }
 
         [Serializable]
+        private sealed class FleetcrawlPackCatalogProbe
+        {
+            public string catalogId;
+        }
+
+        [Serializable]
         private sealed class FleetcrawlRoomContractFile
         {
             public string contractId;
+            public string packCatalogId;
             public FleetcrawlRunDifficultyProfile[] runDifficultyProfiles;
             public FleetcrawlRoomClassProfile[] roomClassProfiles;
             public FleetcrawlSystemSizeProfile[] systemSizeProfiles;
+            public FleetcrawlWildcardProfile[] wildcardProfiles;
             public FleetcrawlRoomArchetypeProfile[] roomArchetypes;
             public FleetcrawlSpawnPackRef[] spawnPackRefs;
             public FleetcrawlBudgetFormula budgetFormula;
+            public FleetcrawlSelectionRules selectionRules;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlPackCatalogFile
+        {
+            public string catalogId;
+            public FleetcrawlSpawnPackRef[] spawnPackRefs;
         }
 
         [Serializable]
@@ -663,6 +679,7 @@ namespace Space4x.Scenario
             public float budgetMultiplier = 1f;
             public float rewardMultiplier = 1f;
             public int threatStepBonus = 0;
+            public int hazardSlotsDelta = 0;
         }
 
         [Serializable]
@@ -693,12 +710,33 @@ namespace Space4x.Scenario
         }
 
         [Serializable]
+        private sealed class FleetcrawlWildcardProfile
+        {
+            public string id;
+            public string[] requiredPackTags;
+        }
+
+        [Serializable]
         private sealed class FleetcrawlSpawnPackRef
         {
             public string id;
             public string packType;
             public int budgetCost = 0;
+            public int weight = 1;
+            public int maxPerRoom = 1;
             public string[] tags;
+            public string[] requiresAnyTags;
+            public string[] requiresAllTags;
+            public string[] incompatibleWithTags;
+            public string[] incompatiblePackIds;
+        }
+
+        [Serializable]
+        private sealed class FleetcrawlSelectionRules
+        {
+            public int maxWildcardPerRoom = 2;
+            public bool allowStackedHazardsInEliteRooms = true;
+            public string fallbackWildcard = "hazard";
         }
 
         [Serializable]
@@ -747,7 +785,9 @@ namespace Space4x.Scenario
                 return false;
             }
 
+            var activePackRefs = ResolvePackRefs(contractFile, out var packSource);
             var budgetFormula = contractFile.budgetFormula ?? new FleetcrawlBudgetFormula();
+            var selectionRules = contractFile.selectionRules ?? new FleetcrawlSelectionRules();
             var parsedRooms = new List<Space4XFleetcrawlRoom>(planBuffer.Length);
             var depthStart = math.max(1, contractConfig.DepthStart);
             for (var i = 0; i < planBuffer.Length; i++)
@@ -761,8 +801,10 @@ namespace Space4x.Scenario
                         shortMode,
                         dt,
                         contractFile,
+                        activePackRefs,
                         runDifficulty,
                         budgetFormula,
+                        selectionRules,
                         out var room,
                         out var budget,
                         out var selectedPacks))
@@ -787,8 +829,37 @@ namespace Space4x.Scenario
                 rooms.Add(parsedRooms[i]);
             }
 
-            Debug.Log($"[Fleetcrawl] Loaded contract room plan from '{contractPath}'. contract={contractConfig.ContractId} run={runDifficulty.id} rooms={parsedRooms.Count}.");
+            Debug.Log($"[Fleetcrawl] Loaded contract room plan from '{contractPath}'. contract={contractConfig.ContractId} run={runDifficulty.id} rooms={parsedRooms.Count} pack_source={packSource}.");
             return true;
+        }
+
+        private static FleetcrawlSpawnPackRef[] ResolvePackRefs(FleetcrawlRoomContractFile contractFile, out string source)
+        {
+            source = "contract.inline";
+            if (contractFile == null)
+            {
+                return Array.Empty<FleetcrawlSpawnPackRef>();
+            }
+
+            var catalogId = NormalizeToken(contractFile.packCatalogId, string.Empty);
+            if (!string.IsNullOrWhiteSpace(catalogId) &&
+                TryLoadPackCatalogById(catalogId, out var catalogPath, out var catalogFile) &&
+                catalogFile != null &&
+                catalogFile.spawnPackRefs != null &&
+                catalogFile.spawnPackRefs.Length > 0)
+            {
+                source = $"{catalogFile.catalogId} @ {catalogPath}";
+                return catalogFile.spawnPackRefs;
+            }
+
+            if (contractFile.spawnPackRefs != null && contractFile.spawnPackRefs.Length > 0)
+            {
+                source = "contract.inline";
+                return contractFile.spawnPackRefs;
+            }
+
+            source = "none";
+            return Array.Empty<FleetcrawlSpawnPackRef>();
         }
 
         private bool TryBuildRoomFromContractPlan(
@@ -799,8 +870,10 @@ namespace Space4x.Scenario
             bool shortMode,
             float dt,
             FleetcrawlRoomContractFile contractFile,
+            FleetcrawlSpawnPackRef[] activePackRefs,
             FleetcrawlRunDifficultyProfile runDifficulty,
             FleetcrawlBudgetFormula budgetFormula,
+            FleetcrawlSelectionRules selectionRules,
             out Space4XFleetcrawlRoom room,
             out int finalBudget,
             out string selectedPacks)
@@ -902,7 +975,18 @@ namespace Space4x.Scenario
             var rewardMaxHull = math.max(0f, threatSteps * 8f + (isMiniBossClass ? 25f : 0f));
             var offerBoon = (byte)((isEliteClass || isMiniBossClass || threatSteps >= 3) ? 1 : 0);
 
-            selectedPacks = SelectPackSummary(contractFile.spawnPackRefs, archetype, wildcards, runSeed, roomIndex);
+            selectedPacks = AssembleRoomPacks(
+                activePackRefs,
+                archetype,
+                contractFile.wildcardProfiles,
+                wildcards,
+                selectionRules,
+                systemSize,
+                roomClass,
+                budgetShares,
+                finalBudget,
+                runSeed,
+                roomIndex);
 
             room = new Space4XFleetcrawlRoom
             {
@@ -930,10 +1014,16 @@ namespace Space4x.Scenario
             return true;
         }
 
-        private static string SelectPackSummary(
+        private static string AssembleRoomPacks(
             FleetcrawlSpawnPackRef[] packs,
             FleetcrawlRoomArchetypeProfile archetype,
+            FleetcrawlWildcardProfile[] wildcardProfiles,
             List<string> wildcards,
+            FleetcrawlSelectionRules selectionRules,
+            FleetcrawlSystemSizeProfile systemSize,
+            FleetcrawlRoomClassProfile roomClass,
+            FleetcrawlBudgetShares budgetShares,
+            int finalBudget,
             uint runSeed,
             int roomIndex)
         {
@@ -942,68 +1032,473 @@ namespace Space4x.Scenario
                 return "<none>";
             }
 
-            var selected = new List<string>(3);
+            var selected = new List<FleetcrawlSpawnPackRef>(16);
+            var selectedIds = new List<string>(16);
             var requiredTags = archetype != null ? archetype.requiredPackTags : null;
             var optionalTags = archetype != null ? archetype.optionalPackTags : null;
-            var wildcardTags = BuildWildcardTags(wildcards);
-
-            for (var slot = 0; slot < 3; slot++)
+            var wildcardTags = BuildWildcardTags(wildcards, wildcardProfiles);
+            var unknownSelectionRules = selectionRules ?? new FleetcrawlSelectionRules();
+            var objectiveSlots = math.max(1, systemSize != null ? systemSize.objectiveSlots : 1);
+            var enemySlots = math.max(1, systemSize != null ? systemSize.encounterSlots : 1);
+            var hazardSlots = math.max(0, (systemSize != null ? systemSize.hazardSlots : 1) + (roomClass != null ? roomClass.hazardSlotsDelta : 0));
+            var wildcardSlots = math.clamp(unknownSelectionRules.maxWildcardPerRoom, 0, 4);
+            if (!unknownSelectionRules.allowStackedHazardsInEliteRooms &&
+                roomClass != null &&
+                NormalizeToken(roomClass.id, string.Empty).Equals("elite", StringComparison.OrdinalIgnoreCase))
             {
-                var bestScore = int.MinValue;
-                var bestHash = uint.MaxValue;
-                var bestId = string.Empty;
-                for (var i = 0; i < packs.Length; i++)
-                {
-                    var pack = packs[i];
-                    if (pack == null || string.IsNullOrWhiteSpace(pack.id))
-                    {
-                        continue;
-                    }
-
-                    if (ContainsString(selected, pack.id))
-                    {
-                        continue;
-                    }
-
-                    var score = 0;
-                    score += ScoreTagMatches(pack.tags, requiredTags, 100);
-                    score += ScoreTagMatches(pack.tags, optionalTags, 15);
-                    score += ScoreTagMatches(pack.tags, wildcardTags, 20);
-                    if (score <= 0)
-                    {
-                        continue;
-                    }
-
-                    var hash = DeterministicMix(runSeed, (uint)(roomIndex + 1), (uint)(slot + 1), HashString(pack.id));
-                    if (score > bestScore || (score == bestScore && hash < bestHash))
-                    {
-                        bestScore = score;
-                        bestHash = hash;
-                        bestId = pack.id;
-                    }
-                }
-
-                if (bestScore <= 0 || string.IsNullOrWhiteSpace(bestId))
-                {
-                    break;
-                }
-
-                selected.Add(bestId);
+                hazardSlots = math.min(hazardSlots, 1);
             }
+
+            var normalizedShares = budgetShares ?? new FleetcrawlBudgetShares();
+            var objectiveBudget = math.max(0, (int)math.round(finalBudget * math.saturate(normalizedShares.objective)));
+            var enemyBudget = math.max(0, (int)math.round(finalBudget * math.saturate(normalizedShares.enemies)));
+            var hazardBudget = math.max(0, (int)math.round(finalBudget * math.saturate(normalizedShares.hazards)));
+            var assignedBudget = objectiveBudget + enemyBudget + hazardBudget;
+            var wildcardBudget = math.max(0, finalBudget - assignedBudget);
+            if (wildcardTags.Length == 0)
+            {
+                var fallbackWildcard = NormalizeToken(unknownSelectionRules.fallbackWildcard, string.Empty);
+                if (fallbackWildcard.Length > 0)
+                {
+                    if (!fallbackWildcard.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fallbackWildcard = $"wildcard.{fallbackWildcard}";
+                    }
+
+                    wildcardTags = new[] { fallbackWildcard };
+                }
+            }
+
+            var remainingRequiredTags = new List<string>(8);
+            if (requiredTags != null)
+            {
+                for (var i = 0; i < requiredTags.Length; i++)
+                {
+                    var token = NormalizeToken(requiredTags[i], string.Empty);
+                    if (token.Length > 0 && !ContainsString(remainingRequiredTags, token))
+                    {
+                        remainingRequiredTags.Add(token);
+                    }
+                }
+            }
+
+            var overflowCount = 0;
+            FillLanePacks(
+                packs,
+                "objective",
+                objectiveSlots,
+                objectiveBudget,
+                requiredTags,
+                optionalTags,
+                wildcardTags,
+                runSeed,
+                roomIndex,
+                0,
+                selected,
+                selectedIds,
+                remainingRequiredTags,
+                ref overflowCount);
+            FillLanePacks(
+                packs,
+                "enemy",
+                enemySlots,
+                enemyBudget,
+                requiredTags,
+                optionalTags,
+                wildcardTags,
+                runSeed,
+                roomIndex,
+                1,
+                selected,
+                selectedIds,
+                remainingRequiredTags,
+                ref overflowCount);
+            FillLanePacks(
+                packs,
+                "hazard",
+                hazardSlots,
+                hazardBudget,
+                requiredTags,
+                optionalTags,
+                wildcardTags,
+                runSeed,
+                roomIndex,
+                2,
+                selected,
+                selectedIds,
+                remainingRequiredTags,
+                ref overflowCount);
+            FillLanePacks(
+                packs,
+                "wildcard",
+                wildcardSlots,
+                wildcardBudget,
+                requiredTags,
+                optionalTags,
+                wildcardTags,
+                runSeed,
+                roomIndex,
+                3,
+                selected,
+                selectedIds,
+                remainingRequiredTags,
+                ref overflowCount);
 
             if (selected.Count == 0)
             {
                 return "<none>";
             }
 
-            var result = selected[0];
-            for (var i = 1; i < selected.Count; i++)
+            var objectiveCsv = BuildLaneCsv(selected, "objective");
+            var enemyCsv = BuildLaneCsv(selected, "enemy");
+            var hazardCsv = BuildLaneCsv(selected, "hazard");
+            var wildcardCsv = BuildLaneCsv(selected, "wildcard");
+            var totalCost = 0;
+            for (var i = 0; i < selected.Count; i++)
             {
-                result += "|";
-                result += selected[i];
+                totalCost += math.max(1, selected[i].budgetCost);
             }
 
-            return result;
+            var missingRequired = remainingRequiredTags.Count == 0
+                ? "-"
+                : string.Join(",", remainingRequiredTags.ToArray());
+            var fallbackWildcard = NormalizeToken(unknownSelectionRules.fallbackWildcard, "hazard");
+            return $"objective=[{objectiveCsv}] enemy=[{enemyCsv}] hazard=[{hazardCsv}] wildcard=[{wildcardCsv}] total_cost={totalCost}/{math.max(1, finalBudget)} missing_required={missingRequired} over_budget={overflowCount} fallback_wildcard={fallbackWildcard}";
+        }
+
+        private static void FillLanePacks(
+            FleetcrawlSpawnPackRef[] packs,
+            string laneType,
+            int slots,
+            int laneBudget,
+            string[] requiredTags,
+            string[] optionalTags,
+            string[] wildcardTags,
+            uint runSeed,
+            int roomIndex,
+            int laneOrdinal,
+            List<FleetcrawlSpawnPackRef> selected,
+            List<string> selectedIds,
+            List<string> remainingRequiredTags,
+            ref int overBudgetSelections)
+        {
+            if (slots <= 0 || packs == null || packs.Length == 0)
+            {
+                return;
+            }
+
+            var spent = 0;
+            for (var slot = 0; slot < slots; slot++)
+            {
+                var remainingBudget = math.max(0, laneBudget - spent);
+                if (!TryPickBestPack(
+                        packs,
+                        laneType,
+                        requiredTags,
+                        optionalTags,
+                        wildcardTags,
+                        selected,
+                        selectedIds,
+                        remainingRequiredTags,
+                        runSeed,
+                        roomIndex,
+                        laneOrdinal,
+                        slot,
+                        remainingBudget,
+                        out var picked))
+                {
+                    break;
+                }
+
+                selected.Add(picked);
+                selectedIds.Add(NormalizeToken(picked.id, string.Empty));
+                spent += math.max(1, picked.budgetCost);
+                if (remainingBudget > 0 && math.max(1, picked.budgetCost) > remainingBudget)
+                {
+                    overBudgetSelections++;
+                }
+                ConsumeRequiredTags(remainingRequiredTags, picked.tags);
+            }
+        }
+
+        private static bool TryPickBestPack(
+            FleetcrawlSpawnPackRef[] packs,
+            string laneType,
+            string[] requiredTags,
+            string[] optionalTags,
+            string[] wildcardTags,
+            List<FleetcrawlSpawnPackRef> selected,
+            List<string> selectedIds,
+            List<string> remainingRequiredTags,
+            uint runSeed,
+            int roomIndex,
+            int laneOrdinal,
+            int slotIndex,
+            int remainingBudget,
+            out FleetcrawlSpawnPackRef picked)
+        {
+            picked = null;
+            var bestScore = int.MinValue;
+            var bestHash = uint.MaxValue;
+            for (var i = 0; i < packs.Length; i++)
+            {
+                var pack = packs[i];
+                if (pack == null || string.IsNullOrWhiteSpace(pack.id))
+                {
+                    continue;
+                }
+
+                if (!PackTypeMatchesLane(pack.packType, laneType))
+                {
+                    continue;
+                }
+
+                var normalizedId = NormalizeToken(pack.id, string.Empty);
+                if (normalizedId.Length == 0)
+                {
+                    continue;
+                }
+
+                var maxPerRoom = math.max(1, pack.maxPerRoom <= 0 ? 1 : pack.maxPerRoom);
+                if (maxPerRoom <= 1 && ContainsString(selectedIds, normalizedId))
+                {
+                    continue;
+                }
+
+                if (CountSelectedById(selected, normalizedId) >= maxPerRoom)
+                {
+                    continue;
+                }
+
+                if (!PackTagRequirementsMet(pack, requiredTags, optionalTags, wildcardTags))
+                {
+                    continue;
+                }
+
+                if (!PackCompatibilityMet(pack, selected))
+                {
+                    continue;
+                }
+
+                var score = math.max(0, pack.weight);
+                score += ScoreTagMatches(pack.tags, requiredTags, 80);
+                score += ScoreTagMatches(pack.tags, optionalTags, 15);
+                score += ScoreTagMatches(pack.tags, wildcardTags, laneType.Equals("wildcard", StringComparison.OrdinalIgnoreCase) ? 120 : 25);
+                score += ScoreTagMatches(pack.tags, remainingRequiredTags, 220);
+                if (remainingBudget > 0)
+                {
+                    var cost = math.max(1, pack.budgetCost);
+                    score -= math.abs(cost - remainingBudget);
+                    if (cost <= remainingBudget)
+                    {
+                        score += 25;
+                    }
+                }
+
+                var hash = DeterministicMix(
+                    runSeed,
+                    (uint)(roomIndex + 1),
+                    (uint)((laneOrdinal + 1) * 131 + (slotIndex + 1) * 17),
+                    HashString(pack.id));
+                if (score > bestScore || (score == bestScore && hash < bestHash))
+                {
+                    bestScore = score;
+                    bestHash = hash;
+                    picked = pack;
+                }
+            }
+
+            return picked != null;
+        }
+
+        private static bool PackTypeMatchesLane(string packType, string laneType)
+        {
+            var normalizedType = NormalizeToken(packType, string.Empty);
+            var normalizedLane = NormalizeToken(laneType, string.Empty);
+            return normalizedType.Equals(normalizedLane, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int CountSelectedById(List<FleetcrawlSpawnPackRef> selected, string id)
+        {
+            var count = 0;
+            for (var i = 0; i < selected.Count; i++)
+            {
+                var selectedId = NormalizeToken(selected[i].id, string.Empty);
+                if (selectedId.Equals(id, StringComparison.OrdinalIgnoreCase))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static bool PackTagRequirementsMet(FleetcrawlSpawnPackRef pack, string[] requiredTags, string[] optionalTags, string[] wildcardTags)
+        {
+            var contextTags = new List<string>(16);
+            AppendTags(contextTags, requiredTags);
+            AppendTags(contextTags, optionalTags);
+            AppendTags(contextTags, wildcardTags);
+
+            if (pack.requiresAllTags != null && pack.requiresAllTags.Length > 0)
+            {
+                for (var i = 0; i < pack.requiresAllTags.Length; i++)
+                {
+                    var wanted = NormalizeToken(pack.requiresAllTags[i], string.Empty);
+                    if (wanted.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!ContainsString(contextTags, wanted))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            if (pack.requiresAnyTags != null && pack.requiresAnyTags.Length > 0)
+            {
+                var anyMatched = false;
+                for (var i = 0; i < pack.requiresAnyTags.Length; i++)
+                {
+                    var wanted = NormalizeToken(pack.requiresAnyTags[i], string.Empty);
+                    if (wanted.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (ContainsString(contextTags, wanted))
+                    {
+                        anyMatched = true;
+                        break;
+                    }
+                }
+
+                if (!anyMatched)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool PackCompatibilityMet(FleetcrawlSpawnPackRef candidate, List<FleetcrawlSpawnPackRef> selected)
+        {
+            for (var i = 0; i < selected.Count; i++)
+            {
+                var existing = selected[i];
+                if (existing == null)
+                {
+                    continue;
+                }
+
+                if (HasIncompatiblePackId(candidate, existing.id) || HasIncompatiblePackId(existing, candidate.id))
+                {
+                    return false;
+                }
+
+                if (HasIncompatibleTag(candidate.incompatibleWithTags, existing.tags) ||
+                    HasIncompatibleTag(existing.incompatibleWithTags, candidate.tags))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool HasIncompatiblePackId(FleetcrawlSpawnPackRef pack, string otherId)
+        {
+            if (pack == null || pack.incompatiblePackIds == null || pack.incompatiblePackIds.Length == 0 || string.IsNullOrWhiteSpace(otherId))
+            {
+                return false;
+            }
+
+            var normalizedOther = NormalizeToken(otherId, string.Empty);
+            for (var i = 0; i < pack.incompatiblePackIds.Length; i++)
+            {
+                var candidate = NormalizeToken(pack.incompatiblePackIds[i], string.Empty);
+                if (candidate.Length > 0 && candidate.Equals(normalizedOther, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasIncompatibleTag(string[] blockedTags, string[] otherTags)
+        {
+            if (blockedTags == null || otherTags == null || blockedTags.Length == 0 || otherTags.Length == 0)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < blockedTags.Length; i++)
+            {
+                var blocked = NormalizeToken(blockedTags[i], string.Empty);
+                if (blocked.Length == 0)
+                {
+                    continue;
+                }
+
+                for (var j = 0; j < otherTags.Length; j++)
+                {
+                    var other = NormalizeToken(otherTags[j], string.Empty);
+                    if (other.Length > 0 && other.Equals(blocked, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static void ConsumeRequiredTags(List<string> remainingRequiredTags, string[] providedTags)
+        {
+            if (remainingRequiredTags == null || providedTags == null || remainingRequiredTags.Count == 0 || providedTags.Length == 0)
+            {
+                return;
+            }
+
+            for (var i = remainingRequiredTags.Count - 1; i >= 0; i--)
+            {
+                var wanted = remainingRequiredTags[i];
+                for (var j = 0; j < providedTags.Length; j++)
+                {
+                    var provided = NormalizeToken(providedTags[j], string.Empty);
+                    if (provided.Length > 0 && provided.Equals(wanted, StringComparison.OrdinalIgnoreCase))
+                    {
+                        remainingRequiredTags.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static string BuildLaneCsv(List<FleetcrawlSpawnPackRef> selected, string laneType)
+        {
+            if (selected == null || selected.Count == 0)
+            {
+                return "-";
+            }
+
+            var parts = new List<string>(selected.Count);
+            for (var i = 0; i < selected.Count; i++)
+            {
+                var pack = selected[i];
+                if (pack == null || !PackTypeMatchesLane(pack.packType, laneType))
+                {
+                    continue;
+                }
+
+                parts.Add(pack.id);
+            }
+
+            return parts.Count == 0 ? "-" : string.Join(",", parts.ToArray());
         }
 
         private static int ScoreTagMatches(string[] sourceTags, string[] wantedTags, int matchScore)
@@ -1036,14 +1531,44 @@ namespace Space4x.Scenario
             return total;
         }
 
-        private static string[] BuildWildcardTags(List<string> wildcards)
+        private static int ScoreTagMatches(string[] sourceTags, List<string> wantedTags, int matchScore)
+        {
+            if (sourceTags == null || wantedTags == null || sourceTags.Length == 0 || wantedTags.Count == 0)
+            {
+                return 0;
+            }
+
+            var total = 0;
+            for (var i = 0; i < wantedTags.Count; i++)
+            {
+                var wanted = wantedTags[i];
+                if (string.IsNullOrWhiteSpace(wanted))
+                {
+                    continue;
+                }
+
+                for (var j = 0; j < sourceTags.Length; j++)
+                {
+                    var source = sourceTags[j];
+                    if (source != null && source.Equals(wanted, StringComparison.OrdinalIgnoreCase))
+                    {
+                        total += matchScore;
+                        break;
+                    }
+                }
+            }
+
+            return total;
+        }
+
+        private static string[] BuildWildcardTags(List<string> wildcards, FleetcrawlWildcardProfile[] wildcardProfiles)
         {
             if (wildcards == null || wildcards.Count == 0)
             {
                 return Array.Empty<string>();
             }
 
-            var tags = new List<string>(wildcards.Count);
+            var tags = new List<string>(wildcards.Count * 2);
             for (var i = 0; i < wildcards.Count; i++)
             {
                 var wildcard = NormalizeToken(wildcards[i], string.Empty);
@@ -1052,14 +1577,75 @@ namespace Space4x.Scenario
                     continue;
                 }
 
+                var usedProfile = false;
+                if (wildcardProfiles != null)
+                {
+                    for (var profileIndex = 0; profileIndex < wildcardProfiles.Length; profileIndex++)
+                    {
+                        var profile = wildcardProfiles[profileIndex];
+                        if (profile == null)
+                        {
+                            continue;
+                        }
+
+                        var profileId = NormalizeToken(profile.id, string.Empty);
+                        if (!profileId.Equals(wildcard, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        usedProfile = true;
+                        if (profile.requiredPackTags == null)
+                        {
+                            break;
+                        }
+
+                        for (var tagIndex = 0; tagIndex < profile.requiredPackTags.Length; tagIndex++)
+                        {
+                            var required = NormalizeToken(profile.requiredPackTags[tagIndex], string.Empty);
+                            if (required.Length > 0 && !ContainsString(tags, required))
+                            {
+                                tags.Add(required);
+                            }
+                        }
+
+                        break;
+                    }
+                }
+
+                if (usedProfile)
+                {
+                    continue;
+                }
+
                 if (!wildcard.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
                 {
                     wildcard = $"wildcard.{wildcard}";
                 }
-                tags.Add(wildcard);
+                if (!ContainsString(tags, wildcard))
+                {
+                    tags.Add(wildcard);
+                }
             }
 
             return tags.ToArray();
+        }
+
+        private static void AppendTags(List<string> destination, string[] source)
+        {
+            if (destination == null || source == null || source.Length == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < source.Length; i++)
+            {
+                var normalized = NormalizeToken(source[i], string.Empty);
+                if (normalized.Length > 0 && !ContainsString(destination, normalized))
+                {
+                    destination.Add(normalized);
+                }
+            }
         }
 
         private static List<string> ParseWildcardCsv(in FixedString128Bytes wildcardsCsv)
@@ -1240,6 +1826,32 @@ namespace Space4x.Scenario
             }
         }
 
+        private static bool TryLoadPackCatalogById(string catalogId, out string catalogPath, out FleetcrawlPackCatalogFile catalogFile)
+        {
+            catalogPath = string.Empty;
+            catalogFile = null;
+            if (string.IsNullOrWhiteSpace(catalogId))
+            {
+                return false;
+            }
+
+            if (!TryResolvePackCatalogPath(catalogId, out catalogPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(catalogPath);
+                catalogFile = JsonUtility.FromJson<FleetcrawlPackCatalogFile>(json);
+                return catalogFile != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static bool TryResolveContractPath(string contractId, out string contractPath)
         {
             contractPath = string.Empty;
@@ -1323,6 +1935,101 @@ namespace Space4x.Scenario
                             probe.contractId.Equals(normalizedContractId, StringComparison.OrdinalIgnoreCase))
                         {
                             contractPath = file;
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryResolvePackCatalogPath(string catalogId, out string catalogPath)
+        {
+            catalogPath = string.Empty;
+            var normalizedCatalogId = catalogId.Trim();
+
+            var roots = new List<string>(2);
+            var scenarioPath = Environment.GetEnvironmentVariable("SPACE4X_SCENARIO_PATH");
+            if (!string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                try
+                {
+                    var scenarioDir = Path.GetDirectoryName(Path.GetFullPath(scenarioPath));
+                    if (!string.IsNullOrWhiteSpace(scenarioDir) && Directory.Exists(scenarioDir))
+                    {
+                        roots.Add(scenarioDir);
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            var scenariosRoot = Path.Combine(Application.dataPath, "Scenarios");
+            if (Directory.Exists(scenariosRoot))
+            {
+                var alreadyAdded = false;
+                for (var i = 0; i < roots.Count; i++)
+                {
+                    if (roots[i].Equals(scenariosRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        alreadyAdded = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyAdded)
+                {
+                    roots.Add(scenariosRoot);
+                }
+            }
+
+            for (var i = 0; i < roots.Count; i++)
+            {
+                var root = roots[i];
+                var direct = Path.Combine(root, $"{normalizedCatalogId}.json");
+                if (File.Exists(direct))
+                {
+                    catalogPath = direct;
+                    return true;
+                }
+
+                var normalizedFileName = normalizedCatalogId.Replace('.', '_') + ".json";
+                var underscored = Path.Combine(root, normalizedFileName);
+                if (File.Exists(underscored))
+                {
+                    catalogPath = underscored;
+                    return true;
+                }
+            }
+
+            for (var i = 0; i < roots.Count; i++)
+            {
+                var root = roots[i];
+                string[] files;
+                try
+                {
+                    files = Directory.GetFiles(root, "*.json", SearchOption.AllDirectories);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                for (var j = 0; j < files.Length; j++)
+                {
+                    var file = files[j];
+                    try
+                    {
+                        var probe = JsonUtility.FromJson<FleetcrawlPackCatalogProbe>(File.ReadAllText(file));
+                        if (probe != null && !string.IsNullOrWhiteSpace(probe.catalogId) &&
+                            probe.catalogId.Equals(normalizedCatalogId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            catalogPath = file;
                             return true;
                         }
                     }

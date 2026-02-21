@@ -1,5 +1,6 @@
 {
   "templateId": "space4x.fleetcrawl.room_contract.v1",
+  "packCatalogId": "space4x.fleetcrawl.pack_catalog.v1",
   "description": "Template for FleetCrawl in-run difficulty and room composition.",
   "runDifficultyProfiles": [
     {
