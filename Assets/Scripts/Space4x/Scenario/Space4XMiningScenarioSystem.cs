@@ -104,6 +104,26 @@ namespace Space4x.Scenario
                     Debug.LogWarning($"[Space4XMiningScenario] Override missing, falling back to ScenarioInfo: {scenarioPath}");
                     scenarioPath = null;
                 }
+                else if (hasScenarioInfo)
+                {
+                    // Keep ScenarioInfo id aligned with the resolved file path so scenario-gated
+                    // systems (FleetCrawl UI/rooms/etc.) do not read stale ids.
+                    var resolvedScenarioId = Path.GetFileNameWithoutExtension(scenarioPath);
+                    if (!string.IsNullOrWhiteSpace(resolvedScenarioId))
+                    {
+                        var resolvedFixed = new FixedString64Bytes(resolvedScenarioId);
+                        if (!scenarioInfo.ScenarioId.Equals(resolvedFixed))
+                        {
+                            scenarioInfo.ScenarioId = resolvedFixed;
+                            if (SystemAPI.TryGetSingletonEntity<ScenarioInfo>(out var scenarioEntity))
+                            {
+                                EntityManager.SetComponentData(scenarioEntity, scenarioInfo);
+                            }
+
+                            Debug.Log($"[Space4XMiningScenario] ScenarioInfo id aligned to '{resolvedScenarioId}' from path '{scenarioPath}'.");
+                        }
+                    }
+                }
             }
 
             if (string.IsNullOrWhiteSpace(scenarioPath))

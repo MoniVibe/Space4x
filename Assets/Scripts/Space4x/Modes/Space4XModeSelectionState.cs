@@ -25,11 +25,11 @@ namespace Space4X.Modes
         public const string ClassicScenarioPath = "Assets/Scenarios/space4x_smoke.json";
         public const uint ClassicSeed = 77u;
 
-        // FleetCrawl mode boots into the same smoke shell scene as Classic.
-        // The FleetCrawl main menu then selects and injects the canonical run scenario.
-        public const string FleetCrawlScenarioId = ClassicScenarioId;
-        public const string FleetCrawlScenarioPath = ClassicScenarioPath;
-        public const uint FleetCrawlSeed = ClassicSeed;
+        // FleetCrawl mode defaults to the canonical core micro scenario.
+        // The smoke shell scene still hosts the menu, but scenario content stays canonical.
+        public const string FleetCrawlScenarioId = "space4x_fleetcrawl_core_micro";
+        public const string FleetCrawlScenarioPath = "Assets/Scenarios/space4x_fleetcrawl_core_micro.json";
+        public const uint FleetCrawlSeed = 19021u;
 
         private static bool s_initialized;
         private static Space4XModeKind s_currentMode = Space4XModeKind.Classic;

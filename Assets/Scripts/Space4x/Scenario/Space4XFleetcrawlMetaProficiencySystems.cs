@@ -131,8 +131,8 @@ namespace Space4x.Scenario
             var unlockRecords = em.GetBuffer<Space4XRunMetaUnlockRecord>(directorEntity);
             var deltaSeconds = ResolveDeltaSeconds(time);
 
-            _playerTagLookup.Update(ref state);
             EnsureDamageEventCursors(ref state);
+            _playerTagLookup.Update(ref state);
 
             foreach (var focus in SystemAPI.Query<RefRO<ShipPowerFocus>>().WithAll<Space4XRunPlayerTag>())
             {

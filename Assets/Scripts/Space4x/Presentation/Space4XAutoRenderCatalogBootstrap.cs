@@ -31,7 +31,7 @@ namespace Space4X.Presentation
                 return;
             }
 
-            var existingBootstrap = Object.FindFirstObjectByType<RenderPresentationCatalogRuntimeBootstrap>();
+            var existingBootstrap = UnityEngine.Object.FindFirstObjectByType<RenderPresentationCatalogRuntimeBootstrap>();
             if (existingBootstrap != null)
             {
                 if (HasCatalogSingleton())
@@ -55,7 +55,7 @@ namespace Space4X.Presentation
 
                 if (existingBootstrap.gameObject != null)
                 {
-                    Object.Destroy(existingBootstrap.gameObject);
+                    UnityEngine.Object.Destroy(existingBootstrap.gameObject);
                 }
 
                 CreateRuntimeBootstrap(replacementName, selectedCatalog, variantCount, theme0Mappings);
@@ -130,7 +130,7 @@ namespace Space4X.Presentation
 
             var bootstrapGo = new GameObject(string.IsNullOrWhiteSpace(name) ? BootstrapObjectName : name);
             bootstrapGo.SetActive(false);
-            Object.DontDestroyOnLoad(bootstrapGo);
+            UnityEngine.Object.DontDestroyOnLoad(bootstrapGo);
 
             var runtimeBootstrap = bootstrapGo.AddComponent<RenderPresentationCatalogRuntimeBootstrap>();
             runtimeBootstrap.CatalogDefinition = catalog;
