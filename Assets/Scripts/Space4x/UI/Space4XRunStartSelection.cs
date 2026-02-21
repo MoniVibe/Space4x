@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace Space4X.UI
 {
+    public enum Space4XFlagshipStartMode : byte
+    {
+        Random = 0,
+        Custom = 1
+    }
+
     /// <summary>
     /// Runtime handoff payload for launching a playable run from the frontend.
     /// </summary>
@@ -25,12 +31,18 @@ namespace Space4X.UI
         public static string ScenarioPath { get; private set; } = SmokeScenarioPath;
         public static uint ScenarioSeed { get; private set; } = SmokeScenarioSeed;
         public static ShipFlightProfile FlightProfile { get; private set; } = ShipFlightProfile.CreateDefault("ship.square.carrier");
+        public static Space4XFlagshipStartMode FlagshipStartMode { get; private set; } = Space4XFlagshipStartMode.Random;
+        public static Space4XManufacturingPreview ManufacturingPreview { get; private set; } = Space4XManufacturingPreview.Empty;
         public static DateTime StartedUtc { get; private set; } = DateTime.MinValue;
         public static bool ScenarioSelectionPending { get; private set; }
 
         public static bool HasActiveSelection => StartedUtc != DateTime.MinValue;
 
-        public static void Set(in Space4XShipPresetEntry preset, int difficulty, string scenePath)
+        public static void Set(
+            in Space4XShipPresetEntry preset,
+            int difficulty,
+            string scenePath,
+            Space4XFlagshipStartMode flagshipStartMode = Space4XFlagshipStartMode.Random)
         {
             ShipPresetId = preset.PresetId;
             ShipDisplayName = preset.DisplayName;
@@ -43,6 +55,13 @@ namespace Space4X.UI
             ScenarioId = scenarioId;
             ScenarioPath = scenarioPath;
             ScenarioSeed = scenarioSeed;
+            FlagshipStartMode = flagshipStartMode;
+            var manufacturingCatalog = Space4XManufacturingCatalog.LoadOrFallback();
+            ManufacturingPreview = manufacturingCatalog.CreatePreview(
+                ShipPresetId,
+                preset.StartingModules,
+                Difficulty,
+                ScenarioSeed);
             ScenarioSelectionPending = true;
             StartedUtc = DateTime.UtcNow;
         }
@@ -81,11 +100,16 @@ namespace Space4X.UI
             ScenarioSelectionPending = false;
         }
 
+        public static uint ResolveScenarioSeedForDifficulty(int difficulty)
+        {
+            return FleetCrawlCanonicalSeedBase + (uint)(Mathf.Clamp(difficulty, 1, 9) * 97);
+        }
+
         private static void ResolveScenarioRouting(int difficulty, out string scenarioId, out string scenarioPath, out uint seed)
         {
             scenarioId = FleetCrawlCanonicalScenarioId;
             scenarioPath = FleetCrawlCanonicalScenarioPath;
-            seed = FleetCrawlCanonicalSeedBase + (uint)(Mathf.Clamp(difficulty, 1, 9) * 97);
+            seed = ResolveScenarioSeedForDifficulty(difficulty);
         }
     }
 }

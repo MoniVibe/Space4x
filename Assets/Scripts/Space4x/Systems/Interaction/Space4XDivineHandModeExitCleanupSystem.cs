@@ -5,6 +5,8 @@ using PureDOTS.Runtime.Physics;
 using Space4X.Runtime.Interaction;
 using Unity.Collections;
 using Unity.Entities;
+using PDHandState = PureDOTS.Runtime.Hand.HandState;
+using PDHandStateType = PureDOTS.Runtime.Hand.HandStateType;
 
 namespace Space4X.Systems.Interaction
 {
@@ -26,7 +28,7 @@ namespace Space4X.Systems.Interaction
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XControlModeRuntimeState>();
-            state.RequireForUpdate<HandState>();
+            state.RequireForUpdate<PDHandState>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -50,7 +52,7 @@ namespace Space4X.Systems.Interaction
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (handStateRef, commandBuffer, handEntity) in
-                     SystemAPI.Query<RefRW<HandState>, DynamicBuffer<HandCommand>>().WithEntityAccess())
+                     SystemAPI.Query<RefRW<PDHandState>, DynamicBuffer<HandCommand>>().WithEntityAccess())
             {
                 var handState = handStateRef.ValueRO;
                 commandBuffer.Clear();
@@ -63,8 +65,8 @@ namespace Space4X.Systems.Interaction
                 ForceReleaseHeldEntity(ref ecb, em, handState.HeldEntity);
 
                 handState.HeldEntity = Entity.Null;
-                handState.CurrentState = HandStateType.Idle;
-                handState.PreviousState = HandStateType.Idle;
+                handState.CurrentState = PDHandStateType.Idle;
+                handState.PreviousState = PDHandStateType.Idle;
                 handState.ChargeTimer = 0f;
                 handState.CooldownTimer = 0f;
                 handState.StateTimer = 0;

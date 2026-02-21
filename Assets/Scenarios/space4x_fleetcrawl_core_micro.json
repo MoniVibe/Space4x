@@ -69,7 +69,7 @@
     {
       "kind": "MiningVessel",
       "entityId": "fleetcrawl-core-miner-1",
-      "position": [8, 0],
+      "position": [18, -6],
       "ship": {
         "hullId": "lcv-sparrow",
         "massCap": 220,
@@ -89,12 +89,12 @@
       "miningEfficiency": 0.86,
       "speed": 7.0,
       "cargoCapacity": 130.0,
-      "startDocked": true
+      "startDocked": false
     },
     {
       "kind": "MiningVessel",
       "entityId": "fleetcrawl-core-miner-2",
-      "position": [12, 0],
+      "position": [22, 8],
       "ship": {
         "hullId": "lcv-sparrow",
         "massCap": 200,
@@ -114,12 +114,12 @@
       "miningEfficiency": 0.8,
       "speed": 6.5,
       "cargoCapacity": 150.0,
-      "startDocked": true
+      "startDocked": false
     },
     {
       "kind": "ResourceDeposit",
       "entityId": "fleetcrawl-core-deposit",
-      "position": [65, 0],
+      "position": [42, 4],
       "resourceId": "Minerals",
       "unitsRemaining": 1600.0,
       "gatherRatePerWorker": 11.0,
@@ -128,7 +128,7 @@
     {
       "kind": "Carrier",
       "entityId": "fleetcrawl-core-hostile",
-      "position": [300, 40],
+      "position": [110, 22],
       "ship": {
         "hullId": "cv-mule",
         "massCap": 280,

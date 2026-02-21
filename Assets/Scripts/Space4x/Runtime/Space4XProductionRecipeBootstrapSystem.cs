@@ -38,7 +38,7 @@ namespace Space4X.Runtime
             using var builder = new BlobBuilder(Allocator.Temp);
             ref var root = ref builder.ConstructRoot<ProductionRecipeCatalogBlob>();
 
-            var recipeData = new NativeList<(ProductionRecipeBlob recipe, NativeList<RecipeInputBlob> inputs, NativeList<RecipeOutputBlob> outputs)>(28, Allocator.Temp);
+            var recipeData = new NativeList<(ProductionRecipeBlob recipe, NativeList<RecipeInputBlob> inputs, NativeList<RecipeOutputBlob> outputs)>(36, Allocator.Temp);
 
             // Ore -> Ingot
             var oreInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
@@ -612,6 +612,117 @@ namespace Space4X.Runtime
                 BaseTimeCost = 8.0f,
                 LaborCost = 1.0f
             }, researchInputs, researchOutputs));
+
+            // Supplies -> Food
+            var foodInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            foodInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 8f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var foodOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            foodOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_food"),
+                Quantity = 6f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_supplies_to_food"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Builder,
+                MinTechTier = 1,
+                MinArtisanExpertise = 8,
+                BaseTimeCost = 6.0f,
+                LaborCost = 0.8f
+            }, foodInputs, foodOutputs));
+
+            // Supplies -> Water
+            var waterInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            waterInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 6f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var waterOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            waterOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_water"),
+                Quantity = 6f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_supplies_to_water"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Builder,
+                MinTechTier = 1,
+                MinArtisanExpertise = 8,
+                BaseTimeCost = 5.0f,
+                LaborCost = 0.8f
+            }, waterInputs, waterOutputs));
+
+            // Supplies -> Fuel
+            var fuelInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            fuelInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 12f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var fuelOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            fuelOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_fuel"),
+                Quantity = 6f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_supplies_to_fuel"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Builder,
+                MinTechTier = 1,
+                MinArtisanExpertise = 10,
+                BaseTimeCost = 7.0f,
+                LaborCost = 0.9f
+            }, fuelInputs, fuelOutputs));
+
+            // Supplies + Parts -> Trade goods
+            var tradeInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);
+            tradeInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_supplies"),
+                Quantity = 10f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            tradeInputs.Add(new RecipeInputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_parts"),
+                Quantity = 2f,
+                MinPurity = 0f,
+                MinQuality = 0f
+            });
+            var tradeOutputs = new NativeList<RecipeOutputBlob>(Allocator.Temp);
+            tradeOutputs.Add(new RecipeOutputBlob
+            {
+                ItemId = new FixedString64Bytes("space4x_trade_goods"),
+                Quantity = 3f
+            });
+            recipeData.Add((new ProductionRecipeBlob
+            {
+                RecipeId = new FixedString64Bytes("space4x_trade_goods_assembly"),
+                Stage = ProductionStage.Crafting,
+                RequiredBusinessType = BusinessType.Builder,
+                MinTechTier = 2,
+                MinArtisanExpertise = 16,
+                BaseTimeCost = 8.0f,
+                LaborCost = 1.0f
+            }, tradeInputs, tradeOutputs));
 
             // Ship hull build (shipyard placeholder: Builder)
             var shipInputs = new NativeList<RecipeInputBlob>(Allocator.Temp);

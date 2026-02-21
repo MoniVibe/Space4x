@@ -16,7 +16,6 @@ namespace Space4x.Scenario
     internal partial struct Space4XRunStartScenarioSelectorSystem : ISystem
     {
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
-        private byte _injected;
 
         public void OnCreate(ref SystemState state)
         {
@@ -28,16 +27,8 @@ namespace Space4x.Scenario
 
         public void OnUpdate(ref SystemState state)
         {
-            if (_injected != 0)
-            {
-                state.Enabled = false;
-                return;
-            }
-
             if (!Space4XRunStartSelection.TryGetScenarioSelection(out var scenarioId, out var scenarioPath, out var seed))
             {
-                _injected = 1;
-                state.Enabled = false;
                 return;
             }
 
@@ -67,8 +58,6 @@ namespace Space4x.Scenario
 
             Debug.Log($"[Space4XRunStartScenarioSelector] Injected ScenarioInfo id='{scenarioId}' seed={safeSeed} path='{scenarioPath}'.");
             Space4XRunStartSelection.MarkScenarioSelectionApplied();
-            _injected = 1;
-            state.Enabled = false;
         }
 
         private static string NormalizePathForScenarioEnv(string scenarioPath)

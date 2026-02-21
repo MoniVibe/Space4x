@@ -68,6 +68,7 @@ namespace Space4X.Registry
         private BufferLookup<FleetcrawlRolledLimbBufferElement> _fleetcrawlRolledLimbLookup;
         private BufferLookup<FleetcrawlOwnedItem> _fleetcrawlOwnedItemLookup;
         private BufferLookup<FleetcrawlHeatModifierDefinition> _fleetcrawlHeatDefinitionLookup;
+        private ComponentLookup<Space4XRunPlayerTag> _runPlayerLookup;
         private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
@@ -114,6 +115,7 @@ namespace Space4X.Registry
             _fleetcrawlRolledLimbLookup = state.GetBufferLookup<FleetcrawlRolledLimbBufferElement>(true);
             _fleetcrawlOwnedItemLookup = state.GetBufferLookup<FleetcrawlOwnedItem>(true);
             _fleetcrawlHeatDefinitionLookup = state.GetBufferLookup<FleetcrawlHeatModifierDefinition>(true);
+            _runPlayerLookup = state.GetComponentLookup<Space4XRunPlayerTag>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -167,6 +169,7 @@ namespace Space4X.Registry
             _fleetcrawlRolledLimbLookup.Update(ref state);
             _fleetcrawlOwnedItemLookup.Update(ref state);
             _fleetcrawlHeatDefinitionLookup.Update(ref state);
+            _runPlayerLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _shieldLookup.Update(ref state);
@@ -215,15 +218,15 @@ namespace Space4X.Registry
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var sharedHeatStats = FleetcrawlResolvedHeatStats.Identity;
-            if (SystemAPI.TryGetSingletonEntity<FleetcrawlOfferRuntimeTag>(out var runtimeEntity) &&
-                _fleetcrawlRolledLimbLookup.HasBuffer(runtimeEntity) &&
-                _fleetcrawlOwnedItemLookup.HasBuffer(runtimeEntity) &&
-                _fleetcrawlHeatDefinitionLookup.HasBuffer(runtimeEntity))
+            if (SystemAPI.TryGetSingletonEntity<FleetcrawlOfferRuntimeTag>(out var runtimeHeatEntity) &&
+                _fleetcrawlRolledLimbLookup.HasBuffer(runtimeHeatEntity) &&
+                _fleetcrawlOwnedItemLookup.HasBuffer(runtimeHeatEntity) &&
+                _fleetcrawlHeatDefinitionLookup.HasBuffer(runtimeHeatEntity))
             {
                 sharedHeatStats = FleetcrawlHeatResolver.ResolveAggregate(
-                    _fleetcrawlRolledLimbLookup[runtimeEntity],
-                    _fleetcrawlOwnedItemLookup[runtimeEntity],
-                    _fleetcrawlHeatDefinitionLookup[runtimeEntity]);
+                    _fleetcrawlRolledLimbLookup[runtimeHeatEntity],
+                    _fleetcrawlOwnedItemLookup[runtimeHeatEntity],
+                    _fleetcrawlHeatDefinitionLookup[runtimeHeatEntity]);
             }
 
             foreach (var (weapons, engagement, transform, supply, entity) in
@@ -388,7 +391,7 @@ namespace Space4X.Registry
                     FleetcrawlHeatResolver.TickAdvanced(
                         currentTick,
                         actions,
-                        resolvedHeatStats,
+                        heatStats,
                         ref runtime,
                         ref heatsink,
                         safetyMode,

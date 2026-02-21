@@ -221,7 +221,7 @@ namespace Space4x.Scenario
             });
             em.AddComponentData(e, new Space4XFleet { FleetId = id, ShipCount = 1, Posture = Space4XFleetPosture.Engaging, TaskForce = 0 });
             em.AddComponentData(e, new ScenarioSide { Side = side });
-            em.AddComponentData(e, AlignmentTriplet.FromFloats(side == 1 ? -0.7f : 0.7f, 0f, 0f));
+            em.AddComponentData(e, Space4X.Registry.AlignmentTriplet.FromFloats(side == 1 ? -0.7f : 0.7f, 0f, 0f));
             var disposition = EntityDispositionFlags.Combatant | EntityDispositionFlags.Military;
             if (side == 1) disposition |= EntityDispositionFlags.Hostile;
             em.AddComponentData(e, new EntityDisposition { Flags = disposition });
@@ -388,7 +388,7 @@ namespace Space4x.Scenario
                 em.AddComponentData(e, AttackRunConfig.ForRole(StrikeCraftRole.Fighter));
                 em.AddComponentData(e, StrikeCraftExperience.Rookie);
                 em.AddComponentData(e, new ScenarioSide { Side = side });
-                em.AddComponentData(e, AlignmentTriplet.FromFloats(side == 1 ? -0.7f : 0.7f, 0f, 0f));
+                em.AddComponentData(e, Space4X.Registry.AlignmentTriplet.FromFloats(side == 1 ? -0.7f : 0.7f, 0f, 0f));
                 var disp = EntityDispositionFlags.Combatant | EntityDispositionFlags.Military;
                 if (side == 1) disp |= EntityDispositionFlags.Hostile;
                 em.AddComponentData(e, new EntityDisposition { Flags = disp });
@@ -861,7 +861,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(-0.1f, -0.2f, 0.2f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(-0.1f, -0.2f, 0.2f),
                     Behavior = BehaviorDisposition.FromValues(0.45f, 0.35f, 0.4f, 0.82f, 0.88f, 0.25f),
                     Stats = BuildStats(74f, 90f, 48f, 40f, 46f, 72f),
                     Physique = BuildPhysique(56f, 68f, 70f, 6, 7, 8, 120f),
@@ -874,7 +874,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(0.5f, 0.3f, 0.7f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(0.5f, 0.3f, 0.7f),
                     Behavior = BehaviorDisposition.FromValues(0.88f, 0.87f, 0.91f, 0.28f, 0.35f, 0.82f),
                     Stats = BuildStats(88f, 72f, 84f, 62f, 70f, 90f),
                     Physique = BuildPhysique(62f, 50f, 84f, 7, 5, 9, 140f),
@@ -887,7 +887,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(-0.25f, -0.35f, -0.2f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(-0.25f, -0.35f, -0.2f),
                     Behavior = BehaviorDisposition.FromValues(0.38f, 0.58f, 0.36f, 0.78f, 0.7f, 0.66f),
                     Stats = BuildStats(66f, 82f, 54f, 62f, 68f, 63f),
                     Physique = BuildPhysique(46f, 88f, 64f, 4, 9, 6, 135f),
@@ -900,7 +900,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(0.2f, 0.1f, 0.8f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(0.2f, 0.1f, 0.8f),
                     Behavior = BehaviorDisposition.FromValues(0.76f, 0.74f, 0.79f, 0.44f, 0.46f, 0.78f),
                     Stats = BuildStats(90f, 80f, 70f, 72f, 78f, 86f),
                     Physique = BuildPhysique(48f, 62f, 92f, 4, 6, 10, 165f),
@@ -913,7 +913,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(-0.15f, -0.08f, 0.58f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(-0.15f, -0.08f, 0.58f),
                     Behavior = BehaviorDisposition.FromValues(0.72f, 0.68f, 0.82f, 0.58f, 0.54f, 0.74f),
                     Stats = BuildStats(84f, 78f, 76f, 54f, 74f, 72f),
                     Physique = BuildPhysique(52f, 62f, 78f, 5, 6, 8, 155f),
@@ -926,7 +926,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(0.12f, -0.06f, 0.44f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(0.12f, -0.06f, 0.44f),
                     Behavior = BehaviorDisposition.FromValues(0.6f, 0.66f, 0.58f, 0.74f, 0.72f, 0.46f),
                     Stats = BuildStats(70f, 86f, 58f, 48f, 64f, 69f),
                     Physique = BuildPhysique(54f, 92f, 66f, 5, 10, 6, 142f),
@@ -939,7 +939,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(-0.4f, -0.5f, 0.35f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(-0.4f, -0.5f, 0.35f),
                     Behavior = BehaviorDisposition.FromValues(0.34f, 0.3f, 0.38f, 0.88f, 0.92f, 0.2f),
                     Stats = BuildStats(82f, 94f, 56f, 44f, 52f, 78f),
                     Physique = BuildPhysique(66f, 62f, 72f, 7, 6, 7, 175f),
@@ -952,7 +952,7 @@ namespace Space4x.Scenario
             {
                 return new CaptainProfileTemplate
                 {
-                    Alignment = AlignmentTriplet.FromFloats(0.35f, 0.25f, 0.62f),
+                    Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(0.35f, 0.25f, 0.62f),
                     Behavior = BehaviorDisposition.FromValues(0.82f, 0.73f, 0.84f, 0.36f, 0.32f, 0.88f),
                     Stats = BuildStats(78f, 66f, 92f, 74f, 70f, 80f),
                     Physique = BuildPhysique(44f, 58f, 84f, 4, 5, 9, 110f),
@@ -963,7 +963,7 @@ namespace Space4x.Scenario
 
             return new CaptainProfileTemplate
             {
-                Alignment = AlignmentTriplet.FromFloats(0f, 0f, 0f),
+                Alignment = Space4X.Registry.AlignmentTriplet.FromFloats(0f, 0f, 0f),
                 Behavior = BehaviorDisposition.FromValues(0.7f, 0.6f, 0.65f, 0.45f, 0.4f, 0.6f),
                 Stats = BuildStats(65f, 60f, 60f, 55f, 50f, 60f),
                 Physique = BuildPhysique(50f, 50f, 50f, 5, 5, 5, 0f),
@@ -972,9 +972,9 @@ namespace Space4x.Scenario
             };
         }
 
-        private static IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
+        private static Space4X.Registry.IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
         {
-            return new IndividualStats
+            return new Space4X.Registry.IndividualStats
             {
                 Command = (half)math.clamp(command, 0f, 100f),
                 Tactics = (half)math.clamp(tactics, 0f, 100f),
@@ -1057,9 +1057,9 @@ namespace Space4x.Scenario
 
         private struct CaptainProfileTemplate
         {
-            public AlignmentTriplet Alignment;
+            public Space4X.Registry.AlignmentTriplet Alignment;
             public BehaviorDisposition Behavior;
-            public IndividualStats Stats;
+            public Space4X.Registry.IndividualStats Stats;
             public PhysiqueFinesseWill Physique;
             public DerivedCapacities Capacities;
             public PersonalityAxes Personality;

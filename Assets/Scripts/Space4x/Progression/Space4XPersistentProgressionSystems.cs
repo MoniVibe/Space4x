@@ -2,11 +2,13 @@ using System;
 using System.IO;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Progression
 {
@@ -199,7 +201,7 @@ namespace Space4X.Progression
             var em = state.EntityManager;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (movement, entity) in SystemAPI.Query<RefRO<VesselMovement>>()
-                         .WithAll<PlayerFlagshipTag>()
+                         .WithAll<Space4X.Registry.PlayerFlagshipTag>()
                          .WithNone<Space4XThrustProgressionTracker>()
                          .WithEntityAccess())
             {
@@ -220,7 +222,7 @@ namespace Space4X.Progression
 
             var progressionState = progression.ValueRO;
             foreach (var (movement, tracker) in SystemAPI.Query<RefRO<VesselMovement>, RefRW<Space4XThrustProgressionTracker>>()
-                         .WithAll<PlayerFlagshipTag>())
+                         .WithAll<Space4X.Registry.PlayerFlagshipTag>())
             {
                 var speed = math.max(0f, movement.ValueRO.CurrentSpeed);
                 var previous = math.max(0f, tracker.ValueRO.LastSpeed);
@@ -260,16 +262,16 @@ namespace Space4X.Progression
                 return;
             }
 
-            if (!SystemAPI.TryGetSingletonRW<Space4XPersistentProgressionState>(out var progression))
+            if (!SystemAPI.TryGetSingletonEntity<Space4XPersistentProgressionState>(out var progressionEntity))
             {
                 return;
             }
 
-            var progressionState = progression.ValueRO;
             var em = state.EntityManager;
+            var progressionState = em.GetComponentData<Space4XPersistentProgressionState>(progressionEntity);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (_, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>()
-                         .WithAll<PlayerFlagshipTag>()
+                         .WithAll<Space4X.Registry.PlayerFlagshipTag>()
                          .WithNone<Space4XPersistentWeaponMountTracker>()
                          .WithEntityAccess())
             {
@@ -279,7 +281,7 @@ namespace Space4X.Progression
             ecb.Playback(em);
             ecb.Dispose();
 
-            foreach (var (mounts, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<PlayerFlagshipTag>().WithEntityAccess())
+            foreach (var (mounts, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4X.Registry.PlayerFlagshipTag>().WithEntityAccess())
             {
                 var trackers = em.GetBuffer<Space4XPersistentWeaponMountTracker>(entity);
 
@@ -322,7 +324,7 @@ namespace Space4X.Progression
                 }
             }
 
-            progression.ValueRW = progressionState;
+            em.SetComponentData(progressionEntity, progressionState);
         }
     }
 
@@ -523,7 +525,7 @@ namespace Space4X.Progression
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XPersistentProgression] Failed to load progression file: {ex.Message}");
+                UnityDebug.LogWarning($"[Space4XPersistentProgression] Failed to load progression file: {ex.Message}");
             }
 
             return state;
@@ -582,7 +584,7 @@ namespace Space4X.Progression
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XPersistentProgression] Failed to save progression file: {ex.Message}");
+                UnityDebug.LogWarning($"[Space4XPersistentProgression] Failed to save progression file: {ex.Message}");
                 return false;
             }
         }

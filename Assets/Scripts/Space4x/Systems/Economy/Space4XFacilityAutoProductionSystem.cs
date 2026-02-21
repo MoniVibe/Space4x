@@ -28,6 +28,10 @@ namespace Space4X.Systems.Economy
         private static readonly FixedString64Bytes RecipeShipHull = "space4x_ship_lcv_sparrow";
         private static readonly FixedString64Bytes RecipeShipHullMule = "space4x_ship_cv_mule";
         private static readonly FixedString64Bytes RecipeResearchPacket = "space4x_research_packet";
+        private static readonly FixedString64Bytes RecipeSuppliesToFood = "space4x_supplies_to_food";
+        private static readonly FixedString64Bytes RecipeSuppliesToWater = "space4x_supplies_to_water";
+        private static readonly FixedString64Bytes RecipeSuppliesToFuel = "space4x_supplies_to_fuel";
+        private static readonly FixedString64Bytes RecipeTradeGoodsAssembly = "space4x_trade_goods_assembly";
         private static readonly FixedString64Bytes RecipeEngineMk1 = "space4x_module_engine_mk1";
         private static readonly FixedString64Bytes RecipeEngineMk2 = "space4x_module_engine_mk2";
         private static readonly FixedString64Bytes RecipeShieldS1 = "space4x_module_shield_s_1";
@@ -46,6 +50,10 @@ namespace Space4X.Systems.Economy
         private static readonly FixedString64Bytes ItemParts = "space4x_parts";
         private static readonly FixedString64Bytes ItemSupplies = "space4x_supplies";
         private static readonly FixedString64Bytes ItemResearch = "space4x_research";
+        private static readonly FixedString64Bytes ItemFood = "space4x_food";
+        private static readonly FixedString64Bytes ItemWater = "space4x_water";
+        private static readonly FixedString64Bytes ItemFuel = "space4x_fuel";
+        private static readonly FixedString64Bytes ItemTradeGoods = "space4x_trade_goods";
         private static readonly FixedString64Bytes ItemEngineMk1 = "engine-mk1";
         private static readonly FixedString64Bytes ItemEngineMk2 = "engine-mk2";
         private static readonly FixedString64Bytes ItemShieldS1 = "shield-s-1";
@@ -230,6 +238,33 @@ namespace Space4X.Systems.Economy
                         }
 
                         return RecipePartsAssembly;
+                    }
+
+                    var essentialsTarget = math.max(12f, capacity * 0.04f);
+                    if (GetItemQuantity(items, ItemFood) < essentialsTarget &&
+                        GetItemQuantity(items, ItemSupplies) >= 8f)
+                    {
+                        return RecipeSuppliesToFood;
+                    }
+
+                    if (GetItemQuantity(items, ItemWater) < essentialsTarget &&
+                        GetItemQuantity(items, ItemSupplies) >= 6f)
+                    {
+                        return RecipeSuppliesToWater;
+                    }
+
+                    if (GetItemQuantity(items, ItemFuel) < essentialsTarget &&
+                        GetItemQuantity(items, ItemSupplies) >= 12f)
+                    {
+                        return RecipeSuppliesToFuel;
+                    }
+
+                    var tradeTarget = math.max(6f, capacity * 0.02f);
+                    if (GetItemQuantity(items, ItemTradeGoods) < tradeTarget &&
+                        GetItemQuantity(items, ItemSupplies) >= 10f &&
+                        GetItemQuantity(items, ItemParts) >= 2f)
+                    {
+                        return RecipeTradeGoodsAssembly;
                     }
                     break;
                 }

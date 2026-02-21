@@ -11,8 +11,6 @@ namespace Space4x.Scenario
     [UpdateBefore(typeof(Space4XMiningScenarioSystem))]
     internal partial struct Space4XSmokeScenarioSelectorSystem : ISystem
     {
-        private bool _injected;
-
         public void OnCreate(ref SystemState state)
         {
             if (!Application.isPlaying)
@@ -27,16 +25,8 @@ namespace Space4x.Scenario
 
         public void OnUpdate(ref SystemState state)
         {
-            if (_injected)
-            {
-                state.Enabled = false;
-                return;
-            }
-
             if (SystemAPI.HasSingleton<ScenarioInfo>())
             {
-                _injected = true;
-                state.Enabled = false;
                 return;
             }
 
@@ -52,8 +42,6 @@ namespace Space4x.Scenario
             });
 
             Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{scenarioId}' mode={Space4XModeSelectionState.CurrentMode}.");
-            _injected = true;
-            state.Enabled = false;
         }
     }
 }
