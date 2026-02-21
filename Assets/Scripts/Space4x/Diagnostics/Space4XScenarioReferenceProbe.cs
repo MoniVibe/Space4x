@@ -18,11 +18,11 @@ namespace Space4X.Diagnostics
             Space4XModeSelectionState.EnsureInitialized();
             Space4XModeSelectionState.GetCurrentScenario(out var modeScenarioId, out var modeScenarioPath, out var modeSeed);
 
-            var envMode = Environment.GetEnvironmentVariable(Space4XModeSelectionState.ModeEnvVar);
-            var envScenarioPath = Environment.GetEnvironmentVariable(Space4XModeSelectionState.ScenarioPathEnvVar);
+            var envMode = System.Environment.GetEnvironmentVariable(Space4XModeSelectionState.ModeEnvVar);
+            var envScenarioPath = System.Environment.GetEnvironmentVariable(Space4XModeSelectionState.ScenarioPathEnvVar);
             var scene = SceneManager.GetActiveScene();
 
-            Debug.Log(
+            UnityEngine.Debug.Log(
                 $"[Space4XScenarioRef] scene='{scene.name}' mode={Space4XModeSelectionState.CurrentMode} " +
                 $"mode_scenario_id='{modeScenarioId}' mode_scenario_path='{modeScenarioPath}' mode_seed={modeSeed} " +
                 $"run_scenario_id='{Space4XRunStartSelection.ScenarioId}' run_scenario_path='{Space4XRunStartSelection.ScenarioPath}' " +
