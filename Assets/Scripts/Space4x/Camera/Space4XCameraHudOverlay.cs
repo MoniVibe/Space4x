@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using Space4X.Input;
 using Space4X.Progression;
 using Space4X.BattleSlice;
 using Space4x.Scenario;
@@ -95,6 +96,7 @@ namespace Space4X.Camera
             public uint PersistentMissilesFiredTotal;
             public uint PersistentKineticAmmoSpentTotal;
             public bool HasPersistentProgression;
+            public bool RtsAttackMovePrimed;
         }
 
         private void OnEnable()
@@ -187,6 +189,10 @@ namespace Space4X.Camera
                 GUILayout.Label(
                     $"Retained progression thrust={_snapshot.PersistentThrustGeneratedTotal:0.0} missiles={_snapshot.PersistentMissilesFiredTotal} kinetic_ammo={_snapshot.PersistentKineticAmmoSpentTotal}",
                     _labelStyle);
+            }
+            if (_snapshot.RtsAttackMovePrimed)
+            {
+                GUILayout.Label("RTS attack-move primed (A): left click to issue", _labelStyle);
             }
 
             var mode = _rigController != null && _rigController.IsCinematicActive
@@ -381,6 +387,8 @@ namespace Space4X.Camera
                 snapshot.PersistentKineticAmmoSpentTotal = persistent.TotalKineticAmmoSpent;
                 snapshot.HasPersistentProgression = true;
             }
+
+            snapshot.RtsAttackMovePrimed = Space4XRtsClassicCommandMono.IsAttackMovePrimed;
 
             _snapshot = snapshot;
         }

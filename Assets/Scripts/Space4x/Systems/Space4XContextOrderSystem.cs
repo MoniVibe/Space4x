@@ -3,12 +3,14 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using Space4X.Registry;
 using Space4X.Runtime;
+using Space4X.UI;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Physics.Systems;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Space4X.Systems
 {
@@ -126,7 +128,10 @@ namespace Space4X.Systems
             Entity targetAff = GetPrimaryAffiliation(ref state, hitEntity);
 
             var orderKind = DetermineOrderKind(ref state, hitEntity, hasHit, ownerAff, targetAff);
-            bool attackMove = evt.Ctrl != 0 && orderKind == OrderKind.Move;
+            var keyboard = Keyboard.current;
+            var attackMoveModifier = evt.Ctrl != 0 ||
+                                     (keyboard != null && Space4XControlModeState.CurrentMode == Space4XControlMode.Rts && keyboard.aKey.isPressed);
+            bool attackMove = attackMoveModifier && orderKind == OrderKind.Move;
             if (attackMove)
             {
                 orderKind = OrderKind.Attack;
@@ -146,7 +151,8 @@ namespace Space4X.Systems
                 ApplyOrder(ref state, entity, order, queue);
                 if (attackMove)
                 {
-                    ApplyAttackMoveSourceHint(ref state, entity, tick);
+                    var source = evt.Ctrl != 0 ? AttackMoveSource.CtrlConvert : AttackMoveSource.AttackTerrain;
+                    ApplyAttackMoveSourceHint(ref state, entity, tick, source);
                 }
             }
 
@@ -211,11 +217,11 @@ namespace Space4X.Systems
             state.EntityManager.SetComponentData(inputEntity, planeState);
         }
 
-        private void ApplyAttackMoveSourceHint(ref SystemState state, Entity entity, uint tick)
+        private void ApplyAttackMoveSourceHint(ref SystemState state, Entity entity, uint tick, AttackMoveSource source)
         {
             var hint = new AttackMoveSourceHint
             {
-                Source = AttackMoveSource.CtrlConvert,
+                Source = source,
                 IssuedTick = tick
             };
 
