@@ -24,6 +24,13 @@ namespace Space4X.Registry
         public float RetroBrakeAcceleration;
         public float RollSpeedDegrees;
         public float CursorTurnSharpness;
+        public float MaxAngularSpeedDegrees;
+        public float AngularAccelerationDegrees;
+        public float AngularDampingDegrees;
+        public float AngularDeadbandDegrees;
+        public float MaxCursorLeadDegrees;
+        public float TurnAuthorityAtMaxSpeed;
+        public float AngularOvershootRatio;
         public float MaxCursorPitchDegrees;
         public byte DefaultInertialDampenersEnabled;
 
@@ -36,6 +43,28 @@ namespace Space4X.Registry
 
         public ShipFlightProfile Sanitized()
         {
+            var turnNorm = math.saturate(CursorTurnSharpness / 12f);
+            var resolvedMaxAngularSpeedDegrees = MaxAngularSpeedDegrees > 0.01f
+                ? math.max(1f, MaxAngularSpeedDegrees)
+                : math.lerp(8f, 24f, turnNorm);
+            var resolvedAngularAccelerationDegrees = AngularAccelerationDegrees > 0.01f
+                ? math.max(1f, AngularAccelerationDegrees)
+                : math.lerp(24f, 90f, turnNorm);
+            var resolvedAngularDampingDegrees = AngularDampingDegrees > 0.01f
+                ? math.max(1f, AngularDampingDegrees)
+                : resolvedAngularAccelerationDegrees;
+            var resolvedAngularDeadbandDegrees = AngularDeadbandDegrees > 0.01f
+                ? math.clamp(AngularDeadbandDegrees, 0f, 8f)
+                : 0.6f;
+            var resolvedMaxCursorLeadDegrees = MaxCursorLeadDegrees > 0.01f
+                ? math.clamp(MaxCursorLeadDegrees, 1f, 179f)
+                : math.lerp(28f, 170f, turnNorm);
+            var resolvedTurnAuthorityAtMaxSpeed = TurnAuthorityAtMaxSpeed > 0.01f
+                ? math.clamp(TurnAuthorityAtMaxSpeed, 0.05f, 1f)
+                : 0.45f;
+            var resolvedAngularOvershootRatio = AngularOvershootRatio > 0.0001f
+                ? math.clamp(AngularOvershootRatio, 0f, 0.75f)
+                : math.lerp(0.22f, 0.08f, turnNorm);
             return new ShipFlightProfile
             {
                 MaxForwardSpeed = math.max(0.1f, MaxForwardSpeed),
@@ -52,6 +81,13 @@ namespace Space4X.Registry
                 RetroBrakeAcceleration = math.max(0.1f, RetroBrakeAcceleration),
                 RollSpeedDegrees = math.max(1f, RollSpeedDegrees),
                 CursorTurnSharpness = math.max(0.1f, CursorTurnSharpness),
+                MaxAngularSpeedDegrees = resolvedMaxAngularSpeedDegrees,
+                AngularAccelerationDegrees = resolvedAngularAccelerationDegrees,
+                AngularDampingDegrees = resolvedAngularDampingDegrees,
+                AngularDeadbandDegrees = resolvedAngularDeadbandDegrees,
+                MaxCursorLeadDegrees = resolvedMaxCursorLeadDegrees,
+                TurnAuthorityAtMaxSpeed = resolvedTurnAuthorityAtMaxSpeed,
+                AngularOvershootRatio = resolvedAngularOvershootRatio,
                 MaxCursorPitchDegrees = math.clamp(MaxCursorPitchDegrees, 1f, 89f),
                 DefaultInertialDampenersEnabled = DefaultInertialDampenersEnabled != 0 ? (byte)1 : (byte)0
             };
@@ -95,6 +131,13 @@ namespace Space4X.Registry
                 RetroBrakeAcceleration = 84f,
                 RollSpeedDegrees = 62f,
                 CursorTurnSharpness = 8.5f,
+                MaxAngularSpeedDegrees = 22f,
+                AngularAccelerationDegrees = 52f,
+                AngularDampingDegrees = 64f,
+                AngularDeadbandDegrees = 0.8f,
+                MaxCursorLeadDegrees = 120f,
+                TurnAuthorityAtMaxSpeed = 0.42f,
+                AngularOvershootRatio = 0.25f,
                 MaxCursorPitchDegrees = 62f,
                 DefaultInertialDampenersEnabled = 0
             };
@@ -118,6 +161,13 @@ namespace Space4X.Registry
                 RetroBrakeAcceleration = 102f,
                 RollSpeedDegrees = 84f,
                 CursorTurnSharpness = 10.5f,
+                MaxAngularSpeedDegrees = 28f,
+                AngularAccelerationDegrees = 76f,
+                AngularDampingDegrees = 92f,
+                AngularDeadbandDegrees = 0.65f,
+                MaxCursorLeadDegrees = 140f,
+                TurnAuthorityAtMaxSpeed = 0.46f,
+                AngularOvershootRatio = 0.2f,
                 MaxCursorPitchDegrees = 66f,
                 DefaultInertialDampenersEnabled = 0
             };
@@ -141,6 +191,13 @@ namespace Space4X.Registry
                 RetroBrakeAcceleration = 118f,
                 RollSpeedDegrees = 122f,
                 CursorTurnSharpness = 13.5f,
+                MaxAngularSpeedDegrees = 38f,
+                AngularAccelerationDegrees = 124f,
+                AngularDampingDegrees = 140f,
+                AngularDeadbandDegrees = 0.45f,
+                MaxCursorLeadDegrees = 168f,
+                TurnAuthorityAtMaxSpeed = 0.55f,
+                AngularOvershootRatio = 0.12f,
                 MaxCursorPitchDegrees = 72f,
                 DefaultInertialDampenersEnabled = 0
             };

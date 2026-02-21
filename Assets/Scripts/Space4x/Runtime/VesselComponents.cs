@@ -235,6 +235,11 @@ namespace Space4X.Runtime
         public float MinerRiskDeviationMultiplier;
         public float MinerRiskSlowdownMultiplier;
         public float MinerRiskArrivalMultiplier;
+        public float HeadingDeadbandRadians;
+        public float MaxAngularSpeedRadians;
+        public float MaxAngularAccelerationRadians;
+        public float AngularAccelerationCapRadians;
+        public float DirectionBlendGain;
 
         public static VesselMotionProfileConfig Default => new VesselMotionProfileConfig
         {
@@ -272,7 +277,12 @@ namespace Space4X.Runtime
             MinerRiskSpeedMultiplier = 1.25f,
             MinerRiskDeviationMultiplier = 1.4f,
             MinerRiskSlowdownMultiplier = 0.8f,
-            MinerRiskArrivalMultiplier = 0.7f
+            MinerRiskArrivalMultiplier = 0.7f,
+            HeadingDeadbandRadians = 0.026f,
+            MaxAngularSpeedRadians = math.PI * 4f,
+            MaxAngularAccelerationRadians = math.PI * 8f,
+            AngularAccelerationCapRadians = math.PI * 7.5f,
+            DirectionBlendGain = 0.35f
         };
     }
 }

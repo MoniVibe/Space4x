@@ -181,20 +181,23 @@ namespace Space4X.Systems.AI
                 var verticalInput = math.clamp(input.Vertical, -1f, 1f);
                 var rollInput = math.clamp(input.Roll, -1f, 1f);
                 var fighterSteeringMode = input.FighterSteeringMode != 0;
-                var turnNorm = math.saturate(profile.CursorTurnSharpness / 12f);
-                // Keep ship turn response profile-driven instead of camera-sensitivity-driven.
-                var maxAngularSpeed = math.radians(math.lerp(8f, 24f, turnNorm));
-                var angularAcceleration = math.radians(math.lerp(24f, 90f, turnNorm));
+                var maxAngularSpeed = math.radians(ResolveMaxAngularSpeedDegrees(profile));
+                var angularAcceleration = math.radians(ResolveAngularAccelerationDegrees(profile));
+                var angularDamping = math.radians(ResolveAngularDampingDegrees(profile));
+                var angularDeadband = math.radians(ResolveAngularDeadbandDegrees(profile));
                 // Allow larger heading error so camera motion does not visually force 1:1 ship parity.
-                var maxCursorLeadAngle = math.radians(math.lerp(28f, 170f, turnNorm));
+                var maxCursorLeadAngle = math.radians(ResolveMaxCursorLeadDegrees(profile));
+                var turnAuthorityAtMaxSpeed = ResolveTurnAuthorityAtMaxSpeed(profile);
+                var overshootRatio = ResolveAngularOvershootRatio(profile);
                 var speedReference = math.max(0.1f, profile.MaxForwardSpeed * boost);
                 var substepCount = (int)tickStepCount;
                 for (var step = 0; step < substepCount; step++)
                 {
                     var speedNorm = math.saturate(math.length(velocity) / speedReference);
-                    var turnAuthority = math.lerp(1f, 0.45f, speedNorm);
+                    var turnAuthority = math.lerp(1f, turnAuthorityAtMaxSpeed, speedNorm);
                     var maxAngularSpeedStep = maxAngularSpeed * turnAuthority;
                     var angularAccelerationStep = angularAcceleration * turnAuthority;
+                    var angularDampingStep = angularDamping * turnAuthority;
                     var shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), new float3(0f, 0f, 1f));
                     var shipRight = math.normalizesafe(math.mul(transform.Rotation, new float3(1f, 0f, 0f)), new float3(1f, 0f, 0f));
                     var shipUp = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 1f, 0f)), new float3(0f, 1f, 0f));
@@ -216,6 +219,9 @@ namespace Space4X.Systems.AI
                             ref angularSpeed,
                             maxAngularSpeedStep,
                             angularAccelerationStep,
+                            angularDampingStep,
+                            angularDeadband,
+                            overshootRatio,
                             dt);
                     }
 
@@ -333,18 +339,21 @@ namespace Space4X.Systems.AI
                                 ref angularSpeed,
                                 maxAngularSpeedStep,
                                 angularAccelerationStep,
+                                angularDampingStep,
+                                angularDeadband,
+                                overshootRatio,
                                 dt);
 
                             shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), shipForward);
                         }
                         else
                         {
-                            angularSpeed = MoveTowards(angularSpeed, 0f, angularAccelerationStep * dt);
+                            angularSpeed = MoveTowards(angularSpeed, 0f, angularDampingStep * dt);
                         }
                     }
                     else if (input.CursorSteeringActive == 0)
                     {
-                        angularSpeed = MoveTowards(angularSpeed, 0f, angularAccelerationStep * dt);
+                        angularSpeed = MoveTowards(angularSpeed, 0f, angularDampingStep * dt);
                     }
 
                     transform.Position += velocity * dt;
@@ -467,6 +476,81 @@ namespace Space4X.Systems.AI
             return math.clamp(response, 0.15f, 3f);
         }
 
+        private static float ResolveLegacyTurnNorm(in ShipFlightProfile profile)
+        {
+            return math.saturate(profile.CursorTurnSharpness / 12f);
+        }
+
+        private static float ResolveMaxAngularSpeedDegrees(in ShipFlightProfile profile)
+        {
+            if (profile.MaxAngularSpeedDegrees > 0.01f)
+            {
+                return math.max(1f, profile.MaxAngularSpeedDegrees);
+            }
+
+            return math.lerp(8f, 24f, ResolveLegacyTurnNorm(profile));
+        }
+
+        private static float ResolveAngularAccelerationDegrees(in ShipFlightProfile profile)
+        {
+            if (profile.AngularAccelerationDegrees > 0.01f)
+            {
+                return math.max(1f, profile.AngularAccelerationDegrees);
+            }
+
+            return math.lerp(24f, 90f, ResolveLegacyTurnNorm(profile));
+        }
+
+        private static float ResolveAngularDampingDegrees(in ShipFlightProfile profile)
+        {
+            if (profile.AngularDampingDegrees > 0.01f)
+            {
+                return math.max(1f, profile.AngularDampingDegrees);
+            }
+
+            return ResolveAngularAccelerationDegrees(profile);
+        }
+
+        private static float ResolveAngularDeadbandDegrees(in ShipFlightProfile profile)
+        {
+            if (profile.AngularDeadbandDegrees > 0.01f)
+            {
+                return math.clamp(profile.AngularDeadbandDegrees, 0f, 8f);
+            }
+
+            return 0.6f;
+        }
+
+        private static float ResolveMaxCursorLeadDegrees(in ShipFlightProfile profile)
+        {
+            if (profile.MaxCursorLeadDegrees > 0.01f)
+            {
+                return math.clamp(profile.MaxCursorLeadDegrees, 1f, 179f);
+            }
+
+            return math.lerp(28f, 170f, ResolveLegacyTurnNorm(profile));
+        }
+
+        private static float ResolveTurnAuthorityAtMaxSpeed(in ShipFlightProfile profile)
+        {
+            if (profile.TurnAuthorityAtMaxSpeed > 0.01f)
+            {
+                return math.clamp(profile.TurnAuthorityAtMaxSpeed, 0.05f, 1f);
+            }
+
+            return 0.45f;
+        }
+
+        private static float ResolveAngularOvershootRatio(in ShipFlightProfile profile)
+        {
+            if (profile.AngularOvershootRatio > 0.0001f)
+            {
+                return math.clamp(profile.AngularOvershootRatio, 0f, 0.75f);
+            }
+
+            return math.lerp(0.22f, 0.08f, ResolveLegacyTurnNorm(profile));
+        }
+
         private static float3 ClampDirectionLead(float3 currentForward, float3 desiredForward, float maxLeadRadians)
         {
             var current = math.normalizesafe(currentForward, new float3(0f, 0f, 1f));
@@ -490,25 +574,42 @@ namespace Space4X.Systems.AI
             ref float angularSpeed,
             float maxAngularSpeed,
             float angularAcceleration,
+            float angularDamping,
+            float angularDeadband,
+            float overshootRatio,
             float dt)
         {
             var currentNorm = math.normalize(current);
             var desiredNorm = math.normalize(desired);
             var dot = math.clamp(math.dot(currentNorm, desiredNorm), -1f, 1f);
             var angle = math.acos(math.min(1f, math.abs(dot))) * 2f;
-            if (angle <= 1e-4f)
+            var deadband = math.max(0f, angularDeadband);
+            if (angle <= math.max(1e-4f, deadband))
             {
-                angularSpeed = MoveTowards(angularSpeed, 0f, angularAcceleration * dt);
+                angularSpeed = MoveTowards(angularSpeed, 0f, math.max(0f, angularDamping) * dt);
                 return desiredNorm;
             }
 
             maxAngularSpeed = math.max(0f, maxAngularSpeed);
             angularAcceleration = math.max(0f, angularAcceleration);
-            var desiredSpeed = math.min(maxAngularSpeed, angle / math.max(1e-4f, dt));
+            angularDamping = math.max(0f, angularDamping);
+            var desiredSpeed = maxAngularSpeed;
+            if (angularDamping > 1e-4f)
+            {
+                var brakingAngle = (angularSpeed * angularSpeed) / (2f * angularDamping);
+                var brakeStart = brakingAngle + deadband;
+                if (angle <= brakeStart)
+                {
+                    var brakeT = math.saturate((brakeStart - angle) / math.max(1e-4f, brakeStart));
+                    desiredSpeed = math.lerp(maxAngularSpeed, 0f, brakeT);
+                }
+            }
+
             angularSpeed = MoveTowards(angularSpeed, desiredSpeed, angularAcceleration * dt);
             angularSpeed = math.clamp(angularSpeed, 0f, maxAngularSpeed);
-            var step = math.min(angle, angularSpeed * dt);
-            var t = math.saturate(step / angle);
+            var maxStep = angle + (angle * math.clamp(overshootRatio, 0f, 0.75f));
+            var step = math.min(maxStep, angularSpeed * dt);
+            var t = step / math.max(1e-4f, angle);
             return math.normalize(math.slerp(currentNorm, desiredNorm, t));
         }
     }

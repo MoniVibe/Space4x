@@ -113,6 +113,13 @@ namespace Space4X.UI
                 RetroBrakeAcceleration = 132f,
                 RollSpeedDegrees = 72f,
                 CursorTurnSharpness = 11.5f,
+                MaxAngularSpeedDegrees = 30f,
+                AngularAccelerationDegrees = 92f,
+                AngularDampingDegrees = 105f,
+                AngularDeadbandDegrees = 0.55f,
+                MaxCursorLeadDegrees = 148f,
+                TurnAuthorityAtMaxSpeed = 0.52f,
+                AngularOvershootRatio = 0.16f,
                 MaxCursorPitchDegrees = 68f,
                 DefaultInertialDampenersEnabled = 1
             };
@@ -136,6 +143,13 @@ namespace Space4X.UI
                 RetroBrakeAcceleration = 78f,
                 RollSpeedDegrees = 130f,
                 CursorTurnSharpness = 15f,
+                MaxAngularSpeedDegrees = 44f,
+                AngularAccelerationDegrees = 142f,
+                AngularDampingDegrees = 156f,
+                AngularDeadbandDegrees = 0.4f,
+                MaxCursorLeadDegrees = 172f,
+                TurnAuthorityAtMaxSpeed = 0.64f,
+                AngularOvershootRatio = 0.08f,
                 MaxCursorPitchDegrees = 74f,
                 DefaultInertialDampenersEnabled = 0
             };

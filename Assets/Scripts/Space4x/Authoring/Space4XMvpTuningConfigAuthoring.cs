@@ -12,6 +12,8 @@ namespace Space4X.Authoring
         [Header("Movement - Contact Range")]
         [SerializeField, Min(0f)] private float contactRangeScale = 1.05f;
         [SerializeField, Min(0f)] private float contactRangeMin = 0f;
+        [SerializeField, Min(0.01f)] private float defaultArrivalDistance = 2f;
+        [SerializeField, Min(0.01f)] private float defaultBaseRotationSpeed = 2f;
 
         [Header("Movement - Mode Multipliers")]
         [SerializeField, Min(0f)] private float cruiseSpeedMultiplier = 1f;
@@ -52,6 +54,8 @@ namespace Space4X.Authoring
         {
             contactRangeScale = math.max(0f, contactRangeScale);
             contactRangeMin = math.max(0f, contactRangeMin);
+            defaultArrivalDistance = math.max(0.01f, defaultArrivalDistance);
+            defaultBaseRotationSpeed = math.max(0.01f, defaultBaseRotationSpeed);
             cruiseSpeedMultiplier = math.max(0f, cruiseSpeedMultiplier);
             cruiseTurnMultiplier = math.max(0f, cruiseTurnMultiplier);
             combatSpeedMultiplier = math.max(0f, combatSpeedMultiplier);
@@ -87,6 +91,8 @@ namespace Space4X.Authoring
                 var movement = Space4XMovementTuningConfig.Default;
                 movement.ContactRangeScale = math.max(0f, authoring.contactRangeScale);
                 movement.ContactRangeMin = math.max(0f, authoring.contactRangeMin);
+                movement.DefaultArrivalDistance = math.max(0.01f, authoring.defaultArrivalDistance);
+                movement.DefaultBaseRotationSpeed = math.max(0.01f, authoring.defaultBaseRotationSpeed);
                 movement.CruiseSpeedMultiplier = math.max(0f, authoring.cruiseSpeedMultiplier);
                 movement.CruiseTurnMultiplier = math.max(0f, authoring.cruiseTurnMultiplier);
                 movement.CombatSpeedMultiplier = math.max(0f, authoring.combatSpeedMultiplier);

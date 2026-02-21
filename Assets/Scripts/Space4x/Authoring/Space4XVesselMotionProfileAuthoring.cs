@@ -67,6 +67,13 @@ namespace Space4X.Authoring
         [Range(0.4f, 1f)] public float minerRiskSlowdownMultiplier = 0.8f;
         [Range(0.4f, 1f)] public float minerRiskArrivalMultiplier = 0.7f;
 
+        [Header("Angular Dynamics")]
+        [Range(0f, 0.3f)] public float headingDeadbandRadians = 0.026f;
+        [Range(0.1f, 32f)] public float maxAngularSpeedRadians = 12.566f;
+        [Range(0.1f, 64f)] public float maxAngularAccelerationRadians = 25.133f;
+        [Range(0.1f, 64f)] public float angularAccelerationCapRadians = 23.562f;
+        [Range(0f, 1.5f)] public float directionBlendGain = 0.35f;
+
         private void OnValidate()
         {
             deliberateSpeedMultiplier = math.clamp(deliberateSpeedMultiplier, 0.2f, 1f);
@@ -104,6 +111,11 @@ namespace Space4X.Authoring
             minerRiskDeviationMultiplier = math.clamp(minerRiskDeviationMultiplier, 0.8f, 2f);
             minerRiskSlowdownMultiplier = math.clamp(minerRiskSlowdownMultiplier, 0.4f, 1f);
             minerRiskArrivalMultiplier = math.clamp(minerRiskArrivalMultiplier, 0.4f, 1f);
+            headingDeadbandRadians = math.clamp(headingDeadbandRadians, 0f, 0.3f);
+            maxAngularSpeedRadians = math.max(0.1f, maxAngularSpeedRadians);
+            maxAngularAccelerationRadians = math.max(0.1f, maxAngularAccelerationRadians);
+            angularAccelerationCapRadians = math.max(0.1f, angularAccelerationCapRadians);
+            directionBlendGain = math.clamp(directionBlendGain, 0f, 1.5f);
         }
 
         private sealed class Baker : Baker<Space4XVesselMotionProfileAuthoring>
@@ -147,7 +159,12 @@ namespace Space4X.Authoring
                     MinerRiskSpeedMultiplier = authoring.minerRiskSpeedMultiplier,
                     MinerRiskDeviationMultiplier = authoring.minerRiskDeviationMultiplier,
                     MinerRiskSlowdownMultiplier = authoring.minerRiskSlowdownMultiplier,
-                    MinerRiskArrivalMultiplier = authoring.minerRiskArrivalMultiplier
+                    MinerRiskArrivalMultiplier = authoring.minerRiskArrivalMultiplier,
+                    HeadingDeadbandRadians = authoring.headingDeadbandRadians,
+                    MaxAngularSpeedRadians = authoring.maxAngularSpeedRadians,
+                    MaxAngularAccelerationRadians = authoring.maxAngularAccelerationRadians,
+                    AngularAccelerationCapRadians = authoring.angularAccelerationCapRadians,
+                    DirectionBlendGain = authoring.directionBlendGain
                 });
             }
         }

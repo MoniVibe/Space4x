@@ -13,6 +13,8 @@ namespace Space4X.Runtime
         /// </summary>
         public float ContactRangeScale;
         public float ContactRangeMin;
+        public float DefaultArrivalDistance;
+        public float DefaultBaseRotationSpeed;
 
         public float CruiseSpeedMultiplier;
         public float CruiseTurnMultiplier;
@@ -33,6 +35,8 @@ namespace Space4X.Runtime
         {
             ContactRangeScale = 1.05f,
             ContactRangeMin = 0f,
+            DefaultArrivalDistance = 2f,
+            DefaultBaseRotationSpeed = 2f,
             CruiseSpeedMultiplier = 1f,
             CruiseTurnMultiplier = 0.9f,
             CombatSpeedMultiplier = 0.9f,

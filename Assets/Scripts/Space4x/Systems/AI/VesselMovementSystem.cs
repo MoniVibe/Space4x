@@ -345,8 +345,8 @@ namespace Space4X.Systems.AI
             {
                 DeltaTime = deltaTime,
                 CurrentTick = currentTick,
-                ArrivalDistance = 2f, // Vessels stop 2 units away from target
-                BaseRotationSpeed = 2f, // Base rotate speed in radians per second
+                ArrivalDistance = math.max(0.1f, movementTuning.DefaultArrivalDistance),
+                BaseRotationSpeed = math.max(0.1f, movementTuning.DefaultBaseRotationSpeed),
                 MotionConfig = motionConfig,
                 StanceConfig = stanceConfig,
                 InertiaConfig = inertiaConfig,
@@ -1175,7 +1175,8 @@ namespace Space4X.Systems.AI
                     var currentDir = math.normalize(movement.Velocity);
                     var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
                     var focusSteer = 1f + focusEvasion * 0.35f;
-                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * 0.35f * focusSteer * pilotResponseMultiplier);
+                    var directionBlendGain = math.max(0f, MotionConfig.DirectionBlendGain);
+                    var steer = math.saturate(DeltaTime * turnSpeed * rotationMultiplier * directionBlendGain * focusSteer * pilotResponseMultiplier);
                     direction = math.normalizesafe(math.lerp(currentDir, direction, steer), direction);
                 }
                 if (forceStop && currentSpeedSq > 1e-4f)
@@ -1615,15 +1616,15 @@ namespace Space4X.Systems.AI
 
                     var forward = math.forward(transform.Rotation);
                     var angle = math.acos(math.clamp(math.dot(forward, rotationDirection), -1f, 1f));
-                    const float headingDeadbandRadians = 0.026f;
+                    var headingDeadbandRadians = math.max(0f, MotionConfig.HeadingDeadbandRadians);
                     var dt = math.max(DeltaTime, 1e-4f);
-                    const float diagAngularAccelCap = math.PI * 7.5f;
+                    var diagAngularAccelCap = math.max(0.1f, MotionConfig.AngularAccelerationCapRadians);
                     if (angle > headingDeadbandRadians)
                     {
                         movement.DesiredRotation = quaternion.LookRotationSafe(rotationDirection, math.up());
                         var turnSpeed = (movement.TurnSpeed > 0f ? movement.TurnSpeed : BaseRotationSpeed) * engineScale;
-                        var maxAngularSpeed = math.PI * 4f * math.lerp(0.9f, 1.1f, turnNorm);
-                        var maxAngularAccel = math.PI * 8f * math.lerp(0.9f, 1.1f, controlNorm);
+                        var maxAngularSpeed = math.max(0.1f, MotionConfig.MaxAngularSpeedRadians) * math.lerp(0.9f, 1.1f, turnNorm);
+                        var maxAngularAccel = math.max(0.1f, MotionConfig.MaxAngularAccelerationRadians) * math.lerp(0.9f, 1.1f, controlNorm);
                         if (isCarrier)
                         {
                             maxAngularAccel *= MotionConfig.CapitalShipTurnMultiplier;
