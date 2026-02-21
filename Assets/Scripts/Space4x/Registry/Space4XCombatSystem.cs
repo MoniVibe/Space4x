@@ -330,6 +330,7 @@ namespace Space4X.Registry
                     _fleetcrawlHeatActionLookup.HasBuffer(entity);
 
                 var fleetcrawlHeatOutput = default(FleetcrawlHeatOutputState);
+                var emergencyVentFireLocked = false;
                 if (fleetcrawlHeatActive)
                 {
                     var runtime = _fleetcrawlHeatRuntimeLookup[entity];
@@ -340,6 +341,7 @@ namespace Space4X.Registry
                     {
                         var control = _fleetcrawlHeatControlLookup[entity];
                         safetyMode = control.SafetyMode;
+                        emergencyVentFireLocked = FleetcrawlHeatResolver.IsEmergencyVentFireLocked(control, currentTick);
                         if (control.HeatsinkEnabled == 0)
                         {
                             heatsink.BaseCapacity = 0f;
@@ -459,6 +461,15 @@ namespace Space4X.Registry
                     }
 
                     if (fleetcrawlHeatActive && FleetcrawlHeatResolver.ShouldSuppressFire(fleetcrawlHeatOutput))
+                    {
+                        if (mountDirty)
+                        {
+                            weaponBuffer[i] = mount;
+                        }
+                        continue;
+                    }
+
+                    if (emergencyVentFireLocked)
                     {
                         if (mountDirty)
                         {

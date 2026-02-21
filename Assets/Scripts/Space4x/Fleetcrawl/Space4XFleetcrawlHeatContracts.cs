@@ -1,3 +1,4 @@
+using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Space4x.Scenario;
 using Unity.Collections;
@@ -162,6 +163,8 @@ namespace Space4x.Fleetcrawl
     {
         public FleetcrawlHeatSafetyMode SafetyMode;
         public byte HeatsinkEnabled;
+        public uint EmergencyVentCooldownUntilTick;
+        public uint EmergencyVentFireLockUntilTick;
     }
 
     public struct FleetcrawlHeatOutputState : IComponentData
@@ -194,6 +197,39 @@ namespace Space4x.Fleetcrawl
         public FleetcrawlWeaponBehaviorTag WeaponBehaviors;
         public float BaseHeat;
         public float Scale;
+    }
+
+    public struct FleetcrawlHeatEmergencyVentConfig : IComponentData
+    {
+        public float MinHeat01;
+        public float DumpFractionMin;
+        public float DumpFractionMax;
+        public int BaseSupplyCost;
+        public float SupplyCostPerHeat;
+        public int MinShardFallbackCost;
+        public float ShardsPerSupplyShortfall;
+        public uint CooldownTicks;
+        public uint FireLockTicks;
+
+        public static FleetcrawlHeatEmergencyVentConfig Default => new FleetcrawlHeatEmergencyVentConfig
+        {
+            MinHeat01 = 0.38f,
+            DumpFractionMin = 0.35f,
+            DumpFractionMax = 0.9f,
+            BaseSupplyCost = 20,
+            SupplyCostPerHeat = 0.45f,
+            MinShardFallbackCost = 2,
+            ShardsPerSupplyShortfall = 0.2f,
+            CooldownTicks = 260u,
+            FireLockTicks = 16u
+        };
+    }
+
+    public struct FleetcrawlHeatEmergencyVentRequest : IComponentData
+    {
+        public float Intensity01;
+        public byte AllowShardFallback;
+        public FixedString32Bytes SourceTag;
     }
 
     public static class FleetcrawlHeatResolver
@@ -406,6 +442,64 @@ namespace Space4x.Fleetcrawl
             return roll < math.saturate(output.JamChance);
         }
 
+        public static float ResolveEmergencyVentDumpAmount(
+            in FleetcrawlHeatRuntimeState runtime,
+            in FleetcrawlHeatsinkState heatsink,
+            float requestedIntensity01,
+            float minFraction,
+            float maxFraction)
+        {
+            var totalHeat = math.max(0f, runtime.CurrentHeat) + math.max(0f, heatsink.StoredHeat);
+            if (totalHeat <= 1e-4f)
+            {
+                return 0f;
+            }
+
+            var request = requestedIntensity01 > 0f ? requestedIntensity01 : 0.6f;
+            var clampedFraction = math.clamp(request, math.max(0.05f, minFraction), math.max(minFraction, maxFraction));
+            return totalHeat * clampedFraction;
+        }
+
+        public static float ApplyEmergencyVent(
+            ref FleetcrawlHeatRuntimeState runtime,
+            ref FleetcrawlHeatsinkState heatsink,
+            float dumpAmount,
+            out float runtimeDumped,
+            out float heatsinkDumped)
+        {
+            var remaining = math.max(0f, dumpAmount);
+            runtimeDumped = math.min(math.max(0f, runtime.CurrentHeat), remaining);
+            runtime.CurrentHeat = math.max(0f, runtime.CurrentHeat - runtimeDumped);
+            remaining -= runtimeDumped;
+
+            heatsinkDumped = math.min(math.max(0f, heatsink.StoredHeat), remaining);
+            heatsink.StoredHeat = math.max(0f, heatsink.StoredHeat - heatsinkDumped);
+
+            return runtimeDumped + heatsinkDumped;
+        }
+
+        public static int ResolveEmergencyVentSupplyCost(float dumpedHeat, int baseSupplyCost, float supplyCostPerHeat)
+        {
+            var scaled = (int)math.ceil(math.max(0f, dumpedHeat) * math.max(0f, supplyCostPerHeat));
+            return math.max(1, math.max(0, baseSupplyCost) + scaled);
+        }
+
+        public static int ResolveEmergencyVentShardFallbackCost(int supplyShortfall, int minShardCost, float shardsPerSupplyShortfall)
+        {
+            if (supplyShortfall <= 0)
+            {
+                return 0;
+            }
+
+            var scaled = (int)math.ceil(math.max(0, supplyShortfall) * math.max(0f, shardsPerSupplyShortfall));
+            return math.max(math.max(1, minShardCost), scaled);
+        }
+
+        public static bool IsEmergencyVentFireLocked(in FleetcrawlHeatControlState control, uint tick)
+        {
+            return control.EmergencyVentFireLockUntilTick != 0u && tick < control.EmergencyVentFireLockUntilTick;
+        }
+
         private static bool MatchesAny(
             in FleetcrawlHeatModifierDefinition definition,
             DynamicBuffer<FleetcrawlRolledLimbBufferElement> rolledLimbs,
@@ -483,6 +577,11 @@ namespace Space4x.Fleetcrawl
         {
             var runtime = SystemAPI.GetSingletonEntity<FleetcrawlOfferRuntimeTag>();
             var em = state.EntityManager;
+            if (!em.HasComponent<FleetcrawlHeatEmergencyVentConfig>(runtime))
+            {
+                em.AddComponentData(runtime, FleetcrawlHeatEmergencyVentConfig.Default);
+            }
+
             if (em.HasBuffer<FleetcrawlHeatModifierDefinition>(runtime))
             {
                 return;
@@ -691,7 +790,9 @@ namespace Space4x.Fleetcrawl
                     ecb.AddComponent(entity, new FleetcrawlHeatControlState
                     {
                         SafetyMode = FleetcrawlHeatSafetyMode.BalancedAutoVent,
-                        HeatsinkEnabled = 1
+                        HeatsinkEnabled = 1,
+                        EmergencyVentCooldownUntilTick = 0u,
+                        EmergencyVentFireLockUntilTick = 0u
                     });
                 }
 
@@ -727,6 +828,225 @@ namespace Space4x.Fleetcrawl
 
             ecb.Playback(em);
             ecb.Dispose();
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateBefore(typeof(Space4XFleetcrawlHeatEmergencyVentSystem))]
+    public partial struct Space4XFleetcrawlHeatEmergencyAutoRequestSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+            state.RequireForUpdate<FleetcrawlHeatEmergencyVentConfig>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var time = SystemAPI.GetSingleton<TimeState>();
+            if (time.IsPaused)
+            {
+                return;
+            }
+
+            var director = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            var em = state.EntityManager;
+            if (!em.HasComponent<RunCurrency>(director) || !em.HasComponent<Space4XRunMetaResourceState>(director))
+            {
+                return;
+            }
+
+            var currency = em.GetComponentData<RunCurrency>(director);
+            var meta = em.GetComponentData<Space4XRunMetaResourceState>(director);
+            var config = SystemAPI.GetSingleton<FleetcrawlHeatEmergencyVentConfig>();
+
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            foreach (var (controlRef, outputRef, entity) in
+                     SystemAPI.Query<RefRO<FleetcrawlHeatControlState>, RefRO<FleetcrawlHeatOutputState>>()
+                         .WithAll<Space4XRunPlayerTag>()
+                         .WithNone<FleetcrawlHeatEmergencyVentRequest>()
+                         .WithEntityAccess())
+            {
+                var control = controlRef.ValueRO;
+                if (control.SafetyMode == FleetcrawlHeatSafetyMode.UnsafeNoReduction)
+                {
+                    continue;
+                }
+
+                if (time.Tick < control.EmergencyVentCooldownUntilTick)
+                {
+                    continue;
+                }
+
+                var output = outputRef.ValueRO;
+                if (output.IsOverheated == 0 && output.Heat01 < math.max(config.MinHeat01 + 0.15f, 0.65f))
+                {
+                    continue;
+                }
+
+                if (currency.Value < config.BaseSupplyCost && meta.Shards < config.MinShardFallbackCost)
+                {
+                    continue;
+                }
+
+                var request = new FleetcrawlHeatEmergencyVentRequest
+                {
+                    Intensity01 = output.IsOverheated != 0 ? 0.75f : 0.55f,
+                    AllowShardFallback = 1,
+                    SourceTag = new FixedString32Bytes("auto_overheat")
+                };
+                ecb.AddComponent(entity, request);
+            }
+
+            ecb.Playback(em);
+            ecb.Dispose();
+        }
+    }
+
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateBefore(typeof(Space4XWeaponSystem))]
+    public partial struct Space4XFleetcrawlHeatEmergencyVentSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<TimeState>();
+            state.RequireForUpdate<Space4XFleetcrawlDirectorState>();
+            state.RequireForUpdate<FleetcrawlHeatEmergencyVentConfig>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var time = SystemAPI.GetSingleton<TimeState>();
+            if (time.IsPaused)
+            {
+                return;
+            }
+
+            var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
+            var em = state.EntityManager;
+            if (!em.HasComponent<RunCurrency>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new RunCurrency { Value = 0 });
+            }
+            if (!em.HasComponent<Space4XRunMetaResourceState>(directorEntity))
+            {
+                em.AddComponentData(directorEntity, new Space4XRunMetaResourceState { Shards = 0, RoomChallengeClears = 0 });
+            }
+
+            var config = SystemAPI.GetSingleton<FleetcrawlHeatEmergencyVentConfig>();
+            var currency = em.GetComponentData<RunCurrency>(directorEntity);
+            var meta = em.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
+            var walletDirty = false;
+
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            foreach (var (runtimeRef, heatsinkRef, controlRef, requestRef, entity) in
+                     SystemAPI.Query<RefRW<FleetcrawlHeatRuntimeState>, RefRW<FleetcrawlHeatsinkState>, RefRW<FleetcrawlHeatControlState>, RefRO<FleetcrawlHeatEmergencyVentRequest>>()
+                         .WithAll<Space4XRunPlayerTag>()
+                         .WithEntityAccess())
+            {
+                var runtime = runtimeRef.ValueRO;
+                var heatsink = heatsinkRef.ValueRO;
+                var control = controlRef.ValueRO;
+                var request = requestRef.ValueRO;
+
+                if (time.Tick < control.EmergencyVentCooldownUntilTick)
+                {
+                    ecb.RemoveComponent<FleetcrawlHeatEmergencyVentRequest>(entity);
+                    continue;
+                }
+
+                var effectiveCapacity = math.max(1f, runtime.BaseHeatCapacity);
+                var heat01 = math.saturate(runtime.CurrentHeat / effectiveCapacity);
+                if (heat01 < math.max(0.05f, config.MinHeat01))
+                {
+                    ecb.RemoveComponent<FleetcrawlHeatEmergencyVentRequest>(entity);
+                    continue;
+                }
+
+                var dumpTarget = FleetcrawlHeatResolver.ResolveEmergencyVentDumpAmount(
+                    runtime,
+                    heatsink,
+                    request.Intensity01,
+                    config.DumpFractionMin,
+                    config.DumpFractionMax);
+                if (dumpTarget <= 1e-4f)
+                {
+                    ecb.RemoveComponent<FleetcrawlHeatEmergencyVentRequest>(entity);
+                    continue;
+                }
+
+                var supplyCost = FleetcrawlHeatResolver.ResolveEmergencyVentSupplyCost(
+                    dumpTarget,
+                    config.BaseSupplyCost,
+                    config.SupplyCostPerHeat);
+
+                var spentSupplies = 0;
+                var spentShards = 0;
+                if (currency.Value >= supplyCost)
+                {
+                    spentSupplies = supplyCost;
+                }
+                else if (request.AllowShardFallback != 0)
+                {
+                    spentSupplies = math.max(0, currency.Value);
+                    var shortfall = math.max(0, supplyCost - spentSupplies);
+                    var shardCost = FleetcrawlHeatResolver.ResolveEmergencyVentShardFallbackCost(
+                        shortfall,
+                        config.MinShardFallbackCost,
+                        config.ShardsPerSupplyShortfall);
+                    if (meta.Shards < shardCost)
+                    {
+                        ecb.RemoveComponent<FleetcrawlHeatEmergencyVentRequest>(entity);
+                        continue;
+                    }
+
+                    spentShards = shardCost;
+                }
+                else
+                {
+                    ecb.RemoveComponent<FleetcrawlHeatEmergencyVentRequest>(entity);
+                    continue;
+                }
+
+                currency.Value = math.max(0, currency.Value - spentSupplies);
+                meta.Shards = math.max(0, meta.Shards - spentShards);
+                walletDirty = true;
+
+                var dumpedHeat = FleetcrawlHeatResolver.ApplyEmergencyVent(
+                    ref runtime,
+                    ref heatsink,
+                    dumpTarget,
+                    out var dumpedRuntime,
+                    out var dumpedHeatsink);
+
+                var postHeat01 = math.saturate(runtime.CurrentHeat / effectiveCapacity);
+                if (runtime.IsOverheated != 0 && postHeat01 <= runtime.BaseRecoveryThreshold01)
+                {
+                    runtime.IsOverheated = 0;
+                }
+
+                control.EmergencyVentCooldownUntilTick = time.Tick + math.max(1u, config.CooldownTicks);
+                control.EmergencyVentFireLockUntilTick = time.Tick + math.max(1u, config.FireLockTicks);
+
+                runtimeRef.ValueRW = runtime;
+                heatsinkRef.ValueRW = heatsink;
+                controlRef.ValueRW = control;
+
+                Debug.Log(
+                    $"[FleetcrawlHeat] EMERGENCY_VENT entity={entity.Index} source={request.SourceTag} heat_dumped={dumpedHeat:0.00} runtime_dumped={dumpedRuntime:0.00} heatsink_dumped={dumpedHeatsink:0.00} supplies_spent={spentSupplies} shards_spent={spentShards} cooldown_until={control.EmergencyVentCooldownUntilTick} lock_until={control.EmergencyVentFireLockUntilTick}.");
+
+                ecb.RemoveComponent<FleetcrawlHeatEmergencyVentRequest>(entity);
+            }
+
+            ecb.Playback(em);
+            ecb.Dispose();
+
+            if (walletDirty)
+            {
+                em.SetComponentData(directorEntity, currency);
+                em.SetComponentData(directorEntity, meta);
+            }
         }
     }
 }
