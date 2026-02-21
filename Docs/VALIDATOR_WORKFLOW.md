@@ -60,6 +60,45 @@ Policy:
 - Keep parity branch fast-forward only (`merge --ff-only`); no direct feature commits on parity branch.
 - If either machine has a dirty tree, stop and resolve before sync.
 
+## Complete Pairing (Space4x + PureDOTS + Buildbox)
+
+`space4x` branch parity alone is not enough. Full parity requires a locked `puredots` ref and validator dispatch with both refs.
+
+1. Sync `space4x` parity branch on both machines (commands above).
+2. Ensure `Packages/manifest.json` resolves `com.moni.puredots` on both machines:
+   - Desktop: `C:\dev\Tri\puredots\Packages\com.moni.puredots\package.json`
+   - Laptop: `C:\dev\puredots\Packages\com.moni.puredots\package.json`
+3. Pin `puredots` to one explicit ref on both machines.
+4. Trigger Buildbox with both refs (`-Ref` and `-PuredotsRef`).
+
+`puredots` pin example:
+
+```powershell
+git -C C:\dev\Tri\puredots fetch --all --prune
+git -C C:\dev\Tri\puredots checkout <puredots-ref>
+```
+
+Buildbox dual-ref dispatch example:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\Tools\HeadlessRebuildTool\scripts\trigger_buildbox.ps1 `
+  -Title space4x `
+  -Ref <space4x-ref-or-branch> `
+  -PuredotsRef <puredots-ref-or-branch> `
+  -WaitForResult
+```
+
+If `puredots` is not explicitly paired, validator can produce extra/missing compile errors versus editor.
+
+Parity check command (editor vs validator artifacts):
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/CheckEditorValidatorParity.ps1 `
+  -ConsolePath C:\dev\Tri\console.md `
+  -RunId <buildbox-run-id> `
+  -RunRepo MoniVibe/HeadlessRebuildTool
+```
+
 Validator post-greenify sync (both machines -> `origin/main`):
 
 ```powershell

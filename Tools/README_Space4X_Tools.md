@@ -42,6 +42,27 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -LaptopParityUpstreamRef origin/feat/fleetcrawl-data-pass
 ```
 
+This script pairs `space4x` checkouts only. For full validator/editor parity, also pair `puredots` and dispatch Buildbox with `-PuredotsRef`.
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\Tools\HeadlessRebuildTool\scripts\trigger_buildbox.ps1 `
+  -Title space4x `
+  -Ref <space4x-ref-or-branch> `
+  -PuredotsRef <puredots-ref-or-branch> `
+  -WaitForResult
+```
+
+## Editor vs Validator Error Parity Check
+
+Compares compile error signatures from `console.md` and validator logs.
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/CheckEditorValidatorParity.ps1 `
+  -ConsolePath C:\dev\Tri\console.md `
+  -RunId 22263832568 `
+  -RunRepo MoniVibe/HeadlessRebuildTool
+```
+
 Validator post-merge (sync both machines to `origin/main`):
 
 ```powershell
