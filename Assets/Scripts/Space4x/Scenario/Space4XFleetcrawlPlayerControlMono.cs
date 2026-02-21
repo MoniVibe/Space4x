@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Scenarios;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -17,6 +18,9 @@ namespace Space4x.Scenario
             public float Boost01;
             public float DashCooldown;
             public float Speed;
+            public float SpecialEnergy01;
+            public float SpecialEnergyCurrent;
+            public float SpecialEnergyMax;
         }
 
         [SerializeField] private float moveSpeed = 95f;
@@ -87,6 +91,8 @@ namespace Space4x.Scenario
                 Debug.Log($"[FleetcrawlInput] INPUT_CONFIG mode={_inputMode} boost_cd_ticks={_boostCooldownTicks} special_cd_ticks={_specialCooldownTicks}.");
             }
 
+            var flagshipEntity = _flagshipQuery.GetSingletonEntity();
+
             var moveInput = new float2(
                 (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
                 (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f));
@@ -132,9 +138,17 @@ namespace Space4x.Scenario
             var specialCooldownUntilTickForDirective = _specialCooldownUntilTick;
             if (keyboard.eKey.wasPressedThisFrame && tick >= _specialCooldownUntilTick)
             {
-                _specialCooldownUntilTick = tick + _specialCooldownTicks;
-                specialRequested = true;
-                Debug.Log($"[FleetcrawlInput] ABILITY_REQUEST type=special tick={tick}.");
+                if (CanAffordSpecialAbility(flagshipEntity))
+                {
+                    _specialCooldownUntilTick = tick + _specialCooldownTicks;
+                    specialRequested = true;
+                    Debug.Log($"[FleetcrawlInput] ABILITY_REQUEST type=special tick={tick}.");
+                }
+                else
+                {
+                    Debug.Log(
+                        $"[FleetcrawlInput] ABILITY_DENIED type=special tick={tick} reason=insufficient_special_energy cost={Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost:0.##}.");
+                }
             }
 
             var targetSpeed = hasInput ? moveSpeed : 0f;
@@ -156,7 +170,6 @@ namespace Space4x.Scenario
                 step += dashDistance * dt * 0.35f;
             }
 
-            var flagshipEntity = _flagshipQuery.GetSingletonEntity();
             UpsertComponent(flagshipEntity, new Space4XFleetcrawlPlayerDirective
             {
                 Movement = moveInput,
@@ -171,7 +184,7 @@ namespace Space4x.Scenario
 
             if (!hasInput && _smoothedSpeed < 0.05f)
             {
-                UpdateStatusSnapshot();
+                UpdateStatusSnapshot(flagshipEntity);
                 return;
             }
 
@@ -191,16 +204,42 @@ namespace Space4x.Scenario
                 _entityManager.SetComponentData(flagshipEntity, carrier);
             }
 
-            UpdateStatusSnapshot();
+            UpdateStatusSnapshot(flagshipEntity);
         }
 
-        private void UpdateStatusSnapshot()
+        private bool CanAffordSpecialAbility(Entity flagshipEntity)
         {
+            if (!_entityManager.HasComponent<ShipSpecialEnergyState>(flagshipEntity))
+            {
+                return false;
+            }
+
+            var energy = _entityManager.GetComponentData<ShipSpecialEnergyState>(flagshipEntity);
+            return energy.Current >= Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost;
+        }
+
+        private void UpdateStatusSnapshot(Entity flagshipEntity)
+        {
+            var specialCurrent = 0f;
+            var specialMax = 0f;
+            var specialRatio = 0f;
+
+            if (_entityManager.HasComponent<ShipSpecialEnergyState>(flagshipEntity))
+            {
+                var energy = _entityManager.GetComponentData<ShipSpecialEnergyState>(flagshipEntity);
+                specialCurrent = math.max(0f, energy.Current);
+                specialMax = math.max(0f, energy.EffectiveMax);
+                specialRatio = specialMax > 0f ? math.saturate(specialCurrent / specialMax) : 0f;
+            }
+
             CurrentStatus = new StatusSnapshot
             {
                 Boost01 = _boostEnergy,
                 DashCooldown = _dashCooldownRemaining,
-                Speed = _smoothedSpeed
+                Speed = _smoothedSpeed,
+                SpecialEnergy01 = specialRatio,
+                SpecialEnergyCurrent = specialCurrent,
+                SpecialEnergyMax = specialMax
             };
         }
 

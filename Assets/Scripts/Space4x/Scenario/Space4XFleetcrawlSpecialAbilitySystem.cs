@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PureDOTS.Runtime.Math;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -49,6 +50,30 @@ namespace Space4x.Scenario
                     continue;
                 }
 
+                if (!em.HasComponent<ShipSpecialEnergyState>(flagshipEntity))
+                {
+                    directive.SpecialRequested = 0;
+                    directiveRef.ValueRW = directive;
+                    continue;
+                }
+
+                var specialEnergy = em.GetComponentData<ShipSpecialEnergyState>(flagshipEntity);
+                if (!ResourcePoolMath.TrySpend(ref specialEnergy.Current, Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost))
+                {
+                    specialEnergy.FailedSpendAttempts =
+                        (ushort)math.min((int)ushort.MaxValue, specialEnergy.FailedSpendAttempts + 1);
+                    em.SetComponentData(flagshipEntity, specialEnergy);
+                    directive.SpecialRequested = 0;
+                    directiveRef.ValueRW = directive;
+                    Debug.Log(
+                        $"[FleetcrawlAbility] SPECIAL denied tick={tick} reason=insufficient_special_energy current={specialEnergy.Current:0.##} cost={Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost:0.##}");
+                    continue;
+                }
+
+                specialEnergy.LastSpent = Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost;
+                specialEnergy.LastSpendTick = tick;
+                em.SetComponentData(flagshipEntity, specialEnergy);
+
                 var hits = FireSpecialPulse(
                     ref state,
                     flagshipEntity,
@@ -58,7 +83,8 @@ namespace Space4x.Scenario
                 directive.SpecialRequested = 0;
                 directiveRef.ValueRW = directive;
 
-                Debug.Log($"[FleetcrawlAbility] SPECIAL fired tick={tick} hits={hits} radius={SpecialRadius:0.#} damage={SpecialDamage:0.#}");
+                Debug.Log(
+                    $"[FleetcrawlAbility] SPECIAL fired tick={tick} hits={hits} radius={SpecialRadius:0.#} damage={SpecialDamage:0.#} energy_cost={Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost:0.##}");
             }
         }
 

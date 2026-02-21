@@ -102,7 +102,7 @@ namespace Space4x.Scenario
 
             var status = Space4XFleetcrawlPlayerControlMono.CurrentStatus;
             GUILayout.Label(
-                $"Pilot: boost={status.Boost01 * 100f:0}%  dash_cd={status.DashCooldown:0.00}s  speed={status.Speed:0.0}",
+                $"Pilot: boost={status.Boost01 * 100f:0}%  dash_cd={status.DashCooldown:0.00}s  speed={status.Speed:0.0}  special={status.SpecialEnergyCurrent:0.#}/{status.SpecialEnergyMax:0.#} ({status.SpecialEnergy01 * 100f:0}%)",
                 _labelStyle);
             GUILayout.Label("Controls: WASD move, Space/Ctrl vertical, Shift boost, Q dash, E special, F snap camera, Mouse wheel zoom", _labelStyle);
 

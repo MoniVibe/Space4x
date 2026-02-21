@@ -245,6 +245,42 @@ namespace Space4x.Scenario
             em.AddComponentData(e, Space4XShield.Standard(side == 1 ? 620f : 680f));
             em.AddComponentData(e, Space4XArmor.Standard(side == 1 ? 52f : 58f));
             em.AddComponentData(e, SupplyStatus.DefaultCarrier);
+            em.AddComponentData(e, new ShipReactorSpec
+            {
+                Type = side == 1 ? Space4XReactorType.FusionStandard : Space4XReactorType.FusionHeavy,
+                OutputMW = side == 1 ? 2600f : 3600f,
+                Efficiency = side == 1 ? 0.85f : 0.9f,
+                IdleDrawMW = side == 1 ? 320f : 380f,
+                HotRestartSeconds = 1f,
+                ColdRestartSeconds = 50f
+            });
+            em.AddComponentData(e, new RestartState
+            {
+                Warmth = 1f,
+                RestartTimer = 0f,
+                Mode = RestartMode.Hot
+            });
+            var specialEnergyConfig = ShipSpecialEnergyConfig.Default;
+            var specialEnergyMax = math.max(
+                0f,
+                specialEnergyConfig.BaseMax + math.max(0f, (side == 1 ? 2600f : 3600f)) * specialEnergyConfig.ReactorOutputToMax);
+            var specialEnergyRegen = math.max(
+                0f,
+                specialEnergyConfig.BaseRegenPerSecond + math.max(0f, (side == 1 ? 2600f : 3600f)) * specialEnergyConfig.ReactorOutputToRegen);
+            specialEnergyRegen *= math.max(0f, side == 1 ? 0.85f : 0.9f) * specialEnergyConfig.ReactorEfficiencyRegenMultiplier;
+            em.AddComponentData(e, specialEnergyConfig);
+            em.AddComponentData(e, new ShipSpecialEnergyState
+            {
+                Current = specialEnergyMax,
+                EffectiveMax = specialEnergyMax,
+                EffectiveRegenPerSecond = specialEnergyRegen,
+                LastSpent = 0f,
+                LastSpendTick = 0,
+                FailedSpendAttempts = 0,
+                LastUpdatedTick = 0
+            });
+            em.AddBuffer<ShipSpecialEnergyPassiveModifier>(e);
+            em.AddBuffer<ShipSpecialEnergySpendRequest>(e);
             EnsureSubsystems(ref state, e, hull.Max);
             em.AddComponentData(e, new Space4XEngagement
             {
