@@ -1,3 +1,4 @@
+using System;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Core;
 using Unity.Entities;
@@ -30,15 +31,34 @@ namespace Space4X.Presentation
                 return;
             }
 
-            var existingBootstrap = Object.FindFirstObjectByType<RenderPresentationCatalogRuntimeBootstrap>();
+            var existingBootstrap = UnityEngine.Object.FindFirstObjectByType<RenderPresentationCatalogRuntimeBootstrap>();
             if (existingBootstrap != null)
             {
-                if (existingBootstrap.CatalogDefinition == null && catalog != null)
+                if (HasCatalogSingleton())
                 {
-                    existingBootstrap.CatalogDefinition = catalog;
+                    LogOnce(catalogReady: true, variantCount, theme0Mappings);
+                    return;
                 }
 
-                LogOnce(catalogReady: existingBootstrap.CatalogDefinition != null, variantCount, theme0Mappings);
+                var selectedCatalog = existingBootstrap.CatalogDefinition ?? catalog;
+                if (selectedCatalog == null)
+                {
+                    LogOnce(catalogReady: false, variantCount, theme0Mappings);
+                    return;
+                }
+
+                // Runtime bootstrap only initializes in Awake. If we arrive after Awake without a catalog
+                // singleton, recreate the bootstrap with the catalog preassigned so Awake can build it.
+                var replacementName = existingBootstrap.gameObject != null
+                    ? existingBootstrap.gameObject.name
+                    : BootstrapObjectName;
+
+                if (existingBootstrap.gameObject != null)
+                {
+                    UnityEngine.Object.Destroy(existingBootstrap.gameObject);
+                }
+
+                CreateRuntimeBootstrap(replacementName, selectedCatalog, variantCount, theme0Mappings);
                 return;
             }
 
@@ -48,11 +68,7 @@ namespace Space4X.Presentation
                 return;
             }
 
-            var bootstrapGo = new GameObject(BootstrapObjectName);
-            Object.DontDestroyOnLoad(bootstrapGo);
-            var runtimeBootstrap = bootstrapGo.AddComponent<RenderPresentationCatalogRuntimeBootstrap>();
-            runtimeBootstrap.CatalogDefinition = catalog;
-            LogOnce(catalogReady: true, variantCount, theme0Mappings);
+            CreateRuntimeBootstrap(BootstrapObjectName, catalog, variantCount, theme0Mappings);
         }
 
         private static bool HasCatalogSingleton()
@@ -102,6 +118,25 @@ namespace Space4X.Presentation
             {
                 UnityDebug.LogWarning($"[Space4XAutoRenderCatalogBootstrap] catalog_ready=0 missing_resource='{CatalogResourceName}'");
             }
+        }
+
+        private static void CreateRuntimeBootstrap(string name, RenderPresentationCatalogDefinition catalog, int variantCount, int theme0Mappings)
+        {
+            if (catalog == null)
+            {
+                LogOnce(catalogReady: false, variantCount, theme0Mappings);
+                return;
+            }
+
+            var bootstrapGo = new GameObject(string.IsNullOrWhiteSpace(name) ? BootstrapObjectName : name);
+            bootstrapGo.SetActive(false);
+            UnityEngine.Object.DontDestroyOnLoad(bootstrapGo);
+
+            var runtimeBootstrap = bootstrapGo.AddComponent<RenderPresentationCatalogRuntimeBootstrap>();
+            runtimeBootstrap.CatalogDefinition = catalog;
+            bootstrapGo.SetActive(true);
+
+            LogOnce(catalogReady: HasCatalogSingleton(), variantCount, theme0Mappings);
         }
     }
 }

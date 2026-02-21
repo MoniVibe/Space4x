@@ -3,6 +3,7 @@ using System;
 using UnityEngine;
 using PureDOTS.Runtime.Core;
 using UnityEngine.SceneManagement;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Diagnostics
 {
@@ -15,7 +16,7 @@ namespace Space4X.Diagnostics
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void EmitLaptopValidationProbe()
         {
-            Debug.Log($"{LaptopValidationProbeMarker} checkout reached editor domain reload.");
+            UnityDebug.Log($"{LaptopValidationProbeMarker} checkout reached editor domain reload.");
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

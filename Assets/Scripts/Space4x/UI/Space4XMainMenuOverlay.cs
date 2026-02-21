@@ -1,12 +1,18 @@
 using System;
 using System.Collections;
+using System.IO;
 using Space4X.Modes;
 using PureDOTS.Runtime.Core;
 using Space4X.Registry;
+using Space4x.Scenario;
+using Unity.Entities;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
+#if UNITY_EDITOR
+using UnityEditor.SceneManagement;
+#endif
 using UCamera = UnityEngine.Camera;
 using UTime = UnityEngine.Time;
 
@@ -50,11 +56,17 @@ namespace Space4X.UI
         private Label _shipDescriptionLabel;
         private Label _shipRoleLabel;
         private Label _shipTraitLabel;
+        private Label _shipManufacturerLabel;
+        private Label _shipOutlookLabel;
+        private Label _shipModuleOriginsLabel;
+        private Label _shipConsumablesLabel;
+        private Label _shipCrewLabel;
         private Label _difficultyValueLabel;
         private SliderInt _difficultySlider;
         private PlayerInput _playerInput;
         private Coroutine _startRunRoutine;
         private Space4XShipPresetCatalog _shipCatalog;
+        private Space4XManufacturingCatalog _manufacturingCatalog;
         private bool _runActive;
         private GameObject _shipPreviewObject;
         private Material _shipPreviewMaterial;
@@ -98,6 +110,7 @@ namespace Space4X.UI
 
             SceneManager.sceneLoaded += OnSceneLoaded;
             LoadShipCatalog();
+            LoadManufacturingCatalog();
             EnsureUiDocument();
             BuildUi();
             ShowMenu(FrontendState.MainMenu);
@@ -189,6 +202,7 @@ namespace Space4X.UI
             if (_document.panelSettings == null)
             {
                 _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+                _panelSettings.themeStyleSheet = FindThemeStyleSheet();
                 _document.panelSettings = _panelSettings;
             }
         }
@@ -346,6 +360,40 @@ namespace Space4X.UI
             _shipStatsPanel.Add(CreateStatRow("Agility", out _agilityBarFill, AgilityAccent));
             _shipStatsPanel.Add(CreateStatRow("Control", out _controlBarFill, ControlAccent));
 
+            var manufacturingHeader = CreateBodyLabel("Manufacturing Snapshot");
+            manufacturingHeader.style.marginTop = 6f;
+            manufacturingHeader.style.fontSize = 12;
+            manufacturingHeader.style.color = new Color(0.82f, 0.86f, 0.92f, 1f);
+            container.Add(manufacturingHeader);
+
+            _shipManufacturerLabel = CreateBodyLabel(string.Empty);
+            _shipManufacturerLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipManufacturerLabel.style.fontSize = 12;
+            container.Add(_shipManufacturerLabel);
+
+            _shipOutlookLabel = CreateBodyLabel(string.Empty);
+            _shipOutlookLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipOutlookLabel.style.fontSize = 12;
+            container.Add(_shipOutlookLabel);
+
+            _shipModuleOriginsLabel = CreateBodyLabel(string.Empty);
+            _shipModuleOriginsLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipModuleOriginsLabel.style.fontSize = 12;
+            _shipModuleOriginsLabel.style.marginTop = 4f;
+            container.Add(_shipModuleOriginsLabel);
+
+            _shipConsumablesLabel = CreateBodyLabel(string.Empty);
+            _shipConsumablesLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipConsumablesLabel.style.fontSize = 12;
+            _shipConsumablesLabel.style.marginTop = 4f;
+            container.Add(_shipConsumablesLabel);
+
+            _shipCrewLabel = CreateBodyLabel(string.Empty);
+            _shipCrewLabel.style.whiteSpace = WhiteSpace.Normal;
+            _shipCrewLabel.style.fontSize = 12;
+            _shipCrewLabel.style.marginTop = 4f;
+            container.Add(_shipCrewLabel);
+
             container.Add(CreateSpacer(8f));
             container.Add(CreateBodyLabel("Difficulty"));
 
@@ -441,11 +489,14 @@ namespace Space4X.UI
 
             Space4XControlModeState.ResetToDefaultForRun();
             var preset = _shipCatalog.GetPresetOrFallback(_shipIndex);
-            var scenePath = string.IsNullOrWhiteSpace(_shipCatalog.GameplayScenePath)
+            var configuredScenePath = string.IsNullOrWhiteSpace(_shipCatalog.GameplayScenePath)
                 ? Space4XShipPresetCatalog.DefaultGameplayScenePath
                 : _shipCatalog.GameplayScenePath;
+            var scenePath = ResolveGameplayScenePath(configuredScenePath);
 
             Space4XRunStartSelection.Set(preset, _difficulty, scenePath);
+            UnityEngine.Debug.Log($"[Space4XRunStart] Requested scenario id='{Space4XRunStartSelection.ScenarioId}' path='{Space4XRunStartSelection.ScenarioPath}' scene='{scenePath}' preset='{preset.PresetId}'.");
+            RequestScenarioReloadAcrossWorlds();
             _startRunRoutine = StartCoroutine(StartRunAsync(scenePath, preset));
         }
 
@@ -463,22 +514,9 @@ namespace Space4X.UI
                 yield break;
             }
 
-            var activeScene = SceneManager.GetActiveScene();
-            if (string.Equals(activeScene.path, scenePath, StringComparison.OrdinalIgnoreCase))
+            if (!TryLoadSceneSingle(scenePath, out var loadOp, out var loadError))
             {
-                ActivateGameplayCameraFocus();
-                _runActive = true;
-                SetState(FrontendState.InGame);
-                HideMenu();
-                SetStatus($"Run started: {preset.DisplayName}, difficulty {_difficulty}, scenario {Space4XRunStartSelection.ScenarioId}.");
-                _startRunRoutine = null;
-                yield break;
-            }
-
-            var loadOp = SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Single);
-            if (loadOp == null)
-            {
-                SetStatus($"Run start failed: could not load scene '{scenePath}'. Add it to Build Settings.");
+                SetStatus($"Run start failed: {loadError}");
                 ShowMenu(FrontendState.ShipSelect);
                 _startRunRoutine = null;
                 yield break;
@@ -499,6 +537,122 @@ namespace Space4X.UI
             HideMenu();
             SetStatus($"Run started: {preset.DisplayName}, difficulty {_difficulty}, scenario {Space4XRunStartSelection.ScenarioId}.");
             _startRunRoutine = null;
+        }
+
+        private static bool TryLoadSceneSingle(string scenePath, out AsyncOperation loadOp, out string loadError)
+        {
+            loadOp = null;
+            loadError = null;
+
+            if (string.IsNullOrWhiteSpace(scenePath))
+            {
+                loadError = "gameplay scene path is empty.";
+                return false;
+            }
+
+            var normalizedPath = scenePath.Replace('\\', '/');
+
+#if UNITY_EDITOR
+            if (File.Exists(normalizedPath))
+            {
+                try
+                {
+                    loadOp = EditorSceneManager.LoadSceneAsyncInPlayMode(
+                        normalizedPath,
+                        new LoadSceneParameters(LoadSceneMode.Single));
+                }
+                catch (Exception ex)
+                {
+                    loadError = ex.Message;
+                }
+
+                if (loadOp != null)
+                {
+                    return true;
+                }
+            }
+#endif
+
+            try
+            {
+                loadOp = SceneManager.LoadSceneAsync(normalizedPath, LoadSceneMode.Single);
+            }
+            catch (Exception ex)
+            {
+                loadError = ex.Message;
+            }
+
+            if (loadOp != null)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(loadError))
+            {
+                loadError = $"could not load scene '{normalizedPath}'. Add it to Build Profiles.";
+            }
+
+            return false;
+        }
+
+        private static string ResolveGameplayScenePath(string configuredScenePath)
+        {
+            if (string.IsNullOrWhiteSpace(configuredScenePath))
+            {
+                return Space4XShipPresetCatalog.DefaultGameplayScenePath;
+            }
+
+            var normalizedPath = configuredScenePath.Replace('\\', '/');
+#if UNITY_EDITOR
+            if (!File.Exists(normalizedPath))
+            {
+                return Space4XShipPresetCatalog.DefaultGameplayScenePath;
+            }
+#endif
+            return normalizedPath;
+        }
+
+        private static void RequestScenarioReloadAcrossWorlds()
+        {
+            for (var i = 0; i < World.All.Count; i++)
+            {
+                var world = World.All[i];
+                if (world == null || !world.IsCreated)
+                {
+                    continue;
+                }
+
+                var miningScenarioSystem = world.GetExistingSystemManaged<Space4XMiningScenarioSystem>();
+                if (miningScenarioSystem == null)
+                {
+                    continue;
+                }
+
+                miningScenarioSystem.RequestReloadForModeSwitch();
+            }
+        }
+
+        private static ThemeStyleSheet FindThemeStyleSheet()
+        {
+            var panels = Resources.FindObjectsOfTypeAll<PanelSettings>();
+            for (var i = 0; i < panels.Length; i++)
+            {
+                if (panels[i] != null && panels[i].themeStyleSheet != null)
+                {
+                    return panels[i].themeStyleSheet;
+                }
+            }
+
+            var themes = Resources.FindObjectsOfTypeAll<ThemeStyleSheet>();
+            for (var i = 0; i < themes.Length; i++)
+            {
+                if (themes[i] != null)
+                {
+                    return themes[i];
+                }
+            }
+
+            return null;
         }
 
         private bool ActivateGameplayCameraFocus()
@@ -606,6 +760,18 @@ namespace Space4X.UI
             _shipIndex = Mathf.Clamp(_shipIndex, 0, Math.Max(0, _shipCatalog.PresetCount - 1));
         }
 
+        private void LoadManufacturingCatalog()
+        {
+            _manufacturingCatalog = Resources.Load<Space4XManufacturingCatalog>(Space4XManufacturingCatalog.ResourcePath);
+            if (_manufacturingCatalog == null || _manufacturingCatalog.Manufacturers == null || _manufacturingCatalog.Manufacturers.Length == 0)
+            {
+                _manufacturingCatalog = Space4XManufacturingCatalog.CreateRuntimeFallback();
+                _status = string.IsNullOrWhiteSpace(_status)
+                    ? "Manufacturing catalog missing - using runtime defaults."
+                    : $"{_status} Manufacturing catalog missing - using runtime defaults.";
+            }
+        }
+
         private void SetStatus(string value)
         {
             _status = value ?? string.Empty;
@@ -649,6 +815,39 @@ namespace Space4X.UI
                 _difficultySlider.value = _difficulty;
             }
 
+            var preview = _manufacturingCatalog != null
+                ? _manufacturingCatalog.CreatePreview(
+                    preset.PresetId,
+                    preset.StartingModules,
+                    _difficulty,
+                    Space4XRunStartSelection.ResolveScenarioSeedForDifficulty(_difficulty))
+                : Space4XManufacturingPreview.Empty;
+
+            if (_shipManufacturerLabel != null)
+            {
+                _shipManufacturerLabel.text = preview.ManufacturerSummary;
+            }
+
+            if (_shipOutlookLabel != null)
+            {
+                _shipOutlookLabel.text = preview.OutlookSummary;
+            }
+
+            if (_shipModuleOriginsLabel != null)
+            {
+                _shipModuleOriginsLabel.text = FormatMultilineLabel("Module Origins", preview.ModuleOrigins);
+            }
+
+            if (_shipConsumablesLabel != null)
+            {
+                _shipConsumablesLabel.text = FormatMultilineLabel("Consumables", preview.Consumables);
+            }
+
+            if (_shipCrewLabel != null)
+            {
+                _shipCrewLabel.text = FormatMultilineLabel("Crew", preview.CrewRoster);
+            }
+
             UpdateShipPreview(preset);
             UpdateShipStatBars(preset);
         }
@@ -669,6 +868,21 @@ namespace Space4X.UI
             label.style.fontSize = 13;
             label.style.color = new Color(0.89f, 0.93f, 0.98f, 1f);
             return label;
+        }
+
+        private static string FormatMultilineLabel(string label, string[] entries)
+        {
+            if (entries == null || entries.Length == 0)
+                return $"{label}: None";
+
+            var lines = new string[entries.Length];
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = string.IsNullOrWhiteSpace(entries[i]) ? "Unknown" : entries[i];
+                lines[i] = $"- {entry}";
+            }
+
+            return $"{label}:\n{string.Join("\n", lines)}";
         }
 
         private static VisualElement CreateStatRow(string label, out VisualElement fill, Color accent)

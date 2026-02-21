@@ -11,12 +11,26 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XSpecialEnergyTelemetrySystem : ISystem
     {
-        [BurstCompile]
+        private FixedString64Bytes _shipSamplesMetricKey;
+        private FixedString64Bytes _shipAvgRatioMetricKey;
+        private FixedString64Bytes _shipMinRatioMetricKey;
+        private FixedString64Bytes _shipMaxRatioMetricKey;
+        private FixedString64Bytes _spendTickTotalMetricKey;
+        private FixedString64Bytes _spendFailedTotalMetricKey;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TelemetryStream>();
             state.RequireForUpdate<TelemetryExportConfig>();
             state.RequireForUpdate<ShipSpecialEnergyState>();
+
+            // Initialize FixedString keys outside Burst static constructors.
+            _shipSamplesMetricKey = new FixedString64Bytes("space4x.special_energy.ship.samples");
+            _shipAvgRatioMetricKey = new FixedString64Bytes("space4x.special_energy.ship.avg_ratio");
+            _shipMinRatioMetricKey = new FixedString64Bytes("space4x.special_energy.ship.min_ratio");
+            _shipMaxRatioMetricKey = new FixedString64Bytes("space4x.special_energy.ship.max_ratio");
+            _spendTickTotalMetricKey = new FixedString64Bytes("space4x.special_energy.spend.tick_total");
+            _spendFailedTotalMetricKey = new FixedString64Bytes("space4x.special_energy.spend.failed_total");
         }
 
         [BurstCompile]
@@ -59,12 +73,12 @@ namespace Space4X.Registry
 
             var avgRatio = ratioSum / shipCount;
             var metrics = state.EntityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
-            metrics.AddMetric(new FixedString64Bytes("space4x.special_energy.ship.samples"), shipCount, TelemetryMetricUnit.Count);
-            metrics.AddMetric(new FixedString64Bytes("space4x.special_energy.ship.avg_ratio"), avgRatio, TelemetryMetricUnit.Ratio);
-            metrics.AddMetric(new FixedString64Bytes("space4x.special_energy.ship.min_ratio"), ratioMin, TelemetryMetricUnit.Ratio);
-            metrics.AddMetric(new FixedString64Bytes("space4x.special_energy.ship.max_ratio"), ratioMax, TelemetryMetricUnit.Ratio);
-            metrics.AddMetric(new FixedString64Bytes("space4x.special_energy.spend.tick_total"), spentTickTotal, TelemetryMetricUnit.Custom);
-            metrics.AddMetric(new FixedString64Bytes("space4x.special_energy.spend.failed_total"), failedSpendTotal, TelemetryMetricUnit.Count);
+            metrics.AddMetric(_shipSamplesMetricKey, shipCount, TelemetryMetricUnit.Count);
+            metrics.AddMetric(_shipAvgRatioMetricKey, avgRatio, TelemetryMetricUnit.Ratio);
+            metrics.AddMetric(_shipMinRatioMetricKey, ratioMin, TelemetryMetricUnit.Ratio);
+            metrics.AddMetric(_shipMaxRatioMetricKey, ratioMax, TelemetryMetricUnit.Ratio);
+            metrics.AddMetric(_spendTickTotalMetricKey, spentTickTotal, TelemetryMetricUnit.Custom);
+            metrics.AddMetric(_spendFailedTotalMetricKey, failedSpendTotal, TelemetryMetricUnit.Count);
         }
     }
 }

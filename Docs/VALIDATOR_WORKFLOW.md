@@ -39,6 +39,44 @@ Burst plan for iterators:
   - `TRI_DISABLE_BURST=1`
 - Still avoid introducing Burst hazards (static `FixedString*Bytes` initializers, managed APIs in Burst jobs).
 
+## Cross-Machine Parity Sync (Required Before Manual Editor Validation)
+
+When an iterator pushes a branch for validation, sync both desktop and laptop validation checkouts to the same ref:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
+  -RepoPath C:\dev\Tri\space4x `
+  -PushBranch <branch-name> `
+  -LocalParityBranch validator/ultimate-checkout `
+  -LocalParityUpstreamRef origin/<branch-name> `
+  -LaptopRepoPath C:\dev\unity_clean_fleetcrawl `
+  -LaptopParityBranch validator/ultimate-checkout `
+  -LaptopParityUpstreamRef origin/<branch-name>
+```
+
+Policy:
+- Do not validate from floating `main` while iterating feature branches.
+- Validate from `validator/ultimate-checkout` only.
+- Keep parity branch fast-forward only (`merge --ff-only`); no direct feature commits on parity branch.
+- If either machine has a dirty tree, stop and resolve before sync.
+
+Validator post-greenify sync (both machines -> `origin/main`):
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
+  -RepoPath C:\dev\Tri\space4x `
+  -Mode validator `
+  -PushBranch main `
+  -LocalParityBranch validator/ultimate-checkout `
+  -LaptopRepoPath C:\dev\unity_clean_fleetcrawl `
+  -LaptopParityBranch validator/ultimate-checkout
+```
+
+Dirty criteria guidance:
+- Prefer clean trees (`-DirtyPolicy fail`).
+- Use `-DirtyPolicy stash-allowed` only for known transient diffs.
+- Do not blanket-ignore `.meta` by default; only opt in (`-AllowMetaDirty`) when intentionally stashing temporary presentation churn.
+
 ## Validator Agent Responsibilities (Buildbox Only)
 
 Validator is the only actor allowed to:
@@ -73,4 +111,3 @@ Recommended merge gate:
 3. Longer Burst-on matrix in nightlies
 
 Note: `PUREDOTS_DISABLE_BURST` disables Burst at runtime; it may not remove all build-time Burst cost.
-

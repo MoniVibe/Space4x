@@ -150,13 +150,15 @@ namespace Space4X.Adapters.Physics
 
                     var sourceMass = ResolveMass(evt.OtherEntity, ref _physicsMassLookup, ref _interactionConfigLookup);
                     var targetMass = ResolveMass(entity, ref _physicsMassLookup, ref _interactionConfigLookup);
+                    var contactNormal = evt.ContactNormal;
 
-                    var kinematics = CollisionDamage.ComputeImpactKinematics(
-                        sourceVelocity,
+                    CollisionDamage.ComputeImpactKinematics(
+                        in sourceVelocity,
                         sourceMass,
-                        targetVelocity,
+                        in targetVelocity,
                         targetMass,
-                        evt.ContactNormal);
+                        in contactNormal,
+                        out var kinematics);
 
                     var effectiveImpulse = CollisionDamage.ResolveEffectiveImpulse(evt.Impulse, in kinematics);
 

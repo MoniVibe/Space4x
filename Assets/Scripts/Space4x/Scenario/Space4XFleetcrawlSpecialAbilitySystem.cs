@@ -57,10 +57,12 @@ namespace Space4x.Scenario
                 }
 
                 var specialEnergy = em.GetComponentData<ShipSpecialEnergyState>(flagshipEntity);
-                if (!ResourcePoolMath.TrySpend(ref specialEnergy.Current, Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost))
+                var specialCurrent = specialEnergy.Current;
+                if (!ResourcePoolMath.TrySpend(ref specialCurrent, Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost))
                 {
                     specialEnergy.FailedSpendAttempts =
                         (ushort)math.min((int)ushort.MaxValue, specialEnergy.FailedSpendAttempts + 1);
+                    specialEnergy.Current = specialCurrent;
                     em.SetComponentData(flagshipEntity, specialEnergy);
                     directive.SpecialRequested = 0;
                     directiveRef.ValueRW = directive;
@@ -69,6 +71,7 @@ namespace Space4x.Scenario
                     continue;
                 }
 
+                specialEnergy.Current = specialCurrent;
                 specialEnergy.LastSpent = Space4XFleetcrawlSpecialEnergyRules.SpecialAbilityCost;
                 specialEnergy.LastSpendTick = tick;
                 em.SetComponentData(flagshipEntity, specialEnergy);

@@ -19,6 +19,7 @@ namespace Space4X.Modes
         private const string SmokeScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
         private const string HeadlessBootstrapSceneName = "HeadlessBootstrap";
         private const string ObjectName = "Space4XModeSelectorOverlay";
+        private const string ShowOverlayEnv = "SPACE4X_SHOW_MODE_SELECTOR";
         private static bool s_sceneHooked;
 
         private readonly Rect _panelRect = new Rect(16f, 16f, 300f, 128f);
@@ -46,6 +47,11 @@ namespace Space4X.Modes
         private static void EnsureOverlayForScene(Scene scene)
         {
             if (Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)
+            {
+                return;
+            }
+
+            if (!IsOverlayEnabled())
             {
                 return;
             }
@@ -88,6 +94,21 @@ namespace Space4X.Modes
 
             var go = new GameObject(ObjectName);
             go.AddComponent<Space4XModeSelectorOverlayMono>();
+        }
+
+        private static bool IsOverlayEnabled()
+        {
+            var value = global::System.Environment.GetEnvironmentVariable(ShowOverlayEnv);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var trimmed = value.Trim();
+            return string.Equals(trimmed, "1", global::System.StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(trimmed, "true", global::System.StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(trimmed, "yes", global::System.StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(trimmed, "on", global::System.StringComparison.OrdinalIgnoreCase);
         }
 
         private void OnEnable()

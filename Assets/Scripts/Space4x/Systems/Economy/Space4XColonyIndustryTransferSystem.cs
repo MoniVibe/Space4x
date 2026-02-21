@@ -22,7 +22,12 @@ namespace Space4X.Systems.Economy
         private static readonly FixedString64Bytes ItemIngot = "space4x_ingot";
         private static readonly FixedString64Bytes ItemAlloy = "space4x_alloy";
         private static readonly FixedString64Bytes ItemParts = "space4x_parts";
+        private static readonly FixedString64Bytes ItemFood = "space4x_food";
+        private static readonly FixedString64Bytes ItemWater = "space4x_water";
+        private static readonly FixedString64Bytes ItemFuel = "space4x_fuel";
+        private static readonly FixedString64Bytes ItemTradeGoods = "space4x_trade_goods";
 
+        private ComponentLookup<ColonyIndustryStock> _stockLookup;
         private ComponentLookup<ColonyIndustryInventory> _colonyInventoryLookup;
         private ComponentLookup<BusinessInventory> _inventoryLookup;
         private BufferLookup<InventoryItem> _itemsLookup;
@@ -35,6 +40,7 @@ namespace Space4X.Systems.Economy
             state.RequireForUpdate<TickTimeState>();
             state.RequireForUpdate<RewindState>();
 
+            _stockLookup = state.GetComponentLookup<ColonyIndustryStock>(false);
             _colonyInventoryLookup = state.GetComponentLookup<ColonyIndustryInventory>(true);
             _inventoryLookup = state.GetComponentLookup<BusinessInventory>(true);
             _itemsLookup = state.GetBufferLookup<InventoryItem>(false);
@@ -63,6 +69,7 @@ namespace Space4X.Systems.Economy
                 return;
             }
 
+            _stockLookup.Update(ref state);
             _colonyInventoryLookup.Update(ref state);
             _inventoryLookup.Update(ref state);
             _itemsLookup.Update(ref state);
@@ -82,6 +89,8 @@ namespace Space4X.Systems.Economy
                 }
 
                 var poolItems = _itemsLookup[poolEntity];
+                var hasStock = _stockLookup.HasComponent(colonyEntity);
+                var stock = hasStock ? _stockLookup[colonyEntity] : default;
 
                 // Export pass: pull outputs into the colony pool.
                 foreach (var (link, facility) in SystemAPI.Query<RefRO<ColonyFacilityLink>>().WithEntityAccess())
@@ -111,7 +120,15 @@ namespace Space4X.Systems.Economy
                             TransferAll(ref facilityItems, ref poolItems, ItemAlloy);
                             break;
                         case FacilityBusinessClass.Production:
+                        case FacilityBusinessClass.ShipFabrication:
                             TransferAll(ref facilityItems, ref poolItems, ItemParts);
+                            TransferAll(ref facilityItems, ref poolItems, ItemTradeGoods);
+                            if (hasStock)
+                            {
+                                TransferAllToReserve(ref facilityItems, ItemFood, ref stock.FoodReserve);
+                                TransferAllToReserve(ref facilityItems, ItemWater, ref stock.WaterReserve);
+                                TransferAllToReserve(ref facilityItems, ItemFuel, ref stock.FuelReserve);
+                            }
                             break;
                     }
                 }
@@ -153,6 +170,11 @@ namespace Space4X.Systems.Economy
                             break;
                     }
                 }
+
+                if (hasStock)
+                {
+                    _stockLookup[colonyEntity] = stock;
+                }
             }
         }
 
@@ -173,6 +195,21 @@ namespace Space4X.Systems.Economy
                 var item = source[i];
                 source.RemoveAt(i);
                 AddItem(ref destination, item.ItemId, item.Quantity, item.Quality, item.Durability, item.CreatedTick);
+            }
+        }
+
+        private static void TransferAllToReserve(ref DynamicBuffer<InventoryItem> source, in FixedString64Bytes itemId, ref float reserve)
+        {
+            for (int i = source.Length - 1; i >= 0; i--)
+            {
+                if (!source[i].ItemId.Equals(itemId))
+                {
+                    continue;
+                }
+
+                var item = source[i];
+                source.RemoveAt(i);
+                reserve += item.Quantity;
             }
         }
 
