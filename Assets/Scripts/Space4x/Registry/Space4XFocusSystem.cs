@@ -2,6 +2,8 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using PureDOTS.Runtime.Math;
+using Space4X.Runtime;
 
 namespace Space4X.Registry
 {
@@ -105,10 +107,13 @@ namespace Space4X.Registry
     [UpdateAfter(typeof(Space4XFocusRegenSystem))]
     public partial struct Space4XFocusAbilitySystem : ISystem
     {
+        private ComponentLookup<ShipSpecialEnergyState> _specialEnergyLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XEntityFocus>();
+            _specialEnergyLookup = state.GetComponentLookup<ShipSpecialEnergyState>(false);
         }
 
         [BurstCompile]
@@ -116,6 +121,7 @@ namespace Space4X.Registry
         {
             var currentTick = (uint)SystemAPI.Time.ElapsedTime;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            _specialEnergyLookup.Update(ref state);
 
             // Process activation requests
             foreach (var (request, focus, profile, abilities, entity) in
@@ -147,6 +153,24 @@ namespace Space4X.Registry
                 {
                     ecb.RemoveComponent<FocusAbilityRequest>(entity);
                     continue;
+                }
+
+                if (_specialEnergyLookup.HasComponent(entity))
+                {
+                    var specialEnergy = _specialEnergyLookup[entity];
+                    var specialEnergyCost = Space4XFocusAbilityDefinitions.GetSpecialEnergyActivationCost(abilityType);
+                    if (!ResourcePoolMath.TrySpend(ref specialEnergy.Current, specialEnergyCost))
+                    {
+                        specialEnergy.FailedSpendAttempts =
+                            (ushort)math.min((int)ushort.MaxValue, specialEnergy.FailedSpendAttempts + 1);
+                        _specialEnergyLookup[entity] = specialEnergy;
+                        ecb.RemoveComponent<FocusAbilityRequest>(entity);
+                        continue;
+                    }
+
+                    specialEnergy.LastSpent = specialEnergyCost;
+                    specialEnergy.LastSpendTick = currentTick;
+                    _specialEnergyLookup[entity] = specialEnergy;
                 }
 
                 // Calculate effective drain
@@ -507,4 +531,3 @@ namespace Space4X.Registry
         }
     }
 }
-

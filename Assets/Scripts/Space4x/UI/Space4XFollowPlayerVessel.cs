@@ -21,7 +21,7 @@ using Space4XDebugLockCamera = Space4X.DebugTools.Space4XDebugLockCamera;
 namespace Space4X.UI
 {
     /// <summary>
-    /// Gameplay camera follow that supports Cursor-Orient, Cruise-Look, and RTS camera modes.
+    /// Gameplay camera follow that supports Cursor-Orient, Cruise-Look, RTS, and Divine Hand camera modes.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class Space4XFollowPlayerVessel : MonoBehaviour
@@ -60,6 +60,7 @@ namespace Space4X.UI
         [SerializeField] private Key cursorModeHotkey = Key.Digit1;
         [SerializeField] private Key cruiseModeHotkey = Key.Digit2;
         [SerializeField] private Key rtsModeHotkey = Key.Digit3;
+        [SerializeField] private Key divineHandModeHotkey = Key.Digit4;
 
         [Header("Orbit Controls")]
         [SerializeField] private float orbitYawSensitivity = 0.2f;
@@ -224,7 +225,7 @@ namespace Space4X.UI
         {
             HandleModeHotkeys();
             SuppressConflictingCameraDrivers();
-            if (_currentMode == Space4XControlMode.Rts)
+            if (IsRtsRigMode(_currentMode))
             {
                 ApplyRtsModeToggleVariant();
                 return;
@@ -255,7 +256,7 @@ namespace Space4X.UI
 
         private void OnPreCull()
         {
-            if (_currentMode == Space4XControlMode.Rts || !lockCameraToTargetOutsideRts)
+            if (IsRtsRigMode(_currentMode) || !lockCameraToTargetOutsideRts)
                 return;
 
             SuppressConflictingCameraDrivers();
@@ -274,7 +275,7 @@ namespace Space4X.UI
 
         public void SnapNow()
         {
-            if (_currentMode == Space4XControlMode.Rts)
+            if (IsRtsRigMode(_currentMode))
                 return;
 
             if (!TryGetTargetPose(out var targetPosition, out var targetRotation))
@@ -325,7 +326,7 @@ namespace Space4X.UI
 
         private bool ShouldSnapFollowToTarget()
         {
-            return _currentMode != Space4XControlMode.Rts && lockCameraToTargetOutsideRts;
+            return !IsRtsRigMode(_currentMode) && lockCameraToTargetOutsideRts;
         }
 
         private void ApplyFollow(Vector3 targetPosition, Quaternion targetRotation, bool snap)
@@ -1085,6 +1086,10 @@ namespace Space4X.UI
             {
                 Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
+            else if (divineHandModeHotkey != Key.None && keyboard[divineHandModeHotkey].wasPressedThisFrame)
+            {
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.DivineHand);
+            }
         }
 
         private void OnControlModeChanged(Space4XControlMode mode)
@@ -1092,7 +1097,7 @@ namespace Space4X.UI
             _currentMode = mode;
             ResetOrbitInputAnchor();
             _altPressedLastFrame = false;
-            if (_currentMode == Space4XControlMode.Rts)
+            if (IsRtsRigMode(_currentMode))
             {
                 SetRtsCameraEnabled(true);
                 ApplyRtsModeToggleVariant();
@@ -1480,7 +1485,7 @@ namespace Space4X.UI
 
         private void ApplyRtsModeToggleVariant()
         {
-            if (_currentMode != Space4XControlMode.Rts)
+            if (!IsRtsRigMode(_currentMode))
             {
                 return;
             }
@@ -1499,10 +1504,18 @@ namespace Space4X.UI
                 return;
             }
 
-            var variantEnabled = Space4XControlModeState.IsVariantEnabled(Space4XControlMode.Rts);
-            // Mode 3 defaults to free-form god camera travel.
+            var variantMode = _currentMode == Space4XControlMode.DivineHand
+                ? Space4XControlMode.DivineHand
+                : Space4XControlMode.Rts;
+            var variantEnabled = Space4XControlModeState.IsVariantEnabled(variantMode);
+            // Modes 3/4 default to free-form god camera travel.
             // Variant toggle enables planar lock.
             _rtsRigController.SetYAxisLocked(variantEnabled);
+        }
+
+        private static bool IsRtsRigMode(Space4XControlMode mode)
+        {
+            return mode == Space4XControlMode.Rts || mode == Space4XControlMode.DivineHand;
         }
 
         private float ResolveCruiseBaseYaw(Quaternion targetRotation, float fallbackYaw)

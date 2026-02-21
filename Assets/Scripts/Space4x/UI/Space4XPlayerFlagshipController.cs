@@ -65,6 +65,7 @@ namespace Space4X.UI
         [SerializeField] private Key cursorModeHotkey = Key.Digit1;
         [SerializeField] private Key cruiseModeHotkey = Key.Digit2;
         [SerializeField] private Key rtsModeHotkey = Key.Digit3;
+        [SerializeField] private Key divineHandModeHotkey = Key.Digit4;
 
         [Header("Attitude")]
         [SerializeField] private float rollSpeedDegrees = 75f;
@@ -217,7 +218,8 @@ namespace Space4X.UI
             if (!EnsureClaimedFlagship())
                 return;
 
-            if (Space4XControlModeState.CurrentMode == Space4XControlMode.Rts)
+            if (Space4XControlModeState.CurrentMode == Space4XControlMode.Rts ||
+                Space4XControlModeState.CurrentMode == Space4XControlMode.DivineHand)
             {
                 PrepareFlagshipForRtsOrders();
                 SuppressFlagshipMovement();
@@ -1000,6 +1002,10 @@ namespace Space4X.UI
             {
                 Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
+            else if (divineHandModeHotkey != Key.None && keyboard[divineHandModeHotkey].wasPressedThisFrame)
+            {
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.DivineHand);
+            }
         }
 
         private bool ShouldHandleModeHotkeys()
@@ -1009,7 +1015,7 @@ namespace Space4X.UI
                 _followPlayerVessel = GetComponent<Space4XFollowPlayerVessel>();
             }
 
-            // Follow camera owns mode hotkeys when present to avoid duplicate 1/2/3 processing.
+            // Follow camera owns mode hotkeys when present to avoid duplicate 1/2/3/4 processing.
             return _followPlayerVessel == null || !_followPlayerVessel.isActiveAndEnabled;
         }
 

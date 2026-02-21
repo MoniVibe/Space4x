@@ -6,7 +6,8 @@ namespace Space4X.UI
     {
         CursorOrient = 0,
         CruiseLook = 1,
-        Rts = 2
+        Rts = 2,
+        DivineHand = 3
     }
 
     public static class Space4XControlModeState
@@ -18,6 +19,7 @@ namespace Space4X.UI
         private static bool _cursorOrientVariantEnabled;
         private static bool _cruiseLookVariantEnabled;
         private static bool _rtsVariantEnabled;
+        private static bool _divineHandVariantEnabled;
 
         public static void SetMode(Space4XControlMode mode)
         {
@@ -47,6 +49,7 @@ namespace Space4X.UI
                 Space4XControlMode.CursorOrient => _cursorOrientVariantEnabled,
                 Space4XControlMode.CruiseLook => _cruiseLookVariantEnabled,
                 Space4XControlMode.Rts => _rtsVariantEnabled,
+                Space4XControlMode.DivineHand => _divineHandVariantEnabled,
                 _ => false
             };
         }
@@ -67,6 +70,10 @@ namespace Space4X.UI
                     if (_rtsVariantEnabled == enabled) return;
                     _rtsVariantEnabled = enabled;
                     break;
+                case Space4XControlMode.DivineHand:
+                    if (_divineHandVariantEnabled == enabled) return;
+                    _divineHandVariantEnabled = enabled;
+                    break;
                 default:
                     return;
             }
@@ -84,6 +91,7 @@ namespace Space4X.UI
             SetVariantEnabled(Space4XControlMode.CursorOrient, false);
             SetVariantEnabled(Space4XControlMode.CruiseLook, false);
             SetVariantEnabled(Space4XControlMode.Rts, false);
+            SetVariantEnabled(Space4XControlMode.DivineHand, false);
             SetMode(Space4XControlMode.CursorOrient);
         }
     }

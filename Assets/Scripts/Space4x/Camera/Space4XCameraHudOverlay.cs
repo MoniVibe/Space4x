@@ -1,4 +1,6 @@
 using PureDOTS.Runtime.Components;
+using Space4X.Input;
+using Space4X.Progression;
 using Space4X.BattleSlice;
 using Space4x.Scenario;
 using Unity.Collections;
@@ -34,6 +36,8 @@ namespace Space4X.Camera
         private bool _fleetcrawlDirectorQueryValid;
         private EntityQuery _enemyTelegraphQuery;
         private bool _enemyTelegraphQueryValid;
+        private EntityQuery _persistentProgressionQuery;
+        private bool _persistentProgressionQueryValid;
         private Space4XCameraRigController _rigController;
         private GUIStyle _panelStyle;
         private GUIStyle _labelStyle;
@@ -68,6 +72,15 @@ namespace Space4X.Camera
             public int FleetcrawlExperienceToNext;
             public int FleetcrawlUnspentUpgrades;
             public int FleetcrawlMetaShards;
+            public int FleetcrawlMetaUnlocks;
+            public float FleetcrawlMetaDamageDealt;
+            public float FleetcrawlMetaDamageMitigated;
+            public float FleetcrawlMetaCloakSeconds;
+            public float FleetcrawlMetaTimeStopSeconds;
+            public float FleetcrawlMetaMissileDamage;
+            public int FleetcrawlMetaCraftShotDown;
+            public int FleetcrawlMetaCapitalKills;
+            public int FleetcrawlMetaCachesFound;
             public Space4XFleetcrawlChallengeKind FleetcrawlChallengeKind;
             public int FleetcrawlChallengeRisk;
             public float FleetcrawlChallengeSpawnMultiplier;
@@ -79,6 +92,16 @@ namespace Space4X.Camera
             public int TelegraphNormalBurst;
             public int TelegraphMiniBurst;
             public int TelegraphBossBurst;
+            public FixedString64Bytes FleetcrawlStartingCaptainProfileId;
+            public int FleetcrawlStartingCaptainPoolSize;
+            public Space4XRunMetaUnlockFlags FleetcrawlStartingCaptainUnlockFlags;
+            public bool FleetcrawlStartingCaptainForced;
+            public bool FleetcrawlStartingCaptainRandom;
+            public float PersistentThrustGeneratedTotal;
+            public uint PersistentMissilesFiredTotal;
+            public uint PersistentKineticAmmoSpentTotal;
+            public bool HasPersistentProgression;
+            public bool RtsAttackMovePrimed;
         }
 
         private void OnEnable()
@@ -93,6 +116,7 @@ namespace Space4X.Camera
             DisposeQuery(ref _battleFighterQuery, ref _battleFighterQueryValid);
             DisposeQuery(ref _fleetcrawlDirectorQuery, ref _fleetcrawlDirectorQueryValid);
             DisposeQuery(ref _enemyTelegraphQuery, ref _enemyTelegraphQueryValid);
+            DisposeQuery(ref _persistentProgressionQuery, ref _persistentProgressionQueryValid);
         }
 
         private void Update()
@@ -151,12 +175,32 @@ namespace Space4X.Camera
                     $"Progress lvl={_snapshot.FleetcrawlLevel} xp={_snapshot.FleetcrawlExperience}/{_snapshot.FleetcrawlExperienceToNext} unspent={_snapshot.FleetcrawlUnspentUpgrades} shards={_snapshot.FleetcrawlMetaShards}",
                     _labelStyle);
                 GUILayout.Label(
+                    $"Meta unlocks={_snapshot.FleetcrawlMetaUnlocks} dealt={_snapshot.FleetcrawlMetaDamageDealt:0} mitigated={_snapshot.FleetcrawlMetaDamageMitigated:0} cloak={_snapshot.FleetcrawlMetaCloakSeconds:0.0}s stop={_snapshot.FleetcrawlMetaTimeStopSeconds:0.0}s",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Meta ordnance={_snapshot.FleetcrawlMetaMissileDamage:0} craft={_snapshot.FleetcrawlMetaCraftShotDown} capital={_snapshot.FleetcrawlMetaCapitalKills} caches={_snapshot.FleetcrawlMetaCachesFound}",
+                    _labelStyle);
+                GUILayout.Label(
                     $"Challenge {_snapshot.FleetcrawlChallengeKind} risk={_snapshot.FleetcrawlChallengeRisk} spawn={_snapshot.FleetcrawlChallengeSpawnMultiplier:0.00}x xp={_snapshot.FleetcrawlChallengeExperienceMultiplier:0.00}x currency={_snapshot.FleetcrawlChallengeCurrencyMultiplier:0.00}x",
+                    _labelStyle);
+                GUILayout.Label(
+                    $"Captain {_snapshot.FleetcrawlStartingCaptainProfileId} pool={_snapshot.FleetcrawlStartingCaptainPoolSize} forced={(_snapshot.FleetcrawlStartingCaptainForced ? 1 : 0)} random={(_snapshot.FleetcrawlStartingCaptainRandom ? 1 : 0)} unlock_flags={_snapshot.FleetcrawlStartingCaptainUnlockFlags}",
                     _labelStyle);
                 GUILayout.Label(BuildFleetcrawlObjectiveText(in _snapshot), _labelStyle);
                 GUILayout.Label(
                     $"Telegraphs: windup N:{_snapshot.TelegraphNormalWindup} M:{_snapshot.TelegraphMiniWindup} B:{_snapshot.TelegraphBossWindup} | burst N:{_snapshot.TelegraphNormalBurst} M:{_snapshot.TelegraphMiniBurst} B:{_snapshot.TelegraphBossBurst}",
                     _labelStyle);
+            }
+
+            if (_snapshot.HasPersistentProgression)
+            {
+                GUILayout.Label(
+                    $"Retained progression thrust={_snapshot.PersistentThrustGeneratedTotal:0.0} missiles={_snapshot.PersistentMissilesFiredTotal} kinetic_ammo={_snapshot.PersistentKineticAmmoSpentTotal}",
+                    _labelStyle);
+            }
+            if (_snapshot.RtsAttackMovePrimed)
+            {
+                GUILayout.Label("RTS attack-move primed (A): left click to issue", _labelStyle);
             }
 
             var mode = _rigController != null && _rigController.IsCinematicActive
@@ -274,6 +318,35 @@ namespace Space4X.Camera
                         var meta = entityManager.GetComponentData<Space4XRunMetaResourceState>(directorEntity);
                         snapshot.FleetcrawlMetaShards = meta.Shards;
                     }
+                    if (entityManager.HasComponent<Space4XRunMetaUnlockState>(directorEntity))
+                    {
+                        var metaUnlocks = entityManager.GetComponentData<Space4XRunMetaUnlockState>(directorEntity);
+                        snapshot.FleetcrawlMetaUnlocks = metaUnlocks.UnlockCount;
+                    }
+                    if (entityManager.HasComponent<Space4XRunMetaProficiencyState>(directorEntity))
+                    {
+                        var metaProficiency = entityManager.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
+                        snapshot.FleetcrawlMetaDamageDealt = metaProficiency.DamageDealtEnergy +
+                                                            metaProficiency.DamageDealtThermal +
+                                                            metaProficiency.DamageDealtEM +
+                                                            metaProficiency.DamageDealtRadiation +
+                                                            metaProficiency.DamageDealtCaustic +
+                                                            metaProficiency.DamageDealtKinetic +
+                                                            metaProficiency.DamageDealtExplosive;
+                        snapshot.FleetcrawlMetaDamageMitigated = metaProficiency.DamageMitigatedEnergy +
+                                                                metaProficiency.DamageMitigatedThermal +
+                                                                metaProficiency.DamageMitigatedEM +
+                                                                metaProficiency.DamageMitigatedRadiation +
+                                                                metaProficiency.DamageMitigatedCaustic +
+                                                                metaProficiency.DamageMitigatedKinetic +
+                                                                metaProficiency.DamageMitigatedExplosive;
+                        snapshot.FleetcrawlMetaCloakSeconds = metaProficiency.CloakSeconds;
+                        snapshot.FleetcrawlMetaTimeStopSeconds = metaProficiency.TimeStopRequestedSeconds;
+                        snapshot.FleetcrawlMetaMissileDamage = metaProficiency.MissileDamageDealt;
+                        snapshot.FleetcrawlMetaCraftShotDown = metaProficiency.CraftShotDown;
+                        snapshot.FleetcrawlMetaCapitalKills = metaProficiency.CapitalShipsDestroyed;
+                        snapshot.FleetcrawlMetaCachesFound = metaProficiency.HiddenCachesFound;
+                    }
                     if (entityManager.HasComponent<Space4XRunChallengeState>(directorEntity))
                     {
                         var challenge = entityManager.GetComponentData<Space4XRunChallengeState>(directorEntity);
@@ -282,6 +355,15 @@ namespace Space4X.Camera
                         snapshot.FleetcrawlChallengeSpawnMultiplier = challenge.SpawnMultiplier;
                         snapshot.FleetcrawlChallengeCurrencyMultiplier = challenge.CurrencyMultiplier;
                         snapshot.FleetcrawlChallengeExperienceMultiplier = challenge.ExperienceMultiplier;
+                    }
+                    if (entityManager.HasComponent<Space4XRunStartingCaptainState>(directorEntity))
+                    {
+                        var captain = entityManager.GetComponentData<Space4XRunStartingCaptainState>(directorEntity);
+                        snapshot.FleetcrawlStartingCaptainProfileId = captain.ProfileId;
+                        snapshot.FleetcrawlStartingCaptainPoolSize = captain.CandidatePoolSize;
+                        snapshot.FleetcrawlStartingCaptainUnlockFlags = captain.UnlockFlags;
+                        snapshot.FleetcrawlStartingCaptainForced = captain.ForcedSelection != 0;
+                        snapshot.FleetcrawlStartingCaptainRandom = captain.RandomSelection != 0;
                     }
                 }
             }
@@ -312,6 +394,18 @@ namespace Space4X.Camera
                     }
                 }
             }
+
+            if (TryGetFirstEntity(entityManager, _persistentProgressionQuery, out var progressionEntity) &&
+                entityManager.HasComponent<Space4XPersistentProgressionState>(progressionEntity))
+            {
+                var persistent = entityManager.GetComponentData<Space4XPersistentProgressionState>(progressionEntity);
+                snapshot.PersistentThrustGeneratedTotal = persistent.TotalThrustGenerated;
+                snapshot.PersistentMissilesFiredTotal = persistent.TotalMissilesFired;
+                snapshot.PersistentKineticAmmoSpentTotal = persistent.TotalKineticAmmoSpent;
+                snapshot.HasPersistentProgression = true;
+            }
+
+            snapshot.RtsAttackMovePrimed = Space4XRtsClassicCommandMono.IsAttackMovePrimed;
 
             _snapshot = snapshot;
         }
@@ -363,6 +457,12 @@ namespace Space4X.Camera
                     ComponentType.ReadOnly<Space4XEnemyTelegraphState>(),
                     ComponentType.ReadOnly<Space4XRunEnemyTag>());
                 _enemyTelegraphQueryValid = true;
+            }
+
+            if (!_persistentProgressionQueryValid)
+            {
+                _persistentProgressionQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XPersistentProgressionState>());
+                _persistentProgressionQueryValid = true;
             }
 
             return true;

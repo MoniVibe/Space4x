@@ -1,5 +1,6 @@
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Math;
 using PureDOTS.Runtime.Ships;
 using PureDOTS.Runtime.Steering;
 using PureDOTS.Runtime.Telemetry;
@@ -64,7 +65,9 @@ namespace Space4X.Registry
         private ComponentLookup<FleetcrawlHeatsinkState> _fleetcrawlHeatsinkLookup;
         private ComponentLookup<FleetcrawlHeatControlState> _fleetcrawlHeatControlLookup;
         private BufferLookup<FleetcrawlHeatActionEvent> _fleetcrawlHeatActionLookup;
-        private ComponentLookup<Space4XRunPlayerTag> _runPlayerLookup;
+        private BufferLookup<FleetcrawlRolledLimbBufferElement> _fleetcrawlRolledLimbLookup;
+        private BufferLookup<FleetcrawlOwnedItem> _fleetcrawlOwnedItemLookup;
+        private BufferLookup<FleetcrawlHeatModifierDefinition> _fleetcrawlHeatDefinitionLookup;
         private EntityStorageInfoLookup _entityLookup;
 
         [BurstCompile]
@@ -108,7 +111,9 @@ namespace Space4X.Registry
             _fleetcrawlHeatsinkLookup = state.GetComponentLookup<FleetcrawlHeatsinkState>(false);
             _fleetcrawlHeatControlLookup = state.GetComponentLookup<FleetcrawlHeatControlState>(true);
             _fleetcrawlHeatActionLookup = state.GetBufferLookup<FleetcrawlHeatActionEvent>(false);
-            _runPlayerLookup = state.GetComponentLookup<Space4XRunPlayerTag>(true);
+            _fleetcrawlRolledLimbLookup = state.GetBufferLookup<FleetcrawlRolledLimbBufferElement>(true);
+            _fleetcrawlOwnedItemLookup = state.GetBufferLookup<FleetcrawlOwnedItem>(true);
+            _fleetcrawlHeatDefinitionLookup = state.GetBufferLookup<FleetcrawlHeatModifierDefinition>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -159,7 +164,9 @@ namespace Space4X.Registry
             _fleetcrawlHeatsinkLookup.Update(ref state);
             _fleetcrawlHeatControlLookup.Update(ref state);
             _fleetcrawlHeatActionLookup.Update(ref state);
-            _runPlayerLookup.Update(ref state);
+            _fleetcrawlRolledLimbLookup.Update(ref state);
+            _fleetcrawlOwnedItemLookup.Update(ref state);
+            _fleetcrawlHeatDefinitionLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _engagementLookup.Update(ref state);
             _shieldLookup.Update(ref state);
@@ -207,6 +214,17 @@ namespace Space4X.Registry
             }
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var sharedHeatStats = FleetcrawlResolvedHeatStats.Identity;
+            if (SystemAPI.TryGetSingletonEntity<FleetcrawlOfferRuntimeTag>(out var runtimeEntity) &&
+                _fleetcrawlRolledLimbLookup.HasBuffer(runtimeEntity) &&
+                _fleetcrawlOwnedItemLookup.HasBuffer(runtimeEntity) &&
+                _fleetcrawlHeatDefinitionLookup.HasBuffer(runtimeEntity))
+            {
+                sharedHeatStats = FleetcrawlHeatResolver.ResolveAggregate(
+                    _fleetcrawlRolledLimbLookup[runtimeEntity],
+                    _fleetcrawlOwnedItemLookup[runtimeEntity],
+                    _fleetcrawlHeatDefinitionLookup[runtimeEntity]);
+            }
 
             foreach (var (weapons, engagement, transform, supply, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRO<Space4XEngagement>, RefRO<LocalTransform>, RefRW<SupplyStatus>>()
@@ -336,6 +354,17 @@ namespace Space4X.Registry
                     var runtime = _fleetcrawlHeatRuntimeLookup[entity];
                     var heatsink = _fleetcrawlHeatsinkLookup[entity];
                     var actions = _fleetcrawlHeatActionLookup[entity];
+                    var resolvedHeatStats = sharedHeatStats;
+                    if (_fleetcrawlRolledLimbLookup.HasBuffer(entity) &&
+                        _fleetcrawlOwnedItemLookup.HasBuffer(entity) &&
+                        _fleetcrawlHeatDefinitionLookup.HasBuffer(entity))
+                    {
+                        resolvedHeatStats = FleetcrawlHeatResolver.ResolveAggregate(
+                            _fleetcrawlRolledLimbLookup[entity],
+                            _fleetcrawlOwnedItemLookup[entity],
+                            _fleetcrawlHeatDefinitionLookup[entity]);
+                    }
+
                     var safetyMode = FleetcrawlHeatSafetyMode.BalancedAutoVent;
                     if (_fleetcrawlHeatControlLookup.HasComponent(entity))
                     {
@@ -359,7 +388,7 @@ namespace Space4X.Registry
                     FleetcrawlHeatResolver.TickAdvanced(
                         currentTick,
                         actions,
-                        heatStats,
+                        resolvedHeatStats,
                         ref runtime,
                         ref heatsink,
                         safetyMode,
@@ -381,6 +410,8 @@ namespace Space4X.Registry
                     var heatPerShot = mount.HeatPerShot > 0f ? mount.HeatPerShot : defaultHeatPerShot;
                     var heat = math.clamp(mount.Heat01, 0f, 1f);
                     var coolingRating = mount.CoolingRating;
+                    var nuanceArchetype = Space4XWeaponFamilyNuance.ResolveArchetype(mount.Weapon);
+                    var nuanceProfile = Space4XWeaponFamilyNuance.ResolveProfile(nuanceArchetype);
 
                     if (mount.SourceModule != Entity.Null && _limbProfileLookup.HasComponent(mount.SourceModule))
                     {
@@ -388,6 +419,9 @@ namespace Space4X.Registry
                         heatCapacity = math.lerp(0.6f, 1.4f, (float)coolingRating);
                         heatDissipation = math.lerp(0.01f, 0.06f, (float)coolingRating);
                     }
+
+                    heatPerShot = Space4XWeaponFamilyNuance.ResolveHeatPerShot(heatPerShot, nuanceProfile);
+                    var ammoPerShot = Space4XWeaponFamilyNuance.ResolveAmmoPerShot(mount.Weapon.AmmoPerShot, nuanceProfile);
 
                     if (heat > 0f)
                     {
@@ -550,7 +584,7 @@ namespace Space4X.Registry
                     }
 
                     // Ammo check
-                    if (mount.Weapon.AmmoPerShot > 0 && supply.ValueRO.Ammunition < mount.Weapon.AmmoPerShot)
+                    if (ammoPerShot > 0 && supply.ValueRO.Ammunition < ammoPerShot)
                     {
                         if (mountDirty)
                         {
@@ -635,9 +669,9 @@ namespace Space4X.Registry
                     }
 
                     // Consume ammo
-                    if (mount.Weapon.AmmoPerShot > 0)
+                    if (ammoPerShot > 0)
                     {
-                        supply.ValueRW.Ammunition -= mount.Weapon.AmmoPerShot;
+                        supply.ValueRW.Ammunition -= ammoPerShot;
                     }
                 }
             }
@@ -909,6 +943,9 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XArmor> _armorLookup;
         private ComponentLookup<HullIntegrity> _hullLookup;
         private ComponentLookup<FleetcrawlHeatOutputState> _fleetcrawlHeatOutputLookup;
+        private ComponentLookup<ShipPowerFocus> _shipPowerFocusLookup;
+        private ComponentLookup<Space4XAsteroidVolumeConfig> _asteroidVolumeLookup;
+        private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
         private BufferLookup<DamageEvent> _damageEventLookup;
         private const float SubsystemDamageFraction = 0.25f;
         private const float AntiSubsystemDamageMultiplier = 1.5f;
@@ -952,6 +989,9 @@ namespace Space4X.Registry
             _armorLookup = state.GetComponentLookup<Space4XArmor>(true);
             _hullLookup = state.GetComponentLookup<HullIntegrity>(false);
             _fleetcrawlHeatOutputLookup = state.GetComponentLookup<FleetcrawlHeatOutputState>(true);
+            _shipPowerFocusLookup = state.GetComponentLookup<ShipPowerFocus>(true);
+            _asteroidVolumeLookup = state.GetComponentLookup<Space4XAsteroidVolumeConfig>(true);
+            _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
             _damageEventLookup = state.GetBufferLookup<DamageEvent>(false);
         }
 
@@ -1009,9 +1049,23 @@ namespace Space4X.Registry
             _armorLookup.Update(ref state);
             _hullLookup.Update(ref state);
             _fleetcrawlHeatOutputLookup.Update(ref state);
+            _shipPowerFocusLookup.Update(ref state);
+            _asteroidVolumeLookup.Update(ref state);
+            _physicalLookup.Update(ref state);
             _damageEventLookup.Update(ref state);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var hazardSpheres = new NativeList<float4>(Allocator.Temp);
+            foreach (var (hazardTransform, hazardEntity) in SystemAPI.Query<RefRO<LocalTransform>>()
+                         .WithAll<Asteroid>()
+                         .WithEntityAccess())
+            {
+                var radius = ResolveCombatHazardRadius(hazardEntity);
+                if (radius > 0.1f)
+                {
+                    hazardSpheres.Add(new float4(hazardTransform.ValueRO.Position, radius));
+                }
+            }
 
             foreach (var (weapons, engagement, transform, entity) in
                 SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>>()
@@ -1045,9 +1099,11 @@ namespace Space4X.Registry
                 }
 
                 var focusAccuracyBonus = 0f;
+                var focusDetectionBonus = 0f;
                 if (TryResolveFocusModifiers(entity, out var focusModifiers))
                 {
                     focusAccuracyBonus = (float)focusModifiers.AccuracyBonus;
+                    focusDetectionBonus = math.max(0f, (float)focusModifiers.DetectionBonus);
                 }
 
                 var gunnerySkill = ResolveGunnerySkill(entity, combatTuning);
@@ -1058,11 +1114,17 @@ namespace Space4X.Registry
                 var relativeVelocity = targetVelocity - attackerVelocity;
                 var rangeScale = ResolveRangeScale(entity);
                 var weaponsBuffer = weapons;
+                var targetHeatSignature01 = _fleetcrawlHeatOutputLookup.HasComponent(target)
+                    ? FleetcrawlHeatResolver.ResolveHeatSignature01(_fleetcrawlHeatOutputLookup[target])
+                    : 0f;
+                var stealthHitMultiplier = ResolveStealthHitMultiplier(target, focusDetectionBonus, targetHeatSignature01);
 
                 // Process weapons that just fired (cooldown == max)
                 for (int i = 0; i < weaponsBuffer.Length; i++)
                 {
                     var mount = weaponsBuffer[i];
+                    var nuanceArchetype = Space4XWeaponFamilyNuance.ResolveArchetype(mount.Weapon);
+                    var nuanceProfile = Space4XWeaponFamilyNuance.ResolveProfile(nuanceArchetype);
 
                     if (mount.CurrentTarget != target || mount.Weapon.CurrentCooldown != mount.Weapon.CooldownTicks)
                     {
@@ -1101,6 +1163,14 @@ namespace Space4X.Registry
 
                     var trackingPenalty = ResolveTrackingPenalty(mount.Weapon, distance, directionToTarget, relativeVelocity, gunnerySkill, combatTuning);
                     hitChance = math.clamp(hitChance * trackingPenalty, 0f, 1f);
+                    hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHitChanceMultiplier(nuanceProfile), 0f, 1f);
+                    hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHeatSeekHitChanceMultiplier(targetHeatSignature01, nuanceProfile), 0f, 1f);
+                    var laneOcclusion01 = ResolveHazardPathOcclusion01(transform.ValueRO.Position, targetTransform.Position, mount.Weapon, hazardSpheres);
+                    hitChance = math.clamp(hitChance * Space4XWeaponFamilyNuance.ResolveHazardOcclusionHitChanceMultiplier(
+                        laneOcclusion01,
+                        ResolveProjectedBlastRadius(mount.Weapon),
+                        nuanceProfile), 0f, 1f);
+                    hitChance = math.clamp(hitChance * stealthHitMultiplier, 0f, 1f);
 
                     if (random.NextFloat() > hitChance)
                     {
@@ -1152,6 +1222,13 @@ namespace Space4X.Registry
                         rawDamage *= advantageMultiplier;
                     }
 
+                    var distanceDamageMultiplier = Space4XWeaponFamilyNuance.ResolveDistanceDamageMultiplier(
+                        distance,
+                        mount.Weapon.OptimalRange * rangeScale,
+                        mount.Weapon.MaxRange * rangeScale,
+                        nuanceProfile);
+                    rawDamage *= distanceDamageMultiplier;
+
                     // Apply damage to target
                     ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb);
 
@@ -1159,8 +1236,21 @@ namespace Space4X.Registry
                 }
             }
 
+            hazardSpheres.Dispose();
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
+        }
+
+        private float ResolveStealthHitMultiplier(Entity target, float attackerDetectionBonus, float targetHeatSignature01)
+        {
+            if (!_shipPowerFocusLookup.HasComponent(target) ||
+                _shipPowerFocusLookup[target].Mode != ShipPowerFocusMode.Stealth)
+            {
+                return 1f;
+            }
+
+            var heatSignature01 = math.saturate(targetHeatSignature01 + attackerDetectionBonus * 0.6f);
+            return math.lerp(0.55f, 1f, heatSignature01);
         }
 
         private void ApplyDamageToTarget(
@@ -1488,6 +1578,73 @@ namespace Space4X.Registry
             var maxScale = math.max(minScale, tuning.TrackingPenaltyMaxScale);
             var skillFactor = math.lerp(basePenalty * maxScale, basePenalty * minScale, math.saturate(gunnerySkill));
             return math.saturate(1f - omega * skillFactor);
+        }
+
+        private float ResolveCombatHazardRadius(Entity hazardEntity)
+        {
+            var radius = 0f;
+            if (_asteroidVolumeLookup.HasComponent(hazardEntity))
+            {
+                radius = math.max(radius, _asteroidVolumeLookup[hazardEntity].Radius);
+            }
+
+            if (_physicalLookup.HasComponent(hazardEntity))
+            {
+                radius = math.max(radius, _physicalLookup[hazardEntity].Radius);
+            }
+
+            return radius > 0f ? radius : 8f;
+        }
+
+        private static float ResolveHazardPathOcclusion01(
+            float3 start,
+            float3 end,
+            in Space4XWeapon weapon,
+            NativeList<float4> hazardSpheres)
+        {
+            if (hazardSpheres.Length == 0)
+            {
+                return 0f;
+            }
+
+            var pathRadius = ResolveProjectilePathRadius(weapon);
+            var occlusion = 0f;
+            for (var i = 0; i < hazardSpheres.Length; i++)
+            {
+                var hazard = hazardSpheres[i];
+                var sample = SegmentGeometry.ResolveSegmentSphereOcclusion01(start, end, hazard.xyz, hazard.w, pathRadius);
+                occlusion = math.max(occlusion, sample);
+                if (occlusion >= 0.999f)
+                {
+                    break;
+                }
+            }
+
+            return math.saturate(occlusion);
+        }
+
+        private static float ResolveProjectilePathRadius(in Space4XWeapon weapon)
+        {
+            var baseRadius = weapon.Delivery switch
+            {
+                WeaponDelivery.Beam => 0.15f,
+                WeaponDelivery.Guided => 1.1f,
+                WeaponDelivery.Bus => 1.35f,
+                _ => 0.8f
+            };
+            return baseRadius * (1f + 0.2f * (int)weapon.Size);
+        }
+
+        private static float ResolveProjectedBlastRadius(in Space4XWeapon weapon)
+        {
+            var sizeScale = 1f + 0.25f * (int)weapon.Size;
+            return weapon.Type switch
+            {
+                WeaponType.Missile => 8f * sizeScale,
+                WeaponType.Torpedo => 12f * sizeScale,
+                WeaponType.Flak => 10f * sizeScale,
+                _ => 0f
+            };
         }
 
         private float ResolveRangeScale(Entity entity)
@@ -2454,16 +2611,68 @@ namespace Space4X.Registry
             // Aggregate weapon tracking telemetry.
             uint shotsFiredTotal = 0;
             uint shotsHitTotal = 0;
+            float mountHeatSum = 0f;
+            float mountHeatMax = 0f;
+            int mountHeatSamples = 0;
+            int mountOverheated = 0;
             foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>())
             {
                 for (int i = 0; i < weapons.Length; i++)
                 {
                     shotsFiredTotal += weapons[i].ShotsFired;
                     shotsHitTotal += weapons[i].ShotsHit;
+
+                    var mountHeat = math.saturate(weapons[i].Heat01);
+                    mountHeatSum += mountHeat;
+                    mountHeatMax = math.max(mountHeatMax, mountHeat);
+                    mountHeatSamples++;
+                    if (mountHeat >= 0.999f)
+                    {
+                        mountOverheated++;
+                    }
                 }
             }
 
             uint shotsMissedTotal = shotsFiredTotal >= shotsHitTotal ? shotsFiredTotal - shotsHitTotal : 0;
+            var mountHeatAvg = mountHeatSamples > 0 ? mountHeatSum / mountHeatSamples : 0f;
+
+            float shipHeatSum = 0f;
+            float shipHeatMax = 0f;
+            int shipHeatSamples = 0;
+            int shipOverheated = 0;
+            float heatsinkFillSum = 0f;
+            int heatsinkFillSamples = 0;
+            float heatSignatureSum = 0f;
+            float heatSignatureMax = 0f;
+            int heatSignatureSamples = 0;
+            foreach (var heatOutput in SystemAPI.Query<RefRO<FleetcrawlHeatOutputState>>())
+            {
+                var heat01 = math.saturate(heatOutput.ValueRO.Heat01);
+                shipHeatSum += heat01;
+                shipHeatMax = math.max(shipHeatMax, heat01);
+                shipHeatSamples++;
+
+                if (heatOutput.ValueRO.IsOverheated != 0)
+                {
+                    shipOverheated++;
+                }
+
+                if (heatOutput.ValueRO.HeatsinkCapacity > 1e-5f)
+                {
+                    var fill01 = math.saturate(heatOutput.ValueRO.HeatsinkStoredHeat / heatOutput.ValueRO.HeatsinkCapacity);
+                    heatsinkFillSum += fill01;
+                    heatsinkFillSamples++;
+                }
+
+                var signature01 = FleetcrawlHeatResolver.ResolveHeatSignature01(heatOutput.ValueRO);
+                heatSignatureSum += signature01;
+                heatSignatureMax = math.max(heatSignatureMax, signature01);
+                heatSignatureSamples++;
+            }
+
+            var shipHeatAvg = shipHeatSamples > 0 ? shipHeatSum / shipHeatSamples : 0f;
+            var heatsinkFillAvg = heatsinkFillSamples > 0 ? heatsinkFillSum / heatsinkFillSamples : 0f;
+            var heatSignatureAvg = heatSignatureSamples > 0 ? heatSignatureSum / heatSignatureSamples : 0f;
 
             // Aggregate damage by type since last tick.
             float deltaEnergy = 0f;
@@ -2586,6 +2795,20 @@ namespace Space4X.Registry
             metricBuffer.AddMetric("space4x.combat.shots.fired_delta", telemetry.ShotsFiredDelta, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.combat.shots.hit_delta", telemetry.ShotsHitDelta, TelemetryMetricUnit.Count);
             metricBuffer.AddMetric("space4x.combat.shots.missed_delta", telemetry.ShotsMissedDelta, TelemetryMetricUnit.Count);
+
+            metricBuffer.AddMetric("space4x.combat.heat.mount.avg01", mountHeatAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.mount.max01", mountHeatMax, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.mount.samples", mountHeatSamples, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.mount.overheated.count", mountOverheated, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.avg01", shipHeatAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.max01", shipHeatMax, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.samples", shipHeatSamples, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.ship.overheated.count", shipOverheated, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.heatsink.fill.avg01", heatsinkFillAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.heatsink.fill.samples", heatsinkFillSamples, TelemetryMetricUnit.Count);
+            metricBuffer.AddMetric("space4x.combat.heat.signature.avg01", heatSignatureAvg, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.signature.max01", heatSignatureMax, TelemetryMetricUnit.Ratio);
+            metricBuffer.AddMetric("space4x.combat.heat.signature.samples", heatSignatureSamples, TelemetryMetricUnit.Count);
 
             metricBuffer.AddMetric("space4x.combat.damage.energy.total", telemetry.TotalDamageEnergy, TelemetryMetricUnit.Custom);
             metricBuffer.AddMetric("space4x.combat.damage.thermal.total", telemetry.TotalDamageThermal, TelemetryMetricUnit.Custom);

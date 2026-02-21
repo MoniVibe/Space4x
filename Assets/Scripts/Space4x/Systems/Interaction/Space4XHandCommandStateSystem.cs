@@ -33,6 +33,7 @@ namespace Space4X.Systems.Interaction
             state.RequireForUpdate<HandInputFrame>();
             state.RequireForUpdate<HandAffordances>();
             state.RequireForUpdate<HandStateData>();
+            state.RequireForUpdate<Space4XControlModeRuntimeState>();
             _pickableLookup = state.GetComponentLookup<HandPickable>(true);
             _spacePickableLookup = state.GetComponentLookup<Space4XHandPickable>(true);
             _massLookup = state.GetComponentLookup<PhysicsMass>(true);
@@ -42,6 +43,12 @@ namespace Space4X.Systems.Interaction
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var modeState = SystemAPI.GetSingleton<Space4XControlModeRuntimeState>();
+            if (modeState.IsDivineHandEnabled == 0)
+            {
+                return;
+            }
+
             var input = SystemAPI.GetSingleton<HandInputFrame>();
             var affordances = SystemAPI.GetSingleton<HandAffordances>();
             var timeState = SystemAPI.GetSingleton<TimeState>();

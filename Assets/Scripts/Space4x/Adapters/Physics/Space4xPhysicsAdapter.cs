@@ -1,3 +1,4 @@
+using PureDOTS.Runtime;
 using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Launch;
@@ -6,6 +7,7 @@ using PureDOTS.Systems.Physics;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Physics;
 
 namespace Space4X.Adapters.Physics
 {
@@ -19,8 +21,21 @@ namespace Space4X.Adapters.Physics
     [UpdateAfter(typeof(PureDOTS.Systems.Physics.PhysicsEventSystem))]
     public partial struct Space4XPhysicsAdapter : ISystem
     {
-        private const float DamagePerImpulse = 0.1f;
+        private const float DefaultDamagePerImpulse = 0.1f;
+        private const float DefaultMinImpulse = 0.5f;
+        private static readonly MaterialStats DefaultMaterialStats = new MaterialStats
+        {
+            Hardness = 1f,
+            Fragility = 1f,
+            Density = 1f
+        };
+
         private ComponentLookup<LaunchedProjectileTag> _launchedLookup;
+        private ComponentLookup<ImpactDamage> _impactDamageLookup;
+        private ComponentLookup<MaterialStats> _materialStatsLookup;
+        private ComponentLookup<PhysicsMass> _physicsMassLookup;
+        private ComponentLookup<PhysicsVelocity> _physicsVelocityLookup;
+        private ComponentLookup<PhysicsInteractionConfig> _interactionConfigLookup;
         private BufferLookup<DamageEvent> _damageBufferLookup;
 
         [BurstCompile]
@@ -32,6 +47,11 @@ namespace Space4X.Adapters.Physics
             state.RequireForUpdate<EndSimulationEntityCommandBufferSystem.Singleton>();
 
             _launchedLookup = state.GetComponentLookup<LaunchedProjectileTag>(true);
+            _impactDamageLookup = state.GetComponentLookup<ImpactDamage>(true);
+            _materialStatsLookup = state.GetComponentLookup<MaterialStats>(true);
+            _physicsMassLookup = state.GetComponentLookup<PhysicsMass>(true);
+            _physicsVelocityLookup = state.GetComponentLookup<PhysicsVelocity>(true);
+            _interactionConfigLookup = state.GetComponentLookup<PhysicsInteractionConfig>(true);
             _damageBufferLookup = state.GetBufferLookup<DamageEvent>(false);
         }
 
@@ -82,6 +102,11 @@ namespace Space4X.Adapters.Physics
         private void ProcessSpace4XCollisionEvents(ref SystemState state)
         {
             _launchedLookup.Update(ref state);
+            _impactDamageLookup.Update(ref state);
+            _materialStatsLookup.Update(ref state);
+            _physicsMassLookup.Update(ref state);
+            _physicsVelocityLookup.Update(ref state);
+            _interactionConfigLookup.Update(ref state);
             _damageBufferLookup.Update(ref state);
 
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
@@ -116,7 +141,53 @@ namespace Space4X.Adapters.Physics
                         continue;
                     }
 
-                    var damage = math.max(0f, evt.Impulse) * DamagePerImpulse;
+                    var sourceVelocity = _physicsVelocityLookup.HasComponent(evt.OtherEntity)
+                        ? _physicsVelocityLookup[evt.OtherEntity].Linear
+                        : float3.zero;
+                    var targetVelocity = _physicsVelocityLookup.HasComponent(entity)
+                        ? _physicsVelocityLookup[entity].Linear
+                        : float3.zero;
+
+                    var sourceMass = ResolveMass(evt.OtherEntity, ref _physicsMassLookup, ref _interactionConfigLookup);
+                    var targetMass = ResolveMass(entity, ref _physicsMassLookup, ref _interactionConfigLookup);
+
+                    var kinematics = CollisionDamage.ComputeImpactKinematics(
+                        sourceVelocity,
+                        sourceMass,
+                        targetVelocity,
+                        targetMass,
+                        evt.ContactNormal);
+
+                    var effectiveImpulse = CollisionDamage.ResolveEffectiveImpulse(evt.Impulse, in kinematics);
+
+                    var impactDamage = _impactDamageLookup.HasComponent(evt.OtherEntity)
+                        ? _impactDamageLookup[evt.OtherEntity]
+                        : new ImpactDamage
+                        {
+                            DamagePerImpulse = DefaultDamagePerImpulse,
+                            MinImpulse = DefaultMinImpulse
+                        };
+
+                    if (effectiveImpulse < impactDamage.MinImpulse)
+                    {
+                        continue;
+                    }
+
+                    var sourceMaterial = _materialStatsLookup.HasComponent(evt.OtherEntity)
+                        ? _materialStatsLookup[evt.OtherEntity]
+                        : DefaultMaterialStats;
+                    var targetMaterial = _materialStatsLookup.HasComponent(entity)
+                        ? _materialStatsLookup[entity]
+                        : DefaultMaterialStats;
+
+                    var damage = CollisionDamage.ComputeDamage(
+                        effectiveImpulse,
+                        kinematics.RelativeSpeed,
+                        in sourceMaterial,
+                        in targetMaterial,
+                        math.max(0f, impactDamage.DamagePerImpulse),
+                        useEnergyFormula: false);
+
                     if (damage <= 0f)
                     {
                         continue;
@@ -149,6 +220,25 @@ namespace Space4X.Adapters.Physics
                     }
                 }
             }
+        }
+
+        private static float ResolveMass(
+            Entity entity,
+            ref ComponentLookup<PhysicsMass> physicsMassLookup,
+            ref ComponentLookup<PhysicsInteractionConfig> interactionConfigLookup)
+        {
+            var fallbackMass = 1f;
+            if (interactionConfigLookup.HasComponent(entity))
+            {
+                fallbackMass = math.max(0.0001f, interactionConfigLookup[entity].Mass);
+            }
+
+            if (physicsMassLookup.HasComponent(entity))
+            {
+                return CollisionDamage.ResolveMass(physicsMassLookup[entity].InverseMass, fallbackMass);
+            }
+
+            return fallbackMass;
         }
     }
 }
