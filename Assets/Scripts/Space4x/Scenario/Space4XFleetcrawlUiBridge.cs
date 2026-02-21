@@ -17,6 +17,22 @@ namespace Space4x.Scenario
         public int OfferIndex;
     }
 
+    public enum Space4XFleetcrawlPurchaseKind : byte
+    {
+        DamageBoost = 0,
+        CooldownTrim = 1,
+        Heal = 2,
+        RerollToken = 3
+    }
+
+    public struct Space4XRunPendingPurchaseRequest : IComponentData
+    {
+        public int RoomIndex;
+        public int NodeOrdinal;
+        public Space4XFleetcrawlPurchaseKind Kind;
+        public FixedString64Bytes PurchaseId;
+    }
+
     public struct Space4XFleetcrawlOfferPreview
     {
         public Space4XRunRewardKind RewardKind;
@@ -24,14 +40,22 @@ namespace Space4x.Scenario
         public FixedString64Bytes RewardId;
     }
 
-    public struct Space4XFleetcrawlBlueprintDefinition
+    public enum Space4XFleetcrawlInputMode : byte
     {
-        public Space4XRunBlueprintKind Kind;
-        public FixedString64Bytes BlueprintId;
-        public FixedString64Bytes BaseModuleId;
-        public FixedString64Bytes ManufacturerId;
-        public FixedString64Bytes PartA;
-        public FixedString64Bytes PartB;
+        Auto = 0,
+        Manual = 1
+    }
+
+    public struct Space4XFleetcrawlPlayerDirective : IComponentData
+    {
+        public float2 Movement;
+        public byte BoostRequested;
+        public byte DashRequested;
+        public byte SpecialRequested;
+        public uint Tick;
+        public uint BoostCooldownUntilTick;
+        public uint DashCooldownUntilTick;
+        public uint SpecialCooldownUntilTick;
     }
 
     internal static class Space4XFleetcrawlUiBridge
@@ -39,6 +63,55 @@ namespace Space4x.Scenario
         public static bool IsFleetcrawlScenario(in FixedString64Bytes scenarioId)
         {
             return scenarioId.Length > 0 && scenarioId.ToString().StartsWith("space4x_fleetcrawl", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static Space4XFleetcrawlInputMode ReadInputMode()
+        {
+            var raw = Environment.GetEnvironmentVariable("SPACE4X_FLEETCRAWL_INPUT_MODE");
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return Space4XFleetcrawlInputMode.Manual;
+            }
+
+            return raw.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase)
+                ? Space4XFleetcrawlInputMode.Auto
+                : Space4XFleetcrawlInputMode.Manual;
+        }
+
+        public static uint ReadTicksSetting(string envName, uint defaultValue)
+        {
+            var raw = Environment.GetEnvironmentVariable(envName);
+            if (string.IsNullOrWhiteSpace(raw) || !uint.TryParse(raw.Trim(), out var value))
+            {
+                return defaultValue;
+            }
+
+            return value;
+        }
+
+        public static bool TryReadPickIndex(string envName, out int index)
+        {
+            index = 0;
+            var raw = Environment.GetEnvironmentVariable(envName);
+            if (string.IsNullOrWhiteSpace(raw) || !int.TryParse(raw.Trim(), out var parsed))
+            {
+                return false;
+            }
+
+            // Accept both 0-based and 1-based user inputs.
+            if (parsed > 0 && parsed <= 3)
+            {
+                index = parsed - 1;
+                return true;
+            }
+
+            index = parsed;
+            return true;
+        }
+
+        public static void ClearPickEnv(string envName)
+        {
+            Environment.SetEnvironmentVariable(envName, string.Empty);
         }
 
         public static int ResolveGateCount(Space4XFleetcrawlRoomKind roomKind)
@@ -196,84 +269,15 @@ namespace Space4x.Scenario
             return blueprintId.ToString();
         }
 
-        public static bool TryResolveBlueprintDefinition(string blueprintId, out Space4XFleetcrawlBlueprintDefinition definition)
+        public static string DescribePurchase(Space4XFleetcrawlPurchaseKind kind)
         {
-            definition = default;
-            if (string.IsNullOrWhiteSpace(blueprintId))
+            return kind switch
             {
-                return false;
-            }
-
-            if (blueprintId.Equals("weapon_laser_prismworks_coreA_lensBeam", StringComparison.OrdinalIgnoreCase))
-            {
-                definition = new Space4XFleetcrawlBlueprintDefinition
-                {
-                    Kind = Space4XRunBlueprintKind.Weapon,
-                    BlueprintId = new FixedString64Bytes("weapon_laser_prismworks_coreA_lensBeam"),
-                    BaseModuleId = new FixedString64Bytes("weapon_laser"),
-                    ManufacturerId = new FixedString64Bytes("prismworks"),
-                    PartA = new FixedString64Bytes("coreA"),
-                    PartB = new FixedString64Bytes("lensBeam")
-                };
-                return true;
-            }
-
-            if (blueprintId.Equals("weapon_kinetic_baseline_coreB_barrelKinetic", StringComparison.OrdinalIgnoreCase))
-            {
-                definition = new Space4XFleetcrawlBlueprintDefinition
-                {
-                    Kind = Space4XRunBlueprintKind.Weapon,
-                    BlueprintId = new FixedString64Bytes("weapon_kinetic_baseline_coreB_barrelKinetic"),
-                    BaseModuleId = new FixedString64Bytes("weapon_kinetic"),
-                    ManufacturerId = new FixedString64Bytes("baseline"),
-                    PartA = new FixedString64Bytes("coreB"),
-                    PartB = new FixedString64Bytes("barrelKinetic")
-                };
-                return true;
-            }
-
-            if (blueprintId.Equals("reactor_prismworks_coreA_coolingStable", StringComparison.OrdinalIgnoreCase))
-            {
-                definition = new Space4XFleetcrawlBlueprintDefinition
-                {
-                    Kind = Space4XRunBlueprintKind.Reactor,
-                    BlueprintId = new FixedString64Bytes("reactor_prismworks_coreA_coolingStable"),
-                    BaseModuleId = new FixedString64Bytes("reactor"),
-                    ManufacturerId = new FixedString64Bytes("prismworks"),
-                    PartA = new FixedString64Bytes("coreA"),
-                    PartB = new FixedString64Bytes("coolingStable")
-                };
-                return true;
-            }
-
-            if (blueprintId.Equals("hangar_prismworks_guidanceDroneLink_lensBeam", StringComparison.OrdinalIgnoreCase))
-            {
-                definition = new Space4XFleetcrawlBlueprintDefinition
-                {
-                    Kind = Space4XRunBlueprintKind.Hangar,
-                    BlueprintId = new FixedString64Bytes("hangar_prismworks_guidanceDroneLink_lensBeam"),
-                    BaseModuleId = new FixedString64Bytes("hangar"),
-                    ManufacturerId = new FixedString64Bytes("prismworks"),
-                    PartA = new FixedString64Bytes("guidanceDroneLink"),
-                    PartB = new FixedString64Bytes("lensBeam")
-                };
-                return true;
-            }
-
-            return false;
-        }
-
-        public static Space4XRunInstalledBlueprint ToInstalledBlueprint(in Space4XFleetcrawlBlueprintDefinition definition, byte version = 1)
-        {
-            return new Space4XRunInstalledBlueprint
-            {
-                Kind = definition.Kind,
-                BlueprintId = definition.BlueprintId,
-                BaseModuleId = definition.BaseModuleId,
-                ManufacturerId = definition.ManufacturerId,
-                PartA = definition.PartA,
-                PartB = definition.PartB,
-                Version = version
+                Space4XFleetcrawlPurchaseKind.DamageBoost => "Damage+",
+                Space4XFleetcrawlPurchaseKind.CooldownTrim => "Cooldown-",
+                Space4XFleetcrawlPurchaseKind.Heal => "Heal",
+                Space4XFleetcrawlPurchaseKind.RerollToken => "Reroll token",
+                _ => kind.ToString()
             };
         }
 

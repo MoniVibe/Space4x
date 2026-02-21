@@ -19,6 +19,8 @@ namespace Space4x.Scenario
             var existing = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
             if (existing != null)
             {
+                EnsureComponent<Space4XFleetcrawlGateMarkersMono>(existing.gameObject);
+                EnsureComponent<Space4XFleetcrawlEconomyAffordancesMono>(existing.gameObject);
                 LogOnce("existing");
                 return;
             }
@@ -31,6 +33,8 @@ namespace Space4x.Scenario
             go.AddComponent<Space4XFleetcrawlMetaProgressionMono>();
             go.AddComponent<Space4XFleetcrawlPlayerControlMono>();
             go.AddComponent<Space4XFleetcrawlCameraFollowMono>();
+            EnsureComponent<Space4XFleetcrawlGateMarkersMono>(go);
+            EnsureComponent<Space4XFleetcrawlEconomyAffordancesMono>(go);
             LogOnce("spawned");
         }
 
@@ -43,6 +47,12 @@ namespace Space4x.Scenario
 
             _logged = true;
             Debug.Log($"[Space4XFleetcrawlAutoUiBootstrap] active=1 mode={mode}");
+        }
+
+        private static T EnsureComponent<T>(GameObject go) where T : Component
+        {
+            var existing = go.GetComponent<T>();
+            return existing != null ? existing : go.AddComponent<T>();
         }
     }
 }
