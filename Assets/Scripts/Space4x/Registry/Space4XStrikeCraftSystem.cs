@@ -343,6 +343,7 @@ namespace Space4X.Registry
         private BufferLookup<SubsystemHealth> _subsystemLookup;
         private BufferLookup<SubsystemDisabled> _subsystemDisabledLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<CraftLoadoutAggregate> _craftLoadoutLookup;
         private uint _lastTick;
         private const float PnNavConstant = 3.5f;
 
@@ -360,6 +361,7 @@ namespace Space4X.Registry
             _subsystemLookup = state.GetBufferLookup<SubsystemHealth>(true);
             _subsystemDisabledLookup = state.GetBufferLookup<SubsystemDisabled>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _craftLoadoutLookup = state.GetComponentLookup<CraftLoadoutAggregate>(true);
         }
 
         [BurstCompile]
@@ -395,6 +397,7 @@ namespace Space4X.Registry
             _subsystemLookup.Update(ref state);
             _subsystemDisabledLookup.Update(ref state);
             _transformLookup.Update(ref state);
+            _craftLoadoutLookup.Update(ref state);
 
             foreach (var (craftState, config, transform, kinematics, entity) in
                 SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<AttackRunConfig>, RefRW<LocalTransform>, RefRW<StrikeCraftKinematics>>()
@@ -593,6 +596,12 @@ namespace Space4X.Registry
                 {
                     engineScale = Space4XSubsystemUtility.EngineDisabledScale;
                 }
+            }
+
+            if (_craftLoadoutLookup.HasComponent(entity))
+            {
+                var aggregate = _craftLoadoutLookup[entity];
+                baseSpeed *= math.max(0.2f, aggregate.EffectiveSpeedMultiplier);
             }
 
             return math.max(0.1f, baseSpeed * engineScale);

@@ -1148,6 +1148,8 @@ namespace Space4X.Registry
                 TryEmitScarEvent(target, sourceTransform, targetTransform, hullDamage, weapon.Type, isCritical, tick);
             }
 
+            TrySpawnAreaImpactEmitter(target, weapon, rawDamage, tick, targetTransform.Position, ref ecb);
+
             // Log damage event
             if (_damageEventLookup.HasBuffer(target))
             {
@@ -1285,6 +1287,78 @@ namespace Space4X.Registry
                 Space4XDamageType.Caustic => 1.2f,
                 _ => 1f
             };
+        }
+
+        private static float ResolveAreaDamageFraction(Space4XDamageType damageType)
+        {
+            return damageType switch
+            {
+                Space4XDamageType.Explosive => 0.7f,
+                Space4XDamageType.Thermal => 0.55f,
+                Space4XDamageType.EM => 0.4f,
+                Space4XDamageType.Kinetic => 0.35f,
+                _ => 0.45f
+            };
+        }
+
+        private static Space4XAreaOcclusionChannel ResolveOcclusionChannel(Space4XDamageType damageType)
+        {
+            return damageType switch
+            {
+                Space4XDamageType.EM => Space4XAreaOcclusionChannel.EMP,
+                Space4XDamageType.Thermal => Space4XAreaOcclusionChannel.Thermal,
+                Space4XDamageType.Radiation => Space4XAreaOcclusionChannel.Hazard,
+                _ => Space4XAreaOcclusionChannel.Blast
+            };
+        }
+
+        private void TrySpawnAreaImpactEmitter(
+            Entity target,
+            in Space4XWeapon weapon,
+            float rawDamage,
+            uint tick,
+            float3 impactPosition,
+            ref EntityCommandBuffer ecb)
+        {
+            var aoeRadius = math.max(0f, weapon.AoERadius);
+            if (aoeRadius <= 1e-5f || rawDamage <= 1e-5f)
+            {
+                return;
+            }
+
+            var damageType = Space4XWeapon.ResolveDamageType(weapon.Type, weapon.DamageType);
+            var areaMagnitude = rawDamage * ResolveAreaDamageFraction(damageType);
+            if (areaMagnitude <= 1e-5f)
+            {
+                return;
+            }
+
+            var emitter = ecb.CreateEntity();
+            ecb.AddComponent(emitter, new Space4XAreaEffectEmitter
+            {
+                Scope = Space4XStatusEffectScope.Weapon,
+                TargetMask = Space4XAreaEffectTargetMask.All,
+                ImpactMask = Space4XAreaEffectImpactMask.HullDamage | Space4XAreaEffectImpactMask.ModuleLimbDamage,
+                OcclusionChannel = ResolveOcclusionChannel(damageType),
+                OcclusionMode = Space4XAreaOcclusionMode.BinaryBlock,
+                HazardType = HazardTypeId.Void,
+                DamageType = damageType,
+                CenterWorld = impactPosition,
+                LocalOffset = float3.zero,
+                Radius = aoeRadius,
+                InnerRadius = aoeRadius * 0.2f,
+                Magnitude = areaMagnitude,
+                FalloffExponent = 1.25f,
+                OcclusionRadiusBias = 0.2f,
+                DisableDurationTicks = 0u,
+                ModuleDamageScale = 0.35f,
+                PulseIntervalTicks = 1u,
+                NextPulseTick = tick + 1u,
+                RemainingPulses = 1u,
+                Active = 1,
+                AffectsSource = 0,
+                ExcludedEntity = target
+            });
         }
 
         private bool TryResolveFocusModifiers(Entity shipEntity, out Space4XFocusModifiers modifiers)

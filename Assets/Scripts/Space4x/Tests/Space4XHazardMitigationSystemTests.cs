@@ -59,6 +59,38 @@ namespace Space4X.Tests
             var metrics = _entityManager.GetBuffer<TelemetryMetric>(telemetryEntity);
             Assert.IsTrue(metrics.Length > 0);
         }
+
+        [Test]
+        public void HazardResistance_OnlyAppliesToMatchingHazardType()
+        {
+            var entity = _entityManager.CreateEntity();
+            var resistances = _entityManager.AddBuffer<HazardResistance>(entity);
+            resistances.Add(new HazardResistance
+            {
+                HazardType = HazardTypeId.Radiation,
+                ResistanceMultiplier = 0.8f
+            });
+
+            var events = _entityManager.AddBuffer<HazardDamageEvent>(entity);
+            events.Add(new HazardDamageEvent
+            {
+                HazardType = HazardTypeId.Radiation,
+                Amount = 20f
+            });
+            events.Add(new HazardDamageEvent
+            {
+                HazardType = HazardTypeId.Thermal,
+                Amount = 20f
+            });
+
+            var system = _world.GetOrCreateSystem<Space4XHazardMitigationSystem>();
+            system.Update(_world.Unmanaged);
+
+            var updated = _entityManager.GetBuffer<HazardDamageEvent>(entity);
+            Assert.AreEqual(2, updated.Length);
+            Assert.AreEqual(4f, updated[0].Amount, 1e-3f, "Matching hazard type should be mitigated.");
+            Assert.AreEqual(20f, updated[1].Amount, 1e-3f, "Non-matching hazard type should be unchanged.");
+        }
     }
 }
 #endif

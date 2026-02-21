@@ -75,6 +75,41 @@ namespace Space4X.Registry
             {
                 ecb.AddBuffer<MoraleModifier>(shipEntity);
             }
+
+            if (!em.HasComponent<LeisureNeedState>(shipEntity))
+            {
+                ecb.AddComponent(shipEntity, LeisureNeedState.Default);
+            }
+
+            if (!em.HasComponent<LeisurePreferenceProfile>(shipEntity))
+            {
+                var profile = LeisurePreferenceProfile.Neutral;
+                if (em.HasComponent<AlignmentTriplet>(shipEntity))
+                {
+                    profile = LeisurePreferenceProfile.FromAlignment(em.GetComponentData<AlignmentTriplet>(shipEntity));
+                }
+                ecb.AddComponent(shipEntity, profile);
+            }
+
+            if (!em.HasComponent<LeisureSecurityPolicy>(shipEntity))
+            {
+                ecb.AddComponent(shipEntity, LeisureSecurityPolicy.Default);
+            }
+
+            if (!em.HasComponent<LeisureFacilityAggregate>(shipEntity))
+            {
+                ecb.AddComponent<LeisureFacilityAggregate>(shipEntity);
+            }
+
+            if (!em.HasBuffer<LeisureIncidentEvent>(shipEntity))
+            {
+                ecb.AddBuffer<LeisureIncidentEvent>(shipEntity);
+            }
+
+            if (!em.HasBuffer<LeisureOpportunityEvent>(shipEntity))
+            {
+                ecb.AddBuffer<LeisureOpportunityEvent>(shipEntity);
+            }
         }
 
         private static void EnsureStance(EntityManager em, Entity shipEntity, ref EntityCommandBuffer ecb)

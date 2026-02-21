@@ -201,6 +201,11 @@ namespace Space4X.Registry
         /// </summary>
         public half ArmorPenetration;
 
+        /// <summary>
+        /// Radius for spawned area effects from this hit (0 = no AoE).
+        /// </summary>
+        public float AoERadius;
+
         public static Space4XWeapon Laser(WeaponSize size) => new Space4XWeapon
         {
             Type = WeaponType.Laser,
@@ -218,7 +223,8 @@ namespace Space4X.Registry
             CurrentCooldown = 0,
             AmmoPerShot = 0,
             ShieldModifier = (half)1.5f,
-            ArmorPenetration = (half)0.3f
+            ArmorPenetration = (half)0.3f,
+            AoERadius = 0f
         };
 
         public static Space4XWeapon Kinetic(WeaponSize size) => new Space4XWeapon
@@ -238,7 +244,8 @@ namespace Space4X.Registry
             CurrentCooldown = 0,
             AmmoPerShot = 1,
             ShieldModifier = (half)0.5f,
-            ArmorPenetration = (half)0.8f
+            ArmorPenetration = (half)0.8f,
+            AoERadius = 0f
         };
 
         public static Space4XWeapon Missile(WeaponSize size) => new Space4XWeapon
@@ -258,7 +265,8 @@ namespace Space4X.Registry
             CurrentCooldown = 0,
             AmmoPerShot = 1,
             ShieldModifier = (half)1.0f,
-            ArmorPenetration = (half)0.6f
+            ArmorPenetration = (half)0.6f,
+            AoERadius = 8f
         };
 
         public static Space4XWeapon Torpedo(WeaponSize size) => new Space4XWeapon
@@ -278,7 +286,8 @@ namespace Space4X.Registry
             CurrentCooldown = 0,
             AmmoPerShot = 1,
             ShieldModifier = (half)0.8f,
-            ArmorPenetration = (half)1.2f
+            ArmorPenetration = (half)1.2f,
+            AoERadius = 12f
         };
 
         public static WeaponFamily ResolveFamily(WeaponType type)

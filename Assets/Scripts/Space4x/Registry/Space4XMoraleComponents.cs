@@ -70,7 +70,9 @@ namespace Space4X.Registry
         Patriotism = 12,
         Grudge = 13,
         FamilyPresence = 14,
-        SpeciesConflict = 15
+        SpeciesConflict = 15,
+        Leisure = 16,
+        Espionage = 17
     }
 
     /// <summary>
@@ -257,4 +259,3 @@ namespace Space4X.Registry
         }
     }
 }
-

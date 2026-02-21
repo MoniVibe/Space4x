@@ -2132,17 +2132,23 @@ namespace Space4X.Systems.Modules
             ProjectileCatalogSingleton projectileCatalog)
         {
             var damageType = weaponSpec.DamageType;
+            var aoeRadius = math.max(0f, weapon.AoERadius);
 
-            if (damageType == Space4XDamageType.Unknown && hasProjectileCatalog && !weaponSpec.ProjectileId.IsEmpty)
+            if (hasProjectileCatalog && !weaponSpec.ProjectileId.IsEmpty)
             {
                 ref var projectiles = ref projectileCatalog.Catalog.Value.Projectiles;
                 if (TryGetProjectileCatalogSpec(ref projectiles, weaponSpec.ProjectileId, out var projectileIndex))
                 {
                     ref var projectileSpec = ref projectiles[projectileIndex];
-                    damageType = projectileSpec.DamageType;
+                    aoeRadius = math.max(aoeRadius, math.max(0f, projectileSpec.AoERadius));
+
                     if (damageType == Space4XDamageType.Unknown)
                     {
-                        damageType = ResolveDamageTypeFromChannels(projectileSpec.Damage);
+                        damageType = projectileSpec.DamageType;
+                        if (damageType == Space4XDamageType.Unknown)
+                        {
+                            damageType = ResolveDamageTypeFromChannels(projectileSpec.Damage);
+                        }
                     }
                 }
             }
@@ -2154,6 +2160,7 @@ namespace Space4X.Systems.Modules
 
             weapon.DamageType = damageType;
             weapon.Family = ResolveFamilyFromDamageType(damageType, weapon.Type);
+            weapon.AoERadius = aoeRadius;
         }
 
         private static float ResolveHeatPerShot(in Space4XWeapon weapon, bool hasWeaponSpec, in WeaponSpec weaponSpec)
@@ -2239,7 +2246,8 @@ namespace Space4X.Systems.Modules
                 AmmoPerShot = 1,
                 ShieldModifier = (half)0.7f,
                 ArmorPenetration = (half)0.4f,
-                FireArcDegrees = 220f
+                FireArcDegrees = 220f,
+                AoERadius = 0f
             };
         }
     }

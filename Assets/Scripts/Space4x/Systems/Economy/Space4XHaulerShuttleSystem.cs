@@ -36,6 +36,7 @@ namespace Space4X.Systems.Economy
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<ColonyIndustryStock> _stockLookup;
         private ComponentLookup<Space4XColony> _colonyLookup;
+        private ComponentLookup<CraftLoadoutAggregate> _craftLoadoutLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<HaulerCapacity> _capacityLookup;
         private EntityStorageInfoLookup _entityLookup;
@@ -64,6 +65,7 @@ namespace Space4X.Systems.Economy
             _transformLookup = state.GetComponentLookup<LocalTransform>(false);
             _stockLookup = state.GetComponentLookup<ColonyIndustryStock>(false);
             _colonyLookup = state.GetComponentLookup<Space4XColony>(false);
+            _craftLoadoutLookup = state.GetComponentLookup<CraftLoadoutAggregate>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
             _capacityLookup = state.GetComponentLookup<HaulerCapacity>(true);
             _entityLookup = state.GetEntityStorageInfoLookup();
@@ -111,6 +113,7 @@ namespace Space4X.Systems.Economy
             _transformLookup.Update(ref state);
             _stockLookup.Update(ref state);
             _colonyLookup.Update(ref state);
+            _craftLoadoutLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _capacityLookup.Update(ref state);
             _entityLookup.Update(ref state);
@@ -136,6 +139,14 @@ namespace Space4X.Systems.Economy
             {
                 var shuttle = stateRW.ValueRW;
                 var position = transformRW.ValueRO.Position;
+                var travelSpeed = config.Speed;
+                var transferRate = config.TransferRatePerSecond;
+                if (_craftLoadoutLookup.HasComponent(haulerEntity))
+                {
+                    var aggregate = _craftLoadoutLookup[haulerEntity];
+                    travelSpeed *= math.max(0.35f, aggregate.EffectiveSpeedMultiplier);
+                    transferRate *= math.max(0.25f, aggregate.TransferMultiplier) * math.max(0.25f, aggregate.CargoMultiplier);
+                }
                 totalHaulers++;
                 cargoInTransit += math.max(0f, shuttle.CargoAmount);
 
@@ -184,7 +195,7 @@ namespace Space4X.Systems.Economy
                     var distSq = math.distancesq(position, carrierPos);
                     if (distSq > pickupRadiusSq)
                     {
-                        position = StepTowards(position, carrierPos, config.Speed * deltaTime);
+                        position = StepTowards(position, carrierPos, travelSpeed * deltaTime);
                         transformRW.ValueRW = LocalTransform.FromPositionRotationScale(position, transformRW.ValueRO.Rotation, transformRW.ValueRO.Scale);
                         stateRW.ValueRW = shuttle;
                         continue;
@@ -199,7 +210,7 @@ namespace Space4X.Systems.Economy
                     }
 
                     var storage = _storageLookup[shuttle.TargetCarrier];
-                    if (!TryTransferFromCarrier(ref storage, shuttle.CargoType, capacity, config.TransferRatePerSecond * deltaTime, ref shuttle))
+                    if (!TryTransferFromCarrier(ref storage, shuttle.CargoType, capacity, transferRate * deltaTime, ref shuttle))
                     {
                         if (shuttle.CargoAmount > 1e-3f)
                         {
@@ -250,7 +261,7 @@ namespace Space4X.Systems.Economy
                     var distSq = math.distancesq(position, colonyPos);
                     if (distSq > dropoffRadiusSq)
                     {
-                        position = StepTowards(position, colonyPos, config.Speed * deltaTime);
+                        position = StepTowards(position, colonyPos, travelSpeed * deltaTime);
                         transformRW.ValueRW = LocalTransform.FromPositionRotationScale(position, transformRW.ValueRO.Rotation, transformRW.ValueRO.Scale);
                         stateRW.ValueRW = shuttle;
                         continue;

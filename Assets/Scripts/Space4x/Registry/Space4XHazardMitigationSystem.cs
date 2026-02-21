@@ -55,10 +55,10 @@ namespace Space4X.Registry
             foreach (var (events, entity) in SystemAPI.Query<DynamicBuffer<HazardDamageEvent>>().WithEntityAccess())
             {
                 var eventsBuffer = events;
-                var resistance = GetResistance(entity);
                 for (var i = 0; i < eventsBuffer.Length; i++)
                 {
                     var evt = eventsBuffer[i];
+                    var resistance = GetResistance(entity, evt.HazardType);
                     var reduced = ApplyResistance(evt.Amount, resistance);
                     mitigatedTotal += math.max(0f, evt.Amount - reduced);
                     evt.Amount = reduced;
@@ -72,7 +72,7 @@ namespace Space4X.Registry
             }
         }
 
-        private float GetResistance(Entity entity)
+        private float GetResistance(Entity entity, HazardTypeId hazardType)
         {
             if (!_resistanceLookup.HasBuffer(entity))
             {
@@ -83,7 +83,13 @@ namespace Space4X.Registry
             var best = 0f;
             for (var i = 0; i < buffer.Length; i++)
             {
-                best = math.max(best, buffer[i].ResistanceMultiplier);
+                var resistance = buffer[i];
+                if (resistance.HazardType != hazardType)
+                {
+                    continue;
+                }
+
+                best = math.max(best, resistance.ResistanceMultiplier);
             }
 
             return math.saturate(best);
