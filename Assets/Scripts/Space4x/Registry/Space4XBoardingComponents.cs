@@ -220,6 +220,9 @@ namespace Space4X.Registry
         public int HardMaxBoardersPerAction;
         public float BoarderCountExponent;
         public float BoarderForceScale;
+        public int BoarderScalePivotCount;
+        public float BoarderScaleMin;
+        public float BoarderScaleMax;
         public float BoarderQualityScale;
         public uint MinResolveIntervalTicks;
         public uint DefaultMaxDurationTicks;
@@ -244,6 +247,9 @@ namespace Space4X.Registry
             HardMaxBoardersPerAction = 1000,
             BoarderCountExponent = 0.85f,
             BoarderForceScale = 0.12f,
+            BoarderScalePivotCount = 48,
+            BoarderScaleMin = 0.65f,
+            BoarderScaleMax = 3.25f,
             BoarderQualityScale = 0.75f,
             MinResolveIntervalTicks = 1u,
             DefaultMaxDurationTicks = 120u,

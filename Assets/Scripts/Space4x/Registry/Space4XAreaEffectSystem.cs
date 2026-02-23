@@ -99,7 +99,6 @@ namespace Space4X.Registry
             var hasPhysicsWorld = SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorld);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var modulesWithPendingLimbBuffer = new NativeParallelHashSet<Entity>(64, Allocator.Temp);
-            var targetsWithPendingStatusBuffer = new NativeParallelHashSet<Entity>(64, Allocator.Temp);
 
             var targets = new NativeList<TargetSnapshot>(Allocator.Temp);
             foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>().WithEntityAccess())
@@ -225,8 +224,7 @@ namespace Space4X.Registry
                         appliedMagnitude,
                         currentTick,
                         ref ecb,
-                        ref modulesWithPendingLimbBuffer,
-                        ref targetsWithPendingStatusBuffer);
+                        ref modulesWithPendingLimbBuffer);
                 }
 
                 var updated = emitterRef.ValueRO;
@@ -246,7 +244,6 @@ namespace Space4X.Registry
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
             modulesWithPendingLimbBuffer.Dispose();
-            targetsWithPendingStatusBuffer.Dispose();
             occluders.Dispose();
             targets.Dispose();
         }
@@ -258,8 +255,7 @@ namespace Space4X.Registry
             float magnitude,
             uint currentTick,
             ref EntityCommandBuffer ecb,
-            ref NativeParallelHashSet<Entity> modulesWithPendingLimbBuffer,
-            ref NativeParallelHashSet<Entity> targetsWithPendingStatusBuffer)
+            ref NativeParallelHashSet<Entity> modulesWithPendingLimbBuffer)
         {
             if ((emitter.ImpactMask & Space4XAreaEffectImpactMask.HullDamage) != 0 &&
                 _hullLookup.HasComponent(target))
@@ -360,31 +356,9 @@ namespace Space4X.Registry
                     HazardType = emitter.HazardType,
                     DamageType = emitter.DamageType,
                     Magnitude = magnitude,
-                    DurationTicks = emitter.DisableDurationTicks,
-                    StackCount = 1,
                     Tick = currentTick
                 });
-                return;
             }
-
-            if (!targetsWithPendingStatusBuffer.Contains(target))
-            {
-                ecb.AddBuffer<Space4XStatusEffectEvent>(target);
-                targetsWithPendingStatusBuffer.Add(target);
-            }
-
-            ecb.AppendToBuffer(target, new Space4XStatusEffectEvent
-            {
-                SourceEntity = source,
-                Scope = emitter.Scope,
-                ImpactMask = emitter.ImpactMask,
-                HazardType = emitter.HazardType,
-                DamageType = emitter.DamageType,
-                Magnitude = magnitude,
-                DurationTicks = emitter.DisableDurationTicks,
-                StackCount = 1,
-                Tick = currentTick
-            });
         }
 
         private static void UpsertSubsystemDisable(
@@ -507,7 +481,7 @@ namespace Space4X.Registry
                 }
 
                 var effectiveRadius = math.max(0f, occluder.Radius + radiusBias);
-                if (!IntersectsSegmentSphere(origin, target, occluder.Position, effectiveRadius))
+                if (!TryComputeSegmentSphereCoverage(origin, target, occluder.Position, effectiveRadius, out var coverage01))
                 {
                     continue;
                 }
@@ -517,7 +491,8 @@ namespace Space4X.Registry
                     return 0f;
                 }
 
-                factor *= 1f - math.saturate(occluder.Strength01);
+                var attenuation = math.saturate(occluder.Strength01) * math.saturate(coverage01);
+                factor *= 1f - attenuation;
                 if (factor <= 1e-5f)
                 {
                     return 0f;
@@ -553,8 +528,14 @@ namespace Space4X.Registry
             };
         }
 
-        private static bool IntersectsSegmentSphere(float3 a, float3 b, float3 center, float radius)
+        private static bool TryComputeSegmentSphereCoverage(
+            float3 a,
+            float3 b,
+            float3 center,
+            float radius,
+            out float coverage01)
         {
+            coverage01 = 0f;
             var ab = b - a;
             var length = math.length(ab);
             if (length <= 1e-5f || radius <= 1e-5f)
@@ -565,14 +546,26 @@ namespace Space4X.Registry
             var dir = ab / length;
             var toCenter = center - a;
             var projection = math.dot(toCenter, dir);
-            if (projection <= 0f || projection >= length)
+            var clampedProjection = math.clamp(projection, 0f, length);
+            var closest = a + dir * clampedProjection;
+            var distanceSq = math.lengthsq(center - closest);
+            var radiusSq = radius * radius;
+            if (distanceSq >= radiusSq)
             {
                 return false;
             }
 
-            var closest = a + dir * projection;
-            var distanceSq = math.lengthsq(center - closest);
-            return distanceSq <= radius * radius;
+            var offset = math.sqrt(math.max(0f, radiusSq - distanceSq));
+            var entry = math.max(0f, projection - offset);
+            var exit = math.min(length, projection + offset);
+            var overlap = math.max(0f, exit - entry);
+            if (overlap <= 1e-5f)
+            {
+                return false;
+            }
+
+            coverage01 = math.saturate(overlap / length);
+            return coverage01 > 1e-5f;
         }
     }
 }

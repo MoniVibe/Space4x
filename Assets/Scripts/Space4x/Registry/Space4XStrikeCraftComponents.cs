@@ -41,6 +41,19 @@ namespace Space4X.Registry
     }
 
     /// <summary>
+    /// Strike craft mass tier used for speed/agility and future loadout budget tuning.
+    /// </summary>
+    public enum StrikeCraftMassTier : byte
+    {
+        Unknown = 0,
+        Drone = 1,
+        Light = 2,
+        Medium = 3,
+        Heavy = 4,
+        Superheavy = 5
+    }
+
+    /// <summary>
     /// Current phase of an attack run.
     /// </summary>
     public enum AttackRunPhase : byte
@@ -143,6 +156,11 @@ namespace Space4X.Registry
         public StrikeCraftRole Role;
 
         /// <summary>
+        /// Mass tier of this strike craft.
+        /// </summary>
+        public StrikeCraftMassTier MassTier;
+
+        /// <summary>
         /// Current target entity.
         /// </summary>
         public Entity Target;
@@ -177,12 +195,20 @@ namespace Space4X.Registry
         /// </summary>
         public byte WeaponsExpended;
 
-        public static StrikeCraftProfile Create(StrikeCraftRole role, Entity carrier)
+        public static StrikeCraftProfile Create(
+            StrikeCraftRole role,
+            Entity carrier,
+            StrikeCraftMassTier massTier = StrikeCraftMassTier.Unknown)
         {
+            var resolvedTier = massTier == StrikeCraftMassTier.Unknown
+                ? ResolveDefaultMassTier(role)
+                : massTier;
+
             return new StrikeCraftProfile
             {
                 Phase = AttackRunPhase.Docked,
                 Role = role,
+                MassTier = resolvedTier,
                 Target = Entity.Null,
                 Carrier = carrier,
                 WingLeader = Entity.Null,
@@ -710,6 +736,64 @@ namespace Space4X.Registry
     public static class StrikeCraftUtility
     {
         /// <summary>
+        /// Resolves a default mass tier for the given role.
+        /// </summary>
+        public static StrikeCraftMassTier ResolveDefaultMassTier(StrikeCraftRole role)
+        {
+            return role switch
+            {
+                StrikeCraftRole.Interceptor => StrikeCraftMassTier.Light,
+                StrikeCraftRole.Bomber => StrikeCraftMassTier.Heavy,
+                StrikeCraftRole.Recon => StrikeCraftMassTier.Drone,
+                StrikeCraftRole.Suppression => StrikeCraftMassTier.Medium,
+                StrikeCraftRole.EWar => StrikeCraftMassTier.Medium,
+                _ => StrikeCraftMassTier.Light
+            };
+        }
+
+        /// <summary>
+        /// Normalizes undefined mass tier values for legacy profiles.
+        /// </summary>
+        public static StrikeCraftMassTier ResolveEffectiveMassTier(StrikeCraftMassTier tier, StrikeCraftRole role)
+        {
+            return tier == StrikeCraftMassTier.Unknown
+                ? ResolveDefaultMassTier(role)
+                : tier;
+        }
+
+        /// <summary>
+        /// Speed multiplier by mass tier.
+        /// </summary>
+        public static float ResolveMassTierSpeedMultiplier(StrikeCraftMassTier tier)
+        {
+            return tier switch
+            {
+                StrikeCraftMassTier.Drone => 1.22f,
+                StrikeCraftMassTier.Light => 1.08f,
+                StrikeCraftMassTier.Medium => 1f,
+                StrikeCraftMassTier.Heavy => 0.86f,
+                StrikeCraftMassTier.Superheavy => 0.72f,
+                _ => 1f
+            };
+        }
+
+        /// <summary>
+        /// Agility multiplier by mass tier (used for steering/accel response).
+        /// </summary>
+        public static float ResolveMassTierAgilityMultiplier(StrikeCraftMassTier tier)
+        {
+            return tier switch
+            {
+                StrikeCraftMassTier.Drone => 1.3f,
+                StrikeCraftMassTier.Light => 1.12f,
+                StrikeCraftMassTier.Medium => 1f,
+                StrikeCraftMassTier.Heavy => 0.82f,
+                StrikeCraftMassTier.Superheavy => 0.68f,
+                _ => 1f
+            };
+        }
+
+        /// <summary>
         /// Calculates formation offset based on stance and position.
         /// </summary>
         public static float3 CalculateWingOffset(VesselStanceMode stance, int position, float spacing)
@@ -854,4 +938,3 @@ namespace Space4X.Registry
         }
     }
 }
-
