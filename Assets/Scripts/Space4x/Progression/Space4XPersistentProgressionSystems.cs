@@ -199,7 +199,7 @@ namespace Space4X.Progression
             var em = state.EntityManager;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (movement, entity) in SystemAPI.Query<RefRO<VesselMovement>>()
-                         .WithAll<PlayerFlagshipTag>()
+                         .WithAll<Space4x.Scenario.PlayerFlagshipTag>()
                          .WithNone<Space4XThrustProgressionTracker>()
                          .WithEntityAccess())
             {
@@ -220,7 +220,7 @@ namespace Space4X.Progression
 
             var progressionState = progression.ValueRO;
             foreach (var (movement, tracker) in SystemAPI.Query<RefRO<VesselMovement>, RefRW<Space4XThrustProgressionTracker>>()
-                         .WithAll<PlayerFlagshipTag>())
+                         .WithAll<Space4x.Scenario.PlayerFlagshipTag>())
             {
                 var speed = math.max(0f, movement.ValueRO.CurrentSpeed);
                 var previous = math.max(0f, tracker.ValueRO.LastSpeed);
@@ -269,7 +269,7 @@ namespace Space4X.Progression
             var em = state.EntityManager;
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (_, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>()
-                         .WithAll<PlayerFlagshipTag>()
+                         .WithAll<Space4x.Scenario.PlayerFlagshipTag>()
                          .WithNone<Space4XPersistentWeaponMountTracker>()
                          .WithEntityAccess())
             {
@@ -279,7 +279,7 @@ namespace Space4X.Progression
             ecb.Playback(em);
             ecb.Dispose();
 
-            foreach (var (mounts, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<PlayerFlagshipTag>().WithEntityAccess())
+            foreach (var (mounts, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4x.Scenario.PlayerFlagshipTag>().WithEntityAccess())
             {
                 var trackers = em.GetBuffer<Space4XPersistentWeaponMountTracker>(entity);
 

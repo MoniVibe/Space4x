@@ -972,9 +972,9 @@ namespace Space4x.Scenario
             };
         }
 
-        private static IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
+        private static PureDOTS.Runtime.Individual.IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
         {
-            return new IndividualStats
+            return new PureDOTS.Runtime.Individual.IndividualStats
             {
                 Command = (half)math.clamp(command, 0f, 100f),
                 Tactics = (half)math.clamp(tactics, 0f, 100f),
@@ -1057,9 +1057,9 @@ namespace Space4x.Scenario
 
         private struct CaptainProfileTemplate
         {
-            public AlignmentTriplet Alignment;
+            public PureDOTS.Runtime.Individual.AlignmentTriplet Alignment;
             public BehaviorDisposition Behavior;
-            public IndividualStats Stats;
+            public PureDOTS.Runtime.Individual.IndividualStats Stats;
             public PhysiqueFinesseWill Physique;
             public DerivedCapacities Capacities;
             public PersonalityAxes Personality;
