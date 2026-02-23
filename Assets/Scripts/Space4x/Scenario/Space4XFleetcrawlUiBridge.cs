@@ -17,14 +17,6 @@ namespace Space4x.Scenario
         public int OfferIndex;
     }
 
-    public enum Space4XFleetcrawlPurchaseKind : byte
-    {
-        DamageBoost = 0,
-        CooldownTrim = 1,
-        Heal = 2,
-        RerollToken = 3
-    }
-
     public struct Space4XRunPendingPurchaseRequest : IComponentData
     {
         public int RoomIndex;
