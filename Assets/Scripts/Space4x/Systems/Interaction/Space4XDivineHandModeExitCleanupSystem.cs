@@ -5,7 +5,7 @@ using PureDOTS.Runtime.Physics;
 using Space4X.Runtime.Interaction;
 using Unity.Collections;
 using Unity.Entities;
-using RuntimeHandState = PureDOTS.Runtime.Components.HandState;
+using RuntimeHandState = PureDOTS.Runtime.Hand.HandState;
 
 namespace Space4X.Systems.Interaction
 {
