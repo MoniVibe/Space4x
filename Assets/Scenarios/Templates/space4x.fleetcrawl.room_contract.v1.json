@@ -114,6 +114,27 @@
       "riskMultiplier": 0.92,
       "rewardMultiplier": 1.08,
       "requiredPackTags": ["wildcard.market"]
+    },
+    {
+      "id": "black_market_signal",
+      "weight": 9,
+      "riskMultiplier": 1.18,
+      "rewardMultiplier": 1.3,
+      "requiredPackTags": ["wildcard.market", "wildcard.distress"]
+    },
+    {
+      "id": "ion_storm_front",
+      "weight": 11,
+      "riskMultiplier": 1.2,
+      "rewardMultiplier": 1.05,
+      "requiredPackTags": ["wildcard.hazard", "wildcard.anomaly"]
+    },
+    {
+      "id": "recovery_window",
+      "weight": 8,
+      "riskMultiplier": 0.95,
+      "rewardMultiplier": 1.18,
+      "requiredPackTags": ["wildcard.distress", "wildcard.anomaly"]
     }
   ],
   "roomArchetypes": [

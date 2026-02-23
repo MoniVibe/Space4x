@@ -55,6 +55,11 @@ This keeps minibosses rare but guaranteed by a target depth.
 Author content as packs and tags, not as full matrix rows.  
 Matrix rows are assembled at runtime from weights and budget rules.
 
+## Wildcard Expansion (v1.1)
+- `black_market_signal`: maps to `wildcard.market` + `wildcard.distress` for high-reward convoy pressure.
+- `ion_storm_front`: maps to `wildcard.hazard` + `wildcard.anomaly` for volatile hazard/anomaly overlap.
+- `recovery_window`: maps to `wildcard.distress` + `wildcard.anomaly` for softer risk, recovery-leaning rooms.
+
 ## Parallel Work Fence
 Desktop lane can add new pack content (`SpawnPackRef` + prefab IDs).  
 Laptop lane can tune multipliers, weights, and selection rules.  
