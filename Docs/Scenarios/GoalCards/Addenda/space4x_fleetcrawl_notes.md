@@ -5,6 +5,7 @@ Owner: shonh
 ## Room Archetypes (v0)
 - `resource_room`: mining and extraction pressure, lower hostile intensity.
 - `derelict_room`: salvage-adjacent pressure with unstable hostile spikes.
+- `convoy_room`: recovery/escort pressure that blends market/distress wildcard lanes.
 - `swarm_room`: combat-heavy survival room with low extraction opportunity.
 
 ## Equipment Gate Matrix (Design Contract)
@@ -35,6 +36,7 @@ Owner: shonh
 - Follow-up: add FleetCrawl-specific projectile stress variants after baseline pack is stable.
 
 ## Follow-Up Queue
+- Keep convoy slice tuned in `Assets/Scenarios/space4x_fleetcrawl_pack_catalog_v1.json` and `Assets/Scenarios/space4x_fleetcrawl_room_contract_v1.json`.
 - Add FleetCrawl question IDs (`space4x.q.fleetcrawl.*`) once v0 behavior is stable.
 - Add explicit room chain state and fail-forward run summary fields.
 - Add flagship segment mutation runtime application and telemetry evidence.

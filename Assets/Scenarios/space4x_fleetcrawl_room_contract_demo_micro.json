@@ -1,7 +1,7 @@
 {
   "scenarioId": "space4x_fleetcrawl_room_contract_demo_micro",
   "seed": 19041,
-  "duration_s": 200,
+  "duration_s": 230,
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
     "headlessQuestions": [
@@ -31,17 +31,24 @@
           "wildcards": ["distress_signal"]
         },
         {
-          "archetype": "derelict_room",
+          "archetype": "convoy_room",
           "roomClass": "elite",
           "systemSize": "medium",
           "threatLevel": 4,
+          "wildcards": ["distress_signal", "roaming_market"]
+        },
+        {
+          "archetype": "derelict_room",
+          "roomClass": "elite",
+          "systemSize": "medium",
+          "threatLevel": 5,
           "wildcards": ["anomaly", "hazard"]
         },
         {
           "archetype": "swarm_room",
           "roomClass": "miniboss",
-          "systemSize": "medium",
-          "threatLevel": 5,
+          "systemSize": "large",
+          "threatLevel": 6,
           "wildcards": ["hazard"]
         }
       ]
@@ -113,18 +120,25 @@
       "description": "Room 1: resource lane commit."
     },
     {
-      "time_s": 78.0,
+      "time_s": 74.0,
       "kind": "TriggerIntercept",
       "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
       "targetFleetId": "FLEETCRAWL-CONTRACT-DEMO-HOSTILE",
-      "description": "Room 2: elite pressure intercept."
+      "description": "Room 2: convoy escort pressure and market lane threat."
     },
     {
-      "time_s": 142.0,
+      "time_s": 136.0,
       "kind": "MoveFleet",
       "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
       "targetPosition": [120, -20],
-      "description": "Room 3: miniboss extraction vector."
+      "description": "Room 3: derelict recovery vector."
+    },
+    {
+      "time_s": 188.0,
+      "kind": "TriggerIntercept",
+      "fleetId": "FLEETCRAWL-CONTRACT-DEMO-FRIENDLY",
+      "targetFleetId": "FLEETCRAWL-CONTRACT-DEMO-HOSTILE",
+      "description": "Room 4: miniboss gauntlet intercept."
     }
   ]
 }

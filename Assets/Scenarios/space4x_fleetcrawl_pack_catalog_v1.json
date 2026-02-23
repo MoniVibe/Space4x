@@ -38,6 +38,15 @@
       "requiresAnyTags": ["wildcard.anomaly", "wildcard.distress"]
     },
     {
+      "id": "pack.objective.recovery.convoy.v1",
+      "packType": "objective",
+      "budgetCost": 30,
+      "weight": 9,
+      "maxPerRoom": 1,
+      "tags": ["objective.salvage", "objective.recovery", "size.medium", "size.large", "wildcard.distress", "wildcard.market"],
+      "requiresAnyTags": ["wildcard.distress", "wildcard.market"]
+    },
+    {
       "id": "pack.enemy.swarm.interceptor.light.v1",
       "packType": "enemy",
       "budgetCost": 30,
@@ -70,6 +79,15 @@
       "tags": ["enemy.raider", "enemy.heavy", "size.medium", "size.large"]
     },
     {
+      "id": "pack.enemy.raider.recovery.hunters.v1",
+      "packType": "enemy",
+      "budgetCost": 33,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["enemy.raider", "enemy.light", "size.medium", "wildcard.distress", "wildcard.market"],
+      "requiresAnyTags": ["wildcard.distress", "wildcard.market"]
+    },
+    {
       "id": "pack.enemy.pirate.ambush.v1",
       "packType": "enemy",
       "budgetCost": 35,
@@ -96,6 +114,14 @@
       "tags": ["hazard.radiation", "wildcard.anomaly", "size.medium", "size.large"]
     },
     {
+      "id": "pack.hazard.debris.scrapstorm.v1",
+      "packType": "hazard",
+      "budgetCost": 27,
+      "weight": 8,
+      "maxPerRoom": 1,
+      "tags": ["hazard.asteroid", "hazard.radiation", "wildcard.hazard", "size.medium", "size.large"]
+    },
+    {
       "id": "pack.hazard.minefield.frontier.v1",
       "packType": "hazard",
       "budgetCost": 31,
@@ -120,6 +146,15 @@
       "maxPerRoom": 1,
       "tags": ["wildcard.market"],
       "requiresAnyTags": ["wildcard.market"]
+    },
+    {
+      "id": "pack.wildcard.market.black_exchange.v1",
+      "packType": "wildcard",
+      "budgetCost": 21,
+      "weight": 7,
+      "maxPerRoom": 1,
+      "tags": ["wildcard.market", "wildcard.distress"],
+      "requiresAnyTags": ["wildcard.market", "wildcard.distress"]
     },
     {
       "id": "pack.wildcard.distress.convoy.v1",
