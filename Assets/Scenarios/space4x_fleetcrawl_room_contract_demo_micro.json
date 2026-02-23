@@ -28,21 +28,21 @@
           "roomClass": "normal",
           "systemSize": "small",
           "threatLevel": 2,
-          "wildcards": ["distress_signal"]
+          "wildcards": ["recovery_window"]
         },
         {
           "archetype": "convoy_room",
           "roomClass": "elite",
           "systemSize": "medium",
           "threatLevel": 4,
-          "wildcards": ["distress_signal", "roaming_market"]
+          "wildcards": ["black_market_signal"]
         },
         {
           "archetype": "derelict_room",
           "roomClass": "elite",
           "systemSize": "medium",
           "threatLevel": 5,
-          "wildcards": ["anomaly", "hazard"]
+          "wildcards": ["ion_storm_front"]
         },
         {
           "archetype": "swarm_room",
