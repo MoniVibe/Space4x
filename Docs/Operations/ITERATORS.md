@@ -44,7 +44,11 @@ This command enforces:
 4. If guarded handoff fails, fix and rerun.
 - Do not open/update PR while guard is red.
 
-5. Open PR.
+5. Rebase stale branches before continuing.
+- If branch head is behind `origin/main`, run the `iterator-bedrock-rebase-gate` skill.
+- Re-run bedrock guard after rebase before any PR update or push.
+
+6. Open PR.
 - Add label `needs-validate`.
 - Include a PR intent card:
   - Summary (1-5 bullets)
@@ -54,7 +58,7 @@ This command enforces:
   - Guard report path (`Temp/iterator_bedrock_guard_<timestamp>.json`)
   - Compile log path (`Temp/iterator_compile_preflight.log`)
 
-6. Stop after handoff.
+7. Stop after handoff.
 - Validator owns all Buildbox runs and merge decisions.
 
 ## Drift Guardrails

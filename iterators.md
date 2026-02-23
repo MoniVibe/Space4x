@@ -14,3 +14,6 @@ Validator workflow (handoff target):
 
 Enforced desktop handoff command:
 - `Tools/IteratorGuardedHandoff.ps1`
+
+Required anti-drift skill for stale branches:
+- `iterator-bedrock-rebase-gate` (Headless skill pack)
