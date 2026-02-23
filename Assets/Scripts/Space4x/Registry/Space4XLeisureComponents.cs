@@ -21,7 +21,10 @@ namespace Space4X.Registry
         Restaurant = 12,
         Arena = 13,
         OrbitalArena = 14,
-        Temple = 15
+        Temple = 15,
+        School = 16,
+        University = 17,
+        TrainingGround = 18
     }
 
     public enum ArenaProgramTier : byte
@@ -45,7 +48,8 @@ namespace Space4X.Registry
         SpyRecruitment = 1,
         PoisonedSupply = 2,
         SleeperAssassin = 3,
-        BriberyDemand = 4
+        BriberyDemand = 4,
+        FacultySubversion = 5
     }
 
     /// <summary>
@@ -74,6 +78,12 @@ namespace Space4X.Registry
         public float LootYieldRate;
         public float SalvageRightsRate;
         public float ReputationYieldRate;
+        public float EducationRate;
+        public float TrainingRate;
+        public float WisdomRate;
+        public float ResearchRate;
+        public float IdeologyPressure;
+        public float FacultyBriberyRisk;
 
         public static LeisureFacilityLimb CrewQuarters(float housingSlots = 12f)
         {
@@ -227,6 +237,105 @@ namespace Space4X.Registry
                 ReputationYieldRate = 0.07f
             };
         }
+
+        public static LeisureFacilityLimb School()
+        {
+            return new LeisureFacilityLimb
+            {
+                Type = LeisureFacilityType.School,
+                ArenaTier = ArenaProgramTier.Exhibition,
+                HousingCapacity = 0f,
+                EntertainmentRate = 0.03f,
+                ComfortRate = 0.03f,
+                SocialRate = 0.025f,
+                NourishmentRate = 0.01f,
+                AmbientLawBias = 0.1f,
+                AmbientGoodBias = 0.05f,
+                AmbientIntegrityBias = 0.08f,
+                AmbientIntensity = 0.06f,
+                EspionageRisk = 0.02f,
+                PoisonRisk = 0.02f,
+                AssassinationRisk = 0.015f,
+                Illicitness = 0f,
+                BriberyPressure = 0.02f,
+                ParticipationPurseRate = 0f,
+                LootYieldRate = 0f,
+                SalvageRightsRate = 0f,
+                ReputationYieldRate = 0.02f,
+                EducationRate = 0.08f,
+                TrainingRate = 0.02f,
+                WisdomRate = 0.04f,
+                ResearchRate = 0.02f,
+                IdeologyPressure = 0.04f,
+                FacultyBriberyRisk = 0.03f
+            };
+        }
+
+        public static LeisureFacilityLimb University()
+        {
+            return new LeisureFacilityLimb
+            {
+                Type = LeisureFacilityType.University,
+                ArenaTier = ArenaProgramTier.Exhibition,
+                HousingCapacity = 10f,
+                EntertainmentRate = 0.02f,
+                ComfortRate = 0.04f,
+                SocialRate = 0.035f,
+                NourishmentRate = 0.012f,
+                AmbientLawBias = 0.08f,
+                AmbientGoodBias = 0.06f,
+                AmbientIntegrityBias = 0.1f,
+                AmbientIntensity = 0.08f,
+                EspionageRisk = 0.03f,
+                PoisonRisk = 0.02f,
+                AssassinationRisk = 0.02f,
+                Illicitness = 0f,
+                BriberyPressure = 0.03f,
+                ParticipationPurseRate = 0f,
+                LootYieldRate = 0f,
+                SalvageRightsRate = 0f,
+                ReputationYieldRate = 0.04f,
+                EducationRate = 0.11f,
+                TrainingRate = 0.03f,
+                WisdomRate = 0.06f,
+                ResearchRate = 0.08f,
+                IdeologyPressure = 0.06f,
+                FacultyBriberyRisk = 0.05f
+            };
+        }
+
+        public static LeisureFacilityLimb TrainingGround()
+        {
+            return new LeisureFacilityLimb
+            {
+                Type = LeisureFacilityType.TrainingGround,
+                ArenaTier = ArenaProgramTier.Exhibition,
+                HousingCapacity = 0f,
+                EntertainmentRate = 0.04f,
+                ComfortRate = 0.015f,
+                SocialRate = 0.03f,
+                NourishmentRate = 0.008f,
+                AmbientLawBias = 0.06f,
+                AmbientGoodBias = -0.01f,
+                AmbientIntegrityBias = 0.03f,
+                AmbientIntensity = 0.05f,
+                EspionageRisk = 0.02f,
+                PoisonRisk = 0.02f,
+                AssassinationRisk = 0.02f,
+                Illicitness = 0f,
+                BriberyPressure = 0.02f,
+                ParticipationPurseRate = 0f,
+                LootYieldRate = 0f,
+                SalvageRightsRate = 0f,
+                ReputationYieldRate = 0.02f,
+                EducationRate = 0.02f,
+                TrainingRate = 0.1f,
+                WisdomRate = 0.02f,
+                ResearchRate = 0.01f,
+                IdeologyPressure = 0.03f,
+                FacultyBriberyRisk = 0.03f
+            };
+        }
     }
 
     /// <summary>
@@ -278,6 +387,9 @@ namespace Space4X.Registry
         public half ThirdBlood;
         public half SanguinisExtremis;
         public half Temple;
+        public half School;
+        public half University;
+        public half Training;
 
         public static LeisurePreferenceProfile Neutral => new LeisurePreferenceProfile
         {
@@ -295,7 +407,10 @@ namespace Space4X.Registry
             OrbitalArena = (half)0.5f,
             ThirdBlood = (half)0.35f,
             SanguinisExtremis = (half)0.1f,
-            Temple = (half)0.5f
+            Temple = (half)0.5f,
+            School = (half)0.6f,
+            University = (half)0.6f,
+            Training = (half)0.55f
         };
 
         public static LeisurePreferenceProfile FromAlignment(in AlignmentTriplet alignment)
@@ -323,8 +438,76 @@ namespace Space4X.Registry
             profile.ThirdBlood = (half)math.saturate(0.1f + 0.75f * chaos + 0.15f * evil);
             profile.SanguinisExtremis = (half)math.saturate(chaos * corruption * (0.35f + 0.65f * evil));
             profile.Temple = (half)math.saturate(0.15f + 0.5f * integrity + 0.2f * law + 0.15f * good);
+            profile.School = (half)math.saturate(0.2f + 0.45f * law + 0.25f * integrity + 0.1f * good);
+            profile.University = (half)math.saturate(0.25f + 0.35f * law + 0.25f * integrity + 0.15f * good);
+            profile.Training = (half)math.saturate(0.25f + 0.3f * law + 0.25f * chaos + 0.1f * evil);
             return profile;
         }
+    }
+
+    /// <summary>
+    /// Tunable education/training schedule and policy knobs.
+    /// This is intentionally data-driven so pacing can be tuned without code changes.
+    /// </summary>
+    public struct LeisureEducationPolicy : IComponentData
+    {
+        public byte Enabled;
+        public float DayLengthHours;
+        public float SchoolStartHour;
+        public float SchoolDurationHours;
+        public float UniversityShiftAStartHour;
+        public float UniversityShiftBStartHour;
+        public float UniversityShiftDurationHours;
+        public float TrainingStartHour;
+        public float TrainingDurationHours;
+        public half OffHoursEfficiency;
+        public half EnrollmentRatio;
+        public half TutorQuality01;
+        public half ProfessorQuality01;
+        public half AssistantCoverage01;
+        public half Standards01;
+        public half IdeologyResistance01;
+        public half BriberyOversight01;
+        public float SkillGainScale;
+        public float WisdomGainScale;
+        public float ResearchScale;
+
+        public static LeisureEducationPolicy Default => new LeisureEducationPolicy
+        {
+            Enabled = 1,
+            DayLengthHours = 24f,
+            SchoolStartHour = 8f,
+            SchoolDurationHours = 4f,
+            UniversityShiftAStartHour = 8f,
+            UniversityShiftBStartHour = 14f,
+            UniversityShiftDurationHours = 4f,
+            TrainingStartHour = 18f,
+            TrainingDurationHours = 3f,
+            OffHoursEfficiency = (half)0.2f,
+            EnrollmentRatio = (half)0.45f,
+            TutorQuality01 = (half)0.55f,
+            ProfessorQuality01 = (half)0.6f,
+            AssistantCoverage01 = (half)0.45f,
+            Standards01 = (half)0.6f,
+            IdeologyResistance01 = (half)0.4f,
+            BriberyOversight01 = (half)0.45f,
+            SkillGainScale = 0.5f,
+            WisdomGainScale = 0.2f,
+            ResearchScale = 0.8f
+        };
+    }
+
+    /// <summary>
+    /// Runtime education/training progress snapshot for UI/telemetry.
+    /// </summary>
+    public struct LeisureEducationProgress : IComponentData
+    {
+        public float LastLearningOutput;
+        public float LastTrainingOutput;
+        public float LastResearchOutput;
+        public float LastIdeologyPressure;
+        public float LifetimeResearch;
+        public uint LastUpdateTick;
     }
 
     /// <summary>
@@ -356,6 +539,12 @@ namespace Space4X.Registry
         public float ComfortRate;
         public float SocialRate;
         public float NourishmentRate;
+        public float EducationRate;
+        public float UniversityRate;
+        public float TrainingRate;
+        public float WisdomRate;
+        public float ResearchRate;
+        public float IdeologyPressure;
         public float PreferenceFit;
         public float Overcrowding;
         public float AmbientLawBias;
@@ -415,6 +604,9 @@ namespace Space4X.Registry
                 LeisureFacilityType.Arena => profile.Arena,
                 LeisureFacilityType.OrbitalArena => profile.OrbitalArena,
                 LeisureFacilityType.Temple => profile.Temple,
+                LeisureFacilityType.School => profile.School,
+                LeisureFacilityType.University => profile.University,
+                LeisureFacilityType.TrainingGround => profile.Training,
                 LeisureFacilityType.CrewQuarters => math.max(profile.BioDeck, profile.Restaurant) * 0.5f,
                 LeisureFacilityType.Barracks => math.max(profile.Holotheater, profile.Casino) * 0.35f,
                 _ => 0.5f

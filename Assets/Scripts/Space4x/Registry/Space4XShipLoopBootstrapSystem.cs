@@ -101,6 +101,16 @@ namespace Space4X.Registry
                 ecb.AddComponent<LeisureFacilityAggregate>(shipEntity);
             }
 
+            if (!em.HasComponent<LeisureEducationPolicy>(shipEntity))
+            {
+                ecb.AddComponent(shipEntity, LeisureEducationPolicy.Default);
+            }
+
+            if (!em.HasComponent<LeisureEducationProgress>(shipEntity))
+            {
+                ecb.AddComponent<LeisureEducationProgress>(shipEntity);
+            }
+
             if (!em.HasBuffer<LeisureIncidentEvent>(shipEntity))
             {
                 ecb.AddBuffer<LeisureIncidentEvent>(shipEntity);
@@ -109,6 +119,24 @@ namespace Space4X.Registry
             if (!em.HasBuffer<LeisureOpportunityEvent>(shipEntity))
             {
                 ecb.AddBuffer<LeisureOpportunityEvent>(shipEntity);
+            }
+
+            if (!em.HasComponent<CrewSkills>(shipEntity))
+            {
+                ecb.AddComponent(shipEntity, new CrewSkills());
+            }
+
+            if (!em.HasComponent<SkillExperienceGain>(shipEntity))
+            {
+                ecb.AddComponent(shipEntity, new SkillExperienceGain
+                {
+                    MiningXp = 0f,
+                    HaulingXp = 0f,
+                    CombatXp = 0f,
+                    RepairXp = 0f,
+                    ExplorationXp = 0f,
+                    LastProcessedTick = 0u
+                });
             }
         }
 
