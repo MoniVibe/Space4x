@@ -1,17 +1,14 @@
 using PureDOTS.Runtime.Telemetry;
 using Space4X.Runtime;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Space4X.Registry
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XSpecialEnergyTelemetrySystem : ISystem
     {
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TelemetryStream>();
@@ -19,7 +16,6 @@ namespace Space4X.Registry
             state.RequireForUpdate<ShipSpecialEnergyState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton<TelemetryExportConfig>(out var config) ||
