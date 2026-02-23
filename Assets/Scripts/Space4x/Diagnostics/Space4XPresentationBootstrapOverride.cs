@@ -15,7 +15,7 @@ namespace Space4X.Diagnostics
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void EmitLaptopValidationProbe()
         {
-            Debug.Log($"{LaptopValidationProbeMarker} checkout reached editor domain reload.");
+            UnityEngine.Debug.Log($"{LaptopValidationProbeMarker} checkout reached editor domain reload.");
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

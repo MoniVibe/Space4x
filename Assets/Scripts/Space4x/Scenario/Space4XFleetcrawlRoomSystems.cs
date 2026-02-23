@@ -19,6 +19,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using AlignmentTriplet = Space4X.Registry.AlignmentTriplet;
+using IndividualStats = Space4X.Registry.IndividualStats;
 
 namespace Space4x.Scenario
 {
@@ -972,9 +974,9 @@ namespace Space4x.Scenario
             };
         }
 
-        private static PureDOTS.Runtime.Individual.IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
+        private static IndividualStats BuildStats(float command, float tactics, float logistics, float diplomacy, float engineering, float resolve)
         {
-            return new PureDOTS.Runtime.Individual.IndividualStats
+            return new IndividualStats
             {
                 Command = (half)math.clamp(command, 0f, 100f),
                 Tactics = (half)math.clamp(tactics, 0f, 100f),
@@ -1057,9 +1059,9 @@ namespace Space4x.Scenario
 
         private struct CaptainProfileTemplate
         {
-            public PureDOTS.Runtime.Individual.AlignmentTriplet Alignment;
+            public AlignmentTriplet Alignment;
             public BehaviorDisposition Behavior;
-            public PureDOTS.Runtime.Individual.IndividualStats Stats;
+            public IndividualStats Stats;
             public PhysiqueFinesseWill Physique;
             public DerivedCapacities Capacities;
             public PersonalityAxes Personality;

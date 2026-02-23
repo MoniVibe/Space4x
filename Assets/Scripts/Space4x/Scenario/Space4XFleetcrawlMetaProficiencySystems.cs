@@ -219,7 +219,7 @@ namespace Space4x.Scenario
             }
         }
 
-        private static void EnsureDamageEventCursors(ref SystemState state)
+        private void EnsureDamageEventCursors(ref SystemState state)
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             foreach (var (_, _, entity) in SystemAPI.Query<DynamicBuffer<DamageEvent>, RefRO<ScenarioSide>>()

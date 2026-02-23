@@ -524,7 +524,7 @@ namespace Space4X.Progression
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XPersistentProgression] Failed to load progression file: {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XPersistentProgression] Failed to load progression file: {ex.Message}");
             }
 
             return state;
@@ -583,7 +583,7 @@ namespace Space4X.Progression
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[Space4XPersistentProgression] Failed to save progression file: {ex.Message}");
+                UnityEngine.Debug.LogWarning($"[Space4XPersistentProgression] Failed to save progression file: {ex.Message}");
                 return false;
             }
         }

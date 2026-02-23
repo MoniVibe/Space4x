@@ -159,7 +159,8 @@ namespace Space4X.Registry
                 {
                     var specialEnergy = _specialEnergyLookup[entity];
                     var specialEnergyCost = Space4XFocusAbilityDefinitions.GetSpecialEnergyActivationCost(abilityType);
-                    if (!ResourcePoolMath.TrySpend(ref specialEnergy.Current, specialEnergyCost))
+                    var currentSpecialEnergy = specialEnergy.Current;
+                    if (!ResourcePoolMath.TrySpend(ref currentSpecialEnergy, specialEnergyCost))
                     {
                         specialEnergy.FailedSpendAttempts =
                             (ushort)math.min((int)ushort.MaxValue, specialEnergy.FailedSpendAttempts + 1);
@@ -168,6 +169,7 @@ namespace Space4X.Registry
                         continue;
                     }
 
+                    specialEnergy.Current = currentSpecialEnergy;
                     specialEnergy.LastSpent = specialEnergyCost;
                     specialEnergy.LastSpendTick = currentTick;
                     _specialEnergyLookup[entity] = specialEnergy;

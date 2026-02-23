@@ -5,6 +5,7 @@ using PureDOTS.Runtime.Physics;
 using Space4X.Runtime.Interaction;
 using Unity.Collections;
 using Unity.Entities;
+using RuntimeHandState = PureDOTS.Runtime.Components.HandState;
 
 namespace Space4X.Systems.Interaction
 {
@@ -26,7 +27,7 @@ namespace Space4X.Systems.Interaction
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XControlModeRuntimeState>();
-            state.RequireForUpdate<HandState>();
+            state.RequireForUpdate<RuntimeHandState>();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -50,7 +51,7 @@ namespace Space4X.Systems.Interaction
             var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (handStateRef, commandBuffer, handEntity) in
-                     SystemAPI.Query<RefRW<HandState>, DynamicBuffer<HandCommand>>().WithEntityAccess())
+                     SystemAPI.Query<RefRW<RuntimeHandState>, DynamicBuffer<HandCommand>>().WithEntityAccess())
             {
                 var handState = handStateRef.ValueRO;
                 commandBuffer.Clear();
