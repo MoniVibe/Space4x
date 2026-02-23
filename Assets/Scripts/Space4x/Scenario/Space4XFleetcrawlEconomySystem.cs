@@ -12,7 +12,10 @@ namespace Space4x.Scenario
         DamageMultiplier = 1,
         CooldownMultiplier = 2,
         HealHullPercent = 3,
-        RerollToken = 4
+        RerollToken = 4,
+        DamageBoost = DamageMultiplier,
+        CooldownTrim = CooldownMultiplier,
+        Heal = HealHullPercent
     }
 
     public struct Space4XFleetcrawlPurchaseRequest : IComponentData
