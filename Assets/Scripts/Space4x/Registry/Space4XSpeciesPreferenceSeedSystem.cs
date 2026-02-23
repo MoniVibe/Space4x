@@ -56,6 +56,8 @@ namespace Space4X.Registry
                 var hasFlavorBuffer = em.HasBuffer<PreferredPlanetFlavor>(entity);
                 var hasBiomeBuffer = em.HasBuffer<PreferredBiome>(entity);
                 var hasWeights = em.HasComponent<SpeciesPreferenceWeights>(entity);
+                var hasHabitatProfile = em.HasComponent<HabitatPreferenceProfile>(entity);
+                var hasHabitatDrift = em.HasComponent<HabitatDriftState>(entity);
 
                 if (needsPreference)
                 {
@@ -74,6 +76,26 @@ namespace Space4X.Registry
                 if (!hasWeights)
                 {
                     ecb.AddComponent(entity, SpeciesPreferenceWeights.Default);
+                }
+
+                if (!hasHabitatProfile)
+                {
+                    var baseline = BuildHabitatPreference(in habitatPref);
+                    ecb.AddComponent(entity, new HabitatPreferenceProfile
+                    {
+                        Baseline = baseline,
+                        Current = baseline
+                    });
+                }
+
+                if (!hasHabitatDrift)
+                {
+                    ecb.AddComponent(entity, new HabitatDriftState
+                    {
+                        VoidborneAffinity01 = 0f,
+                        LastPreferenceDistance = 0f,
+                        LastUpdateTick = 0u
+                    });
                 }
 
                 var flavorBuffer = hasFlavorBuffer
@@ -208,6 +230,88 @@ namespace Space4X.Registry
                 default:
                     return false;
             }
+        }
+
+        private static HabitatPreferenceVector BuildHabitatPreference(in GeneticHabitatPreference habitatPref)
+        {
+            HabitatPreferenceVector result;
+            if (!TryMapPlanetFlavor(habitatPref.PrimaryHabitatId, out var primaryFlavor))
+            {
+                primaryFlavor = PlanetFlavor.Continental;
+            }
+
+            result = PlanetFlavorToPreference(primaryFlavor, math.max(0.25f, habitatPref.PreferredGravity));
+
+            if (TryMapPlanetFlavor(habitatPref.SecondaryHabitatId, out var secondaryFlavor))
+            {
+                var secondary = PlanetFlavorToPreference(secondaryFlavor, result.GravityRatio);
+                result = HabitatPreferenceMath.LerpClamped(result, secondary, 0.25f);
+            }
+
+            if (TryMapBiome(habitatPref.PreferredBiomeId, out var biomeType))
+            {
+                var biomePref = BiomeToPreference(biomeType, result.GravityRatio);
+                result = HabitatPreferenceMath.LerpClamped(result, biomePref, 0.2f);
+            }
+
+            var primaryId = habitatPref.PrimaryHabitatId.ToString();
+            var secondaryId = habitatPref.SecondaryHabitatId.ToString();
+            if (IsArtificialHabitatId(primaryId) || IsArtificialHabitatId(secondaryId))
+            {
+                result.Artificiality = math.max(result.Artificiality, 0.8f);
+            }
+
+            return HabitatPreferenceMath.Clamp(result);
+        }
+
+        private static HabitatPreferenceVector PlanetFlavorToPreference(PlanetFlavor flavor, float gravityRatio)
+        {
+            return flavor switch
+            {
+                PlanetFlavor.Continental => new HabitatPreferenceVector { Temperature = 0f, Moisture = 0.55f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Oceanic => new HabitatPreferenceVector { Temperature = 0.05f, Moisture = 0.9f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Tropical => new HabitatPreferenceVector { Temperature = 0.55f, Moisture = 0.85f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Arid => new HabitatPreferenceVector { Temperature = 0.45f, Moisture = 0.2f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Desert => new HabitatPreferenceVector { Temperature = 0.8f, Moisture = 0.08f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Tundra => new HabitatPreferenceVector { Temperature = -0.55f, Moisture = 0.35f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Arctic => new HabitatPreferenceVector { Temperature = -0.85f, Moisture = 0.2f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.Volcanic => new HabitatPreferenceVector { Temperature = 0.95f, Moisture = 0.1f, GravityRatio = gravityRatio, Artificiality = 0.1f },
+                PlanetFlavor.Toxic => new HabitatPreferenceVector { Temperature = 0.25f, Moisture = 0.35f, GravityRatio = gravityRatio, Artificiality = 0.2f },
+                PlanetFlavor.Barren => new HabitatPreferenceVector { Temperature = -0.15f, Moisture = 0.02f, GravityRatio = gravityRatio, Artificiality = 0.05f },
+                PlanetFlavor.TidallyLocked => new HabitatPreferenceVector { Temperature = 0.5f, Moisture = 0.25f, GravityRatio = gravityRatio, Artificiality = 0f },
+                PlanetFlavor.GasGiant => new HabitatPreferenceVector { Temperature = -0.2f, Moisture = 0.4f, GravityRatio = gravityRatio, Artificiality = 0.05f },
+                _ => new HabitatPreferenceVector { Temperature = 0f, Moisture = 0.5f, GravityRatio = gravityRatio, Artificiality = 0f }
+            };
+        }
+
+        private static HabitatPreferenceVector BiomeToPreference(BiomeType biome, float gravityRatio)
+        {
+            return biome switch
+            {
+                BiomeType.Tundra => new HabitatPreferenceVector { Temperature = -0.75f, Moisture = 0.35f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Taiga => new HabitatPreferenceVector { Temperature = -0.45f, Moisture = 0.5f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Grassland => new HabitatPreferenceVector { Temperature = 0.1f, Moisture = 0.45f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Forest => new HabitatPreferenceVector { Temperature = 0.05f, Moisture = 0.7f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Desert => new HabitatPreferenceVector { Temperature = 0.85f, Moisture = 0.08f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Rainforest => new HabitatPreferenceVector { Temperature = 0.7f, Moisture = 0.95f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Savanna => new HabitatPreferenceVector { Temperature = 0.55f, Moisture = 0.35f, GravityRatio = gravityRatio, Artificiality = 0f },
+                BiomeType.Swamp => new HabitatPreferenceVector { Temperature = 0.35f, Moisture = 0.98f, GravityRatio = gravityRatio, Artificiality = 0f },
+                _ => new HabitatPreferenceVector { Temperature = 0f, Moisture = 0.5f, GravityRatio = gravityRatio, Artificiality = 0f }
+            };
+        }
+
+        private static bool IsArtificialHabitatId(string habitatId)
+        {
+            if (string.IsNullOrWhiteSpace(habitatId))
+            {
+                return false;
+            }
+
+            return habitatId.IndexOf("habitat", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || habitatId.IndexOf("station", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || habitatId.IndexOf("orbital", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || habitatId.IndexOf("void", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || habitatId.IndexOf("artificial", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }

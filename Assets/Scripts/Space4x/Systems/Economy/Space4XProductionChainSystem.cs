@@ -2,6 +2,7 @@ using PureDOTS.Runtime;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Resource;
 using PureDOTS.Runtime.Resources;
+using PureDOTS.Runtime.Space;
 using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
@@ -19,6 +20,14 @@ namespace Space4X.Systems.Economy
         private Entity _requestIdGeneratorEntity;
         private EntityQuery _requestIdGeneratorQuery;
         private EntityStorageInfoLookup _entityLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private ComponentLookup<Carrier> _carrierLookup;
+        private ComponentLookup<SiteAccessPolicy> _siteAccessPolicyLookup;
+        private ComponentLookup<SiteKnowledgeState> _siteKnowledgeStateLookup;
+        private BufferLookup<SiteKnowledgeByOwner> _siteKnowledgeByOwnerLookup;
+        private BufferLookup<SiteAccessGrant> _siteAccessGrantLookup;
+        private BufferLookup<SiteKnowledgeObservation> _siteKnowledgeObservationLookup;
+        private Entity _siteKnowledgeObservationQueueEntity;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -35,6 +44,13 @@ namespace Space4X.Systems.Economy
                 .WithAll<ResourceRequestIdGenerator>()
                 .Build();
             _entityLookup = state.GetEntityStorageInfoLookup();
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _carrierLookup = state.GetComponentLookup<Carrier>(true);
+            _siteAccessPolicyLookup = state.GetComponentLookup<SiteAccessPolicy>(true);
+            _siteKnowledgeStateLookup = state.GetComponentLookup<SiteKnowledgeState>(true);
+            _siteKnowledgeByOwnerLookup = state.GetBufferLookup<SiteKnowledgeByOwner>(true);
+            _siteAccessGrantLookup = state.GetBufferLookup<SiteAccessGrant>(true);
+            _siteKnowledgeObservationLookup = state.GetBufferLookup<SiteKnowledgeObservation>(false);
             EnsureRequestIdGeneratorExists(ref state);
         }
 
@@ -82,6 +98,23 @@ namespace Space4X.Systems.Economy
             _jobLookup.Update(ref state);
             _needRequestLookup.Update(ref state);
             _entityLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _carrierLookup.Update(ref state);
+            _siteAccessPolicyLookup.Update(ref state);
+            _siteKnowledgeStateLookup.Update(ref state);
+            _siteKnowledgeByOwnerLookup.Update(ref state);
+            _siteAccessGrantLookup.Update(ref state);
+            _siteKnowledgeObservationLookup.Update(ref state);
+
+            var hasKnowledgeSettings = SystemAPI.TryGetSingleton<SiteKnowledgeRuntimeSettings>(out var knowledgeSettings)
+                                       && knowledgeSettings.Enabled != 0;
+            _siteKnowledgeObservationQueueEntity = Entity.Null;
+            if (hasKnowledgeSettings &&
+                SystemAPI.TryGetSingletonEntity<SiteKnowledgeObservationQueue>(out var queueEntity) &&
+                _siteKnowledgeObservationLookup.HasBuffer(queueEntity))
+            {
+                _siteKnowledgeObservationQueueEntity = queueEntity;
+            }
 
             var ecb = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
                 .CreateCommandBuffer(state.WorldUnmanaged);
@@ -102,8 +135,20 @@ namespace Space4X.Systems.Economy
                     continue;
                 }
 
+                var operationalOwner = ResolveOperationalOwner(entity);
                 var speedMultiplier = math.max(0.01f, (float)facility.ValueRO.SpeedMultiplier);
                 var energyEfficiency = math.max(0.01f, (float)facility.ValueRO.EnergyEfficiency);
+                var processingAccessMultiplier = ResolveProcessingAccessMultiplier(
+                    entity,
+                    operationalOwner,
+                    hasKnowledgeSettings,
+                    in knowledgeSettings);
+                if (processingAccessMultiplier <= 1e-4f)
+                {
+                    continue;
+                }
+
+                speedMultiplier *= processingAccessMultiplier;
 
                 if (_jobLookup.HasComponent(entity))
                 {
@@ -136,6 +181,7 @@ namespace Space4X.Systems.Economy
                         _jobLookup[entity] = job;
                     }
 
+                    EnqueueKnowledgeObservation(entity, operationalOwner, deltaTime * speedMultiplier);
                     continue;
                 }
 
@@ -202,6 +248,7 @@ namespace Space4X.Systems.Economy
 
                 ecb.AddComponent(entity, jobComponent);
                 queue.RemoveAt(entryIndex);
+                EnqueueKnowledgeObservation(entity, operationalOwner, 0.25f * speedMultiplier);
             }
 
             generator.NextRequestId = nextRequestId;
@@ -734,6 +781,107 @@ namespace Space4X.Systems.Economy
                 result.Append((char)value[i]);
             }
             return result;
+        }
+
+        private Entity ResolveOperationalOwner(Entity facilityEntity)
+        {
+            if (_carrierLookup.HasComponent(facilityEntity))
+            {
+                var carrier = _carrierLookup[facilityEntity];
+                if (carrier.AffiliationEntity != Entity.Null)
+                {
+                    return carrier.AffiliationEntity;
+                }
+            }
+
+            if (!_affiliationLookup.HasBuffer(facilityEntity))
+            {
+                return Entity.Null;
+            }
+
+            var affiliations = _affiliationLookup[facilityEntity];
+            for (int i = 0; i < affiliations.Length; i++)
+            {
+                var tag = affiliations[i];
+                if (tag.Target == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (tag.Type == AffiliationType.Faction ||
+                    tag.Type == AffiliationType.Empire ||
+                    tag.Type == AffiliationType.Corporation ||
+                    tag.Type == AffiliationType.Colony)
+                {
+                    return tag.Target;
+                }
+            }
+
+            return Entity.Null;
+        }
+
+        private float ResolveProcessingAccessMultiplier(
+            Entity site,
+            Entity owner,
+            bool hasKnowledgeSettings,
+            in SiteKnowledgeRuntimeSettings settings)
+        {
+            if (!hasKnowledgeSettings || !_siteAccessPolicyLookup.HasComponent(site))
+            {
+                return 1f;
+            }
+
+            var policy = _siteAccessPolicyLookup[site];
+            var globalKnowledge = _siteKnowledgeStateLookup.HasComponent(site)
+                ? _siteKnowledgeStateLookup[site].GlobalKnowledge01
+                : settings.MinSeedKnowledge01;
+
+            var knowledge01 = math.saturate(globalKnowledge);
+            if (_siteKnowledgeByOwnerLookup.HasBuffer(site))
+            {
+                var knowledgeByOwner = _siteKnowledgeByOwnerLookup[site];
+                knowledge01 = SiteKnowledgeUtility.ResolveOwnerKnowledge01(owner, in knowledgeByOwner, globalKnowledge);
+            }
+
+            var hasGrant = false;
+            var grant = default(SiteAccessGrant);
+            if (_siteAccessGrantLookup.HasBuffer(site))
+            {
+                var grants = _siteAccessGrantLookup[site];
+                hasGrant = SiteKnowledgeUtility.TryResolveGrant(owner, in grants, out grant);
+            }
+
+            var access = SiteKnowledgeUtility.ResolveProcessingAccess(
+                owner,
+                knowledge01,
+                hasGrant,
+                in grant,
+                in policy,
+                in settings);
+
+            return access.IsAllowed != 0 ? math.max(0f, access.Multiplier) : 0f;
+        }
+
+        private void EnqueueKnowledgeObservation(Entity site, Entity owner, float strengthHint)
+        {
+            if (site == Entity.Null || _siteKnowledgeObservationQueueEntity == Entity.Null || !_siteKnowledgeObservationLookup.HasBuffer(_siteKnowledgeObservationQueueEntity))
+            {
+                return;
+            }
+
+            var strength = math.saturate(math.max(0f, strengthHint));
+            if (strength <= 1e-4f)
+            {
+                return;
+            }
+
+            var observations = _siteKnowledgeObservationLookup[_siteKnowledgeObservationQueueEntity];
+            observations.Add(new SiteKnowledgeObservation
+            {
+                Site = site,
+                ObserverOwner = owner,
+                Strength01 = strength
+            });
         }
 
         private void EnsureRequestIdGeneratorExists(ref SystemState state)

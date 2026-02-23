@@ -4,6 +4,7 @@ using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Profile;
+using PureDOTS.Runtime.Space;
 using PureDOTS.Runtime.Stats;
 using PureDOTS.Systems;
 using Space4X.Runtime;
@@ -50,9 +51,16 @@ namespace Space4X.Registry
         private BufferLookup<AuthoritySeatRef> _seatRefLookup;
         private ComponentLookup<AuthoritySeat> _seatLookup;
         private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private ComponentLookup<SiteAccessPolicy> _siteAccessPolicyLookup;
+        private ComponentLookup<SiteKnowledgeState> _siteKnowledgeStateLookup;
+        private BufferLookup<SiteKnowledgeByOwner> _siteKnowledgeByOwnerLookup;
+        private BufferLookup<SiteAccessGrant> _siteAccessGrantLookup;
+        private BufferLookup<SiteKnowledgeObservation> _siteKnowledgeObservationLookup;
         private FixedString64Bytes _roleLogisticsOfficer;
         private FixedString64Bytes _roleCaptain;
         private Entity _effectStreamEntity;
+        private Entity _siteKnowledgeObservationQueueEntity;
         private static readonly FixedString64Bytes MiningSparksEffectId = CreateMiningEffectId();
         private static readonly FixedString64Bytes MiningLaserEffectId = CreateMiningLaserEffectId();
         private static readonly FixedString64Bytes MiningMicrowaveEffectId = CreateMiningMicrowaveEffectId();
@@ -171,6 +179,12 @@ namespace Space4X.Registry
             _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
             _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
             _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _siteAccessPolicyLookup = state.GetComponentLookup<SiteAccessPolicy>(true);
+            _siteKnowledgeStateLookup = state.GetComponentLookup<SiteKnowledgeState>(true);
+            _siteKnowledgeByOwnerLookup = state.GetBufferLookup<SiteKnowledgeByOwner>(true);
+            _siteAccessGrantLookup = state.GetBufferLookup<SiteAccessGrant>(true);
+            _siteKnowledgeObservationLookup = state.GetBufferLookup<SiteKnowledgeObservation>(false);
 
             _roleLogisticsOfficer = default;
             _roleLogisticsOfficer.Append('s');
@@ -257,7 +271,23 @@ namespace Space4X.Registry
             _seatLookup.Update(ref state);
             _seatOccupantLookup.Update(ref state);
             _pilotProficiencyLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _siteAccessPolicyLookup.Update(ref state);
+            _siteKnowledgeStateLookup.Update(ref state);
+            _siteKnowledgeByOwnerLookup.Update(ref state);
+            _siteAccessGrantLookup.Update(ref state);
+            _siteKnowledgeObservationLookup.Update(ref state);
             EnsureEffectStream(ref state);
+
+            var hasKnowledgeSettings = SystemAPI.TryGetSingleton<SiteKnowledgeRuntimeSettings>(out var knowledgeSettings)
+                                       && knowledgeSettings.Enabled != 0;
+            _siteKnowledgeObservationQueueEntity = Entity.Null;
+            if (hasKnowledgeSettings &&
+                SystemAPI.TryGetSingletonEntity<SiteKnowledgeObservationQueue>(out var queueEntity) &&
+                _siteKnowledgeObservationLookup.HasBuffer(queueEntity))
+            {
+                _siteKnowledgeObservationQueueEntity = queueEntity;
+            }
 
             var actionStreamConfig = default(ProfileActionEventStreamConfig);
             var canEmitActions = SystemAPI.TryGetSingletonEntity<ProfileActionEventStream>(out var actionStreamEntity) &&
@@ -650,11 +680,24 @@ namespace Space4X.Registry
                                 }
                             }
 
-                            var mined = ApplyMiningTick(entity, target, tickInterval, yieldMultiplier, ref vessel.ValueRW);
+                            var operationalOwner = ResolveOperationalOwner(entity, vessel.ValueRO.CarrierEntity);
+                            var extractionAccessMultiplier = ResolveExtractionAccessMultiplier(
+                                target,
+                                operationalOwner,
+                                hasKnowledgeSettings,
+                                in knowledgeSettings);
+                            var mined = ApplyMiningTick(
+                                entity,
+                                target,
+                                tickInterval,
+                                yieldMultiplier * extractionAccessMultiplier,
+                                ref vessel.ValueRW);
                             if (mined <= 0f)
                             {
                                 break;
                             }
+
+                            EnqueueKnowledgeObservation(target, operationalOwner, mined, vessel.ValueRO.CargoCapacity);
 
                             if (miningState.ValueRW.HasDigHead != 0)
                             {
@@ -1536,6 +1579,127 @@ namespace Space4X.Registry
             }
 
             return fallback;
+        }
+
+        private Entity ResolveOperationalOwner(Entity miner, Entity carrierEntity)
+        {
+            if (carrierEntity != Entity.Null && _carrierLookup.HasComponent(carrierEntity))
+            {
+                var carrier = _carrierLookup[carrierEntity];
+                if (carrier.AffiliationEntity != Entity.Null)
+                {
+                    return carrier.AffiliationEntity;
+                }
+            }
+
+            if (TryResolveAffiliationOwner(miner, out var owner))
+            {
+                return owner;
+            }
+
+            if (carrierEntity != Entity.Null && TryResolveAffiliationOwner(carrierEntity, out owner))
+            {
+                return owner;
+            }
+
+            return Entity.Null;
+        }
+
+        private bool TryResolveAffiliationOwner(Entity entity, out Entity owner)
+        {
+            owner = Entity.Null;
+            if (!_affiliationLookup.HasBuffer(entity))
+            {
+                return false;
+            }
+
+            var affiliations = _affiliationLookup[entity];
+            for (int i = 0; i < affiliations.Length; i++)
+            {
+                var tag = affiliations[i];
+                if (tag.Target == Entity.Null)
+                {
+                    continue;
+                }
+
+                if (tag.Type == AffiliationType.Faction ||
+                    tag.Type == AffiliationType.Empire ||
+                    tag.Type == AffiliationType.Corporation ||
+                    tag.Type == AffiliationType.Colony)
+                {
+                    owner = tag.Target;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private float ResolveExtractionAccessMultiplier(
+            Entity site,
+            Entity owner,
+            bool hasKnowledgeSettings,
+            in SiteKnowledgeRuntimeSettings settings)
+        {
+            if (!hasKnowledgeSettings || !_siteAccessPolicyLookup.HasComponent(site))
+            {
+                return 1f;
+            }
+
+            var policy = _siteAccessPolicyLookup[site];
+            var globalKnowledge = _siteKnowledgeStateLookup.HasComponent(site)
+                ? _siteKnowledgeStateLookup[site].GlobalKnowledge01
+                : settings.MinSeedKnowledge01;
+
+            var knowledge01 = math.saturate(globalKnowledge);
+            if (_siteKnowledgeByOwnerLookup.HasBuffer(site))
+            {
+                var knowledgeByOwner = _siteKnowledgeByOwnerLookup[site];
+                knowledge01 = SiteKnowledgeUtility.ResolveOwnerKnowledge01(owner, in knowledgeByOwner, globalKnowledge);
+            }
+
+            var hasGrant = false;
+            var grant = default(SiteAccessGrant);
+            if (_siteAccessGrantLookup.HasBuffer(site))
+            {
+                var grants = _siteAccessGrantLookup[site];
+                hasGrant = SiteKnowledgeUtility.TryResolveGrant(owner, in grants, out grant);
+            }
+
+            var access = SiteKnowledgeUtility.ResolveExtractionAccess(
+                owner,
+                knowledge01,
+                hasGrant,
+                in grant,
+                in policy,
+                in settings);
+
+            return access.IsAllowed != 0 ? math.max(0f, access.Multiplier) : 0f;
+        }
+
+        private void EnqueueKnowledgeObservation(Entity site, Entity owner, float minedAmount, float cargoCapacity)
+        {
+            if (site == Entity.Null || _siteKnowledgeObservationQueueEntity == Entity.Null || !_siteKnowledgeObservationLookup.HasBuffer(_siteKnowledgeObservationQueueEntity))
+            {
+                return;
+            }
+
+            var normalized = cargoCapacity > 0f
+                ? minedAmount / math.max(1f, cargoCapacity * 0.35f)
+                : minedAmount * 0.05f;
+            var strength = math.saturate(normalized);
+            if (strength <= 1e-4f)
+            {
+                return;
+            }
+
+            var observations = _siteKnowledgeObservationLookup[_siteKnowledgeObservationQueueEntity];
+            observations.Add(new SiteKnowledgeObservation
+            {
+                Site = site,
+                ObserverOwner = owner,
+                Strength01 = strength
+            });
         }
 
         private void EnsureEffectStream(ref SystemState state)
