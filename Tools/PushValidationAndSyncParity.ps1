@@ -212,8 +212,23 @@ function Invoke-LaptopCommand {
     )
 
     $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($Script))
-    $output = & ssh -i $KeyPath -o IdentitiesOnly=yes "$User@$HostName" "powershell -NoProfile -EncodedCommand $encoded" 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    $nativePrefExists = $null -ne (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue)
+    if ($nativePrefExists) {
+        $previousNativePref = $PSNativeCommandUseErrorActionPreference
+        $PSNativeCommandUseErrorActionPreference = $false
+    }
+
+    try {
+        $output = & ssh -i $KeyPath -o IdentitiesOnly=yes "$User@$HostName" "powershell -NoProfile -EncodedCommand $encoded" 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        if ($nativePrefExists) {
+            $PSNativeCommandUseErrorActionPreference = $previousNativePref
+        }
+    }
+
+    if ($exitCode -ne 0) {
         $errorText = ($output | Out-String).Trim()
         throw "Laptop command failed for $User@$HostName. $errorText"
     }
