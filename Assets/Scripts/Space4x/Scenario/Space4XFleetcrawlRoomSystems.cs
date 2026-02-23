@@ -1620,8 +1620,8 @@ namespace Space4x.Scenario
             var missingRequired = remainingRequiredTags.Count == 0
                 ? "-"
                 : string.Join(",", remainingRequiredTags.ToArray());
-            var fallbackWildcard = NormalizeToken(unknownSelectionRules.fallbackWildcard, "hazard");
-            return $"objective=[{objectiveCsv}] enemy=[{enemyCsv}] hazard=[{hazardCsv}] wildcard=[{wildcardCsv}] total_cost={totalCost}/{math.max(1, finalBudget)} missing_required={missingRequired} over_budget={overflowCount} fallback_wildcard={fallbackWildcard}";
+            var fallbackWildcardToken = NormalizeToken(unknownSelectionRules.fallbackWildcard, "hazard");
+            return $"objective=[{objectiveCsv}] enemy=[{enemyCsv}] hazard=[{hazardCsv}] wildcard=[{wildcardCsv}] total_cost={totalCost}/{math.max(1, finalBudget)} missing_required={missingRequired} over_budget={overflowCount} fallback_wildcard={fallbackWildcardToken}";
         }
 
         private static void FillLanePacks(
