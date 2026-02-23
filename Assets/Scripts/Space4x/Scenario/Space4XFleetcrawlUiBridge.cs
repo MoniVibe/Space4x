@@ -54,7 +54,7 @@ namespace Space4x.Scenario
     {
         public static bool IsFleetcrawlScenario(in FixedString64Bytes scenarioId)
         {
-            return scenarioId.Length > 0 && scenarioId.ToString().StartsWith("space4x_fleetcrawl", System.StringComparison.OrdinalIgnoreCase);
+            return Space4XScenarioAuthority.IsPlayableFleetCrawlScenario(scenarioId);
         }
 
         public static Space4XFleetcrawlInputMode ReadInputMode()

@@ -100,5 +100,8 @@ Artifacts expected per run:
 - Iterators do not trigger Buildbox/nightlies/queues. They push a branch + PR + intent card and add label `needs-validate`.
 - Validator is the only actor that runs Buildbox, applies fix-up commits, and merges.
 - Workflow details: `Docs/VALIDATOR_WORKFLOW.md`.
-- After iterator push, run `Tools/PushValidationAndSyncParity.ps1` (iterator mode) to keep desktop and laptop validator checkouts on the same upstream ref.
+- Iterator canonical profile: `Docs/Operations/AgentProfile_Desktop_Iterator.md` (desktop) and `Docs/Operations/AgentProfile_Laptop_Iterator.md` (laptop).
+- Iterator canonical contract: `Docs/Operations/ITERATORS.md`.
+- Iterator enforced handoff command: `Tools/IteratorGuardedHandoff.ps1` (runs bedrock guard + compile preflight + push + parity sync).
+- After iterator push, keep desktop and laptop validator checkouts on the same upstream ref (automatically handled by `Tools/IteratorGuardedHandoff.ps1`, or run `Tools/PushValidationAndSyncParity.ps1` manually).
 - After validator green merge, run `Tools/PushValidationAndSyncParity.ps1 -Mode validator -PushBranch main` to re-anchor both machines to `origin/main`.

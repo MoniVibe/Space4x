@@ -32,12 +32,31 @@ namespace Space4x.Scenario
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(scenarioId))
+            if (string.IsNullOrWhiteSpace(scenarioId) || string.IsNullOrWhiteSpace(scenarioPath) || seed == 0u)
             {
-                scenarioId = Space4XRunStartSelection.SmokeScenarioId;
+                Space4XScenarioAuthority.ResolvePlayableScenario(out var canonicalId, out var canonicalPath, out var canonicalSeed);
+                if (string.IsNullOrWhiteSpace(scenarioId))
+                {
+                    scenarioId = canonicalId;
+                }
+
+                if (string.IsNullOrWhiteSpace(scenarioPath))
+                {
+                    scenarioPath = canonicalPath;
+                }
+
+                if (seed == 0u)
+                {
+                    seed = canonicalSeed;
+                }
             }
 
-            var safeSeed = seed == 0u ? Space4XRunStartSelection.SmokeScenarioSeed : seed;
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                scenarioId = Space4XScenarioAuthority.CanonicalScenarioId;
+            }
+
+            var safeSeed = seed == 0u ? Space4XScenarioAuthority.CanonicalScenarioSeed : seed;
 
             if (!SystemAPI.TryGetSingletonEntity<ScenarioInfo>(out var scenarioEntity))
             {

@@ -478,10 +478,8 @@ namespace Space4X.Systems.Orbitals
                 return;
             }
 
-            var timeState = SystemAPI.GetSingleton<TimeState>();
             _frameTransformLookup.Update(ref state);
 
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
             var soiFrames = new NativeList<SoiFrameInfo>(Allocator.Temp);
 
             foreach (var (frame, transform, soi, entity) in SystemAPI
@@ -512,22 +510,11 @@ namespace Space4X.Systems.Orbitals
             if (soiFrames.Length == 0)
             {
                 soiFrames.Dispose();
-                ecb.Dispose();
                 return;
             }
 
-            foreach (var (membership, entity) in SystemAPI.Query<RefRO<Space4XFrameMembership>>().WithEntityAccess())
+            foreach (var membership in SystemAPI.Query<RefRW<Space4XFrameMembership>>())
             {
-                var hasTransition = SystemAPI.HasComponent<Space4XFrameTransition>(entity);
-                if (hasTransition)
-                {
-                    var transition = SystemAPI.GetComponent<Space4XFrameTransition>(entity);
-                    if (transition.Pending != 0)
-                    {
-                        continue;
-                    }
-                }
-
                 var currentFrame = membership.ValueRO.Frame;
                 if (currentFrame == Entity.Null || !_frameTransformLookup.HasComponent(currentFrame))
                 {
@@ -549,7 +536,7 @@ namespace Space4X.Systems.Orbitals
                     var distance = math.length(worldPosition - currentSoi.PositionWorld);
                     if (distance > currentSoi.ExitRadius && currentSoi.Parent != Entity.Null)
                     {
-                        QueueTransition(entity, currentFrame, currentSoi.Parent, worldPosition, worldVelocity, timeState.Tick, hasTransition, ref ecb);
+                        TryApplyTransition(currentSoi.Parent, worldPosition, worldVelocity, ref membership.ValueRW);
                         continue;
                     }
                 }
@@ -574,12 +561,10 @@ namespace Space4X.Systems.Orbitals
                 if (bestIndex >= 0)
                 {
                     var target = soiFrames[bestIndex];
-                    QueueTransition(entity, currentFrame, target.Frame, worldPosition, worldVelocity, timeState.Tick, hasTransition, ref ecb);
+                    TryApplyTransition(target.Frame, worldPosition, worldVelocity, ref membership.ValueRW);
                 }
             }
 
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
             soiFrames.Dispose();
         }
 
@@ -601,34 +586,27 @@ namespace Space4X.Systems.Orbitals
             return false;
         }
 
-        private static void QueueTransition(
-            Entity entity,
-            Entity fromFrame,
+        private bool TryApplyTransition(
             Entity toFrame,
             double3 worldPosition,
             double3 worldVelocity,
-            uint tick,
-            bool hasTransition,
-            ref EntityCommandBuffer ecb)
+            ref Space4XFrameMembership membership)
         {
-            var transition = new Space4XFrameTransition
+            if (toFrame == Entity.Null || !_frameTransformLookup.HasComponent(toFrame))
             {
-                FromFrame = fromFrame,
-                ToFrame = toFrame,
-                WorldPosition = worldPosition,
-                WorldVelocity = worldVelocity,
-                TransitionTick = tick,
-                Pending = 1
-            };
+                return false;
+            }
 
-            if (hasTransition)
+            var frameTransform = _frameTransformLookup[toFrame];
+            var localPosition = worldPosition - frameTransform.PositionWorld;
+            var localVelocity = worldVelocity - frameTransform.VelocityWorld;
+            membership = new Space4XFrameMembership
             {
-                ecb.SetComponent(entity, transition);
-            }
-            else
-            {
-                ecb.AddComponent(entity, transition);
-            }
+                Frame = toFrame,
+                LocalPosition = new float3((float)localPosition.x, (float)localPosition.y, (float)localPosition.z),
+                LocalVelocity = new float3((float)localVelocity.x, (float)localVelocity.y, (float)localVelocity.z)
+            };
+            return true;
         }
 
         private struct SoiFrameInfo

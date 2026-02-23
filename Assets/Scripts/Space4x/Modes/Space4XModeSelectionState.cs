@@ -25,14 +25,14 @@ namespace Space4X.Modes
         public const string ClassicScenarioPath = "Assets/Scenarios/space4x_smoke.json";
         public const uint ClassicSeed = 77u;
 
-        // FleetCrawl mode defaults to the canonical core micro scenario.
+        // FleetCrawl mode defaults to the canonical room-director micro scenario.
         // The smoke shell scene still hosts the menu, but scenario content stays canonical.
         public const string FleetCrawlScenarioId = "space4x_fleetcrawl_core_micro";
         public const string FleetCrawlScenarioPath = "Assets/Scenarios/space4x_fleetcrawl_core_micro.json";
         public const uint FleetCrawlSeed = 19021u;
 
         private static bool s_initialized;
-        private static Space4XModeKind s_currentMode = Space4XModeKind.Classic;
+        private static Space4XModeKind s_currentMode = Space4XModeKind.FleetCrawl;
 
         public static event Action<Space4XModeKind> ModeChanged;
 
@@ -62,6 +62,8 @@ namespace Space4X.Modes
 
             s_initialized = true;
             s_currentMode = ResolveModeFromEnvironment();
+            SystemEnv.SetEnvironmentVariable(ModeEnvVar, ToEnvToken(s_currentMode));
+            ApplyScenarioEnvironment(s_currentMode);
         }
 
         public static bool SetMode(Space4XModeKind mode, bool applyScenarioEnvironment = true)
@@ -141,7 +143,7 @@ namespace Space4X.Modes
                 return Space4XModeKind.FleetCrawl;
             }
 
-            return Space4XModeKind.Classic;
+            return Space4XModeKind.FleetCrawl;
         }
 
         public static bool IsScenarioPathRoutable(string scenarioPath)

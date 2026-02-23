@@ -1,5 +1,4 @@
 #if UNITY_EDITOR
-using Space4X.Modes;
 using PureDOTS.Runtime.Scenarios;
 using Unity.Collections;
 using Unity.Entities;
@@ -30,18 +29,18 @@ namespace Space4x.Scenario
                 return;
             }
 
-            Space4XModeSelectionState.EnsureInitialized();
-            Space4XModeSelectionState.GetCurrentScenario(out var scenarioId, out _, out var seed);
+            Space4XScenarioAuthority.ResolvePlayableScenario(out var scenarioId, out _, out var seed);
+            Space4XScenarioAuthority.ApplyPlayableScenarioEnvironment();
 
             var scenarioEntity = state.EntityManager.CreateEntity(typeof(ScenarioInfo));
             state.EntityManager.SetComponentData(scenarioEntity, new ScenarioInfo
             {
                 ScenarioId = new FixedString64Bytes(scenarioId),
                 Seed = seed,
-                RunTicks = 240
+                RunTicks = 0
             });
 
-            Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at '{scenarioId}' mode={Space4XModeSelectionState.CurrentMode}.");
+            Debug.Log($"[Space4XSmokeScenarioSelector] Injected ScenarioInfo fallback pointing at canonical '{scenarioId}'.");
         }
     }
 }

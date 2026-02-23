@@ -144,7 +144,7 @@ namespace Space4x.Scenario
             _entityManager = world.EntityManager;
             _scenarioQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<ScenarioInfo>());
             _flagshipQuery = _entityManager.CreateEntityQuery(
-                ComponentType.ReadOnly<PlayerFlagshipTag>(),
+                ComponentType.ReadOnly<Space4X.Registry.PlayerFlagshipTag>(),
                 ComponentType.ReadOnly<LocalTransform>());
             _queriesReady = true;
             return true;
