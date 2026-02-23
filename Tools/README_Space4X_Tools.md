@@ -38,7 +38,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorCompilePreflight.ps1
 
 Optional:
 - `-LogPath <path>` to override output log path.
-- `-TimeoutSec <seconds>` to control compile timeout.
+- `-TimeoutSec <seconds>` to control compile timeout (default: `1500`).
+- For cold imports or first run on a machine, use `1500+`.
 
 ## Iterator Bedrock Guard (Strict)
 

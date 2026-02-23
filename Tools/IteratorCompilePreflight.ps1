@@ -2,7 +2,7 @@ param(
     [string]$UnityExe = "",
     [string]$RepoPath = "C:\dev\Tri\space4x",
     [string]$LogPath = "",
-    [int]$TimeoutSec = 360
+    [int]$TimeoutSec = 1500
 )
 
 Set-StrictMode -Version Latest
@@ -38,6 +38,7 @@ if (-not (Test-Path $logDir)) {
 Write-Host "[IteratorCompilePreflight] repo=$RepoPath"
 Write-Host "[IteratorCompilePreflight] unity=$UnityExe"
 Write-Host "[IteratorCompilePreflight] log=$LogPath"
+Write-Host "[IteratorCompilePreflight] timeout_sec=$TimeoutSec"
 
 $arguments = @(
     "-batchmode",
@@ -55,7 +56,7 @@ if (-not $process.WaitForExit($TimeoutSec * 1000)) {
     catch {
     }
 
-    throw "Unity compile preflight timed out after $TimeoutSec seconds."
+    throw "Unity compile preflight timed out after $TimeoutSec seconds. Re-run with a higher -TimeoutSec (for cold imports use 1500+). Log: $LogPath"
 }
 
 $exitCode = $process.ExitCode
