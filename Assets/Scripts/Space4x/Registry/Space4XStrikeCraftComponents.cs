@@ -201,7 +201,7 @@ namespace Space4X.Registry
             StrikeCraftMassTier massTier = StrikeCraftMassTier.Unknown)
         {
             var resolvedTier = massTier == StrikeCraftMassTier.Unknown
-                ? ResolveDefaultMassTier(role)
+                ? StrikeCraftUtility.ResolveDefaultMassTier(role)
                 : massTier;
 
             return new StrikeCraftProfile

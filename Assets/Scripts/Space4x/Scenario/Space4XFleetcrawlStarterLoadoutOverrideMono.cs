@@ -1,5 +1,6 @@
 using System;
 using PureDOTS.Runtime.Scenarios;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
@@ -81,21 +82,23 @@ namespace Space4x.Scenario
 
         private static void TryApplyById(DynamicBuffer<Space4XRunInstalledBlueprint> installed, string blueprintId, Space4XRunBlueprintKind expectedKind)
         {
-            if (!Space4XFleetcrawlUiBridge.TryResolveBlueprintDefinition(blueprintId, out var definition))
+            if (string.IsNullOrWhiteSpace(blueprintId))
             {
                 return;
             }
 
-            if (definition.Kind != expectedKind)
+            var next = new Space4XRunInstalledBlueprint
             {
-                return;
-            }
+                BlueprintId = new FixedString64Bytes(blueprintId),
+                Kind = expectedKind,
+                Version = 1
+            };
 
-            var next = Space4XFleetcrawlUiBridge.ToInstalledBlueprint(definition, version: 1);
             for (var i = 0; i < installed.Length; i++)
             {
                 if (installed[i].Kind == expectedKind)
                 {
+                    next.Version = (byte)Math.Max(1, installed[i].Version + 1);
                     installed[i] = next;
                     return;
                 }
