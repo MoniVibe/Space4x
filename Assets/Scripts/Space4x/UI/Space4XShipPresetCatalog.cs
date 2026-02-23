@@ -16,7 +16,7 @@ namespace Space4X.UI
     [CreateAssetMenu(fileName = "Space4XShipPresetCatalog", menuName = "Space4X/UI/Ship Preset Catalog")]
     public sealed class Space4XShipPresetCatalog : ScriptableObject
     {
-        public const string DefaultGameplayScenePath = "Assets/Scenes/Demos/MiningCombatDemo.unity";
+        public const string DefaultGameplayScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
 
         [SerializeField] private string gameplayScenePath = DefaultGameplayScenePath;
         [SerializeField] private int minDifficulty = 1;

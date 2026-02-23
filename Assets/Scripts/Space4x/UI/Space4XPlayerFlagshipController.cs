@@ -134,6 +134,13 @@ namespace Space4X.UI
         private bool _shiftPressActive;
         private float _shiftPressStartTime;
         private bool _shiftHoldActivated;
+        private bool _shipAbilityModuleAddSuppressed;
+        private Entity _playerFlightInputOverflowEntity;
+        private bool _playerFlightInputCapacityWarned;
+        private Entity _flightRuntimeStateOverflowEntity;
+        private bool _flightRuntimeStateCapacityWarned;
+        private Entity _flightProfileOverflowEntity;
+        private bool _flightProfileCapacityWarned;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private bool _loggedClaim;
 #endif
@@ -155,6 +162,13 @@ namespace Space4X.UI
             _shiftPressActive = false;
             _shiftPressStartTime = 0f;
             _shiftHoldActivated = false;
+            _shipAbilityModuleAddSuppressed = false;
+            _playerFlightInputOverflowEntity = Entity.Null;
+            _playerFlightInputCapacityWarned = false;
+            _flightRuntimeStateOverflowEntity = Entity.Null;
+            _flightRuntimeStateCapacityWarned = false;
+            _flightProfileOverflowEntity = Entity.Null;
+            _flightProfileCapacityWarned = false;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             _loggedClaim = false;
 #endif
@@ -194,6 +208,9 @@ namespace Space4X.UI
             _rtsAutoSelectedFlagship = Entity.Null;
             _shiftPressActive = false;
             _shiftHoldActivated = false;
+            _shipAbilityModuleAddSuppressed = false;
+            _playerFlightInputOverflowEntity = Entity.Null;
+            _playerFlightInputCapacityWarned = false;
         }
 
         public void SnapClaimNow()
@@ -261,7 +278,7 @@ namespace Space4X.UI
                 return true;
             }
 
-            _flagship = PickNearestToCamera(_playerFlagshipQuery);
+            _flagship = PickNearestToCameraControllable(_playerFlagshipQuery);
             if (IsValidTarget(_flagship))
             {
                 ApplyFlightTuningFromEntity(_flagship);
@@ -277,33 +294,33 @@ namespace Space4X.UI
             var preferCarrier = PreferCarrierSelection();
 
             var candidate = preferCarrier
-                ? PickNearestToCamera(_carrierRenderableQuery)
-                : PickNearestToCamera(_miningRenderableQuery);
+                ? PickNearestToCameraControllable(_carrierRenderableQuery)
+                : PickNearestToCameraControllable(_miningRenderableQuery);
 
             if (candidate == Entity.Null)
             {
                 candidate = preferCarrier
-                    ? PickNearestToCamera(_carrierAnyQuery)
-                    : PickNearestToCamera(_miningAnyQuery);
+                    ? PickNearestToCameraControllable(_carrierAnyQuery)
+                    : PickNearestToCameraControllable(_miningAnyQuery);
             }
 
             if (candidate == Entity.Null)
             {
                 candidate = preferCarrier
-                    ? PickNearestToCamera(_miningRenderableQuery)
-                    : PickNearestToCamera(_carrierRenderableQuery);
+                    ? PickNearestToCameraControllable(_miningRenderableQuery)
+                    : PickNearestToCameraControllable(_carrierRenderableQuery);
             }
 
             if (candidate == Entity.Null)
             {
                 candidate = preferCarrier
-                    ? PickNearestToCamera(_miningAnyQuery)
-                    : PickNearestToCamera(_carrierAnyQuery);
+                    ? PickNearestToCameraControllable(_miningAnyQuery)
+                    : PickNearestToCameraControllable(_carrierAnyQuery);
             }
 
             if (candidate == Entity.Null)
             {
-                candidate = PickNearestToCamera(_fallbackRenderableQuery);
+                candidate = PickNearestToCameraControllable(_fallbackRenderableQuery);
             }
 
             if (candidate == Entity.Null)
@@ -1154,6 +1171,186 @@ namespace Space4X.UI
             return bestEntity;
         }
 
+        private Entity PickNearestToCameraControllable(EntityQuery query)
+        {
+            if (query.IsEmptyIgnoreFilter)
+                return Entity.Null;
+
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            if (entities.Length == 0)
+                return Entity.Null;
+
+            var cameraPosition = transform.position;
+            var consumed = new bool[entities.Length];
+            for (var attempt = 0; attempt < entities.Length; attempt++)
+            {
+                var bestIndex = -1;
+                var bestDistanceSq = float.MaxValue;
+                for (var i = 0; i < entities.Length; i++)
+                {
+                    if (consumed[i])
+                    {
+                        continue;
+                    }
+
+                    var entity = entities[i];
+                    if (!_entityManager.HasComponent<LocalToWorld>(entity))
+                    {
+                        continue;
+                    }
+
+                    var ltw = _entityManager.GetComponentData<LocalToWorld>(entity);
+                    var worldPos = new Vector3(ltw.Position.x, ltw.Position.y, ltw.Position.z);
+                    var distanceSq = (worldPos - cameraPosition).sqrMagnitude;
+                    if (distanceSq < bestDistanceSq)
+                    {
+                        bestDistanceSq = distanceSq;
+                        bestIndex = i;
+                    }
+                }
+
+                if (bestIndex < 0)
+                {
+                    break;
+                }
+
+                consumed[bestIndex] = true;
+                var candidate = entities[bestIndex];
+                if (CanAcceptPlayerFlightInput(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return Entity.Null;
+        }
+
+        private bool CanAcceptPlayerFlightInput(Entity entity)
+        {
+            if (!IsValidTarget(entity))
+            {
+                return false;
+            }
+
+            if (!CanAcceptFlightProfile(entity))
+            {
+                return false;
+            }
+
+            if (!CanAcceptFlightRuntimeState(entity))
+            {
+                return false;
+            }
+
+            if (_entityManager.HasComponent<PlayerFlagshipFlightInput>(entity))
+            {
+                return true;
+            }
+
+            if (_playerFlightInputOverflowEntity == entity)
+            {
+                return false;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, PlayerFlagshipFlightInput.Disabled);
+                _playerFlightInputOverflowEntity = Entity.Null;
+                return true;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _playerFlightInputOverflowEntity = entity;
+                if (!_playerFlightInputCapacityWarned)
+                {
+                    _playerFlightInputCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] Skipping oversized flagship candidate: cannot attach PlayerFlagshipFlightInput.");
+                }
+
+                return false;
+            }
+        }
+
+        private bool CanAcceptFlightProfile(Entity entity)
+        {
+            if (_entityManager.HasComponent<ShipFlightProfile>(entity))
+            {
+                return true;
+            }
+
+            if (_flightProfileOverflowEntity == entity)
+            {
+                return false;
+            }
+
+            var fallback = Space4XRunStartSelection.FlightProfile;
+            if (!fallback.IsConfigured)
+            {
+                fallback = BuildProfileFromCurrentFields();
+            }
+
+            fallback = fallback.Sanitized();
+            try
+            {
+                _entityManager.AddComponentData(entity, fallback);
+                _flightProfileOverflowEntity = Entity.Null;
+                return true;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _flightProfileOverflowEntity = entity;
+                if (!_flightProfileCapacityWarned)
+                {
+                    _flightProfileCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] Skipping oversized flagship candidate: cannot attach ShipFlightProfile.");
+                }
+
+                return false;
+            }
+        }
+
+        private bool CanAcceptFlightRuntimeState(Entity entity)
+        {
+            if (_entityManager.HasComponent<ShipFlightRuntimeState>(entity))
+            {
+                return true;
+            }
+
+            if (_flightRuntimeStateOverflowEntity == entity)
+            {
+                return false;
+            }
+
+            ShipFlightProfile profile;
+            if (_entityManager.HasComponent<ShipFlightProfile>(entity))
+            {
+                profile = _entityManager.GetComponentData<ShipFlightProfile>(entity).Sanitized();
+            }
+            else
+            {
+                profile = BuildProfileFromCurrentFields().Sanitized();
+            }
+
+            var runtime = CreateDefaultFlightRuntimeState(profile, float3.zero);
+            try
+            {
+                _entityManager.AddComponentData(entity, runtime);
+                _flightRuntimeStateOverflowEntity = Entity.Null;
+                return true;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _flightRuntimeStateOverflowEntity = entity;
+                if (!_flightRuntimeStateCapacityWarned)
+                {
+                    _flightRuntimeStateCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] Skipping oversized flagship candidate: cannot attach ShipFlightRuntimeState.");
+                }
+
+                return false;
+            }
+        }
+
         private static bool PreferCarrierSelection()
         {
             var presetId = Space4XRunStartSelection.ShipPresetId;
@@ -1545,7 +1742,7 @@ namespace Space4X.UI
             }
             else
             {
-                _entityManager.AddComponentData(_flagship, new ShipAbilityModule { Kind = next });
+                TrySetOrAddShipAbilitySelection(_flagship, next);
             }
         }
 
@@ -1611,8 +1808,44 @@ namespace Space4X.UI
             }
             else
             {
-                _entityManager.AddComponentData(entity, new ShipAbilityModule { Kind = desired });
+                TrySetOrAddShipAbilitySelection(entity, desired);
             }
+        }
+
+        private bool TrySetOrAddShipAbilitySelection(Entity entity, ShipAbilityKind ability)
+        {
+            if (!IsValidTarget(entity))
+                return false;
+
+            if (_entityManager.HasComponent<ShipAbilityModule>(entity))
+            {
+                _entityManager.SetComponentData(entity, new ShipAbilityModule { Kind = ability });
+                return true;
+            }
+
+            if (_shipAbilityModuleAddSuppressed)
+            {
+                return false;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, new ShipAbilityModule { Kind = ability });
+                return true;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _shipAbilityModuleAddSuppressed = true;
+                UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] ShipAbilityModule add skipped: entity archetype is at chunk capacity. Ability selection falls back to available module configs.");
+                return false;
+            }
+        }
+
+        private static bool IsArchetypeCapacityException(InvalidOperationException ex)
+        {
+            return ex != null &&
+                   ex.Message != null &&
+                   ex.Message.IndexOf("Entity archetype component data is too large", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static bool IsSkipShipPreset()
@@ -1765,8 +1998,26 @@ namespace Space4X.UI
             }
 
             fallback = fallback.Sanitized();
+            if (_flightProfileOverflowEntity == entity)
+            {
+                return fallback;
+            }
+
             UpsertFlightProfile(entity, fallback);
             return fallback;
+        }
+
+        private static ShipFlightRuntimeState CreateDefaultFlightRuntimeState(in ShipFlightProfile profile, in float3 velocityWorld)
+        {
+            return new ShipFlightRuntimeState
+            {
+                VelocityWorld = velocityWorld,
+                InertialDampenersEnabled = profile.DefaultInertialDampenersEnabled != 0 ? (byte)1 : (byte)0,
+                AngularSpeedRadians = 0f,
+                ForwardThrottle = 0f,
+                StrafeThrottle = 0f,
+                VerticalThrottle = 0f
+            };
         }
 
         private ShipFlightRuntimeState ResolveFlightRuntimeState(Entity entity, in ShipFlightProfile profile)
@@ -1782,16 +2033,27 @@ namespace Space4X.UI
                 return runtime;
             }
 
-            var created = new ShipFlightRuntimeState
+            var created = CreateDefaultFlightRuntimeState(profile, _flagshipVelocityWorld);
+            if (_flightRuntimeStateOverflowEntity == entity)
             {
-                VelocityWorld = _flagshipVelocityWorld,
-                InertialDampenersEnabled = profile.DefaultInertialDampenersEnabled != 0 ? (byte)1 : (byte)0,
-                AngularSpeedRadians = 0f,
-                ForwardThrottle = 0f,
-                StrafeThrottle = 0f,
-                VerticalThrottle = 0f
-            };
-            _entityManager.AddComponentData(entity, created);
+                return created;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, created);
+                _flightRuntimeStateOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _flightRuntimeStateOverflowEntity = entity;
+                if (!_flightRuntimeStateCapacityWarned)
+                {
+                    _flightRuntimeStateCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] ShipFlightRuntimeState add skipped: entity archetype is at chunk capacity. Manual flight runtime falls back to transient state.");
+                }
+            }
+
             return created;
         }
 
@@ -1803,7 +2065,25 @@ namespace Space4X.UI
                 return;
             }
 
-            _entityManager.AddComponentData(entity, runtimeState);
+            if (_flightRuntimeStateOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, runtimeState);
+                _flightRuntimeStateOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _flightRuntimeStateOverflowEntity = entity;
+                if (!_flightRuntimeStateCapacityWarned)
+                {
+                    _flightRuntimeStateCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] ShipFlightRuntimeState add skipped during update: entity archetype is at chunk capacity.");
+                }
+            }
         }
 
         private PlayerFlagshipFlightInput ResolveFlightInputIntent(Entity entity)
@@ -1814,7 +2094,25 @@ namespace Space4X.UI
             }
 
             var created = PlayerFlagshipFlightInput.Disabled;
-            _entityManager.AddComponentData(entity, created);
+            if (_playerFlightInputOverflowEntity == entity)
+            {
+                return created;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, created);
+                _playerFlightInputOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _playerFlightInputOverflowEntity = entity;
+                if (!_playerFlightInputCapacityWarned)
+                {
+                    _playerFlightInputCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] PlayerFlagshipFlightInput add skipped: entity archetype is at chunk capacity. Manual input is suppressed for this claim target.");
+                }
+            }
             return created;
         }
 
@@ -1826,7 +2124,25 @@ namespace Space4X.UI
                 return;
             }
 
-            _entityManager.AddComponentData(entity, input);
+            if (_playerFlightInputOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, input);
+                _playerFlightInputOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _playerFlightInputOverflowEntity = entity;
+                if (!_playerFlightInputCapacityWarned)
+                {
+                    _playerFlightInputCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] PlayerFlagshipFlightInput add skipped during update: entity archetype is at chunk capacity.");
+                }
+            }
         }
 
         private void UpsertFlightProfile(Entity entity, in ShipFlightProfile profile)
@@ -1837,7 +2153,25 @@ namespace Space4X.UI
                 return;
             }
 
-            _entityManager.AddComponentData(entity, profile);
+            if (_flightProfileOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, profile);
+                _flightProfileOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _flightProfileOverflowEntity = entity;
+                if (!_flightProfileCapacityWarned)
+                {
+                    _flightProfileCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] ShipFlightProfile add skipped: entity archetype is at chunk capacity.");
+                }
+            }
         }
 
         private ShipFlightProfile BuildProfileFromCurrentFields()

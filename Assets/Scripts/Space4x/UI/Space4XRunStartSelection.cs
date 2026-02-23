@@ -1,5 +1,7 @@
 using System;
+using Space4X.Modes;
 using Space4X.Registry;
+using Space4x.Scenario;
 using UnityEngine;
 
 namespace Space4X.UI
@@ -13,10 +15,6 @@ namespace Space4X.UI
         public const string SmokeScenarioPath = "Assets/Scenarios/space4x_smoke.json";
         public const uint SmokeScenarioSeed = 77u;
 
-        public const string FleetCrawlSurvivorsScenarioId = "space4x_fleetcrawl_survivors_v1";
-        public const string FleetCrawlSurvivorsScenarioPath = "Assets/Scenarios/space4x_fleetcrawl_survivors_v1.json";
-        public const uint FleetCrawlSurvivorsSeedBase = 19031u;
-
         public static string ShipPresetId { get; private set; } = "ship.square.carrier";
         public static string ShipDisplayName { get; private set; } = "Square Carrier";
         public static string Archetype { get; private set; } = "Unknown Archetype";
@@ -25,9 +23,9 @@ namespace Space4X.UI
         public static string[] MetaPerks { get; private set; } = Array.Empty<string>();
         public static int Difficulty { get; private set; } = 2;
         public static string ScenePath { get; private set; } = Space4XShipPresetCatalog.DefaultGameplayScenePath;
-        public static string ScenarioId { get; private set; } = SmokeScenarioId;
-        public static string ScenarioPath { get; private set; } = SmokeScenarioPath;
-        public static uint ScenarioSeed { get; private set; } = SmokeScenarioSeed;
+        public static string ScenarioId { get; private set; } = Space4XModeSelectionState.FleetCrawlScenarioId;
+        public static string ScenarioPath { get; private set; } = Space4XModeSelectionState.FleetCrawlScenarioPath;
+        public static uint ScenarioSeed { get; private set; } = Space4XModeSelectionState.FleetCrawlSeed;
         public static ShipFlightProfile FlightProfile { get; private set; } = ShipFlightProfile.CreateDefault("ship.square.carrier");
         public static int MetaProgressionLevel { get; private set; } = 1;
         public static int ActiveMetaProgressionLevel { get; private set; } = 1;
@@ -72,17 +70,17 @@ namespace Space4X.UI
 
             if (string.IsNullOrWhiteSpace(scenarioId))
             {
-                scenarioId = SmokeScenarioId;
+                Space4XScenarioAuthority.ResolvePlayableScenario(out scenarioId, out scenarioPath, out seed);
             }
 
             if (string.IsNullOrWhiteSpace(scenarioPath))
             {
-                scenarioPath = SmokeScenarioPath;
+                scenarioPath = Space4XScenarioAuthority.CanonicalScenarioPath;
             }
 
             if (seed == 0u)
             {
-                seed = SmokeScenarioSeed;
+                seed = Space4XScenarioAuthority.CanonicalScenarioSeed;
             }
 
             return true;
@@ -95,17 +93,7 @@ namespace Space4X.UI
 
         private static void ResolveScenarioRouting(int difficulty, out string scenarioId, out string scenarioPath, out uint seed)
         {
-            if (difficulty <= 2)
-            {
-                scenarioId = SmokeScenarioId;
-                scenarioPath = SmokeScenarioPath;
-                seed = SmokeScenarioSeed;
-                return;
-            }
-
-            scenarioId = FleetCrawlSurvivorsScenarioId;
-            scenarioPath = FleetCrawlSurvivorsScenarioPath;
-            seed = FleetCrawlSurvivorsSeedBase + (uint)(Mathf.Clamp(difficulty, 1, 9) * 97);
+            Space4XScenarioAuthority.ResolvePlayableScenario(out scenarioId, out scenarioPath, out seed);
         }
     }
 }

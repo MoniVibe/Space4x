@@ -260,7 +260,7 @@ namespace Space4x.Scenario
             _entityManager = world.EntityManager;
             _scenarioQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<ScenarioInfo>());
             _flagshipQuery = _entityManager.CreateEntityQuery(
-                ComponentType.ReadOnly<PlayerFlagshipTag>(),
+                ComponentType.ReadOnly<Space4X.Registry.PlayerFlagshipTag>(),
                 ComponentType.ReadWrite<LocalTransform>(),
                 ComponentType.ReadWrite<MovementCommand>());
             _timeQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<TimeState>());

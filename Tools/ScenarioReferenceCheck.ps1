@@ -83,6 +83,62 @@ $smokePath = Join-Path $space4xRepo "Assets\Scenarios\space4x_smoke.json"
 Write-Host "fleetcrawl core : $(if (Test-Path $corePath) { 'present' } else { 'missing' }) ($corePath)"
 Write-Host "smoke           : $(if (Test-Path $smokePath) { 'present' } else { 'missing' }) ($smokePath)"
 
+Write-Section "Bootstrap Assets"
+$scenarioUrp = Join-Path $space4xRepo "Assets\Resources\Rendering\ScenarioURP.asset"
+$scenarioUrpMeta = Join-Path $space4xRepo "Assets\Resources\Rendering\ScenarioURP.asset.meta"
+$scenarioRenderer = Join-Path $space4xRepo "Assets\Resources\Rendering\ScenarioURP_Renderer.asset"
+$scenarioRendererMeta = Join-Path $space4xRepo "Assets\Resources\Rendering\ScenarioURP_Renderer.asset.meta"
+Write-Host "ScenarioURP.asset         : $(if (Test-Path $scenarioUrp) { 'present' } else { 'missing' }) ($scenarioUrp)"
+Write-Host "ScenarioURP.asset.meta    : $(if (Test-Path $scenarioUrpMeta) { 'present' } else { 'missing' }) ($scenarioUrpMeta)"
+Write-Host "ScenarioURP_Renderer.asset: $(if (Test-Path $scenarioRenderer) { 'present' } else { 'missing' }) ($scenarioRenderer)"
+Write-Host "ScenarioURP_Renderer.meta : $(if (Test-Path $scenarioRendererMeta) { 'present' } else { 'missing' }) ($scenarioRendererMeta)"
+
+Write-Section "Smoke Scene SRP Fallback"
+$smokeScenePath = Join-Path $space4xRepo "Assets\Scenes\TRI_Space4X_Smoke.unity"
+if ((Test-Path $smokeScenePath) -and (Test-Path $scenarioUrpMeta)) {
+    $sceneLine = Select-String -Path $smokeScenePath -Pattern "fallbackAsset:" | Select-Object -First 1
+    $fallbackGuid = $null
+    if ($sceneLine -and $sceneLine.Line -match "guid: ([0-9a-f]{32})") {
+        $fallbackGuid = $Matches[1]
+    }
+    $metaGuid = (Select-String -Path $scenarioUrpMeta -Pattern "^guid:" | Select-Object -First 1).Line
+    $metaGuid = $metaGuid -replace "guid:\s*", ""
+    Write-Host "Smoke fallbackAsset guid: $fallbackGuid"
+    Write-Host "ScenarioURP.meta guid  : $metaGuid"
+    if ($fallbackGuid -and $metaGuid -and ($fallbackGuid -ne $metaGuid)) {
+        Write-Host "WARNING: Smoke scene fallbackAsset guid does not match ScenarioURP.asset.meta"
+    }
+} else {
+    Write-Host "Smoke scene or ScenarioURP meta missing; cannot verify fallback."
+}
+
+Write-Section "Render Catalog Parity"
+$catalogData = Join-Path $space4xRepo "Assets\Data\Space4XRenderCatalog_v2.asset"
+$catalogResource = Join-Path $space4xRepo "Assets\Resources\Space4XRenderCatalog_v2.asset"
+if ((Test-Path $catalogData) -and (Test-Path $catalogResource)) {
+    $dataContent = Get-Content -Path $catalogData -Raw
+    $resourceContent = Get-Content -Path $catalogResource -Raw
+    $identical = $dataContent -eq $resourceContent
+    Write-Host "RenderCatalog Data/Resources identical: $identical"
+} else {
+    Write-Host "RenderCatalog asset missing (data or resources)."
+}
+
+Write-Section "FleetCrawl Scenario Flags"
+if (Test-Path $corePath) {
+    try {
+        $json = Get-Content -Path $corePath -Raw | ConvertFrom-Json
+        $applyFrames = $json.scenarioConfig.applyReferenceFrames
+        $bandEnabled = $json.scenarioConfig.orbitalBand.enabled
+        $useBandScale = $json.scenarioConfig.renderFrame.useBandScale
+        Write-Host "applyReferenceFrames: $applyFrames"
+        Write-Host "orbitalBand.enabled : $bandEnabled"
+        Write-Host "renderFrame.useBandScale: $useBandScale"
+    } catch {
+        Write-Host "Failed to parse $corePath for scenarioConfig."
+    }
+}
+
 Write-Section "Console Signal"
 if (Test-Path $ConsolePath) {
     $patterns = @(

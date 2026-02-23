@@ -30,6 +30,7 @@ Catalogs (PureDOTS):
 Aggregate bridge (PureDOTS):
 - `AggregateIdentity`, `AggregateStats`, `AmbientGroupConditions`, `MotivationDrive` in `puredots/Packages/com.moni.puredots/Runtime/Runtime/Aggregate/AggregateComponents.cs`.
 - Adapter system: `puredots/Packages/com.moni.puredots/Runtime/Systems/Guild/GuildAggregateAdapterSystem.cs`.
+- The adapter retargets `GroupMembership.Group` from guild entities to their aggregate entities for stats/motivation.
 
 Space4X memberships:
 - `Space4X.Registry.GuildMembershipEntry`, `GuildMemberEntry`, `BusinessGuildLink` in `space4x/Assets/Scripts/Space4x/Registry/Space4XOrganizationRelationComponents.cs`.
@@ -48,10 +49,8 @@ Space4X memberships:
 
 ## Gaps / Alignment Notes
 
-- `GuildFormationSystem` still uses legacy `GuildMembership` while charter formation uses `GroupMembership`; consolidation needed.
 - `GuildOutlookSet.IsFanatic` is set from alignment strength in formation; align with the final outlook thresholds later.
 
 ## Next Decisions
 
-- Pick canonical knowledge/wealth/leadership components for runtime and migrate call sites.
 - Decide which formation path is authoritative for Space4X slice (charter vs organic vs top-down).

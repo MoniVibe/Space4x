@@ -687,7 +687,7 @@ namespace Space4x.Scenario
                 ComponentType.ReadOnly<Space4XFleetcrawlDirectorState>(),
                 ComponentType.ReadOnly<Space4XFleetcrawlRoom>());
             _flagshipQuery = _entityManager.CreateEntityQuery(
-                ComponentType.ReadOnly<PlayerFlagshipTag>(),
+                ComponentType.ReadOnly<Space4X.Registry.PlayerFlagshipTag>(),
                 ComponentType.ReadOnly<LocalTransform>());
             _destroyedEnemyQuery = _entityManager.CreateEntityQuery(
                 ComponentType.ReadOnly<Space4XRunEnemyDestroyedCounted>(),

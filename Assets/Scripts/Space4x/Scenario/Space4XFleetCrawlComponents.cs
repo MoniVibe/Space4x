@@ -1,3 +1,4 @@
+using Space4X.Modes;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -5,7 +6,8 @@ namespace Space4x.Scenario
 {
     public static class Space4XFleetCrawlScenario
     {
-        public static readonly FixedString64Bytes ScenarioId = new FixedString64Bytes("space4x_fleetcrawl_micro");
+        public static readonly FixedString64Bytes ScenarioId =
+            new FixedString64Bytes(Space4XModeSelectionState.FleetCrawlScenarioId);
     }
 
     public enum Space4XFleetCrawlRoomKind : byte

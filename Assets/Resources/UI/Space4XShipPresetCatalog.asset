@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab5173a996a425b4a90e376d2c2664d4, type: 3}
   m_Name: Space4XShipPresetCatalog
   m_EditorClassIdentifier: Space4X.Gameplay::Space4X.UI.Space4XShipPresetCatalog
-  gameplayScenePath: Assets/Scenes/Demos/MiningCombatDemo.unity
+  gameplayScenePath: Assets/Scenes/TRI_Space4X_Smoke.unity
   minDifficulty: 1
   maxDifficulty: 5
   defaultDifficulty: 2

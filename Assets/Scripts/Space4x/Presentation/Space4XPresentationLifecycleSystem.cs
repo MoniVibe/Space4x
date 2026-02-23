@@ -21,6 +21,7 @@ namespace Space4X.Presentation
     /// </summary>
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateBefore(typeof(PureDOTS.Rendering.ResolveRenderVariantSystem))]
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     [UpdateBefore(typeof(RenderPresentationValidationSystem))]
 #endif

@@ -1,6 +1,6 @@
 # Space4X Offline Tools
 
-These scripts are offline post-processing helpers. They do not require Unity and can be run on run artifacts directly.
+Most scripts here are offline post-processing helpers. A few preflight scripts invoke Unity directly.
 
 ## Telemetry Summarizer
 
@@ -26,6 +26,53 @@ python Tools/Scenarios/space4x_generate_beats.py \
   --out path/to/beats.json
 ```
 
+## Iterator Compile Preflight
+
+Runs a compile-only Unity batch pass and fails if compile errors are detected.
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorCompilePreflight.ps1 `
+  -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
+  -RepoPath C:\dev\Tri\space4x
+```
+
+Optional:
+- `-LogPath <path>` to override output log path.
+- `-TimeoutSec <seconds>` to control compile timeout.
+
+## Iterator Bedrock Guard (Strict)
+
+Enforces iterator drift guardrails before handoff:
+- both `space4x` and `puredots` are refreshed and checked against `origin/main`,
+- no behind drift,
+- optional dirty-tree enforcement,
+- compile preflight,
+- open `needs-validate` PR awareness snapshot.
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorBedrockGuard.ps1 `
+  -RepoPath C:\dev\Tri\space4x `
+  -PuredotsRepoPath C:\dev\Tri\puredots `
+  -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
+  -AwarenessNote "Reviewed open needs-validate queue before handoff"
+```
+
+Outputs:
+- `Temp/iterator_bedrock_guard_<timestamp>.json` (pass/fail report).
+
+## Iterator Guarded Handoff (Guard + Push + Parity Sync)
+
+Single command to enforce guardrails, then push + parity sync if and only if guard passes.
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorGuardedHandoff.ps1 `
+  -RepoPath C:\dev\Tri\space4x `
+  -PuredotsRepoPath C:\dev\Tri\puredots `
+  -PushBranch <branch-name> `
+  -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
+  -AwarenessNote "Reviewed open needs-validate queue before handoff"
+```
+
 ## Push + Cross-Machine Parity Sync
 
 Pushes the active branch, fast-forwards local validator checkout, and fast-forwards laptop checkout to the same upstream ref.
@@ -37,7 +84,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -PushBranch feat/fleetcrawl-data-pass `
   -LocalParityBranch validator/ultimate-checkout `
   -LocalParityUpstreamRef origin/feat/fleetcrawl-data-pass `
-  -LaptopRepoPath C:\dev\unity_clean_fleetcrawl `
+  -LaptopRepoPath C:\dev\unity_clean `
   -LaptopParityBranch validator/ultimate-checkout `
   -LaptopParityUpstreamRef origin/feat/fleetcrawl-data-pass
 ```
@@ -71,7 +118,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean_fleetcrawl `
+  -LaptopRepoPath C:\dev\unity_clean `
   -LaptopParityBranch validator/ultimate-checkout
 ```
 

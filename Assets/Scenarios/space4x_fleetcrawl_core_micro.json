@@ -4,13 +4,13 @@
   "duration_s": 180,
   "scenarioConfig": {
     "applyDefaultModuleLoadouts": true,
-    "applyReferenceFrames": true,
+    "applyReferenceFrames": false,
     "renderFrame": {
       "enabled": 1,
-      "useBandScale": 1
+      "useBandScale": 0
     },
     "orbitalBand": {
-      "enabled": 1,
+      "enabled": 0,
       "presentationScale": 0.75
     },
     "headlessQuestions": [

@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using PureDOTS.Runtime.Core;
+using Space4X.Modes;
 using Space4X.Registry;
+using Space4x.Scenario;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -21,6 +23,7 @@ namespace Space4X.UI
     public sealed class Space4XMainMenuOverlay : MonoBehaviour
     {
         private const string SmokeSceneName = "TRI_Space4X_Smoke";
+        private const string SmokeScenePath = "Assets/Scenes/TRI_Space4X_Smoke.unity";
         private const string ShipPresetCatalogResourcePath = "UI/Space4XShipPresetCatalog";
         private const string AutoStartRunEnv = "SPACE4X_AUTOSTART_RUN";
         private const string AutoStartPresetEnv = "SPACE4X_AUTOSTART_PRESET";
@@ -96,6 +99,9 @@ namespace Space4X.UI
 
         private void OnEnable()
         {
+            Space4XScenarioAuthority.NormalizeLegacyScenarioOverlayEnvironment();
+            Space4XScenarioAuthority.ApplyPlayableScenarioEnvironment();
+            Space4XModeSelectionState.SetMode(Space4XModeKind.FleetCrawl, applyScenarioEnvironment: true);
             SceneManager.sceneLoaded += OnSceneLoaded;
             LoadShipCatalog();
             EnsureUiDocument();
@@ -460,10 +466,9 @@ namespace Space4X.UI
 
             Space4XControlModeState.ResetToDefaultForRun();
             var preset = _shipCatalog.GetPresetOrFallback(_shipIndex);
-            var requestedScenePath = string.IsNullOrWhiteSpace(_shipCatalog.GameplayScenePath)
-                ? Space4XShipPresetCatalog.DefaultGameplayScenePath
-                : _shipCatalog.GameplayScenePath;
+            var requestedScenePath = ResolveRequestedScenePath();
             var scenePath = ResolvePlayableScenePath(requestedScenePath, out var usedFallbackScene);
+            UnityEngine.Debug.Log($"[Space4XRunStart] mode={Space4XModeSelectionState.CurrentMode} requested_scene='{requestedScenePath}' resolved_scene='{scenePath}' preset='{preset.PresetId}' difficulty={_difficulty}.");
 
             if (usedFallbackScene)
             {
@@ -472,6 +477,18 @@ namespace Space4X.UI
 
             Space4XRunStartSelection.Set(preset, _difficulty, scenePath);
             _startRunRoutine = StartCoroutine(StartRunAsync(scenePath, preset));
+        }
+
+        private string ResolveRequestedScenePath()
+        {
+            if (Space4XModeSelectionState.CurrentMode == Space4XModeKind.FleetCrawl)
+            {
+                return SmokeScenePath;
+            }
+
+            return string.IsNullOrWhiteSpace(_shipCatalog.GameplayScenePath)
+                ? Space4XShipPresetCatalog.DefaultGameplayScenePath
+                : _shipCatalog.GameplayScenePath;
         }
 
         private IEnumerator StartRunAsync(string scenePath, Space4XShipPresetEntry preset)

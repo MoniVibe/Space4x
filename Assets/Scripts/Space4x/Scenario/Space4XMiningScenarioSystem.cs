@@ -514,12 +514,14 @@ namespace Space4x.Scenario
             }
 
             var config = Space4XRenderFrameConfig.Default;
+            var referenceFramesEnabled = scenarioConfig != null && scenarioConfig.applyReferenceFrames;
+            config.Enabled = (byte)(referenceFramesEnabled ? 1 : 0);
             var frameOverride = scenarioConfig != null ? scenarioConfig.renderFrame : null;
             if (frameOverride != null)
             {
                 if (frameOverride.enabled >= 0)
                 {
-                    config.Enabled = (byte)(frameOverride.enabled != 0 ? 1 : 0);
+                    config.Enabled = (byte)(referenceFramesEnabled && frameOverride.enabled != 0 ? 1 : 0);
                 }
                 if (frameOverride.useBandScale >= 0)
                 {
@@ -866,8 +868,37 @@ namespace Space4x.Scenario
             scenarioInfo = default;
             hasScenarioInfo = false;
 
+            if (!SystemAPI.TryGetSingleton<ScenarioInfo>(out var info))
+            {
+                return ResolveScenarioPathFromEnvironment();
+            }
+
+            hasScenarioInfo = true;
+            scenarioInfo = info;
+            var scenarioPath = FindScenarioPath(info.ScenarioId.ToString());
+            if (!string.IsNullOrWhiteSpace(scenarioPath))
+            {
+                return scenarioPath;
+            }
+
+            var fallback = ResolveScenarioPathFromEnvironment();
+            if (!string.IsNullOrWhiteSpace(fallback))
+            {
+                Debug.LogWarning($"[Space4XMiningScenario] ScenarioId '{info.ScenarioId}' did not resolve to a file; falling back to {ScenarioPathEnv} override.");
+            }
+
+            return fallback;
+        }
+
+        private static string ResolveScenarioPathFromEnvironment()
+        {
             var envValue = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
-            if (!string.IsNullOrWhiteSpace(envValue))
+            if (string.IsNullOrWhiteSpace(envValue))
+            {
+                return null;
+            }
+
+            try
             {
                 var normalizedEnvPath = Path.GetFullPath(envValue);
                 if (File.Exists(normalizedEnvPath))
@@ -875,17 +906,14 @@ namespace Space4x.Scenario
                     return normalizedEnvPath;
                 }
 
-                Debug.LogWarning($"[Space4XMiningScenario] {ScenarioPathEnv} was set to '{envValue}', but the file was not found. Falling back to ScenarioInfo.");
+                Debug.LogWarning($"[Space4XMiningScenario] {ScenarioPathEnv} was set to '{envValue}', but the file was not found.");
             }
-
-            if (!SystemAPI.TryGetSingleton<ScenarioInfo>(out var info))
+            catch (Exception)
             {
-                return null;
+                Debug.LogWarning($"[Space4XMiningScenario] {ScenarioPathEnv} was set to '{envValue}', but the path could not be normalized.");
             }
 
-            hasScenarioInfo = true;
-            scenarioInfo = info;
-            return FindScenarioPath(info.ScenarioId.ToString());
+            return null;
         }
 
         private string FindScenarioPath(string scenarioId)

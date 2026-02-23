@@ -182,11 +182,14 @@ namespace Space4X.Progression
     [UpdateAfter(typeof(Space4X.Systems.AI.VesselMovementSystem))]
     public partial struct Space4XPersistentThrustProgressionTrackingSystem : ISystem
     {
+        private bool _warnedTrackerCapacity;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XPersistentProgressionState>();
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            _warnedTrackerCapacity = false;
         }
 
         public void OnUpdate(ref SystemState state)
@@ -199,21 +202,20 @@ namespace Space4X.Progression
             }
 
             var em = state.EntityManager;
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
-            foreach (var (movement, entity) in SystemAPI.Query<RefRO<VesselMovement>>()
-                         .WithAll<Space4X.Registry.PlayerFlagshipTag>()
-                         .WithNone<Space4XThrustProgressionTracker>()
-                         .WithEntityAccess())
+            var trackerCandidates = SystemAPI.QueryBuilder()
+                .WithAll<Space4X.Registry.PlayerFlagshipTag, VesselMovement>()
+                .WithNone<Space4XThrustProgressionTracker>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+
+            for (var i = 0; i < trackerCandidates.Length; i++)
             {
-                ecb.AddComponent(entity, new Space4XThrustProgressionTracker
-                {
-                    LastSpeed = math.max(0f, movement.ValueRO.CurrentSpeed),
-                    Initialized = 1
-                });
+                var entity = trackerCandidates[i];
+                var movement = em.GetComponentData<VesselMovement>(entity);
+                Space4XPersistentProgressionTrackingSafety.TryAddThrustTracker(em, entity, movement, ref _warnedTrackerCapacity);
             }
 
-            ecb.Playback(em);
-            ecb.Dispose();
+            trackerCandidates.Dispose();
 
             if (!SystemAPI.TryGetSingletonRW<Space4XPersistentProgressionState>(out var progression))
             {
@@ -246,11 +248,16 @@ namespace Space4X.Progression
     [UpdateAfter(typeof(Space4X.Registry.Space4XWeaponSystem))]
     public partial struct Space4XPersistentWeaponProgressionTrackingSystem : ISystem
     {
+        private bool _warnedWeaponTrackerCapacity;
+        private bool _warnedWeaponTrackerMissingBuffer;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XPersistentProgressionState>();
             state.RequireForUpdate<TimeState>();
             state.RequireForUpdate<RewindState>();
+            _warnedWeaponTrackerCapacity = false;
+            _warnedWeaponTrackerMissingBuffer = false;
         }
 
         public void OnUpdate(ref SystemState state)
@@ -269,20 +276,32 @@ namespace Space4X.Progression
 
             var em = state.EntityManager;
             var progressionState = em.GetComponentData<Space4XPersistentProgressionState>(progressionEntity);
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
-            foreach (var (_, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>()
-                         .WithAll<Space4X.Registry.PlayerFlagshipTag>()
-                         .WithNone<Space4XPersistentWeaponMountTracker>()
-                         .WithEntityAccess())
+            var trackerCandidates = SystemAPI.QueryBuilder()
+                .WithAll<Space4X.Registry.PlayerFlagshipTag, WeaponMount>()
+                .WithNone<Space4XPersistentWeaponMountTracker>()
+                .Build()
+                .ToEntityArray(Allocator.Temp);
+
+            for (var i = 0; i < trackerCandidates.Length; i++)
             {
-                ecb.AddBuffer<Space4XPersistentWeaponMountTracker>(entity);
+                Space4XPersistentProgressionTrackingSafety.TryAddWeaponMountTrackerBuffer(em, trackerCandidates[i], ref _warnedWeaponTrackerCapacity);
             }
 
-            ecb.Playback(em);
-            ecb.Dispose();
+            trackerCandidates.Dispose();
 
             foreach (var (mounts, entity) in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4X.Registry.PlayerFlagshipTag>().WithEntityAccess())
             {
+                if (!em.HasBuffer<Space4XPersistentWeaponMountTracker>(entity))
+                {
+                    if (!_warnedWeaponTrackerMissingBuffer)
+                    {
+                        UnityDebug.LogWarning("[Space4XPersistentProgression] Weapon mount tracker buffer unavailable on flagship archetype; skipping weapon progression tracking for that entity.");
+                        _warnedWeaponTrackerMissingBuffer = true;
+                    }
+
+                    continue;
+                }
+
                 var trackers = em.GetBuffer<Space4XPersistentWeaponMountTracker>(entity);
 
                 while (trackers.Length < mounts.Length)
@@ -390,6 +409,59 @@ namespace Space4X.Progression
     {
         public float LastSpeed;
         public byte Initialized;
+    }
+
+    internal static class Space4XPersistentProgressionTrackingSafety
+    {
+        public static void TryAddThrustTracker(
+            EntityManager em,
+            Entity entity,
+            in VesselMovement movement,
+            ref bool warnedCapacity)
+        {
+            try
+            {
+                em.AddComponentData(entity, new Space4XThrustProgressionTracker
+                {
+                    LastSpeed = math.max(0f, movement.CurrentSpeed),
+                    Initialized = 1
+                });
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                if (!warnedCapacity)
+                {
+                    UnityDebug.LogWarning("[Space4XPersistentProgression] Skipping thrust tracker add on oversized archetype.");
+                    warnedCapacity = true;
+                }
+            }
+        }
+
+        public static void TryAddWeaponMountTrackerBuffer(
+            EntityManager em,
+            Entity entity,
+            ref bool warnedCapacity)
+        {
+            try
+            {
+                em.AddBuffer<Space4XPersistentWeaponMountTracker>(entity);
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                if (!warnedCapacity)
+                {
+                    UnityDebug.LogWarning("[Space4XPersistentProgression] Skipping weapon mount tracker add on oversized archetype.");
+                    warnedCapacity = true;
+                }
+            }
+        }
+
+        private static bool IsArchetypeCapacityException(InvalidOperationException ex)
+        {
+            return ex != null &&
+                   ex.Message != null &&
+                   ex.Message.IndexOf("Entity archetype component data is too large", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
     }
 
     internal static class Space4XPersistentProgressionMath
