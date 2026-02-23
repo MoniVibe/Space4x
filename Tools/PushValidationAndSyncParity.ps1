@@ -212,28 +212,48 @@ function Invoke-LaptopCommand {
     )
 
     $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($Script))
-    $nativePrefExists = $null -ne (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue)
-    if ($nativePrefExists) {
-        $previousNativePref = $PSNativeCommandUseErrorActionPreference
-        $PSNativeCommandUseErrorActionPreference = $false
-    }
-
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
     try {
-        $output = & ssh -i $KeyPath -o IdentitiesOnly=yes "$User@$HostName" "powershell -NoProfile -EncodedCommand $encoded" 2>&1
-        $exitCode = $LASTEXITCODE
+        $args = @(
+            "-i", $KeyPath,
+            "-o", "IdentitiesOnly=yes",
+            "$User@$HostName",
+            "powershell -NoProfile -EncodedCommand $encoded"
+        )
+
+        $process = Start-Process -FilePath "ssh" `
+            -ArgumentList $args `
+            -NoNewWindow `
+            -Wait `
+            -PassThru `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+
+        $stdout = @()
+        $stderr = @()
+        if (Test-Path $stdoutPath) {
+            $stdout = @(Get-Content $stdoutPath)
+        }
+        if (Test-Path $stderrPath) {
+            $stderr = @(Get-Content $stderrPath)
+        }
+
+        if ($process.ExitCode -ne 0) {
+            $errorText = (@($stderr) + @($stdout) | Out-String).Trim()
+            if ([string]::IsNullOrWhiteSpace($errorText)) {
+                $errorText = "ssh exit code $($process.ExitCode)"
+            }
+
+            throw "Laptop command failed for $User@$HostName. $errorText"
+        }
+
+        return @($stdout)
     }
     finally {
-        if ($nativePrefExists) {
-            $PSNativeCommandUseErrorActionPreference = $previousNativePref
-        }
+        Remove-Item -ErrorAction SilentlyContinue $stdoutPath
+        Remove-Item -ErrorAction SilentlyContinue $stderrPath
     }
-
-    if ($exitCode -ne 0) {
-        $errorText = ($output | Out-String).Trim()
-        throw "Laptop command failed for $User@$HostName. $errorText"
-    }
-
-    return @($output)
 }
 
 function Get-LaptopDirtyPaths {
