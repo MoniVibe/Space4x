@@ -107,6 +107,8 @@ namespace Space4X.Registry
         public HazardTypeId HazardType;
         public Space4XDamageType DamageType;
         public float Magnitude;
+        public uint DurationTicks;
+        public byte StackCount;
         public uint Tick;
     }
 }
