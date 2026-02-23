@@ -176,6 +176,27 @@
       }
     },
     {
+      "id": "convoy_room",
+      "threatLevelRange": [2, 6],
+      "systemSizeWeights": {
+        "small": 20,
+        "medium": 50,
+        "large": 30
+      },
+      "roomClassWeights": {
+        "normal": 55,
+        "elite": 35,
+        "miniboss": 10
+      },
+      "requiredPackTags": ["objective.salvage"],
+      "optionalPackTags": ["enemy.raider", "wildcard.distress", "wildcard.market", "hazard.asteroid"],
+      "budgetShares": {
+        "objective": 0.35,
+        "enemies": 0.45,
+        "hazards": 0.2
+      }
+    },
+    {
       "id": "swarm_room",
       "threatLevelRange": [3, 6],
       "systemSizeWeights": {
