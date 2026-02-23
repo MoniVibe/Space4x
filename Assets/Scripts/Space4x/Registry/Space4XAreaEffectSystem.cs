@@ -99,6 +99,7 @@ namespace Space4X.Registry
             var hasPhysicsWorld = SystemAPI.TryGetSingleton<PhysicsWorldSingleton>(out var physicsWorld);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var modulesWithPendingLimbBuffer = new NativeParallelHashSet<Entity>(64, Allocator.Temp);
+            var targetsWithPendingStatusBuffer = new NativeParallelHashSet<Entity>(64, Allocator.Temp);
 
             var targets = new NativeList<TargetSnapshot>(Allocator.Temp);
             foreach (var (transform, entity) in SystemAPI.Query<RefRO<LocalTransform>>().WithEntityAccess())
@@ -224,7 +225,8 @@ namespace Space4X.Registry
                         appliedMagnitude,
                         currentTick,
                         ref ecb,
-                        ref modulesWithPendingLimbBuffer);
+                        ref modulesWithPendingLimbBuffer,
+                        ref targetsWithPendingStatusBuffer);
                 }
 
                 var updated = emitterRef.ValueRO;
@@ -244,6 +246,7 @@ namespace Space4X.Registry
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
             modulesWithPendingLimbBuffer.Dispose();
+            targetsWithPendingStatusBuffer.Dispose();
             occluders.Dispose();
             targets.Dispose();
         }
@@ -255,7 +258,8 @@ namespace Space4X.Registry
             float magnitude,
             uint currentTick,
             ref EntityCommandBuffer ecb,
-            ref NativeParallelHashSet<Entity> modulesWithPendingLimbBuffer)
+            ref NativeParallelHashSet<Entity> modulesWithPendingLimbBuffer,
+            ref NativeParallelHashSet<Entity> targetsWithPendingStatusBuffer)
         {
             if ((emitter.ImpactMask & Space4XAreaEffectImpactMask.HullDamage) != 0 &&
                 _hullLookup.HasComponent(target))
@@ -356,9 +360,31 @@ namespace Space4X.Registry
                     HazardType = emitter.HazardType,
                     DamageType = emitter.DamageType,
                     Magnitude = magnitude,
+                    DurationTicks = emitter.DisableDurationTicks,
+                    StackCount = 1,
                     Tick = currentTick
                 });
+                return;
             }
+
+            if (!targetsWithPendingStatusBuffer.Contains(target))
+            {
+                ecb.AddBuffer<Space4XStatusEffectEvent>(target);
+                targetsWithPendingStatusBuffer.Add(target);
+            }
+
+            ecb.AppendToBuffer(target, new Space4XStatusEffectEvent
+            {
+                SourceEntity = source,
+                Scope = emitter.Scope,
+                ImpactMask = emitter.ImpactMask,
+                HazardType = emitter.HazardType,
+                DamageType = emitter.DamageType,
+                Magnitude = magnitude,
+                DurationTicks = emitter.DisableDurationTicks,
+                StackCount = 1,
+                Tick = currentTick
+            });
         }
 
         private static void UpsertSubsystemDisable(
