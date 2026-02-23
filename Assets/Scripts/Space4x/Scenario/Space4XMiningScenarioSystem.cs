@@ -302,9 +302,7 @@ namespace Space4x.Scenario
             var contractId = string.IsNullOrWhiteSpace(config.contractId)
                 ? string.Empty
                 : config.contractId.Trim();
-            var runDifficulty = string.IsNullOrWhiteSpace(config.runDifficulty)
-                ? "normal"
-                : config.runDifficulty.Trim().ToLowerInvariant();
+            var runDifficulty = NormalizeRunDifficulty(config.runDifficulty);
             var depthStart = math.max(1, config.depthStart <= 0 ? 1 : config.depthStart);
 
             var roomPlan = EntityManager.GetBuffer<Space4XFleetcrawlRoomPlanOverride>(configEntity);
@@ -320,8 +318,8 @@ namespace Space4x.Scenario
                     }
 
                     var archetype = string.IsNullOrWhiteSpace(entry.archetype) ? string.Empty : entry.archetype.Trim().ToLowerInvariant();
-                    var roomClass = string.IsNullOrWhiteSpace(entry.roomClass) ? "normal" : entry.roomClass.Trim().ToLowerInvariant();
-                    var systemSize = string.IsNullOrWhiteSpace(entry.systemSize) ? "medium" : entry.systemSize.Trim().ToLowerInvariant();
+                    var roomClass = NormalizeRoomClass(entry.roomClass);
+                    var systemSize = NormalizeSystemSize(entry.systemSize);
                     var threatLevel = math.max(1, entry.threatLevel);
                     if (string.IsNullOrWhiteSpace(archetype))
                     {
@@ -361,6 +359,7 @@ namespace Space4x.Scenario
         private static FixedString128Bytes BuildWildcardCsv(List<string> wildcards)
         {
             var csv = new FixedString128Bytes();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (wildcards == null || wildcards.Count == 0)
             {
                 return csv;
@@ -368,14 +367,13 @@ namespace Space4x.Scenario
 
             for (var i = 0; i < wildcards.Count; i++)
             {
-                var token = wildcards[i];
-                if (string.IsNullOrWhiteSpace(token))
+                var normalized = NormalizeWildcardToken(wildcards[i]);
+                if (string.IsNullOrWhiteSpace(normalized))
                 {
                     continue;
                 }
 
-                var normalized = token.Trim().ToLowerInvariant();
-                if (normalized.Length == 0)
+                if (!seen.Add(normalized))
                 {
                     continue;
                 }
@@ -389,6 +387,59 @@ namespace Space4x.Scenario
             }
 
             return csv;
+        }
+
+        private static string NormalizeRunDifficulty(string value)
+        {
+            var normalized = NormalizeScenarioToken(value, "normal");
+            return normalized == "easy" || normalized == "normal" || normalized == "hard" || normalized == "nightmare"
+                ? normalized
+                : "normal";
+        }
+
+        private static string NormalizeRoomClass(string value)
+        {
+            var normalized = NormalizeScenarioToken(value, "normal");
+            return normalized == "normal" || normalized == "elite" || normalized == "miniboss"
+                ? normalized
+                : "normal";
+        }
+
+        private static string NormalizeSystemSize(string value)
+        {
+            var normalized = NormalizeScenarioToken(value, "medium");
+            return normalized == "small" || normalized == "medium" || normalized == "large"
+                ? normalized
+                : "medium";
+        }
+
+        private static string NormalizeWildcardToken(string value)
+        {
+            var normalized = NormalizeScenarioToken(value, string.Empty);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return string.Empty;
+            }
+
+            switch (normalized)
+            {
+                case "distress":
+                    return "distress_signal";
+                case "market":
+                    return "roaming_market";
+                default:
+                    return normalized;
+            }
+        }
+
+        private static string NormalizeScenarioToken(string value, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return fallback;
+            }
+
+            return value.Trim().ToLowerInvariant();
         }
 
         private static string TrimAscii(string value, int maxLen)
