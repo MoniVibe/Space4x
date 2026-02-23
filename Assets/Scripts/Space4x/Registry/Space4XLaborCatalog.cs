@@ -146,6 +146,80 @@ namespace Space4X.Registry
                     PowerBudgetMultiplier = 1f,
                     PayrollBudgetMultiplier = 1f,
                     DowntimeTargetHoursPerCycle = 16f
+                },
+                new StaffingProfileDefinition
+                {
+                    Id = "staffing.medical_standard_3x8",
+                    DisplayName = "Medical Standard 3x8",
+                    SiteType = WorkSiteType.Any,
+                    CalendarId = "calendar.standard",
+                    ScheduleId = "schedule.3x8",
+                    Seats = new[]
+                    {
+                        new WorkSeatDefinition
+                        {
+                            Id = "seat.medical_doctor",
+                            SeatType = WorkSeatType.Support,
+                            RoleId = "doctor",
+                            SeatCount = 2,
+                            CrewPerSeat = 1,
+                            WagePerHour = 18f,
+                            PowerCostPerHour = 0.3f,
+                            MinSkill01 = 0.6f
+                        },
+                        new WorkSeatDefinition
+                        {
+                            Id = "seat.medical_surgeon",
+                            SeatType = WorkSeatType.Support,
+                            RoleId = "surgeon",
+                            SeatCount = 1,
+                            CrewPerSeat = 1,
+                            WagePerHour = 22f,
+                            PowerCostPerHour = 0.35f,
+                            MinSkill01 = 0.7f
+                        },
+                        new WorkSeatDefinition
+                        {
+                            Id = "seat.medical_assistant",
+                            SeatType = WorkSeatType.Support,
+                            RoleId = "assistant",
+                            SeatCount = 3,
+                            CrewPerSeat = 1,
+                            WagePerHour = 12f,
+                            PowerCostPerHour = 0.2f,
+                            MinSkill01 = 0.45f
+                        },
+                        new WorkSeatDefinition
+                        {
+                            Id = "seat.medical_researcher",
+                            SeatType = WorkSeatType.Operations,
+                            RoleId = "researcher",
+                            SeatCount = 1,
+                            CrewPerSeat = 1,
+                            WagePerHour = 20f,
+                            PowerCostPerHour = 0.28f,
+                            MinSkill01 = 0.65f
+                        }
+                    },
+                    Teams = new[]
+                    {
+                        new WorkTeamDefinition
+                        {
+                            Id = "team.medical",
+                            DisplayName = "Medical",
+                            SiteType = WorkSiteType.Any,
+                            ScheduleId = "schedule.3x8",
+                            SeatIds = new[] { "seat.medical_doctor", "seat.medical_surgeon", "seat.medical_assistant", "seat.medical_researcher" },
+                            RotationPolicy = WorkRotationPolicy.Rotating,
+                            MinCrew = 4,
+                            MaxCrew = 8,
+                            CoverageTarget01 = 0.9f,
+                            OvertimeBias01 = 0.25f
+                        }
+                    },
+                    PowerBudgetMultiplier = 1.05f,
+                    PayrollBudgetMultiplier = 1.1f,
+                    DowntimeTargetHoursPerCycle = 12f
                 }
             };
 

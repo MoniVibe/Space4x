@@ -959,6 +959,28 @@ namespace Space4X.Registry
         public uint StatusFlags;
     }
 
+    [InternalBufferCapacity(6)]
+    public struct AugmentationLimbSlot : IBufferElementData
+    {
+        public FixedString64Bytes AugmentId;
+        public FixedString64Bytes SlotId;
+        public byte MaxSlots;
+        public byte IsLocked;
+    }
+
+    [InternalBufferCapacity(6)]
+    public struct InstalledAugmentationLimb : IBufferElementData
+    {
+        public FixedString64Bytes AugmentId;
+        public FixedString64Bytes SlotId;
+        public FixedString64Bytes LimbId;
+        public float Quality; // 0-1
+        public byte Tier; // 0-255
+        public ModuleRarity Rarity;
+        public FixedString64Bytes ManufacturerId;
+        public uint StatusFlags;
+    }
+
     public struct AugmentationStats : IComponentData
     {
         public float PhysiqueModifier;
