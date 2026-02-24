@@ -126,6 +126,28 @@ namespace Space4x.Scenario
             };
         }
 
+        public static string DescribeGateLane(Space4XFleetcrawlRoomKind roomKind, Space4XFleetcrawlReliefKind reliefKind, Space4XRunGateKind gateKind)
+        {
+            if (gateKind == Space4XRunGateKind.Boon)
+            {
+                return "Room Reward: Boon";
+            }
+
+            if (roomKind == Space4XFleetcrawlRoomKind.Relief)
+            {
+                return reliefKind switch
+                {
+                    Space4XFleetcrawlReliefKind.Arsenal => "Acquisition: Market items/modules",
+                    Space4XFleetcrawlReliefKind.Salvage => "Acquisition: Salvage items/modules",
+                    _ => "Acquisition: Mission items/modules"
+                };
+            }
+
+            return gateKind == Space4XRunGateKind.Relief
+                ? "Acquisition: Loot items/modules"
+                : "Acquisition: Mission items/modules";
+        }
+
         public static int ResolveAutoGateOrdinal(uint seed, int roomIndex, int gateCount)
         {
             if (gateCount <= 1)
@@ -208,8 +230,8 @@ namespace Space4x.Scenario
         {
             return offer.RewardKind switch
             {
-                Space4XRunRewardKind.Boon => $"Boon: {DescribePerk(offer.RewardId)}",
-                Space4XRunRewardKind.ModuleBlueprint => $"Blueprint: {DescribeBlueprint(offer.RewardId)}",
+                Space4XRunRewardKind.Boon => $"Room boon: {DescribePerk(offer.RewardId)}",
+                Space4XRunRewardKind.ModuleBlueprint => $"Acquired module: {DescribeBlueprint(offer.RewardId)}",
                 Space4XRunRewardKind.Currency => "Relief: Currency cache (+35).",
                 Space4XRunRewardKind.Heal => "Relief: Hull patch (+8%).",
                 Space4XRunRewardKind.Reroll => "Relief: Reroll token (+1).",
@@ -255,7 +277,7 @@ namespace Space4x.Scenario
             }
             if (blueprintId.Equals(new FixedString64Bytes("hangar_prismworks_guidanceDroneLink_lensBeam")))
             {
-                return "Hangar build: drone wing reinforcement.";
+                return "Hangar module fit: guidance-drone-link + lens-beam parts.";
             }
 
             return blueprintId.ToString();

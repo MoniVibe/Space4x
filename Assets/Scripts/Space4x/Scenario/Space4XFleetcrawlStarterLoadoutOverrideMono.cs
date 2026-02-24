@@ -58,7 +58,7 @@ namespace Space4x.Scenario
             TryApplyById(installed, hangarId, Space4XRunBlueprintKind.Hangar);
 
             _applied = true;
-            Debug.Log($"[FleetcrawlInput] START loadout weapon={FindBlueprintId(installed, Space4XRunBlueprintKind.Weapon)} reactor={FindBlueprintId(installed, Space4XRunBlueprintKind.Reactor)} hangar={FindBlueprintId(installed, Space4XRunBlueprintKind.Hangar)}.");
+            Debug.Log($"[FleetcrawlInput] START loadout weapon={FindBlueprintId(installed, Space4XRunBlueprintKind.Weapon)} reactor={FindBlueprintId(installed, Space4XRunBlueprintKind.Reactor)} hangar_module={FindBlueprintId(installed, Space4XRunBlueprintKind.Hangar)}.");
         }
 
         private static string ResolveEnvOrDefault(string envName, string fallback)

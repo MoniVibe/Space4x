@@ -33,6 +33,7 @@ namespace Space4x.Scenario
     public enum Space4XFleetcrawlChallengeKind : byte { None = 0, Swarm = 1, Hazard = 2, Nemesis = 3 }
     public enum Space4XRunGateKind : byte { Boon = 0, Blueprint = 1, Relief = 2 }
     public enum Space4XRunRewardKind : byte { None = 0, Boon = 1, ModuleBlueprint = 2, ManufacturerUnlock = 3, PartUnlock = 4, Currency = 5, Heal = 6, Reroll = 7 }
+    public enum Space4XRunRewardSourceKind : byte { Mission = 0, Market = 1, Salvage = 2, Loot = 3 }
     public enum Space4XRunPerkOpKind : byte { AddStat = 0, MulStat = 1, AddTag = 2, RemoveTag = 3, ConvertDamage = 4, ReplaceAttackFamily = 5 }
     public enum Space4XRunBlueprintKind : byte { Weapon = 0, Reactor = 1, Hangar = 2 }
     public enum Space4XRunStatKind : byte { Damage = 0, Cooldown = 1, ShieldRegen = 2 }
@@ -153,6 +154,7 @@ namespace Space4x.Scenario
     {
         public int RoomIndex;
         public Space4XRunGateKind GateKind;
+        public Space4XRunRewardSourceKind SourceKind;
         public Space4XRunRewardKind RewardKind;
         public FixedString64Bytes RewardId;
     }
@@ -3960,6 +3962,7 @@ namespace Space4x.Scenario
             }
 
             var gateKind = ResolveGateKind(room, gateOrdinal);
+            var rewardSource = ResolveRewardSource(room, gateKind);
             ResolveOffers(director.Seed, director.CurrentRoomIndex, gateKind, out var offerA, out var offerB, out var offerC);
             var pick = PickOfferIndex(director.Seed, director.CurrentRoomIndex, gateKind, 3);
             var pickSource = "auto";
@@ -3991,12 +3994,20 @@ namespace Space4x.Scenario
             };
 
             Debug.Log($"[Fleetcrawl] GATE_CHOICE room={director.CurrentRoomIndex} gate_ordinal={gateOrdinal}/{gateCount} gate={gateKind} source={gateSource}.");
-            Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId} source={pickSource}.");
-            ApplyOffer(ref state, directorEntity, picked, director.CurrentRoomIndex);
+            Debug.Log($"[Fleetcrawl] GATE_OFFER room={director.CurrentRoomIndex} gate={gateKind} reward_source={rewardSource} offers=[{offerA.RewardId},{offerB.RewardId},{offerC.RewardId}] pick={pick}:{picked.RewardId} source={pickSource}.");
+            if (picked.Kind == Space4XRunRewardKind.Boon)
+            {
+                ApplyRoomCompletionReward(ref state, directorEntity, picked, director.CurrentRoomIndex);
+            }
+            else
+            {
+                ApplyAcquisitionReward(ref state, directorEntity, picked, director.CurrentRoomIndex, rewardSource);
+            }
             records.Add(new Space4XRunGateRewardRecord
             {
                 RoomIndex = director.CurrentRoomIndex,
                 GateKind = gateKind,
+                SourceKind = rewardSource,
                 RewardKind = picked.Kind,
                 RewardId = picked.RewardId
             });
@@ -4004,7 +4015,26 @@ namespace Space4x.Scenario
             summary.Append(gateKind.ToString());
             summary.Append(":");
             summary.Append(picked.RewardId);
+            summary.Append("@");
+            summary.Append(rewardSource.ToString());
             return summary;
+        }
+
+        private static Space4XRunRewardSourceKind ResolveRewardSource(in Space4XFleetcrawlRoom room, Space4XRunGateKind gateKind)
+        {
+            if (room.Kind == Space4XFleetcrawlRoomKind.Relief)
+            {
+                return room.ReliefKind switch
+                {
+                    Space4XFleetcrawlReliefKind.Arsenal => Space4XRunRewardSourceKind.Market,
+                    Space4XFleetcrawlReliefKind.Salvage => Space4XRunRewardSourceKind.Salvage,
+                    _ => Space4XRunRewardSourceKind.Mission
+                };
+            }
+
+            return gateKind == Space4XRunGateKind.Relief
+                ? Space4XRunRewardSourceKind.Loot
+                : Space4XRunRewardSourceKind.Mission;
         }
 
         private static Space4XRunGateKind ResolveGateKind(in Space4XFleetcrawlRoom room, int gateOrdinal)
@@ -4151,40 +4181,55 @@ namespace Space4x.Scenario
             return (int)(hash % (uint)offerCount);
         }
 
-        private void ApplyOffer(ref SystemState state, Entity directorEntity, in RewardOffer offer, int roomIndex)
+        private void ApplyRoomCompletionReward(ref SystemState state, Entity directorEntity, in RewardOffer offer, int roomIndex)
+        {
+            if (offer.Kind != Space4XRunRewardKind.Boon)
+            {
+                return;
+            }
+
+            ApplyPerkReward(ref state, directorEntity, offer.RewardId, roomIndex);
+        }
+
+        private void ApplyAcquisitionReward(
+            ref SystemState state,
+            Entity directorEntity,
+            in RewardOffer offer,
+            int roomIndex,
+            Space4XRunRewardSourceKind rewardSource)
         {
             switch (offer.Kind)
             {
-                case Space4XRunRewardKind.Boon:
-                    ApplyPerkReward(ref state, directorEntity, offer.RewardId, roomIndex);
-                    break;
                 case Space4XRunRewardKind.ModuleBlueprint:
                     ApplyBlueprintReward(ref state, directorEntity, offer, roomIndex);
                     break;
                 case Space4XRunRewardKind.Currency:
+                {
+                    var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
+                    currency.Value += 35;
+                    state.EntityManager.SetComponentData(directorEntity, currency);
+                    if (offer.RewardId.Equals(new FixedString64Bytes("relief_currency_cache")) &&
+                        state.EntityManager.HasComponent<Space4XRunMetaProficiencyState>(directorEntity))
                     {
-                        var currency = state.EntityManager.GetComponentData<RunCurrency>(directorEntity);
-                        currency.Value += 35;
-                        state.EntityManager.SetComponentData(directorEntity, currency);
-                        if (offer.RewardId.Equals(new FixedString64Bytes("relief_currency_cache")) &&
-                            state.EntityManager.HasComponent<Space4XRunMetaProficiencyState>(directorEntity))
-                        {
-                            var metaProgress = state.EntityManager.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
-                            metaProgress.HiddenCachesFound += 1;
-                            state.EntityManager.SetComponentData(directorEntity, metaProgress);
-                        }
-                        break;
+                        var metaProgress = state.EntityManager.GetComponentData<Space4XRunMetaProficiencyState>(directorEntity);
+                        metaProgress.HiddenCachesFound += 1;
+                        state.EntityManager.SetComponentData(directorEntity, metaProgress);
                     }
+                    Debug.Log($"[Fleetcrawl] ACQUIRE room={roomIndex} source={rewardSource} kind=Currency picked={offer.RewardId}.");
+                    break;
+                }
                 case Space4XRunRewardKind.Heal:
                     HealPlayers(ref state, 0.08f);
+                    Debug.Log($"[Fleetcrawl] ACQUIRE room={roomIndex} source={rewardSource} kind=Heal picked={offer.RewardId}.");
                     break;
                 case Space4XRunRewardKind.Reroll:
-                    {
-                        var reroll = state.EntityManager.GetComponentData<Space4XRunRerollTokens>(directorEntity);
-                        reroll.Value += 1;
-                        state.EntityManager.SetComponentData(directorEntity, reroll);
-                        break;
-                    }
+                {
+                    var reroll = state.EntityManager.GetComponentData<Space4XRunRerollTokens>(directorEntity);
+                    reroll.Value += 1;
+                    state.EntityManager.SetComponentData(directorEntity, reroll);
+                    Debug.Log($"[Fleetcrawl] ACQUIRE room={roomIndex} source={rewardSource} kind=Reroll picked={offer.RewardId}.");
+                    break;
+                }
             }
         }
 
@@ -4278,7 +4323,7 @@ namespace Space4x.Scenario
                 ApplyBeamDamageMultiplier(ref state, 1.12f);
             }
 
-            Debug.Log($"[Fleetcrawl] GATE room={roomIndex} gate=Boon picked={perkId}.");
+            Debug.Log($"[Fleetcrawl] ROOM_REWARD room={roomIndex} kind=Boon picked={perkId}.");
         }
 
         private void ApplyBlueprintReward(ref SystemState state, Entity directorEntity, in RewardOffer offer, int roomIndex)
@@ -4331,11 +4376,11 @@ namespace Space4x.Scenario
                     ApplyReactorBlueprint(ref state, directorEntity);
                     break;
                 case Space4XRunBlueprintKind.Hangar:
-                    SpawnHangarDronesFromBlueprint(ref state, directorEntity, roomIndex);
+                    ApplyHangarModuleBlueprint(ref state, directorEntity, roomIndex);
                     break;
             }
 
-            Debug.Log($"[Fleetcrawl] GATE room={roomIndex} gate=Blueprint picked={offer.RewardId}.");
+            Debug.Log($"[Fleetcrawl] ACQUIRE room={roomIndex} kind=ModuleBlueprint picked={offer.RewardId}.");
         }
 
         private static void RegisterUnlocks(EntityManager em, Entity directorEntity, in RewardOffer offer)
@@ -4430,7 +4475,7 @@ namespace Space4x.Scenario
             ApplyFlightMultipliers(ref state, 1.00f, 1.12f, 1.08f, 1.12f, playerOnly: true);
         }
 
-        private void SpawnHangarDronesFromBlueprint(ref SystemState state, Entity directorEntity, int roomIndex)
+        private void ApplyHangarModuleBlueprint(ref SystemState state, Entity directorEntity, int roomIndex)
         {
             var anchor = new float3(-120f, 0f, 0f);
             foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Space4X.Registry.PlayerFlagshipTag>())

@@ -8,6 +8,11 @@ namespace Space4x.Scenario
         private const string BootstrapObjectName = "Space4XFleetcrawlUI";
         private const string DebugUiEnv = "SPACE4X_FLEETCRAWL_DEBUG_UI";
         private const string DebugDriveEnv = "SPACE4X_FLEETCRAWL_DEBUG_DRIVE";
+        private const string UiOverlayToggleEnv = "SPACE4X_FLEETCRAWL_UI_OVERLAY";
+        private const string UiManualPickToggleEnv = "SPACE4X_FLEETCRAWL_UI_MANUAL_PICK";
+        private const string UiGateMarkersToggleEnv = "SPACE4X_FLEETCRAWL_UI_GATE_MARKERS";
+        private const string DriveControlToggleEnv = "SPACE4X_FLEETCRAWL_DRIVE_PLAYER_CONTROL";
+        private const string DriveCameraToggleEnv = "SPACE4X_FLEETCRAWL_DRIVE_CAMERA_FOLLOW";
         private static bool _logged;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -29,31 +34,32 @@ namespace Space4x.Scenario
             var existing = Object.FindFirstObjectByType<Space4XFleetcrawlUiOverlayMono>();
             if (existing != null)
             {
-                EnsureComponents(existing.gameObject, enableUi, enableDrive);
-                LogOnce($"existing ui={(enableUi ? 1 : 0)} drive={(enableDrive ? 1 : 0)}");
+                var summary = EnsureComponents(existing.gameObject, enableUi, enableDrive);
+                LogOnce($"existing {summary}");
                 return;
             }
 
             var go = new GameObject(BootstrapObjectName);
             Object.DontDestroyOnLoad(go);
-            EnsureComponents(go, enableUi, enableDrive);
-            LogOnce($"spawned ui={(enableUi ? 1 : 0)} drive={(enableDrive ? 1 : 0)}");
+            var spawnSummary = EnsureComponents(go, enableUi, enableDrive);
+            LogOnce($"spawned {spawnSummary}");
         }
 
-        private static void EnsureComponents(GameObject go, bool enableUi, bool enableDrive)
+        private static string EnsureComponents(GameObject go, bool enableUi, bool enableDrive)
         {
-            if (enableUi)
-            {
-                EnsureComponent<Space4XFleetcrawlUiOverlayMono>(go);
-                EnsureComponent<Space4XFleetcrawlManualPickInjectorMono>(go);
-                EnsureComponent<Space4XFleetcrawlGateMarkersMono>(go);
-            }
+            var enableUiOverlay = enableUi && ReadToggleOrDefault(UiOverlayToggleEnv, true);
+            var enableManualPick = enableUi && ReadToggleOrDefault(UiManualPickToggleEnv, true);
+            var enableGateMarkers = enableUi && ReadToggleOrDefault(UiGateMarkersToggleEnv, true);
+            var enablePlayerControl = enableDrive && ReadToggleOrDefault(DriveControlToggleEnv, true);
+            var enableCameraFollow = enableDrive && ReadToggleOrDefault(DriveCameraToggleEnv, true);
 
-            if (enableDrive)
-            {
-                EnsureComponent<Space4XFleetcrawlPlayerControlMono>(go);
-                EnsureComponent<Space4XFleetcrawlCameraFollowMono>(go);
-            }
+            ApplyComponentState<Space4XFleetcrawlUiOverlayMono>(go, enableUiOverlay);
+            ApplyComponentState<Space4XFleetcrawlManualPickInjectorMono>(go, enableManualPick);
+            ApplyComponentState<Space4XFleetcrawlGateMarkersMono>(go, enableGateMarkers);
+            ApplyComponentState<Space4XFleetcrawlPlayerControlMono>(go, enablePlayerControl);
+            ApplyComponentState<Space4XFleetcrawlCameraFollowMono>(go, enableCameraFollow);
+
+            return $"ui={(enableUi ? 1 : 0)} drive={(enableDrive ? 1 : 0)} overlay={(enableUiOverlay ? 1 : 0)} manual_pick={(enableManualPick ? 1 : 0)} gates={(enableGateMarkers ? 1 : 0)} player={(enablePlayerControl ? 1 : 0)} cam={(enableCameraFollow ? 1 : 0)}";
         }
 
         private static void LogOnce(string mode)
@@ -69,6 +75,17 @@ namespace Space4x.Scenario
 
         private static bool IsTruthyEnvironmentVariable(string envName)
         {
+            return TryReadEnvironmentToggle(envName, out var enabled) && enabled;
+        }
+
+        private static bool ReadToggleOrDefault(string envName, bool defaultValue)
+        {
+            return TryReadEnvironmentToggle(envName, out var enabled) ? enabled : defaultValue;
+        }
+
+        private static bool TryReadEnvironmentToggle(string envName, out bool enabled)
+        {
+            enabled = false;
             var value = System.Environment.GetEnvironmentVariable(envName);
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -76,16 +93,44 @@ namespace Space4x.Scenario
             }
 
             var normalized = value.Trim();
-            return normalized.Equals("1", System.StringComparison.OrdinalIgnoreCase) ||
-                   normalized.Equals("true", System.StringComparison.OrdinalIgnoreCase) ||
-                   normalized.Equals("yes", System.StringComparison.OrdinalIgnoreCase) ||
-                   normalized.Equals("on", System.StringComparison.OrdinalIgnoreCase);
+            if (normalized.Equals("1", System.StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("true", System.StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("yes", System.StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("on", System.StringComparison.OrdinalIgnoreCase))
+            {
+                enabled = true;
+                return true;
+            }
+
+            if (normalized.Equals("0", System.StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("false", System.StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("no", System.StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("off", System.StringComparison.OrdinalIgnoreCase))
+            {
+                enabled = false;
+                return true;
+            }
+
+            return false;
         }
 
-        private static T EnsureComponent<T>(GameObject go) where T : Component
+        private static void ApplyComponentState<T>(GameObject go, bool enabled) where T : Component
         {
             var existing = go.GetComponent<T>();
-            return existing != null ? existing : go.AddComponent<T>();
+            if (enabled)
+            {
+                if (existing == null)
+                {
+                    go.AddComponent<T>();
+                }
+
+                return;
+            }
+
+            if (existing != null)
+            {
+                Object.Destroy(existing);
+            }
         }
     }
 }
