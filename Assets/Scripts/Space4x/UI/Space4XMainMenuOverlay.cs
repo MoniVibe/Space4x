@@ -584,12 +584,6 @@ namespace Space4X.UI
                 backgroundFocus.enabled = false;
             }
 
-            var follow = mainCamera.GetComponent<Space4XFollowPlayerVessel>();
-            if (follow == null)
-            {
-                follow = mainCamera.gameObject.AddComponent<Space4XFollowPlayerVessel>();
-            }
-
             var flagshipControl = mainCamera.GetComponent<Space4XPlayerFlagshipController>();
             if (flagshipControl == null)
             {
@@ -598,6 +592,12 @@ namespace Space4X.UI
 
             flagshipControl.enabled = true;
             flagshipControl.SnapClaimNow();
+
+            var follow = mainCamera.GetComponent<Space4XFollowPlayerVessel>();
+            if (follow == null)
+            {
+                follow = mainCamera.gameObject.AddComponent<Space4XFollowPlayerVessel>();
+            }
 
             follow.ConfigureForFlagshipIntro();
             follow.enabled = true;

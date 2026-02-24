@@ -352,10 +352,13 @@ namespace Space4X.UI
                 _entityManager.SetComponentData(candidate, movement);
             }
 
+            _flagshipVelocityWorld = float3.zero;
+            var initialProfile = ResolveFlightProfile(candidate);
+            SetFlightRuntimeState(candidate, CreateDefaultFlightRuntimeState(initialProfile, float3.zero));
+
             DetachFromAmbientOrbit(candidate);
             ApplyFlightTuningFromEntity(candidate);
             ApplyFlagshipVariantFromSelection(candidate);
-            _flagshipVelocityWorld = float3.zero;
 
             MaintainHighlight(candidate);
 

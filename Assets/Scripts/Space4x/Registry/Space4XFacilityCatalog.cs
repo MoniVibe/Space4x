@@ -86,6 +86,13 @@ namespace Space4X.Registry
                     DisplayName = "Gas Scooper",
                     Description = "Atmospheric intake and fuel distillation.",
                     FacilityClass = "scooper"
+                },
+                new FacilityFamilyDefinition
+                {
+                    Id = "medical",
+                    DisplayName = "Medical",
+                    Description = "Clinical care, surgery, and augmentation suites.",
+                    FacilityClass = "medical"
                 }
             };
             hulls = new[]
@@ -199,6 +206,28 @@ namespace Space4X.Registry
                         new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
                         new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
                     }
+                },
+                new FacilityHullDefinition
+                {
+                    Id = "hull.medical.core",
+                    DisplayName = "Medical Core",
+                    Description = "Clinical hull with triage and sterile bays.",
+                    FacilityFamilyId = "medical",
+                    ManufacturerId = "lumen_covenant",
+                    BaseMassTons = 230f,
+                    BaseIntegrity = 255f,
+                    BaseQuality01 = 0.68f,
+                    AttachmentSlots = new[]
+                    {
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Production, Count = 2, MaxMassTons = 85f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Utility, Count = 2, MaxMassTons = 65f },
+                        new FacilityAttachmentSlotDefinition { SlotType = FacilityAttachmentSlotTypeIds.Power, Count = 1, MaxMassTons = 70f }
+                    },
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "control", Count = 1 }
+                    }
                 }
             };
             organs = new[]
@@ -216,7 +245,14 @@ namespace Space4X.Registry
                 new FacilityOrganDefinition { Id = "smelter.aegis.m1", DisplayName = "Aegis Smelter Core", SlotType = "smelter", ManufacturerId = "aegis_forge", Quality = 0.7f, Efficiency = 0.65f, Throughput = 0.6f, Stability = 0.7f, PowerDraw = 0.6f, Reliability = 0.75f },
                 new FacilityOrganDefinition { Id = "intake.orion.m1", DisplayName = "Orion Intake Array", SlotType = "intake", ManufacturerId = "orion_coilworks", Quality = 0.66f, Efficiency = 0.6f, Throughput = 0.65f, Stability = 0.6f, PowerDraw = 0.55f, Reliability = 0.68f },
                 new FacilityOrganDefinition { Id = "compressor.orion.m1", DisplayName = "Orion Compressor", SlotType = "compressor", ManufacturerId = "orion_coilworks", Quality = 0.64f, Efficiency = 0.6f, Throughput = 0.6f, Stability = 0.6f, PowerDraw = 0.55f, Reliability = 0.66f },
-                new FacilityOrganDefinition { Id = "scrubber.aegis.m1", DisplayName = "Aegis Scrubber", SlotType = "scrubber", ManufacturerId = "aegis_forge", Quality = 0.68f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.65f, PowerDraw = 0.5f, Reliability = 0.7f }
+                new FacilityOrganDefinition { Id = "scrubber.aegis.m1", DisplayName = "Aegis Scrubber", SlotType = "scrubber", ManufacturerId = "aegis_forge", Quality = 0.68f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.65f, PowerDraw = 0.5f, Reliability = 0.7f },
+                new FacilityOrganDefinition { Id = "scanner.lumen.m1", DisplayName = "Lumen Diagnostic Scanner", SlotType = "scanner", ManufacturerId = "lumen_covenant", Quality = 0.7f, Efficiency = 0.65f, Throughput = 0.6f, Stability = 0.72f, PowerDraw = 0.45f, Reliability = 0.76f },
+                new FacilityOrganDefinition { Id = "medpod.lumen.m1", DisplayName = "Lumen Medpod", SlotType = "medpod", ManufacturerId = "lumen_covenant", Quality = 0.72f, Efficiency = 0.7f, Throughput = 0.62f, Stability = 0.75f, PowerDraw = 0.55f, Reliability = 0.78f },
+                new FacilityOrganDefinition { Id = "sterilizer.aegis.m1", DisplayName = "Aegis Sterilizer", SlotType = "sterilizer", ManufacturerId = "aegis_forge", Quality = 0.68f, Efficiency = 0.6f, Throughput = 0.55f, Stability = 0.8f, PowerDraw = 0.42f, Reliability = 0.74f },
+                new FacilityOrganDefinition { Id = "surgical_array.orion.m1", DisplayName = "Orion Surgical Array", SlotType = "surgical", ManufacturerId = "orion_coilworks", Quality = 0.74f, Efficiency = 0.7f, Throughput = 0.65f, Stability = 0.72f, PowerDraw = 0.6f, Reliability = 0.76f },
+                new FacilityOrganDefinition { Id = "recovery_suite.vantrel.m1", DisplayName = "Vantrel Recovery Suite", SlotType = "recovery", ManufacturerId = "vantrel_syndicate", Quality = 0.66f, Efficiency = 0.58f, Throughput = 0.6f, Stability = 0.7f, PowerDraw = 0.45f, Reliability = 0.7f },
+                new FacilityOrganDefinition { Id = "bioforge.orion.m1", DisplayName = "Orion Bioforge Core", SlotType = "bioforge", ManufacturerId = "orion_coilworks", Quality = 0.72f, Efficiency = 0.68f, Throughput = 0.6f, Stability = 0.68f, PowerDraw = 0.65f, Reliability = 0.72f },
+                new FacilityOrganDefinition { Id = "research_core.lumen.m1", DisplayName = "Lumen Research Core", SlotType = "research_core", ManufacturerId = "lumen_covenant", Quality = 0.73f, Efficiency = 0.7f, Throughput = 0.55f, Stability = 0.7f, PowerDraw = 0.6f, Reliability = 0.74f }
             };
             limbs = new[]
             {
@@ -516,6 +552,136 @@ namespace Space4X.Registry
                     CargoCapacityBonus = 0f,
                     MassTons = 48f,
                     Quality01 = 0.66f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.medical_clinic",
+                    DisplayName = "Medical Clinic",
+                    Description = "Clinical bays for triage and routine care.",
+                    LimbType = FacilityLimbTypeIds.Production,
+                    ManufacturerId = "lumen_covenant",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "scanner", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "medpod", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "sterilizer", Count = 1 }
+                    },
+                    SupportedProcessIds = Array.Empty<string>(),
+                    Tags = new[] { "medical", "clinic", "treatment" },
+                    ProcessSlots = 1,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1f,
+                    QualityMultiplier = 1f,
+                    PowerDraw = 0.65f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 74f,
+                    Quality01 = 0.68f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.surgical_theater",
+                    DisplayName = "Surgical Theater",
+                    Description = "Sterile operating suites for complex procedures.",
+                    LimbType = FacilityLimbTypeIds.Production,
+                    ManufacturerId = "orion_coilworks",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "surgical", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "sterilizer", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "scanner", Count = 1 }
+                    },
+                    SupportedProcessIds = Array.Empty<string>(),
+                    Tags = new[] { "medical", "surgery" },
+                    ProcessSlots = 1,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1.05f,
+                    QualityMultiplier = 1.05f,
+                    PowerDraw = 0.75f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 82f,
+                    Quality01 = 0.7f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.recovery_ward",
+                    DisplayName = "Recovery Ward",
+                    Description = "Post-op recovery and restorative care wing.",
+                    LimbType = FacilityLimbTypeIds.Production,
+                    ManufacturerId = "vantrel_syndicate",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "recovery", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "medpod", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "sterilizer", Count = 1 }
+                    },
+                    SupportedProcessIds = Array.Empty<string>(),
+                    Tags = new[] { "medical", "recovery" },
+                    ProcessSlots = 1,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1f,
+                    QualityMultiplier = 0.98f,
+                    PowerDraw = 0.6f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 78f,
+                    Quality01 = 0.66f,
+                    CustomMadeDefault = false
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.augment_bioforge",
+                    DisplayName = "Augment Bioforge",
+                    Description = "Biofabrication suite for cybernetic augmentations.",
+                    LimbType = FacilityLimbTypeIds.Production,
+                    ManufacturerId = "orion_coilworks",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "bioforge", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "scanner", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "sterilizer", Count = 1 }
+                    },
+                    SupportedProcessIds = Array.Empty<string>(),
+                    Tags = new[] { "medical", "augmentation" },
+                    ProcessSlots = 1,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1.08f,
+                    QualityMultiplier = 1.06f,
+                    PowerDraw = 0.8f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 86f,
+                    Quality01 = 0.7f,
+                    CustomMadeDefault = true
+                },
+                new FacilityLimbDefinition
+                {
+                    Id = "limb.med_research_lab",
+                    DisplayName = "Medical Research Lab",
+                    Description = "Clinical research wing for experimental therapies.",
+                    LimbType = FacilityLimbTypeIds.Training,
+                    ManufacturerId = "lumen_covenant",
+                    OrganSlots = new[]
+                    {
+                        new FacilityOrganSlotDefinition { SlotType = "research_core", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "scanner", Count = 1 },
+                        new FacilityOrganSlotDefinition { SlotType = "bioforge", Count = 1 }
+                    },
+                    SupportedProcessIds = Array.Empty<string>(),
+                    Tags = new[] { "medical", "research" },
+                    ProcessSlots = 1,
+                    ParallelChainSlots = 0,
+                    ThroughputMultiplier = 1.04f,
+                    QualityMultiplier = 1.05f,
+                    PowerDraw = 0.72f,
+                    PowerCapacityBonus = 0f,
+                    CargoCapacityBonus = 0f,
+                    MassTons = 80f,
+                    Quality01 = 0.69f,
                     CustomMadeDefault = false
                 }
             };
@@ -834,6 +1000,136 @@ namespace Space4X.Registry
                             new FacilityStaffRoleDefinition { RoleId = "operator", MinCount = 1, MaxCount = 2, WagePerSecond = 0.03f, SkillRequirement01 = 0.5f }
                         },
                         PayrollVariance01 = 0.15f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.medical_clinic",
+                    DisplayName = "Medical Clinic",
+                    Description = "Basic clinical facility for triage and recovery.",
+                    FacilityFamilyId = "medical",
+                    ManufacturerId = "lumen_covenant",
+                    HullId = "hull.medical.core",
+                    BlueprintId = "bp_facility_medical_clinic",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.medical_clinic",
+                        "limb.training_suite",
+                        "limb.power_booster"
+                    },
+                    DefaultProcessIds = Array.Empty<string>(),
+                    DefaultStaffingProfileId = "staffing.medical_standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 6400f,
+                        PermitCostCredits = 520f,
+                        ConstructionTimeSeconds = 260f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 28f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_supplies", UnitsRequired = 14f }
+                        },
+                        PayrollBudgetPerSecond = 0.55f,
+                        MaintenanceBudgetPerSecond = 0.22f,
+                        EmployerTaxRate01 = 0.08f,
+                        EmployeeTaxWithholding01 = 0.06f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "doctor", MinCount = 2, MaxCount = 4, WagePerSecond = 0.035f, SkillRequirement01 = 0.6f },
+                            new FacilityStaffRoleDefinition { RoleId = "assistant", MinCount = 2, MaxCount = 3, WagePerSecond = 0.02f, SkillRequirement01 = 0.45f }
+                        },
+                        PayrollVariance01 = 0.18f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.surgical_center",
+                    DisplayName = "Surgical Center",
+                    Description = "Advanced operating suite with recovery ward.",
+                    FacilityFamilyId = "medical",
+                    ManufacturerId = "orion_coilworks",
+                    HullId = "hull.medical.core",
+                    BlueprintId = "bp_facility_surgical_center",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.surgical_theater",
+                        "limb.recovery_ward",
+                        "limb.power_booster"
+                    },
+                    DefaultProcessIds = Array.Empty<string>(),
+                    DefaultStaffingProfileId = "staffing.medical_standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 8200f,
+                        PermitCostCredits = 680f,
+                        ConstructionTimeSeconds = 300f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 32f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_alloy", UnitsRequired = 18f }
+                        },
+                        PayrollBudgetPerSecond = 0.7f,
+                        MaintenanceBudgetPerSecond = 0.28f,
+                        EmployerTaxRate01 = 0.09f,
+                        EmployeeTaxWithholding01 = 0.07f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "surgeon", MinCount = 1, MaxCount = 2, WagePerSecond = 0.045f, SkillRequirement01 = 0.7f },
+                            new FacilityStaffRoleDefinition { RoleId = "doctor", MinCount = 1, MaxCount = 2, WagePerSecond = 0.035f, SkillRequirement01 = 0.6f },
+                            new FacilityStaffRoleDefinition { RoleId = "assistant", MinCount = 2, MaxCount = 4, WagePerSecond = 0.022f, SkillRequirement01 = 0.5f }
+                        },
+                        PayrollVariance01 = 0.2f
+                    }
+                },
+                new FacilityModelDefinition
+                {
+                    Id = "facility.augment_bioforge",
+                    DisplayName = "Augment Bioforge",
+                    Description = "Biofabrication lab for advanced augmentations.",
+                    FacilityFamilyId = "medical",
+                    ManufacturerId = "orion_coilworks",
+                    HullId = "hull.medical.core",
+                    BlueprintId = "bp_facility_augment_bioforge",
+                    DefaultLimbIds = new[]
+                    {
+                        "limb.augment_bioforge",
+                        "limb.med_research_lab",
+                        "limb.executive_office"
+                    },
+                    DefaultProcessIds = Array.Empty<string>(),
+                    DefaultStaffingProfileId = "staffing.medical_standard_3x8",
+                    Investment = new FacilityInvestmentDefinition
+                    {
+                        InitialCapitalCredits = 9800f,
+                        PermitCostCredits = 820f,
+                        ConstructionTimeSeconds = 340f,
+                        ResourceCosts = new[]
+                        {
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_parts", UnitsRequired = 36f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_alloy", UnitsRequired = 22f },
+                            new FacilityConstructionCostDefinition { ResourceId = "space4x_supplies", UnitsRequired = 16f }
+                        },
+                        PayrollBudgetPerSecond = 0.85f,
+                        MaintenanceBudgetPerSecond = 0.34f,
+                        EmployerTaxRate01 = 0.1f,
+                        EmployeeTaxWithholding01 = 0.08f
+                    },
+                    Staffing = new FacilityStaffingDefinition
+                    {
+                        Roles = new[]
+                        {
+                            new FacilityStaffRoleDefinition { RoleId = "researcher", MinCount = 2, MaxCount = 3, WagePerSecond = 0.04f, SkillRequirement01 = 0.65f },
+                            new FacilityStaffRoleDefinition { RoleId = "surgeon", MinCount = 1, MaxCount = 1, WagePerSecond = 0.045f, SkillRequirement01 = 0.7f },
+                            new FacilityStaffRoleDefinition { RoleId = "doctor", MinCount = 1, MaxCount = 2, WagePerSecond = 0.035f, SkillRequirement01 = 0.6f },
+                            new FacilityStaffRoleDefinition { RoleId = "assistant", MinCount = 1, MaxCount = 2, WagePerSecond = 0.022f, SkillRequirement01 = 0.5f }
+                        },
+                        PayrollVariance01 = 0.22f
                     }
                 }
             };

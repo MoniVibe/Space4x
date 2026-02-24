@@ -16,6 +16,7 @@ namespace Space4X.Headless
     {
         private const string ScenarioArg = "--scenario";
         private const string ReportArg = "--report";
+        private const string HeadlessPresentationArg = "--headlessPresentation";
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string ReportPathEnv = "SPACE4X_SCENARIO_REPORT_PATH";
         private const string FailOnBudgetEnv = "SPACE4X_SCENARIO_FAIL_ON_BUDGET";
@@ -44,17 +45,25 @@ namespace Space4X.Headless
                 return;
             }
 
-            if (!IsTruthy(global::System.Environment.GetEnvironmentVariable(HeadlessPresentationEnv)))
+            var presentationRequested = IsTruthy(global::System.Environment.GetEnvironmentVariable(HeadlessPresentationEnv));
+            if (!presentationRequested &&
+                TryGetArgument(HeadlessPresentationArg, out var presentationArgValue))
+            {
+                presentationRequested = IsTruthy(presentationArgValue);
+            }
+
+            if (!presentationRequested)
             {
                 return;
             }
 
             if (!PureDOTS.Runtime.Core.RuntimeMode.IsRenderingEnabled)
             {
+                UnityDebug.LogWarning($"[ScenarioEntryPoint] Headless presentation requested but rendering is disabled at runtime.");
                 return;
             }
 
-            UnityDebug.Log($"[ScenarioEntryPoint] {HeadlessPresentationEnv}=1 detected; loading presentation scene '{PresentationSceneName}'.");
+            UnityDebug.Log($"[ScenarioEntryPoint] headless presentation requested; loading presentation scene '{PresentationSceneName}'.");
             SceneManager.LoadScene(PresentationSceneName, LoadSceneMode.Single);
         }
 
@@ -75,6 +84,7 @@ namespace Space4X.Headless
 
             s_executed = true;
             LogBuildStampOnce();
+            SetEnvIfUnset("SPACE4X_HEADLESS_FORCE_EXIT_SECONDS", "2");
             UnityDebug.Log($"SCENARIO_ARG:{scenarioArg}");
             var scenarioPath = ResolveScenarioArgToFilePath(scenarioArg);
             var scenarioFound = !string.IsNullOrWhiteSpace(scenarioPath) && File.Exists(scenarioPath);

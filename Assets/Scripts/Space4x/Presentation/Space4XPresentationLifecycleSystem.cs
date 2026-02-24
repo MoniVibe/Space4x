@@ -62,6 +62,7 @@ namespace Space4X.Presentation
         private const float PickupScaleMin = 0.5f;
         private const float PickupScaleMax = 3f;
 
+        // Keep carrier variant overrides aligned with Space4XRenderCatalog_v2 (variants 0..8).
         private const int CarrierSquareVariantIndex = 0;
         private const int CarrierCapsuleVariantIndex = 1;
         private const int CarrierSphereVariantIndex = 2;

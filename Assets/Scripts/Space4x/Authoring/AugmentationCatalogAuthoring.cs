@@ -32,6 +32,9 @@ namespace Space4X.Authoring
             public string manufacturerId = string.Empty;
             [Tooltip("Slot ID (species-specific limb/organ slot)")]
             public string slotId = string.Empty;
+            [Header("Augment Limb Slots")]
+            [Tooltip("Optional limb slots that can be customized on this augmentation.")]
+            public List<AugmentationLimbSlotData> limbSlots = new List<AugmentationLimbSlotData>();
             [Header("Stat Modifiers")]
             [Tooltip("Physique modifier")]
             public float physiqueModifier = 0f;
@@ -49,6 +52,22 @@ namespace Space4X.Authoring
             public float riskFactor = 0f;
             [Tooltip("Legal status (Licensed, Rogue, BlackMarket)")]
             public LegalStatus legalStatus = LegalStatus.Licensed;
+        }
+
+        [Serializable]
+        public class AugmentationLimbSlotData
+        {
+            [Tooltip("Slot ID on the augmentation")]
+            public string slotId = string.Empty;
+            [Tooltip("Slot display name")]
+            public string displayName = string.Empty;
+            [Tooltip("Max limbs installable in this slot")]
+            [Range(1, 8)]
+            public int maxSlots = 1;
+            [Tooltip("Allowed limb IDs for this slot (optional)")]
+            public string[] allowedLimbIds = Array.Empty<string>();
+            [Tooltip("Tags used for filtering")]
+            public string[] tags = Array.Empty<string>();
         }
 
         public enum AugmentArchetype : byte
@@ -69,4 +88,3 @@ namespace Space4X.Authoring
         public List<AugmentationSpecData> augmentations = new List<AugmentationSpecData>();
     }
 }
-

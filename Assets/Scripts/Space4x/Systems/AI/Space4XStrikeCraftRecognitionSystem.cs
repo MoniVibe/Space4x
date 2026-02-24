@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.Social;
 using PureDOTS.Runtime.Telemetry;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -32,6 +33,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<RaceId> _raceLookup;
         private ComponentLookup<StrikeCraftFireDiscipline> _fireDisciplineLookup;
         private BufferLookup<PersonalRelationEntry> _personalRelationLookup;
+        private BufferLookup<EntityRelation> _entityRelationLookup;
         private BufferLookup<AffiliationTag> _affiliationLookup;
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<Space4XFaction> _factionLookup;
@@ -57,6 +59,7 @@ namespace Space4X.Systems.AI
             _raceLookup = state.GetComponentLookup<RaceId>(true);
             _fireDisciplineLookup = state.GetComponentLookup<StrikeCraftFireDiscipline>(true);
             _personalRelationLookup = state.GetBufferLookup<PersonalRelationEntry>(true);
+            _entityRelationLookup = state.GetBufferLookup<EntityRelation>(true);
             _affiliationLookup = state.GetBufferLookup<AffiliationTag>(false);
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _factionLookup = state.GetComponentLookup<Space4XFaction>(true);
@@ -88,6 +91,7 @@ namespace Space4X.Systems.AI
             _raceLookup.Update(ref state);
             _fireDisciplineLookup.Update(ref state);
             _personalRelationLookup.Update(ref state);
+            _entityRelationLookup.Update(ref state);
             _affiliationLookup.Update(ref state);
             _carrierLookup.Update(ref state);
             _factionLookup.Update(ref state);
@@ -373,6 +377,21 @@ namespace Space4X.Systems.AI
             score = 0;
             kind = PersonalRelationKind.None;
 
+            if (IsValidEntity(self) && _entityRelationLookup.HasBuffer(self))
+            {
+                var relations = _entityRelationLookup[self];
+                for (int i = 0; i < relations.Length; i++)
+                {
+                    var relation = relations[i];
+                    if (relation.OtherEntity == other)
+                    {
+                        score = relation.Intensity;
+                        kind = MapRelationType(relation.Type, relation.Intensity);
+                        return true;
+                    }
+                }
+            }
+
             if (IsValidEntity(self) && _personalRelationLookup.HasBuffer(self))
             {
                 var relations = _personalRelationLookup[self];
@@ -404,6 +423,57 @@ namespace Space4X.Systems.AI
             }
 
             return false;
+        }
+
+        private static PersonalRelationKind MapRelationType(RelationType type, sbyte intensity)
+        {
+            switch (type)
+            {
+                case RelationType.Parent:
+                case RelationType.Child:
+                case RelationType.Sibling:
+                case RelationType.Spouse:
+                case RelationType.Grandparent:
+                case RelationType.Grandchild:
+                case RelationType.Cousin:
+                case RelationType.InLaw:
+                    return PersonalRelationKind.Family;
+                case RelationType.Mentor:
+                    return PersonalRelationKind.Mentor;
+                case RelationType.Student:
+                    return PersonalRelationKind.Protege;
+                case RelationType.Colleague:
+                case RelationType.Superior:
+                case RelationType.Subordinate:
+                case RelationType.BusinessPartner:
+                    return PersonalRelationKind.Comrade;
+                case RelationType.Rival:
+                    return PersonalRelationKind.Rival;
+                case RelationType.Enemy:
+                case RelationType.Nemesis:
+                case RelationType.Grudge:
+                    return PersonalRelationKind.BloodFeud;
+                case RelationType.Friend:
+                case RelationType.CloseFriend:
+                case RelationType.BestFriend:
+                case RelationType.Crush:
+                case RelationType.Courting:
+                case RelationType.Betrothed:
+                case RelationType.Lover:
+                    return PersonalRelationKind.Friend;
+            }
+
+            if (intensity >= 20)
+            {
+                return PersonalRelationKind.Friend;
+            }
+
+            if (intensity <= -20)
+            {
+                return PersonalRelationKind.Rival;
+            }
+
+            return PersonalRelationKind.None;
         }
 
         private float ResolveRecognitionSkill(Entity profileEntity, Entity craftEntity)

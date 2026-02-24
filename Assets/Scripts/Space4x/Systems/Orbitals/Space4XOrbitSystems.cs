@@ -362,7 +362,7 @@ namespace Space4X.Systems.Orbitals
     }
 
     [BurstCompile]
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateInGroup(typeof(PureDOTS.Systems.GameplaySystemGroup))]
     [UpdateAfter(typeof(Space4XOrbitDriftSystem))]
     public partial struct Space4XMicroImpulseSystem : ISystem
     {

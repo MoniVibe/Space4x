@@ -116,6 +116,12 @@ namespace Space4X.Modes
 
         public static void ApplyScenarioEnvironment(Space4XModeKind mode)
         {
+            if (TryResolvePinnedScenarioPath(out var pinnedScenarioPath))
+            {
+                SystemEnv.SetEnvironmentVariable(ScenarioPathEnvVar, pinnedScenarioPath);
+                return;
+            }
+
             var scenarioPath = GetScenarioPath(mode);
             SystemEnv.SetEnvironmentVariable(ScenarioPathEnvVar, scenarioPath);
         }
@@ -134,6 +140,13 @@ namespace Space4X.Modes
                 {
                     return Space4XModeKind.Classic;
                 }
+            }
+
+            if (TryResolvePinnedScenarioPath(out var pinnedScenarioPath))
+            {
+                return pinnedScenarioPath.IndexOf("fleetcrawl", StringComparison.OrdinalIgnoreCase) >= 0
+                    ? Space4XModeKind.FleetCrawl
+                    : Space4XModeKind.Classic;
             }
 
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnvVar);
@@ -165,6 +178,93 @@ namespace Space4X.Modes
         private static string ToEnvToken(Space4XModeKind mode)
         {
             return mode == Space4XModeKind.FleetCrawl ? "fleetcrawl" : "classic";
+        }
+
+        private static bool TryResolvePinnedScenarioPath(out string scenarioPath)
+        {
+            scenarioPath = null;
+            if (!Application.isBatchMode)
+            {
+                return false;
+            }
+
+            if (TryGetCommandLineArgumentValue("--scenario", out var scenarioArg))
+            {
+                var resolvedFromArgs = NormalizeScenarioPath(scenarioArg);
+                if (!string.IsNullOrWhiteSpace(resolvedFromArgs))
+                {
+                    scenarioPath = resolvedFromArgs;
+                    return true;
+                }
+            }
+
+            var envPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnvVar);
+            var resolvedFromEnv = NormalizeScenarioPath(envPath);
+            if (!string.IsNullOrWhiteSpace(resolvedFromEnv))
+            {
+                scenarioPath = resolvedFromEnv;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetCommandLineArgumentValue(string key, out string value)
+        {
+            var args = SystemEnv.GetCommandLineArgs();
+            for (var i = 0; i < args.Length; i++)
+            {
+                var arg = args[i];
+                if (string.Equals(arg, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (i + 1 < args.Length)
+                    {
+                        value = args[i + 1];
+                        return true;
+                    }
+
+                    break;
+                }
+
+                var prefix = key + "=";
+                if (arg.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = arg.Substring(prefix.Length).Trim('"');
+                    return true;
+                }
+            }
+
+            value = null;
+            return false;
+        }
+
+        private static string NormalizeScenarioPath(string rawPath)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                return null;
+            }
+
+            var trimmed = rawPath.Trim();
+            if (!trimmed.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            try
+            {
+                if (Path.IsPathRooted(trimmed))
+                {
+                    return Path.GetFullPath(trimmed);
+                }
+
+                var absolute = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), trimmed));
+                return File.Exists(absolute) ? absolute : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

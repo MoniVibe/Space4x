@@ -735,36 +735,14 @@ namespace Space4X.UI
             var controlledHasPoseSnapshot = controlledPoseFromHybrid &&
                                             _entityManager.HasComponent<SimPoseSnapshot>(_target);
             var controlledPoseFromRendered =
-                controlledPoseFromHybrid &&
-                _entityManager.HasComponent<LocalToWorld>(_target) &&
-                (!movementSuppressedOnControlled || controlledHasPoseSnapshot);
+                controlledPoseFromHybrid && _entityManager.HasComponent<LocalToWorld>(_target);
+            var renderedPoseAlreadyInterpolated = controlledPoseFromRendered &&
+                                                  _entityManager.HasComponent<SimPoseSnapshot>(_target);
+            var useRenderedControlledPose = controlledPoseFromHybrid &&
+                                            !interpolateControlledFlagshipPose &&
+                                            renderedPoseAlreadyInterpolated;
 
-            if (controlledPoseFromRendered)
-            {
-                var localToWorld = _entityManager.GetComponentData<LocalToWorld>(_target);
-                position = new Vector3(localToWorld.Position.x, localToWorld.Position.y, localToWorld.Position.z);
-                var forward = new Vector3(localToWorld.Value.c2.x, localToWorld.Value.c2.y, localToWorld.Value.c2.z);
-                var up = new Vector3(localToWorld.Value.c1.x, localToWorld.Value.c1.y, localToWorld.Value.c1.z);
-                if (forward.sqrMagnitude > 0.0001f)
-                {
-                    if (up.sqrMagnitude < 0.0001f)
-                    {
-                        up = Vector3.up;
-                    }
-
-                    rotation = Quaternion.LookRotation(forward.normalized, up.normalized);
-                }
-                else
-                {
-                    var localTransform = _entityManager.GetComponentData<LocalTransform>(_target);
-                    rotation = new Quaternion(
-                        localTransform.Rotation.value.x,
-                        localTransform.Rotation.value.y,
-                        localTransform.Rotation.value.z,
-                        localTransform.Rotation.value.w);
-                }
-            }
-            else if (controlledPoseFromHybrid)
+            if (controlledPoseFromHybrid && !useRenderedControlledPose)
             {
                 var localTransform = _entityManager.GetComponentData<LocalTransform>(_target);
                 position = new Vector3(localTransform.Position.x, localTransform.Position.y, localTransform.Position.z);
@@ -820,8 +798,7 @@ namespace Space4X.UI
                 speedDrivenInterpolation = timeState.CurrentSpeedMultiplier > 1.05f;
             }
 
-            var fixedStepDrivenControlledPose = movementSuppressedOnControlled && !controlledPoseFromRendered;
-            var renderedPoseAlreadyInterpolated = controlledPoseFromRendered && controlledHasPoseSnapshot;
+            var fixedStepDrivenControlledPose = movementSuppressedOnControlled && !renderedPoseAlreadyInterpolated;
 
             var shouldInterpolateTargetPose =
                 !controlledPoseFromHybrid ||

@@ -163,9 +163,11 @@ namespace Space4X.Diagnostics
             var controller = camera.GetComponent<Space4XPlayerFlagshipController>();
 
             var target = Entity.Null;
+            var hasControlledFlagship = false;
             if (controller != null && controller.TryGetControlledFlagship(out var controlled))
             {
                 target = controlled;
+                hasControlledFlagship = true;
             }
             else if (follow != null && follow.TryGetDebugTarget(out var followTarget))
             {
@@ -257,12 +259,18 @@ namespace Space4X.Diagnostics
             var hasFrameDriven = em.HasComponent<Space4XFrameDrivenTransformTag>(target);
             var hasPoseSnapshot = em.HasComponent<SimPoseSnapshot>(target);
             var presentationPositionRemapped = IsPresentationPositionRemapped(em, target, out var hasRenderFrameScale, out var hasBandScale);
+            var snapshotDrivenRenderPhaseMismatch = hasControlledFlagship &&
+                                                   hasPoseSnapshot &&
+                                                   hasMovementSuppressed &&
+                                                   !followInterpActive &&
+                                                   ltwGap <= Mathf.Max(0.5f, transformParityGapThreshold * 4f);
 
             var kind = string.Empty;
             var source = string.Empty;
             var note = string.Empty;
 
             if (!presentationPositionRemapped &&
+                !snapshotDrivenRenderPhaseMismatch &&
                 hasLocal && hasWorld &&
                 ltwGap > Mathf.Max(0.01f, transformParityGapThreshold))
             {
@@ -277,6 +285,7 @@ namespace Space4X.Diagnostics
                 note = $"step {localStep:0.000} with tickDelta={tickDelta} backlog={inputBacklog}";
             }
             else if (!presentationPositionRemapped &&
+                     !snapshotDrivenRenderPhaseMismatch &&
                      hasLocal && hasWorld &&
                      worldStep > (localStep * 1.8f + 0.03f) && ltwGap > 0.08f)
             {
