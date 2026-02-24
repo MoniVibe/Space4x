@@ -3945,7 +3945,6 @@ namespace Space4x.Scenario
         {
             var summary = new FixedString512Bytes();
             var directorEntity = SystemAPI.GetSingletonEntity<Space4XFleetcrawlDirectorState>();
-            var records = state.EntityManager.GetBuffer<Space4XRunGateRewardRecord>(directorEntity);
             var gateCount = Space4XFleetcrawlUiBridge.ResolveGateCount(room.Kind);
             var gateOrdinal = Space4XFleetcrawlUiBridge.ResolveAutoGateOrdinal(director.Seed, director.CurrentRoomIndex, gateCount);
             var gateSource = "auto";
@@ -4003,6 +4002,9 @@ namespace Space4x.Scenario
             {
                 ApplyAcquisitionReward(ref state, directorEntity, picked, director.CurrentRoomIndex, rewardSource);
             }
+
+            // Reward application can perform structural changes, so reacquire the dynamic buffer afterwards.
+            var records = state.EntityManager.GetBuffer<Space4XRunGateRewardRecord>(directorEntity);
             records.Add(new Space4XRunGateRewardRecord
             {
                 RoomIndex = director.CurrentRoomIndex,
@@ -4289,13 +4291,17 @@ namespace Space4x.Scenario
                         Value = 0.25f,
                         Stacks = 1
                     });
+                    var ecb = new EntityCommandBuffer(Allocator.Temp);
                     foreach (var (_, entity) in SystemAPI.Query<RefRO<Space4XRunPlayerTag>>().WithEntityAccess())
                     {
                         if (!state.EntityManager.HasComponent<Space4XRunChainLightningSource>(entity))
                         {
-                            state.EntityManager.AddComponent<Space4XRunChainLightningSource>(entity);
+                            ecb.AddComponent<Space4XRunChainLightningSource>(entity);
                         }
                     }
+
+                    ecb.Playback(state.EntityManager);
+                    ecb.Dispose();
                 }
             }
             else

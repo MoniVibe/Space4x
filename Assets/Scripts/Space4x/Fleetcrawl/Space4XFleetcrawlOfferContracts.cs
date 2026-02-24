@@ -919,6 +919,8 @@ namespace Space4x.Fleetcrawl
             cache.LastShards = shards;
             cache.LastChallenge = challenge;
             em.SetComponentData(runtimeEntity, cache);
+            var currencyOfferCount = currencyOffers.Length;
+            var lootOfferCount = lootOffers.Length;
 
             if (hasRefreshRequest)
             {
@@ -932,7 +934,7 @@ namespace Space4x.Fleetcrawl
                 ecb.Dispose();
             }
 
-            Debug.Log($"[FleetcrawlMeta] OfferRefresh source={source} room={roomIndex} level={level} xp={xp} shards={shards} challenge={challenge} signature={signature} currency_offers={currencyOffers.Length} loot_offers={lootOffers.Length}.");
+            Debug.Log($"[FleetcrawlMeta] OfferRefresh source={source} room={roomIndex} level={level} xp={xp} shards={shards} challenge={challenge} signature={signature} currency_offers={currencyOfferCount} loot_offers={lootOfferCount}.");
         }
 
         private static int PickWeightedShopIndex(DynamicBuffer<FleetcrawlCurrencyShopCatalogEntry> catalog, int level, uint hash)

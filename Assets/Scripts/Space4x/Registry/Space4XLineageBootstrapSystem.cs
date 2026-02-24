@@ -31,7 +31,7 @@ namespace Space4X.Registry
 
             var currentTick = timeState.Tick;
             var em = state.EntityManager;
-            using var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             var familyMap = new NativeParallelHashMap<FixedString64Bytes, Entity>(64, Allocator.Temp);
             var dynastyMap = new NativeParallelHashMap<FixedString64Bytes, Entity>(64, Allocator.Temp);
@@ -68,6 +68,7 @@ namespace Space4X.Registry
             }
 
             ecb.Playback(em);
+            ecb.Dispose();
 
             familyMap.Dispose();
             dynastyMap.Dispose();

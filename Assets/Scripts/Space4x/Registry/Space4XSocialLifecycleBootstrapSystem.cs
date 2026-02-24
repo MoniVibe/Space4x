@@ -41,7 +41,7 @@ namespace Space4X.Registry
             var currentTick = timeState.Tick;
 
             var em = state.EntityManager;
-            using var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             foreach (var (_, entity) in SystemAPI.Query<RefRO<SimIndividualTag>>().WithEntityAccess())
             {
@@ -51,6 +51,7 @@ namespace Space4X.Registry
             }
 
             ecb.Playback(em);
+            ecb.Dispose();
         }
 
         private static void EnsureSocial(ref EntityCommandBuffer ecb, EntityManager em, Entity entity, RelationConfig relationConfig)

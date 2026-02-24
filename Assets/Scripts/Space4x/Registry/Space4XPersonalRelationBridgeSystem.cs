@@ -70,7 +70,7 @@ namespace Space4X.Registry
                         relation.FirstMetTick = relation.FirstMetTick == 0 ? lastTick : relation.FirstMetTick;
                         relation.Trust = ToByte01(entry.Trust);
                         relation.Fear = ToByte01(entry.Fear);
-                        relation.Familiarity = (byte)math.max(relation.Familiarity, ComputeFamiliarity(entry.Score));
+                        relation.Familiarity = (byte)math.max((int)relation.Familiarity, (int)ComputeFamiliarity(entry.Score));
                         relation.Respect = ComputeRespect(entry.Score);
 
                         relations[relationIndex] = relation;

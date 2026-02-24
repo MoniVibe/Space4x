@@ -58,7 +58,7 @@ namespace Space4X.Registry
 
         private static Entity EnsureStreamEntity(ref SystemState state)
         {
-            using var query = state.GetEntityQuery(ComponentType.ReadOnly<Space4XCombatOutcomeStream>());
+            var query = state.GetEntityQuery(ComponentType.ReadOnly<Space4XCombatOutcomeStream>());
             if (query.TryGetSingletonEntity<Space4XCombatOutcomeStream>(out var streamEntity))
             {
                 if (!state.EntityManager.HasBuffer<Space4XCombatOutcomeEvent>(streamEntity))
