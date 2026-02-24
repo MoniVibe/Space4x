@@ -9,5 +9,6 @@ namespace Space4X.Headless
         public quaternion LastRotation;
         public float LastAngularSpeed;
         public uint LastMoveStartTick;
+        public ushort SampleCount;
     }
 }

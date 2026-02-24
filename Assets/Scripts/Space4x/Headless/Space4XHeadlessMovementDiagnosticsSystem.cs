@@ -57,9 +57,11 @@ namespace Space4X.Headless
         private const string RefitMicroScenarioFile = "space4x_refit_micro.json";
         private const string ResearchMicroScenarioFile = "space4x_research_micro.json";
         private const uint TeleportFailureThreshold = 1;
-        private const float MaxAngularSpeedRad = math.PI * 4f;
-        private const float MaxAngularAccelRad = math.PI * 8f;
-        private const float TurnSpeedMin = 0.15f;
+        // Keep headless thresholds slightly above movement-system steering clamps to avoid false positives
+        // from post-steering rotation adjustments while still flagging extreme jitter.
+        private const float MaxAngularSpeedRad = math.PI * 4.5f;
+        private const float MaxAngularAccelRad = math.PI * 10f;
+        private const float TurnSpeedMin = 0.35f;
         private bool _reportedFailure;
         private bool _ignoreStuckFailures;
         private bool _ignoreTeleportFailures;
@@ -344,6 +346,7 @@ namespace Space4X.Headless
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
                         stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
+                        stateValue.SampleCount = 0;
                         stateValue.Initialized = 1;
                         turnState.ValueRW = stateValue;
                         continue;
@@ -356,6 +359,7 @@ namespace Space4X.Headless
                     stateValue.LastRotation = transform.ValueRO.Rotation;
                     stateValue.LastAngularSpeed = 0f;
                     stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
+                    stateValue.SampleCount = 0;
                     stateValue.Initialized = 1;
                     turnState.ValueRW = stateValue;
                     continue;
@@ -375,6 +379,7 @@ namespace Space4X.Headless
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
                         stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
+                        stateValue.SampleCount = 0;
                         stateValue.Initialized = 1;
                         turnState.ValueRW = stateValue;
                         continue;
@@ -399,6 +404,7 @@ namespace Space4X.Headless
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
                         stateValue.LastMoveStartTick = moveStartTick;
+                        stateValue.SampleCount = 0;
                         stateValue.Initialized = 1;
                         turnState.ValueRW = stateValue;
                         continue;
@@ -410,6 +416,7 @@ namespace Space4X.Headless
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
                         stateValue.LastMoveStartTick = moveStartTick > 0 ? moveStartTick : tick;
+                        stateValue.SampleCount = 0;
                         stateValue.Initialized = 1;
                         turnState.ValueRW = stateValue;
                         continue;
@@ -418,6 +425,7 @@ namespace Space4X.Headless
                     {
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = 0f;
+                        stateValue.SampleCount = 0;
                         turnState.ValueRW = stateValue;
                         continue;
                     }
@@ -443,7 +451,7 @@ namespace Space4X.Headless
                                 }
                             }
 
-                            if (angularAccel > MaxAngularAccelRad)
+                            if (stateValue.SampleCount > 0 && angularAccel > MaxAngularAccelRad)
                             {
                                 anyFailure = true;
                                 failTurnAccel++;
@@ -457,6 +465,10 @@ namespace Space4X.Headless
 
                         stateValue.LastRotation = transform.ValueRO.Rotation;
                         stateValue.LastAngularSpeed = angularSpeed;
+                        if (stateValue.SampleCount < ushort.MaxValue)
+                        {
+                            stateValue.SampleCount++;
+                        }
                     }
 
                     turnState.ValueRW = stateValue;

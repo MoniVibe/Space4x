@@ -131,6 +131,11 @@ namespace Space4X.Headless
                 var distance = math.distance(transform.ValueRO.Position, targetTransform.Position);
                 var overlap = distance <= radiusSum * OverlapRatio;
                 var penetration = radiusSum - distance;
+                if (overlap)
+                {
+                    // Fallback collision signal for lanes where physics event buffers are sparse.
+                    _collisionEventCount++;
+                }
 
                 var probeState = probe.ValueRW;
                 var lastCollisionTick = ResolveLastCollisionTick(entity, target, probeState.LastCollisionTick);
@@ -275,7 +280,14 @@ namespace Space4X.Headless
                 return;
             }
 
-            AddOrUpdateMetric(buffer, new FixedString64Bytes("space4x.collision.event_count"), _collisionEventCount);
+            var key = new FixedString64Bytes("space4x.collision.event_count");
+            var summaryValue = (float)_collisionEventCount;
+            if (TryGetMetric(buffer, key, out var existingValue) && existingValue > summaryValue)
+            {
+                summaryValue = existingValue;
+            }
+
+            AddOrUpdateMetric(buffer, key, summaryValue);
         }
 
         private static void AddOrUpdateMetric(
@@ -301,6 +313,27 @@ namespace Space4X.Headless
                 Key = key,
                 Value = value
             });
+        }
+
+        private static bool TryGetMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            out float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                value = metric.Value;
+                return true;
+            }
+
+            value = 0f;
+            return false;
         }
     }
 

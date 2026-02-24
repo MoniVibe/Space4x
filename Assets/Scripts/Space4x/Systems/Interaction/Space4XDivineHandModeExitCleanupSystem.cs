@@ -16,10 +16,6 @@ namespace Space4X.Systems.Interaction
     /// </summary>
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateBefore(typeof(Space4XHandCommandStateSystem))]
-    [UpdateBefore(typeof(Space4XPickupSystem))]
-    [UpdateBefore(typeof(Space4XThrowSystem))]
-    [UpdateBefore(typeof(Space4XThrowQueueSystem))]
-    [UpdateBefore(typeof(Space4XHeldFollowSystem))]
     [UpdateBefore(typeof(Space4XCelestialHandCommandSystem))]
     public partial struct Space4XDivineHandModeExitCleanupSystem : ISystem
     {

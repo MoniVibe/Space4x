@@ -241,6 +241,7 @@ namespace Space4X.Headless
         private void Pass(ref SystemState state, uint tick, bool hasCarrier, bool hasAsteroid)
         {
             _done = 1;
+            EmitCollisionEventMetric(ref state, 1f);
             UnityDebug.Log($"[Space4XCollisionProof] PASS tick={tick} carriers={(hasCarrier ? 1 : 0)} asteroids={(hasAsteroid ? 1 : 0)} eps={PenetrationEpsilon:F2}");
             LogBankResult(ref state, true, "pass", tick);
             ExitIfRequested(ref state, tick, 0);
@@ -249,9 +250,45 @@ namespace Space4X.Headless
         private void Fail(ref SystemState state, uint tick, string reason, float3 carrierPos, float3 asteroidPos)
         {
             _done = 1;
+            EmitCollisionEventMetric(ref state, 0f);
             UnityDebug.LogError($"[Space4XCollisionProof] FAIL tick={tick} reason={reason} carrier={carrierPos} asteroid={asteroidPos} eps={PenetrationEpsilon:F2}");
             LogBankResult(ref state, false, reason, tick);
             ExitIfRequested(ref state, tick, 4);
+        }
+
+        private static void EmitCollisionEventMetric(ref SystemState state, float value)
+        {
+            if (!Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var metrics))
+            {
+                return;
+            }
+
+            AddOrUpdateMetric(metrics, new FixedString64Bytes("space4x.collision.event_count"), value);
+        }
+
+        private static void AddOrUpdateMetric(
+            DynamicBuffer<Space4XOperatorMetric> buffer,
+            FixedString64Bytes key,
+            float value)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var metric = buffer[i];
+                if (!metric.Key.Equals(key))
+                {
+                    continue;
+                }
+
+                metric.Value = value;
+                buffer[i] = metric;
+                return;
+            }
+
+            buffer.Add(new Space4XOperatorMetric
+            {
+                Key = key,
+                Value = value
+            });
         }
 
         private static void ExitIfRequested(ref SystemState state, uint tick, int exitCode)

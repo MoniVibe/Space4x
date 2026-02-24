@@ -84,7 +84,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -PushBranch feat/fleetcrawl-data-pass `
   -LocalParityBranch validator/ultimate-checkout `
   -LocalParityUpstreamRef origin/feat/fleetcrawl-data-pass `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout `
   -LaptopParityUpstreamRef origin/feat/fleetcrawl-data-pass
 ```
@@ -97,7 +97,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout
 ```
 

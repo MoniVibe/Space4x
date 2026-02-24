@@ -28,17 +28,17 @@ namespace Space4X.Headless
             }
 
             _forceExitSeconds = ResolveForceExitSeconds();
-            if (_forceExitSeconds <= 0f)
-            {
-                state.Enabled = false;
-            }
         }
 
         public void OnUpdate(ref SystemState state)
         {
             if (_forceExitSeconds <= 0f)
             {
-                return;
+                _forceExitSeconds = ResolveForceExitSeconds();
+                if (_forceExitSeconds <= 0f)
+                {
+                    return;
+                }
             }
 
             if (_armed == 0)

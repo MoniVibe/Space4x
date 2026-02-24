@@ -15,6 +15,11 @@ namespace Space4X.Diagnostics
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void LogScenarioReference()
         {
+            if (Application.isBatchMode)
+            {
+                return;
+            }
+
             Space4XModeSelectionState.EnsureInitialized();
             Space4XModeSelectionState.GetCurrentScenario(out var modeScenarioId, out var modeScenarioPath, out var modeSeed);
 

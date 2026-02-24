@@ -731,8 +731,13 @@ namespace Space4X.UI
                                            _entityManager.HasComponent<LocalTransform>(_target);
             var controlledPoseFromRendered =
                 controlledPoseFromHybrid && _entityManager.HasComponent<LocalToWorld>(_target);
+            var renderedPoseAlreadyInterpolated = controlledPoseFromRendered &&
+                                                  _entityManager.HasComponent<SimPoseSnapshot>(_target);
+            var useRenderedControlledPose = controlledPoseFromHybrid &&
+                                            !interpolateControlledFlagshipPose &&
+                                            renderedPoseAlreadyInterpolated;
 
-            if (controlledPoseFromHybrid)
+            if (controlledPoseFromHybrid && !useRenderedControlledPose)
             {
                 // Keep controlled flagship camera follow bound to the same fixed-step pose source
                 // the input system writes to, rather than mixing LocalToWorld render updates.
@@ -790,13 +795,15 @@ namespace Space4X.UI
                 speedDrivenInterpolation = timeState.CurrentSpeedMultiplier > 1.05f;
             }
 
-            var renderedPoseAlreadyInterpolated = controlledPoseFromRendered &&
-                                                  _entityManager.HasComponent<SimPoseSnapshot>(_target);
+            var fixedStepDrivenControlledPose = controlledPoseFromHybrid &&
+                                                _entityManager.HasComponent<MovementSuppressed>(_target) &&
+                                                _entityManager.IsComponentEnabled<MovementSuppressed>(_target);
 
             var shouldInterpolateTargetPose =
                 !controlledPoseFromHybrid ||
                 interpolateControlledFlagshipPose ||
-                speedDrivenInterpolation;
+                speedDrivenInterpolation ||
+                fixedStepDrivenControlledPose;
             if (!interpolateControlledFlagshipPose && renderedPoseAlreadyInterpolated)
             {
                 // LocalToWorld already comes from snapshot interpolation; avoid double-smoothing camera follow.

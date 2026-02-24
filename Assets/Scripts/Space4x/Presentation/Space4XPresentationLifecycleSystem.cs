@@ -60,9 +60,10 @@ namespace Space4X.Presentation
         private const float PickupScaleMin = 0.5f;
         private const float PickupScaleMax = 3f;
 
-        private const int CarrierLightVariantIndex = 12;
-        private const int CarrierMediumVariantIndex = 13;
-        private const int CarrierHeavyVariantIndex = 10;
+        // Keep carrier variant overrides aligned with Space4XRenderCatalog_v2 (variants 0..8).
+        private const int CarrierSquareVariantIndex = 0;
+        private const int CarrierCapsuleVariantIndex = 1;
+        private const int CarrierSphereVariantIndex = 2;
 
         public void OnCreate(ref SystemState state)
         {
@@ -667,9 +668,9 @@ namespace Space4X.Presentation
             var choice = math.abs(hashSeed) % 3;
             return choice switch
             {
-                0 => CarrierLightVariantIndex,
-                1 => CarrierMediumVariantIndex,
-                _ => CarrierHeavyVariantIndex
+                0 => CarrierSquareVariantIndex,
+                1 => CarrierCapsuleVariantIndex,
+                _ => CarrierSphereVariantIndex
             };
         }
 

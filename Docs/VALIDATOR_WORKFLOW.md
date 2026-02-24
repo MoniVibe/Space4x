@@ -77,7 +77,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -PushBranch <branch-name> `
   -LocalParityBranch validator/ultimate-checkout `
   -LocalParityUpstreamRef origin/<branch-name> `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout `
   -LaptopParityUpstreamRef origin/<branch-name>
 ```
@@ -126,7 +126,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\Tools\HeadlessRebuildTo
   -TimeoutSec 180 `
   -PureGreen `
   -PureGreenPlayMode `
-  -EnvJson '{"TRI_RUNTIME_HEALTH_STRICT":"1","TRI_RUNTIME_PHYSICS_STRICT":"1","TRI_PLAYMODE_PHYSICAL_PROBE":"1","TRI_PLAYMODE_PHYSICAL_STRICT":"1","SPACE4X_ENTITY_VISIBILITY_PROBE":"1"}' `
+  -EnvJson '{"TRI_RUNTIME_HEALTH_STRICT":"1","TRI_RUNTIME_PHYSICS_STRICT":"1","TRI_PLAYMODE_PHYSICAL_PROBE":"1","TRI_PLAYMODE_PHYSICAL_STRICT":"1","SPACE4X_ENTITY_VISIBILITY_PROBE":"1","SPACE4X_FLAGSHIP_PIPELINE_PROBE":"1","SPACE4X_FLAGSHIP_PIPELINE_PROBE_ECHO":"0"}' `
   -WaitForResult
 ```
 
@@ -159,7 +159,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout
 ```
 
@@ -218,6 +218,10 @@ Buildbox smoke now surfaces scenario/presentation health from `out/player.log`:
 - `runtime_movement_diag_warn_first`
 - `runtime_movement_diag_turnrate_signals`
 - `runtime_movement_diag_turnrate_first`
+
+Optional deep movement/render ownership signal:
+- Enable `SPACE4X_FLAGSHIP_PIPELINE_PROBE=1` to emit JSONL records to `space4x_flagship_pipeline_probe.jsonl`.
+- Probe captures: controlled/target/tracked entity chain, movement writer hints, render writer hints, variant-vs-catalog range checks, and disappearance reason classification.
 - `runtime_visibility_event_count`
 - `runtime_visibility_drop_event_count`
 - `runtime_visibility_flagship_lost_count`

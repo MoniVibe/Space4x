@@ -25,6 +25,6 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout
 ```
