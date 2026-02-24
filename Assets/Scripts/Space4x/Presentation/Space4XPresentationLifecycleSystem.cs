@@ -5,6 +5,8 @@ using PureDOTS.Runtime.Combat;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Rendering;
 using Space4X.Registry;
+using Space4X.UI;
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -60,9 +62,9 @@ namespace Space4X.Presentation
         private const float PickupScaleMin = 0.5f;
         private const float PickupScaleMax = 3f;
 
-        private const int CarrierLightVariantIndex = 12;
-        private const int CarrierMediumVariantIndex = 13;
-        private const int CarrierHeavyVariantIndex = 10;
+        private const int CarrierSquareVariantIndex = 0;
+        private const int CarrierCapsuleVariantIndex = 1;
+        private const int CarrierSphereVariantIndex = 2;
 
         public void OnCreate(ref SystemState state)
         {
@@ -653,6 +655,11 @@ namespace Space4X.Presentation
 
         private int ResolveCarrierVariantIndex(ref SystemState state, Entity entity)
         {
+            if (SystemAPI.HasComponent<PlayerFlagshipTag>(entity))
+            {
+                return ResolvePlayerFlagshipVariantIndex();
+            }
+
             var hashSeed = entity.Index;
             if (SystemAPI.HasComponent<Carrier>(entity))
             {
@@ -665,12 +672,49 @@ namespace Space4X.Presentation
             }
 
             var choice = math.abs(hashSeed) % 3;
-            return choice switch
+            var requested = choice switch
             {
-                0 => CarrierLightVariantIndex,
-                1 => CarrierMediumVariantIndex,
-                _ => CarrierHeavyVariantIndex
+                0 => CarrierSquareVariantIndex,
+                1 => CarrierCapsuleVariantIndex,
+                _ => CarrierSphereVariantIndex
             };
+
+            if (SystemAPI.TryGetSingleton<RenderPresentationCatalog>(out var catalog) &&
+                catalog.Blob.IsCreated)
+            {
+                var variantCount = catalog.Blob.Value.Variants.Length;
+                if ((uint)requested < (uint)variantCount)
+                {
+                    return requested;
+                }
+            }
+
+            // Keep carrier presentation stable when authored variant ids are ahead of the active catalog.
+            return 0;
+        }
+
+        private static int ResolvePlayerFlagshipVariantIndex()
+        {
+            var presetId = Space4XRunStartSelection.ShipPresetId;
+            if (string.IsNullOrWhiteSpace(presetId))
+            {
+                return CarrierSquareVariantIndex;
+            }
+
+            if (presetId.Contains("sphere", StringComparison.OrdinalIgnoreCase) ||
+                presetId.Contains("frigate", StringComparison.OrdinalIgnoreCase))
+            {
+                return CarrierSphereVariantIndex;
+            }
+
+            if (presetId.Contains("capsule", StringComparison.OrdinalIgnoreCase) ||
+                presetId.Contains("interceptor", StringComparison.OrdinalIgnoreCase) ||
+                presetId.Contains("cylinder", StringComparison.OrdinalIgnoreCase))
+            {
+                return CarrierCapsuleVariantIndex;
+            }
+
+            return CarrierSquareVariantIndex;
         }
 
         private void RepairMissingPresentation(ref SystemState state, ref EntityCommandBuffer ecb)

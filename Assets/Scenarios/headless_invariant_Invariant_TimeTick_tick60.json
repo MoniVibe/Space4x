@@ -1,0 +1,1 @@
+{"code":"Invariant/TimeTick","message":"TimeState.Tick regressed from 120 to 60","tick":60,"worldSeconds":2,"scenarioId":"space4x_fleetcrawl_core_micro","seed":19021,"scenarioPath":"Assets/Scenarios/space4x_fleetcrawl_core_micro.json","utc":"2026-02-24T16:20:46.8225778Z"}

@@ -315,8 +315,6 @@ namespace Space4X.Presentation
     }
 
     [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XSpectatorRenderProxySyncSystem : ISystem
     {
         private static readonly FixedString64Bytes Capital20v20ScenarioId = new FixedString64Bytes("space4x_capital_20_vs_20_supergreen");

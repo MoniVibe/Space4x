@@ -11,9 +11,14 @@ namespace Space4X.Presentation
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     public partial struct Space4XEffectRequestConsumeSystem : ISystem
     {
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private EntityQuery _effectInstanceQuery;
+
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XEffectRequestStream>();
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _effectInstanceQuery = state.GetEntityQuery(ComponentType.ReadOnly<Space4XEffectInstance>());
         }
 
         public void OnUpdate(ref SystemState state)
@@ -39,16 +44,15 @@ namespace Space4X.Presentation
                 return;
             }
 
-            var transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true);
-            transformLookup.Update(ref state);
+            _transformLookup.Update(ref state);
 
-            using var existingMap = BuildExistingMap(ref state);
+            using var existingMap = BuildExistingMap(_effectInstanceQuery);
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             for (int i = 0; i < requests.Length; i++)
             {
                 var request = requests[i];
-                var position = ResolveEffectPosition(request, transformLookup);
+                var position = ResolveEffectPosition(request, _transformLookup);
                 var direction = ResolveEffectDirection(request);
                 var key = new EffectKey { EffectId = request.EffectId, Source = request.AttachTo };
 
@@ -119,18 +123,17 @@ namespace Space4X.Presentation
             return new float3(0f, 0f, 1f);
         }
 
-        private static NativeParallelHashMap<EffectKey, Entity> BuildExistingMap(ref SystemState state)
+        private static NativeParallelHashMap<EffectKey, Entity> BuildExistingMap(EntityQuery effectInstanceQuery)
         {
-            var query = state.GetEntityQuery(ComponentType.ReadOnly<Space4XEffectInstance>());
-            var count = query.CalculateEntityCount();
+            var count = effectInstanceQuery.CalculateEntityCount();
             if (count <= 0)
             {
                 return default;
             }
 
             var map = new NativeParallelHashMap<EffectKey, Entity>(count, Allocator.Temp);
-            using var instances = query.ToComponentDataArray<Space4XEffectInstance>(Allocator.Temp);
-            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var instances = effectInstanceQuery.ToComponentDataArray<Space4XEffectInstance>(Allocator.Temp);
+            using var entities = effectInstanceQuery.ToEntityArray(Allocator.Temp);
             for (int i = 0; i < instances.Length; i++)
             {
                 var instance = instances[i];

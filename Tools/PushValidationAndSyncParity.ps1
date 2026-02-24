@@ -1,5 +1,5 @@
 param(
-    [string]$RepoPath = "C:\dev\Tri\space4x",
+    [string]$RepoPath = "C:\dev\Tri\space4x_ultimate",
     [ValidateSet("iterator", "validator")]
     [string]$Mode = "iterator",
     [string]$Remote = "origin",
@@ -11,7 +11,7 @@ param(
     [string]$LocalParityUpstreamRef = "",
     [string]$LaptopHost = "25.29.69.246",
     [string]$LaptopUser = "shonh",
-    [string]$LaptopRepoPath = "C:\dev\unity_clean",
+    [string]$LaptopRepoPath = "C:\dev\unity_clean\space4x",
     [string]$LaptopParityBranch = "validator/ultimate-checkout",
     [string]$LaptopParityUpstreamRef = "",
     [string]$LaptopKeyPath = "",

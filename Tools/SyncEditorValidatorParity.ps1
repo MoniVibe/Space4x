@@ -1,5 +1,5 @@
 param(
-    [string]$RepoPath = "C:\dev\Tri\space4x",
+    [string]$RepoPath = "C:\dev\Tri\space4x_ultimate",
     [string]$TargetBranch = "validator/ultimate-checkout",
     [string]$UpstreamRef = "origin/main"
 )

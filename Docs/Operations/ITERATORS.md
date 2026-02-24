@@ -28,8 +28,8 @@ Hard boundary:
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorGuardedHandoff.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
-  -PuredotsRepoPath C:\dev\Tri\puredots `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
+  -PuredotsRepoPath C:\dev\Tri\puredots_ultimate `
   -PushBranch <branch-name> `
   -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
   -AwarenessNote "Reviewed open needs-validate queue before handoff"

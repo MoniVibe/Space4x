@@ -34,12 +34,13 @@ public class CreateRenderCatalogAsset
         // Built-in Meshes
         // We can't easily load built-in meshes by GUID in Editor script without some tricks, 
         // but we can use GetPrimitive or find them in default resources.
-        // 10208 = Capsule, 10206 = Cube, 10207 = Sphere
-        Mesh capsule = GetBuiltinMesh(PrimitiveType.Capsule);
+        // Use a slender cylinder as the flagship/fleet placeholder to keep the silhouette
+        // distinct from generic capsule fallback visuals.
+        Mesh elongatedHull = GetBuiltinMesh(PrimitiveType.Cylinder);
         Mesh cube = GetBuiltinMesh(PrimitiveType.Cube);
         Mesh sphere = GetBuiltinMesh(PrimitiveType.Sphere);
 
-        catalog.FallbackMesh = capsule;
+        catalog.FallbackMesh = elongatedHull;
         catalog.FallbackMaterial = fallbackMat;
         catalog.LodCount = 1;
 
@@ -49,7 +50,7 @@ public class CreateRenderCatalogAsset
         variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
         {
             Name = "Carrier",
-            Mesh = capsule,
+            Mesh = elongatedHull,
             Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
@@ -101,7 +102,7 @@ public class CreateRenderCatalogAsset
         variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
         {
             Name = "FleetImpostor",
-            Mesh = capsule,
+            Mesh = elongatedHull,
             Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,
@@ -127,7 +128,7 @@ public class CreateRenderCatalogAsset
         variants.Add(new RenderPresentationCatalogDefinition.VariantDefinition
         {
             Name = "StrikeCraft",
-            Mesh = capsule,
+            Mesh = elongatedHull,
             Material = variantMaterial,
             SubMesh = 0,
             BoundsCenter = Vector3.zero,

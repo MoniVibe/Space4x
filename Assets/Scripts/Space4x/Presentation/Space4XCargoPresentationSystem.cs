@@ -17,7 +17,11 @@ namespace Space4X.Presentation
     public partial struct Space4XCargoPresentationEnsureSystem : ISystem
     {
         private EntityQuery _missingCargoQuery;
+        private EntityQuery _flagshipCargoLinkQuery;
+        private EntityQuery _flagshipCargoChildQuery;
         private ComponentLookup<PresentationLayer> _presentationLayerLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
+        private ComponentLookup<CargoVisualLink> _cargoLinkLookup;
 
         public void OnCreate(ref SystemState state)
         {
@@ -26,21 +30,83 @@ namespace Space4X.Presentation
                 .WithAll<MiningVessel, CraftPresentationTag>()
                 .WithNone<CargoVisualLink>()
                 .Build();
+            _flagshipCargoLinkQuery = SystemAPI.QueryBuilder()
+                .WithAll<PlayerFlagshipTag, CargoVisualLink>()
+                .Build();
+            _flagshipCargoChildQuery = SystemAPI.QueryBuilder()
+                .WithAll<CargoPresentationTag, CargoVisualParent>()
+                .Build();
             _presentationLayerLookup = state.GetComponentLookup<PresentationLayer>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
+            _cargoLinkLookup = state.GetComponentLookup<CargoVisualLink>(true);
         }
 
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless || !RuntimeMode.IsRenderingEnabled || _missingCargoQuery.IsEmptyIgnoreFilter)
+            if (RuntimeMode.IsHeadless || !RuntimeMode.IsRenderingEnabled)
+            {
+                return;
+            }
+
+            var hasMissingCargo = !_missingCargoQuery.IsEmptyIgnoreFilter;
+            var hasFlagshipLinks = !_flagshipCargoLinkQuery.IsEmptyIgnoreFilter;
+            var hasFlagshipChildren = !_flagshipCargoChildQuery.IsEmptyIgnoreFilter;
+            if (!hasMissingCargo && !hasFlagshipLinks && !hasFlagshipChildren)
             {
                 return;
             }
 
             var config = EnsureConfig(ref state);
             _presentationLayerLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
+            _cargoLinkLookup.Update(ref state);
 
             var endEcb = state.World.GetOrCreateSystemManaged<EndPresentationECBSystem>();
             var ecb = endEcb.CreateCommandBuffer();
+
+            if (hasFlagshipLinks)
+            {
+                foreach (var (link, entity) in SystemAPI
+                             .Query<RefRO<CargoVisualLink>>()
+                             .WithAll<PlayerFlagshipTag>()
+                             .WithEntityAccess())
+                {
+                    var cargoEntity = link.ValueRO.CargoEntity;
+                    if (cargoEntity != Entity.Null)
+                    {
+                        ecb.DestroyEntity(cargoEntity);
+                    }
+
+                    ecb.RemoveComponent<CargoVisualLink>(entity);
+                }
+            }
+
+            if (hasFlagshipChildren)
+            {
+                foreach (var (parentLink, cargoEntity) in SystemAPI
+                             .Query<RefRO<CargoVisualParent>>()
+                             .WithAll<CargoPresentationTag>()
+                             .WithEntityAccess())
+                {
+                    var parent = parentLink.ValueRO.Value;
+                    if (parent == Entity.Null || !_playerFlagshipLookup.HasComponent(parent))
+                    {
+                        continue;
+                    }
+
+                    if (_cargoLinkLookup.HasComponent(parent))
+                    {
+                        continue;
+                    }
+
+                    ecb.DestroyEntity(cargoEntity);
+                }
+            }
+
+            if (!hasMissingCargo)
+            {
+                return;
+            }
 
             foreach (var (_, entity) in SystemAPI
                          .Query<RefRO<MiningVessel>>()
@@ -48,6 +114,11 @@ namespace Space4X.Presentation
                          .WithNone<CargoVisualLink>()
                          .WithEntityAccess())
             {
+                if (_playerFlagshipLookup.HasComponent(entity))
+                {
+                    continue;
+                }
+
                 var cargoEntity = ecb.CreateEntity();
                 ecb.AddComponent(cargoEntity, new CargoPresentationTag());
                 ecb.AddComponent(cargoEntity, new CargoVisualParent { Value = entity });
@@ -151,18 +222,18 @@ namespace Space4X.Presentation
 
     [BurstCompile]
     [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XCargoPresentationDriveSystem : ISystem
     {
         private ComponentLookup<MiningVessel> _vesselLookup;
         private ComponentLookup<LocalToWorld> _parentLocalToWorldLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             _vesselLookup = state.GetComponentLookup<MiningVessel>(true);
             _parentLocalToWorldLookup = state.GetComponentLookup<LocalToWorld>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
         }
 
         [BurstCompile]
@@ -175,6 +246,7 @@ namespace Space4X.Presentation
 
             _vesselLookup.Update(ref state);
             _parentLocalToWorldLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
 
             var config = SystemAPI.TryGetSingleton<Space4XCargoPresentationConfig>(out var configValue)
                 ? configValue
@@ -191,6 +263,12 @@ namespace Space4X.Presentation
                 if (parent == Entity.Null ||
                     !_vesselLookup.HasComponent(parent) ||
                     !_parentLocalToWorldLookup.HasComponent(parent))
+                {
+                    meshEnabled.ValueRW = false;
+                    continue;
+                }
+
+                if (_playerFlagshipLookup.HasComponent(parent))
                 {
                     meshEnabled.ValueRW = false;
                     continue;

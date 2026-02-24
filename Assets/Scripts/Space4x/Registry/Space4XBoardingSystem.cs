@@ -29,8 +29,8 @@ namespace Space4X.Registry
                 return;
             }
 
-            var entity = state.EntityManager.CreateEntity(typeof(Space4XBoardingTuning));
-            state.EntityManager.SetComponentData(entity, Space4XBoardingTuning.Default);
+            var entity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponentData(entity, Space4XBoardingTuning.Default);
             state.Enabled = false;
         }
     }

@@ -18,7 +18,11 @@ namespace Space4X.Presentation
     public partial struct Space4XCarrierStorageMarkerEnsureSystem : ISystem
     {
         private EntityQuery _missingMarkerQuery;
+        private EntityQuery _flagshipMarkerLinkQuery;
+        private EntityQuery _flagshipMarkerChildQuery;
         private ComponentLookup<PresentationLayer> _presentationLayerLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
+        private ComponentLookup<CarrierStorageMarkerLink> _markerLinkLookup;
 
         public void OnCreate(ref SystemState state)
         {
@@ -27,21 +31,83 @@ namespace Space4X.Presentation
                 .WithAll<Carrier, CarrierPresentationTag, ResourceStorage>()
                 .WithNone<CarrierStorageMarkerLink>()
                 .Build();
+            _flagshipMarkerLinkQuery = SystemAPI.QueryBuilder()
+                .WithAll<PlayerFlagshipTag, CarrierStorageMarkerLink>()
+                .Build();
+            _flagshipMarkerChildQuery = SystemAPI.QueryBuilder()
+                .WithAll<StorageMarkerPresentationTag, CarrierStorageMarkerParent>()
+                .Build();
             _presentationLayerLookup = state.GetComponentLookup<PresentationLayer>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
+            _markerLinkLookup = state.GetComponentLookup<CarrierStorageMarkerLink>(true);
         }
 
         public void OnUpdate(ref SystemState state)
         {
-            if (RuntimeMode.IsHeadless || !RuntimeMode.IsRenderingEnabled || _missingMarkerQuery.IsEmptyIgnoreFilter)
+            if (RuntimeMode.IsHeadless || !RuntimeMode.IsRenderingEnabled)
+            {
+                return;
+            }
+
+            var hasMissingMarkers = !_missingMarkerQuery.IsEmptyIgnoreFilter;
+            var hasFlagshipLinks = !_flagshipMarkerLinkQuery.IsEmptyIgnoreFilter;
+            var hasFlagshipChildren = !_flagshipMarkerChildQuery.IsEmptyIgnoreFilter;
+            if (!hasMissingMarkers && !hasFlagshipLinks && !hasFlagshipChildren)
             {
                 return;
             }
 
             var config = EnsureConfig(ref state);
             _presentationLayerLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
+            _markerLinkLookup.Update(ref state);
 
             var endEcb = state.World.GetOrCreateSystemManaged<EndPresentationECBSystem>();
             var ecb = endEcb.CreateCommandBuffer();
+
+            if (hasFlagshipLinks)
+            {
+                foreach (var (link, entity) in SystemAPI
+                             .Query<RefRO<CarrierStorageMarkerLink>>()
+                             .WithAll<PlayerFlagshipTag>()
+                             .WithEntityAccess())
+                {
+                    var markerEntity = link.ValueRO.MarkerEntity;
+                    if (markerEntity != Entity.Null)
+                    {
+                        ecb.DestroyEntity(markerEntity);
+                    }
+
+                    ecb.RemoveComponent<CarrierStorageMarkerLink>(entity);
+                }
+            }
+
+            if (hasFlagshipChildren)
+            {
+                foreach (var (parentLink, markerEntity) in SystemAPI
+                             .Query<RefRO<CarrierStorageMarkerParent>>()
+                             .WithAll<StorageMarkerPresentationTag>()
+                             .WithEntityAccess())
+                {
+                    var parent = parentLink.ValueRO.Value;
+                    if (parent == Entity.Null || !_playerFlagshipLookup.HasComponent(parent))
+                    {
+                        continue;
+                    }
+
+                    if (_markerLinkLookup.HasComponent(parent))
+                    {
+                        continue;
+                    }
+
+                    ecb.DestroyEntity(markerEntity);
+                }
+            }
+
+            if (!hasMissingMarkers)
+            {
+                return;
+            }
 
             foreach (var (_, entity) in SystemAPI
                          .Query<RefRO<Carrier>>()
@@ -49,6 +115,11 @@ namespace Space4X.Presentation
                          .WithNone<CarrierStorageMarkerLink>()
                          .WithEntityAccess())
             {
+                if (_playerFlagshipLookup.HasComponent(entity))
+                {
+                    continue;
+                }
+
                 var markerEntity = ecb.CreateEntity();
                 ecb.AddComponent(markerEntity, new StorageMarkerPresentationTag());
                 ecb.AddComponent(markerEntity, new CarrierStorageMarkerParent { Value = entity });
@@ -158,13 +229,12 @@ namespace Space4X.Presentation
 
     [BurstCompile]
     [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XCarrierStorageMarkerDriveSystem : ISystem
     {
         private ComponentLookup<Carrier> _carrierLookup;
         private ComponentLookup<LocalToWorld> _parentLocalToWorldLookup;
         private BufferLookup<ResourceStorage> _storageLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -172,6 +242,7 @@ namespace Space4X.Presentation
             _carrierLookup = state.GetComponentLookup<Carrier>(true);
             _parentLocalToWorldLookup = state.GetComponentLookup<LocalToWorld>(true);
             _storageLookup = state.GetBufferLookup<ResourceStorage>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
         }
 
         [BurstCompile]
@@ -185,6 +256,7 @@ namespace Space4X.Presentation
             _carrierLookup.Update(ref state);
             _parentLocalToWorldLookup.Update(ref state);
             _storageLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
 
             var config = SystemAPI.TryGetSingleton<Space4XCarrierStorageMarkerPresentationConfig>(out var configValue)
                 ? configValue
@@ -202,6 +274,12 @@ namespace Space4X.Presentation
                     !_carrierLookup.HasComponent(parent) ||
                     !_parentLocalToWorldLookup.HasComponent(parent) ||
                     !_storageLookup.HasBuffer(parent))
+                {
+                    meshEnabled.ValueRW = false;
+                    continue;
+                }
+
+                if (_playerFlagshipLookup.HasComponent(parent))
                 {
                     meshEnabled.ValueRW = false;
                     continue;

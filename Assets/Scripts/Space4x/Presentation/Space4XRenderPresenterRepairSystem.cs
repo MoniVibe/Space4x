@@ -18,12 +18,8 @@ namespace Space4X.Presentation
     /// </summary>
     [WorldSystemFilter(WorldSystemFilterFlags.Default)]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
-    [UpdateAfter(typeof(PureDOTS.Systems.EndPresentationECBSystem))]
     [UpdateAfter(typeof(Space4XPresentationLifecycleSystem))]
     [UpdateAfter(typeof(PureDOTS.Rendering.ResolveRenderVariantSystem))]
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-    [UpdateBefore(typeof(RenderPresentationValidationSystem))]
-#endif
     public partial struct Space4XRenderPresenterRepairSystem : ISystem
     {
         private EntityQuery _semanticQuery;

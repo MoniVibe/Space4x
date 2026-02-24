@@ -152,8 +152,6 @@ namespace Space4X.Presentation
     }
 
     [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XResourceMarkerDriveSystem : ISystem
     {
         private ComponentLookup<Asteroid> _asteroidLookup;

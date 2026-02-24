@@ -146,8 +146,6 @@ namespace Space4X.Presentation
     }
 
     [UpdateInGroup(typeof(PDUpdatePresentationSystemGroup))]
-    [UpdateAfter(typeof(Space4XPresentationDepthSystem))]
-    [UpdateBefore(typeof(Unity.Rendering.EntitiesGraphicsSystem))]
     public partial struct Space4XResourcePickupPresentationDriveSystem : ISystem
     {
         private ComponentLookup<SpawnResource> _spawnLookup;

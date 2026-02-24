@@ -1,6 +1,6 @@
 param(
-    [string]$RepoPath = "C:\dev\Tri\space4x",
-    [string]$PuredotsRepoPath = "C:\dev\Tri\puredots",
+    [string]$RepoPath = "C:\dev\Tri\space4x_ultimate",
+    [string]$PuredotsRepoPath = "C:\dev\Tri\puredots_ultimate",
     [string]$Remote = "origin",
     [string]$BaseBranch = "main",
     [string]$UnityExe = "",

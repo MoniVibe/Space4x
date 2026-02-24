@@ -5,12 +5,13 @@
       "depth": 0,
       "source": "git",
       "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.2"
+        "com.unity.nuget.newtonsoft-json": "3.0.2",
+        "com.unity.test-framework": "1.1.31"
       },
-      "hash": "4c9beaffdefadee03c07f00eb3e3b6c5294fc99d"
+      "hash": "ca3f7bd6a1e34285ee4e471db6cbae9d5e72cf75"
     },
     "com.moni.puredots": {
-      "version": "file:../../puredots/Packages/com.moni.puredots",
+      "version": "file:../../puredots_ultimate/Packages/com.moni.puredots",
       "depth": 0,
       "source": "local",
       "dependencies": {
@@ -44,11 +45,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.cloud.gltfast": {
-      "version": "6.12.1",
+      "version": "6.14.1",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.4",
+        "com.unity.burst": "1.8.24",
         "com.unity.collections": "1.2.4",
         "com.unity.mathematics": "1.2.6",
         "com.unity.modules.jsonserialize": "1.0.0",
@@ -106,7 +107,7 @@
       "dependencies": {}
     },
     "com.unity.inputsystem": {
-      "version": "1.17.0",
+      "version": "1.18.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -147,7 +148,7 @@
     },
     "com.unity.nuget.newtonsoft-json": {
       "version": "3.2.2",
-      "depth": 1,
+      "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"

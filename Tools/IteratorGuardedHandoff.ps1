@@ -1,6 +1,6 @@
 param(
-    [string]$RepoPath = "C:\dev\Tri\space4x",
-    [string]$PuredotsRepoPath = "C:\dev\Tri\puredots",
+    [string]$RepoPath = "C:\dev\Tri\space4x_ultimate",
+    [string]$PuredotsRepoPath = "C:\dev\Tri\puredots_ultimate",
     [string]$Remote = "origin",
     [string]$PushBranch = "",
     [string]$UnityExe = "",
@@ -11,7 +11,7 @@ param(
     [string]$LocalParityUpstreamRef = "",
     [string]$LaptopHost = "25.29.69.246",
     [string]$LaptopUser = "shonh",
-    [string]$LaptopRepoPath = "C:\dev\unity_clean",
+    [string]$LaptopRepoPath = "C:\dev\unity_clean\space4x",
     [string]$LaptopParityBranch = "validator/ultimate-checkout",
     [string]$LaptopParityUpstreamRef = "",
     [string]$LaptopKeyPath = "",

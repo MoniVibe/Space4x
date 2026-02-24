@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: PureDOTS.Rendering::PureDOTS.Rendering.RenderPresentationCatalogDefinition
   Variants:
   - Name: Carrier
-    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Mesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.5, y: 1, z: 0.5}
@@ -66,7 +66,7 @@ MonoBehaviour:
     TracerColor: {r: 1, g: 1, b: 1, a: 1}
     TracerStyle: 0
   - Name: FleetImpostor
-    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Mesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 4, y: 0.5, z: 4}
@@ -92,7 +92,7 @@ MonoBehaviour:
     TracerColor: {r: 1, g: 1, b: 1, a: 1}
     TracerStyle: 0
   - Name: StrikeCraft
-    Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+    Mesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
     Material: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
     BoundsCenter: {x: 0, y: 0, z: 0}
     BoundsExtents: {x: 0.35, y: 0.2, z: 0.6}
@@ -170,6 +170,6 @@ MonoBehaviour:
       Lod0Variant: 8
       Lod1Variant: -1
       Lod2Variant: -1
-  FallbackMesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  FallbackMesh: {fileID: 10205, guid: 0000000000000000e000000000000000, type: 0}
   FallbackMaterial: {fileID: 2100000, guid: eab17db06d3ab6a44a7879edf1d11c2c, type: 2}
   LodCount: 1

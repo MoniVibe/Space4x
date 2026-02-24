@@ -22,6 +22,7 @@ namespace Space4X.Systems.AI
         private const string RegistryPopulationEnv = "SPACE4X_RESOURCE_REGISTRY_POPULATION";
         private EntityQuery _asteroidQuery;
         private EntityQuery _registryQuery;
+        private ComponentLookup<ResourceRegistryRegisteredTag> _registeredLookup;
         private static readonly FixedString64Bytes ResourceIdMinerals = "space4x.resource.minerals";
         private static readonly FixedString64Bytes ResourceIdRareMetalsA = "space4x.resource.rare_metals";
         private static readonly FixedString64Bytes ResourceIdRareMetalsB = "space4x.resource.rareMetals";
@@ -46,6 +47,7 @@ namespace Space4X.Systems.AI
             _registryQuery = SystemAPI.QueryBuilder()
                 .WithAll<ResourceRegistry, ResourceRegistryEntry>()
                 .Build();
+            _registeredLookup = state.GetComponentLookup<ResourceRegistryRegisteredTag>(true);
 
             state.RequireForUpdate<TimeState>();
         }
@@ -66,6 +68,8 @@ namespace Space4X.Systems.AI
                 return;
             }
 
+            _registeredLookup.Update(ref state);
+
             var asteroidCount = _asteroidQuery.CalculateEntityCount();
             var entries = new NativeList<ResourceRegistryEntry>(math.max(1, asteroidCount), Allocator.TempJob);
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
@@ -73,7 +77,7 @@ namespace Space4X.Systems.AI
             var job = new PopulateRegistryJob
             {
                 Entries = entries.AsParallelWriter(),
-                RegisteredLookup = state.GetComponentLookup<ResourceRegistryRegisteredTag>(true),
+                RegisteredLookup = _registeredLookup,
                 Ecb = ecb.AsParallelWriter()
             };
 

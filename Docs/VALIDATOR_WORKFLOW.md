@@ -38,8 +38,8 @@ Guarded handoff command (mandatory for desktop iterators):
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorGuardedHandoff.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
-  -PuredotsRepoPath C:\dev\Tri\puredots `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
+  -PuredotsRepoPath C:\dev\Tri\puredots_ultimate `
   -PushBranch <branch-name> `
   -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
   -AwarenessNote "Reviewed open needs-validate queue before handoff"
@@ -73,11 +73,11 @@ When an iterator pushes a branch for validation, sync both desktop and laptop va
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
   -PushBranch <branch-name> `
   -LocalParityBranch validator/ultimate-checkout `
   -LocalParityUpstreamRef origin/<branch-name> `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout `
   -LaptopParityUpstreamRef origin/<branch-name>
 ```
@@ -94,7 +94,7 @@ Policy:
 
 1. Sync `space4x` parity branch on both machines (commands above).
 2. Ensure `Packages/manifest.json` resolves `com.moni.puredots` on both machines:
-   - Desktop: `C:\dev\Tri\puredots\Packages\com.moni.puredots\package.json`
+   - Desktop: `C:\dev\Tri\puredots_ultimate\Packages\com.moni.puredots\package.json`
    - Laptop: `C:\dev\puredots\Packages\com.moni.puredots\package.json`
 3. Pin `puredots` to one explicit ref on both machines.
 4. Trigger Buildbox with both refs (`-Ref` and `-PuredotsRef`).
@@ -102,8 +102,8 @@ Policy:
 `puredots` pin example:
 
 ```powershell
-git -C C:\dev\Tri\puredots fetch --all --prune
-git -C C:\dev\Tri\puredots checkout <puredots-ref>
+git -C C:\dev\Tri\puredots_ultimate fetch --all --prune
+git -C C:\dev\Tri\puredots_ultimate checkout <puredots-ref>
 ```
 
 Buildbox dual-ref dispatch example:
@@ -155,11 +155,11 @@ Validator post-greenify sync (both machines -> `origin/main`):
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout
 ```
 

@@ -34,8 +34,15 @@ function Get-GitInfo([string]$repoPath) {
     }
 }
 
-$space4xRepo = Join-Path $TriRoot "space4x"
-$puredotsRepo = Join-Path $TriRoot "puredots"
+$space4xRepo = Join-Path $TriRoot "space4x_ultimate"
+if (-not (Test-Path $space4xRepo)) {
+    $space4xRepo = Join-Path $TriRoot "space4x"
+}
+
+$puredotsRepo = Join-Path $TriRoot "puredots_ultimate"
+if (-not (Test-Path $puredotsRepo)) {
+    $puredotsRepo = Join-Path $TriRoot "puredots"
+}
 if (-not (Test-Path $puredotsRepo)) {
     $puredotsRepo = Join-Path $space4xRepo "PureDOTS"
 }

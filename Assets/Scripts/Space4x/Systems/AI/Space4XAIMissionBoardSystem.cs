@@ -34,6 +34,8 @@ namespace Space4X.Systems.AI
         private BufferLookup<FactionRelationEntry> _relationLookup;
         private BufferLookup<RacePresence> _raceLookup;
         private BufferLookup<CulturePresence> _cultureLookup;
+        private ComponentLookup<EntityDisposition> _dispositionLookup;
+        private ComponentLookup<MiningVessel> _miningLookup;
         private EntityStorageInfoLookup _entityInfoLookup;
 
         public void OnCreate(ref SystemState state)
@@ -59,6 +61,8 @@ namespace Space4X.Systems.AI
             _relationLookup = state.GetBufferLookup<FactionRelationEntry>(true);
             _raceLookup = state.GetBufferLookup<RacePresence>(true);
             _cultureLookup = state.GetBufferLookup<CulturePresence>(true);
+            _dispositionLookup = state.GetComponentLookup<EntityDisposition>(true);
+            _miningLookup = state.GetComponentLookup<MiningVessel>(true);
             _entityInfoLookup = state.GetEntityStorageInfoLookup();
         }
 
@@ -78,6 +82,8 @@ namespace Space4X.Systems.AI
             _relationLookup.Update(ref state);
             _raceLookup.Update(ref state);
             _cultureLookup.Update(ref state);
+            _dispositionLookup.Update(ref state);
+            _miningLookup.Update(ref state);
             _entityInfoLookup.Update(ref state);
 
             var configEntity = EnsureConfig(ref state, out var config, out var boardState);
@@ -622,9 +628,6 @@ namespace Space4X.Systems.AI
             var agentTransforms = _agentQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
             var agentOrders = _agentQuery.ToComponentDataArray<CaptainOrder>(Allocator.Temp);
 
-            var dispositionLookup = state.GetComponentLookup<EntityDisposition>(true);
-            var miningLookup = state.GetComponentLookup<MiningVessel>(true);
-
             var colonies = _colonyQuery.ToEntityArray(Allocator.Temp);
             var colonyTransforms = _colonyQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
             var colonyData = _colonyQuery.ToComponentDataArray<Space4XColony>(Allocator.Temp);
@@ -687,7 +690,7 @@ namespace Space4X.Systems.AI
                         continue;
                     }
 
-                    if (!IsAgentEligible(agents[a], offer.Type, dispositionLookup, miningLookup))
+                    if (!IsAgentEligible(agents[a], offer.Type, _dispositionLookup, _miningLookup))
                     {
                         continue;
                     }

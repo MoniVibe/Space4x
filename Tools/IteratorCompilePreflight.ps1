@@ -1,8 +1,9 @@
 param(
     [string]$UnityExe = "",
-    [string]$RepoPath = "C:\dev\Tri\space4x",
+    [string]$RepoPath = "C:\dev\Tri\space4x_ultimate",
     [string]$LogPath = "",
-    [int]$TimeoutSec = 360
+    [int]$TimeoutSec = 360,
+    [switch]$DisableAssemblyUpdater
 )
 
 Set-StrictMode -Version Latest
@@ -46,6 +47,11 @@ $arguments = @(
     "-quit",
     "-logFile", $LogPath
 )
+
+if ($DisableAssemblyUpdater) {
+    $arguments += "-disable-assembly-updater"
+    Write-Host "[IteratorCompilePreflight] assembly_updater=disabled"
+}
 
 $process = Start-Process -FilePath $UnityExe -ArgumentList $arguments -PassThru -NoNewWindow
 if (-not $process.WaitForExit($TimeoutSec * 1000)) {

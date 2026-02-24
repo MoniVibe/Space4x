@@ -21,10 +21,10 @@ Hard boundaries:
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout
 ```

@@ -5,13 +5,13 @@ Use this when editor/runtime appears to load the wrong Space4X slice.
 ## Command
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\space4x\Tools\ScenarioReferenceCheck.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\space4x_ultimate\Tools\ScenarioReferenceCheck.ps1
 ```
 
 Optional (only inspect the most recent console window):
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\space4x\Tools\ScenarioReferenceCheck.ps1 -TailLines 3000
+pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\space4x_ultimate\Tools\ScenarioReferenceCheck.ps1 -TailLines 3000
 ```
 
 ## What It Verifies

@@ -33,7 +33,7 @@ Runs a compile-only Unity batch pass and fails if compile errors are detected.
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorCompilePreflight.ps1 `
   -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
-  -RepoPath C:\dev\Tri\space4x
+  -RepoPath C:\dev\Tri\space4x_ultimate
 ```
 
 Optional:
@@ -51,8 +51,8 @@ Enforces iterator drift guardrails before handoff:
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorBedrockGuard.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
-  -PuredotsRepoPath C:\dev\Tri\puredots `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
+  -PuredotsRepoPath C:\dev\Tri\puredots_ultimate `
   -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
   -AwarenessNote "Reviewed open needs-validate queue before handoff"
 ```
@@ -66,8 +66,8 @@ Single command to enforce guardrails, then push + parity sync if and only if gua
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorGuardedHandoff.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
-  -PuredotsRepoPath C:\dev\Tri\puredots `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
+  -PuredotsRepoPath C:\dev\Tri\puredots_ultimate `
   -PushBranch <branch-name> `
   -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
   -AwarenessNote "Reviewed open needs-validate queue before handoff"
@@ -79,12 +79,12 @@ Pushes the active branch, fast-forwards local validator checkout, and fast-forwa
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
   -Mode iterator `
   -PushBranch feat/fleetcrawl-data-pass `
   -LocalParityBranch validator/ultimate-checkout `
   -LocalParityUpstreamRef origin/feat/fleetcrawl-data-pass `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout `
   -LaptopParityUpstreamRef origin/feat/fleetcrawl-data-pass
 ```
@@ -93,11 +93,11 @@ Validator post-merge (sync both machines to `origin/main`):
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
   -Mode validator `
   -PushBranch main `
   -LocalParityBranch validator/ultimate-checkout `
-  -LaptopRepoPath C:\dev\unity_clean `
+  -LaptopRepoPath C:\dev\unity_clean\space4x `
   -LaptopParityBranch validator/ultimate-checkout
 ```
 
@@ -119,7 +119,7 @@ Example (allow only `.meta` and `console.md` dirty state to be auto-stashed):
 
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/PushValidationAndSyncParity.ps1 `
-  -RepoPath C:\dev\Tri\space4x `
+  -RepoPath C:\dev\Tri\space4x_ultimate `
   -PushBranch feat/fleetcrawl-data-pass `
   -DirtyPolicy stash-allowed `
   -AllowedDirtyRegex '^console\.md$' `
