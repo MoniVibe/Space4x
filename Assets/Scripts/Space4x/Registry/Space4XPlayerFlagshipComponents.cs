@@ -1,5 +1,6 @@
 using Unity.Entities;
 using Unity.Mathematics;
+using PureDOTS.Runtime.InputKernel;
 
 namespace Space4X.Registry
 {
@@ -53,5 +54,54 @@ namespace Space4X.Registry
             MovementEnabled = 0,
             PureKernelMode = 0
         };
+
+        public InputKernelLocomotionIntent ToKernelLocomotionIntent(uint sampleTick)
+        {
+            return new InputKernelLocomotionIntent
+            {
+                Forward = Forward,
+                Strafe = Strafe,
+                Vertical = Vertical,
+                Roll = Roll,
+                TranslationForward = TranslationForward,
+                TranslationUp = TranslationUp,
+                CursorLookDirection = CursorLookDirection,
+                CursorUpDirection = CursorUpDirection,
+                TranslationBasisOverride = TranslationBasisOverride,
+                AutoAlignToTranslation = AutoAlignToTranslation,
+                CursorSteeringActive = CursorSteeringActive,
+                SteeringMode = FighterSteeringMode != 0 ? (byte)1 : (byte)0,
+                BoostPressed = BoostPressed,
+                RetroBrakePressed = RetroBrakePressed,
+                ToggleAuxiliaryAction = ToggleDampenersRequested,
+                MovementEnabled = MovementEnabled,
+                KernelModeRequested = PureKernelMode,
+                SampleTick = sampleTick
+            };
+        }
+
+        public static PlayerFlagshipFlightInput FromKernelLocomotionIntent(in InputKernelLocomotionIntent intent)
+        {
+            return new PlayerFlagshipFlightInput
+            {
+                Forward = intent.Forward,
+                Strafe = intent.Strafe,
+                Vertical = intent.Vertical,
+                Roll = intent.Roll,
+                TranslationForward = intent.TranslationForward,
+                TranslationUp = intent.TranslationUp,
+                CursorLookDirection = intent.CursorLookDirection,
+                CursorUpDirection = intent.CursorUpDirection,
+                TranslationBasisOverride = intent.TranslationBasisOverride,
+                AutoAlignToTranslation = intent.AutoAlignToTranslation,
+                CursorSteeringActive = intent.CursorSteeringActive,
+                FighterSteeringMode = intent.SteeringMode != 0 ? (byte)1 : (byte)0,
+                BoostPressed = intent.BoostPressed,
+                RetroBrakePressed = intent.RetroBrakePressed,
+                ToggleDampenersRequested = intent.ToggleAuxiliaryAction,
+                MovementEnabled = intent.MovementEnabled,
+                PureKernelMode = intent.KernelModeRequested
+            };
+        }
     }
 }

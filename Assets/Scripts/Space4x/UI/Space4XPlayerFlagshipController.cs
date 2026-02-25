@@ -2,6 +2,7 @@ using System;
 using PureDOTS.Input;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.InputKernel;
 using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Interrupts;
 using PureDOTS.Runtime.Modules;
@@ -138,6 +139,8 @@ namespace Space4X.UI
         private bool _shipAbilityModuleAddSuppressed;
         private Entity _playerFlightInputOverflowEntity;
         private bool _playerFlightInputCapacityWarned;
+        private Entity _kernelLocomotionIntentOverflowEntity;
+        private bool _kernelLocomotionIntentCapacityWarned;
         private Entity _flightRuntimeStateOverflowEntity;
         private bool _flightRuntimeStateCapacityWarned;
         private Entity _flightProfileOverflowEntity;
@@ -174,6 +177,8 @@ namespace Space4X.UI
             _shipAbilityModuleAddSuppressed = false;
             _playerFlightInputOverflowEntity = Entity.Null;
             _playerFlightInputCapacityWarned = false;
+            _kernelLocomotionIntentOverflowEntity = Entity.Null;
+            _kernelLocomotionIntentCapacityWarned = false;
             _flightRuntimeStateOverflowEntity = Entity.Null;
             _flightRuntimeStateCapacityWarned = false;
             _flightProfileOverflowEntity = Entity.Null;
@@ -208,6 +213,15 @@ namespace Space4X.UI
                 _world != null &&
                 _world.IsCreated &&
                 IsValidTarget(_flagship) &&
+                _entityManager.HasComponent<InputKernelLocomotionIntent>(_flagship))
+            {
+                _entityManager.SetComponentData(_flagship, InputKernelLocomotionIntent.Disabled);
+            }
+
+            if (_queriesReady &&
+                _world != null &&
+                _world.IsCreated &&
+                IsValidTarget(_flagship) &&
                 _entityManager.HasComponent<MovementSuppressed>(_flagship))
             {
                 _entityManager.SetComponentEnabled<MovementSuppressed>(_flagship, true);
@@ -228,6 +242,8 @@ namespace Space4X.UI
             _shipAbilityModuleAddSuppressed = false;
             _playerFlightInputOverflowEntity = Entity.Null;
             _playerFlightInputCapacityWarned = false;
+            _kernelLocomotionIntentOverflowEntity = Entity.Null;
+            _kernelLocomotionIntentCapacityWarned = false;
             _boostDriveConfigOverflowEntity = Entity.Null;
             _boostDriveConfigCapacityWarned = false;
             _timeCoreConfigOverflowEntity = Entity.Null;
@@ -2209,9 +2225,17 @@ namespace Space4X.UI
 
         private PlayerFlagshipFlightInput ResolveFlightInputIntent(Entity entity)
         {
+            if (_entityManager.HasComponent<InputKernelLocomotionIntent>(entity))
+            {
+                var kernelIntent = _entityManager.GetComponentData<InputKernelLocomotionIntent>(entity);
+                return PlayerFlagshipFlightInput.FromKernelLocomotionIntent(kernelIntent);
+            }
+
             if (_entityManager.HasComponent<PlayerFlagshipFlightInput>(entity))
             {
-                return _entityManager.GetComponentData<PlayerFlagshipFlightInput>(entity);
+                var input = _entityManager.GetComponentData<PlayerFlagshipFlightInput>(entity);
+                UpsertKernelLocomotionIntent(entity, input.ToKernelLocomotionIntent(0u));
+                return input;
             }
 
             var created = PlayerFlagshipFlightInput.Disabled;
@@ -2234,11 +2258,15 @@ namespace Space4X.UI
                     UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] PlayerFlagshipFlightInput add skipped: entity archetype is at chunk capacity. Manual input is suppressed for this claim target.");
                 }
             }
+
+            UpsertKernelLocomotionIntent(entity, created.ToKernelLocomotionIntent(0u));
             return created;
         }
 
         private void SetFlightInputIntent(Entity entity, in PlayerFlagshipFlightInput input)
         {
+            UpsertKernelLocomotionIntent(entity, input.ToKernelLocomotionIntent(0u));
+
             if (_entityManager.HasComponent<PlayerFlagshipFlightInput>(entity))
             {
                 _entityManager.SetComponentData(entity, input);
@@ -2262,6 +2290,35 @@ namespace Space4X.UI
                 {
                     _playerFlightInputCapacityWarned = true;
                     UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] PlayerFlagshipFlightInput add skipped during update: entity archetype is at chunk capacity.");
+                }
+            }
+        }
+
+        private void UpsertKernelLocomotionIntent(Entity entity, in InputKernelLocomotionIntent intent)
+        {
+            if (_entityManager.HasComponent<InputKernelLocomotionIntent>(entity))
+            {
+                _entityManager.SetComponentData(entity, intent);
+                return;
+            }
+
+            if (_kernelLocomotionIntentOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, intent);
+                _kernelLocomotionIntentOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _kernelLocomotionIntentOverflowEntity = entity;
+                if (!_kernelLocomotionIntentCapacityWarned)
+                {
+                    _kernelLocomotionIntentCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] InputKernelLocomotionIntent add skipped: entity archetype is at chunk capacity.");
                 }
             }
         }

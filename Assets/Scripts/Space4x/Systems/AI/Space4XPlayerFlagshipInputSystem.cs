@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Components;
+using PureDOTS.Runtime.InputKernel;
 using PureDOTS.Runtime.Interaction;
 using Space4X.Registry;
 using Space4X.Runtime;
@@ -21,6 +22,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<MovementCommand> _movementCommandLookup;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private ComponentLookup<ShipFlightProfile> _flightProfileLookup;
+        private ComponentLookup<InputKernelLocomotionIntent> _kernelIntentLookup;
         private EntityQuery _kernelPoseStampQuery;
         private Entity _kernelPoseStampEntity;
         private EntityQuery _diagnosticsQuery;
@@ -38,6 +40,7 @@ namespace Space4X.Systems.AI
             _movementCommandLookup = state.GetComponentLookup<MovementCommand>(false);
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _flightProfileLookup = state.GetComponentLookup<ShipFlightProfile>(true);
+            _kernelIntentLookup = state.GetComponentLookup<InputKernelLocomotionIntent>(false);
             _kernelPoseStampQuery = state.GetEntityQuery(ComponentType.ReadWrite<PlayerFlagshipKernelPoseStamp>());
             if (_kernelPoseStampQuery.IsEmptyIgnoreFilter)
             {
@@ -122,6 +125,7 @@ namespace Space4X.Systems.AI
             _movementCommandLookup.Update(ref state);
             _movementSuppressedLookup.Update(ref state);
             _flightProfileLookup.Update(ref state);
+            _kernelIntentLookup.Update(ref state);
             var kernelPoseStamp = GetKernelPoseStamp(ref state);
             kernelPoseStamp.FlagshipEntity = Entity.Null;
             kernelPoseStamp.Active = 0;
@@ -132,6 +136,13 @@ namespace Space4X.Systems.AI
                          .WithEntityAccess())
             {
                 var input = inputRef.ValueRO;
+                if (_kernelIntentLookup.HasComponent(entity))
+                {
+                    var kernelIntent = _kernelIntentLookup[entity];
+                    input = PlayerFlagshipFlightInput.FromKernelLocomotionIntent(kernelIntent);
+                    inputRef.ValueRW = input;
+                }
+
                 var profile = ResolveFlightProfile(entity);
                 var transform = transformRef.ValueRO;
                 var runtime = runtimeRef.ValueRO;
@@ -154,6 +165,7 @@ namespace Space4X.Systems.AI
                     if (!movementSuppressed)
                     {
                         input.ToggleDampenersRequested = 0;
+                        WriteBackKernelIntent(entity, in input, timeState.Tick);
                         inputRef.ValueRW = input;
                         continue;
                     }
@@ -175,6 +187,7 @@ namespace Space4X.Systems.AI
                     }
 
                     UpdateMovementCommand(entity, transform.Position);
+                    WriteBackKernelIntent(entity, in input, timeState.Tick);
                     inputRef.ValueRW = input;
                     continue;
                 }
@@ -322,6 +335,7 @@ namespace Space4X.Systems.AI
                     };
 
                     UpdateMovementCommand(entity, transform.Position);
+                    WriteBackKernelIntent(entity, in input, timeState.Tick);
                     inputRef.ValueRW = input;
                     continue;
                 }
@@ -540,6 +554,7 @@ namespace Space4X.Systems.AI
                 }
 
                 UpdateMovementCommand(entity, transform.Position);
+                WriteBackKernelIntent(entity, in input, timeState.Tick);
                 inputRef.ValueRW = input;
             }
 
@@ -594,6 +609,16 @@ namespace Space4X.Systems.AI
             command.TargetPosition = position;
             command.ArrivalThreshold = 0.5f;
             _movementCommandLookup[entity] = command;
+        }
+
+        private void WriteBackKernelIntent(Entity entity, in PlayerFlagshipFlightInput input, uint tick)
+        {
+            if (!_kernelIntentLookup.HasComponent(entity))
+            {
+                return;
+            }
+
+            _kernelIntentLookup[entity] = input.ToKernelLocomotionIntent(tick);
         }
 
         private static float MoveTowards(float current, float target, float maxDelta)
