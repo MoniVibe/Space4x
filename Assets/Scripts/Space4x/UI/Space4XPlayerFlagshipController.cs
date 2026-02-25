@@ -45,6 +45,7 @@ namespace Space4X.UI
         [SerializeField] private float retroBrakeAcceleration = 45f;
         [SerializeField] private Key retroBrakeKey = Key.X;
         [SerializeField] private Key toggleDampenersKey = Key.Z;
+        [SerializeField] private bool pureMovementKernelMode = true;
 
         [Header("Vessel-Driven Flight Tuning")]
         [SerializeField] private bool inheritMovementFromClaimedVessel = true;
@@ -141,6 +142,14 @@ namespace Space4X.UI
         private bool _flightRuntimeStateCapacityWarned;
         private Entity _flightProfileOverflowEntity;
         private bool _flightProfileCapacityWarned;
+        private Entity _boostDriveConfigOverflowEntity;
+        private bool _boostDriveConfigCapacityWarned;
+        private Entity _timeCoreConfigOverflowEntity;
+        private bool _timeCoreConfigCapacityWarned;
+        private Entity _skipDriveConfigOverflowEntity;
+        private bool _skipDriveConfigCapacityWarned;
+        private Entity _skipJumpStateOverflowEntity;
+        private bool _skipJumpStateCapacityWarned;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private bool _loggedClaim;
 #endif
@@ -169,6 +178,14 @@ namespace Space4X.UI
             _flightRuntimeStateCapacityWarned = false;
             _flightProfileOverflowEntity = Entity.Null;
             _flightProfileCapacityWarned = false;
+            _boostDriveConfigOverflowEntity = Entity.Null;
+            _boostDriveConfigCapacityWarned = false;
+            _timeCoreConfigOverflowEntity = Entity.Null;
+            _timeCoreConfigCapacityWarned = false;
+            _skipDriveConfigOverflowEntity = Entity.Null;
+            _skipDriveConfigCapacityWarned = false;
+            _skipJumpStateOverflowEntity = Entity.Null;
+            _skipJumpStateCapacityWarned = false;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             _loggedClaim = false;
 #endif
@@ -211,6 +228,14 @@ namespace Space4X.UI
             _shipAbilityModuleAddSuppressed = false;
             _playerFlightInputOverflowEntity = Entity.Null;
             _playerFlightInputCapacityWarned = false;
+            _boostDriveConfigOverflowEntity = Entity.Null;
+            _boostDriveConfigCapacityWarned = false;
+            _timeCoreConfigOverflowEntity = Entity.Null;
+            _timeCoreConfigCapacityWarned = false;
+            _skipDriveConfigOverflowEntity = Entity.Null;
+            _skipDriveConfigCapacityWarned = false;
+            _skipJumpStateOverflowEntity = Entity.Null;
+            _skipJumpStateCapacityWarned = false;
         }
 
         public void SnapClaimNow()
@@ -414,6 +439,7 @@ namespace Space4X.UI
             _ = ResolveFlightRuntimeState(_flagship, profile);
             var input = ResolveFlightInputIntent(_flagship);
             input.MovementEnabled = 1;
+            input.PureKernelMode = pureMovementKernelMode ? (byte)1 : (byte)0;
 
             var forwardInput = 0f;
             var strafeInput = 0f;
@@ -813,6 +839,7 @@ namespace Space4X.UI
 
             var input = ResolveFlightInputIntent(_flagship);
             input.MovementEnabled = 0;
+            input.PureKernelMode = pureMovementKernelMode ? (byte)1 : (byte)0;
             input.Forward = 0f;
             input.Strafe = 0f;
             input.Vertical = 0f;
@@ -1588,19 +1615,9 @@ namespace Space4X.UI
                     CloakDurationSeconds = 0f
                 };
 
-                if (_entityManager.HasComponent<SkipDriveModuleConfig>(entity))
-                {
-                    _entityManager.SetComponentData(entity, config);
-                }
-                else
-                {
-                    _entityManager.AddComponentData(entity, config);
-                }
+                UpsertSkipDriveModuleConfig(entity, config);
 
-                if (!_entityManager.HasComponent<SkipJumpState>(entity))
-                {
-                    _entityManager.AddComponentData(entity, new SkipJumpState());
-                }
+                EnsureSkipJumpState(entity);
             }
             else
             {
@@ -1626,14 +1643,7 @@ namespace Space4X.UI
                     GlobalStop = timeshipGlobalStop ? (byte)1 : (byte)0
                 };
 
-                if (_entityManager.HasComponent<TimeCoreModuleConfig>(entity))
-                {
-                    _entityManager.SetComponentData(entity, config);
-                }
-                else
-                {
-                    _entityManager.AddComponentData(entity, config);
-                }
+                UpsertTimeCoreModuleConfig(entity, config);
             }
             else
             {
@@ -1654,14 +1664,7 @@ namespace Space4X.UI
                     DisablesBaseBoost = 0
                 };
 
-                if (_entityManager.HasComponent<BoostDriveModuleConfig>(entity))
-                {
-                    _entityManager.SetComponentData(entity, config);
-                }
-                else
-                {
-                    _entityManager.AddComponentData(entity, config);
-                }
+                UpsertBoostDriveModuleConfig(entity, config);
             }
             else
             {
@@ -1849,6 +1852,121 @@ namespace Space4X.UI
             return ex != null &&
                    ex.Message != null &&
                    ex.Message.IndexOf("Entity archetype component data is too large", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private void UpsertBoostDriveModuleConfig(Entity entity, in BoostDriveModuleConfig config)
+        {
+            if (_entityManager.HasComponent<BoostDriveModuleConfig>(entity))
+            {
+                _entityManager.SetComponentData(entity, config);
+                return;
+            }
+
+            if (_boostDriveConfigOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, config);
+                _boostDriveConfigOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _boostDriveConfigOverflowEntity = entity;
+                if (!_boostDriveConfigCapacityWarned)
+                {
+                    _boostDriveConfigCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] BoostDriveModuleConfig add skipped: entity archetype is at chunk capacity.");
+                }
+            }
+        }
+
+        private void UpsertTimeCoreModuleConfig(Entity entity, in TimeCoreModuleConfig config)
+        {
+            if (_entityManager.HasComponent<TimeCoreModuleConfig>(entity))
+            {
+                _entityManager.SetComponentData(entity, config);
+                return;
+            }
+
+            if (_timeCoreConfigOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, config);
+                _timeCoreConfigOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _timeCoreConfigOverflowEntity = entity;
+                if (!_timeCoreConfigCapacityWarned)
+                {
+                    _timeCoreConfigCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] TimeCoreModuleConfig add skipped: entity archetype is at chunk capacity.");
+                }
+            }
+        }
+
+        private void UpsertSkipDriveModuleConfig(Entity entity, in SkipDriveModuleConfig config)
+        {
+            if (_entityManager.HasComponent<SkipDriveModuleConfig>(entity))
+            {
+                _entityManager.SetComponentData(entity, config);
+                return;
+            }
+
+            if (_skipDriveConfigOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, config);
+                _skipDriveConfigOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _skipDriveConfigOverflowEntity = entity;
+                if (!_skipDriveConfigCapacityWarned)
+                {
+                    _skipDriveConfigCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] SkipDriveModuleConfig add skipped: entity archetype is at chunk capacity.");
+                }
+            }
+        }
+
+        private void EnsureSkipJumpState(Entity entity)
+        {
+            if (_entityManager.HasComponent<SkipJumpState>(entity))
+            {
+                return;
+            }
+
+            if (_skipJumpStateOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, new SkipJumpState());
+                _skipJumpStateOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _skipJumpStateOverflowEntity = entity;
+                if (!_skipJumpStateCapacityWarned)
+                {
+                    _skipJumpStateCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] SkipJumpState add skipped: entity archetype is at chunk capacity.");
+                }
+            }
         }
 
         private static bool IsSkipShipPreset()

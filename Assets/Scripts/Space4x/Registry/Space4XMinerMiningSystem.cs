@@ -349,6 +349,7 @@ namespace Space4X.Registry
             }
 
             foreach (var (order, miningState, vessel, yield, transform, entity) in SystemAPI.Query<RefRW<MiningOrder>, RefRW<MiningState>, RefRW<MiningVessel>, RefRW<MiningYield>, RefRW<LocalTransform>>()
+                         .WithNone<PlayerFlagshipTag>()
                          .WithEntityAccess())
             {
                 if (!EnsureOrderResource(ref order.ValueRW, yield.ValueRO.ResourceId))

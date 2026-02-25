@@ -3,6 +3,7 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Time;
 using Space4X.Mining;
+using Space4X.Registry;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -112,6 +113,7 @@ namespace Space4X.Mining
         }
 
         [BurstCompile]
+        [WithNone(typeof(PlayerFlagshipTag))]
         private partial struct ProcessMiningJobsJob : IJobEntity
         {
             public float DeltaTime;

@@ -69,6 +69,7 @@ namespace Space4X.UI
         private Coroutine _startRunRoutine;
         private Space4XShipPresetCatalog _shipCatalog;
         private bool _runActive;
+        [SerializeField] private bool autoStartRunByDefault = true;
         private GameObject _shipPreviewObject;
         private Material _shipPreviewMaterial;
         private Space4XShipPreviewShape _shipPreviewShape;
@@ -631,7 +632,11 @@ namespace Space4X.UI
                 return;
 
             _autoRunBootstrapAttempted = true;
-            if (!IsTruthy(System.Environment.GetEnvironmentVariable(AutoStartRunEnv)))
+            var autoStartToken = System.Environment.GetEnvironmentVariable(AutoStartRunEnv);
+            var shouldAutoStart = string.IsNullOrWhiteSpace(autoStartToken)
+                ? autoStartRunByDefault
+                : IsTruthy(autoStartToken);
+            if (!shouldAutoStart)
                 return;
 
             var requestedPresetId = System.Environment.GetEnvironmentVariable(AutoStartPresetEnv);

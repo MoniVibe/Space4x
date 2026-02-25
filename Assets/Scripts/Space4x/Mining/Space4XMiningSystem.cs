@@ -216,6 +216,7 @@ namespace Space4X.Mining
 
         // [BurstCompile]
         [StructLayout(LayoutKind.Sequential)]
+        [WithNone(typeof(PlayerFlagshipTag))]
         public partial struct ProcessMiningJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<Carrier> CarrierLookup;

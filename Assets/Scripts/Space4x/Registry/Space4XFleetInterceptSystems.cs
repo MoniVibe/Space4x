@@ -277,7 +277,6 @@ namespace Space4X.Registry
             requests.Clear();
 
             var logEntries = new NativeList<FleetInterceptCommandLogEntry>(Allocator.Temp);
-            var courseEcb = new EntityCommandBuffer(state.WorldUpdateAllocator);
             var telemetry = state.EntityManager.GetComponentData<Space4XFleetInterceptTelemetry>(queueEntity);
 
             _capabilityLookup.Update(ref state);
@@ -326,11 +325,13 @@ namespace Space4X.Registry
 
                 if (state.EntityManager.HasComponent<InterceptCourse>(request.Requester))
                 {
-                    courseEcb.SetComponent(request.Requester, course);
+                    state.EntityManager.SetComponentData(request.Requester, course);
                 }
                 else
                 {
-                    courseEcb.AddComponent(request.Requester, course);
+                    // Avoid structural AddComponent here: high-density archetypes (e.g. flagship)
+                    // can exceed chunk capacity and hard-fail the frame.
+                    continue;
                 }
 
                 telemetry.LastAttemptTick = time.Tick;
@@ -353,9 +354,6 @@ namespace Space4X.Registry
                     Mode = mode
                 });
             }
-
-            courseEcb.Playback(state.EntityManager);
-            courseEcb.Dispose();
 
             var commandLog = state.EntityManager.GetBuffer<FleetInterceptCommandLogEntry>(queueEntity);
             foreach (var entry in logEntries)

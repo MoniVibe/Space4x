@@ -44,6 +44,7 @@ namespace Space4x.Scenario
         private const string ScenarioPathEnv = "SPACE4X_SCENARIO_PATH";
         private const string PerfGateModeEnv = "PERF_GATE_MODE";
         private const string ExitPolicyEnv = "PUREDOTS_EXIT_POLICY";
+        private const string OrbitContinuumEnv = "SPACE4X_ORBIT_CONTINUUM";
         private const string HeadlessMiningForceEnv = "SPACE4X_HEADLESS_MINING_PROOF_UNDOCK";
         private const string JsonExtension = ".json";
         private const float DefaultSpawnVerticalRange = 60f;
@@ -263,9 +264,16 @@ namespace Space4x.Scenario
         private void ApplyScenarioConfig(MiningScenarioConfigData scenarioConfig)
         {
             _applyDefaultModuleLoadouts = scenarioConfig != null && scenarioConfig.applyDefaultModuleLoadouts;
-            ApplyReferenceFrameConfig(scenarioConfig != null && scenarioConfig.applyReferenceFrames);
-            ApplyOrbitalBandConfig(scenarioConfig);
-            ApplyRenderFrameConfig(scenarioConfig);
+            var scenarioRequestedContinuum = scenarioConfig != null && scenarioConfig.applyReferenceFrames;
+            var orbitContinuumEnabled = ResolveOrbitContinuumEnabled();
+            if (scenarioRequestedContinuum && !orbitContinuumEnabled)
+            {
+                Debug.Log("[Space4XMiningScenario] Orbit continuum disabled (stable manual-flight mode). Set SPACE4X_ORBIT_CONTINUUM=1 to re-enable.");
+            }
+
+            ApplyReferenceFrameConfig(orbitContinuumEnabled);
+            ApplyOrbitalBandConfig(scenarioConfig, orbitContinuumEnabled);
+            ApplyRenderFrameConfig(scenarioConfig, orbitContinuumEnabled);
             ApplyFleetcrawlContractConfig(scenarioConfig != null ? scenarioConfig.fleetCrawl : null);
             if (scenarioConfig == null)
             {
@@ -614,7 +622,7 @@ namespace Space4x.Scenario
             });
         }
 
-        private void ApplyOrbitalBandConfig(MiningScenarioConfigData scenarioConfig)
+        private void ApplyOrbitalBandConfig(MiningScenarioConfigData scenarioConfig, bool referenceFramesEnabled)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XOrbitalBandConfig>(out var configEntity))
             {
@@ -622,7 +630,6 @@ namespace Space4x.Scenario
             }
 
             var config = Space4XOrbitalBandConfig.Default;
-            var referenceFramesEnabled = scenarioConfig != null && scenarioConfig.applyReferenceFrames;
             var enabled = referenceFramesEnabled;
             var bandOverride = scenarioConfig != null ? scenarioConfig.orbitalBand : null;
             if (bandOverride != null && bandOverride.enabled >= 0)
@@ -669,7 +676,7 @@ namespace Space4x.Scenario
             EntityManager.SetComponentData(configEntity, config);
         }
 
-        private void ApplyRenderFrameConfig(MiningScenarioConfigData scenarioConfig)
+        private void ApplyRenderFrameConfig(MiningScenarioConfigData scenarioConfig, bool referenceFramesEnabled)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XRenderFrameConfig>(out var configEntity))
             {
@@ -677,7 +684,6 @@ namespace Space4x.Scenario
             }
 
             var config = Space4XRenderFrameConfig.Default;
-            var referenceFramesEnabled = scenarioConfig != null && scenarioConfig.applyReferenceFrames;
             config.Enabled = (byte)(referenceFramesEnabled ? 1 : 0);
             var frameOverride = scenarioConfig != null ? scenarioConfig.renderFrame : null;
             if (frameOverride != null)
@@ -725,6 +731,42 @@ namespace Space4x.Scenario
             }
 
             EntityManager.SetComponentData(configEntity, config);
+        }
+
+        private static bool ResolveOrbitContinuumEnabled()
+        {
+            if (TryParseEnvironmentBool(OrbitContinuumEnv, out var envEnabled))
+            {
+                return envEnabled;
+            }
+
+            // Default OFF until reference-frame + presentation slice handoff is stable in manual play.
+            return false;
+        }
+
+        private static bool TryParseEnvironmentBool(string key, out bool enabled)
+        {
+            enabled = false;
+            var value = SystemEnv.GetEnvironmentVariable(key);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var token = value.Trim().ToLowerInvariant();
+            if (token == "1" || token == "true" || token == "yes" || token == "on")
+            {
+                enabled = true;
+                return true;
+            }
+
+            if (token == "0" || token == "false" || token == "no" || token == "off")
+            {
+                enabled = false;
+                return true;
+            }
+
+            return false;
         }
 
         private void ApplySmokeLatchConfig()

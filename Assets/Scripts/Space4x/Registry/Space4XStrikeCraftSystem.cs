@@ -421,6 +421,18 @@ namespace Space4X.Registry
                     craftState.ValueRO.Phase == AttackRunPhase.Launching ||
                     craftState.ValueRO.Phase == AttackRunPhase.Landing)
                 {
+                    if (craftState.ValueRO.Phase == AttackRunPhase.Docked &&
+                        craftState.ValueRO.Carrier != Entity.Null &&
+                        _transformLookup.HasComponent(craftState.ValueRO.Carrier))
+                    {
+                        var carrierTransform = _transformLookup[craftState.ValueRO.Carrier];
+                        var dockOffsetLocal = ResolveDockedOffset(entity.Index, craftState.ValueRO.WingPosition);
+                        var dockOffsetWorld = math.rotate(carrierTransform.Rotation, dockOffsetLocal);
+                        var desiredDockPosition = carrierTransform.Position + dockOffsetWorld;
+                        transform.ValueRW.Position = math.lerp(transform.ValueRO.Position, desiredDockPosition, math.saturate(deltaTime * 4f));
+                        transform.ValueRW.Rotation = carrierTransform.Rotation;
+                    }
+
                     kinematics.ValueRW.Velocity = float3.zero;
                     continue;
                 }
@@ -576,6 +588,15 @@ namespace Space4X.Registry
                 StrikeCraftRole.EWar => 1.0f,
                 _ => 1f
             };
+        }
+
+        private static float3 ResolveDockedOffset(int entityIndex, byte wingPosition)
+        {
+            var slot = wingPosition == 0 ? (entityIndex & 0xFF) : wingPosition;
+            var angle = math.radians((slot * 57) % 360);
+            var radius = 9f + (slot % 5) * 1.35f;
+            var vertical = ((slot & 1) == 0 ? 1f : -1f) * 1.2f;
+            return new float3(math.cos(angle) * radius, vertical, math.sin(angle) * radius);
         }
 
         private float ResolveBaseSpeed(Entity entity)

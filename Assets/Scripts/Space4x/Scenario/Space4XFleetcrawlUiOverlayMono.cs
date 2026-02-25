@@ -1,6 +1,7 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Platform;
 using PureDOTS.Runtime.Scenarios;
+using PureDOTS.Runtime.UI;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Space4x.Fleetcrawl;
@@ -55,6 +56,7 @@ namespace Space4x.Scenario
         private EntityQuery _flagshipQuery;
         private EntityQuery _playerResourcesQuery;
         private EntityQuery _strikeCraftQuery;
+        private EntityQuery _uiKernelQuery;
         private bool _queriesReady;
 
         private GUIStyle _panelStyle;
@@ -73,20 +75,52 @@ namespace Space4x.Scenario
 
         private void Update()
         {
+            if (!TryEnsureQueries())
+            {
+                return;
+            }
+
             var keyboard = Keyboard.current;
             if (keyboard == null)
             {
                 return;
             }
 
+            var hasUiKernel = TryGetUiKernelRoot(out var uiKernelEntity);
+            if (hasUiKernel)
+            {
+                SyncLocalInventoryStateFromKernel(uiKernelEntity);
+            }
+
             if (keyboard[toggleInventoryKey].wasPressedThisFrame && showInventoryPanel)
             {
-                inventoryPanelOpen = !inventoryPanelOpen;
+                if (hasUiKernel)
+                {
+                    EnqueueUiIntent(uiKernelEntity, new UiIntent
+                    {
+                        Kind = UiIntentKind.TogglePanel,
+                        Panel = UiPanelKind.Inventory
+                    });
+                }
+                else
+                {
+                    inventoryPanelOpen = !inventoryPanelOpen;
+                }
             }
 
             if (inventoryPanelOpen && keyboard.escapeKey.wasPressedThisFrame)
             {
-                inventoryPanelOpen = false;
+                if (hasUiKernel)
+                {
+                    EnqueueUiIntent(uiKernelEntity, new UiIntent
+                    {
+                        Kind = UiIntentKind.CloseTopLayer
+                    });
+                }
+                else
+                {
+                    inventoryPanelOpen = false;
+                }
             }
 
             if (keyboard[toggleOverlayKey].wasPressedThisFrame)
@@ -123,19 +157,47 @@ namespace Space4x.Scenario
 
             if (keyboard.digit1Key.wasPressedThisFrame)
             {
-                inventoryTab = InventoryTab.CargoLogistics;
+                if (hasUiKernel)
+                {
+                    QueueInventoryTab(uiKernelEntity, InventoryTab.CargoLogistics);
+                }
+                else
+                {
+                    inventoryTab = InventoryTab.CargoLogistics;
+                }
             }
             else if (keyboard.digit2Key.wasPressedThisFrame)
             {
-                inventoryTab = InventoryTab.Crew;
+                if (hasUiKernel)
+                {
+                    QueueInventoryTab(uiKernelEntity, InventoryTab.Crew);
+                }
+                else
+                {
+                    inventoryTab = InventoryTab.Crew;
+                }
             }
             else if (keyboard.digit3Key.wasPressedThisFrame)
             {
-                inventoryTab = InventoryTab.Captain;
+                if (hasUiKernel)
+                {
+                    QueueInventoryTab(uiKernelEntity, InventoryTab.Captain);
+                }
+                else
+                {
+                    inventoryTab = InventoryTab.Captain;
+                }
             }
             else if (keyboard.digit4Key.wasPressedThisFrame)
             {
-                inventoryTab = InventoryTab.Hangar;
+                if (hasUiKernel)
+                {
+                    QueueInventoryTab(uiKernelEntity, InventoryTab.Hangar);
+                }
+                else
+                {
+                    inventoryTab = InventoryTab.Hangar;
+                }
             }
         }
 
@@ -796,8 +858,53 @@ namespace Space4x.Scenario
             _flagshipQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerFlagshipTag>());
             _playerResourcesQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<PlayerResources>());
             _strikeCraftQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<StrikeCraftProfile>());
+            _uiKernelQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<UiKernelRootTag>());
             _queriesReady = true;
             return true;
+        }
+
+        private bool TryGetUiKernelRoot(out Entity rootEntity)
+        {
+            rootEntity = Entity.Null;
+            if (!_queriesReady || _uiKernelQuery.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            rootEntity = _uiKernelQuery.GetSingletonEntity();
+            return _entityManager.Exists(rootEntity) &&
+                   _entityManager.HasComponent<UiKernelState>(rootEntity) &&
+                   _entityManager.HasBuffer<UiIntent>(rootEntity);
+        }
+
+        private void SyncLocalInventoryStateFromKernel(Entity rootEntity)
+        {
+            var state = _entityManager.GetComponentData<UiKernelState>(rootEntity);
+            inventoryPanelOpen = state.InventoryOpen != 0;
+
+            var tabIndex = math.clamp((int)state.InventoryTab, 0, UiKernelConstants.InventoryTabCount - 1);
+            inventoryTab = (InventoryTab)tabIndex;
+        }
+
+        private void QueueInventoryTab(Entity rootEntity, InventoryTab tab)
+        {
+            EnqueueUiIntent(rootEntity, new UiIntent
+            {
+                Kind = UiIntentKind.SetInventoryTab,
+                Panel = UiPanelKind.Inventory,
+                Data0 = (uint)tab
+            });
+        }
+
+        private void EnqueueUiIntent(Entity rootEntity, in UiIntent intent)
+        {
+            if (!_entityManager.Exists(rootEntity) || !_entityManager.HasBuffer<UiIntent>(rootEntity))
+            {
+                return;
+            }
+
+            var intents = _entityManager.GetBuffer<UiIntent>(rootEntity);
+            intents.Add(intent);
         }
 
         private bool TryGetScenarioInfo(out ScenarioInfo info)

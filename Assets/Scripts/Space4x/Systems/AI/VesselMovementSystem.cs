@@ -417,7 +417,7 @@ namespace Space4X.Systems.AI
         }
 
         [BurstCompile]
-        [WithNone(typeof(StrikeCraftDogfightTag), typeof(SimulationDisabledTag))]
+        [WithNone(typeof(StrikeCraftDogfightTag), typeof(SimulationDisabledTag), typeof(PlayerFlagshipTag))]
         public partial struct UpdateVesselMovementJob : IJobEntity
         {
             public float DeltaTime;

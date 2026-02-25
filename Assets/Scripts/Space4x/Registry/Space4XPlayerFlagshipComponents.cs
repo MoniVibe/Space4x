@@ -31,6 +31,7 @@ namespace Space4X.Registry
         public byte RetroBrakePressed;
         public byte ToggleDampenersRequested;
         public byte MovementEnabled;
+        public byte PureKernelMode;
 
         public static PlayerFlagshipFlightInput Disabled => new PlayerFlagshipFlightInput
         {
@@ -49,7 +50,8 @@ namespace Space4X.Registry
             BoostPressed = 0,
             RetroBrakePressed = 0,
             ToggleDampenersRequested = 0,
-            MovementEnabled = 0
+            MovementEnabled = 0,
+            PureKernelMode = 0
         };
     }
 }

@@ -13,19 +13,21 @@ namespace Space4X.Systems.AI
     /// Fixed-step processor for player flagship flight input intent.
     /// </summary>
     [BurstCompile]
-    [UpdateInGroup(typeof(PureDOTS.Systems.ResourceSystemGroup))]
-    [UpdateBefore(typeof(VesselMovementSystem))]
+    [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+    [UpdateBefore(typeof(Space4X.Presentation.Space4XPresentationPoseSnapshotSystem))]
     public partial struct Space4XPlayerFlagshipInputSystem : ISystem
     {
-        private const uint MaxTickSubsteps = 256u;
         private ComponentLookup<VesselMovement> _movementLookup;
         private ComponentLookup<MovementCommand> _movementCommandLookup;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
+        private ComponentLookup<ShipFlightProfile> _flightProfileLookup;
+        private EntityQuery _kernelPoseStampQuery;
+        private Entity _kernelPoseStampEntity;
         private EntityQuery _diagnosticsQuery;
         private Entity _diagnosticsEntity;
-        private uint _lastProcessedTick;
+        private uint _lastObservedTick;
         private uint _maxBacklogObserved;
-        private byte _hasLastProcessedTick;
+        private byte _hasLastObservedTick;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -35,6 +37,24 @@ namespace Space4X.Systems.AI
             _movementLookup = state.GetComponentLookup<VesselMovement>(false);
             _movementCommandLookup = state.GetComponentLookup<MovementCommand>(false);
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
+            _flightProfileLookup = state.GetComponentLookup<ShipFlightProfile>(true);
+            _kernelPoseStampQuery = state.GetEntityQuery(ComponentType.ReadWrite<PlayerFlagshipKernelPoseStamp>());
+            if (_kernelPoseStampQuery.IsEmptyIgnoreFilter)
+            {
+                _kernelPoseStampEntity = state.EntityManager.CreateEntity();
+                state.EntityManager.AddComponentData(_kernelPoseStampEntity, new PlayerFlagshipKernelPoseStamp
+                {
+                    FlagshipEntity = Entity.Null,
+                    Tick = 0u,
+                    Position = float3.zero,
+                    Rotation = quaternion.identity,
+                    Active = 0
+                });
+            }
+            else
+            {
+                _kernelPoseStampEntity = _kernelPoseStampQuery.GetSingletonEntity();
+            }
             _diagnosticsQuery = state.GetEntityQuery(ComponentType.ReadWrite<PlayerFlagshipInputTickDiagnostics>());
             if (_diagnosticsQuery.IsEmptyIgnoreFilter)
             {
@@ -54,9 +74,9 @@ namespace Space4X.Systems.AI
             {
                 _diagnosticsEntity = _diagnosticsQuery.GetSingletonEntity();
             }
-            _lastProcessedTick = 0u;
+            _lastObservedTick = 0u;
             _maxBacklogObserved = 0u;
-            _hasLastProcessedTick = 0;
+            _hasLastObservedTick = 0;
         }
 
         [BurstCompile]
@@ -66,7 +86,8 @@ namespace Space4X.Systems.AI
             if (timeState.IsPaused)
             {
                 WriteDiagnostics(ref state, in timeState, 0u, 0u, 0u);
-                _hasLastProcessedTick = 0;
+                DeactivateKernelPoseStamp(ref state);
+                _hasLastObservedTick = 0;
                 return;
             }
 
@@ -74,56 +95,44 @@ namespace Space4X.Systems.AI
             if (rewindState.Mode != RewindMode.Record)
             {
                 WriteDiagnostics(ref state, in timeState, 0u, 0u, 0u);
-                _hasLastProcessedTick = 0;
+                DeactivateKernelPoseStamp(ref state);
+                _hasLastObservedTick = 0;
                 return;
             }
 
-            // Keep flight integration locked to simulation ticks (never render-frame cadence).
-            if (_hasLastProcessedTick == 0)
+            var tickDeltaObserved = 1u;
+            if (_hasLastObservedTick != 0 && timeState.Tick >= _lastObservedTick)
             {
-                _lastProcessedTick = timeState.Tick;
-                WriteDiagnostics(ref state, in timeState, 0u, 0u, 0u);
-                _hasLastProcessedTick = 1;
-                return;
+                tickDeltaObserved = math.max(1u, timeState.Tick - _lastObservedTick);
             }
+            _lastObservedTick = timeState.Tick;
+            _hasLastObservedTick = 1;
+            WriteDiagnostics(ref state, in timeState, tickDeltaObserved, 1u, 0u);
 
-            if (timeState.Tick <= _lastProcessedTick)
-            {
-                WriteDiagnostics(ref state, in timeState, 0u, 0u, 0u);
-                return;
-            }
-
-            var tickDelta = timeState.Tick - _lastProcessedTick;
-            if (tickDelta == 0u)
-            {
-                WriteDiagnostics(ref state, in timeState, 0u, 0u, 0u);
-                return;
-            }
-
-            // Never drop simulation ticks; process in bounded batches and carry backlog to subsequent updates.
-            var tickStepCount = math.min(MaxTickSubsteps, tickDelta);
-            _lastProcessedTick += tickStepCount;
-            var tickBacklog = tickDelta - tickStepCount;
-            WriteDiagnostics(ref state, in timeState, tickDelta, tickStepCount, tickBacklog);
-
-            // Integrate each missed tick as fixed substeps instead of one collapsed large dt to reduce visible stutter.
-            var dt = math.max(0f, timeState.FixedDeltaTime);
+            // Fixed-step execution already handles catch-up cadence; integrate one step per invocation.
+            // Speed multiplier scales step duration to preserve run-speed behavior without bursty substep jumps.
+            var dt = math.max(0f, timeState.FixedDeltaTime) * math.max(0.01f, timeState.CurrentSpeedMultiplier);
             if (dt <= 0f)
             {
+                DeactivateKernelPoseStamp(ref state);
                 return;
             }
 
             _movementLookup.Update(ref state);
             _movementCommandLookup.Update(ref state);
             _movementSuppressedLookup.Update(ref state);
+            _flightProfileLookup.Update(ref state);
+            var kernelPoseStamp = GetKernelPoseStamp(ref state);
+            kernelPoseStamp.FlagshipEntity = Entity.Null;
+            kernelPoseStamp.Active = 0;
 
-            foreach (var (inputRef, transformRef, profileRef, runtimeRef, entity) in SystemAPI
-                         .Query<RefRW<PlayerFlagshipFlightInput>, RefRW<LocalTransform>, RefRO<ShipFlightProfile>, RefRW<ShipFlightRuntimeState>>()
+            foreach (var (inputRef, transformRef, runtimeRef, entity) in SystemAPI
+                         .Query<RefRW<PlayerFlagshipFlightInput>, RefRW<LocalTransform>, RefRW<ShipFlightRuntimeState>>()
                          .WithAll<PlayerFlagshipTag>()
                          .WithEntityAccess())
             {
                 var input = inputRef.ValueRO;
-                var profile = profileRef.ValueRO.Sanitized();
+                var profile = ResolveFlightProfile(entity);
                 var transform = transformRef.ValueRO;
                 var runtime = runtimeRef.ValueRO;
 
@@ -170,6 +179,153 @@ namespace Space4X.Systems.AI
                     continue;
                 }
 
+                if (input.PureKernelMode != 0)
+                {
+                    // Pure kernel mode: single-authority integrator with inertia.
+                    // Maintains deterministic accel/decel/drag while avoiding multi-writer movement paths.
+                    var pureBoost = input.BoostPressed != 0 ? math.max(1f, profile.BoostMultiplier) : 1f;
+                    var pureForwardInput = input.Forward;
+                    var pureStrafeInput = input.Strafe;
+                    var pureVerticalInput = input.Vertical;
+                    var pureRollInput = input.Roll;
+
+                    var shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), new float3(0f, 0f, 1f));
+                    var shipRight = math.normalizesafe(math.mul(transform.Rotation, new float3(1f, 0f, 0f)), new float3(1f, 0f, 0f));
+                    var shipUp = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 1f, 0f)), new float3(0f, 1f, 0f));
+
+                    if (input.CursorSteeringActive != 0 &&
+                        math.lengthsq(input.CursorLookDirection) > 1e-6f)
+                    {
+                        var lookDirection = math.normalizesafe(input.CursorLookDirection, shipForward);
+                        var upDirection = math.normalizesafe(input.CursorUpDirection, shipUp);
+                        transform.Rotation = quaternion.LookRotationSafe(lookDirection, upDirection);
+                        shipForward = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 0f, 1f)), shipForward);
+                        shipRight = math.normalizesafe(math.mul(transform.Rotation, new float3(1f, 0f, 0f)), shipRight);
+                        shipUp = math.normalizesafe(math.mul(transform.Rotation, new float3(0f, 1f, 0f)), shipUp);
+                    }
+
+                    var translationForward = shipForward;
+                    var translationRight = shipRight;
+                    var translationUp = shipUp;
+                    if (input.TranslationBasisOverride != 0 &&
+                        math.lengthsq(input.TranslationForward) > 1e-6f)
+                    {
+                        translationForward = math.normalizesafe(input.TranslationForward, shipForward);
+                        var translationUpHint = math.normalizesafe(input.TranslationUp, shipUp);
+                        translationRight = math.cross(translationUpHint, translationForward);
+                        if (math.lengthsq(translationRight) <= 1e-6f)
+                        {
+                            translationRight = math.cross(shipUp, translationForward);
+                        }
+
+                        translationRight = math.normalizesafe(translationRight, shipRight);
+                        translationUp = math.normalizesafe(math.cross(translationForward, translationRight), shipUp);
+                    }
+
+                    var targetForwardSpeed = pureForwardInput >= 0f ? profile.MaxForwardSpeed : profile.MaxReverseSpeed;
+                    var targetVelocity = translationForward * (pureForwardInput * targetForwardSpeed * pureBoost) +
+                                         translationRight * (pureStrafeInput * profile.MaxStrafeSpeed * pureBoost) +
+                                         translationUp * (pureVerticalInput * profile.MaxVerticalSpeed * pureBoost);
+
+                    var pureVelocity = runtime.VelocityWorld;
+                    var localVelocityX = math.dot(pureVelocity, translationRight);
+                    var localVelocityY = math.dot(pureVelocity, translationUp);
+                    var localVelocityZ = math.dot(pureVelocity, translationForward);
+                    var targetLocalX = math.dot(targetVelocity, translationRight);
+                    var targetLocalY = math.dot(targetVelocity, translationUp);
+                    var targetLocalZ = math.dot(targetVelocity, translationForward);
+
+                    var forwardAcceleration = targetLocalZ >= localVelocityZ
+                        ? math.max(0f, profile.ForwardAcceleration)
+                        : math.max(0f, profile.ReverseAcceleration);
+                    var strafeAcceleration = math.max(0f, profile.StrafeAcceleration);
+                    var verticalAcceleration = math.max(0f, profile.VerticalAcceleration);
+
+                    if (math.abs(pureForwardInput) > 0.001f)
+                    {
+                        localVelocityZ = MoveTowards(localVelocityZ, targetLocalZ, forwardAcceleration * dt);
+                    }
+
+                    if (math.abs(pureStrafeInput) > 0.001f)
+                    {
+                        localVelocityX = MoveTowards(localVelocityX, targetLocalX, strafeAcceleration * dt);
+                    }
+
+                    if (math.abs(pureVerticalInput) > 0.001f)
+                    {
+                        localVelocityY = MoveTowards(localVelocityY, targetLocalY, verticalAcceleration * dt);
+                    }
+
+                    if (input.RetroBrakePressed != 0)
+                    {
+                        var retroDecel = math.max(0f, profile.RetroBrakeAcceleration) * pureBoost * dt;
+                        localVelocityX = MoveTowards(localVelocityX, 0f, retroDecel);
+                        localVelocityY = MoveTowards(localVelocityY, 0f, retroDecel);
+                        localVelocityZ = MoveTowards(localVelocityZ, 0f, retroDecel);
+                    }
+                    else if (runtime.InertialDampenersEnabled != 0)
+                    {
+                        var dampener = math.max(0f, profile.DampenerDeceleration) * dt;
+                        if (math.abs(pureStrafeInput) < 0.001f)
+                        {
+                            localVelocityX = MoveTowards(localVelocityX, 0f, dampener);
+                        }
+
+                        if (math.abs(pureVerticalInput) < 0.001f)
+                        {
+                            localVelocityY = MoveTowards(localVelocityY, 0f, dampener);
+                        }
+
+                        if (math.abs(pureForwardInput) < 0.001f)
+                        {
+                            localVelocityZ = MoveTowards(localVelocityZ, 0f, dampener);
+                        }
+                    }
+                    else
+                    {
+                        // Newtonian drift in pure kernel mode: no passive drag when dampeners are off.
+                        // Velocity persists until counter-thrust or retro-brake.
+                    }
+
+                    pureVelocity = translationRight * localVelocityX + translationUp * localVelocityY + translationForward * localVelocityZ;
+                    transform.Position += pureVelocity * dt;
+                    if (math.abs(pureRollInput) > 0.001f)
+                    {
+                        var rollRadians = math.radians(profile.RollSpeedDegrees * pureRollInput * dt);
+                        var rollDelta = quaternion.AxisAngle(shipForward, rollRadians);
+                        transform.Rotation = math.normalize(math.mul(rollDelta, transform.Rotation));
+                    }
+
+                    runtime.VelocityWorld = pureVelocity;
+                    runtime.AngularSpeedRadians = 0f;
+                    runtime.ForwardThrottle = pureForwardInput;
+                    runtime.StrafeThrottle = pureStrafeInput;
+                    runtime.VerticalThrottle = pureVerticalInput;
+                    runtimeRef.ValueRW = runtime;
+                    transformRef.ValueRW = transform;
+
+                    if (hasMovement)
+                    {
+                        var movement = _movementLookup[entity];
+                        movement.Velocity = pureVelocity;
+                        movement.CurrentSpeed = math.length(pureVelocity);
+                        movement.IsMoving = movement.CurrentSpeed > 0.001f ? (byte)1 : (byte)0;
+                        _movementLookup[entity] = movement;
+                    }
+                    kernelPoseStamp = new PlayerFlagshipKernelPoseStamp
+                    {
+                        FlagshipEntity = entity,
+                        Tick = timeState.Tick,
+                        Position = transform.Position,
+                        Rotation = transform.Rotation,
+                        Active = 1
+                    };
+
+                    UpdateMovementCommand(entity, transform.Position);
+                    inputRef.ValueRW = input;
+                    continue;
+                }
+
                 var velocity = runtime.VelocityWorld;
                 var angularSpeed = math.max(0f, runtime.AngularSpeedRadians);
                 var forwardThrottle = math.clamp(runtime.ForwardThrottle, -1f, 1f);
@@ -188,7 +344,7 @@ namespace Space4X.Systems.AI
                 // Allow larger heading error so camera motion does not visually force 1:1 ship parity.
                 var maxCursorLeadAngle = math.radians(math.lerp(28f, 170f, turnNorm));
                 var speedReference = math.max(0.1f, profile.MaxForwardSpeed * boost);
-                var substepCount = (int)tickStepCount;
+                const int substepCount = 1;
                 for (var step = 0; step < substepCount; step++)
                 {
                     var speedNorm = math.saturate(math.length(velocity) / speedReference);
@@ -386,6 +542,8 @@ namespace Space4X.Systems.AI
                 UpdateMovementCommand(entity, transform.Position);
                 inputRef.ValueRW = input;
             }
+
+            SetKernelPoseStamp(ref state, in kernelPoseStamp);
         }
 
         private void WriteDiagnostics(ref SystemState state, in TimeState timeState, uint tickDeltaObserved, uint tickStepsProcessed, uint tickBacklog)
@@ -510,6 +668,98 @@ namespace Space4X.Systems.AI
             var step = math.min(angle, angularSpeed * dt);
             var t = math.saturate(step / angle);
             return math.normalize(math.slerp(currentNorm, desiredNorm, t));
+        }
+
+        private ShipFlightProfile ResolveFlightProfile(Entity entity)
+        {
+            if (_flightProfileLookup.HasComponent(entity))
+            {
+                return _flightProfileLookup[entity].Sanitized();
+            }
+
+            return CreateFallbackFlightProfile();
+        }
+
+        private static ShipFlightProfile CreateFallbackFlightProfile()
+        {
+            return new ShipFlightProfile
+            {
+                MaxForwardSpeed = 120f,
+                MaxReverseSpeed = 68f,
+                MaxStrafeSpeed = 56f,
+                MaxVerticalSpeed = 48f,
+                ForwardAcceleration = 96f,
+                ReverseAcceleration = 82f,
+                StrafeAcceleration = 72f,
+                VerticalAcceleration = 62f,
+                BoostMultiplier = 1.6f,
+                PassiveDriftDrag = 0.02f,
+                DampenerDeceleration = 46f,
+                RetroBrakeAcceleration = 84f,
+                RollSpeedDegrees = 62f,
+                CursorTurnSharpness = 8.5f,
+                MaxCursorPitchDegrees = 62f,
+                MaxAngularSpeedDegrees = 30f,
+                AngularAccelerationDegrees = 92f,
+                AngularDampingDegrees = 105f,
+                AngularDeadbandDegrees = 0.55f,
+                MaxCursorLeadDegrees = 148f,
+                TurnAuthorityAtMaxSpeed = 0.52f,
+                AngularOvershootRatio = 0.16f,
+                DefaultInertialDampenersEnabled = 0
+            };
+        }
+
+        private void DeactivateKernelPoseStamp(ref SystemState state)
+        {
+            var stamp = GetKernelPoseStamp(ref state);
+            if (stamp.Active == 0 && stamp.FlagshipEntity == Entity.Null)
+            {
+                return;
+            }
+
+            stamp.Active = 0;
+            stamp.FlagshipEntity = Entity.Null;
+            SetKernelPoseStamp(ref state, in stamp);
+        }
+
+        private PlayerFlagshipKernelPoseStamp GetKernelPoseStamp(ref SystemState state)
+        {
+            EnsureKernelPoseStampEntity(ref state);
+            return state.EntityManager.GetComponentData<PlayerFlagshipKernelPoseStamp>(_kernelPoseStampEntity);
+        }
+
+        private void SetKernelPoseStamp(ref SystemState state, in PlayerFlagshipKernelPoseStamp stamp)
+        {
+            EnsureKernelPoseStampEntity(ref state);
+            state.EntityManager.SetComponentData(_kernelPoseStampEntity, stamp);
+        }
+
+        private void EnsureKernelPoseStampEntity(ref SystemState state)
+        {
+            if (_kernelPoseStampEntity != Entity.Null &&
+                state.EntityManager.Exists(_kernelPoseStampEntity) &&
+                state.EntityManager.HasComponent<PlayerFlagshipKernelPoseStamp>(_kernelPoseStampEntity))
+            {
+                return;
+            }
+
+            if (_kernelPoseStampQuery.IsEmptyIgnoreFilter)
+            {
+                _kernelPoseStampEntity = state.EntityManager.CreateEntity();
+                state.EntityManager.AddComponentData(_kernelPoseStampEntity, new PlayerFlagshipKernelPoseStamp
+                {
+                    FlagshipEntity = Entity.Null,
+                    Tick = 0u,
+                    Position = float3.zero,
+                    Rotation = quaternion.identity,
+                    Active = 0
+                });
+            }
+            else
+            {
+                _kernelPoseStampEntity = _kernelPoseStampQuery.GetSingletonEntity();
+            }
         }
     }
 }

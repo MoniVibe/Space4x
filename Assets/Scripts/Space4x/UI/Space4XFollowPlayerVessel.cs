@@ -263,10 +263,15 @@ namespace Space4X.UI
             if (UCamera.current != null && _hostCamera != null && UCamera.current != _hostCamera)
                 return;
 
-            if (!_hasCachedTargetPose)
+            if (TryGetTargetPose(out var targetPosition, out var targetRotation))
             {
-                if (!TryGetTargetPose(out _cachedTargetPosition, out _cachedTargetRotation))
-                    return;
+                _cachedTargetPosition = targetPosition;
+                _cachedTargetRotation = targetRotation;
+                _hasCachedTargetPose = true;
+            }
+            else if (!_hasCachedTargetPose)
+            {
+                return;
             }
 
             ApplyFollow(_cachedTargetPosition, _cachedTargetRotation, snap: true);
@@ -736,13 +741,18 @@ namespace Space4X.UI
                                             _entityManager.HasComponent<SimPoseSnapshot>(_target);
             var controlledPoseFromRendered =
                 controlledPoseFromHybrid && _entityManager.HasComponent<LocalToWorld>(_target);
-            var renderedPoseAlreadyInterpolated = controlledPoseFromRendered &&
-                                                  _entityManager.HasComponent<SimPoseSnapshot>(_target);
-            var useRenderedControlledPose = controlledPoseFromHybrid &&
-                                            !interpolateControlledFlagshipPose &&
-                                            renderedPoseAlreadyInterpolated;
+            var renderedPoseAlreadyInterpolated = controlledPoseFromRendered && controlledHasPoseSnapshot;
+            var usedSnapshotPose = false;
 
-            if (controlledPoseFromHybrid && !useRenderedControlledPose)
+            if (controlledHasPoseSnapshot && TryResolveSnapshotPose(_target, out var snapshotPosition, out var snapshotRotation))
+            {
+                // Snapshot + fixed-step alpha is the canonical render-phase pose for controlled flagship.
+                // Using this directly avoids LocalToWorld update-order phase drift in camera follow.
+                position = snapshotPosition;
+                rotation = snapshotRotation;
+                usedSnapshotPose = true;
+            }
+            else if (controlledPoseFromHybrid)
             {
                 var localTransform = _entityManager.GetComponentData<LocalTransform>(_target);
                 position = new Vector3(localTransform.Position.x, localTransform.Position.y, localTransform.Position.z);
@@ -789,7 +799,8 @@ namespace Space4X.UI
             }
 
             var speedDrivenInterpolation = false;
-            if (controlledPoseFromHybrid &&
+            if (!usedSnapshotPose &&
+                controlledPoseFromHybrid &&
                 !interpolateControlledFlagshipPose &&
                 !_timeInterpolationQuery.IsEmptyIgnoreFilter)
             {
@@ -798,19 +809,24 @@ namespace Space4X.UI
                 speedDrivenInterpolation = timeState.CurrentSpeedMultiplier > 1.05f;
             }
 
-            var fixedStepDrivenControlledPose = movementSuppressedOnControlled && !renderedPoseAlreadyInterpolated;
+            var fixedStepDrivenControlledPose = movementSuppressedOnControlled &&
+                                                !usedSnapshotPose &&
+                                                !renderedPoseAlreadyInterpolated;
 
             var shouldInterpolateTargetPose =
-                !controlledPoseFromHybrid ||
-                interpolateControlledFlagshipPose ||
-                speedDrivenInterpolation ||
-                fixedStepDrivenControlledPose;
-            if (!interpolateControlledFlagshipPose && renderedPoseAlreadyInterpolated)
+                !usedSnapshotPose &&
+                (!controlledPoseFromHybrid ||
+                 interpolateControlledFlagshipPose ||
+                 speedDrivenInterpolation ||
+                 fixedStepDrivenControlledPose);
+            if (!usedSnapshotPose &&
+                !interpolateControlledFlagshipPose &&
+                renderedPoseAlreadyInterpolated)
             {
                 // LocalToWorld already comes from snapshot interpolation; avoid double-smoothing camera follow.
                 shouldInterpolateTargetPose = false;
             }
-            var interpolationPipelineActive = shouldInterpolateTargetPose || renderedPoseAlreadyInterpolated;
+            var interpolationPipelineActive = usedSnapshotPose || shouldInterpolateTargetPose || renderedPoseAlreadyInterpolated;
             _controlledPoseInterpolationActive = controlledPoseFromHybrid && interpolationPipelineActive;
             if (shouldInterpolateTargetPose)
             {
@@ -1532,6 +1548,47 @@ namespace Space4X.UI
             }
 
             return cruiseModeIndependentCamera;
+        }
+
+        private bool TryResolveSnapshotPose(Entity target, out Vector3 position, out Quaternion rotation)
+        {
+            position = default;
+            rotation = Quaternion.identity;
+            if (!_entityManager.Exists(target) || !_entityManager.HasComponent<SimPoseSnapshot>(target))
+            {
+                return false;
+            }
+
+            var snapshot = _entityManager.GetComponentData<SimPoseSnapshot>(target);
+            var prevPosition = new Vector3(snapshot.PrevPosition.x, snapshot.PrevPosition.y, snapshot.PrevPosition.z);
+            var currPosition = new Vector3(snapshot.CurrPosition.x, snapshot.CurrPosition.y, snapshot.CurrPosition.z);
+            var prevRotation = new Quaternion(
+                snapshot.PrevRotation.value.x,
+                snapshot.PrevRotation.value.y,
+                snapshot.PrevRotation.value.z,
+                snapshot.PrevRotation.value.w);
+            var currRotation = new Quaternion(
+                snapshot.CurrRotation.value.x,
+                snapshot.CurrRotation.value.y,
+                snapshot.CurrRotation.value.z,
+                snapshot.CurrRotation.value.w);
+
+            if (snapshot.CurrTick == snapshot.PrevTick)
+            {
+                position = currPosition;
+                rotation = currRotation;
+                return true;
+            }
+
+            var alpha = 1f;
+            if (!_timeInterpolationQuery.IsEmptyIgnoreFilter)
+            {
+                alpha = Mathf.Clamp01(_timeInterpolationQuery.GetSingleton<FixedStepInterpolationState>().Alpha);
+            }
+
+            position = Vector3.Lerp(prevPosition, currPosition, alpha);
+            rotation = Quaternion.Slerp(prevRotation, currRotation, alpha);
+            return true;
         }
 
         private void ApplyInterpolatedTargetPose(Entity target, ref Vector3 position, ref Quaternion rotation)

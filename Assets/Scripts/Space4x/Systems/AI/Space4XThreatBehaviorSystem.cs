@@ -71,6 +71,7 @@ namespace Space4X.Systems.AI
 
             foreach (var (threatRef, transformRef, entity) in
                      SystemAPI.Query<RefRW<ThreatProfile>, RefRW<LocalTransform>>()
+                         .WithNone<PlayerFlagshipTag>()
                          .WithEntityAccess())
             {
                 var threat = threatRef.ValueRW;
@@ -264,4 +265,3 @@ namespace Space4X.Systems.AI
         }
     }
 }
-

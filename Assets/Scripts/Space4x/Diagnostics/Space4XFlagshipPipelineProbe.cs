@@ -35,7 +35,7 @@ namespace Space4X.Diagnostics
         private const string ProbeEchoEnv = "SPACE4X_FLAGSHIP_PIPELINE_PROBE_ECHO";
         private const string DefaultFileName = "space4x_flagship_pipeline_probe.jsonl";
 
-        [SerializeField] private bool enabledByDefault;
+        [SerializeField] private bool enabledByDefault = true;
         [SerializeField] private Key toggleKey = Key.F9;
         [SerializeField] private float sampleIntervalSeconds = 0.2f;
         [SerializeField] private float heartbeatIntervalSeconds = 2f;

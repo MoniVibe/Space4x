@@ -391,17 +391,6 @@ namespace Space4X.Presentation
             bool useRenderFrame,
             in Space4XRenderFrameState renderFrame)
         {
-            if (_playerFlagshipLookup.HasComponent(entity))
-            {
-                var flagshipPosition = ResolveRenderPosition(entity, fallback.Position, useBandScale, useRenderFrame, in renderFrame);
-                return new PoseSample
-                {
-                    Position = flagshipPosition,
-                    Rotation = fallback.Rotation,
-                    Scale = fallback.Scale
-                };
-            }
-
             if (_poseSnapshotLookup.HasComponent(entity))
             {
                 var snapshot = _poseSnapshotLookup[entity];
