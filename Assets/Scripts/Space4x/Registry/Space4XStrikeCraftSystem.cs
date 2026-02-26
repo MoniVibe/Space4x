@@ -406,7 +406,10 @@ namespace Space4X.Registry
             {
                 var pilotReaction = ResolvePilotReaction(entity);
                 var baseSpeed = ResolveBaseSpeed(entity);
-                var speed = baseSpeed * ResolveRoleSpeed(craftState.ValueRO.Role);
+                var massTier = StrikeCraftUtility.ResolveEffectiveMassTier(craftState.ValueRO.MassTier, craftState.ValueRO.Role);
+                var speed = baseSpeed *
+                            ResolveRoleSpeed(craftState.ValueRO.Role) *
+                            StrikeCraftUtility.ResolveMassTierSpeedMultiplier(massTier);
                 var chaos = 0.5f;
                 if (_alignmentLookup.HasComponent(entity))
                 {
@@ -424,8 +427,9 @@ namespace Space4X.Registry
 
                 var velocity = kinematics.ValueRO.Velocity;
                 var reactionScale = math.lerp(0.75f, 1.1f, pilotReaction);
-                var accel = math.max(1f, speed * 1.8f) * reactionScale;
-                var decel = math.max(1f, speed * 2.4f) * math.lerp(0.85f, 1.15f, pilotReaction);
+                var agilityScale = StrikeCraftUtility.ResolveMassTierAgilityMultiplier(massTier);
+                var accel = math.max(1f, speed * 1.8f) * reactionScale * agilityScale;
+                var decel = math.max(1f, speed * 2.4f) * math.lerp(0.85f, 1.15f, pilotReaction) * agilityScale;
 
                 switch (craftState.ValueRO.Phase)
                 {
@@ -514,6 +518,9 @@ namespace Space4X.Registry
                             var isNonCombat = role == StrikeCraftRole.Recon || role == StrikeCraftRole.EWar;
                             var baseRadius = isNonCombat ? 25f : 65f;
                             var orbitRate = isNonCombat ? 0.35f : 0.8f;
+                            var speedScale = math.saturate((StrikeCraftUtility.ResolveMassTierSpeedMultiplier(massTier) - 0.72f) / 0.5f);
+                            var radiusScale = math.lerp(1.25f, 0.85f, speedScale);
+                            baseRadius *= radiusScale;
 
                             var angle = (entity.Index % 360) * math.radians(1f) + worldSeconds * orbitRate;
                             var orbitOffset = new float3(math.cos(angle), 0f, math.sin(angle)) * baseRadius;

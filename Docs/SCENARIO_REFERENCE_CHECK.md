@@ -36,3 +36,12 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File C:\dev\Tri\space4x\Tools\ScenarioR
   - `[Space4XMiningScenario] Loaded '...space4x_fleetcrawl_core_micro.json' ...`
 
 If these do not line up, fix refs first, then rerun Unity.
+
+## Scenario Authority Guardrails
+
+- Runtime playable routing is canonicalized to `space4x_fleetcrawl_core_micro`.
+- Legacy Fleetcrawl scenario variants are disabled by default.
+- Opt-in for legacy variants only when intentionally testing:
+  - `SPACE4X_ENABLE_LEGACY_FLEETCRAWL_SCENARIOS=1`
+- Legacy mode/debug overlays are cleared at menu bootstrap unless explicitly preserved:
+  - `SPACE4X_KEEP_LEGACY_SCENARIO_OVERLAYS=1`

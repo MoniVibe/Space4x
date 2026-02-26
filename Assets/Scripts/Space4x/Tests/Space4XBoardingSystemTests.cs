@@ -313,6 +313,125 @@ namespace Space4X.Tests
             Assert.Greater(order.AttackerForce, 1.25f);
         }
 
+        [Test]
+        public void Boarding_CountScaleSaturatesBetweenMediumAndLargeDeployment()
+        {
+            var attackerMedium = CreateShip(new float3(0f, 0f, 0f), hullCurrent: 150f, hullMax: 150f, shieldCurrent: 10f, shieldMax: 10f);
+            var attackerLarge = CreateShip(new float3(0f, 0f, 50f), hullCurrent: 150f, hullMax: 150f, shieldCurrent: 10f, shieldMax: 10f);
+            var targetMedium = CreateShip(new float3(30f, 0f, 0f), hullCurrent: 35f, hullMax: 100f, shieldCurrent: 0f, shieldMax: 50f);
+            var targetLarge = CreateShip(new float3(30f, 0f, 50f), hullCurrent: 35f, hullMax: 100f, shieldCurrent: 0f, shieldMax: 50f);
+
+            _entityManager.AddComponentData(attackerMedium, new Space4XBoardingDeploymentProfile
+            {
+                AvailableBoarders = 60,
+                ReserveBoarders = 0,
+                MaxDeployPerAction = 60,
+                AverageTraining01 = 0.7f,
+                AverageArmor01 = 0.7f,
+                AverageWeapon01 = 0.7f
+            });
+
+            _entityManager.AddComponentData(attackerLarge, new Space4XBoardingDeploymentProfile
+            {
+                AvailableBoarders = 1000,
+                ReserveBoarders = 0,
+                MaxDeployPerAction = 1000,
+                AverageTraining01 = 0.7f,
+                AverageArmor01 = 0.7f,
+                AverageWeapon01 = 0.7f
+            });
+
+            _entityManager.AddComponentData(attackerMedium, Space4XBoardingOrder.Create(targetMedium));
+            _entityManager.AddComponentData(attackerLarge, Space4XBoardingOrder.Create(targetLarge));
+
+            var system = _world.GetOrCreateSystem<Space4XBoardingSystem>();
+            SetTick(1u);
+            system.Update(_world.Unmanaged);
+
+            var mediumOrder = _entityManager.GetComponentData<Space4XBoardingOrder>(attackerMedium);
+            var largeOrder = _entityManager.GetComponentData<Space4XBoardingOrder>(attackerLarge);
+
+            Assert.AreEqual(Space4XBoardingPhase.Launching, mediumOrder.Phase);
+            Assert.AreEqual(Space4XBoardingPhase.Launching, largeOrder.Phase);
+            Assert.AreEqual(60, mediumOrder.CommittedBoarderCount);
+            Assert.AreEqual(1000, largeOrder.CommittedBoarderCount);
+            Assert.Greater(largeOrder.AttackerForce, mediumOrder.AttackerForce);
+
+            var forceRatio = largeOrder.AttackerForce / math.max(0.001f, mediumOrder.AttackerForce);
+            Assert.Less(forceRatio, 2.2f, "1k boarders should outperform medium deployment without exploding force scale.");
+        }
+
+        [Test]
+        public void Boarding_ThousandBoarders_CapturesWithinDurationWithoutOverflow()
+        {
+            var attacker = CreateShip(new float3(0f, 0f, 0f), hullCurrent: 180f, hullMax: 180f, shieldCurrent: 10f, shieldMax: 10f);
+            var target = CreateShip(new float3(45f, 0f, 0f), hullCurrent: 38f, hullMax: 120f, shieldCurrent: 0f, shieldMax: 50f);
+
+            _entityManager.AddComponentData(attacker, new Space4XBoardingDeploymentProfile
+            {
+                AvailableBoarders = 1000,
+                ReserveBoarders = 0,
+                MaxDeployPerAction = 1000,
+                AverageTraining01 = 0.72f,
+                AverageArmor01 = 0.68f,
+                AverageWeapon01 = 0.7f
+            });
+
+            _entityManager.AddComponentData(target, new Space4XBoardingDeploymentProfile
+            {
+                AvailableBoarders = 1000,
+                ReserveBoarders = 300,
+                MaxDeployPerAction = 1000,
+                AverageTraining01 = 0.66f,
+                AverageArmor01 = 0.64f,
+                AverageWeapon01 = 0.62f
+            });
+
+            _entityManager.AddComponentData(target, new Space4XBoardingProfile
+            {
+                AssaultStrength = 1f,
+                DefenseStrength = 0.9f,
+                InternalSecurity = 0.9f,
+                CasualtyMitigation01 = 0.1f
+            });
+
+            _entityManager.AddComponentData(attacker, new Space4XBoardingOrder
+            {
+                Target = target,
+                TargetKind = Space4XBoardingTargetKind.Ship,
+                IssuedTick = 0u,
+                RequestedBoarderCount = 1000,
+                MaxDurationTicks = 120u,
+                DesiredRangeMeters = 120f,
+                TroopCommitment01 = 1f,
+                PodPenetration = 0.5f,
+                ElectronicWarfareSupport = 0.35f,
+                Phase = Space4XBoardingPhase.None,
+                Outcome = Space4XBoardingOutcome.None
+            });
+
+            var system = _world.GetOrCreateSystem<Space4XBoardingSystem>();
+            for (uint tick = 1u; tick <= 60u; tick++)
+            {
+                SetTick(tick);
+                system.Update(_world.Unmanaged);
+
+                var order = _entityManager.GetComponentData<Space4XBoardingOrder>(attacker);
+                if (order.Outcome != Space4XBoardingOutcome.None)
+                {
+                    break;
+                }
+            }
+
+            var finalOrder = _entityManager.GetComponentData<Space4XBoardingOrder>(attacker);
+            Assert.AreEqual(1000, finalOrder.CommittedBoarderCount);
+            Assert.AreEqual(Space4XBoardingOutcome.Captured, finalOrder.Outcome);
+            Assert.AreEqual(Space4XBoardingPhase.Captured, finalOrder.Phase);
+            Assert.IsFalse(float.IsNaN(finalOrder.AttackerForce), "Attacker force should remain finite.");
+            Assert.IsFalse(float.IsNaN(finalOrder.DefenderForce), "Defender force should remain finite.");
+            Assert.LessOrEqual(finalOrder.CompletedTick, finalOrder.StartedTick + finalOrder.MaxDurationTicks);
+        }
+
         private Entity CreateShip(float3 position, float hullCurrent, float hullMax, float shieldCurrent, float shieldMax)
         {
             var entity = _entityManager.CreateEntity(

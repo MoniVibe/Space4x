@@ -23,7 +23,7 @@ namespace Space4X.Tests
             var flagship = em.CreateEntity(
                 typeof(LocalTransform),
                 typeof(Space4XFleetcrawlPlayerDirective),
-                typeof(Space4x.Scenario.PlayerFlagshipTag),
+                typeof(Space4X.Registry.PlayerFlagshipTag),
                 typeof(Space4XRunPlayerTag),
                 typeof(ShipSpecialEnergyState));
             em.SetComponentData(flagship, new LocalTransform
@@ -85,7 +85,7 @@ namespace Space4X.Tests
             var flagship = em.CreateEntity(
                 typeof(LocalTransform),
                 typeof(Space4XFleetcrawlPlayerDirective),
-                typeof(Space4x.Scenario.PlayerFlagshipTag),
+                typeof(Space4X.Registry.PlayerFlagshipTag),
                 typeof(Space4XRunPlayerTag),
                 typeof(ShipSpecialEnergyState));
             em.SetComponentData(flagship, new LocalTransform

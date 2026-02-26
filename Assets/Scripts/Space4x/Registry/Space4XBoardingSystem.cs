@@ -604,8 +604,23 @@ namespace Space4X.Registry
         {
             var clampedCount = math.max(1, boarderCount);
             var exponent = math.clamp(tuning.BoarderCountExponent, 0.55f, 1.1f);
-            var scale = math.pow(clampedCount, exponent) * math.max(0.001f, tuning.BoarderForceScale);
-            return math.max(0.05f, scale);
+
+            var pivotCount = math.max(1f, tuning.BoarderScalePivotCount > 0
+                ? tuning.BoarderScalePivotCount
+                : math.max(1f, tuning.StarterMaxBoarders));
+
+            var minScale = tuning.BoarderScaleMin > 0f
+                ? tuning.BoarderScaleMin
+                : math.max(0.1f, tuning.BoarderForceScale * 4f);
+            var maxScale = tuning.BoarderScaleMax > minScale
+                ? tuning.BoarderScaleMax
+                : math.max(minScale + 0.1f, minScale * 2.5f);
+
+            var ratio = clampedCount / pivotCount;
+            var growth = math.pow(math.max(0.001f, ratio), exponent);
+            var normalized = growth / (1f + growth);
+            var scale = math.lerp(minScale, maxScale, normalized);
+            return math.clamp(scale, 0.05f, maxScale);
         }
 
         private float ResolveBoarderQualityMultiplier(Entity owner, int boarderCount, in Space4XBoardingTuning tuning)

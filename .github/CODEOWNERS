@@ -1,0 +1,9 @@
+# Bootstrap and scenario authority guardrails
+/Assets/Scenes/TRI_Space4X_Smoke.unity @MoniVibe
+/Assets/Resources/Rendering/ScenarioURP.asset @MoniVibe
+/Assets/Resources/Rendering/ScenarioURP_Renderer.asset @MoniVibe
+/Assets/Resources/Space4XRenderCatalog_v2.asset @MoniVibe
+/Assets/Data/Space4XRenderCatalog_v2.asset @MoniVibe
+/Assets/Scenarios/space4x_fleetcrawl_core_micro.json @MoniVibe
+/Assets/Scripts/Space4x/Modes/Space4XModeSelectionState.cs @MoniVibe
+/Assets/Scripts/Space4x/Scenario/Space4XScenarioAuthority.cs @MoniVibe

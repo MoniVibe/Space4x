@@ -22,7 +22,7 @@ namespace Space4x.Scenario
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton(out ScenarioInfo scenarioInfo) ||
-                !scenarioInfo.ScenarioId.Equals(Space4XFleetCrawlScenario.ScenarioId))
+                !Space4XScenarioAuthority.IsPlayableFleetCrawlScenario(scenarioInfo.ScenarioId))
             {
                 return;
             }
@@ -36,22 +36,11 @@ namespace Space4x.Scenario
             var runSeed = scenarioInfo.Seed != 0u ? scenarioInfo.Seed : 0xF17ECAFEu;
             var now = SystemAPI.GetSingleton<TimeState>().Tick;
 
-            var runEntity = state.EntityManager.CreateEntity(
-                typeof(Space4XFleetCrawlRunTag),
-                typeof(Space4XFleetCrawlRunSeed),
-                typeof(Space4XFleetCrawlRunProgress),
-                typeof(Space4XFleetCrawlPendingGatePick),
-                typeof(Space4XFleetCrawlPendingBoonPick),
-                typeof(Space4XFleetCrawlCurrency),
-                typeof(Space4XFleetCrawlUpgradePoints),
-                typeof(Space4XFleetCrawlReliefCount));
-
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlRunSeed
-            {
-                Value = runSeed
-            });
-
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlRunProgress
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var runEntity = ecb.CreateEntity();
+            ecb.AddComponent<Space4XFleetCrawlRunTag>(runEntity);
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlRunSeed { Value = runSeed });
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlRunProgress
             {
                 RoomIndex = InitialRoomIndex,
                 BossEveryRooms = BossCadenceRooms,
@@ -59,46 +48,46 @@ namespace Space4x.Scenario
                 AwaitingGateResolve = 0,
                 Digest = Space4XFleetCrawlMath.Mix(0x811C9DC5u, runSeed)
             });
-
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlPendingGatePick
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlPendingGatePick
             {
                 PickedIndex = 0,
                 HasPick = 0
             });
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlPendingBoonPick
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlPendingBoonPick
             {
                 PickedIndex = 0,
                 HasPick = 0
             });
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlCurrency { Credits = 0 });
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlUpgradePoints { Value = 0 });
-            state.EntityManager.SetComponentData(runEntity, new Space4XFleetCrawlReliefCount { Value = 0 });
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlCurrency { Credits = 0 });
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlUpgradePoints { Value = 0 });
+            ecb.AddComponent(runEntity, new Space4XFleetCrawlReliefCount { Value = 0 });
 
-            var bag = state.EntityManager.AddBuffer<Space4XFleetCrawlRewardBagItem>(runEntity);
-            var gates = state.EntityManager.AddBuffer<Space4XFleetCrawlGateOption>(runEntity);
-            var boonChoices = state.EntityManager.AddBuffer<Space4XFleetCrawlBoonChoice>(runEntity);
-            var rewardsApplied = state.EntityManager.AddBuffer<Space4XFleetCrawlRewardApplied>(runEntity);
+            var bag = ecb.AddBuffer<Space4XFleetCrawlRewardBagItem>(runEntity);
+            var gates = ecb.AddBuffer<Space4XFleetCrawlGateOption>(runEntity);
+            var boonChoices = ecb.AddBuffer<Space4XFleetCrawlBoonChoice>(runEntity);
+            var rewardsApplied = ecb.AddBuffer<Space4XFleetCrawlRewardApplied>(runEntity);
             gates.Clear();
             boonChoices.Clear();
             rewardsApplied.Clear();
 
             Space4XFleetCrawlRewards.RefillRewardBag(bag);
 
-            var roomEntity = state.EntityManager.CreateEntity(
-                typeof(Space4XFleetCrawlRoomTag),
-                typeof(Space4XFleetCrawlRoomOwner),
-                typeof(Space4XFleetCrawlRoomState));
-            state.EntityManager.SetComponentData(roomEntity, new Space4XFleetCrawlRoomOwner
+            var roomEntity = ecb.CreateEntity();
+            ecb.AddComponent<Space4XFleetCrawlRoomTag>(roomEntity);
+            ecb.AddComponent(roomEntity, new Space4XFleetCrawlRoomOwner
             {
                 RunEntity = runEntity
             });
-            state.EntityManager.SetComponentData(roomEntity, new Space4XFleetCrawlRoomState
+            ecb.AddComponent(roomEntity, new Space4XFleetCrawlRoomState
             {
                 Kind = Space4XFleetCrawlRoomKind.Combat,
                 StartTick = now,
                 EndTick = now + Space4XFleetCrawlRewards.RoomDurationTicks(Space4XFleetCrawlRoomKind.Combat),
                 Completed = 0
             });
+
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
 
             Debug.Log($"[Space4XFleetCrawl] run_bootstrap=1 seed={runSeed} room=0 kind=Combat");
             state.Enabled = false;
@@ -119,7 +108,7 @@ namespace Space4x.Scenario
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton(out ScenarioInfo scenarioInfo) ||
-                !scenarioInfo.ScenarioId.Equals(Space4XFleetCrawlScenario.ScenarioId))
+                !Space4XScenarioAuthority.IsPlayableFleetCrawlScenario(scenarioInfo.ScenarioId))
             {
                 return;
             }
@@ -179,7 +168,7 @@ namespace Space4x.Scenario
         public void OnUpdate(ref SystemState state)
         {
             if (!SystemAPI.TryGetSingleton(out ScenarioInfo scenarioInfo) ||
-                !scenarioInfo.ScenarioId.Equals(Space4XFleetCrawlScenario.ScenarioId))
+                !Space4XScenarioAuthority.IsPlayableFleetCrawlScenario(scenarioInfo.ScenarioId))
             {
                 return;
             }

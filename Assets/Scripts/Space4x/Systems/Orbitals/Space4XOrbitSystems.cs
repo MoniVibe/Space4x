@@ -36,6 +36,18 @@ namespace Space4X.Systems.Orbitals
                 return;
             }
 
+            // Ambient orbital drift is now config-driven so movement behavior stays
+            // consistent across scenarios unless explicitly enabled.
+            if (!SystemAPI.TryGetSingleton<Space4XReferenceFrameConfig>(out var frameConfig) || frameConfig.Enabled == 0)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingleton<Space4XOrbitalBandConfig>(out var orbitalBandConfig) || orbitalBandConfig.Enabled == 0)
+            {
+                return;
+            }
+
             if (SystemAPI.QueryBuilder().WithAll<Space4XOrbitStarTag>().Build().CalculateEntityCount() > 0)
             {
                 _initialized = true;
@@ -262,6 +274,16 @@ namespace Space4X.Systems.Orbitals
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (!SystemAPI.TryGetSingleton<Space4XReferenceFrameConfig>(out var frameConfig) || frameConfig.Enabled == 0)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingleton<Space4XOrbitalBandConfig>(out var orbitalBandConfig) || orbitalBandConfig.Enabled == 0)
+            {
+                return;
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
             {
@@ -361,6 +383,16 @@ namespace Space4X.Systems.Orbitals
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (!SystemAPI.TryGetSingleton<Space4XReferenceFrameConfig>(out var frameConfig) || frameConfig.Enabled == 0)
+            {
+                return;
+            }
+
+            if (!SystemAPI.TryGetSingleton<Space4XOrbitalBandConfig>(out var orbitalBandConfig) || orbitalBandConfig.Enabled == 0)
+            {
+                return;
+            }
+
             var timeState = SystemAPI.GetSingleton<TimeState>();
             if (timeState.IsPaused)
             {

@@ -58,7 +58,6 @@ namespace Space4x.Scenario
     }
 
     public struct Space4XRunPlayerTag : IComponentData { }
-    public struct PlayerFlagshipTag : IComponentData { }
     public struct Space4XRunDroneTag : IComponentData { }
     public struct Space4XRunEnemyTag : IComponentData { public int RoomIndex; public int WaveIndex; public Space4XFleetcrawlEnemyClass EnemyClass; }
     public struct Space4XEnemyTelegraphState : IComponentData
@@ -348,7 +347,7 @@ namespace Space4x.Scenario
             em.AddBuffer<DamageHistory>(e);
 
             if (playerTag) em.AddComponent<Space4XRunPlayerTag>(e);
-            if (playerTag && side == 0) em.AddComponent<PlayerFlagshipTag>(e);
+            if (playerTag && side == 0) em.AddComponent<Space4X.Registry.PlayerFlagshipTag>(e);
             if (side == 1)
             {
                 em.AddComponentData(e, new Space4XRunEnemyTag { RoomIndex = roomIndex, WaveIndex = waveIndex, EnemyClass = enemyClass });
@@ -494,7 +493,7 @@ namespace Space4x.Scenario
         {
             var info = SystemAPI.GetSingleton<ScenarioInfo>();
             var scenarioId = info.ScenarioId.ToString();
-            if (string.IsNullOrWhiteSpace(scenarioId) || !scenarioId.StartsWith("space4x_fleetcrawl", StringComparison.OrdinalIgnoreCase))
+            if (!Space4XScenarioAuthority.ShouldRunLegacyRoomDirector(scenarioId))
             {
                 return;
             }
@@ -660,9 +659,9 @@ namespace Space4x.Scenario
             var roomCount = rooms.Length;
 
             var flagship = Space4XFleetcrawlSpawnUtil.SpawnCarrier(ref state, new float3(-120f, 0f, 0f), 0, new FixedString64Bytes("player-flagship"), true, -1, -1);
-            if (!state.EntityManager.HasComponent<PlayerFlagshipTag>(flagship))
+            if (!state.EntityManager.HasComponent<Space4X.Registry.PlayerFlagshipTag>(flagship))
             {
-                state.EntityManager.AddComponent<PlayerFlagshipTag>(flagship);
+                state.EntityManager.AddComponent<Space4X.Registry.PlayerFlagshipTag>(flagship);
             }
 
             Space4XFleetcrawlSpawnUtil.SpawnStrikeWing(ref state, new float3(-120f, 0f, 0f), 0, 6, true, -1, -1);
@@ -1515,15 +1514,15 @@ namespace Space4x.Scenario
             var wildcardBudget = math.max(0, finalBudget - assignedBudget);
             if (wildcardTags.Length == 0)
             {
-                var fallbackWildcard = NormalizeToken(unknownSelectionRules.fallbackWildcard, string.Empty);
-                if (fallbackWildcard.Length > 0)
+                var fallbackWildcardTag = NormalizeToken(unknownSelectionRules.fallbackWildcard, string.Empty);
+                if (fallbackWildcardTag.Length > 0)
                 {
-                    if (!fallbackWildcard.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
+                    if (!fallbackWildcardTag.StartsWith("wildcard.", StringComparison.OrdinalIgnoreCase))
                     {
-                        fallbackWildcard = $"wildcard.{fallbackWildcard}";
+                        fallbackWildcardTag = $"wildcard.{fallbackWildcardTag}";
                     }
 
-                    wildcardTags = new[] { fallbackWildcard };
+                    wildcardTags = new[] { fallbackWildcardTag };
                 }
             }
 
@@ -3073,7 +3072,7 @@ namespace Space4x.Scenario
             hits = 0;
             var maxRangeSq = profile.StrikeRange * profile.StrikeRange;
             var weaponType = ResolveTelegraphWeaponType(enemyClass);
-            foreach (var (transform, hull, side, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>().WithAll<Space4XRunPlayerTag, PlayerFlagshipTag>().WithEntityAccess())
+            foreach (var (transform, hull, side, entity) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<HullIntegrity>, RefRO<ScenarioSide>>().WithAll<Space4XRunPlayerTag, Space4X.Registry.PlayerFlagshipTag>().WithEntityAccess())
             {
                 if (side.ValueRO.Side != 0 || hull.ValueRO.Current <= 0f)
                 {
@@ -3132,6 +3131,7 @@ namespace Space4x.Scenario
     [UpdateAfter(typeof(Space4X.Registry.Space4XCombatTelemetrySystem))]
     public partial struct Space4XFleetcrawlRoomDirectorSystem : ISystem
     {
+        private const string EnableScenarioFlightMultipliersEnv = "SPACE4X_ENABLE_SCENARIO_FLIGHT_MULTIPLIERS";
         private const int StrikeCraftKillBounty = 3;
         private const int CarrierKillBounty = 12;
         private const int MiniBossKillBonus = 8;
@@ -3171,7 +3171,7 @@ namespace Space4x.Scenario
             var dt = ResolveFixedDelta(time);
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var flagshipAlive = false;
-            foreach (var hull in SystemAPI.Query<RefRO<HullIntegrity>>().WithAll<PlayerFlagshipTag>())
+            foreach (var hull in SystemAPI.Query<RefRO<HullIntegrity>>().WithAll<Space4X.Registry.PlayerFlagshipTag>())
             {
                 if (hull.ValueRO.Current > 0f)
                 {
@@ -3360,7 +3360,7 @@ namespace Space4x.Scenario
         private void SpawnWave(ref SystemState state, ref Space4XFleetcrawlDirectorState director, in Space4XFleetcrawlRoom room, int roomIndex, int waveIndex, uint tick)
         {
             var anchor = float3.zero;
-            foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<PlayerFlagshipTag>())
+            foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Space4X.Registry.PlayerFlagshipTag>())
             {
                 anchor = transform.ValueRO.Position;
                 break;
@@ -4382,7 +4382,7 @@ namespace Space4x.Scenario
 
         private void InstallWeaponBlueprint(ref SystemState state, in FixedString64Bytes blueprintId)
         {
-            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<PlayerFlagshipTag>())
+            foreach (var weapons in SystemAPI.Query<DynamicBuffer<WeaponMount>>().WithAll<Space4X.Registry.PlayerFlagshipTag>())
             {
                 var weaponBuffer = weapons;
                 if (weaponBuffer.Length == 0)
@@ -4433,7 +4433,7 @@ namespace Space4x.Scenario
         private void SpawnHangarDronesFromBlueprint(ref SystemState state, Entity directorEntity, int roomIndex)
         {
             var anchor = new float3(-120f, 0f, 0f);
-            foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<PlayerFlagshipTag>())
+            foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Space4X.Registry.PlayerFlagshipTag>())
             {
                 anchor = transform.ValueRO.Position;
                 break;
@@ -4459,6 +4459,13 @@ namespace Space4x.Scenario
             float turnMul,
             bool playerOnly)
         {
+            // Movement should stay scenario-invariant by default.
+            // Opt-in if we want temporary room/perk movement modulation again.
+            if (!IsScenarioFlightMultiplierEnabled())
+            {
+                return;
+            }
+
             foreach (var (carrierRef, movementRef, entity) in SystemAPI
                          .Query<RefRW<Carrier>, RefRW<VesselMovement>>()
                          .WithAll<Space4XRunPlayerTag>()
@@ -4489,6 +4496,21 @@ namespace Space4x.Scenario
                 movement.TurnSpeed *= turnMul;
                 movementRef.ValueRW = movement;
             }
+        }
+
+        private static bool IsScenarioFlightMultiplierEnabled()
+        {
+            var value = Environment.GetEnvironmentVariable(EnableScenarioFlightMultipliersEnv);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            value = value.Trim();
+            return value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("on", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool HasPerkOp(DynamicBuffer<Space4XRunPerkOp> perkOps, in FixedString64Bytes perkId)

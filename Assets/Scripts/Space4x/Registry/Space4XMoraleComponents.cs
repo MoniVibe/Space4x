@@ -72,7 +72,8 @@ namespace Space4X.Registry
         FamilyPresence = 14,
         SpeciesConflict = 15,
         Leisure = 16,
-        Espionage = 17
+        Espionage = 17,
+        Education = 18
     }
 
     /// <summary>

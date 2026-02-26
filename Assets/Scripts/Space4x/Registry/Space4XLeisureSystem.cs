@@ -31,6 +31,11 @@ namespace Space4X.Registry
         private ComponentLookup<AlignmentTriplet> _alignmentLookup;
         private ComponentLookup<SupplyStatus> _supplyLookup;
         private ComponentLookup<SuspicionScore> _suspicionLookup;
+        private ComponentLookup<LeisureEducationPolicy> _educationPolicyLookup;
+        private ComponentLookup<LeisureEducationProgress> _educationProgressLookup;
+        private ComponentLookup<SkillExperienceGain> _xpLookup;
+        private ComponentLookup<CrewSkills> _skillsLookup;
+        private ComponentLookup<PureDOTS.Runtime.Stats.WisdomStat> _wisdomLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -51,6 +56,11 @@ namespace Space4X.Registry
             _alignmentLookup = state.GetComponentLookup<AlignmentTriplet>(false);
             _supplyLookup = state.GetComponentLookup<SupplyStatus>(false);
             _suspicionLookup = state.GetComponentLookup<SuspicionScore>(false);
+            _educationPolicyLookup = state.GetComponentLookup<LeisureEducationPolicy>(false);
+            _educationProgressLookup = state.GetComponentLookup<LeisureEducationProgress>(false);
+            _xpLookup = state.GetComponentLookup<SkillExperienceGain>(false);
+            _skillsLookup = state.GetComponentLookup<CrewSkills>(false);
+            _wisdomLookup = state.GetComponentLookup<PureDOTS.Runtime.Stats.WisdomStat>(false);
         }
 
         [BurstCompile]
@@ -79,8 +89,15 @@ namespace Space4X.Registry
             _alignmentLookup.Update(ref state);
             _supplyLookup.Update(ref state);
             _suspicionLookup.Update(ref state);
+            _educationPolicyLookup.Update(ref state);
+            _educationProgressLookup.Update(ref state);
+            _xpLookup.Update(ref state);
+            _skillsLookup.Update(ref state);
+            _wisdomLookup.Update(ref state);
 
             var currentTick = time.Tick;
+            var fixedDeltaTime = time.FixedDeltaTime;
+            var hasSkillLog = SystemAPI.TryGetSingletonBuffer<SkillChangeLogEntry>(out var skillLog);
 
             foreach (var (needRef, preferenceRef, securityRef, aggregateRef, moraleModifiers, incidents, opportunities, entity) in
                 SystemAPI.Query<
@@ -96,6 +113,12 @@ namespace Space4X.Registry
                 var needs = needRef.ValueRO;
                 var profile = preferenceRef.ValueRO;
                 var security = securityRef.ValueRO;
+                var educationPolicy = _educationPolicyLookup.HasComponent(entity)
+                    ? _educationPolicyLookup[entity]
+                    : LeisureEducationPolicy.Default;
+                var educationProgress = _educationProgressLookup.HasComponent(entity)
+                    ? _educationProgressLookup[entity]
+                    : default;
 
                 var chaos = 0.5f;
                 var corruption = 0.5f;
@@ -117,6 +140,12 @@ namespace Space4X.Registry
                 var ambientGood = 0f;
                 var ambientIntegrity = 0f;
                 var ambientWeight = 0f;
+                var schoolRate = 0f;
+                var universityRate = 0f;
+                var trainingRate = 0f;
+                var wisdomRate = 0f;
+                var researchRate = 0f;
+                var ideologyRate = 0f;
 
                 var arenaOpportunity = 0f;
                 var orbitalOpportunity = 0f;
@@ -140,6 +169,8 @@ namespace Space4X.Registry
                 var topPoisonModule = Entity.Null;
                 var topAssassinModule = Entity.Null;
                 var topBriberyModule = Entity.Null;
+                var topFacultySubversionRisk = 0f;
+                var topFacultySubversionModule = Entity.Null;
 
                 if (_moduleSlotsLookup.HasBuffer(entity))
                 {
@@ -188,6 +219,29 @@ namespace Space4X.Registry
                             in profile,
                             ref preferenceWeighted,
                             ref preferenceWeightTotal);
+
+                        var educationContribution = math.max(0f, facility.EducationRate) * integrity;
+                        var trainingContribution = math.max(0f, facility.TrainingRate) * integrity;
+                        var wisdomContribution = math.max(0f, facility.WisdomRate) * integrity;
+                        var researchContribution = math.max(0f, facility.ResearchRate) * integrity;
+                        var ideologyContribution = math.max(0f, facility.IdeologyPressure) * integrity;
+
+                        switch (facility.Type)
+                        {
+                            case LeisureFacilityType.School:
+                                schoolRate += educationContribution;
+                                break;
+                            case LeisureFacilityType.University:
+                                universityRate += educationContribution;
+                                break;
+                            case LeisureFacilityType.TrainingGround:
+                                trainingRate += trainingContribution + educationContribution * 0.35f;
+                                break;
+                        }
+
+                        wisdomRate += wisdomContribution;
+                        researchRate += researchContribution;
+                        ideologyRate += ideologyContribution;
 
                         var ambientIntensity = math.max(0f, facility.AmbientIntensity) * integrity;
                         if (ambientIntensity > 1e-5f)
@@ -288,6 +342,13 @@ namespace Space4X.Registry
                             topBriberyRisk = briberyContribution;
                             topBriberyModule = module;
                         }
+
+                        var facultySubversionContribution = math.max(0f, facility.FacultyBriberyRisk) * integrity;
+                        if (facultySubversionContribution > topFacultySubversionRisk)
+                        {
+                            topFacultySubversionRisk = facultySubversionContribution;
+                            topFacultySubversionModule = module;
+                        }
                     }
                 }
 
@@ -341,6 +402,12 @@ namespace Space4X.Registry
                 aggregate.LootYieldRate = lootRate;
                 aggregate.SalvageRightsRate = salvageRate;
                 aggregate.ReputationYieldRate = reputationRate;
+                aggregate.EducationRate = schoolRate;
+                aggregate.UniversityRate = universityRate;
+                aggregate.TrainingRate = trainingRate;
+                aggregate.WisdomRate = wisdomRate;
+                aggregate.ResearchRate = researchRate;
+                aggregate.IdeologyPressure = ideologyRate;
 
                 if (aggregate.AmbientIntensity > 1e-5f)
                 {
@@ -416,24 +483,108 @@ namespace Space4X.Registry
                 needs.LastUpdateTick = currentTick;
                 needRef.ValueRW = needs;
 
+                var schoolWindow = 0f;
+                var universityWindow = 0f;
+                var trainingWindow = 0f;
+                ResolveEducationScheduleWeights(
+                    currentTick,
+                    fixedDeltaTime,
+                    in educationPolicy,
+                    out schoolWindow,
+                    out universityWindow,
+                    out trainingWindow);
+
+                var educationEnabled = educationPolicy.Enabled != 0;
+                if (!educationEnabled)
+                {
+                    schoolWindow = 0f;
+                    universityWindow = 0f;
+                    trainingWindow = 0f;
+                }
+
+                var activeLearners = math.max(1f, currentCrew * math.max(0.05f, (float)educationPolicy.EnrollmentRatio));
+                var facultyQuality = ResolveFacultyQuality(in educationPolicy);
+                var standards = math.saturate((float)educationPolicy.Standards01);
+                var learningOutput =
+                    (aggregate.EducationRate * schoolWindow + aggregate.UniversityRate * universityWindow) *
+                    facultyQuality * standards / activeLearners;
+                var trainingOutput =
+                    aggregate.TrainingRate * trainingWindow *
+                    (0.45f + 0.55f * facultyQuality) / activeLearners;
+                var wisdomOutput =
+                    aggregate.WisdomRate * (schoolWindow * 0.55f + universityWindow * 0.45f) *
+                    facultyQuality / activeLearners;
+                var researchOutput =
+                    aggregate.ResearchRate * (0.3f + 0.7f * universityWindow) *
+                    facultyQuality * math.max(0f, educationPolicy.ResearchScale);
+                var ideologyPressure =
+                    aggregate.IdeologyPressure *
+                    (1f - math.saturate((float)educationPolicy.IdeologyResistance01)) *
+                    (0.4f + 0.6f * universityWindow);
+
+                var educationMorale =
+                    (learningOutput + trainingOutput) * 2.2f +
+                    researchOutput * 0.75f -
+                    ideologyPressure * 0.35f -
+                    aggregate.Overcrowding * 0.12f;
+                educationMorale = math.clamp(educationMorale, -0.35f, 0.45f);
+                UpsertMoraleModifier(moraleModifiers, MoraleModifierSource.Education, educationMorale, currentTick, 0u);
+
+                if (educationEnabled && (learningOutput > 1e-5f || trainingOutput > 1e-5f || researchOutput > 1e-5f))
+                {
+                    ApplyEducationSkillProgress(
+                        entity,
+                        currentTick,
+                        learningOutput,
+                        trainingOutput,
+                        researchOutput,
+                        in educationPolicy,
+                        hasSkillLog,
+                        skillLog);
+
+                    ApplyCrewWisdomGain(
+                        entity,
+                        wisdomOutput,
+                        in educationPolicy,
+                        ref _crewLookup,
+                        ref _wisdomLookup);
+                }
+
+                if (_educationProgressLookup.HasComponent(entity))
+                {
+                    educationProgress.LastLearningOutput = learningOutput;
+                    educationProgress.LastTrainingOutput = trainingOutput;
+                    educationProgress.LastResearchOutput = researchOutput;
+                    educationProgress.LastIdeologyPressure = ideologyPressure;
+                    educationProgress.LifetimeResearch += researchOutput;
+                    educationProgress.LastUpdateTick = currentTick;
+                    _educationProgressLookup[entity] = educationProgress;
+                }
+
+                aggregate.IdeologyPressure = ideologyPressure;
+
                 var needScore = (entertainment + comfort + social + nourishment) * 0.25f;
                 var leisureStrength = (needScore - 0.5f) * 0.55f +
                                       (aggregate.PreferenceFit - 0.5f) * 0.25f -
                                       aggregate.Overcrowding * 0.65f;
                 leisureStrength = math.clamp(leisureStrength, -0.9f, 0.6f);
 
-                UpsertMoraleModifier(ref moraleModifiers, MoraleModifierSource.Leisure, leisureStrength, currentTick, 0u);
+                UpsertMoraleModifier(moraleModifiers, MoraleModifierSource.Leisure, leisureStrength, currentTick, 0u);
 
                 var espionagePressure = aggregate.EspionageRisk * (1f - (float)security.CounterIntelLevel);
                 var poisonPressure = aggregate.PoisonRisk * (1f - (float)security.FoodSafetyLevel);
                 var assassinPressure = aggregate.AssassinationRisk * (1f - (float)security.InternalSecurityLevel);
                 var briberyPressure = aggregate.BriberyRisk * (1f - (float)security.BriberyBudget);
+                var facultySubversionPressure =
+                    topFacultySubversionRisk *
+                    (1f - math.saturate((float)educationPolicy.BriberyOversight01));
 
                 var incidentChance = math.saturate(
                     espionagePressure * (0.3f + chaos * 0.2f) +
                     poisonPressure * 0.3f +
                     assassinPressure * (0.2f + corruption * 0.2f) +
-                    briberyPressure * (0.15f + chaos * 0.25f));
+                    briberyPressure * (0.15f + chaos * 0.25f) +
+                    facultySubversionPressure * (0.1f + corruption * 0.2f));
 
                 var canTriggerIncident = incidents.Length == 0 || currentTick - incidents[incidents.Length - 1].Tick >= 30u;
                 if (incidentChance > 1e-5f && canTriggerIncident)
@@ -456,13 +607,15 @@ namespace Space4X.Registry
                             poisonPressure,
                             assassinPressure,
                             briberyPressure,
+                            facultySubversionPressure,
                             random.NextFloat());
                         var incidentModule = ResolveIncidentSourceModule(
                             incidentType,
                             topEspionageModule,
                             topPoisonModule,
                             topAssassinModule,
-                            topBriberyModule);
+                            topBriberyModule,
+                            topFacultySubversionModule);
 
                         if (incidents.Length >= 32)
                         {
@@ -478,7 +631,7 @@ namespace Space4X.Registry
                             Tick = currentTick
                         });
 
-                        UpsertMoraleModifier(ref moraleModifiers, MoraleModifierSource.Espionage, -severity, currentTick, 120u);
+                        UpsertMoraleModifier(moraleModifiers, MoraleModifierSource.Espionage, -severity, currentTick, 120u);
 
                         if (_suspicionLookup.HasComponent(entity))
                         {
@@ -594,7 +747,7 @@ namespace Space4X.Registry
             aggregate.EspionageRisk += math.max(0f, facility.EspionageRisk) * clampedIntegrity;
             aggregate.PoisonRisk += math.max(0f, facility.PoisonRisk) * clampedIntegrity;
             aggregate.AssassinationRisk += math.max(0f, facility.AssassinationRisk) * clampedIntegrity;
-            aggregate.BriberyRisk += math.max(0f, facility.BriberyPressure + facility.Illicitness * 0.35f) * clampedIntegrity;
+            aggregate.BriberyRisk += math.max(0f, facility.BriberyPressure + facility.Illicitness * 0.35f + facility.FacultyBriberyRisk) * clampedIntegrity;
 
             var preference = LeisureFacilityUtility.ResolvePreferenceWeight(profile, facility.Type);
             var facilityYield = facility.EntertainmentRate + facility.ComfortRate + facility.SocialRate + facility.NourishmentRate;
@@ -626,7 +779,7 @@ namespace Space4X.Registry
         }
 
         private static void UpsertMoraleModifier(
-            ref DynamicBuffer<MoraleModifier> buffer,
+            DynamicBuffer<MoraleModifier> buffer,
             MoraleModifierSource source,
             float strength,
             uint currentTick,
@@ -710,6 +863,9 @@ namespace Space4X.Registry
             adjusted.ThirdBlood = (half)math.saturate((float)profile.ThirdBlood + warlike * (0.1f + 0.2f * chaos));
             adjusted.SanguinisExtremis = (half)math.saturate((float)profile.SanguinisExtremis + warlike * (0.08f + 0.22f * corruption));
             adjusted.Temple = (half)math.saturate((float)profile.Temple + pacifism * 0.14f - warlike * 0.05f);
+            adjusted.Training = (half)math.saturate((float)profile.Training + warlike * 0.2f);
+            adjusted.School = (half)math.saturate((float)profile.School + pacifism * 0.08f - warlike * 0.04f);
+            adjusted.University = (half)math.saturate((float)profile.University + pacifism * 0.1f - warlike * 0.03f);
             return adjusted;
         }
 
@@ -728,6 +884,207 @@ namespace Space4X.Registry
             var step = math.saturate(ambientStrength) * coupling * 0.02f / math.max(1f, populationScale);
             var next = math.clamp(current + ambientDirection * step * polarity, new float3(-1f), new float3(1f));
             return AlignmentTriplet.FromFloats(next.x, next.y, next.z);
+        }
+
+        private static void ResolveEducationScheduleWeights(
+            uint currentTick,
+            float fixedDeltaTime,
+            in LeisureEducationPolicy policy,
+            out float schoolWindow,
+            out float universityWindow,
+            out float trainingWindow)
+        {
+            schoolWindow = 0f;
+            universityWindow = 0f;
+            trainingWindow = 0f;
+
+            var dayLengthHours = math.max(1f, policy.DayLengthHours);
+            var hourOfDay = math.fmod(currentTick * math.max(0.001f, fixedDeltaTime), dayLengthHours);
+            if (hourOfDay < 0f)
+            {
+                hourOfDay += dayLengthHours;
+            }
+
+            var offHours = math.saturate((float)policy.OffHoursEfficiency);
+
+            var schoolActive = IsWindowActive(hourOfDay, dayLengthHours, policy.SchoolStartHour, policy.SchoolDurationHours);
+            schoolWindow = schoolActive ? 1f : offHours;
+
+            var universityShiftAActive = IsWindowActive(
+                hourOfDay,
+                dayLengthHours,
+                policy.UniversityShiftAStartHour,
+                policy.UniversityShiftDurationHours);
+            var universityShiftBActive = IsWindowActive(
+                hourOfDay,
+                dayLengthHours,
+                policy.UniversityShiftBStartHour,
+                policy.UniversityShiftDurationHours);
+            universityWindow = universityShiftAActive || universityShiftBActive ? 1f : offHours;
+
+            var trainingActive = IsWindowActive(hourOfDay, dayLengthHours, policy.TrainingStartHour, policy.TrainingDurationHours);
+            trainingWindow = trainingActive ? 1f : offHours;
+        }
+
+        private static bool IsWindowActive(
+            float hourOfDay,
+            float dayLengthHours,
+            float startHour,
+            float durationHours)
+        {
+            var duration = math.max(0f, durationHours);
+            if (duration <= 1e-5f)
+            {
+                return false;
+            }
+
+            var start = math.fmod(startHour, dayLengthHours);
+            if (start < 0f)
+            {
+                start += dayLengthHours;
+            }
+
+            var end = start + duration;
+            if (end < dayLengthHours)
+            {
+                return hourOfDay >= start && hourOfDay < end;
+            }
+
+            var wrappedEnd = end - dayLengthHours;
+            return hourOfDay >= start || hourOfDay < wrappedEnd;
+        }
+
+        private static float ResolveFacultyQuality(in LeisureEducationPolicy policy)
+        {
+            var tutor = math.saturate((float)policy.TutorQuality01);
+            var professor = math.saturate((float)policy.ProfessorQuality01);
+            var assistants = math.saturate((float)policy.AssistantCoverage01);
+            return math.saturate(0.35f + tutor * 0.25f + professor * 0.3f + assistants * 0.1f);
+        }
+
+        private void ApplyEducationSkillProgress(
+            Entity entity,
+            uint currentTick,
+            float learningOutput,
+            float trainingOutput,
+            float researchOutput,
+            in LeisureEducationPolicy policy,
+            bool hasSkillLog,
+            DynamicBuffer<SkillChangeLogEntry> skillLog)
+        {
+            if (!_xpLookup.HasComponent(entity) || !_skillsLookup.HasComponent(entity))
+            {
+                return;
+            }
+
+            var xp = _xpLookup[entity];
+            var skills = _skillsLookup[entity];
+            var gainScale = math.max(0f, policy.SkillGainScale);
+
+            var studyMagnitude = (learningOutput + researchOutput * 0.3f) * gainScale;
+            var drillMagnitude = trainingOutput * gainScale;
+
+            if (studyMagnitude > 1e-5f)
+            {
+                var explorationDelta = Space4XSkillUtility.ComputeDeltaXp(SkillDomain.Exploration, studyMagnitude);
+                var haulingDelta = Space4XSkillUtility.ComputeDeltaXp(SkillDomain.Hauling, studyMagnitude * 0.45f);
+                xp.ExplorationXp += explorationDelta;
+                xp.HaulingXp += haulingDelta;
+                if (hasSkillLog && skillLog.IsCreated)
+                {
+                    skillLog.Add(new SkillChangeLogEntry
+                    {
+                        Tick = currentTick,
+                        TargetEntity = entity,
+                        Domain = SkillDomain.Exploration,
+                        DeltaXp = explorationDelta,
+                        NewSkill = skills.ExplorationSkill
+                    });
+                    skillLog.Add(new SkillChangeLogEntry
+                    {
+                        Tick = currentTick,
+                        TargetEntity = entity,
+                        Domain = SkillDomain.Hauling,
+                        DeltaXp = haulingDelta,
+                        NewSkill = skills.HaulingSkill
+                    });
+                }
+            }
+
+            if (drillMagnitude > 1e-5f)
+            {
+                var combatDelta = Space4XSkillUtility.ComputeDeltaXp(SkillDomain.Combat, drillMagnitude);
+                var repairDelta = Space4XSkillUtility.ComputeDeltaXp(SkillDomain.Repair, drillMagnitude * 0.5f);
+                xp.CombatXp += combatDelta;
+                xp.RepairXp += repairDelta;
+                if (hasSkillLog && skillLog.IsCreated)
+                {
+                    skillLog.Add(new SkillChangeLogEntry
+                    {
+                        Tick = currentTick,
+                        TargetEntity = entity,
+                        Domain = SkillDomain.Combat,
+                        DeltaXp = combatDelta,
+                        NewSkill = skills.CombatSkill
+                    });
+                    skillLog.Add(new SkillChangeLogEntry
+                    {
+                        Tick = currentTick,
+                        TargetEntity = entity,
+                        Domain = SkillDomain.Repair,
+                        DeltaXp = repairDelta,
+                        NewSkill = skills.RepairSkill
+                    });
+                }
+            }
+
+            xp.LastProcessedTick = currentTick;
+            _xpLookup[entity] = xp;
+
+            skills.MiningSkill = Space4XSkillUtility.XpToSkill(xp.MiningXp);
+            skills.HaulingSkill = Space4XSkillUtility.XpToSkill(xp.HaulingXp);
+            skills.CombatSkill = Space4XSkillUtility.XpToSkill(xp.CombatXp);
+            skills.RepairSkill = Space4XSkillUtility.XpToSkill(xp.RepairXp);
+            skills.ExplorationSkill = Space4XSkillUtility.XpToSkill(xp.ExplorationXp);
+            _skillsLookup[entity] = skills;
+        }
+
+        private static void ApplyCrewWisdomGain(
+            Entity owner,
+            float wisdomOutput,
+            in LeisureEducationPolicy policy,
+            ref BufferLookup<PDCrewMember> crewLookup,
+            ref ComponentLookup<PureDOTS.Runtime.Stats.WisdomStat> wisdomLookup)
+        {
+            if (wisdomOutput <= 1e-5f || !crewLookup.HasBuffer(owner))
+            {
+                return;
+            }
+
+            var crew = crewLookup[owner];
+            if (crew.Length == 0)
+            {
+                return;
+            }
+
+            var perCrewGain = wisdomOutput * math.max(0f, policy.WisdomGainScale) * 100f / crew.Length;
+            if (perCrewGain <= 1e-5f)
+            {
+                return;
+            }
+
+            for (var i = 0; i < crew.Length; i++)
+            {
+                var crewEntity = crew[i].CrewEntity;
+                if (crewEntity == Entity.Null || !wisdomLookup.HasComponent(crewEntity))
+                {
+                    continue;
+                }
+
+                var wisdom = wisdomLookup[crewEntity];
+                wisdom.Wisdom = math.clamp(wisdom.Wisdom + perCrewGain, 0f, 100f);
+                wisdomLookup[crewEntity] = wisdom;
+            }
         }
 
         private static LeisureOpportunityType ResolveOpportunityType(
@@ -772,9 +1129,10 @@ namespace Space4X.Registry
             float poison,
             float assassin,
             float bribery,
+            float facultySubversion,
             float roll)
         {
-            var total = math.max(1e-5f, espionage + poison + assassin + bribery);
+            var total = math.max(1e-5f, espionage + poison + assassin + bribery + facultySubversion);
             var cursor = espionage / total;
             if (roll <= cursor)
             {
@@ -793,7 +1151,13 @@ namespace Space4X.Registry
                 return LeisureIncidentType.SleeperAssassin;
             }
 
-            return LeisureIncidentType.BriberyDemand;
+            cursor += bribery / total;
+            if (roll <= cursor)
+            {
+                return LeisureIncidentType.BriberyDemand;
+            }
+
+            return LeisureIncidentType.FacultySubversion;
         }
 
         private static Entity ResolveIncidentSourceModule(
@@ -801,7 +1165,8 @@ namespace Space4X.Registry
             Entity espionageModule,
             Entity poisonModule,
             Entity assassinModule,
-            Entity briberyModule)
+            Entity briberyModule,
+            Entity facultySubversionModule)
         {
             return type switch
             {
@@ -809,6 +1174,7 @@ namespace Space4X.Registry
                 LeisureIncidentType.PoisonedSupply => poisonModule,
                 LeisureIncidentType.SleeperAssassin => assassinModule,
                 LeisureIncidentType.BriberyDemand => briberyModule,
+                LeisureIncidentType.FacultySubversion => facultySubversionModule,
                 _ => Entity.Null
             };
         }

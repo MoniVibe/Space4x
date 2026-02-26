@@ -9,6 +9,7 @@ namespace Space4X.Tests
     using PDCarrierModuleSlot = PureDOTS.Runtime.Ships.CarrierModuleSlot;
     using PDShipModule = PureDOTS.Runtime.Ships.ShipModule;
     using PDCrewMember = PureDOTS.Runtime.Platform.PlatformCrewMember;
+    using WisdomStat = PureDOTS.Runtime.Stats.WisdomStat;
 
     public class Space4XLeisureSystemTests
     {
@@ -350,6 +351,170 @@ namespace Space4X.Tests
             Assert.Greater((float)after.Integrity, (float)before.Integrity);
         }
 
+        [Test]
+        public void EducationFacility_UsesScheduleAndRaisesSkillsAndWisdom()
+        {
+            var ship = CreateShipBase();
+            _entityManager.SetComponentData(ship, new CrewCapacity
+            {
+                MaxCrew = 60,
+                CurrentCrew = 20,
+                CriticalMax = 90
+            });
+
+            _entityManager.SetComponentData(ship, new LeisureEducationPolicy
+            {
+                Enabled = 1,
+                DayLengthHours = 24f,
+                SchoolStartHour = 8f,
+                SchoolDurationHours = 4f,
+                UniversityShiftAStartHour = 8f,
+                UniversityShiftBStartHour = 14f,
+                UniversityShiftDurationHours = 4f,
+                TrainingStartHour = 18f,
+                TrainingDurationHours = 2f,
+                OffHoursEfficiency = (half)0.05f,
+                EnrollmentRatio = (half)0.7f,
+                TutorQuality01 = (half)0.9f,
+                ProfessorQuality01 = (half)0.85f,
+                AssistantCoverage01 = (half)0.75f,
+                Standards01 = (half)0.8f,
+                IdeologyResistance01 = (half)0.6f,
+                BriberyOversight01 = (half)0.6f,
+                SkillGainScale = 3f,
+                WisdomGainScale = 1f,
+                ResearchScale = 1f
+            });
+
+            var crew = _entityManager.AddBuffer<PDCrewMember>(ship);
+            var student = _entityManager.CreateEntity(typeof(WisdomStat));
+            _entityManager.SetComponentData(student, WisdomStat.FromValue(30f));
+            crew.Add(new PDCrewMember { CrewEntity = student, RoleId = 0 });
+
+            var module = _entityManager.CreateEntity(typeof(PDShipModule), typeof(LeisureFacilityLimb));
+            _entityManager.SetComponentData(module, new LeisureFacilityLimb
+            {
+                Type = LeisureFacilityType.School,
+                HousingCapacity = 0f,
+                EducationRate = 0.5f,
+                TrainingRate = 0.12f,
+                WisdomRate = 0.3f,
+                ResearchRate = 0.2f,
+                IdeologyPressure = 0.05f,
+                FacultyBriberyRisk = 0.05f
+            });
+            var slots = _entityManager.AddBuffer<PDCarrierModuleSlot>(ship);
+            slots.Add(new PDCarrierModuleSlot { InstalledModule = module });
+
+            var xpBefore = _entityManager.GetComponentData<SkillExperienceGain>(ship);
+            var wisdomBefore = _entityManager.GetComponentData<WisdomStat>(student);
+
+            SetTick(9u); // Hour 9 is inside school window.
+            var system = _world.GetOrCreateSystem<Space4XLeisureNeedSystem>();
+            system.Update(_world.Unmanaged);
+
+            var xpAfter = _entityManager.GetComponentData<SkillExperienceGain>(ship);
+            var skillsAfter = _entityManager.GetComponentData<CrewSkills>(ship);
+            var wisdomAfter = _entityManager.GetComponentData<WisdomStat>(student);
+            var aggregate = _entityManager.GetComponentData<LeisureFacilityAggregate>(ship);
+
+            Assert.Greater(xpAfter.ExplorationXp, xpBefore.ExplorationXp, "Schooling should add exploration XP.");
+            Assert.Greater(xpAfter.CombatXp, xpBefore.CombatXp, "Training output should add combat XP.");
+            Assert.Greater(skillsAfter.ExplorationSkill, 0f, "Learning should convert to non-zero skill.");
+            Assert.Greater(wisdomAfter.Wisdom, wisdomBefore.Wisdom, "Scheduled learning should increase crew wisdom.");
+            Assert.Greater(aggregate.EducationRate, 0f);
+            Assert.Greater(aggregate.WisdomRate, 0f);
+
+            var modifiers = _entityManager.GetBuffer<MoraleModifier>(ship);
+            Assert.IsTrue(TryGetModifier(modifiers, MoraleModifierSource.Education, out var educationMod));
+            Assert.Greater((float)educationMod.Strength, -0.2f, "Education modifier should exist and not collapse morale in a healthy school setup.");
+        }
+
+        [Test]
+        public void UniversityFacultyBriberyRisk_CanEmitFacultySubversionIncident()
+        {
+            var ship = CreateShipBase();
+            _entityManager.SetComponentData(ship, new CrewCapacity
+            {
+                MaxCrew = 80,
+                CurrentCrew = 30,
+                CriticalMax = 120
+            });
+            _entityManager.SetComponentData(ship, AlignmentTriplet.FromFloats(-0.6f, -0.8f, -0.9f));
+            _entityManager.SetComponentData(ship, new LeisureSecurityPolicy
+            {
+                CounterIntelLevel = (half)0f,
+                FoodSafetyLevel = (half)0f,
+                InternalSecurityLevel = (half)0f,
+                BriberyBudget = (half)0f
+            });
+            _entityManager.SetComponentData(ship, new LeisureEducationPolicy
+            {
+                Enabled = 1,
+                DayLengthHours = 24f,
+                SchoolStartHour = 8f,
+                SchoolDurationHours = 3f,
+                UniversityShiftAStartHour = 8f,
+                UniversityShiftBStartHour = 14f,
+                UniversityShiftDurationHours = 4f,
+                TrainingStartHour = 18f,
+                TrainingDurationHours = 2f,
+                OffHoursEfficiency = (half)0.25f,
+                EnrollmentRatio = (half)0.6f,
+                TutorQuality01 = (half)0.6f,
+                ProfessorQuality01 = (half)0.7f,
+                AssistantCoverage01 = (half)0.5f,
+                Standards01 = (half)0.6f,
+                IdeologyResistance01 = (half)0f,
+                BriberyOversight01 = (half)0f,
+                SkillGainScale = 1f,
+                WisdomGainScale = 0.5f,
+                ResearchScale = 1f
+            });
+
+            var module = _entityManager.CreateEntity(typeof(PDShipModule), typeof(LeisureFacilityLimb));
+            _entityManager.SetComponentData(module, new LeisureFacilityLimb
+            {
+                Type = LeisureFacilityType.University,
+                EducationRate = 0.2f,
+                WisdomRate = 0.1f,
+                ResearchRate = 0.35f,
+                IdeologyPressure = 0.5f,
+                FacultyBriberyRisk = 1f,
+                EspionageRisk = 0f,
+                PoisonRisk = 0f,
+                AssassinationRisk = 0f,
+                BriberyPressure = 0f
+            });
+            var slots = _entityManager.AddBuffer<PDCarrierModuleSlot>(ship);
+            slots.Add(new PDCarrierModuleSlot { InstalledModule = module });
+
+            var system = _world.GetOrCreateSystem<Space4XLeisureNeedSystem>();
+            var foundFacultyIncident = false;
+            for (uint tick = 1u; tick <= 720u; tick++)
+            {
+                SetTick(tick);
+                system.Update(_world.Unmanaged);
+
+                var incidents = _entityManager.GetBuffer<LeisureIncidentEvent>(ship);
+                for (var i = 0; i < incidents.Length; i++)
+                {
+                    if (incidents[i].Type == LeisureIncidentType.FacultySubversion)
+                    {
+                        foundFacultyIncident = true;
+                        break;
+                    }
+                }
+
+                if (foundFacultyIncident)
+                {
+                    break;
+                }
+            }
+
+            Assert.IsTrue(foundFacultyIncident, "High faculty bribery risk should eventually emit FacultySubversion incidents.");
+        }
+
         private Entity CreateShipBase()
         {
             var ship = _entityManager.CreateEntity(
@@ -357,17 +522,39 @@ namespace Space4X.Tests
                 typeof(LeisureNeedState),
                 typeof(LeisurePreferenceProfile),
                 typeof(LeisureSecurityPolicy),
-                typeof(LeisureFacilityAggregate));
+                typeof(LeisureFacilityAggregate),
+                typeof(LeisureEducationPolicy),
+                typeof(LeisureEducationProgress),
+                typeof(CrewSkills),
+                typeof(SkillExperienceGain));
 
             _entityManager.SetComponentData(ship, MoraleState.FromBaseline(0f));
             _entityManager.SetComponentData(ship, LeisureNeedState.Default);
             _entityManager.SetComponentData(ship, LeisurePreferenceProfile.Neutral);
             _entityManager.SetComponentData(ship, LeisureSecurityPolicy.Default);
+            _entityManager.SetComponentData(ship, LeisureEducationPolicy.Default);
             _entityManager.SetComponentData(ship, default(LeisureFacilityAggregate));
+            _entityManager.SetComponentData(ship, default(LeisureEducationProgress));
+            _entityManager.SetComponentData(ship, new CrewSkills());
+            _entityManager.SetComponentData(ship, new SkillExperienceGain());
             _entityManager.AddBuffer<MoraleModifier>(ship);
             _entityManager.AddBuffer<LeisureIncidentEvent>(ship);
             _entityManager.AddBuffer<LeisureOpportunityEvent>(ship);
             return ship;
+        }
+
+        private void SetTick(uint tick)
+        {
+            using var query = _entityManager.CreateEntityQuery(typeof(PureDOTS.Runtime.Components.TimeState));
+            var timeEntity = query.GetSingletonEntity();
+            var time = _entityManager.GetComponentData<PureDOTS.Runtime.Components.TimeState>(timeEntity);
+            time.Tick = tick;
+            time.IsPaused = false;
+            if (time.FixedDeltaTime <= 0f)
+            {
+                time.FixedDeltaTime = 1f;
+            }
+            _entityManager.SetComponentData(timeEntity, time);
         }
 
         private static bool TryGetModifier(DynamicBuffer<MoraleModifier> modifiers, MoraleModifierSource source, out MoraleModifier modifier)

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using PureDOTS.Runtime.Math;
 using PureDOTS.Runtime.Components;
 using Space4X.Registry;
+using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -21,7 +22,7 @@ namespace Space4x.Scenario
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
-            state.RequireForUpdate<PlayerFlagshipTag>();
+            state.RequireForUpdate<Space4X.Registry.PlayerFlagshipTag>();
             state.RequireForUpdate<Space4XRunEnemyTag>();
         }
 
@@ -32,7 +33,7 @@ namespace Space4x.Scenario
 
             foreach (var (directiveRef, flagshipTransform, flagshipEntity) in SystemAPI
                          .Query<RefRW<Space4XFleetcrawlPlayerDirective>, RefRO<LocalTransform>>()
-                         .WithAll<PlayerFlagshipTag, Space4XRunPlayerTag>()
+                         .WithAll<Space4X.Registry.PlayerFlagshipTag, Space4XRunPlayerTag>()
                          .WithEntityAccess())
             {
                 var directive = directiveRef.ValueRO;
