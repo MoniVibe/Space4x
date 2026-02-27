@@ -66,7 +66,7 @@ namespace Space4X.Perception
             {
                 ecb.AddComponent(observer, new SenseCapability
                 {
-                    EnabledChannels = PerceptionChannel.EM | PerceptionChannel.Gravitic,
+                    EnabledChannels = PerceptionChannel.EM | PerceptionChannel.Gravitic | PerceptionChannel.Exotic,
                     Range = range,
                     FieldOfView = 360f,
                     Acuity = 1f,
@@ -78,7 +78,7 @@ namespace Space4X.Perception
             else
             {
                 var capability = em.GetComponentData<SenseCapability>(observer);
-                capability.EnabledChannels |= PerceptionChannel.EM | PerceptionChannel.Gravitic;
+                capability.EnabledChannels |= PerceptionChannel.EM | PerceptionChannel.Gravitic | PerceptionChannel.Exotic;
                 capability.Range = capability.Range < range ? range : capability.Range;
                 capability.FieldOfView = capability.FieldOfView < 360f ? 360f : capability.FieldOfView;
                 capability.Acuity = capability.Acuity <= 0f ? 1f : capability.Acuity;
@@ -87,27 +87,17 @@ namespace Space4X.Perception
                 ecb.SetComponent(observer, capability);
             }
 
-            if (!em.HasBuffer<SenseOrganState>(observer))
-            {
-                ecb.AddBuffer<SenseOrganState>(observer);
-            }
+            // Sense organ/perceived buffers and perception state are provisioned by
+            // dedicated sensor/module bootstrap paths to avoid chunk-size overflow here.
 
-            if (!em.HasBuffer<PerceivedEntity>(observer))
+            try
             {
-                ecb.AddBuffer<PerceivedEntity>(observer);
+                ecb.Playback(em);
             }
-
-            if (!em.HasComponent<PerceptionState>(observer))
+            catch (System.InvalidOperationException)
             {
-                ecb.AddComponent(observer, new PerceptionState());
+                // Avoid retry-spam when observer archetypes are already at chunk-size limits.
             }
-
-            if (!em.HasComponent<SignalPerceptionState>(observer))
-            {
-                ecb.AddComponent(observer, new SignalPerceptionState());
-            }
-
-            ecb.Playback(em);
             ecb.Dispose();
 
             config.SensorsEnsured = 1;

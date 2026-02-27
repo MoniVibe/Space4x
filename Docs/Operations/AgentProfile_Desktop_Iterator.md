@@ -31,9 +31,34 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorGuardedHandoff.ps1 `
   -RepoPath C:\dev\Tri\space4x_ultimate `
   -PuredotsRepoPath C:\dev\Tri\puredots_ultimate `
   -PushBranch <branch-name> `
-  -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
   -AwarenessNote "Reviewed open needs-validate queue before handoff"
 ```
+
+`-UnityExe` is optional and only needed for explicit override.
+
+## Parallel Editor + CLI Lane Pattern
+
+- Keep your interactive editor open in `C:\dev\Tri\space4x_ultimate`.
+- Run agent CLI compile/tests in `C:\dev\Tri\space4x`.
+- Use:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/RunUnityCliLane.ps1 `
+  -EditorRepoPath C:\dev\Tri\space4x_ultimate `
+  -CliRepoPath C:\dev\Tri\space4x `
+  -TestPlatform PlayMode `
+  -TestFilter Space4XUiUxKernelTests
+```
+
+This allows simultaneous manual work + agent validation while enforcing editor/package parity by default.
+
+PlayMode lane stability defaults:
+- The CLI test runner automatically applies a headless-safe env (`PUREDOTS_EXIT_POLICY=nevernonzero` and related exit toggles) so test XML is emitted even when scenario invariants fire.
+- Use `-AllowHeadlessProcessExit` only when you intentionally want legacy headless auto-exit behavior.
+
+Lock behavior:
+- Active lock: if `Temp/UnityLockfile` exists and Unity is actually running against that exact repo path, the lane run blocks unless `-IgnoreProjectLock`.
+- Stale lock: if no matching Unity process is using that path, the runner warns and continues.
 
 3. If guard fails, fix blockers (freshness/compile/awareness) and rerun.
 4. Open PR to `main`.

@@ -2,6 +2,7 @@ using PureDOTS.Runtime.Components;
 using Space4X.Input;
 using Space4X.Progression;
 using Space4X.BattleSlice;
+using Space4X.Runtime;
 using Space4x.Scenario;
 using Unity.Collections;
 using Unity.Entities;
@@ -21,9 +22,11 @@ namespace Space4X.Camera
         [SerializeField] private bool showHud = true;
         [SerializeField] private Key toggleHudKey = Key.H;
         [SerializeField] private bool showDeterminismDigest = true;
+        [SerializeField] private bool showFpsCounter = true;
         [SerializeField] private Rect hudRect = new Rect(12f, 12f, 420f, 140f);
         [SerializeField] private int fontSize = 14;
         [SerializeField] private float refreshRateHz = 10f;
+        [SerializeField, Range(0f, 0.99f)] private float fpsSmoothing = 0.9f;
 
         private World _ecsWorld;
         private EntityQuery _tickQuery;
@@ -32,6 +35,8 @@ namespace Space4X.Camera
         private bool _battleMetricsQueryValid;
         private EntityQuery _battleFighterQuery;
         private bool _battleFighterQueryValid;
+        private EntityQuery _spineRootQuery;
+        private bool _spineRootQueryValid;
         private EntityQuery _fleetcrawlDirectorQuery;
         private bool _fleetcrawlDirectorQueryValid;
         private EntityQuery _enemyTelegraphQuery;
@@ -43,6 +48,9 @@ namespace Space4X.Camera
         private GUIStyle _labelStyle;
         private float _nextRefreshTime;
         private HudSnapshot _snapshot;
+        private bool _fpsInitialized;
+        private float _smoothedFps = 60f;
+        private float _smoothedFrameMs = 16.67f;
 
         private struct HudSnapshot
         {
@@ -50,8 +58,12 @@ namespace Space4X.Camera
             public int Side1Alive;
             public uint Tick;
             public float WorldSeconds;
+            public float Fps;
+            public float FrameMs;
             public uint Digest;
             public bool HasDigest;
+            public byte DigestSource; // 0=n/a, 1=spine, 2=battle
+            public uint DigestTick;
             public bool HasFleetcrawl;
             public int FleetcrawlRoomIndex;
             public int FleetcrawlRoomCount;
@@ -114,6 +126,7 @@ namespace Space4X.Camera
             DisposeQuery(ref _tickQuery, ref _tickQueryValid);
             DisposeQuery(ref _battleMetricsQuery, ref _battleMetricsQueryValid);
             DisposeQuery(ref _battleFighterQuery, ref _battleFighterQueryValid);
+            DisposeQuery(ref _spineRootQuery, ref _spineRootQueryValid);
             DisposeQuery(ref _fleetcrawlDirectorQuery, ref _fleetcrawlDirectorQueryValid);
             DisposeQuery(ref _enemyTelegraphQuery, ref _enemyTelegraphQueryValid);
             DisposeQuery(ref _persistentProgressionQuery, ref _persistentProgressionQueryValid);
@@ -121,6 +134,8 @@ namespace Space4X.Camera
 
         private void Update()
         {
+            SampleFrameTiming();
+
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard[toggleHudKey].wasPressedThisFrame)
             {
@@ -152,10 +167,22 @@ namespace Space4X.Camera
             GUILayout.BeginArea(hudRect, GUIContent.none, _panelStyle);
             GUILayout.Label($"Alive  side0={_snapshot.Side0Alive}  side1={_snapshot.Side1Alive}", _labelStyle);
             GUILayout.Label($"Tick   {_snapshot.Tick}    Time {_snapshot.WorldSeconds:0.0}s", _labelStyle);
+            if (showFpsCounter)
+            {
+                GUILayout.Label($"FPS   {_snapshot.Fps:0.0}    Frame {_snapshot.FrameMs:0.00} ms", _labelStyle);
+            }
 
             if (showDeterminismDigest && _snapshot.HasDigest)
             {
-                GUILayout.Label($"Digest {_snapshot.Digest}", _labelStyle);
+                var digestLabel = _snapshot.DigestSource == 1 ? "Digest (Spine)" : "Digest (Battle)";
+                if (_snapshot.DigestSource == 1 && _snapshot.DigestTick > 0u)
+                {
+                    GUILayout.Label($"{digestLabel} {_snapshot.Digest}  t{_snapshot.DigestTick}", _labelStyle);
+                }
+                else
+                {
+                    GUILayout.Label($"{digestLabel} {_snapshot.Digest}", _labelStyle);
+                }
             }
             else if (showDeterminismDigest)
             {
@@ -216,6 +243,8 @@ namespace Space4X.Camera
             var snapshot = new HudSnapshot
             {
                 WorldSeconds = UnityEngine.Time.timeSinceLevelLoad,
+                Fps = _smoothedFps,
+                FrameMs = _smoothedFrameMs,
                 FleetcrawlChallengeSpawnMultiplier = 1f,
                 FleetcrawlChallengeCurrencyMultiplier = 1f,
                 FleetcrawlChallengeExperienceMultiplier = 1f
@@ -246,6 +275,7 @@ namespace Space4X.Camera
                 snapshot.Side1Alive = metrics.Side1Alive;
                 snapshot.Digest = metrics.Digest;
                 snapshot.HasDigest = true;
+                snapshot.DigestSource = 2;
             }
             else if (_battleFighterQuery.CalculateEntityCount() > 0)
             {
@@ -266,6 +296,19 @@ namespace Space4X.Camera
                     {
                         snapshot.Side1Alive++;
                     }
+                }
+            }
+
+            if (TryGetFirstEntity(entityManager, _spineRootQuery, out var spineEntity) &&
+                entityManager.HasComponent<Space4XSimulationStateSpineDeterminism>(spineEntity))
+            {
+                var determinism = entityManager.GetComponentData<Space4XSimulationStateSpineDeterminism>(spineEntity);
+                if (determinism.RunningDigest != 0u)
+                {
+                    snapshot.Digest = determinism.RunningDigest;
+                    snapshot.DigestTick = determinism.LastTick;
+                    snapshot.HasDigest = true;
+                    snapshot.DigestSource = 1;
                 }
             }
 
@@ -410,6 +453,28 @@ namespace Space4X.Camera
             _snapshot = snapshot;
         }
 
+        private void SampleFrameTiming()
+        {
+            var dt = UnityEngine.Time.unscaledDeltaTime;
+            if (dt <= 1e-6f)
+            {
+                return;
+            }
+
+            var frameMs = dt * 1000f;
+            if (!_fpsInitialized)
+            {
+                _smoothedFrameMs = frameMs;
+                _smoothedFps = 1000f / Mathf.Max(0.01f, frameMs);
+                _fpsInitialized = true;
+                return;
+            }
+
+            var blend = 1f - Mathf.Clamp01(fpsSmoothing);
+            _smoothedFrameMs += (frameMs - _smoothedFrameMs) * blend;
+            _smoothedFps = 1000f / Mathf.Max(0.01f, _smoothedFrameMs);
+        }
+
         private bool TryEnsureQueries(out EntityManager entityManager)
         {
             if (_ecsWorld == null || !_ecsWorld.IsCreated)
@@ -441,6 +506,14 @@ namespace Space4X.Camera
             {
                 _battleFighterQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Space4XBattleSliceFighter>());
                 _battleFighterQueryValid = true;
+            }
+
+            if (!_spineRootQueryValid)
+            {
+                _spineRootQuery = entityManager.CreateEntityQuery(
+                    ComponentType.ReadOnly<Space4XSimulationStateSpineRootTag>(),
+                    ComponentType.ReadOnly<Space4XSimulationStateSpineDeterminism>());
+                _spineRootQueryValid = true;
             }
 
             if (!_fleetcrawlDirectorQueryValid)

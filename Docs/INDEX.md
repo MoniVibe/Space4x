@@ -15,6 +15,8 @@ Quick pointers to the active documentation:
 - Galaxy tamagotchi (2 TPS sim): `Docs/Conceptualization/Mechanics/GalaxyTamagotchi.md`
 - Civilization control set (LLM interface): `Docs/Conceptualization/Mechanics/CivilizationControlSet.md`
 - Entity progression & opportunities: `Docs/Conceptualization/Mechanics/EntityProgressionOpportunities.md`
+- Simulation State Spine kernel (Kernel-0 foundation): `Docs/Simulation/Space4X_Simulation_State_Spine_Kernel_v0.md`
+- Multiplayer kernel (Terraria-style topology + server authority): `Docs/Simulation/Space4X_Multiplayer_Kernel_v0.md`
 - Mission board (jobs & assignments): `Docs/Conceptualization/Mechanics/MissionBoard.md`
 - Scenario runner wiring: `Docs/PureDOTS_ScenarioRunner_Wiring.md`
 - Solar-system expansion architecture: `Docs/Simulation/Space4X_Solar_System_Expansion_Architecture.md`

@@ -37,6 +37,12 @@ namespace Space4X.Systems.Interaction
                     WorldGrabRequiresTag = 1
                 });
             }
+
+            if (!SystemAPI.TryGetSingleton<Space4X.Runtime.Interaction.Space4XDivineHandPolicy>(out _))
+            {
+                var entity = state.EntityManager.CreateEntity(typeof(Space4X.Runtime.Interaction.Space4XDivineHandPolicy));
+                state.EntityManager.SetComponentData(entity, Space4X.Runtime.Interaction.Space4XDivineHandPolicy.CreateDefault());
+            }
         }
 
         public void OnUpdate(ref SystemState state)

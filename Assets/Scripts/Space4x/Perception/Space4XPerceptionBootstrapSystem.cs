@@ -13,7 +13,6 @@ namespace Space4X.Perception
     /// Seeds perception-related components for core Space4X entities (ships + strike craft).
     /// Keeps all authoring optional; headless scenarios still get valid SensorSignature/MediumContext.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XPerceptionBootstrapSystem : ISystem
     {
@@ -23,7 +22,6 @@ namespace Space4X.Perception
             state.RequireForUpdate<TimeState>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var time = SystemAPI.GetSingleton<TimeState>();
@@ -38,7 +36,6 @@ namespace Space4X.Perception
             }
 
             var em = state.EntityManager;
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             var shipDetectable = new Detectable
             {
@@ -58,9 +55,13 @@ namespace Space4X.Perception
                 ParanormalSignature = 0f
             };
 
-            foreach (var (_, _, entity) in SystemAPI.Query<RefRO<PureDOTS.Runtime.Ships.ShipAggregate>, RefRO<LocalTransform>>().WithEntityAccess())
+            var shipQuery = SystemAPI.QueryBuilder()
+                .WithAll<PureDOTS.Runtime.Ships.ShipAggregate, LocalTransform>()
+                .Build();
+            using var ships = shipQuery.ToEntityArray(Allocator.Temp);
+            for (var i = 0; i < ships.Length; i++)
             {
-                EnsurePerception(ref ecb, em, entity, shipDetectable, shipSignature);
+                EnsurePerception(em, ships[i], shipDetectable, shipSignature);
             }
 
             var craftDetectable = new Detectable
@@ -81,48 +82,17 @@ namespace Space4X.Perception
                 ParanormalSignature = 0f
             };
 
-            foreach (var (_, _, entity) in SystemAPI.Query<RefRO<StrikeCraftProfile>, RefRO<LocalTransform>>().WithEntityAccess())
+            var craftQuery = SystemAPI.QueryBuilder()
+                .WithAll<StrikeCraftProfile, LocalTransform>()
+                .Build();
+            using var crafts = craftQuery.ToEntityArray(Allocator.Temp);
+            for (var i = 0; i < crafts.Length; i++)
             {
-                EnsurePerception(ref ecb, em, entity, craftDetectable, craftSignature);
-
-                // Ensure strike craft can sense/track too (optional authoring).
-                if (!em.HasComponent<SenseCapability>(entity))
-                {
-                    ecb.AddComponent(entity, new SenseCapability
-                    {
-                        EnabledChannels = PerceptionChannel.EM | PerceptionChannel.Gravitic,
-                        Range = 350f,
-                        FieldOfView = 360f,
-                        Acuity = 1f,
-                        UpdateInterval = 0.25f,
-                        MaxTrackedTargets = 12,
-                        Flags = 0
-                    });
-                    ecb.AddBuffer<SenseOrganState>(entity);
-                }
-
-                if (!em.HasBuffer<PerceivedEntity>(entity))
-                {
-                    ecb.AddBuffer<PerceivedEntity>(entity);
-                }
-
-                if (!em.HasComponent<PerceptionState>(entity))
-                {
-                    ecb.AddComponent<PerceptionState>(entity);
-                }
-
-                if (!em.HasComponent<SignalPerceptionState>(entity))
-                {
-                    ecb.AddComponent<SignalPerceptionState>(entity);
-                }
+                EnsurePerception(em, crafts[i], craftDetectable, craftSignature);
             }
-
-            ecb.Playback(em);
-            ecb.Dispose();
         }
 
         private static void EnsurePerception(
-            ref EntityCommandBuffer ecb,
             EntityManager entityManager,
             Entity entity,
             in Detectable detectable,
@@ -130,20 +100,31 @@ namespace Space4X.Perception
         {
             if (!entityManager.HasComponent<Detectable>(entity))
             {
-                ecb.AddComponent(entity, detectable);
+                TryAddComponent(entityManager, entity, detectable);
             }
 
             if (!entityManager.HasComponent<SensorSignature>(entity))
             {
-                ecb.AddComponent(entity, signature);
+                TryAddComponent(entityManager, entity, signature);
             }
 
             if (!entityManager.HasComponent<MediumContext>(entity))
             {
-                ecb.AddComponent(entity, MediumContext.Vacuum);
+                TryAddComponent(entityManager, entity, MediumContext.Vacuum);
+            }
+        }
+
+        private static void TryAddComponent<T>(EntityManager entityManager, Entity entity, in T data)
+            where T : unmanaged, IComponentData
+        {
+            try
+            {
+                entityManager.AddComponentData(entity, data);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Some entities are already at chunk-size limits; skip optional bootstrap data.
             }
         }
     }
 }
-
-

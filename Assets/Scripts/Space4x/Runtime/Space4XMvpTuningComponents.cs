@@ -59,8 +59,23 @@ namespace Space4X.Runtime
         public float GunneryFinesseWeight;
         public float GunneryCommandWeight;
 
+        public float GunneryAccuracyMinMultiplier;
+        public float GunneryAccuracyMaxMultiplier;
+        public float HitChanceSkillCeilingMin;
+        public float HitChanceSkillCeilingMax;
+        public float HitChanceSkillCeilingExponent;
+
         public float TrackingPenaltyMinScale;
         public float TrackingPenaltyMaxScale;
+
+        public float RecoilPenaltyRookieScale;
+        public float RecoilPenaltyEliteScale;
+        public float RecoilPenaltyHeatScale;
+        public float InertiaSkewPenaltyScale;
+        public float InertiaCompensationMin;
+        public float InertiaCompensationMax;
+        public float RecoilImpulseVelocityScale;
+        public float RecoilImpulseHeatScale;
 
         public float AimLatencyMinSeconds;
         public float AimLatencyMaxSeconds;
@@ -70,8 +85,21 @@ namespace Space4X.Runtime
             GunneryTacticsWeight = 0.45f,
             GunneryFinesseWeight = 0.35f,
             GunneryCommandWeight = 0.2f,
+            GunneryAccuracyMinMultiplier = 0.62f,
+            GunneryAccuracyMaxMultiplier = 1.08f,
+            HitChanceSkillCeilingMin = 0.8f,
+            HitChanceSkillCeilingMax = 0.99f,
+            HitChanceSkillCeilingExponent = 2.2f,
             TrackingPenaltyMinScale = 0.6f,
             TrackingPenaltyMaxScale = 1.4f,
+            RecoilPenaltyRookieScale = 1.25f,
+            RecoilPenaltyEliteScale = 0.55f,
+            RecoilPenaltyHeatScale = 0.85f,
+            InertiaSkewPenaltyScale = 3f,
+            InertiaCompensationMin = 0.15f,
+            InertiaCompensationMax = 0.75f,
+            RecoilImpulseVelocityScale = 1f,
+            RecoilImpulseHeatScale = 0.5f,
             AimLatencyMinSeconds = 0.08f,
             AimLatencyMaxSeconds = 0.35f
         };

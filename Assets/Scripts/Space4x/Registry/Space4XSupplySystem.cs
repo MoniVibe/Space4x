@@ -3,6 +3,8 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using PureDOTS.Runtime.Modules;
+using Space4X.Runtime;
 
 namespace Space4X.Registry
 {
@@ -17,12 +19,24 @@ namespace Space4X.Registry
     public partial struct Space4XSupplyConsumptionSystem : ISystem
     {
         private ComponentLookup<SupplyCriticalTag> _criticalLookup;
+        private ComponentLookup<PlayerFlagshipTag> _playerFlagshipLookup;
+        private ComponentLookup<PlayerFlagshipFlightInput> _playerInputLookup;
+        private ComponentLookup<ShipFlightProfile> _flightProfileLookup;
+        private ComponentLookup<ShipFlightRuntimeState> _flightRuntimeLookup;
+        private ComponentLookup<VesselPhysicalProperties> _physicalLookup;
+        private ComponentLookup<EnginePerformanceOutput> _engineOutputLookup;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SupplyStatus>();
             _criticalLookup = state.GetComponentLookup<SupplyCriticalTag>(true);
+            _playerFlagshipLookup = state.GetComponentLookup<PlayerFlagshipTag>(true);
+            _playerInputLookup = state.GetComponentLookup<PlayerFlagshipFlightInput>(true);
+            _flightProfileLookup = state.GetComponentLookup<ShipFlightProfile>(true);
+            _flightRuntimeLookup = state.GetComponentLookup<ShipFlightRuntimeState>(true);
+            _physicalLookup = state.GetComponentLookup<VesselPhysicalProperties>(true);
+            _engineOutputLookup = state.GetComponentLookup<EnginePerformanceOutput>(true);
         }
 
         [BurstCompile]
@@ -30,6 +44,12 @@ namespace Space4X.Registry
         {
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             _criticalLookup.Update(ref state);
+            _playerFlagshipLookup.Update(ref state);
+            _playerInputLookup.Update(ref state);
+            _flightProfileLookup.Update(ref state);
+            _flightRuntimeLookup.Update(ref state);
+            _physicalLookup.Update(ref state);
+            _engineOutputLookup.Update(ref state);
 
             foreach (var (status, rates, entity) in
                 SystemAPI.Query<RefRW<SupplyStatus>, RefRO<SupplyConsumptionRates>>()
@@ -37,6 +57,37 @@ namespace Space4X.Registry
             {
                 // Calculate consumption based on activity
                 float fuelConsumption = SupplyUtility.CalculateFuelConsumption(rates.ValueRO, status.ValueRO.Activity);
+
+                if (_playerFlagshipLookup.HasComponent(entity) &&
+                    _playerInputLookup.HasComponent(entity) &&
+                    _flightProfileLookup.HasComponent(entity) &&
+                    _flightRuntimeLookup.HasComponent(entity))
+                {
+                    var input = _playerInputLookup[entity];
+                    var profile = _flightProfileLookup[entity].Sanitized();
+                    var runtime = _flightRuntimeLookup[entity];
+                    var baseMass = _physicalLookup.HasComponent(entity)
+                        ? math.max(0.1f, _physicalLookup[entity].BaseMass)
+                        : 20f;
+
+                    var engineEfficiency = 0.5f;
+                    var engineBoost = 0.5f;
+                    if (_engineOutputLookup.HasComponent(entity))
+                    {
+                        var engine = _engineOutputLookup[entity];
+                        engineEfficiency = math.saturate(engine.Efficiency);
+                        engineBoost = math.saturate(engine.Boost);
+                    }
+
+                    fuelConsumption += SupplyUtility.CalculateBoostPropulsionFuelDraw(
+                        in input,
+                        in profile,
+                        in runtime,
+                        in rates.ValueRO,
+                        baseMass,
+                        engineEfficiency,
+                        engineBoost);
+                }
 
                 // Apply consumption
                 status.ValueRW.Fuel = math.max(0, status.ValueRO.Fuel - fuelConsumption);

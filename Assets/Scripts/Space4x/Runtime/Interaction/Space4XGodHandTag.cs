@@ -1,4 +1,5 @@
 using PureDOTS.Runtime.Interaction;
+using PureDOTS.Runtime.Hand;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -74,5 +75,45 @@ namespace Space4X.Runtime.Interaction
             }
         }
     }
-}
 
+    /// <summary>
+    /// Mirrors hand input ray pose into the god hand entity transform while divine mode is active.
+    /// </summary>
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    [UpdateAfter(typeof(Space4XGodHandBootstrapSystem))]
+    public partial struct Space4XGodHandPoseSyncSystem : ISystem
+    {
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<HandInputFrame>();
+            state.RequireForUpdate<Space4XControlModeRuntimeState>();
+        }
+
+        public void OnUpdate(ref SystemState state)
+        {
+            var mode = SystemAPI.GetSingleton<Space4XControlModeRuntimeState>();
+            if (mode.IsDivineHandEnabled == 0)
+            {
+                return;
+            }
+
+            var handQuery = SystemAPI.QueryBuilder()
+                .WithAll<Space4XGodHandTag, LocalTransform>()
+                .Build();
+
+            if (handQuery.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var handEntity = handQuery.GetSingletonEntity();
+            var input = SystemAPI.GetSingleton<HandInputFrame>();
+            var direction = math.normalizesafe(input.RayDirection, new float3(0f, 0f, 1f));
+            var rotation = quaternion.LookRotationSafe(direction, new float3(0f, 1f, 0f));
+            var transform = SystemAPI.GetComponent<LocalTransform>(handEntity);
+            transform.Position = input.RayOrigin;
+            transform.Rotation = rotation;
+            SystemAPI.SetComponent(handEntity, transform);
+        }
+    }
+}

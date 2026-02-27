@@ -1,6 +1,8 @@
+using System;
 using PureDOTS.Input;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using PureDOTS.Runtime.Interrupts;
 using Space4X.Registry;
 using Space4X.Runtime;
 using Space4X.UI;
@@ -9,6 +11,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Physics.Systems;
+using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -158,7 +161,7 @@ namespace Space4X.Systems
             bool queue = evt.Queue != 0;
             foreach (var entity in selected)
             {
-                ApplyOrder(ref state, entity, order, queue);
+                ApplyOrder(ref state, entity, order, queue, tick);
                 if (attackMove)
                 {
                     var source = evt.Ctrl != 0 ? AttackMoveSource.CtrlConvert : AttackMoveSource.AttackTerrain;
@@ -241,7 +244,15 @@ namespace Space4X.Systems
             }
             else
             {
-                state.EntityManager.AddComponentData(entity, hint);
+                try
+                {
+                    state.EntityManager.AddComponentData(entity, hint);
+                }
+                catch (Exception)
+                {
+                    // Archetype can be at chunk capacity for player-heavy vessels.
+                    // Skip optional source hint rather than failing RTS command dispatch.
+                }
             }
         }
 
@@ -284,19 +295,165 @@ namespace Space4X.Systems
             return OrderKind.Move;
         }
 
-        private void ApplyOrder(ref SystemState state, Entity entity, Order order, bool queue)
+        private void ApplyOrder(ref SystemState state, Entity entity, Order order, bool queue, uint tick)
         {
-            if (!state.EntityManager.HasBuffer<OrderQueueElement>(entity))
+            TryApplyQueuedOrder(ref state, entity, order, queue);
+            ApplyImmediateOrder(ref state, entity, order, tick);
+        }
+
+        private bool TryApplyQueuedOrder(ref SystemState state, Entity entity, Order order, bool queue)
+        {
+            try
             {
-                state.EntityManager.AddBuffer<OrderQueueElement>(entity);
+                if (!state.EntityManager.HasBuffer<OrderQueueElement>(entity))
+                {
+                    state.EntityManager.AddBuffer<OrderQueueElement>(entity);
+                }
+
+                if (!state.EntityManager.HasBuffer<OrderQueueElement>(entity))
+                {
+                    return false;
+                }
+
+                var buffer = state.EntityManager.GetBuffer<OrderQueueElement>(entity);
+                if (!queue)
+                {
+                    buffer.Clear();
+                }
+
+                buffer.Add(new OrderQueueElement { Order = order });
+                return true;
+            }
+            catch (Exception)
+            {
+                // Some vessels are at archetype chunk-size limits and cannot accept new buffers.
+                // Fall back to direct non-structural order application for RTS responsiveness.
+                return false;
+            }
+        }
+
+        private void ApplyImmediateOrder(ref SystemState state, Entity entity, Order order, uint tick)
+        {
+            var entityManager = state.EntityManager;
+            var targetPosition = ResolveOrderTargetPosition(ref state, order);
+
+            if (entityManager.HasComponent<EntityIntent>(entity))
+            {
+                var intent = entityManager.GetComponentData<EntityIntent>(entity);
+                intent.Mode = ResolveIntentMode(order.Kind);
+                intent.TargetEntity = order.TargetEntity;
+                intent.TargetPosition = targetPosition;
+                intent.TriggeringInterrupt = InterruptType.NewOrder;
+                intent.IntentSetTick = tick;
+                intent.Priority = InterruptPriority.High;
+                intent.IsValid = 1;
+                entityManager.SetComponentData(entity, intent);
             }
 
-            var buffer = state.EntityManager.GetBuffer<OrderQueueElement>(entity);
-            if (!queue)
+            if (entityManager.HasComponent<VesselAIState>(entity))
             {
-                buffer.Clear();
+                var aiState = entityManager.GetComponentData<VesselAIState>(entity);
+                ApplyOrderToVesselAi(ref aiState, order.Kind, order.TargetEntity, targetPosition, tick, entityManager.HasComponent<MiningVessel>(entity));
+                entityManager.SetComponentData(entity, aiState);
             }
-            buffer.Add(new OrderQueueElement { Order = order });
+
+            if (entityManager.HasComponent<MovementCommand>(entity))
+            {
+                var movement = entityManager.GetComponentData<MovementCommand>(entity);
+                movement.TargetPosition = targetPosition;
+                movement.ArrivalThreshold = order.Kind == OrderKind.Attack ? 4f : 1f;
+                entityManager.SetComponentData(entity, movement);
+            }
+
+            if (entityManager.HasComponent<Space4XEngagement>(entity))
+            {
+                var engagement = entityManager.GetComponentData<Space4XEngagement>(entity);
+                if (order.Kind == OrderKind.Attack)
+                {
+                    engagement.PrimaryTarget = order.TargetEntity;
+                    if (order.TargetEntity != Entity.Null)
+                    {
+                        engagement.Phase = EngagementPhase.Approaching;
+                    }
+                }
+                else
+                {
+                    engagement.PrimaryTarget = Entity.Null;
+                    if (engagement.Phase != EngagementPhase.Destroyed && engagement.Phase != EngagementPhase.Disabled)
+                    {
+                        engagement.Phase = EngagementPhase.None;
+                    }
+                }
+
+                entityManager.SetComponentData(entity, engagement);
+            }
+
+            // Keep attack-move state updates non-structural in RTS mode.
+            if (order.Kind == OrderKind.Attack && entityManager.HasComponent<AttackMoveIntent>(entity))
+            {
+                var attackMove = entityManager.GetComponentData<AttackMoveIntent>(entity);
+                attackMove.Destination = targetPosition;
+                attackMove.DestinationRadius = math.max(attackMove.DestinationRadius, 0f);
+                attackMove.EngageTarget = order.TargetEntity;
+                attackMove.AcquireTargetsAlongRoute = order.TargetEntity == Entity.Null ? (byte)1 : (byte)0;
+                attackMove.KeepFiringWhileInRange = 1;
+                attackMove.StartTick = tick;
+                entityManager.SetComponentData(entity, attackMove);
+            }
+        }
+
+        private float3 ResolveOrderTargetPosition(ref SystemState state, in Order order)
+        {
+            if (math.lengthsq(order.TargetPosition) > 1e-6f)
+            {
+                return order.TargetPosition;
+            }
+
+            if (order.TargetEntity != Entity.Null && state.EntityManager.HasComponent<LocalTransform>(order.TargetEntity))
+            {
+                return state.EntityManager.GetComponentData<LocalTransform>(order.TargetEntity).Position;
+            }
+
+            return float3.zero;
+        }
+
+        private static IntentMode ResolveIntentMode(OrderKind kind)
+        {
+            return kind switch
+            {
+                OrderKind.Attack => IntentMode.Attack,
+                OrderKind.Harvest => IntentMode.Gather,
+                OrderKind.Defend => IntentMode.Defend,
+                OrderKind.Patrol => IntentMode.Patrol,
+                OrderKind.UseAbility => IntentMode.UseAbility,
+                _ => IntentMode.MoveTo
+            };
+        }
+
+        private static void ApplyOrderToVesselAi(
+            ref VesselAIState aiState,
+            OrderKind kind,
+            Entity targetEntity,
+            float3 targetPosition,
+            uint tick,
+            bool isMiningVessel)
+        {
+            VesselAIState.Goal goal = kind switch
+            {
+                OrderKind.Defend => VesselAIState.Goal.Escort,
+                OrderKind.Patrol => VesselAIState.Goal.Patrol,
+                OrderKind.Harvest when isMiningVessel => VesselAIState.Goal.Mining,
+                _ => VesselAIState.Goal.Patrol
+            };
+
+            aiState.CurrentGoal = goal;
+            aiState.CurrentState = goal == VesselAIState.Goal.Mining
+                ? VesselAIState.State.MovingToTarget
+                : VesselAIState.State.MovingToTarget;
+            aiState.TargetEntity = targetEntity;
+            aiState.TargetPosition = targetPosition;
+            aiState.StateTimer = 0f;
+            aiState.StateStartTick = tick;
         }
 
         private bool RaycastForEntity(ref SystemState state, UnityEngine.Ray ray, float maxDistance, out Entity entity, out float3 position)

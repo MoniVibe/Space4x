@@ -1006,6 +1006,129 @@ namespace Space4x.Scenario
             }
         }
 
+        private void EnsureCombatRuntimeComponents(
+            Entity entity,
+            byte scenarioSide,
+            bool isHostile,
+            HullIntegrity fallbackHull,
+            float fallbackShieldCapacity,
+            float fallbackArmorThickness,
+            bool ensureWeaponFallback)
+        {
+            if (!EntityManager.HasComponent<HullIntegrity>(entity))
+            {
+                EntityManager.AddComponentData(entity, fallbackHull);
+            }
+
+            if (EntityManager.HasComponent<HullIntegrity>(entity))
+            {
+                var hull = EntityManager.GetComponentData<HullIntegrity>(entity);
+                EnsureDefaultSubsystems(entity, math.max(1f, hull.Max));
+            }
+
+            if (!EntityManager.HasComponent<Space4XShield>(entity))
+            {
+                EntityManager.AddComponentData(entity, Space4XShield.Standard(fallbackShieldCapacity));
+            }
+
+            if (!EntityManager.HasComponent<Space4XArmor>(entity))
+            {
+                EntityManager.AddComponentData(entity, Space4XArmor.Standard(fallbackArmorThickness));
+            }
+
+            if (!EntityManager.HasComponent<Space4XEngagement>(entity))
+            {
+                EntityManager.AddComponentData(entity, new Space4XEngagement
+                {
+                    PrimaryTarget = Entity.Null,
+                    Phase = EngagementPhase.None,
+                    TargetDistance = 0f,
+                    EngagementDuration = 0u,
+                    DamageDealt = 0f,
+                    DamageReceived = 0f,
+                    FormationBonus = (half)0f,
+                    EvasionModifier = (half)0f
+                });
+            }
+
+            if (!EntityManager.HasBuffer<DamageEvent>(entity))
+            {
+                EntityManager.AddBuffer<DamageEvent>(entity);
+            }
+
+            if (!EntityManager.HasComponent<TargetSelectionProfile>(entity))
+            {
+                EntityManager.AddComponentData(
+                    entity,
+                    isHostile ? TargetSelectionProfile.NeutralizeThreats : TargetSelectionProfile.Balanced);
+            }
+
+            if (!EntityManager.HasComponent<TargetPriority>(entity))
+            {
+                EntityManager.AddComponentData(entity, new TargetPriority
+                {
+                    CurrentTarget = Entity.Null,
+                    CurrentScore = 0f,
+                    LastEvaluationTick = 0u,
+                    EngagementDuration = 0f,
+                    ForceReevaluate = 1
+                });
+            }
+
+            if (!EntityManager.HasBuffer<TargetCandidate>(entity))
+            {
+                EntityManager.AddBuffer<TargetCandidate>(entity);
+            }
+
+            if (!EntityManager.HasBuffer<DamageHistory>(entity))
+            {
+                EntityManager.AddBuffer<DamageHistory>(entity);
+            }
+
+            if (!ensureWeaponFallback)
+            {
+                return;
+            }
+
+            DynamicBuffer<WeaponMount> weapons;
+            if (EntityManager.HasBuffer<WeaponMount>(entity))
+            {
+                weapons = EntityManager.GetBuffer<WeaponMount>(entity);
+            }
+            else
+            {
+                weapons = EntityManager.AddBuffer<WeaponMount>(entity);
+            }
+
+            if (weapons.Length > 0)
+            {
+                return;
+            }
+
+            AddFallbackWeaponLoadout(weapons);
+        }
+
+        private static void AddFallbackWeaponLoadout(DynamicBuffer<WeaponMount> weapons)
+        {
+            weapons.Add(CreateFallbackMount(Space4XWeapon.Laser(WeaponSize.Medium)));
+            weapons.Add(CreateFallbackMount(Space4XWeapon.Missile(WeaponSize.Small)));
+        }
+
+        private static WeaponMount CreateFallbackMount(Space4XWeapon weapon)
+        {
+            return new WeaponMount
+            {
+                Weapon = weapon,
+                CurrentTarget = Entity.Null,
+                IsEnabled = 1,
+                CoolingRating = (half)1f,
+                Heat01 = 0f,
+                HeatCapacity = 1f,
+                HeatDissipation = 0.03f,
+                HeatPerShot = 0.1f
+            };
+        }
+
         private Entity EnsureScenarioRuntime(uint startTick, uint endTick, float durationSeconds)
         {
             if (!SystemAPI.TryGetSingletonEntity<Space4XScenarioRuntime>(out var runtimeEntity))
@@ -1392,6 +1515,16 @@ namespace Space4x.Scenario
                 carrierArrival = math.max(carrierArrival, 16f);
             }
 
+            if (spawn.speed > 0f)
+            {
+                var speedScale = math.max(0.25f, spawn.speed / math.max(0.1f, carrierSpeed));
+                carrierSpeed = math.max(0.5f, spawn.speed);
+                carrierAcceleration = math.max(0.1f, carrierAcceleration * speedScale);
+                carrierDeceleration = math.max(0.15f, carrierDeceleration * speedScale);
+                carrierTurnSpeed = math.max(0.1f, carrierTurnSpeed * math.sqrt(speedScale));
+                carrierSlowdown = math.max(8f, carrierSlowdown * speedScale);
+            }
+
             EntityManager.AddComponentData(entity, new Carrier
             {
                 CarrierId = carrierId,
@@ -1426,6 +1559,10 @@ namespace Space4x.Scenario
 
             EnsureCarrierAuthorityAndCrew(entity, law, currentTick);
             ApplyCrewTemplate(entity, carrierId.ToString(), law, currentTick);
+            if (IsCapitalRangeScenario())
+            {
+                EnsureCarrierPilotLink(entity, spawn, law);
+            }
 
             EntityManager.AddComponentData(entity, new PatrolBehavior
             {
@@ -1517,6 +1654,14 @@ namespace Space4x.Scenario
             {
                 EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.Carrier);
             }
+            EnsureCombatRuntimeComponents(
+                entity,
+                scenarioSide,
+                isHostile,
+                HullIntegrity.HeavyCarrier,
+                fallbackShieldCapacity: 220f,
+                fallbackArmorThickness: 22f,
+                ensureWeaponFallback: true);
 
             var fleetData = spawn.components?.Fleet;
             var combatData = spawn.components?.Combat;
@@ -2382,6 +2527,7 @@ namespace Space4x.Scenario
             var releaseSeconds = combatData.escortRelease_s > 0f ? combatData.escortRelease_s : 30f;
             var releaseTicks = (uint)math.ceil(releaseSeconds / math.max(1e-6f, fixedDt));
             var releaseTick = currentTick + math.max(1u, releaseTicks);
+            var escortBaseSpeed = combatData.interceptSpeed > 0f ? combatData.interceptSpeed : 6f;
 
             for (int i = 0; i < combatData.escortCount; i++)
             {
@@ -2395,7 +2541,7 @@ namespace Space4x.Scenario
                 EntityManager.AddComponentData(entity, new VesselMovement
                 {
                     Velocity = float3.zero,
-                    BaseSpeed = 6f,
+                    BaseSpeed = escortBaseSpeed,
                     CurrentSpeed = 0f,
                     DesiredRotation = quaternion.identity,
                     IsMoving = 0,
@@ -2448,6 +2594,14 @@ namespace Space4x.Scenario
                 {
                     EnsureDefaultModuleLoadout(entity, DefaultModuleLoadoutKind.Escort);
                 }
+                EnsureCombatRuntimeComponents(
+                    entity,
+                    scenarioSide,
+                    isHostile: scenarioSide == 1,
+                    HullIntegrity.MediumCraft,
+                    fallbackShieldCapacity: 80f,
+                    fallbackArmorThickness: 10f,
+                    ensureWeaponFallback: true);
             }
         }
 
@@ -2982,10 +3136,7 @@ namespace Space4x.Scenario
                 config = configSingleton;
             }
 
-            var crewBuffer = EntityManager.HasBuffer<PlatformCrewMember>(carrierEntity)
-                ? EntityManager.GetBuffer<PlatformCrewMember>(carrierEntity)
-                : EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
-            crewBuffer.Clear();
+            var pendingCrew = new List<PlatformCrewMember>(resolvedMembers.Count);
 
             for (int i = 0; i < resolvedMembers.Count; i++)
             {
@@ -3000,12 +3151,115 @@ namespace Space4x.Scenario
                 EnsureCrewEntityId(crewEntity, member.name);
                 EnsureCrewAnatomyPreset(crewEntity, member.anatomyPreset, member.conditions);
                 EnsureCrewLodTier(crewEntity, (byte)Space4X.Runtime.Space4XEntityLodTierKind.Lod0);
-                crewBuffer.Add(new PlatformCrewMember
+                pendingCrew.Add(new PlatformCrewMember
                 {
                     CrewEntity = crewEntity,
                     RoleId = ResolveSeatRoleId(member.seatRole)
                 });
             }
+
+            var crewBuffer = EntityManager.HasBuffer<PlatformCrewMember>(carrierEntity)
+                ? EntityManager.GetBuffer<PlatformCrewMember>(carrierEntity)
+                : EntityManager.AddBuffer<PlatformCrewMember>(carrierEntity);
+            crewBuffer.Clear();
+            for (int i = 0; i < pendingCrew.Count; i++)
+            {
+                crewBuffer.Add(pendingCrew[i]);
+            }
+        }
+
+        private void EnsureCarrierPilotLink(Entity carrierEntity, MiningSpawnDefinition spawn, float lawfulness)
+        {
+            Entity pilot = Entity.Null;
+
+            if (!string.IsNullOrWhiteSpace(spawn?.pilotProfileId))
+            {
+                pilot = CreatePilotEntity(lawfulness, FindIndividualProfile(spawn.pilotProfileId));
+            }
+
+            if (pilot == Entity.Null)
+            {
+                pilot = ResolveCarrierPilotFromCrew(carrierEntity);
+            }
+
+            if (pilot == Entity.Null)
+            {
+                return;
+            }
+
+            var link = new VesselPilotLink
+            {
+                Pilot = pilot
+            };
+            if (EntityManager.HasComponent<VesselPilotLink>(carrierEntity))
+            {
+                EntityManager.SetComponentData(carrierEntity, link);
+                return;
+            }
+
+            EntityManager.AddComponentData(carrierEntity, link);
+        }
+
+        private Entity ResolveCarrierPilotFromCrew(Entity carrierEntity)
+        {
+            if (!EntityManager.HasBuffer<PlatformCrewMember>(carrierEntity))
+            {
+                return Entity.Null;
+            }
+
+            var crew = EntityManager.GetBuffer<PlatformCrewMember>(carrierEntity);
+            var bestScore = float.MinValue;
+            var bestCrew = Entity.Null;
+            for (var i = 0; i < crew.Length; i++)
+            {
+                var crewEntity = crew[i].CrewEntity;
+                if (crewEntity == Entity.Null || !EntityManager.Exists(crewEntity))
+                {
+                    continue;
+                }
+
+                var tactics = 50f;
+                var command = 50f;
+                if (EntityManager.HasComponent<IndividualStats>(crewEntity))
+                {
+                    var stats = EntityManager.GetComponentData<IndividualStats>(crewEntity);
+                    tactics = (float)stats.Tactics;
+                    command = (float)stats.Command;
+                }
+
+                var score = tactics * 0.7f + command * 0.3f;
+                if (score <= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                bestCrew = crewEntity;
+            }
+
+            return bestCrew;
+        }
+
+        private bool IsCapitalRangeScenario()
+        {
+            if (string.IsNullOrWhiteSpace(_scenarioPath))
+            {
+                return false;
+            }
+
+            var scenarioId = Path.GetFileNameWithoutExtension(_scenarioPath);
+            if (string.IsNullOrWhiteSpace(scenarioId))
+            {
+                return false;
+            }
+
+            if (scenarioId.Equals("space4x_capital_shooting_range_micro", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return scenarioId.StartsWith("space4x_capital_shooting_range_", StringComparison.OrdinalIgnoreCase) &&
+                   scenarioId.EndsWith("_micro", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void ResolveCrewPreset(string statsPreset, SkillSetData skillsOverride, out IndividualStats stats, out BehaviorDisposition disposition)

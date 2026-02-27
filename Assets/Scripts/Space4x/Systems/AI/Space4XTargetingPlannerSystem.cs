@@ -119,10 +119,6 @@ namespace Space4X.Systems.AI
                     {
                         ecb.SetComponent(memberEntity, new ModuleTargetPolicy { Kind = policy });
                     }
-                    else
-                    {
-                        ecb.AddComponent(memberEntity, new ModuleTargetPolicy { Kind = policy });
-                    }
                 }
 
                 planner.ValueRW.LastTargetingTick = timeState.Tick;

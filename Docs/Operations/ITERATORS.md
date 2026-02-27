@@ -31,9 +31,13 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/IteratorGuardedHandoff.ps1 `
   -RepoPath C:\dev\Tri\space4x_ultimate `
   -PuredotsRepoPath C:\dev\Tri\puredots_ultimate `
   -PushBranch <branch-name> `
-  -UnityExe "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe" `
   -AwarenessNote "Reviewed open needs-validate queue before handoff"
 ```
+
+`-UnityExe` is optional. If omitted, compile preflight auto-resolves the editor from:
+1. `ProjectSettings/ProjectVersion.txt`,
+2. `UNITY_EXE` env var,
+3. latest installed Unity Hub editor.
 
 This command enforces:
 - bedrock freshness (`space4x` + `puredots` not behind `origin/main`),
@@ -60,6 +64,39 @@ This command enforces:
 
 7. Stop after handoff.
 - Validator owns all Buildbox runs and merge decisions.
+
+## Parallel Unity Lanes (Editor + Agent CLI)
+
+Goal:
+- Keep interactive editor open in `C:\dev\Tri\space4x_ultimate`.
+- Run agent compile/tests in `C:\dev\Tri\space4x` without lock contention.
+
+Recommended command:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File Tools/RunUnityCliLane.ps1 `
+  -EditorRepoPath C:\dev\Tri\space4x_ultimate `
+  -CliRepoPath C:\dev\Tri\space4x `
+  -TestPlatform PlayMode `
+  -TestFilter Space4XUiUxKernelTests
+```
+
+By default this enforces parity for:
+- `ProjectSettings/ProjectVersion.txt`
+- `Packages/manifest.json`
+- `Packages/packages-lock.json`
+- git `HEAD` commit
+
+PlayMode lane stability defaults:
+- `RunUnityCliTests.ps1` now sets a headless-safe env for PlayMode runs (`PUREDOTS_EXIT_POLICY=nevernonzero` plus exit-proof disables) so scenario invariant systems do not terminate the process before Unity writes `-testResults`.
+- Use `-AllowHeadlessProcessExit` only when you explicitly need legacy headless exit behavior.
+
+Lock behavior:
+- If `Temp/UnityLockfile` exists and a live `Unity.exe` process is using that same repo path, the lane run still blocks by default.
+- If the lockfile is stale (no matching Unity process for that path), the runner logs a warning and proceeds.
+- Use `-IgnoreProjectLock` only for intentional overrides (for example, controlled debugging in a known-safe lane).
+
+If parity fails, sync the CLI lane first; do not bypass unless drift is intentional.
 
 ## Drift Guardrails
 

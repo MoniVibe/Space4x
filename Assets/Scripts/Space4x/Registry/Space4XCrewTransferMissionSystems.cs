@@ -73,6 +73,17 @@ namespace Space4X.Registry
                 }
 
                 var target = mission.ValueRO.Target;
+                var followDistance = math.max(1.25f, (mission.ValueRO.TransferRadius > 0f ? mission.ValueRO.TransferRadius : 3f) * 0.6f);
+                var followTargetChanged = aiState.ValueRO.TargetEntity != target || aiState.ValueRO.FollowMode == 0;
+                aiState.ValueRW.FollowMode = 1;
+                aiState.ValueRW.FollowDistance = followDistance;
+                aiState.ValueRW.FollowDeadband = math.max(0.5f, followDistance * 0.35f);
+                aiState.ValueRW.FollowVelocityMatch = 0.9f;
+                aiState.ValueRW.FollowRetargetCadenceTicks = 2u;
+                aiState.ValueRW.FollowLastRetargetTick = followTargetChanged
+                    ? 0u
+                    : aiState.ValueRO.FollowLastRetargetTick;
+
                 if (aiState.ValueRO.TargetEntity != target || aiState.ValueRO.CurrentState == VesselAIState.State.Idle)
                 {
                     aiState.ValueRW.TargetEntity = target;
@@ -142,7 +153,30 @@ namespace Space4X.Registry
                     continue;
                 }
 
-                aiState.ValueRW.TargetPosition = course.InterceptPoint;
+                if (aiState.ValueRO.FollowMode != 0)
+                {
+                    var cadence = aiState.ValueRO.FollowRetargetCadenceTicks > 0u
+                        ? aiState.ValueRO.FollowRetargetCadenceTicks
+                        : 2u;
+                    if (aiState.ValueRO.FollowLastRetargetTick != 0u &&
+                        time.Tick > aiState.ValueRO.FollowLastRetargetTick &&
+                        time.Tick - aiState.ValueRO.FollowLastRetargetTick < cadence)
+                    {
+                        continue;
+                    }
+                }
+
+                var interceptPoint = course.InterceptPoint;
+                if (aiState.ValueRO.FollowMode != 0 && math.lengthsq(aiState.ValueRO.TargetPosition) > 1e-4f)
+                {
+                    interceptPoint = math.lerp(aiState.ValueRO.TargetPosition, interceptPoint, 0.55f);
+                }
+                if (aiState.ValueRO.FollowMode != 0)
+                {
+                    aiState.ValueRW.FollowLastRetargetTick = time.Tick;
+                }
+
+                aiState.ValueRW.TargetPosition = interceptPoint;
             }
         }
     }
@@ -658,6 +692,12 @@ namespace Space4X.Registry
             aiState.TargetPosition = float3.zero;
             aiState.StateTimer = 0f;
             aiState.StateStartTick = tick;
+            aiState.FollowMode = 0;
+            aiState.FollowDistance = 0f;
+            aiState.FollowDeadband = 0f;
+            aiState.FollowVelocityMatch = 0f;
+            aiState.FollowRetargetCadenceTicks = 0u;
+            aiState.FollowLastRetargetTick = 0u;
 
             ecb.RemoveComponent<CrewTransferMission>(provider);
 

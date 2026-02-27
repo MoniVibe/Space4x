@@ -2,7 +2,9 @@ using PureDOTS.Runtime.Interaction;
 using PureDOTS.Runtime.Hand;
 using PureDOTS.Runtime.Physics;
 using PureDOTS.Runtime.Components;
+using PureDOTS.Input;
 using PureDOTS.Systems.Physics;
+using Space4X.Registry;
 using Space4X.Runtime.Interaction;
 using Unity.Burst;
 using Unity.Collections;
@@ -25,9 +27,15 @@ namespace Space4X.Systems.Interaction
         private ComponentLookup<Pickable> _pickableLookup;
         private ComponentLookup<LocalTransform> _transformLookup;
         private ComponentLookup<HeldByPlayer> _heldLookup;
+        private ComponentLookup<SelectionOwner> _selectionOwnerLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private ComponentLookup<FactionResources> _factionResourcesLookup;
         private EntityQuery _godHandQuery;
+        private EntityQuery _playerFlagshipQuery;
+        private EntityQuery _ownedInfluenceQuery;
         private uint _lastInputSampleId;
         private NativeParallelHashSet<Entity> _loggedFallbackEntities;
+        private NativeParallelHashSet<Entity> _loggedOutOfInfluenceEntities;
 
         // Cursor movement threshold in world space units (3 pixels converted)
         private const float CursorMovementThreshold = 0.1f;
@@ -45,11 +53,21 @@ namespace Space4X.Systems.Interaction
             _pickableLookup = state.GetComponentLookup<Pickable>(true);
             _transformLookup = state.GetComponentLookup<LocalTransform>(true);
             _heldLookup = state.GetComponentLookup<HeldByPlayer>(true);
+            _selectionOwnerLookup = state.GetComponentLookup<SelectionOwner>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _factionResourcesLookup = state.GetComponentLookup<FactionResources>(true);
 
             _godHandQuery = SystemAPI.QueryBuilder()
                 .WithAll<Space4XGodHandTag, PickupState>()
                 .Build();
+            _playerFlagshipQuery = SystemAPI.QueryBuilder()
+                .WithAll<PlayerFlagshipTag, LocalTransform>()
+                .Build();
+            _ownedInfluenceQuery = SystemAPI.QueryBuilder()
+                .WithAll<SelectionOwner, LocalTransform>()
+                .Build();
             _loggedFallbackEntities = new NativeParallelHashSet<Entity>(128, Allocator.Persistent);
+            _loggedOutOfInfluenceEntities = new NativeParallelHashSet<Entity>(128, Allocator.Persistent);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -57,6 +75,11 @@ namespace Space4X.Systems.Interaction
             if (_loggedFallbackEntities.IsCreated)
             {
                 _loggedFallbackEntities.Dispose();
+            }
+
+            if (_loggedOutOfInfluenceEntities.IsCreated)
+            {
+                _loggedOutOfInfluenceEntities.Dispose();
             }
         }
 
@@ -91,11 +114,19 @@ namespace Space4X.Systems.Interaction
             {
                 interactionPolicy = policyValue;
             }
+            var divinePolicy = Space4XDivineHandPolicy.CreateDefault();
+            if (SystemAPI.TryGetSingleton(out Space4XDivineHandPolicy configuredPolicy))
+            {
+                divinePolicy = Space4XDivineHandInfluenceUtility.NormalizePolicy(configuredPolicy);
+            }
 
             // Update lookups
             _pickableLookup.Update(ref state);
             _transformLookup.Update(ref state);
             _heldLookup.Update(ref state);
+            _selectionOwnerLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _factionResourcesLookup.Update(ref state);
 
             // Check if pointer is over UI
             if (UnityEngine.EventSystems.EventSystem.current != null && 
@@ -122,7 +153,7 @@ namespace Space4X.Systems.Interaction
             switch (pickupState.State)
             {
                 case PickupStateType.Empty:
-                    HandleEmptyState(ref state, ref pickupState, rmbWasPressed, rayOrigin, rayDirection, hitEntity, hitPosition, hoverDistance, godHandEntity);
+                    HandleEmptyState(ref state, ref pickupState, rmbWasPressed, rayOrigin, rayDirection, hitEntity, hitPosition, hoverDistance, godHandEntity, divinePolicy);
                     break;
 
                 case PickupStateType.AboutToPick:
@@ -158,7 +189,8 @@ namespace Space4X.Systems.Interaction
             Entity hitEntity,
             float3 hitPosition,
             float hoverDistance,
-            Entity godHandEntity)
+            Entity godHandEntity,
+            Space4XDivineHandPolicy divinePolicy)
         {
             if (!rmbWasPressed || hitEntity == Entity.Null)
             {
@@ -174,6 +206,24 @@ namespace Space4X.Systems.Interaction
             // Check if entity is already held
             if (_heldLookup.HasComponent(hitEntity) && _heldLookup.IsComponentEnabled(hitEntity))
             {
+                return;
+            }
+
+            if (!Space4XDivineHandInfluenceUtility.CanManipulateTarget(
+                    ref state,
+                    hitEntity,
+                    in divinePolicy,
+                    in _transformLookup,
+                    in _selectionOwnerLookup,
+                    in _affiliationLookup,
+                    in _factionResourcesLookup,
+                    in _playerFlagshipQuery,
+                    in _ownedInfluenceQuery,
+                    out var ownedByPlayer,
+                    out _,
+                    out _))
+            {
+                LogOutOfInfluenceOnce(hitEntity, ownedByPlayer);
                 return;
             }
 
@@ -325,6 +375,18 @@ namespace Space4X.Systems.Interaction
 
             var action = skipped ? "skipping pick (strict policy)" : "using structural fallback";
             UnityEngine.Debug.LogWarning($"[Space4XPickupSystem] Missing {missingComponents} on entity {target.Index}:{target.Version}; {action}.");
+        }
+
+        [BurstDiscard]
+        private void LogOutOfInfluenceOnce(Entity target, bool ownedByPlayer)
+        {
+            if (!_loggedOutOfInfluenceEntities.IsCreated || !_loggedOutOfInfluenceEntities.Add(target))
+            {
+                return;
+            }
+
+            var scope = ownedByPlayer ? "owned target constrained by policy" : "outside player influence";
+            UnityEngine.Debug.Log($"[Space4XPickupSystem] Divine Hand blocked pickup for {target.Index}:{target.Version} ({scope}).");
         }
     }
 }

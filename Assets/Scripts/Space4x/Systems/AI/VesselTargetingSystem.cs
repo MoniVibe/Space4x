@@ -124,7 +124,8 @@ namespace Space4X.Systems.AI
                 EntityInfoLookup = _entityInfoLookup,
                 ResourceEntries = resourceEntries,
                 HasResourceEntries = hasResourceEntries,
-                LatchRegionCount = latchRegionCount
+                LatchRegionCount = latchRegionCount,
+                CurrentTick = timeState.Tick
             };
 
             var jobHandle = job.ScheduleParallel(state.Dependency);
@@ -157,6 +158,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public NativeArray<ResourceRegistryEntry> ResourceEntries;
             public bool HasResourceEntries;
             public int LatchRegionCount;
+            public uint CurrentTick;
 
             public void Execute(ref VesselAIState aiState, Entity entity)
             {
@@ -175,7 +177,20 @@ namespace Space4X.Systems.AI
                 {
                     aiState.TargetEntity = Entity.Null;
                     aiState.TargetPosition = float3.zero;
+                    aiState.FollowLastRetargetTick = 0u;
                     return;
+                }
+
+                var followMode = aiState.FollowMode != 0;
+                if (followMode)
+                {
+                    var cadenceTicks = aiState.FollowRetargetCadenceTicks > 0u ? aiState.FollowRetargetCadenceTicks : 3u;
+                    if (aiState.FollowLastRetargetTick != 0u &&
+                        CurrentTick > aiState.FollowLastRetargetTick &&
+                        CurrentTick - aiState.FollowLastRetargetTick < cadenceTicks)
+                    {
+                        return;
+                    }
                 }
 
                 var hasAsteroidSurfaceTarget = false;
@@ -206,6 +221,13 @@ namespace Space4X.Systems.AI
                         hasAsteroidSurfaceTarget = true;
                     }
                     
+                    if (followMode)
+                    {
+                        aiState.TargetPosition = targetPos;
+                        aiState.FollowLastRetargetTick = CurrentTick;
+                        return;
+                    }
+
                     // Tactics stat improves targeting accuracy (reduces position error)
                     float tacticsAccuracy = 1f;
                     if (!hasAsteroidSurfaceTarget && StatsLookup.HasComponent(entity))
@@ -252,6 +274,10 @@ namespace Space4X.Systems.AI
                     }
 
                     aiState.TargetPosition = targetPos;
+                    if (followMode)
+                    {
+                        aiState.FollowLastRetargetTick = CurrentTick;
+                    }
                     return;
                 }
 
@@ -269,8 +295,6 @@ namespace Space4X.Systems.AI
         }
     }
 }
-
-
 
 
 

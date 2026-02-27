@@ -184,8 +184,19 @@ namespace Space4X.Presentation
             AddDebrisPresentation(ref state, ref ecb, hasVisualConfig, visualConfig, currentTick);
             RepairMissingPresentation(ref state, ref ecb);
 
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
+            try
+            {
+                ecb.Playback(state.EntityManager);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Entity archetype component data is too large", StringComparison.Ordinal))
+            {
+                UnityDebug.LogWarning("[Space4XPresentationLifecycle] Disabled after archetype-size overflow while attaching presentation components. Existing presenters remain active.");
+                state.Enabled = false;
+            }
+            finally
+            {
+                ecb.Dispose();
+            }
         }
 
         public void OnDestroy(ref SystemState state)

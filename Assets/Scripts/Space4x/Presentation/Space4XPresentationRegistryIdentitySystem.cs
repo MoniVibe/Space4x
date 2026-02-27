@@ -1,8 +1,10 @@
 using PureDOTS.Runtime.Registry;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
+using System;
 using Unity.Collections;
 using Unity.Entities;
+using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Presentation
 {
@@ -53,8 +55,19 @@ namespace Space4X.Presentation
             AddIdentity(ref ecb, _resourcePickupId, ref state, ComponentType.ReadOnly<ResourcePickupPresentationTag>());
             AddIdentity(ref ecb, _ghostTetherId, ref state, ComponentType.ReadOnly<GhostTetherTag>());
 
-            ecb.Playback(state.EntityManager);
-            ecb.Dispose();
+            try
+            {
+                ecb.Playback(state.EntityManager);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Entity archetype component data is too large", StringComparison.Ordinal))
+            {
+                UnityDebug.LogWarning("[Space4XPresentationRegistryIdentity] Disabled after archetype-size overflow while attaching registry identities.");
+                state.Enabled = false;
+            }
+            finally
+            {
+                ecb.Dispose();
+            }
         }
 
         private static void AddIdentity(ref EntityCommandBuffer ecb, RegistryId id, ref SystemState state, ComponentType marker)

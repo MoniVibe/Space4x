@@ -10,26 +10,16 @@ namespace Space4X.Registry
     /// <summary>
     /// Adds baseline non-capital customization components to strike craft, miners, and haulers.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XCraftCustomizationBootstrapSystem : ISystem
     {
-        private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
-        private ComponentLookup<VesselPilotLink> _vesselPilotLookup;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
-            _vesselPilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            _strikePilotLookup.Update(ref state);
-            _vesselPilotLookup.Update(ref state);
-
             var em = state.EntityManager;
             var query = SystemAPI.QueryBuilder()
                 .WithAny<StrikeCraftProfile, MiningVessel, Space4XHaulerShuttleState, HaulerTag>()
@@ -41,51 +31,47 @@ namespace Space4X.Registry
             }
 
             using var entities = query.ToEntityArray(Allocator.Temp);
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
 
             for (var i = 0; i < entities.Length; i++)
             {
                 var entity = entities[i];
                 var kind = ResolveCraftKind(em, entity);
-                var controlMode = ResolveControlMode(kind, entity, ref _strikePilotLookup, ref _vesselPilotLookup);
+                var controlMode = ResolveControlMode(em, kind, entity);
                 var defaultMaxMass = ResolveDefaultMaxMass(em, entity, kind);
 
                 if (!em.HasComponent<NonCapitalCraftProfile>(entity))
                 {
                     var profile = Space4XCraftCustomizationUtility.CreateDefaultProfile(kind, controlMode, defaultMaxMass);
-                    ecb.AddComponent(entity, profile);
+                    TryAddComponent(em, entity, profile);
                 }
 
                 if (!em.HasComponent<CraftInternalState>(entity))
                 {
                     var massClass = Space4XCraftCustomizationUtility.ResolveMassClassFromCap(defaultMaxMass);
-                    ecb.AddComponent(entity, CraftInternalState.ForMassClass(massClass));
+                    TryAddComponent(em, entity, CraftInternalState.ForMassClass(massClass));
                 }
 
                 if (!em.HasComponent<CraftCustomizationPolicy>(entity))
                 {
-                    ecb.AddComponent(entity, CraftCustomizationPolicy.Default);
+                    TryAddComponent(em, entity, CraftCustomizationPolicy.Default);
                 }
 
                 if (!em.HasComponent<CraftLoadoutAggregate>(entity))
                 {
-                    ecb.AddComponent<CraftLoadoutAggregate>(entity);
+                    TryAddComponent(em, entity, new CraftLoadoutAggregate());
                 }
 
                 if (!em.HasComponent<CraftPerformanceBaseline>(entity))
                 {
-                    ecb.AddComponent<CraftPerformanceBaseline>(entity);
+                    TryAddComponent(em, entity, new CraftPerformanceBaseline());
                 }
 
-                if (!em.HasBuffer<CraftModuleInstance>(entity))
-                {
-                    ecb.AddBuffer<CraftModuleInstance>(entity);
-                }
+                // Module instance buffers can be very heavy on dense archetypes.
+                // Leave provisioning to authoring/scenario setup when absent.
 
                 if (!em.HasBuffer<CraftModuleSlot>(entity))
                 {
-                    var slots = ecb.AddBuffer<CraftModuleSlot>(entity);
-                    PopulateDefaultSlots(kind, ref slots);
+                    TryAddSlotsBuffer(em, entity, kind);
                 }
                 else
                 {
@@ -96,9 +82,32 @@ namespace Space4X.Registry
                     }
                 }
             }
+        }
 
-            ecb.Playback(em);
-            ecb.Dispose();
+        private static void TryAddComponent<T>(EntityManager entityManager, Entity entity, in T data)
+            where T : unmanaged, IComponentData
+        {
+            try
+            {
+                entityManager.AddComponentData(entity, data);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Some entities are already at chunk-size limits; skip optional bootstrap data.
+            }
+        }
+
+        private static void TryAddSlotsBuffer(EntityManager entityManager, Entity entity, NonCapitalCraftKind kind)
+        {
+            try
+            {
+                var slots = entityManager.AddBuffer<CraftModuleSlot>(entity);
+                PopulateDefaultSlots(kind, ref slots);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Some entities are already at chunk-size limits; skip optional bootstrap data.
+            }
         }
 
         private static NonCapitalCraftKind ResolveCraftKind(EntityManager em, Entity entity)
@@ -122,23 +131,22 @@ namespace Space4X.Registry
         }
 
         private static NonCapitalCraftControlMode ResolveControlMode(
+            EntityManager em,
             NonCapitalCraftKind kind,
-            Entity entity,
-            ref ComponentLookup<StrikeCraftPilotLink> strikePilotLookup,
-            ref ComponentLookup<VesselPilotLink> vesselPilotLookup)
+            Entity entity)
         {
             switch (kind)
             {
                 case NonCapitalCraftKind.StrikeCraft:
-                    if (strikePilotLookup.HasComponent(entity) &&
-                        strikePilotLookup[entity].Pilot != Entity.Null)
+                    if (em.HasComponent<StrikeCraftPilotLink>(entity) &&
+                        em.GetComponentData<StrikeCraftPilotLink>(entity).Pilot != Entity.Null)
                     {
                         return NonCapitalCraftControlMode.Piloted;
                     }
                     return NonCapitalCraftControlMode.RemoteDrone;
                 case NonCapitalCraftKind.MiningVessel:
-                    if (vesselPilotLookup.HasComponent(entity) &&
-                        vesselPilotLookup[entity].Pilot != Entity.Null)
+                    if (em.HasComponent<VesselPilotLink>(entity) &&
+                        em.GetComponentData<VesselPilotLink>(entity).Pilot != Entity.Null)
                     {
                         return NonCapitalCraftControlMode.Piloted;
                     }

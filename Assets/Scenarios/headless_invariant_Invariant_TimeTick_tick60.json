@@ -1,1 +1,1 @@
-{"code":"Invariant/TimeTick","message":"TimeState.Tick regressed from 120 to 60","tick":60,"worldSeconds":2,"scenarioId":"space4x_fleetcrawl_core_micro","seed":19021,"scenarioPath":"Assets/Scenarios/space4x_fleetcrawl_core_micro.json","utc":"2026-02-24T16:20:46.8225778Z"}
+{"code":"Invariant/TimeTick","message":"TimeState.Tick regressed from 120 to 60","tick":60,"worldSeconds":2,"scenarioId":"space4x_fleetcrawl_core_micro","seed":19021,"scenarioPath":"Assets/Scenarios/space4x_capital_shooting_range_micro.json","utc":"2026-02-26T23:43:49.0050026Z"}

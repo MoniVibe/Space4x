@@ -1,15 +1,17 @@
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Hand;
+using PureDOTS.Input;
+using Space4X.Registry;
 using Space4X.Runtime.Interaction;
-using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using HandStateData = PureDOTS.Runtime.Hand.HandState;
 using Unity.Physics;
+using Unity.Transforms;
 
 namespace Space4X.Systems.Interaction
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
     [UpdateAfter(typeof(PureDOTS.Systems.Hand.HandAffordanceSystem))]
     [UpdateBefore(typeof(PureDOTS.Systems.Hand.HandCommandEmitterSystem))]
@@ -24,9 +26,15 @@ namespace Space4X.Systems.Interaction
         private ComponentLookup<Space4XHandPickable> _spacePickableLookup;
         private ComponentLookup<PhysicsMass> _massLookup;
         private ComponentLookup<Space4XCelestialManipulable> _celestialLookup;
+        private ComponentLookup<LocalTransform> _transformLookup;
+        private ComponentLookup<SelectionOwner> _selectionOwnerLookup;
+        private BufferLookup<AffiliationTag> _affiliationLookup;
+        private ComponentLookup<FactionResources> _factionResourcesLookup;
+        private EntityQuery _playerFlagshipQuery;
+        private EntityQuery _ownedInfluenceQuery;
+        private NativeParallelHashSet<Entity> _loggedOutOfInfluenceEntities;
         private uint _lastInputSampleId;
 
-        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<TimeState>();
@@ -38,9 +46,27 @@ namespace Space4X.Systems.Interaction
             _spacePickableLookup = state.GetComponentLookup<Space4XHandPickable>(true);
             _massLookup = state.GetComponentLookup<PhysicsMass>(true);
             _celestialLookup = state.GetComponentLookup<Space4XCelestialManipulable>(true);
+            _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+            _selectionOwnerLookup = state.GetComponentLookup<SelectionOwner>(true);
+            _affiliationLookup = state.GetBufferLookup<AffiliationTag>(true);
+            _factionResourcesLookup = state.GetComponentLookup<FactionResources>(true);
+            _playerFlagshipQuery = SystemAPI.QueryBuilder()
+                .WithAll<PlayerFlagshipTag, LocalTransform>()
+                .Build();
+            _ownedInfluenceQuery = SystemAPI.QueryBuilder()
+                .WithAll<SelectionOwner, LocalTransform>()
+                .Build();
+            _loggedOutOfInfluenceEntities = new NativeParallelHashSet<Entity>(128, Allocator.Persistent);
         }
 
-        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_loggedOutOfInfluenceEntities.IsCreated)
+            {
+                _loggedOutOfInfluenceEntities.Dispose();
+            }
+        }
+
         public void OnUpdate(ref SystemState state)
         {
             var modeState = SystemAPI.GetSingleton<Space4XControlModeRuntimeState>();
@@ -63,6 +89,11 @@ namespace Space4X.Systems.Interaction
             {
                 policy = policyValue;
             }
+            var divinePolicy = Space4XDivineHandPolicy.CreateDefault();
+            if (SystemAPI.TryGetSingleton(out Space4XDivineHandPolicy configuredPolicy))
+            {
+                divinePolicy = Space4XDivineHandInfluenceUtility.NormalizePolicy(configuredPolicy);
+            }
             uint currentTick = timeState.Tick;
             float deltaTime = timeState.DeltaTime > 0f ? timeState.DeltaTime : 1f / 60f;
             bool isNewSample = input.SampleId != _lastInputSampleId;
@@ -74,6 +105,10 @@ namespace Space4X.Systems.Interaction
             _spacePickableLookup.Update(ref state);
             _massLookup.Update(ref state);
             _celestialLookup.Update(ref state);
+            _transformLookup.Update(ref state);
+            _selectionOwnerLookup.Update(ref state);
+            _affiliationLookup.Update(ref state);
+            _factionResourcesLookup.Update(ref state);
 
             foreach (var (handStateRef, commandBuffer) in SystemAPI.Query<RefRW<HandStateData>, DynamicBuffer<HandCommand>>())
             {
@@ -110,7 +145,7 @@ namespace Space4X.Systems.Interaction
 
                 var worldGrabActive = policy.EnableWorldGrab != 0 && input.CtrlHeld && input.ShiftHeld;
                 var debugWorldGrabAny = worldGrabActive && policy.DebugWorldGrabAny != 0;
-                var celestialPick = debugWorldGrabAny &&
+                var celestialPick = divinePolicy.AllowCelestialDirectPick != 0 &&
                     affordances.TargetEntity != Entity.Null &&
                     _celestialLookup.HasComponent(affordances.TargetEntity);
 
@@ -118,7 +153,7 @@ namespace Space4X.Systems.Interaction
                 {
                     if (rmbPressed && ((affordances.Flags & HandAffordanceFlags.CanPickUp) != 0 || celestialPick))
                     {
-                        if (!CanPickTarget(affordances.TargetEntity, celestialPick, debugWorldGrabAny))
+                        if (!CanPickTarget(ref state, affordances.TargetEntity, celestialPick, debugWorldGrabAny, in divinePolicy))
                         {
                             handStateRef.ValueRW = handState;
                             continue;
@@ -220,14 +255,19 @@ namespace Space4X.Systems.Interaction
             }
         }
 
-        private bool CanPickTarget(Entity target, bool celestialModifierHeld, bool debugWorldGrabAny)
+        private bool CanPickTarget(
+            ref SystemState state,
+            Entity target,
+            bool allowCelestialPick,
+            bool debugWorldGrabAny,
+            in Space4XDivineHandPolicy divinePolicy)
         {
             if (target == Entity.Null)
             {
                 return false;
             }
 
-            if (_celestialLookup.HasComponent(target) && !celestialModifierHeld)
+            if (_celestialLookup.HasComponent(target) && !allowCelestialPick)
             {
                 return false;
             }
@@ -243,6 +283,24 @@ namespace Space4X.Systems.Interaction
                         return false;
                     }
                 }
+            }
+
+            if (!Space4XDivineHandInfluenceUtility.CanManipulateTarget(
+                    ref state,
+                    target,
+                    in divinePolicy,
+                    in _transformLookup,
+                    in _selectionOwnerLookup,
+                    in _affiliationLookup,
+                    in _factionResourcesLookup,
+                    in _playerFlagshipQuery,
+                    in _ownedInfluenceQuery,
+                    out var ownedByPlayer,
+                    out _,
+                    out _))
+            {
+                LogOutOfInfluenceOnce(target, ownedByPlayer);
+                return false;
             }
 
             return true;
@@ -278,6 +336,17 @@ namespace Space4X.Systems.Interaction
             }
 
             return 0f;
+        }
+
+        private void LogOutOfInfluenceOnce(Entity target, bool ownedByPlayer)
+        {
+            if (!_loggedOutOfInfluenceEntities.IsCreated || !_loggedOutOfInfluenceEntities.Add(target))
+            {
+                return;
+            }
+
+            var scope = ownedByPlayer ? "owned target constrained by policy" : "outside player influence";
+            UnityEngine.Debug.Log($"[Space4XHandCommandStateSystem] Divine Hand blocked pickup for {target.Index}:{target.Version} ({scope}).");
         }
     }
 }

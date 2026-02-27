@@ -12,7 +12,7 @@ namespace Space4x.Scenario
     {
         public void OnCreate(ref SystemState state)
         {
-            if (!Application.isPlaying)
+            if (!Application.isPlaying || Application.isBatchMode)
             {
                 state.Enabled = false;
             }

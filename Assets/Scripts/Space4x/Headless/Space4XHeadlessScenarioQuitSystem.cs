@@ -2,8 +2,10 @@ using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Time;
 using Space4x.Scenario;
+using System;
 using Unity.Entities;
 using UnityEngine;
+using SystemEnv = global::System.Environment;
 using UnityDebug = UnityEngine.Debug;
 
 namespace Space4X.Headless
@@ -11,11 +13,18 @@ namespace Space4X.Headless
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XHeadlessScenarioQuitSystem : ISystem
     {
+        private const string DisableQuitEnv = "SPACE4X_HEADLESS_SCENARIO_QUIT_DISABLE";
         private byte _quitRequested;
 
         public void OnCreate(ref SystemState state)
         {
             if (!RuntimeMode.IsHeadless || !Application.isBatchMode)
+            {
+                state.Enabled = false;
+                return;
+            }
+
+            if (IsTruthy(SystemEnv.GetEnvironmentVariable(DisableQuitEnv)))
             {
                 state.Enabled = false;
                 return;
@@ -43,6 +52,19 @@ namespace Space4X.Headless
             UnityDebug.Log($"[Space4XHeadlessScenarioQuitSystem] Scenario duration reached (tick {timeState.Tick} >= {scenarioRuntime.EndTick}); quitting.");
             HeadlessExitUtility.Request(state.EntityManager, timeState.Tick, 0);
             return;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return value == "1" ||
+                   value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("on", StringComparison.OrdinalIgnoreCase);
         }
     }
 }
