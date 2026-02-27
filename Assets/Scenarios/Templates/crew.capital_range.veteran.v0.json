@@ -1,0 +1,11 @@
+{
+  "templateId": "crew.capital_range.veteran.v0",
+  "namedCrew": [
+    { "name": "CAPT-V", "seatRole": "ship.captain", "statsPreset": "elite", "skills": { "command": 82, "tactics": 74, "logistics": 76, "diplomacy": 70, "engineering": 68, "resolve": 79 }, "anatomyPreset": "baseline" },
+    { "name": "XO-V", "seatRole": "ship.xo", "statsPreset": "elite", "skills": { "command": 79, "tactics": 73, "logistics": 77, "diplomacy": 68, "engineering": 69, "resolve": 76 }, "anatomyPreset": "baseline" },
+    { "name": "NAV-V", "seatRole": "ship.navigation_officer", "statsPreset": "elite", "skills": { "command": 73, "tactics": 80, "logistics": 75, "diplomacy": 64, "engineering": 74, "resolve": 72 }, "anatomyPreset": "baseline" },
+    { "name": "WPN-V", "seatRole": "ship.weapons_officer", "statsPreset": "elite", "skills": { "command": 80, "tactics": 86, "logistics": 71, "diplomacy": 61, "engineering": 75, "resolve": 78 }, "anatomyPreset": "baseline" },
+    { "name": "SNS-V", "seatRole": "ship.sensors_officer", "statsPreset": "elite", "skills": { "command": 74, "tactics": 81, "logistics": 75, "diplomacy": 67, "engineering": 78, "resolve": 73 }, "anatomyPreset": "baseline" },
+    { "name": "ENG-V", "seatRole": "ship.engineering_officer", "statsPreset": "elite", "skills": { "command": 71, "tactics": 69, "logistics": 77, "diplomacy": 60, "engineering": 86, "resolve": 72 }, "anatomyPreset": "baseline" }
+  ]
+}

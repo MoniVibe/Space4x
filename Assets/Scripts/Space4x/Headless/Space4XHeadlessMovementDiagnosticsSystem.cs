@@ -73,7 +73,13 @@ namespace Space4X.Headless
         private uint _stuckWarnThreshold;
         private uint _stuckFailThreshold;
         private EntityQuery _turnStateMissingQuery;
+        private EntityQuery _debugStateMissingQuery;
         private ComponentLookup<MiningState> _miningStateLookup;
+        private uint _totalTurnRateFailures;
+        private uint _totalTurnAccelFailures;
+        private uint _totalTurnSampleCount;
+        private float _maxTurnRateObserved;
+        private float _maxTurnAccelObserved;
 
         public void OnCreate(ref SystemState state)
         {
@@ -102,6 +108,11 @@ namespace Space4X.Headless
                 ComponentType.ReadOnly<VesselMovement>(),
                 ComponentType.ReadOnly<LocalTransform>(),
                 ComponentType.Exclude<HeadlessTurnRateState>());
+
+            _debugStateMissingQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<VesselMovement>(),
+                ComponentType.ReadOnly<LocalTransform>(),
+                ComponentType.Exclude<MovementDebugState>());
         }
 
         public void OnUpdate(ref SystemState state)
@@ -143,6 +154,10 @@ namespace Space4X.Headless
             if (!_turnStateMissingQuery.IsEmptyIgnoreFilter)
             {
                 state.EntityManager.AddComponent<HeadlessTurnRateState>(_turnStateMissingQuery);
+            }
+            if (!_debugStateMissingQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.AddComponent<MovementDebugState>(_debugStateMissingQuery);
             }
 
             var timeState = SystemAPI.GetSingleton<TimeState>();
@@ -370,23 +385,9 @@ namespace Space4X.Headless
                 {
                     speed = math.length(movement.ValueRO.Velocity);
                 }
-                if (SystemAPI.HasComponent<MoveIntent>(entity))
-                {
-                    var intent = SystemAPI.GetComponentRO<MoveIntent>(entity).ValueRO;
-                    if (intent.IntentType == MoveIntentType.None)
-                    {
-                        var stateValue = turnState.ValueRW;
-                        stateValue.LastRotation = transform.ValueRO.Rotation;
-                        stateValue.LastAngularSpeed = 0f;
-                        stateValue.LastMoveStartTick = movement.ValueRO.MoveStartTick;
-                        stateValue.SampleCount = 0;
-                        stateValue.Initialized = 1;
-                        turnState.ValueRW = stateValue;
-                        continue;
-                    }
-                }
-
-                var wantsMove = movement.ValueRO.IsMoving != 0 && speed >= TurnSpeedMin;
+                var speedSq = math.lengthsq(movement.ValueRO.Velocity);
+                var wantsMove = speed >= TurnSpeedMin &&
+                                (movement.ValueRO.IsMoving != 0 || speedSq >= (TurnSpeedMin * TurnSpeedMin * 0.25f));
                 if (wantsMove)
                 {
                     var ignoreTurnForIntent = false;
@@ -440,7 +441,7 @@ namespace Space4X.Headless
 
                         if (!_ignoreTurnFailures && !ignoreTurnForIntent)
                         {
-                            if (angularSpeed > MaxAngularSpeedRad)
+                            if (stateValue.SampleCount > 0 && angularSpeed > MaxAngularSpeedRad)
                             {
                                 anyFailure = true;
                                 failTurnRate++;
@@ -451,7 +452,7 @@ namespace Space4X.Headless
                                 }
                             }
 
-                            if (stateValue.SampleCount > 0 && angularAccel > MaxAngularAccelRad)
+                            if (stateValue.SampleCount > 1 && angularAccel > MaxAngularAccelRad)
                             {
                                 anyFailure = true;
                                 failTurnAccel++;
@@ -475,13 +476,25 @@ namespace Space4X.Headless
                 }
             }
 
+            _totalTurnRateFailures = SaturatingAdd(_totalTurnRateFailures, failTurnRate);
+            _totalTurnAccelFailures = SaturatingAdd(_totalTurnAccelFailures, failTurnAccel);
+            _totalTurnSampleCount = SaturatingAdd(_totalTurnSampleCount, turnSampleCount);
+            if (maxTurnRate > _maxTurnRateObserved)
+            {
+                _maxTurnRateObserved = maxTurnRate;
+            }
+            if (maxTurnAccel > _maxTurnAccelObserved)
+            {
+                _maxTurnAccelObserved = maxTurnAccel;
+            }
+
             if (Space4XOperatorReportUtility.TryGetMetricBuffer(ref state, out var metricBuffer))
             {
-                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_rate_failures"), failTurnRate);
-                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_accel_failures"), failTurnAccel);
-                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_rate_max"), maxTurnRate);
-                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_accel_max"), maxTurnAccel);
-                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_sample_count"), turnSampleCount);
+                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_rate_failures"), _totalTurnRateFailures);
+                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_accel_failures"), _totalTurnAccelFailures);
+                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_rate_max"), _maxTurnRateObserved);
+                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_accel_max"), _maxTurnAccelObserved);
+                AddOrUpdateMetric(metricBuffer, new FixedString64Bytes("space4x.movement.turn_sample_count"), _totalTurnSampleCount);
             }
 
             if (!anyFailure)
@@ -534,6 +547,12 @@ namespace Space4X.Headless
                 Key = key,
                 Value = value
             });
+        }
+
+        private static uint SaturatingAdd(uint left, uint right)
+        {
+            var sum = (ulong)left + right;
+            return sum > uint.MaxValue ? uint.MaxValue : (uint)sum;
         }
 
         private void ResolveStuckThresholds()

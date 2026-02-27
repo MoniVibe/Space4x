@@ -1,5 +1,6 @@
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Core;
 using PureDOTS.Runtime.Individual;
 using PureDOTS.Runtime.Rendering;
 using Space4X.Registry;
@@ -9,6 +10,7 @@ using Unity.Entities.Graphics;
 using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace Space4X.Presentation
 {
@@ -41,6 +43,12 @@ namespace Space4X.Presentation
 
         public void OnCreate(ref SystemState state)
         {
+            if (RuntimeMode.IsHeadless || Application.isBatchMode || !RuntimeMode.IsRenderingEnabled)
+            {
+                state.Enabled = false;
+                return;
+            }
+
             _semanticQuery = state.GetEntityQuery(new EntityQueryDesc
             {
                 All = new[]

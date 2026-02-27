@@ -216,6 +216,12 @@ namespace Space4X.Headless
         public const string ModulesDeterminismDigest = "space4x.q.modules.determinism_digest";
         public const string ModulesQualityMonotonicEvidence = "space4x.q.modules.quality_monotonic_evidence";
         public const string ModulesFlavorDivergenceEvidence = "space4x.q.modules.flavor_divergence_evidence";
+        public const string GunneryCapitalRangeScore = "space4x.q.gunnery.capital_range.score";
+        public const string GunneryCapitalRangeHitRate = "space4x.q.gunnery.capital_range.hit_rate";
+        public const string GunneryCapitalRangeReactionTime = "space4x.q.gunnery.capital_range.reaction_time";
+        public const string GunneryCapitalRangeTtk = "space4x.q.gunnery.capital_range.ttk";
+        public const string GunneryCapitalRangeLockChurn = "space4x.q.gunnery.capital_range.lock_churn";
+        public const string GunneryCapitalRangeDroneAssist = "space4x.q.gunnery.capital_range.drone_assist";
         public const string Unknown = "space4x.q.unknown";
 
         public static string ResolveQuestionIdForBlackCatId(string blackCatId)
@@ -275,6 +281,12 @@ namespace Space4X.Headless
             new ModulesDeterminismDigestQuestion(),
             new ModulesQualityMonotonicEvidenceQuestion(),
             new ModulesFlavorDivergenceEvidenceQuestion(),
+            new GunneryCapitalRangeScoreQuestion(),
+            new GunneryCapitalRangeHitRateQuestion(),
+            new GunneryCapitalRangeReactionTimeQuestion(),
+            new GunneryCapitalRangeTtkQuestion(),
+            new GunneryCapitalRangeLockChurnQuestion(),
+            new GunneryCapitalRangeDroneAssistQuestion(),
             new CommsKnowledgeIsolationQuestion()
         };
 
@@ -872,6 +884,306 @@ namespace Space4X.Headless
 
                 answer.Status = Space4XQuestionStatus.Pass;
                 answer.Answer = $"shots={effectiveShotsFired:0} hits={shotsHit:0} damaged={hullDamaged:0} critical={hullCritical:0} destroyed={combatantsDestroyed:0} alive={totalAlive:0} winner_side={winnerSide:0}";
+                return answer;
+            }
+        }
+
+        private sealed class GunneryCapitalRangeScoreQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.GunneryCapitalRangeScore;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.gunnery.capital_range.score", out var score))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_capital_range_metrics";
+                    answer.Answer = "capital range score metrics unavailable";
+                    return answer;
+                }
+
+                var shotsFired = signals.GetMetricOrDefault("space4x.gunnery.capital_range.shots.fired");
+                var shotsHit = signals.GetMetricOrDefault("space4x.gunnery.capital_range.shots.hit");
+                var hitRate = signals.GetMetricOrDefault("space4x.gunnery.capital_range.hit_rate", shotsFired > 0f ? shotsHit / shotsFired : 0f);
+                var reactionTime = signals.GetMetricOrDefault("space4x.gunnery.capital_range.reaction_time_s", -1f);
+                var ttk = signals.GetMetricOrDefault("space4x.gunnery.capital_range.ttk_s", -1f);
+                var lockChurn = signals.GetMetricOrDefault("space4x.gunnery.capital_range.lock_churn");
+                var droneAssist = signals.GetMetricOrDefault("space4x.gunnery.capital_range.drone_assist");
+
+                answer.Metrics["score"] = score;
+                answer.Metrics["shots_fired"] = shotsFired;
+                answer.Metrics["shots_hit"] = shotsHit;
+                answer.Metrics["hit_rate"] = hitRate;
+                answer.Metrics["reaction_time_s"] = reactionTime;
+                answer.Metrics["ttk_s"] = ttk;
+                answer.Metrics["lock_churn"] = lockChurn;
+                answer.Metrics["drone_assist"] = droneAssist;
+
+                if (shotsFired <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_shots_fired";
+                    return answer;
+                }
+
+                if (hitRate <= 0f || shotsHit <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"no_hits_registered score={score:0.##}";
+                    return answer;
+                }
+
+                if (score < 20f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"score_too_low score={score:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"score={score:0.##} hit_rate={hitRate:0.###} reaction_s={reactionTime:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class GunneryCapitalRangeHitRateQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.GunneryCapitalRangeHitRate;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasHitRate = signals.TryGetMetric("space4x.gunnery.capital_range.hit_rate", out var hitRate);
+                var shotsFired = signals.GetMetricOrDefault(
+                    "space4x.gunnery.capital_range.shots.fired",
+                    signals.GetMetricOrDefault("space4x.combat.shots.fired_total"));
+                var shotsHit = signals.GetMetricOrDefault(
+                    "space4x.gunnery.capital_range.shots.hit",
+                    signals.GetMetricOrDefault("space4x.combat.shots.hit_total"));
+                if (!hasHitRate)
+                {
+                    hitRate = shotsFired > 0f ? shotsHit / shotsFired : 0f;
+                }
+
+                answer.Metrics["shots_fired"] = shotsFired;
+                answer.Metrics["shots_hit"] = shotsHit;
+                answer.Metrics["hit_rate"] = hitRate;
+
+                if (shotsFired <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_shots_fired";
+                    return answer;
+                }
+
+                if (hitRate <= 0f || shotsHit <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"hit_rate_zero fired={shotsFired:0} hit={shotsHit:0}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"hit_rate={hitRate:0.###} fired={shotsFired:0} hit={shotsHit:0}";
+                return answer;
+            }
+        }
+
+        private sealed class GunneryCapitalRangeReactionTimeQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.GunneryCapitalRangeReactionTime;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var shotsFired = signals.GetMetricOrDefault("space4x.gunnery.capital_range.shots.fired", signals.GetMetricOrDefault("space4x.combat.shots.fired_total"));
+                if (!signals.TryGetMetric("space4x.gunnery.capital_range.reaction_time_s", out var reactionTime))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_reaction_metrics";
+                    answer.Answer = "reaction time metrics unavailable";
+                    answer.Metrics["shots_fired"] = shotsFired;
+                    return answer;
+                }
+
+                answer.Metrics["shots_fired"] = shotsFired;
+                answer.Metrics["reaction_time_s"] = reactionTime;
+
+                if (shotsFired <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "no_shots_fired";
+                    return answer;
+                }
+
+                if (reactionTime < 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = "reaction_not_recorded";
+                    return answer;
+                }
+
+                if (reactionTime > 60f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"reaction_too_slow reaction_s={reactionTime:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"reaction_s={reactionTime:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class GunneryCapitalRangeTtkQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.GunneryCapitalRangeTtk;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.gunnery.capital_range.ttk_s", out var ttk))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_ttk_metrics";
+                    answer.Answer = "ttk metrics unavailable";
+                    return answer;
+                }
+
+                var destroyed = signals.GetMetricOrDefault("space4x.gunnery.capital_range.combatants.destroyed");
+                answer.Metrics["ttk_s"] = ttk;
+                answer.Metrics["destroyed"] = destroyed;
+
+                if (ttk < 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_kill_recorded";
+                    answer.Answer = "no target kill during scenario window";
+                    return answer;
+                }
+
+                if (ttk > 120f)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"ttk_too_high ttk_s={ttk:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"ttk_s={ttk:0.##}";
+                return answer;
+            }
+        }
+
+        private sealed class GunneryCapitalRangeLockChurnQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.GunneryCapitalRangeLockChurn;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                if (!signals.TryGetMetric("space4x.gunnery.capital_range.lock_churn", out var churn))
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_lock_metrics";
+                    answer.Answer = "lock churn metrics unavailable";
+                    return answer;
+                }
+
+                var shotsFired = signals.GetMetricOrDefault("space4x.gunnery.capital_range.shots.fired", signals.GetMetricOrDefault("space4x.combat.shots.fired_total"));
+                var churnLimit = shotsFired * 1.25f + 16f;
+
+                answer.Metrics["lock_churn"] = churn;
+                answer.Metrics["shots_fired"] = shotsFired;
+                answer.Metrics["churn_limit"] = churnLimit;
+
+                if (shotsFired > 0f && churn > churnLimit)
+                {
+                    answer.Status = Space4XQuestionStatus.Fail;
+                    answer.Answer = $"lock_churn_high churn={churn:0} limit={churnLimit:0.##}";
+                    return answer;
+                }
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = $"lock_churn={churn:0}";
+                return answer;
+            }
+        }
+
+        private sealed class GunneryCapitalRangeDroneAssistQuestion : IHeadlessQuestion
+        {
+            public string Id => Space4XHeadlessQuestionIds.GunneryCapitalRangeDroneAssist;
+
+            public Space4XQuestionAnswer Evaluate(Space4XOperatorSignals signals, Space4XOperatorRuntimeStats stats, in Space4XScenarioRuntime runtime)
+            {
+                var answer = new Space4XQuestionAnswer
+                {
+                    Id = Id,
+                    StartTick = runtime.StartTick,
+                    EndTick = runtime.EndTick,
+                    Metrics = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+                };
+
+                var hasAssistMetric = signals.TryGetMetric("space4x.gunnery.capital_range.drone_assist", out var droneAssist);
+                var attackRunSeen = signals.GetMetricOrDefault("space4x.combat.attack_run_seen");
+                var strikecraftSeen = signals.GetMetricOrDefault("space4x.combat.strikecraft_seen");
+
+                if (!hasAssistMetric && attackRunSeen <= 0f && strikecraftSeen <= 0f)
+                {
+                    answer.Status = Space4XQuestionStatus.Unknown;
+                    answer.UnknownReason = "no_drone_metrics";
+                    answer.Answer = "drone assist metrics unavailable";
+                    return answer;
+                }
+
+                if (!hasAssistMetric)
+                {
+                    droneAssist = attackRunSeen > 0f || strikecraftSeen > 0f ? 1f : 0f;
+                }
+
+                answer.Metrics["drone_assist"] = droneAssist;
+                answer.Metrics["attack_run_seen"] = attackRunSeen;
+                answer.Metrics["strikecraft_seen"] = strikecraftSeen;
+
+                answer.Status = Space4XQuestionStatus.Pass;
+                answer.Answer = droneAssist > 0f ? "drone_assist_detected" : "drone_assist_not_detected";
                 return answer;
             }
         }

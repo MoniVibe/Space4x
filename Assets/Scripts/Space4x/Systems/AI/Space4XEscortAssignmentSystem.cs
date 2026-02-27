@@ -54,9 +54,27 @@ namespace Space4X.Systems.AI
 
                 if (assignment.ValueRO.Target != Entity.Null)
                 {
+                    var followTargetChanged = aiState.ValueRO.TargetEntity != assignment.ValueRO.Target || aiState.ValueRO.FollowMode == 0;
                     aiState.ValueRW.CurrentGoal = VesselAIState.Goal.Escort;
                     aiState.ValueRW.CurrentState = VesselAIState.State.MovingToTarget;
                     aiState.ValueRW.TargetEntity = assignment.ValueRO.Target;
+                    aiState.ValueRW.FollowMode = 1;
+                    aiState.ValueRW.FollowDistance = 6f;
+                    aiState.ValueRW.FollowDeadband = 1.75f;
+                    aiState.ValueRW.FollowVelocityMatch = 0.8f;
+                    aiState.ValueRW.FollowRetargetCadenceTicks = 3u;
+                    aiState.ValueRW.FollowLastRetargetTick = followTargetChanged
+                        ? 0u
+                        : aiState.ValueRO.FollowLastRetargetTick;
+                }
+                else if (aiState.ValueRO.FollowMode != 0)
+                {
+                    aiState.ValueRW.FollowMode = 0;
+                    aiState.ValueRW.FollowDistance = 0f;
+                    aiState.ValueRW.FollowDeadband = 0f;
+                    aiState.ValueRW.FollowVelocityMatch = 0f;
+                    aiState.ValueRW.FollowRetargetCadenceTicks = 0u;
+                    aiState.ValueRW.FollowLastRetargetTick = 0u;
                 }
 
                 if (assignment.ValueRO.ReleaseTick != 0 && currentTick >= assignment.ValueRO.ReleaseTick)
@@ -66,6 +84,12 @@ namespace Space4X.Systems.AI
                     aiState.ValueRW.CurrentState = VesselAIState.State.Idle;
                     aiState.ValueRW.TargetEntity = Entity.Null;
                     aiState.ValueRW.TargetPosition = float3.zero;
+                    aiState.ValueRW.FollowMode = 0;
+                    aiState.ValueRW.FollowDistance = 0f;
+                    aiState.ValueRW.FollowDeadband = 0f;
+                    aiState.ValueRW.FollowVelocityMatch = 0f;
+                    aiState.ValueRW.FollowRetargetCadenceTicks = 0u;
+                    aiState.ValueRW.FollowLastRetargetTick = 0u;
 
                     if (_tetherLookup.HasComponent(entity))
                     {

@@ -89,6 +89,7 @@ namespace Space4X.Systems.AI
         private ComponentLookup<PhysicsColliderSpec> _colliderSpecLookup;
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private ComponentLookup<PlanetGravityField> _planetGravityLookup;
+        private ComponentLookup<FleetMovementBroadcast> _fleetBroadcastLookup;
         private FixedString64Bytes _roleNavigationOfficer;
         private FixedString64Bytes _roleShipmaster;
         private FixedString64Bytes _roleCaptain;
@@ -152,6 +153,7 @@ namespace Space4X.Systems.AI
             _colliderSpecLookup = state.GetComponentLookup<PhysicsColliderSpec>(true);
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _planetGravityLookup = state.GetComponentLookup<PlanetGravityField>(true);
+            _fleetBroadcastLookup = state.GetComponentLookup<FleetMovementBroadcast>(true);
             _roleNavigationOfficer = default;
             _roleNavigationOfficer.Append('s');
             _roleNavigationOfficer.Append('h');
@@ -290,6 +292,7 @@ namespace Space4X.Systems.AI
             _colliderSpecLookup.Update(ref state);
             _movementSuppressedLookup.Update(ref state);
             _planetGravityLookup.Update(ref state);
+            _fleetBroadcastLookup.Update(ref state);
 
             var hasSpatialGrid = SystemAPI.TryGetSingleton<SpatialGridConfig>(out var spatialConfig);
             var spatialRanges = CollectionHelper.CreateNativeArray<SpatialGridCellRange>(
@@ -403,6 +406,7 @@ namespace Space4X.Systems.AI
                 ColliderSpecLookup = _colliderSpecLookup,
                 MovementSuppressedLookup = _movementSuppressedLookup,
                 PlanetGravityLookup = _planetGravityLookup,
+                FleetBroadcastLookup = _fleetBroadcastLookup,
                 HasSpatialGrid = hasSpatialGrid ? (byte)1 : (byte)0,
                 SpatialConfig = spatialConfig,
                 SpatialRanges = spatialRanges,
@@ -483,6 +487,7 @@ namespace Space4X.Systems.AI
             [ReadOnly] public ComponentLookup<PhysicsColliderSpec> ColliderSpecLookup;
             [ReadOnly] public ComponentLookup<MovementSuppressed> MovementSuppressedLookup;
             [ReadOnly] public ComponentLookup<PlanetGravityField> PlanetGravityLookup;
+            [ReadOnly] public ComponentLookup<FleetMovementBroadcast> FleetBroadcastLookup;
             public byte HasSpatialGrid;
             public SpatialGridConfig SpatialConfig;
             [ReadOnly] public NativeArray<SpatialGridCellRange> SpatialRanges;
@@ -660,6 +665,19 @@ namespace Space4X.Systems.AI
                     targetPosition = transform.Position;
                 }
 
+                var followEnabled = aiState.FollowMode != 0 &&
+                                    aiState.TargetEntity != Entity.Null &&
+                                    !hasAttackMove;
+                var followDistance = followEnabled
+                    ? math.max(0.5f, aiState.FollowDistance > 0f ? aiState.FollowDistance : 4f)
+                    : 0f;
+                var followDeadband = followEnabled
+                    ? math.max(0.15f, aiState.FollowDeadband > 0f ? aiState.FollowDeadband : followDistance * 0.35f)
+                    : 0f;
+                var followVelocityMatch = followEnabled
+                    ? math.clamp(aiState.FollowVelocityMatch > 0f ? aiState.FollowVelocityMatch : 0.75f, 0.15f, 1f)
+                    : 0f;
+
                 var decisionReason = DecisionReasonCode.Moving;
                 if (forceHold)
                 {
@@ -674,6 +692,10 @@ namespace Space4X.Systems.AI
                 if (idleCoast)
                 {
                     forceStop = false;
+                }
+                if (followEnabled && (forceHold || noTarget))
+                {
+                    followEnabled = false;
                 }
                 var isAsteroidTarget = false;
                 var asteroidRadius = 0f;
@@ -724,6 +746,9 @@ namespace Space4X.Systems.AI
                 baseSpeed = math.max(0.1f, baseSpeed * bandSpeedScale);
                 var distanceScaled = distance * bandDistanceScale;
                 var blockerEntity = Entity.Null;
+                var followTargetVelocity = float3.zero;
+                var hasFollowTargetVelocity = followEnabled && TryResolveFollowTargetVelocity(aiState.TargetEntity, out followTargetVelocity);
+                var followTargetSpeed = hasFollowTargetVelocity ? math.length(followTargetVelocity) : 0f;
 
                 var arrivalDistance = movement.ArrivalDistance > 0f ? movement.ArrivalDistance : ArrivalDistance;
                 if (hasAttackMove && attackMove.DestinationRadius > 0f)
@@ -745,6 +770,20 @@ namespace Space4X.Systems.AI
                     arrivalDistance = math.max(arrivalDistance, MiningVesselLookup.HasComponent(entity) ? 1.2f : 4.5f);
                 }
                 arrivalDistance *= bandDistanceScale;
+                var followDistanceScaled = 0f;
+                var followDeadbandScaled = 0f;
+                var followInnerDistance = 0f;
+                var followOuterDistance = 0f;
+                var followInBand = false;
+                if (followEnabled)
+                {
+                    followDistanceScaled = followDistance * bandDistanceScale;
+                    followDeadbandScaled = followDeadband * bandDistanceScale;
+                    followInnerDistance = math.max(0.1f, followDistanceScaled - followDeadbandScaled);
+                    followOuterDistance = followDistanceScaled + followDeadbandScaled;
+                    arrivalDistance = math.max(arrivalDistance, followInnerDistance);
+                    followInBand = distanceScaled >= followInnerDistance && distanceScaled <= followOuterDistance;
+                }
 
                 var alignment = AlignmentLookup.HasComponent(profileEntity)
                     ? AlignmentLookup[profileEntity]
@@ -896,6 +935,10 @@ namespace Space4X.Systems.AI
 
                 var stopSpeed = math.max(0.05f, baseSpeed * 0.1f);
                 var arrivedAndSlow = distanceScaled <= arrivalDistance && currentSpeed <= stopSpeed;
+                if (followEnabled && hasFollowTargetVelocity && followTargetSpeed > stopSpeed * 0.5f)
+                {
+                    arrivedAndSlow = false;
+                }
                 if (suppressArrival)
                 {
                     arrivedAndSlow = false;
@@ -1201,6 +1244,10 @@ namespace Space4X.Systems.AI
                 {
                     desiredSpeed *= math.saturate(distanceScaled / slowdownDistance);
                 }
+                var followCannotCatch = followEnabled &&
+                                        hasFollowTargetVelocity &&
+                                        followTargetSpeed > maxSpeed * 0.98f &&
+                                        distanceScaled > followOuterDistance;
                 var overshoot = currentSpeedSq > 1e-4f && math.dot(movement.Velocity, toTarget) < 0f;
                 if (overshoot)
                 {
@@ -1214,6 +1261,15 @@ namespace Space4X.Systems.AI
                 if (distanceScaled <= arrivalDistance)
                 {
                     desiredSpeed = math.min(desiredSpeed, math.max(0.05f, baseSpeed * 0.2f));
+                }
+                if (followEnabled && followInBand)
+                {
+                    var followBandSpeedCap = math.max(0.08f, baseSpeed * 0.45f);
+                    desiredSpeed = math.min(desiredSpeed, followBandSpeedCap);
+                }
+                if (followCannotCatch)
+                {
+                    desiredSpeed = math.min(desiredSpeed, maxSpeed * 0.92f);
                 }
                 if (forceStop)
                 {
@@ -1359,6 +1415,34 @@ namespace Space4X.Systems.AI
                     }
                 }
 
+                if (followEnabled)
+                {
+                    if (followInBand)
+                    {
+                        if (hasFollowTargetVelocity)
+                        {
+                            desiredVelocity = math.lerp(desiredVelocity, followTargetVelocity, followVelocityMatch);
+                        }
+                        else
+                        {
+                            desiredVelocity *= 0.5f;
+                        }
+                    }
+                    else if (followCannotCatch && hasFollowTargetVelocity)
+                    {
+                        var trailDirection = math.normalizesafe(followTargetVelocity, direction);
+                        var trailPoint = targetPosition - trailDirection * followDistance;
+                        var trailVector = trailPoint - transform.Position;
+                        if (math.lengthsq(trailVector) > 1e-4f)
+                        {
+                            direction = math.normalizesafe(trailVector, direction);
+                            var trailSpeed = math.min(math.max(0.05f, followTargetSpeed), math.max(0.1f, maxSpeed * 0.92f));
+                            desiredVelocity = direction * trailSpeed;
+                        }
+                    }
+                }
+
+                desiredSpeed = math.length(desiredVelocity);
                 var accelLimit = desiredSpeed > currentSpeed ? acceleration : deceleration;
                 var maxDelta = accelLimit * DeltaTime;
                 var throttle = 1f;
@@ -1716,6 +1800,18 @@ namespace Space4X.Systems.AI
                 }
 
                 return BehaviorDisposition.Default;
+            }
+
+            private bool TryResolveFollowTargetVelocity(Entity target, out float3 velocity)
+            {
+                if (target != Entity.Null && FleetBroadcastLookup.HasComponent(target))
+                {
+                    velocity = FleetBroadcastLookup[target].Velocity;
+                    return true;
+                }
+
+                velocity = float3.zero;
+                return false;
             }
 
             private float ResolveCommandApproachBias(Entity vesselEntity)

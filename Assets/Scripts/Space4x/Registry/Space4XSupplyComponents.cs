@@ -442,6 +442,51 @@ namespace Space4X.Registry
         }
 
         /// <summary>
+        /// Extra propulsion fuel draw while boost is held.
+        /// Uses diminishing-returns scaling so each additional speed unit costs more fuel.
+        /// </summary>
+        public static float CalculateBoostPropulsionFuelDraw(
+            in PlayerFlagshipFlightInput input,
+            in ShipFlightProfile profile,
+            in ShipFlightRuntimeState runtime,
+            in SupplyConsumptionRates rates,
+            float baseMass,
+            float engineEfficiency,
+            float engineBoost)
+        {
+            if (input.MovementEnabled == 0 || input.BoostPressed == 0)
+            {
+                return 0f;
+            }
+
+            var thrustDemand = math.saturate(
+                math.abs(input.Forward) * 0.5f +
+                math.abs(input.Strafe) * 0.25f +
+                math.abs(input.Vertical) * 0.25f +
+                (input.RetroBrakePressed != 0 ? 0.3f : 0f));
+            if (thrustDemand <= 0f)
+            {
+                return 0f;
+            }
+
+            var referenceSpeed = math.max(
+                1f,
+                math.max(profile.MaxForwardSpeed, math.max(profile.MaxStrafeSpeed, profile.MaxVerticalSpeed)));
+            var speed = math.length(runtime.VelocityWorld);
+            var speedNorm = speed / referenceSpeed;
+            var speedPenalty = 1f + speedNorm * speedNorm;
+
+            var massPenalty = math.max(0.3f, math.sqrt(math.max(0.1f, baseMass)) * 0.11f);
+            var efficiencyPenalty = 1f / math.max(0.2f, 0.35f + math.saturate(engineEfficiency) * 0.85f);
+            var engineBoostMitigation = math.lerp(1.15f, 0.85f, math.saturate(engineBoost));
+            var boostPenalty = 1f + math.max(0f, profile.BoostMultiplier - 1f) * 0.55f;
+            var throttlePenalty = 0.65f + thrustDemand * 0.85f;
+            var baseCurve = math.max(0.001f, rates.FuelCruise * 0.12f);
+
+            return baseCurve * speedPenalty * massPenalty * efficiencyPenalty * engineBoostMitigation * boostPenalty * throttlePenalty;
+        }
+
+        /// <summary>
         /// Calculates ticks until supply depletion.
         /// </summary>
         public static uint CalculateTicksUntilDepletion(float current, float consumptionRate)
@@ -519,4 +564,3 @@ namespace Space4X.Registry
         }
     }
 }
-

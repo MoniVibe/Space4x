@@ -10,9 +10,7 @@
         "PureDOTS.Rendering",
         "Unity.Entities.Graphics"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

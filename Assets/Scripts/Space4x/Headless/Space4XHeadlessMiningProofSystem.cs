@@ -86,6 +86,8 @@ namespace Space4X.Headless
                 return;
             }
 
+            var forceEnable = IsTruthy(enabledEnv);
+
             var scenarioPath = SystemEnv.GetEnvironmentVariable(ScenarioPathEnv);
             if (!string.IsNullOrWhiteSpace(scenarioPath) &&
                 (scenarioPath.EndsWith(RefitScenarioFile, StringComparison.OrdinalIgnoreCase) ||
@@ -94,7 +96,7 @@ namespace Space4X.Headless
                 state.Enabled = false;
                 return;
             }
-            if (!string.IsNullOrWhiteSpace(scenarioPath) && !IsMiningProofScenarioPath(scenarioPath))
+            if (!string.IsNullOrWhiteSpace(scenarioPath) && !IsMiningProofScenarioPath(scenarioPath) && !forceEnable)
             {
                 state.Enabled = false;
                 return;
@@ -306,6 +308,10 @@ namespace Space4X.Headless
                 // Combat mining can route ore to carrier stores without updating ore-in-hold.
                 pass = hasGather && (hasOre || hasCargo);
             }
+
+            var elapsedSecondsNow = math.max(0f, (float)(SystemAPI.Time.ElapsedTime - _startElapsedTime));
+            EmitOperatorSummary(ref state, gatherCommands, pickupCommands, oreDelta, cargoDelta, elapsedSecondsNow, pass);
+
             if (pass)
             {
                 _done = 1;
@@ -485,6 +491,19 @@ namespace Space4X.Headless
             {
                 return false;
             }
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("on", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsSmokeScenarioPath(string scenarioPath)

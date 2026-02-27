@@ -364,10 +364,6 @@ namespace Space4X.Registry
                 {
                     _feedLookup[seatEntity] = feed;
                 }
-                else
-                {
-                    ecb.AddComponent(seatEntity, feed);
-                }
 
                 var occupantEntity = occupant.ValueRO.OccupantEntity;
                 var hasStats = occupantEntity != Entity.Null && _statsLookup.HasComponent(occupantEntity);
@@ -387,10 +383,6 @@ namespace Space4X.Registry
                 {
                     _consoleLookup[seatEntity] = console;
                 }
-                else
-                {
-                    ecb.AddComponent(seatEntity, console);
-                }
 
                 if ((domains & AgencyDomain.Movement) != 0 && hasStats)
                 {
@@ -403,10 +395,6 @@ namespace Space4X.Registry
                     if (_officerProfileLookup.HasComponent(body))
                     {
                         _officerProfileLookup[body] = profile;
-                    }
-                    else
-                    {
-                        ecb.AddComponent(body, profile);
                     }
                 }
             }

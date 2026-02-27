@@ -23,6 +23,8 @@ namespace Space4X.Systems.AI
         private ComponentLookup<MovementSuppressed> _movementSuppressedLookup;
         private ComponentLookup<ShipFlightProfile> _flightProfileLookup;
         private ComponentLookup<InputKernelLocomotionIntent> _kernelIntentLookup;
+        private ComponentLookup<ShipPowerRoutingBinding> _powerRoutingBindingLookup;
+        private ComponentLookup<ShipPowerRoutingRuntime> _powerRoutingRuntimeLookup;
         private EntityQuery _kernelPoseStampQuery;
         private Entity _kernelPoseStampEntity;
         private EntityQuery _diagnosticsQuery;
@@ -41,6 +43,8 @@ namespace Space4X.Systems.AI
             _movementSuppressedLookup = state.GetComponentLookup<MovementSuppressed>(true);
             _flightProfileLookup = state.GetComponentLookup<ShipFlightProfile>(true);
             _kernelIntentLookup = state.GetComponentLookup<InputKernelLocomotionIntent>(false);
+            _powerRoutingBindingLookup = state.GetComponentLookup<ShipPowerRoutingBinding>(true);
+            _powerRoutingRuntimeLookup = state.GetComponentLookup<ShipPowerRoutingRuntime>(true);
             _kernelPoseStampQuery = state.GetEntityQuery(ComponentType.ReadWrite<PlayerFlagshipKernelPoseStamp>());
             if (_kernelPoseStampQuery.IsEmptyIgnoreFilter)
             {
@@ -126,6 +130,17 @@ namespace Space4X.Systems.AI
             _movementSuppressedLookup.Update(ref state);
             _flightProfileLookup.Update(ref state);
             _kernelIntentLookup.Update(ref state);
+            _powerRoutingBindingLookup.Update(ref state);
+            _powerRoutingRuntimeLookup.Update(ref state);
+
+            var powerRoutingStateEntity = Entity.Null;
+            if (SystemAPI.TryGetSingletonEntity<ShipPowerRoutingBinding>(out var candidateRoutingStateEntity) &&
+                _powerRoutingBindingLookup.HasComponent(candidateRoutingStateEntity) &&
+                _powerRoutingRuntimeLookup.HasComponent(candidateRoutingStateEntity))
+            {
+                powerRoutingStateEntity = candidateRoutingStateEntity;
+            }
+
             var kernelPoseStamp = GetKernelPoseStamp(ref state);
             kernelPoseStamp.FlagshipEntity = Entity.Null;
             kernelPoseStamp.Active = 0;
@@ -146,6 +161,7 @@ namespace Space4X.Systems.AI
                 var profile = ResolveFlightProfile(entity);
                 var transform = transformRef.ValueRO;
                 var runtime = runtimeRef.ValueRO;
+                var routingEngineScale = ResolveRoutingEngineScale(entity, powerRoutingStateEntity);
 
                 if (input.ToggleDampenersRequested != 0)
                 {
@@ -196,7 +212,7 @@ namespace Space4X.Systems.AI
                 {
                     // Pure kernel mode: single-authority integrator with inertia.
                     // Maintains deterministic accel/decel/drag while avoiding multi-writer movement paths.
-                    var pureBoost = input.BoostPressed != 0 ? math.max(1f, profile.BoostMultiplier) : 1f;
+                    var pureBoost = (input.BoostPressed != 0 ? math.max(1f, profile.BoostMultiplier) : 1f) * routingEngineScale;
                     var pureForwardInput = input.Forward;
                     var pureStrafeInput = input.Strafe;
                     var pureVerticalInput = input.Vertical;
@@ -235,20 +251,11 @@ namespace Space4X.Systems.AI
                         translationUp = math.normalizesafe(math.cross(translationForward, translationRight), shipUp);
                     }
 
-                    var targetForwardSpeed = pureForwardInput >= 0f ? profile.MaxForwardSpeed : profile.MaxReverseSpeed;
-                    var targetVelocity = translationForward * (pureForwardInput * targetForwardSpeed * pureBoost) +
-                                         translationRight * (pureStrafeInput * profile.MaxStrafeSpeed * pureBoost) +
-                                         translationUp * (pureVerticalInput * profile.MaxVerticalSpeed * pureBoost);
-
                     var pureVelocity = runtime.VelocityWorld;
                     var localVelocityX = math.dot(pureVelocity, translationRight);
                     var localVelocityY = math.dot(pureVelocity, translationUp);
                     var localVelocityZ = math.dot(pureVelocity, translationForward);
-                    var targetLocalX = math.dot(targetVelocity, translationRight);
-                    var targetLocalY = math.dot(targetVelocity, translationUp);
-                    var targetLocalZ = math.dot(targetVelocity, translationForward);
-
-                    var forwardAcceleration = targetLocalZ >= localVelocityZ
+                    var forwardAcceleration = pureForwardInput >= 0f
                         ? math.max(0f, profile.ForwardAcceleration)
                         : math.max(0f, profile.ReverseAcceleration);
                     var strafeAcceleration = math.max(0f, profile.StrafeAcceleration);
@@ -256,17 +263,23 @@ namespace Space4X.Systems.AI
 
                     if (math.abs(pureForwardInput) > 0.001f)
                     {
-                        localVelocityZ = MoveTowards(localVelocityZ, targetLocalZ, forwardAcceleration * dt);
+                        var referenceSpeed = (pureForwardInput >= 0f ? profile.MaxForwardSpeed : profile.MaxReverseSpeed) * pureBoost;
+                        var accelScale = ResolveDiminishingAccelerationScale(localVelocityZ, referenceSpeed);
+                        localVelocityZ += pureForwardInput * forwardAcceleration * pureBoost * accelScale * dt;
                     }
 
                     if (math.abs(pureStrafeInput) > 0.001f)
                     {
-                        localVelocityX = MoveTowards(localVelocityX, targetLocalX, strafeAcceleration * dt);
+                        var referenceSpeed = profile.MaxStrafeSpeed * pureBoost;
+                        var accelScale = ResolveDiminishingAccelerationScale(localVelocityX, referenceSpeed);
+                        localVelocityX += pureStrafeInput * strafeAcceleration * pureBoost * accelScale * dt;
                     }
 
                     if (math.abs(pureVerticalInput) > 0.001f)
                     {
-                        localVelocityY = MoveTowards(localVelocityY, targetLocalY, verticalAcceleration * dt);
+                        var referenceSpeed = profile.MaxVerticalSpeed * pureBoost;
+                        var accelScale = ResolveDiminishingAccelerationScale(localVelocityY, referenceSpeed);
+                        localVelocityY += pureVerticalInput * verticalAcceleration * pureBoost * accelScale * dt;
                     }
 
                     if (input.RetroBrakePressed != 0)
@@ -345,7 +358,7 @@ namespace Space4X.Systems.AI
                 var forwardThrottle = math.clamp(runtime.ForwardThrottle, -1f, 1f);
                 var strafeThrottle = math.clamp(runtime.StrafeThrottle, -1f, 1f);
                 var verticalThrottle = math.clamp(runtime.VerticalThrottle, -1f, 1f);
-                var boost = input.BoostPressed != 0 ? math.max(1f, profile.BoostMultiplier) : 1f;
+                var boost = (input.BoostPressed != 0 ? math.max(1f, profile.BoostMultiplier) : 1f) * routingEngineScale;
                 var forwardInput = math.clamp(input.Forward, -1f, 1f);
                 var strafeInput = math.clamp(input.Strafe, -1f, 1f);
                 var verticalInput = math.clamp(input.Vertical, -1f, 1f);
@@ -430,25 +443,31 @@ namespace Space4X.Systems.AI
                     if (math.abs(forwardThrottle) > 0.001f)
                     {
                         var acceleration = forwardThrottle >= 0f ? profile.ForwardAcceleration : profile.ReverseAcceleration;
-                        velocity += translationForward * (forwardThrottle * math.max(0f, acceleration) * boost * dt);
+                        var localForwardSpeed = math.dot(velocity, translationForward);
+                        var referenceSpeed = (forwardThrottle >= 0f ? profile.MaxForwardSpeed : profile.MaxReverseSpeed) * boost;
+                        var accelScale = ResolveDiminishingAccelerationScale(localForwardSpeed, referenceSpeed);
+                        velocity += translationForward * (forwardThrottle * math.max(0f, acceleration) * boost * accelScale * dt);
                     }
 
                     if (math.abs(strafeThrottle) > 0.001f)
                     {
-                        velocity += translationRight * (strafeThrottle * math.max(0f, profile.StrafeAcceleration) * boost * dt);
+                        var localStrafeSpeed = math.dot(velocity, translationRight);
+                        var referenceSpeed = profile.MaxStrafeSpeed * boost;
+                        var accelScale = ResolveDiminishingAccelerationScale(localStrafeSpeed, referenceSpeed);
+                        velocity += translationRight * (strafeThrottle * math.max(0f, profile.StrafeAcceleration) * boost * accelScale * dt);
                     }
 
                     if (math.abs(verticalThrottle) > 0.001f)
                     {
-                        velocity += translationUp * (verticalThrottle * math.max(0f, profile.VerticalAcceleration) * boost * dt);
+                        var localVerticalSpeed = math.dot(velocity, translationUp);
+                        var referenceSpeed = profile.MaxVerticalSpeed * boost;
+                        var accelScale = ResolveDiminishingAccelerationScale(localVerticalSpeed, referenceSpeed);
+                        velocity += translationUp * (verticalThrottle * math.max(0f, profile.VerticalAcceleration) * boost * accelScale * dt);
                     }
 
                     var localVelocityX = math.dot(velocity, translationRight);
                     var localVelocityY = math.dot(velocity, translationUp);
                     var localVelocityZ = math.dot(velocity, translationForward);
-                    localVelocityZ = math.clamp(localVelocityZ, -math.max(0f, profile.MaxReverseSpeed) * boost, math.max(0f, profile.MaxForwardSpeed) * boost);
-                    localVelocityX = math.clamp(localVelocityX, -math.max(0f, profile.MaxStrafeSpeed) * boost, math.max(0f, profile.MaxStrafeSpeed) * boost);
-                    localVelocityY = math.clamp(localVelocityY, -math.max(0f, profile.MaxVerticalSpeed) * boost, math.max(0f, profile.MaxVerticalSpeed) * boost);
                     velocity = translationRight * localVelocityX + translationUp * localVelocityY + translationForward * localVelocityZ;
 
                     if (input.RetroBrakePressed != 0)
@@ -650,6 +669,14 @@ namespace Space4X.Systems.AI
             return math.clamp(response, 0.15f, 3f);
         }
 
+        private static float ResolveDiminishingAccelerationScale(float localSpeed, float referenceSpeed)
+        {
+            var safeReference = math.max(0.1f, referenceSpeed);
+            var normalized = math.abs(localSpeed) / safeReference;
+            var scale = 1f / (1f + normalized * normalized);
+            return math.clamp(scale, 0.06f, 1f);
+        }
+
         private static float3 ClampDirectionLead(float3 currentForward, float3 desiredForward, float maxLeadRadians)
         {
             var current = math.normalizesafe(currentForward, new float3(0f, 0f, 1f));
@@ -703,6 +730,25 @@ namespace Space4X.Systems.AI
             }
 
             return CreateFallbackFlightProfile();
+        }
+
+        private float ResolveRoutingEngineScale(Entity flagship, Entity routingStateEntity)
+        {
+            if (routingStateEntity == Entity.Null ||
+                !_powerRoutingBindingLookup.HasComponent(routingStateEntity) ||
+                !_powerRoutingRuntimeLookup.HasComponent(routingStateEntity))
+            {
+                return 1f;
+            }
+
+            var binding = _powerRoutingBindingLookup[routingStateEntity];
+            if (binding.Ship != Entity.Null && binding.Ship != flagship)
+            {
+                return 1f;
+            }
+
+            var runtime = _powerRoutingRuntimeLookup[routingStateEntity];
+            return math.clamp(runtime.EnginesFactor, 0.2f, 1.8f);
         }
 
         private static ShipFlightProfile CreateFallbackFlightProfile()

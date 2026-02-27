@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using Unity.Collections;
 using Unity.Transforms;
+using Space4X.UI;
 using UCamera = UnityEngine.Camera;
 using UObject = UnityEngine.Object;
 using UDebug = UnityEngine.Debug;
@@ -43,6 +44,7 @@ namespace Space4X.Camera
         [SerializeField] private float fastMoveMultiplier = 4f;
         [SerializeField] private float altitudeMoveScale = 0.02f;
         [SerializeField] private float maxAltitudeMoveScale = 6f;
+        [SerializeField] private float rtsTraversalMultiplier = 3f;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 0.2f;
@@ -56,6 +58,7 @@ namespace Space4X.Camera
         [FormerlySerializedAs("maxDistance")]
         [SerializeField] private float maxZoomDistance = 300f;
         [SerializeField] private float scrollUnitsPerNotch = 120f;
+        [SerializeField] private float rtsZoomMultiplier = 2.5f;
 
         [Header("Defaults")]
         [FormerlySerializedAs("focusPoint")]
@@ -210,7 +213,7 @@ namespace Space4X.Camera
             var moveInput = ReadMoveInput();
             float verticalInput = ReadVerticalInput();
             Vector2 orbitDelta = ReadOrbitDelta();
-            Vector2 panDelta = ReadPanDelta();
+            Vector2 panDelta = IsPanModeActive() ? ReadPanDelta() : Vector2.zero;
             float zoomValue = ReadZoomValue();
             bool togglePressed = ReadYAxisToggle();
             var context = inputRouter != null ? inputRouter.CurrentContext : default;
@@ -327,6 +330,7 @@ namespace Space4X.Camera
 
             var keyboard = Keyboard.current;
             var fastMovePressed = keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+            var traversalMultiplier = IsTraversalModeActive() ? Mathf.Max(1f, rtsTraversalMultiplier) : 1f;
             var moveScale = 1f + math.abs(_position.y) * math.max(0f, altitudeMoveScale);
             moveScale = Mathf.Clamp(moveScale, 1f, Mathf.Max(1f, maxAltitudeMoveScale));
             if (fastMovePressed)
@@ -334,8 +338,10 @@ namespace Space4X.Camera
                 moveScale *= Mathf.Max(1f, fastMoveMultiplier);
             }
 
-            var planarSpeed = math.max(0.01f, moveSpeed) * moveScale;
-            var verticalUnits = math.max(0.01f, verticalSpeed) * (fastMovePressed ? Mathf.Max(1f, fastMoveMultiplier) : 1f);
+            var planarSpeed = math.max(0.01f, moveSpeed) * moveScale * traversalMultiplier;
+            var verticalUnits = math.max(0.01f, verticalSpeed) *
+                                (fastMovePressed ? Mathf.Max(1f, fastMoveMultiplier) : 1f) *
+                                traversalMultiplier;
 
             Vector3 worldMove = (forward * planar.y + right * planar.x) * (planarSpeed * dt);
             Vector3 verticalMove = up * (verticalInput * verticalUnits * dt);
@@ -352,7 +358,8 @@ namespace Space4X.Camera
 
             float unitsPerNotch = Mathf.Abs(scrollUnitsPerNotch) > 1e-4f ? scrollUnitsPerNotch : 120f;
             float scrollNotches = scrollValue / unitsPerNotch;
-            float zoomAmount = scrollNotches * zoomSpeed;
+            float zoomMultiplier = IsTraversalModeActive() ? Mathf.Max(1f, rtsZoomMultiplier) : 1f;
+            float zoomAmount = scrollNotches * zoomSpeed * zoomMultiplier;
 
             Vector3 zoomTarget;
             if (inputRouter != null && context.HasWorldHit)
@@ -398,6 +405,12 @@ namespace Space4X.Camera
 
         private void HandleDragPan(in Vector2 panDelta, in RmbContext context)
         {
+            if (!IsPanModeActive())
+            {
+                _isDraggingPan = false;
+                return;
+            }
+
             if (inputRouter != null && context.PointerOverUI)
             {
                 _isDraggingPan = false;
@@ -974,6 +987,11 @@ namespace Space4X.Camera
 
         private Vector2 ReadPanDelta()
         {
+            if (!IsPanModeActive())
+            {
+                return Vector2.zero;
+            }
+
             var action = panAction != null ? panAction.action : panProfileAction;
             if (action != null)
             {
@@ -1001,6 +1019,17 @@ namespace Space4X.Camera
             }
 
             return Vector2.zero;
+        }
+
+        private static bool IsPanModeActive()
+        {
+            return Space4XControlModeState.CurrentMode == Space4XControlMode.DivineHand;
+        }
+
+        private static bool IsTraversalModeActive()
+        {
+            var mode = Space4XControlModeState.CurrentMode;
+            return mode == Space4XControlMode.Rts || mode == Space4XControlMode.DivineHand;
         }
 
         private float ReadZoomValue()

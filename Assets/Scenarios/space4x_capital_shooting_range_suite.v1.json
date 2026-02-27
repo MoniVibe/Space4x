@@ -1,0 +1,60 @@
+{
+  "suiteId": "space4x.capital_shooting_range.suite.v1",
+  "scenarios": [
+    {
+      "id": "baseline",
+      "label": "Legacy baseline",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_micro.json",
+      "gateRequired": false,
+      "tags": ["control", "crew:mixed", "target:scripted"]
+    },
+    {
+      "id": "static_rookie",
+      "label": "Static target / rookie gunnery",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_static_rookie_micro.json",
+      "tags": ["crew:rookie", "target:static", "weapon:hybrid", "speed:slow"]
+    },
+    {
+      "id": "static_veteran",
+      "label": "Static target / veteran gunnery",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_static_veteran_micro.json",
+      "tags": ["crew:veteran", "target:static", "weapon:hybrid", "speed:slow"]
+    },
+    {
+      "id": "static_elite",
+      "label": "Static target / elite gunnery",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_static_elite_micro.json",
+      "tags": ["crew:elite", "target:static", "weapon:hybrid", "speed:slow"]
+    },
+    {
+      "id": "crossing_experienced",
+      "label": "Crossing target / experienced crew",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_crossing_experienced_micro.json",
+      "tags": ["crew:experienced", "target:crossing", "weapon:hybrid", "speed:medium"]
+    },
+    {
+      "id": "crossing_veteran_missile",
+      "label": "Crossing target / veteran missile profile",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_crossing_veteran_missile_micro.json",
+      "tags": ["crew:veteran", "target:crossing", "weapon:missile", "speed:high"]
+    },
+    {
+      "id": "zigzag_rookie",
+      "label": "Zigzag target / rookie pressure test",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_zigzag_rookie_micro.json",
+      "tags": ["crew:rookie", "target:zigzag", "weapon:hybrid", "speed:high"]
+    },
+    {
+      "id": "swarm_elite",
+      "label": "Swarm target / elite multitarget stress",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_swarm_elite_micro.json",
+      "tags": ["crew:elite", "target:swarm", "weapon:mixed", "entities:multi"]
+    },
+    {
+      "id": "offset_veteran",
+      "label": "Offset geometry / veteran crew",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_offset_veteran_micro.json",
+      "tags": ["crew:veteran", "target:diagonal", "geometry:offset", "speed:medium"]
+    }
+  ]
+}

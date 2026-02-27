@@ -1,10 +1,15 @@
 using PureDOTS.Runtime.Combat;
+using PureDOTS.Runtime.Authority;
 using PureDOTS.Runtime.Components;
 using PureDOTS.Runtime.Math;
+using PureDOTS.Runtime.Movement;
 using PureDOTS.Runtime.Ships;
 using PureDOTS.Runtime.Steering;
 using PureDOTS.Runtime.Telemetry;
+using PureDOTS.Rendering;
+using Space4X.Presentation;
 using Space4X.Runtime;
+using Space4X.UI;
 using Space4x.Fleetcrawl;
 using Space4x.Scenario;
 using Unity.Burst;
@@ -42,6 +47,11 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XFocusModifiers> _focusLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
+        private ComponentLookup<Space4XPlayerWeaponControl> _playerWeaponControlLookup;
+        private ComponentLookup<Space4XPlayerTargetSelection> _playerTargetSelectionLookup;
+        private BufferLookup<AuthoritySeatRef> _seatRefLookup;
+        private ComponentLookup<AuthoritySeat> _seatLookup;
+        private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private ComponentLookup<Space4XNormalizedIndividualStats> _normalizedStatsLookup;
         private ComponentLookup<IndividualStats> _statsLookup;
         private ComponentLookup<PhysiqueFinesseWill> _physiqueLookup;
@@ -70,6 +80,7 @@ namespace Space4X.Registry
         private BufferLookup<FleetcrawlHeatModifierDefinition> _fleetcrawlHeatDefinitionLookup;
         private ComponentLookup<Space4XRunPlayerTag> _runPlayerLookup;
         private EntityStorageInfoLookup _entityLookup;
+        private static readonly FixedString64Bytes RoleWeaponsOfficer = "ship.weapons_officer";
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -89,6 +100,11 @@ namespace Space4X.Registry
             _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _playerWeaponControlLookup = state.GetComponentLookup<Space4XPlayerWeaponControl>(true);
+            _playerTargetSelectionLookup = state.GetComponentLookup<Space4XPlayerTargetSelection>(true);
+            _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
+            _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
+            _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _normalizedStatsLookup = state.GetComponentLookup<Space4XNormalizedIndividualStats>(true);
             _statsLookup = state.GetComponentLookup<IndividualStats>(true);
             _physiqueLookup = state.GetComponentLookup<PhysiqueFinesseWill>(true);
@@ -143,6 +159,11 @@ namespace Space4X.Registry
             _focusLookup.Update(ref state);
             _pilotLookup.Update(ref state);
             _strikePilotLookup.Update(ref state);
+            _playerWeaponControlLookup.Update(ref state);
+            _playerTargetSelectionLookup.Update(ref state);
+            _seatRefLookup.Update(ref state);
+            _seatLookup.Update(ref state);
+            _seatOccupantLookup.Update(ref state);
             _normalizedStatsLookup.Update(ref state);
             _statsLookup.Update(ref state);
             _physiqueLookup.Update(ref state);
@@ -230,7 +251,7 @@ namespace Space4X.Registry
             }
 
             foreach (var (weapons, engagement, transform, supply, entity) in
-                SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRO<Space4XEngagement>, RefRO<LocalTransform>, RefRW<SupplyStatus>>()
+                SystemAPI.Query<DynamicBuffer<WeaponMount>, RefRW<Space4XEngagement>, RefRO<LocalTransform>, RefRW<SupplyStatus>>()
                     .WithEntityAccess())
             {
                 // Check Firing capability - if disabled, skip firing
@@ -244,8 +265,32 @@ namespace Space4X.Registry
                     }
                 }
 
-                // Skip if not engaged or cannot fire
-                if (engagement.ValueRO.Phase != EngagementPhase.Engaged || !canFire)
+                if (!canFire)
+                {
+                    continue;
+                }
+
+                var manualAimActive = false;
+                var manualFireHeld = false;
+                var manualTarget = Entity.Null;
+                if (_playerWeaponControlLookup.HasComponent(entity))
+                {
+                    var weaponControl = _playerWeaponControlLookup[entity];
+                    manualAimActive = weaponControl.ManualAimMode != 0;
+                    manualFireHeld = weaponControl.TriggerHeld != 0;
+                    if (manualAimActive &&
+                        _playerTargetSelectionLookup.HasComponent(entity))
+                    {
+                        var selection = _playerTargetSelectionLookup[entity];
+                        if (selection.HasSelection != 0)
+                        {
+                            manualTarget = selection.TargetEntity;
+                        }
+                    }
+                }
+
+                var manualFiring = manualAimActive && manualFireHeld;
+                if (!manualFiring && engagement.ValueRO.Phase != EngagementPhase.Engaged)
                 {
                     continue;
                 }
@@ -265,8 +310,12 @@ namespace Space4X.Registry
                     focusAccuracyBonus = (float)focusModifiers.AccuracyBonus;
                     focusRofMultiplier = math.max(0.1f, (float)focusModifiers.RateOfFireMultiplier);
                 }
+                var gunnerySkill = ResolveGunnerySkill(entity);
+                var autoAimAssist = math.lerp(0.25f, 1f, gunnerySkill);
 
-                Entity target = engagement.ValueRO.PrimaryTarget;
+                Entity target = manualFiring && manualTarget != Entity.Null
+                    ? manualTarget
+                    : engagement.ValueRO.PrimaryTarget;
                 if (target == Entity.Null || !_entityLookup.Exists(target))
                 {
                     continue;
@@ -282,6 +331,15 @@ namespace Space4X.Registry
                 var targetTransform = _transformLookup[target];
                 float3 toTarget = targetTransform.Position - transform.ValueRO.Position;
                 float distance = math.length(toTarget);
+
+                if (manualFiring)
+                {
+                    var manualEngagement = engagement.ValueRW;
+                    manualEngagement.PrimaryTarget = target;
+                    manualEngagement.Phase = EngagementPhase.Engaged;
+                    manualEngagement.TargetDistance = distance;
+                    engagement.ValueRW = manualEngagement;
+                }
 
                 var hasSubsystems = _subsystemLookup.HasBuffer(entity);
                 var hasSubsystemDisabled = _subsystemDisabledLookup.HasBuffer(entity);
@@ -531,10 +589,18 @@ namespace Space4X.Registry
                             targetTransform.Position, targetVelocity, transform.ValueRO.Position, projectileSpeed,
                             out var interceptPoint, out _))
                     {
-                        aimPoint = interceptPoint;
+                        aimPoint = math.lerp(targetTransform.Position, interceptPoint, autoAimAssist);
                     }
 
                     var aimDirection = math.normalizesafe(aimPoint - transform.ValueRO.Position, directionToTarget);
+                    aimDirection = ApplyAutoAimSkillVariance(
+                        aimDirection,
+                        entity,
+                        target,
+                        currentTick,
+                        (uint)i,
+                        mount.Weapon,
+                        gunnerySkill);
 
                     var fireArcDegrees = ResolveWeaponFireArcDegrees(mount.Weapon);
                     var coneForward = forward;
@@ -556,7 +622,10 @@ namespace Space4X.Registry
                         }
                         coneForward = RotateYaw(forward, arcOffset);
                     }
-                    if (math.dot(coneForward, aimDirection) < fireConeCos)
+                    var coneDot = math.dot(coneForward, aimDirection);
+                    var coneSlack = math.lerp(-0.015f, 0.08f, gunnerySkill);
+                    var requiredConeDot = math.clamp(fireConeCos - coneSlack, -1f, 1f);
+                    if (coneDot < requiredConeDot)
                     {
                         if (mountDirty)
                         {
@@ -725,15 +794,57 @@ namespace Space4X.Registry
             return Entity.Null;
         }
 
+        private Entity ResolveWeaponsOfficer(Entity shipEntity)
+        {
+            if (!_seatRefLookup.HasBuffer(shipEntity))
+            {
+                return Entity.Null;
+            }
+
+            var seats = _seatRefLookup[shipEntity];
+            if (!AuthoritySeatHelpers.TryFindSeatByRole(seats, _seatLookup, RoleWeaponsOfficer, out var seatEntity))
+            {
+                return Entity.Null;
+            }
+
+            if (_seatOccupantLookup.HasComponent(seatEntity))
+            {
+                return _seatOccupantLookup[seatEntity].OccupantEntity;
+            }
+
+            return Entity.Null;
+        }
+
         private float ResolveGunnerySkill(Entity shipEntity)
         {
+            var weaponsOfficer = ResolveWeaponsOfficer(shipEntity);
             var pilot = ResolvePilot(shipEntity);
+            if (weaponsOfficer != Entity.Null)
+            {
+                var officerSkill = ResolveProfileGunnerySkill(weaponsOfficer);
+                if (pilot != Entity.Null && pilot != weaponsOfficer)
+                {
+                    var pilotSkill = ResolveProfileGunnerySkill(pilot);
+                    return math.saturate(officerSkill * 0.75f + pilotSkill * 0.25f);
+                }
+
+                return officerSkill;
+            }
+
             var profile = pilot != Entity.Null ? pilot : shipEntity;
+            return ResolveProfileGunnerySkill(profile);
+        }
+
+        private float ResolveProfileGunnerySkill(Entity profile)
+        {
+            const float tacticsWeight = 0.45f;
+            const float finesseWeight = 0.35f;
+            const float commandWeight = 0.2f;
 
             if (_normalizedStatsLookup.HasComponent(profile))
             {
                 var stats = _normalizedStatsLookup[profile];
-                var skill = stats.Tactics * 0.45f + stats.Finesse * 0.35f + stats.Command * 0.2f;
+                var skill = stats.Tactics * tacticsWeight + stats.Finesse * finesseWeight + stats.Command * commandWeight;
                 return math.saturate(skill);
             }
 
@@ -754,8 +865,43 @@ namespace Space4X.Registry
                 finesse = math.saturate((float)physique.Finesse / 100f);
             }
 
-            var fallbackSkill = tactics * 0.45f + finesse * 0.35f + command * 0.2f;
+            var fallbackSkill = tactics * tacticsWeight + finesse * finesseWeight + command * commandWeight;
             return math.saturate(fallbackSkill);
+        }
+
+        private static float3 ApplyAutoAimSkillVariance(
+            float3 direction,
+            Entity shooter,
+            Entity target,
+            uint tick,
+            uint mountIndex,
+            in Space4XWeapon weapon,
+            float gunnerySkill)
+        {
+            var skill01 = math.saturate(gunnerySkill);
+            var tracking = math.clamp(Space4XWeapon.ResolveTracking(weapon), 0.05f, 1f);
+            var maxErrorDegrees = math.lerp(7.5f, 0.35f, skill01);
+            maxErrorDegrees *= math.lerp(1.25f, 0.65f, tracking);
+            if (maxErrorDegrees <= 0.01f)
+            {
+                return direction;
+            }
+
+            var seedA = math.hash(new uint4((uint)shooter.Index, (uint)target.Index, tick, mountIndex ^ 0xA511E9B3u));
+            var seedB = math.hash(new uint4((uint)shooter.Index, (uint)target.Index, tick, mountIndex ^ 0x7F4A7C15u));
+            var signedA = seedA * (1f / uint.MaxValue) * 2f - 1f;
+            var signedB = seedB * (1f / uint.MaxValue) * 2f - 1f;
+            var yaw = signedA * maxErrorDegrees;
+            var pitch = signedB * maxErrorDegrees;
+
+            var up = math.abs(direction.y) > 0.92f ? new float3(1f, 0f, 0f) : math.up();
+            var right = math.normalizesafe(math.cross(direction, up), new float3(1f, 0f, 0f));
+            var trueUp = math.normalizesafe(math.cross(right, direction), math.up());
+            var yawRot = quaternion.AxisAngle(trueUp, math.radians(yaw));
+            var pitchRot = quaternion.AxisAngle(right, math.radians(pitch));
+            var adjusted = math.mul(yawRot, direction);
+            adjusted = math.mul(pitchRot, adjusted);
+            return math.normalizesafe(adjusted, direction);
         }
 
         private static float ResolveTrackingPenalty(
@@ -935,6 +1081,9 @@ namespace Space4X.Registry
         private ComponentLookup<Space4XFocusModifiers> _focusLookup;
         private ComponentLookup<VesselPilotLink> _pilotLookup;
         private ComponentLookup<StrikeCraftPilotLink> _strikePilotLookup;
+        private BufferLookup<AuthoritySeatRef> _seatRefLookup;
+        private ComponentLookup<AuthoritySeat> _seatLookup;
+        private ComponentLookup<AuthoritySeatOccupant> _seatOccupantLookup;
         private BufferLookup<ModuleLimbState> _limbStateLookup;
         private BufferLookup<ModuleLimbDamageEvent> _limbDamageLookup;
         private ComponentLookup<ModuleTarget> _moduleTargetLookup;
@@ -956,6 +1105,7 @@ namespace Space4X.Registry
         private const uint DefaultSubsystemDisableTicks = 120;
         private const float ScarPositionQuantize = 100f;
         private const float ScarNormalQuantize = 100f;
+        private static readonly FixedString64Bytes RoleWeaponsOfficer = "ship.weapons_officer";
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -981,6 +1131,9 @@ namespace Space4X.Registry
             _focusLookup = state.GetComponentLookup<Space4XFocusModifiers>(true);
             _pilotLookup = state.GetComponentLookup<VesselPilotLink>(true);
             _strikePilotLookup = state.GetComponentLookup<StrikeCraftPilotLink>(true);
+            _seatRefLookup = state.GetBufferLookup<AuthoritySeatRef>(true);
+            _seatLookup = state.GetComponentLookup<AuthoritySeat>(true);
+            _seatOccupantLookup = state.GetComponentLookup<AuthoritySeatOccupant>(true);
             _limbStateLookup = state.GetBufferLookup<ModuleLimbState>(true);
             _limbDamageLookup = state.GetBufferLookup<ModuleLimbDamageEvent>(false);
             _moduleTargetLookup = state.GetComponentLookup<ModuleTarget>(true);
@@ -1041,6 +1194,9 @@ namespace Space4X.Registry
             _focusLookup.Update(ref state);
             _pilotLookup.Update(ref state);
             _strikePilotLookup.Update(ref state);
+            _seatRefLookup.Update(ref state);
+            _seatLookup.Update(ref state);
+            _seatOccupantLookup.Update(ref state);
             _limbStateLookup.Update(ref state);
             _limbDamageLookup.Update(ref state);
             _moduleTargetLookup.Update(ref state);
@@ -1232,10 +1388,25 @@ namespace Space4X.Registry
                         nuanceProfile);
                     rawDamage *= distanceDamageMultiplier;
 
-                    // Apply damage to target
-                    ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb);
-
-                    engagement.ValueRW.DamageDealt += rawDamage;
+                    if (mount.Weapon.Type == WeaponType.Missile)
+                    {
+                        SpawnMissileProjectile(
+                            entity,
+                            target,
+                            mount.Weapon,
+                            rawDamage,
+                            isCritical,
+                            currentTick,
+                            transform.ValueRO,
+                            targetTransform,
+                            ref ecb);
+                    }
+                    else
+                    {
+                        // Apply damage to target
+                        ApplyDamageToTarget(target, entity, mount.Weapon, rawDamage, isCritical, currentTick, transform.ValueRO, targetTransform, ref ecb);
+                        engagement.ValueRW.DamageDealt += rawDamage;
+                    }
                 }
             }
 
@@ -1254,6 +1425,124 @@ namespace Space4X.Registry
 
             var heatSignature01 = math.saturate(targetHeatSignature01 + attackerDetectionBonus * 0.6f);
             return math.lerp(0.55f, 1f, heatSignature01);
+        }
+
+        private static void SpawnMissileProjectile(
+            Entity source,
+            Entity target,
+            in Space4XWeapon weapon,
+            float rawDamage,
+            bool isCritical,
+            uint currentTick,
+            in LocalTransform sourceTransform,
+            in LocalTransform targetTransform,
+            ref EntityCommandBuffer ecb)
+        {
+            var direction = math.normalizesafe(targetTransform.Position - sourceTransform.Position, math.forward(sourceTransform.Rotation));
+            var spawnOffset = math.max(0.75f, ResolveMissileImpactRadius(weapon) * 0.5f);
+            var spawnPosition = sourceTransform.Position + direction * spawnOffset;
+            OrientationHelpers.LookRotationSafe3D(direction, OrientationHelpers.WorldUp, out var rotation);
+
+            var missile = ecb.CreateEntity();
+            ecb.AddComponent(missile, LocalTransform.FromPositionRotationScale(spawnPosition, rotation, 1f));
+            ecb.AddComponent(missile, new Space4XMissileProjectile
+            {
+                Source = source,
+                Target = target,
+                Velocity = direction * ResolveMissileSpeed(weapon),
+                Speed = ResolveMissileSpeed(weapon),
+                TurnRateDeg = ResolveMissileTurnRateDeg(weapon),
+                LifetimeSeconds = ResolveMissileLifetimeSeconds(weapon),
+                AgeSeconds = 0f,
+                ImpactRadius = ResolveMissileImpactRadius(weapon),
+                RawDamage = math.max(0f, rawDamage),
+                ShieldModifier = weapon.ShieldModifier,
+                ArmorPenetration = weapon.ArmorPenetration,
+                WeaponType = weapon.Type,
+                IsCritical = (byte)(isCritical ? 1 : 0),
+                SpawnTick = currentTick
+            });
+
+            ecb.AddComponent(missile, new PresentationScale { Value = 0.85f });
+            ecb.AddComponent(missile, new SimPoseSnapshot
+            {
+                PrevPosition = spawnPosition,
+                PrevRotation = rotation,
+                PrevScale = 1f,
+                CurrPosition = spawnPosition,
+                CurrRotation = rotation,
+                CurrScale = 1f,
+                PrevTick = currentTick,
+                CurrTick = currentTick
+            });
+            ecb.AddComponent(missile, new ProjectilePresentationTag());
+            ecb.AddComponent(missile, new RenderSemanticKey { Value = Space4XRenderKeys.Projectile });
+            ecb.AddComponent(missile, new RenderKey
+            {
+                ArchetypeId = Space4XRenderKeys.Projectile,
+                LOD = 0
+            });
+            ecb.AddComponent(missile, new RenderFlags
+            {
+                Visible = 1,
+                ShadowCaster = 0,
+                HighlightMask = 0
+            });
+            ecb.AddComponent(missile, new RenderTint
+            {
+                Value = new float4(1f, 0.5f, 0.2f, 1f)
+            });
+        }
+
+        private static float ResolveMissileSpeed(in Space4XWeapon weapon)
+        {
+            var sizeScale = weapon.Size switch
+            {
+                WeaponSize.Small => 1.15f,
+                WeaponSize.Medium => 1f,
+                WeaponSize.Large => 0.9f,
+                WeaponSize.Capital => 0.78f,
+                _ => 1f
+            };
+
+            return 70f * sizeScale;
+        }
+
+        private static float ResolveMissileTurnRateDeg(in Space4XWeapon weapon)
+        {
+            return weapon.Size switch
+            {
+                WeaponSize.Small => 260f,
+                WeaponSize.Medium => 220f,
+                WeaponSize.Large => 180f,
+                WeaponSize.Capital => 140f,
+                _ => 200f
+            };
+        }
+
+        private static float ResolveMissileLifetimeSeconds(in Space4XWeapon weapon)
+        {
+            var sizeBonus = weapon.Size switch
+            {
+                WeaponSize.Small => 0f,
+                WeaponSize.Medium => 0.3f,
+                WeaponSize.Large => 0.6f,
+                WeaponSize.Capital => 1f,
+                _ => 0.4f
+            };
+            return 5.5f + sizeBonus;
+        }
+
+        private static float ResolveMissileImpactRadius(in Space4XWeapon weapon)
+        {
+            return weapon.Size switch
+            {
+                WeaponSize.Small => 1.15f,
+                WeaponSize.Medium => 1.4f,
+                WeaponSize.Large => 1.9f,
+                WeaponSize.Capital => 2.5f,
+                _ => 1.4f
+            };
         }
 
         private void ApplyDamageToTarget(
@@ -1511,11 +1800,49 @@ namespace Space4X.Registry
             return Entity.Null;
         }
 
+        private Entity ResolveWeaponsOfficer(Entity shipEntity)
+        {
+            if (!_seatRefLookup.HasBuffer(shipEntity))
+            {
+                return Entity.Null;
+            }
+
+            var seats = _seatRefLookup[shipEntity];
+            if (!AuthoritySeatHelpers.TryFindSeatByRole(seats, _seatLookup, RoleWeaponsOfficer, out var seatEntity))
+            {
+                return Entity.Null;
+            }
+
+            if (_seatOccupantLookup.HasComponent(seatEntity))
+            {
+                return _seatOccupantLookup[seatEntity].OccupantEntity;
+            }
+
+            return Entity.Null;
+        }
+
         private float ResolveGunnerySkill(Entity shipEntity, in Space4XCombatTuningConfig tuning)
         {
+            var weaponsOfficer = ResolveWeaponsOfficer(shipEntity);
             var pilot = ResolvePilot(shipEntity);
-            var profile = pilot != Entity.Null ? pilot : shipEntity;
+            if (weaponsOfficer != Entity.Null)
+            {
+                var officerSkill = ResolveProfileGunnerySkill(weaponsOfficer, tuning);
+                if (pilot != Entity.Null && pilot != weaponsOfficer)
+                {
+                    var pilotSkill = ResolveProfileGunnerySkill(pilot, tuning);
+                    return math.saturate(officerSkill * 0.75f + pilotSkill * 0.25f);
+                }
 
+                return officerSkill;
+            }
+
+            var profile = pilot != Entity.Null ? pilot : shipEntity;
+            return ResolveProfileGunnerySkill(profile, tuning);
+        }
+
+        private float ResolveProfileGunnerySkill(Entity profile, in Space4XCombatTuningConfig tuning)
+        {
             var tacticsWeight = math.max(0f, tuning.GunneryTacticsWeight);
             var finesseWeight = math.max(0f, tuning.GunneryFinesseWeight);
             var commandWeight = math.max(0f, tuning.GunneryCommandWeight);
@@ -1956,17 +2283,40 @@ namespace Space4X.Registry
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XShieldRegenSystem : ISystem
     {
+        private ComponentLookup<CapabilityState> _capabilityStateLookup;
+        private ComponentLookup<CapabilityEffectiveness> _capabilityEffectivenessLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Space4XShield>();
+            _capabilityStateLookup = state.GetComponentLookup<CapabilityState>(true);
+            _capabilityEffectivenessLookup = state.GetComponentLookup<CapabilityEffectiveness>(true);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            foreach (var shield in SystemAPI.Query<RefRW<Space4XShield>>())
+            _capabilityStateLookup.Update(ref state);
+            _capabilityEffectivenessLookup.Update(ref state);
+
+            foreach (var (shield, entity) in SystemAPI.Query<RefRW<Space4XShield>>().WithEntityAccess())
             {
+                if (_capabilityStateLookup.HasComponent(entity))
+                {
+                    var capability = _capabilityStateLookup[entity];
+                    if ((capability.EnabledCapabilities & CapabilityFlags.Shields) == 0)
+                    {
+                        continue;
+                    }
+                }
+
+                var rechargeScale = 1f;
+                if (_capabilityEffectivenessLookup.HasComponent(entity))
+                {
+                    rechargeScale = math.max(0f, _capabilityEffectivenessLookup[entity].ShieldEffectiveness);
+                }
+
                 // Delay countdown
                 if (shield.ValueRO.CurrentDelay > 0)
                 {
@@ -1979,7 +2329,7 @@ namespace Space4X.Registry
                 {
                     shield.ValueRW.Current = math.min(
                         shield.ValueRO.Maximum,
-                        shield.ValueRO.Current + shield.ValueRO.RechargeRate
+                        shield.ValueRO.Current + shield.ValueRO.RechargeRate * rechargeScale
                     );
                 }
             }

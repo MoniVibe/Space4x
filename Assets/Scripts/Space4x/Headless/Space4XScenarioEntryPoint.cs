@@ -303,14 +303,16 @@ namespace Space4X.Headless
         {
             // We intentionally avoid deserializing here (types live in gameplay asmdefs); this is a cheap schema sniff.
             // Space4X mining scenarios have: seed, duration_s, spawn:[...]
-            const int charsToRead = 4096;
+            const int charsToRead = 32768;
             using var stream = File.OpenRead(scenarioPath);
             using var reader = new StreamReader(stream);
             var buffer = new char[charsToRead];
             var read = reader.ReadBlock(buffer, 0, buffer.Length);
             var head = read > 0 ? new string(buffer, 0, read) : string.Empty;
+            var looksLikeSpace4xFile = Path.GetFileName(scenarioPath)
+                .StartsWith("space4x_", StringComparison.OrdinalIgnoreCase);
             return head.Contains("\"duration_s\"", StringComparison.OrdinalIgnoreCase) &&
-                   head.Contains("\"spawn\"", StringComparison.OrdinalIgnoreCase);
+                   (head.Contains("\"spawn\"", StringComparison.OrdinalIgnoreCase) || looksLikeSpace4xFile);
         }
 
         private static void DisableHeadlessProofsForScenario()

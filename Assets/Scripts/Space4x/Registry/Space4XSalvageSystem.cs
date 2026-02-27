@@ -279,19 +279,25 @@ namespace Space4X.Registry
     /// <summary>
     /// Creates derelicts from destroyed or abandoned ships.
     /// </summary>
-    [BurstCompile]
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     public partial struct Space4XDerelictSpawnSystem : ISystem
     {
+        private byte _overflowed;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<HullIntegrity>();
+            _overflowed = 0;
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (_overflowed != 0)
+            {
+                return;
+            }
+
             var ecb = new EntityCommandBuffer(Allocator.Temp);
             var currentTick = (uint)SystemAPI.Time.ElapsedTime;
 
@@ -310,7 +316,16 @@ namespace Space4X.Registry
                 }
             }
 
-            ecb.Playback(state.EntityManager);
+            try
+            {
+                ecb.Playback(state.EntityManager);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Some heavily-populated entities cannot accept more components in-chunk.
+                // Stop further attempts instead of spamming per-frame exceptions.
+                _overflowed = 1;
+            }
             ecb.Dispose();
         }
     }
@@ -419,4 +434,3 @@ namespace Space4X.Registry
         }
     }
 }
-

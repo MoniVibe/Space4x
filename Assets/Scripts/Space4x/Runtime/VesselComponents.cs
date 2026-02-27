@@ -70,6 +70,12 @@ namespace Space4X.Runtime
         public float3 TargetPosition;
         public float StateTimer;
         public uint StateStartTick;
+        public byte FollowMode;
+        public float FollowDistance;
+        public float FollowDeadband;
+        public float FollowVelocityMatch;
+        public uint FollowRetargetCadenceTicks;
+        public uint FollowLastRetargetTick;
     }
 
     /// <summary>

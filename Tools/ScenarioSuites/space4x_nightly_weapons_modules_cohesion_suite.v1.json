@@ -1,0 +1,155 @@
+{
+  "suiteId": "space4x.nightly.weapons_modules_cohesion.v1",
+  "description": "Overnight local nightly covering weapons competency, module sanity, production/extraction behavior, and movement cohesion slices.",
+  "cases": [
+    {
+      "id": "static_rookie",
+      "label": "Static target / rookie gunnery",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_static_rookie_micro.json",
+      "tags": ["focus:weapons", "crew:rookie", "target:static"]
+    },
+    {
+      "id": "static_veteran",
+      "label": "Static target / veteran gunnery",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_static_veteran_micro.json",
+      "tags": ["focus:weapons", "crew:veteran", "target:static"]
+    },
+    {
+      "id": "static_elite",
+      "label": "Static target / elite gunnery",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_static_elite_micro.json",
+      "tags": ["focus:weapons", "crew:elite", "target:static"]
+    },
+    {
+      "id": "crossing_experienced",
+      "label": "Crossing target / experienced",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_crossing_experienced_micro.json",
+      "tags": ["focus:weapons", "crew:experienced", "target:crossing"]
+    },
+    {
+      "id": "crossing_veteran_missile",
+      "label": "Crossing target / veteran missile",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_crossing_veteran_missile_micro.json",
+      "tags": ["focus:weapons", "crew:veteran", "target:crossing", "weapon:missile"]
+    },
+    {
+      "id": "offset_veteran",
+      "label": "Offset geometry / veteran",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_offset_veteran_micro.json",
+      "tags": ["focus:weapons", "crew:veteran", "target:offset"]
+    },
+    {
+      "id": "swarm_elite",
+      "label": "Swarm stress / elite",
+      "path": "Assets/Scenarios/space4x_capital_shooting_range_swarm_elite_micro.json",
+      "tags": ["focus:weapons", "crew:elite", "target:swarm", "multi-target"]
+    },
+    {
+      "id": "dogfight_headless",
+      "label": "Dogfight fire sanity",
+      "path": "Assets/Scenarios/space4x_dogfight_headless.json",
+      "tags": ["focus:weapons", "dogfight", "fire"]
+    },
+    {
+      "id": "module_pipeline",
+      "label": "Module pipeline completion",
+      "path": "Assets/Scenarios/space4x_module_pipeline_micro.json",
+      "tags": ["focus:modules", "pipeline", "determinism"]
+    },
+    {
+      "id": "modules_quality",
+      "label": "Module quality monotonicity",
+      "path": "Assets/Scenarios/space4x_modules_quality_monotonic_micro.json",
+      "tags": ["focus:modules", "quality", "sanity"]
+    },
+    {
+      "id": "modules_flavor",
+      "label": "Module flavor divergence",
+      "path": "Assets/Scenarios/space4x_modules_flavor_divergence_micro.json",
+      "tags": ["focus:modules", "flavor", "sanity"]
+    },
+    {
+      "id": "modules_provenance",
+      "label": "Module provenance advantage",
+      "path": "Assets/Scenarios/space4x_modules_provenance_advantage_micro.json",
+      "tags": ["focus:modules", "provenance", "sanity"]
+    },
+    {
+      "id": "modules_reverse_engineer",
+      "label": "Reverse engineer surpass",
+      "path": "Assets/Scenarios/space4x_modules_reverse_engineer_surpass_micro.json",
+      "tags": ["focus:modules", "reverse-engineer", "sanity"]
+    },
+    {
+      "id": "mining_micro",
+      "label": "Mining extraction progress",
+      "path": "Assets/Scenarios/space4x_mining_micro.json",
+      "tags": ["focus:production", "extraction", "mining"]
+    },
+    {
+      "id": "fleetcrawl_core",
+      "label": "Fleetcrawl mining/combat loop",
+      "path": "Assets/Scenarios/space4x_fleetcrawl_core_micro.json",
+      "gateRequired": false,
+      "tags": ["focus:production", "focus:weapons", "mixed", "advisory"]
+    },
+    {
+      "id": "movement_observe",
+      "label": "Movement observe cohesion",
+      "path": "Assets/Scenarios/space4x_movement_observe_micro.json",
+      "tags": ["focus:cohesion", "movement", "turnrate"]
+    },
+    {
+      "id": "turnrate_micro",
+      "label": "Turnrate bounds",
+      "path": "Assets/Scenarios/space4x_turnrate_micro.json",
+      "tags": ["focus:cohesion", "movement", "turnrate"]
+    },
+    {
+      "id": "collision_micro",
+      "label": "Collision phasing guard",
+      "path": "Assets/Scenarios/space4x_collision_micro.json",
+      "tags": ["focus:cohesion", "physics", "collision"]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "veteran_gt_rookie_score",
+      "label": "Static veteran score higher than rookie",
+      "left": "static_veteran",
+      "right": "static_rookie",
+      "metric": "score",
+      "op": "gt",
+      "minDelta": 0.01,
+      "required": true
+    },
+    {
+      "id": "elite_gt_rookie_score",
+      "label": "Static elite score higher than rookie",
+      "left": "static_elite",
+      "right": "static_rookie",
+      "metric": "score",
+      "op": "gt",
+      "minDelta": 0.02,
+      "required": true
+    },
+    {
+      "id": "elite_not_slower_than_rookie_reaction",
+      "label": "Static elite reaction is not slower than rookie",
+      "left": "static_elite",
+      "right": "static_rookie",
+      "metric": "reactionTimeS",
+      "op": "lte",
+      "required": false
+    },
+    {
+      "id": "crossing_veteran_vs_experienced_score",
+      "label": "Crossing veteran missile score at or above experienced",
+      "left": "crossing_veteran_missile",
+      "right": "crossing_experienced",
+      "metric": "score",
+      "op": "gte",
+      "required": false
+    }
+  ]
+}

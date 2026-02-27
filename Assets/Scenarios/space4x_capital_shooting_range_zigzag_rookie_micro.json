@@ -1,0 +1,87 @@
+{
+  "scenarioId": "space4x_capital_shooting_range_zigzag_rookie_micro",
+  "seed": 2205,
+  "duration_s": 150,
+  "scenarioConfig": {
+    "applyDefaultModuleLoadouts": true,
+    "headlessQuestions": [
+      { "id": "space4x.q.gunnery.capital_range.score", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.hit_rate", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.reaction_time", "required": true },
+      { "id": "space4x.q.gunnery.capital_range.ttk", "required": false },
+      { "id": "space4x.q.gunnery.capital_range.lock_churn", "required": false },
+      { "id": "space4x.q.gunnery.capital_range.drone_assist", "required": false }
+    ],
+    "crewTemplates": [
+      { "carrierId": "range-capital-alpha", "crewTemplateId": "crew.capital_range.rookie.v0" }
+    ]
+  },
+  "spawn": [
+    {
+      "kind": "Carrier",
+      "entityId": "range-capital-alpha",
+      "position": [-120, 20, 0],
+      "speed": 2.8,
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 315,
+        "modules": [
+          "reactor-mk1",
+          "engine-mk1",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "missile-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "Fleet": { "fleetId": "RANGE-ALPHA", "posture": "Engaging", "shipCount": 1 },
+        "Combat": { "canIntercept": true, "interceptSpeed": 6.0, "isHostile": false, "strikeCraftCount": 0, "escortCount": 0 }
+      }
+    },
+    {
+      "kind": "Carrier",
+      "entityId": "range-target-zigzag",
+      "position": [640, 0, 0],
+      "speed": 10.0,
+      "ship": {
+        "hullId": "cv-mule",
+        "massCap": 280,
+        "modules": [
+          "reactor-mk2",
+          "engine-mk2",
+          "bridge-mk1",
+          "cockpit-mk1",
+          "shield-s-1",
+          "armor-s-1",
+          "scanner-s-1",
+          "laser-s-1",
+          "missile-s-1",
+          "pd-s-1",
+          "ammo-bay-s-1"
+        ]
+      },
+      "components": {
+        "Fleet": { "fleetId": "RANGE-TGT", "posture": "Engaging", "shipCount": 1 },
+        "Combat": { "canIntercept": true, "interceptSpeed": 12.0, "isHostile": true, "strikeCraftCount": 0, "escortCount": 4, "escortRelease_s": 8.0 }
+      }
+    }
+  ],
+  "actions": [
+    { "time_s": 8, "kind": "MoveFleet", "fleetId": "RANGE-TGT", "targetPosition": [640, 220], "description": "zigzag_a" },
+    { "time_s": 22, "kind": "MoveFleet", "fleetId": "RANGE-TGT", "targetPosition": [260, -220], "description": "zigzag_b" },
+    { "time_s": 36, "kind": "MoveFleet", "fleetId": "RANGE-TGT", "targetPosition": [-180, 200], "description": "zigzag_c" },
+    { "time_s": 50, "kind": "MoveFleet", "fleetId": "RANGE-TGT", "targetPosition": [-560, -180], "description": "zigzag_d" },
+    { "time_s": 64, "kind": "MoveFleet", "fleetId": "RANGE-TGT", "targetPosition": [120, 240], "description": "zigzag_e" },
+    { "time_s": 78, "kind": "MoveFleet", "fleetId": "RANGE-TGT", "targetPosition": [640, 0], "description": "zigzag_f" }
+  ]
+}
+
+
+
+

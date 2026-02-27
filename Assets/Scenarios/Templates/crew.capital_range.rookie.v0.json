@@ -1,0 +1,11 @@
+{
+  "templateId": "crew.capital_range.rookie.v0",
+  "namedCrew": [
+    { "name": "CAPT-R", "seatRole": "ship.captain", "statsPreset": "rookie", "skills": { "command": 48, "tactics": 40, "logistics": 42, "diplomacy": 41, "engineering": 38, "resolve": 44 }, "anatomyPreset": "baseline" },
+    { "name": "XO-R", "seatRole": "ship.xo", "statsPreset": "rookie", "skills": { "command": 45, "tactics": 39, "logistics": 43, "diplomacy": 38, "engineering": 39, "resolve": 42 }, "anatomyPreset": "baseline" },
+    { "name": "NAV-R", "seatRole": "ship.navigation_officer", "statsPreset": "rookie", "skills": { "command": 40, "tactics": 41, "logistics": 43, "diplomacy": 35, "engineering": 40, "resolve": 39 }, "anatomyPreset": "baseline" },
+    { "name": "WPN-R", "seatRole": "ship.weapons_officer", "statsPreset": "rookie", "skills": { "command": 46, "tactics": 44, "logistics": 36, "diplomacy": 32, "engineering": 39, "resolve": 43 }, "anatomyPreset": "baseline" },
+    { "name": "SNS-R", "seatRole": "ship.sensors_officer", "statsPreset": "rookie", "skills": { "command": 39, "tactics": 40, "logistics": 42, "diplomacy": 37, "engineering": 41, "resolve": 40 }, "anatomyPreset": "baseline" },
+    { "name": "ENG-R", "seatRole": "ship.engineering_officer", "statsPreset": "rookie", "skills": { "command": 38, "tactics": 36, "logistics": 41, "diplomacy": 34, "engineering": 47, "resolve": 41 }, "anatomyPreset": "baseline" }
+  ]
+}

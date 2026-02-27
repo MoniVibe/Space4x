@@ -21,7 +21,7 @@ using Space4XDebugLockCamera = Space4X.DebugTools.Space4XDebugLockCamera;
 namespace Space4X.UI
 {
     /// <summary>
-    /// Gameplay camera follow that supports Cursor-Orient, Cruise-Look, and RTS camera modes.
+    /// Gameplay camera follow that supports Cursor-Orient, Cruise-Look, RTS, and Divine Hand camera modes.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class Space4XFollowPlayerVessel : MonoBehaviour
@@ -60,6 +60,7 @@ namespace Space4X.UI
         [SerializeField] private Key cursorModeHotkey = Key.Digit1;
         [SerializeField] private Key cruiseModeHotkey = Key.Digit2;
         [SerializeField] private Key rtsModeHotkey = Key.Digit3;
+        [SerializeField] private Key divineModeHotkey = Key.Digit4;
 
         [Header("Orbit Controls")]
         [SerializeField] private float orbitYawSensitivity = 0.2f;
@@ -224,7 +225,7 @@ namespace Space4X.UI
         {
             HandleModeHotkeys();
             SuppressConflictingCameraDrivers();
-            if (_currentMode == Space4XControlMode.Rts)
+            if (IsRigModeActive(_currentMode))
             {
                 ApplyRtsModeToggleVariant();
                 return;
@@ -255,7 +256,7 @@ namespace Space4X.UI
 
         private void OnPreCull()
         {
-            if (_currentMode == Space4XControlMode.Rts || !lockCameraToTargetOutsideRts)
+            if (IsRigModeActive(_currentMode) || !lockCameraToTargetOutsideRts)
                 return;
 
             SuppressConflictingCameraDrivers();
@@ -279,7 +280,7 @@ namespace Space4X.UI
 
         public void SnapNow()
         {
-            if (_currentMode == Space4XControlMode.Rts)
+            if (IsRigModeActive(_currentMode))
                 return;
 
             if (!TryGetTargetPose(out var targetPosition, out var targetRotation))
@@ -330,7 +331,12 @@ namespace Space4X.UI
 
         private bool ShouldSnapFollowToTarget()
         {
-            return _currentMode != Space4XControlMode.Rts && lockCameraToTargetOutsideRts;
+            return !IsRigModeActive(_currentMode) && lockCameraToTargetOutsideRts;
+        }
+
+        private static bool IsRigModeActive(Space4XControlMode mode)
+        {
+            return mode == Space4XControlMode.Rts || mode == Space4XControlMode.DivineHand;
         }
 
         private void ApplyFollow(Vector3 targetPosition, Quaternion targetRotation, bool snap)
@@ -1083,6 +1089,10 @@ namespace Space4X.UI
             {
                 Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
+            else if (divineModeHotkey != Key.None && keyboard[divineModeHotkey].wasPressedThisFrame)
+            {
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.DivineHand);
+            }
         }
 
         private void OnControlModeChanged(Space4XControlMode mode)
@@ -1090,7 +1100,7 @@ namespace Space4X.UI
             _currentMode = mode;
             ResetOrbitInputAnchor();
             _altPressedLastFrame = false;
-            if (_currentMode == Space4XControlMode.Rts)
+            if (IsRigModeActive(_currentMode))
             {
                 SetRtsCameraEnabled(true);
                 ApplyRtsModeToggleVariant();
@@ -1478,7 +1488,7 @@ namespace Space4X.UI
 
         private void ApplyRtsModeToggleVariant()
         {
-            if (_currentMode != Space4XControlMode.Rts)
+            if (!IsRigModeActive(_currentMode))
             {
                 return;
             }
@@ -1497,9 +1507,11 @@ namespace Space4X.UI
                 return;
             }
 
-            var variantEnabled = Space4XControlModeState.IsVariantEnabled(Space4XControlMode.Rts);
-            // Mode 3 defaults to free-form god camera travel.
-            // Variant toggle enables planar lock.
+            var variantEnabled = _currentMode == Space4XControlMode.DivineHand
+                ? Space4XControlModeState.IsVariantEnabled(Space4XControlMode.DivineHand)
+                : Space4XControlModeState.IsVariantEnabled(Space4XControlMode.Rts);
+            // RTS and Divine Hand share the detached camera rig.
+            // Variant toggle controls planar lock independently per mode.
             _rtsRigController.SetYAxisLocked(variantEnabled);
         }
 

@@ -10,7 +10,6 @@ using Unity.Mathematics;
 
 namespace Space4X.Systems.Power
 {
-    [BurstCompile]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct Space4XShipSpecialEnergyBootstrapSystem : ISystem
     {
@@ -19,28 +18,30 @@ namespace Space4X.Systems.Power
             state.RequireForUpdate<ShipReactorSpec>();
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var ecb = new EntityCommandBuffer(Allocator.Temp);
             var em = state.EntityManager;
+            var query = SystemAPI.QueryBuilder().WithAll<ShipReactorSpec>().Build();
+            using var entities = query.ToEntityArray(Allocator.Temp);
 
-            foreach (var (reactor, entity) in SystemAPI.Query<RefRO<ShipReactorSpec>>().WithEntityAccess())
+            for (var i = 0; i < entities.Length; i++)
             {
+                var entity = entities[i];
+                var reactor = em.GetComponentData<ShipReactorSpec>(entity);
                 var config = em.HasComponent<ShipSpecialEnergyConfig>(entity)
                     ? em.GetComponentData<ShipSpecialEnergyConfig>(entity)
                     : ShipSpecialEnergyConfig.Default;
 
                 if (!em.HasComponent<ShipSpecialEnergyConfig>(entity))
                 {
-                    ecb.AddComponent(entity, config);
+                    TryAddComponent(em, entity, config);
                 }
 
                 if (!em.HasComponent<ShipSpecialEnergyState>(entity))
                 {
-                    var baseMax = ResolveBaseMax(reactor.ValueRO, config);
-                    var baseRegen = ResolveBaseRegen(reactor.ValueRO, config);
-                    ecb.AddComponent(entity, new ShipSpecialEnergyState
+                    var baseMax = ResolveBaseMax(reactor, config);
+                    var baseRegen = ResolveBaseRegen(reactor, config);
+                    TryAddComponent(em, entity, new ShipSpecialEnergyState
                     {
                         Current = baseMax,
                         EffectiveMax = baseMax,
@@ -52,19 +53,22 @@ namespace Space4X.Systems.Power
                     });
                 }
 
-                if (!em.HasBuffer<ShipSpecialEnergyPassiveModifier>(entity))
-                {
-                    ecb.AddBuffer<ShipSpecialEnergyPassiveModifier>(entity);
-                }
-
-                if (!em.HasBuffer<ShipSpecialEnergySpendRequest>(entity))
-                {
-                    ecb.AddBuffer<ShipSpecialEnergySpendRequest>(entity);
-                }
+                // Passive/spend buffers are optional and may be provisioned by authoring/scenarios.
+                // Avoid forcing these heavy buffers onto dense archetypes during runtime bootstrap.
             }
+        }
 
-            ecb.Playback(em);
-            ecb.Dispose();
+        private static void TryAddComponent<T>(EntityManager entityManager, Entity entity, in T data)
+            where T : unmanaged, IComponentData
+        {
+            try
+            {
+                entityManager.AddComponentData(entity, data);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Some entities are already at chunk-size limits; skip optional bootstrap data.
+            }
         }
 
         private static float ResolveBaseMax(in ShipReactorSpec reactor, in ShipSpecialEnergyConfig config)

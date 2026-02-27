@@ -421,6 +421,7 @@ namespace Space4x.Scenario
 
             var weapons = state.EntityManager.AddBuffer<WeaponMount>(entity);
             AddWeapon(weapons, Space4XWeapon.Laser(weaponPrimary));
+            AddWeapon(weapons, Space4XWeapon.Missile(weaponPrimary));
             AddWeapon(weapons, Space4XWeapon.Kinetic(weaponSecondary));
 
             state.EntityManager.AddComponentData(entity, targetProfile);

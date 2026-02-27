@@ -39,10 +39,25 @@ namespace Space4X.Authoring
         [SerializeField, Range(0f, 1f)] private float gunneryTacticsWeight = 0.45f;
         [SerializeField, Range(0f, 1f)] private float gunneryFinesseWeight = 0.35f;
         [SerializeField, Range(0f, 1f)] private float gunneryCommandWeight = 0.2f;
+        [SerializeField, Min(0f)] private float gunneryAccuracyMinMultiplier = 0.62f;
+        [SerializeField, Min(0f)] private float gunneryAccuracyMaxMultiplier = 1.08f;
+        [SerializeField, Range(0f, 1f)] private float hitChanceSkillCeilingMin = 0.8f;
+        [SerializeField, Range(0f, 1f)] private float hitChanceSkillCeilingMax = 0.99f;
+        [SerializeField, Min(0.1f)] private float hitChanceSkillCeilingExponent = 2.2f;
 
         [Header("Combat - Tracking Penalty")]
         [SerializeField, Min(0f)] private float trackingPenaltyMinScale = 0.6f;
         [SerializeField, Min(0f)] private float trackingPenaltyMaxScale = 1.4f;
+
+        [Header("Combat - Recoil and Inertia")]
+        [SerializeField, Min(0f)] private float recoilPenaltyRookieScale = 1.25f;
+        [SerializeField, Min(0f)] private float recoilPenaltyEliteScale = 0.55f;
+        [SerializeField, Min(0f)] private float recoilPenaltyHeatScale = 0.85f;
+        [SerializeField, Min(0f)] private float inertiaSkewPenaltyScale = 3f;
+        [SerializeField, Range(0f, 1f)] private float inertiaCompensationMin = 0.15f;
+        [SerializeField, Range(0f, 1f)] private float inertiaCompensationMax = 0.75f;
+        [SerializeField, Min(0f)] private float recoilImpulseVelocityScale = 1f;
+        [SerializeField, Min(0f)] private float recoilImpulseHeatScale = 0.5f;
 
         [Header("Combat - Aim Latency (Seconds)")]
         [SerializeField, Min(0f)] private float aimLatencyMinSeconds = 0.08f;
@@ -71,9 +86,22 @@ namespace Space4X.Authoring
             gunneryTacticsWeight = math.clamp(gunneryTacticsWeight, 0f, 1f);
             gunneryFinesseWeight = math.clamp(gunneryFinesseWeight, 0f, 1f);
             gunneryCommandWeight = math.clamp(gunneryCommandWeight, 0f, 1f);
+            gunneryAccuracyMinMultiplier = math.max(0f, gunneryAccuracyMinMultiplier);
+            gunneryAccuracyMaxMultiplier = math.max(gunneryAccuracyMinMultiplier, gunneryAccuracyMaxMultiplier);
+            hitChanceSkillCeilingMin = math.clamp(hitChanceSkillCeilingMin, 0f, 1f);
+            hitChanceSkillCeilingMax = math.max(hitChanceSkillCeilingMin, math.clamp(hitChanceSkillCeilingMax, 0f, 1f));
+            hitChanceSkillCeilingExponent = math.max(0.1f, hitChanceSkillCeilingExponent);
 
             trackingPenaltyMinScale = math.max(0f, trackingPenaltyMinScale);
             trackingPenaltyMaxScale = math.max(0f, trackingPenaltyMaxScale);
+            recoilPenaltyRookieScale = math.max(0f, recoilPenaltyRookieScale);
+            recoilPenaltyEliteScale = math.max(0f, recoilPenaltyEliteScale);
+            recoilPenaltyHeatScale = math.max(0f, recoilPenaltyHeatScale);
+            inertiaSkewPenaltyScale = math.max(0f, inertiaSkewPenaltyScale);
+            inertiaCompensationMin = math.clamp(inertiaCompensationMin, 0f, 1f);
+            inertiaCompensationMax = math.max(inertiaCompensationMin, math.clamp(inertiaCompensationMax, 0f, 1f));
+            recoilImpulseVelocityScale = math.max(0f, recoilImpulseVelocityScale);
+            recoilImpulseHeatScale = math.max(0f, recoilImpulseHeatScale);
             aimLatencyMinSeconds = math.max(0f, aimLatencyMinSeconds);
             aimLatencyMaxSeconds = math.max(aimLatencyMinSeconds, aimLatencyMaxSeconds);
         }
@@ -106,8 +134,21 @@ namespace Space4X.Authoring
                 combat.GunneryTacticsWeight = math.clamp(authoring.gunneryTacticsWeight, 0f, 1f);
                 combat.GunneryFinesseWeight = math.clamp(authoring.gunneryFinesseWeight, 0f, 1f);
                 combat.GunneryCommandWeight = math.clamp(authoring.gunneryCommandWeight, 0f, 1f);
+                combat.GunneryAccuracyMinMultiplier = math.max(0f, authoring.gunneryAccuracyMinMultiplier);
+                combat.GunneryAccuracyMaxMultiplier = math.max(combat.GunneryAccuracyMinMultiplier, authoring.gunneryAccuracyMaxMultiplier);
+                combat.HitChanceSkillCeilingMin = math.clamp(authoring.hitChanceSkillCeilingMin, 0f, 1f);
+                combat.HitChanceSkillCeilingMax = math.max(combat.HitChanceSkillCeilingMin, math.clamp(authoring.hitChanceSkillCeilingMax, 0f, 1f));
+                combat.HitChanceSkillCeilingExponent = math.max(0.1f, authoring.hitChanceSkillCeilingExponent);
                 combat.TrackingPenaltyMinScale = math.max(0f, authoring.trackingPenaltyMinScale);
                 combat.TrackingPenaltyMaxScale = math.max(0f, authoring.trackingPenaltyMaxScale);
+                combat.RecoilPenaltyRookieScale = math.max(0f, authoring.recoilPenaltyRookieScale);
+                combat.RecoilPenaltyEliteScale = math.max(0f, authoring.recoilPenaltyEliteScale);
+                combat.RecoilPenaltyHeatScale = math.max(0f, authoring.recoilPenaltyHeatScale);
+                combat.InertiaSkewPenaltyScale = math.max(0f, authoring.inertiaSkewPenaltyScale);
+                combat.InertiaCompensationMin = math.clamp(authoring.inertiaCompensationMin, 0f, 1f);
+                combat.InertiaCompensationMax = math.max(combat.InertiaCompensationMin, math.clamp(authoring.inertiaCompensationMax, 0f, 1f));
+                combat.RecoilImpulseVelocityScale = math.max(0f, authoring.recoilImpulseVelocityScale);
+                combat.RecoilImpulseHeatScale = math.max(0f, authoring.recoilImpulseHeatScale);
                 combat.AimLatencyMinSeconds = math.max(0f, authoring.aimLatencyMinSeconds);
                 combat.AimLatencyMaxSeconds = math.max(combat.AimLatencyMinSeconds, authoring.aimLatencyMaxSeconds);
 

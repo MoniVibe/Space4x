@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PureDOTS.Input;
 using PureDOTS.Rendering;
 using PureDOTS.Runtime.Components;
@@ -14,6 +15,7 @@ using Space4X.Runtime;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Physics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
@@ -76,6 +78,48 @@ namespace Space4X.UI
         [SerializeField] private Key cursorModeHotkey = Key.Digit1;
         [SerializeField] private Key cruiseModeHotkey = Key.Digit2;
         [SerializeField] private Key rtsModeHotkey = Key.Digit3;
+        [SerializeField] private Key divineModeHotkey = Key.Digit4;
+
+        [Header("Click Targeting")]
+        [SerializeField] private bool enableMode2ClickTargeting = true;
+        [SerializeField] private bool enableMode1DefaultClickTargeting = true;
+        [SerializeField] private float mode2TargetRaycastDistance = 4000f;
+        [SerializeField] private float mode2TargetFallbackRadius = 24f;
+        [SerializeField] private LayerMask mode2TargetLayerMask = ~0;
+        [SerializeField] private bool enableScreenSpaceTargetProxy = true;
+        [SerializeField] [Min(4f)] private float targetProxyPixelRadius = 22f;
+        [SerializeField] [Range(0f, 0.05f)] private float targetProxyDepthBias = 0.0015f;
+        [SerializeField] private bool enableFighterAutoTargeting = true;
+        [SerializeField] [Range(1f, 30f)] private float fighterAutoAcquireConeDegrees = 6f;
+        [SerializeField] [Range(2f, 45f)] private float fighterAutoBreakConeDegrees = 10f;
+        [SerializeField] [Min(0f)] private float fighterAutoMinLockSeconds = 0.3f;
+        [SerializeField] [Min(0f)] private float fighterAutoRetargetCooldownSeconds = 0.2f;
+        [SerializeField] [Min(10f)] private float fighterAutoMaxDistance = 2800f;
+        [SerializeField] [Range(0f, 20f)] private float fighterAutoHostileCenterBonusDegrees = 2.5f;
+        [SerializeField] [Range(0f, 20f)] private float fighterAutoFriendlyCenterPenaltyDegrees = 2f;
+        [SerializeField] [Min(0f)] private float fighterAutoDistanceScoreScale = 0.0018f;
+        [SerializeField] [Range(5f, 120f)] private float fighterManualSnapConeDegrees = 75f;
+        [SerializeField] [Min(0.05f)] private float fighterManualClearDoubleTapWindowSeconds = 0.35f;
+        [SerializeField] private bool fighterManualClearWithCtrlMmb = true;
+
+        [Header("Combat Input")]
+        [SerializeField] private Key toggleManualAimKey = Key.B;
+        [SerializeField] private bool manualAimDefaultEnabled = true;
+        [SerializeField] private bool manualAimFireWithLeftMouse = true;
+        [SerializeField] private bool autoEnableManualAimOnFire = true;
+        [SerializeField] private bool autoAcquireTargetOnFire = true;
+        [SerializeField] [Range(2f, 75f)] private float autoAcquireFireConeDegrees = 18f;
+        [SerializeField] [Min(10f)] private float autoAcquireFireDistance = 3200f;
+        [SerializeField] private bool emitWeaponInputDiagnostics = true;
+
+        [Header("Multi-Target")]
+        [SerializeField] private bool enableMultiTargetSelection = true;
+        [SerializeField] [Min(1)] private int multiTargetMaxLocks = 12;
+        [SerializeField] [Min(10f)] private float multiTargetMaxDistance = 4000f;
+        [SerializeField] [Min(0f)] private float multiTargetDistanceScoreScale = 0.0012f;
+        [SerializeField] [Range(0f, 20f)] private float multiTargetHostileBonus = 1.25f;
+        [SerializeField] [Range(0f, 20f)] private float multiTargetFriendlyPenalty = 1f;
+        [SerializeField] private bool multiTargetIncludeAsteroids = true;
 
         [Header("Attitude")]
         [SerializeField] private float rollSpeedDegrees = 75f;
@@ -118,9 +162,15 @@ namespace Space4X.UI
         private EntityQuery _playerFlagshipQuery;
         private EntityQuery _carrierAnyQuery;
         private EntityQuery _miningAnyQuery;
+        private EntityQuery _stationAnyQuery;
+        private EntityQuery _colonyAnyQuery;
         private EntityQuery _carrierRenderableQuery;
         private EntityQuery _miningRenderableQuery;
+        private EntityQuery _stationRenderableQuery;
+        private EntityQuery _colonyRenderableQuery;
         private EntityQuery _fallbackRenderableQuery;
+        private EntityQuery _asteroidAnyQuery;
+        private EntityQuery _physicsWorldQuery;
         private Entity _flagship;
         private float3 _flagshipVelocityWorld;
         private UCamera _drivingCamera;
@@ -153,6 +203,25 @@ namespace Space4X.UI
         private bool _skipDriveConfigCapacityWarned;
         private Entity _skipJumpStateOverflowEntity;
         private bool _skipJumpStateCapacityWarned;
+        private Entity _targetSelectionOverflowEntity;
+        private bool _targetSelectionCapacityWarned;
+        private Entity _playerWeaponControlOverflowEntity;
+        private bool _playerWeaponControlCapacityWarned;
+        private float _fighterLastRetargetTime;
+        private float _fighterLastLockTime;
+        private float _fighterLastMiddleTapTime;
+        private Entity _targetLockBufferOverflowEntity;
+        private bool _targetLockBufferCapacityWarned;
+        private readonly List<MultiTargetCandidate> _multiTargetCandidates = new List<MultiTargetCandidate>(32);
+        private readonly List<Space4XPlayerTargetLockEntry> _multiTargetEntriesScratch = new List<Space4XPlayerTargetLockEntry>(32);
+        private float _nextWeaponInputDiagnosticTime;
+
+        private struct MultiTargetCandidate
+        {
+            public Entity Entity;
+            public float3 Point;
+            public float Score;
+        }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private bool _loggedClaim;
 #endif
@@ -191,9 +260,22 @@ namespace Space4X.UI
             _skipDriveConfigCapacityWarned = false;
             _skipJumpStateOverflowEntity = Entity.Null;
             _skipJumpStateCapacityWarned = false;
+            _targetSelectionOverflowEntity = Entity.Null;
+            _targetSelectionCapacityWarned = false;
+            _playerWeaponControlOverflowEntity = Entity.Null;
+            _playerWeaponControlCapacityWarned = false;
+            _fighterLastRetargetTime = float.NegativeInfinity;
+            _fighterLastLockTime = float.NegativeInfinity;
+            _fighterLastMiddleTapTime = float.NegativeInfinity;
+            _targetLockBufferOverflowEntity = Entity.Null;
+            _targetLockBufferCapacityWarned = false;
+            _multiTargetCandidates.Clear();
+            _multiTargetEntriesScratch.Clear();
+            _nextWeaponInputDiagnosticTime = 0f;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             _loggedClaim = false;
 #endif
+            Space4XRunStartSelection.ApplyInitialControlModeOverride();
             EnsureQueries();
         }
 
@@ -216,6 +298,17 @@ namespace Space4X.UI
                 _entityManager.HasComponent<InputKernelLocomotionIntent>(_flagship))
             {
                 _entityManager.SetComponentData(_flagship, InputKernelLocomotionIntent.Disabled);
+            }
+
+            if (_queriesReady &&
+                _world != null &&
+                _world.IsCreated &&
+                IsValidTarget(_flagship) &&
+                _entityManager.HasComponent<Space4XPlayerWeaponControl>(_flagship))
+            {
+                var weaponControl = _entityManager.GetComponentData<Space4XPlayerWeaponControl>(_flagship);
+                weaponControl.TriggerHeld = 0;
+                _entityManager.SetComponentData(_flagship, weaponControl);
             }
 
             if (_queriesReady &&
@@ -252,6 +345,13 @@ namespace Space4X.UI
             _skipDriveConfigCapacityWarned = false;
             _skipJumpStateOverflowEntity = Entity.Null;
             _skipJumpStateCapacityWarned = false;
+            _fighterLastRetargetTime = float.NegativeInfinity;
+            _fighterLastLockTime = float.NegativeInfinity;
+            _fighterLastMiddleTapTime = float.NegativeInfinity;
+            _targetLockBufferOverflowEntity = Entity.Null;
+            _targetLockBufferCapacityWarned = false;
+            _multiTargetCandidates.Clear();
+            _multiTargetEntriesScratch.Clear();
         }
 
         public void SnapClaimNow()
@@ -291,12 +391,29 @@ namespace Space4X.UI
             if (!EnsureClaimedFlagship())
                 return;
 
-            if (Space4XControlModeState.CurrentMode == Space4XControlMode.Rts)
+            var controlMode = Space4XControlModeState.CurrentMode;
+            HandleWeaponInput(keyboard, controlMode);
+            if (controlMode == Space4XControlMode.Rts)
             {
                 PrepareFlagshipForRtsOrders();
                 SuppressFlagshipMovement();
                 MaintainHighlight(_flagship);
                 return;
+            }
+
+            if (controlMode == Space4XControlMode.DivineHand)
+            {
+                PrepareFlagshipForManualFlight();
+                SuppressFlagshipMovement();
+                MaintainHighlight(_flagship);
+                return;
+            }
+
+            HandleClickTargetingInput();
+            var multiTargetApplied = HandleMultiTargetSelectionInput();
+            if (!multiTargetApplied)
+            {
+                HandleFighterAutoTargetingInput(keyboard);
             }
 
             PrepareFlagshipForManualFlight();
@@ -333,35 +450,26 @@ namespace Space4X.UI
         private Entity ClaimFlagshipFromSelection()
         {
             var preferCarrier = PreferCarrierSelection();
+            var preferredAnchor = Space4XRunStartSelection.PreferredFlagshipAnchor;
+            if (preferredAnchor == Space4XRunStartAnchor.Auto)
+            {
+                preferredAnchor = ResolveAutoAnchorPreference();
+            }
 
-            var candidate = preferCarrier
-                ? PickNearestToCameraControllable(_carrierRenderableQuery)
-                : PickNearestToCameraControllable(_miningRenderableQuery);
-
+            var candidate = PickCandidateByAnchor(preferredAnchor, preferCarrier);
             if (candidate == Entity.Null)
             {
-                candidate = preferCarrier
-                    ? PickNearestToCameraControllable(_carrierAnyQuery)
-                    : PickNearestToCameraControllable(_miningAnyQuery);
+                candidate = PickCandidateByAnchor(Space4XRunStartAnchor.Ship, preferCarrier);
             }
 
             if (candidate == Entity.Null)
             {
-                candidate = preferCarrier
-                    ? PickNearestToCameraControllable(_miningRenderableQuery)
-                    : PickNearestToCameraControllable(_carrierRenderableQuery);
+                candidate = PickCandidateByAnchor(Space4XRunStartAnchor.Station, preferCarrier);
             }
 
             if (candidate == Entity.Null)
             {
-                candidate = preferCarrier
-                    ? PickNearestToCameraControllable(_miningAnyQuery)
-                    : PickNearestToCameraControllable(_carrierAnyQuery);
-            }
-
-            if (candidate == Entity.Null)
-            {
-                candidate = PickNearestToCameraControllable(_fallbackRenderableQuery);
+                candidate = PickCandidateByAnchor(Space4XRunStartAnchor.Colony, preferCarrier);
             }
 
             if (candidate == Entity.Null)
@@ -396,6 +504,14 @@ namespace Space4X.UI
             _flagshipVelocityWorld = float3.zero;
             var initialProfile = ResolveFlightProfile(candidate);
             SetFlightRuntimeState(candidate, CreateDefaultFlightRuntimeState(initialProfile, float3.zero));
+            EnsureClaimedFlagshipWeapons(candidate);
+            UpsertTargetSelection(candidate, Space4XPlayerTargetSelection.None);
+            UpsertPlayerWeaponControl(candidate, new Space4XPlayerWeaponControl
+            {
+                ManualAimMode = manualAimDefaultEnabled ? (byte)1 : (byte)0,
+                TriggerHeld = 0
+            });
+            ClearMultiTargetLocks(candidate);
 
             DetachFromAmbientOrbit(candidate);
             ApplyFlightTuningFromEntity(candidate);
@@ -408,8 +524,12 @@ namespace Space4X.UI
             {
                 var hasCarrier = _entityManager.HasComponent<Carrier>(candidate);
                 var hasMiningVessel = _entityManager.HasComponent<MiningVessel>(candidate);
+                var hasStation = _entityManager.HasComponent<StationId>(candidate);
+                var hasColony = _entityManager.HasComponent<Space4XColony>(candidate);
                 var hasMaterialMesh = _entityManager.HasComponent<MaterialMeshInfo>(candidate);
-                UnityEngine.Debug.Log($"[Space4XPlayerFlagshipController] Claimed={candidate} HasCarrier={hasCarrier} HasMiningVessel={hasMiningVessel} HasMaterialMeshInfo={hasMaterialMesh} Preset='{Space4XRunStartSelection.ShipPresetId}'");
+                var weaponMounts = _entityManager.HasBuffer<WeaponMount>(candidate) ? _entityManager.GetBuffer<WeaponMount>(candidate).Length : 0;
+                var manualAimState = manualAimDefaultEnabled ? "ON" : "OFF";
+                UnityEngine.Debug.Log($"[Space4XPlayerFlagshipController] Claimed={candidate} HasCarrier={hasCarrier} HasMiningVessel={hasMiningVessel} HasStation={hasStation} HasColony={hasColony} HasMaterialMeshInfo={hasMaterialMesh} WeaponMounts={weaponMounts} ManualAimDefault={manualAimState} Preset='{Space4XRunStartSelection.ShipPresetId}' AnchorPref={Space4XRunStartSelection.PreferredFlagshipAnchor}");
                 _loggedClaim = true;
             }
 #endif
@@ -441,6 +561,201 @@ namespace Space4X.UI
             {
                 _entityManager.AddComponent<Space4XRogueOrbitTag>(entity);
             }
+        }
+
+        private void HandleWeaponInput(Keyboard keyboard, Space4XControlMode controlMode)
+        {
+            if (!IsValidTarget(_flagship))
+            {
+                return;
+            }
+
+            var weaponControl = ResolvePlayerWeaponControl(_flagship);
+            if (keyboard != null &&
+                toggleManualAimKey != Key.None &&
+                keyboard[toggleManualAimKey].wasPressedThisFrame)
+            {
+                weaponControl.ManualAimMode = (byte)(weaponControl.ManualAimMode == 0 ? 1 : 0);
+                weaponControl.TriggerHeld = 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                UnityEngine.Debug.Log($"[Space4XPlayerFlagshipController] ManualAim={(weaponControl.ManualAimMode != 0 ? "ON" : "OFF")}.");
+#endif
+            }
+
+            var manualFlightMode = controlMode == Space4XControlMode.CursorOrient ||
+                                   controlMode == Space4XControlMode.CruiseLook;
+            byte triggerHeld = 0;
+            if (manualFlightMode && manualAimFireWithLeftMouse)
+            {
+                var mouse = Mouse.current;
+                var leftPressed = mouse != null && mouse.leftButton.isPressed;
+                if (leftPressed)
+                {
+                    if (IsPointerOverUi())
+                    {
+                        LogWeaponInputDiagnostic("Fire blocked: pointer over UI.");
+                    }
+                    else if (Space4XTargetSelectionRectangleOverlay.IsPointerCaptureActive ||
+                             Space4XTargetSelectionRectangleOverlay.IsSelectionDragActive ||
+                             Space4XRtsSelectionRectangleOverlay.IsSelectionDragActive)
+                    {
+                        LogWeaponInputDiagnostic("Fire blocked: selection drag/capture active.");
+                    }
+                    else
+                    {
+                        if (weaponControl.ManualAimMode == 0 && autoEnableManualAimOnFire)
+                        {
+                            weaponControl.ManualAimMode = 1;
+                            LogWeaponInputDiagnostic("Manual aim auto-enabled from fire input.");
+                        }
+
+                        if (weaponControl.ManualAimMode != 0)
+                        {
+                            triggerHeld = 1;
+                            if (!EnsureManualFireTarget(controlMode))
+                            {
+                                LogWeaponInputDiagnostic("Trigger held but no valid target lock/engagement target.");
+                            }
+                        }
+                        else
+                        {
+                            LogWeaponInputDiagnostic("Fire blocked: manual aim is OFF (toggle with B).");
+                        }
+                    }
+                }
+            }
+
+            weaponControl.TriggerHeld = triggerHeld;
+            UpsertPlayerWeaponControl(_flagship, weaponControl);
+        }
+
+        private bool EnsureManualFireTarget(Space4XControlMode controlMode)
+        {
+            if (!IsValidTarget(_flagship))
+            {
+                return false;
+            }
+
+            if (TryGetCurrentTargetSelection(out _))
+            {
+                return true;
+            }
+
+            if (_entityManager.HasComponent<Space4XEngagement>(_flagship))
+            {
+                var engagement = _entityManager.GetComponentData<Space4XEngagement>(_flagship);
+                if (IsValidTarget(engagement.PrimaryTarget))
+                {
+                    var point = _entityManager.HasComponent<LocalTransform>(engagement.PrimaryTarget)
+                        ? _entityManager.GetComponentData<LocalTransform>(engagement.PrimaryTarget).Position
+                        : float3.zero;
+                    var selectedInMode2 = controlMode == Space4XControlMode.CruiseLook ? (byte)1 : (byte)0;
+                    ApplyClickTargetSelection(engagement.PrimaryTarget, point, selectedInMode2);
+                    return true;
+                }
+            }
+
+            if (!autoAcquireTargetOnFire)
+            {
+                return false;
+            }
+
+            var camera = ResolveDrivingCamera();
+            if (camera == null)
+            {
+                return false;
+            }
+
+            var cone = math.clamp(autoAcquireFireConeDegrees, 2f, 120f);
+            var maxDistance = math.max(10f, autoAcquireFireDistance);
+            if (!TryFindBestFighterCenterTarget(camera, cone, maxDistance, out var target, out var pointOnTarget))
+            {
+                return false;
+            }
+
+            var mode2 = controlMode == Space4XControlMode.CruiseLook ? (byte)1 : (byte)0;
+            ApplyClickTargetSelection(target, pointOnTarget, mode2);
+            LogWeaponInputDiagnostic($"Auto-locked target {target.Index} for fire.");
+            return true;
+        }
+
+        private void EnsureClaimedFlagshipWeapons(Entity entity)
+        {
+            if (!_entityManager.Exists(entity))
+            {
+                return;
+            }
+
+            if (!_entityManager.HasBuffer<WeaponMount>(entity))
+            {
+                _entityManager.AddBuffer<WeaponMount>(entity);
+            }
+
+            if (!_entityManager.HasBuffer<WeaponMount>(entity))
+            {
+                return;
+            }
+
+            var mounts = _entityManager.GetBuffer<WeaponMount>(entity);
+            if (mounts.Length == 0)
+            {
+                mounts.Add(CreateDefaultWeaponMount(Space4XWeapon.Missile(WeaponSize.Small)));
+                mounts.Add(CreateDefaultWeaponMount(Space4XWeapon.Laser(WeaponSize.Small)));
+                return;
+            }
+
+            var hasMissile = false;
+            for (var i = 0; i < mounts.Length; i++)
+            {
+                if (mounts[i].Weapon.Type == WeaponType.Missile)
+                {
+                    hasMissile = true;
+                    break;
+                }
+            }
+
+            if (!hasMissile)
+            {
+                mounts.Add(CreateDefaultWeaponMount(Space4XWeapon.Missile(WeaponSize.Small)));
+            }
+        }
+
+        private static WeaponMount CreateDefaultWeaponMount(in Space4XWeapon weapon)
+        {
+            return new WeaponMount
+            {
+                Weapon = weapon,
+                CurrentTarget = Entity.Null,
+                FireArcCenterOffsetDeg = (half)0f,
+                IsEnabled = 1,
+                ShotsFired = 0,
+                ShotsHit = 0,
+                SourceModule = Entity.Null,
+                CoolingRating = (half)1f,
+                Heat01 = 0f,
+                HeatCapacity = 100f,
+                HeatDissipation = 4f,
+                HeatPerShot = 2f
+            };
+        }
+
+        private void LogWeaponInputDiagnostic(string message)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!emitWeaponInputDiagnostics)
+            {
+                return;
+            }
+
+            var now = UTime.unscaledTime;
+            if (now < _nextWeaponInputDiagnosticTime)
+            {
+                return;
+            }
+
+            _nextWeaponInputDiagnosticTime = now + 0.35f;
+            UnityEngine.Debug.Log($"[Space4XWeaponInput] {message}");
+#endif
         }
 
         private void ApplyInput(Keyboard keyboard)
@@ -1081,6 +1396,10 @@ namespace Space4X.UI
             {
                 Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.Rts);
             }
+            else if (divineModeHotkey != Key.None && keyboard[divineModeHotkey].wasPressedThisFrame)
+            {
+                Space4XControlModeState.SetModeOrToggleVariant(Space4XControlMode.DivineHand);
+            }
         }
 
         private bool ShouldHandleModeHotkeys()
@@ -1090,7 +1409,7 @@ namespace Space4X.UI
                 _followPlayerVessel = GetComponent<Space4XFollowPlayerVessel>();
             }
 
-            // Follow camera owns mode hotkeys when present to avoid duplicate 1/2/3 processing.
+            // Follow camera owns mode hotkeys when present to avoid duplicate mode processing.
             return _followPlayerVessel == null || !_followPlayerVessel.isActiveAndEnabled;
         }
 
@@ -1144,6 +1463,24 @@ namespace Space4X.UI
                     ComponentType.ReadOnly<LocalToWorld>()
                 }
             });
+            _stationAnyQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<StationId>(),
+                    ComponentType.ReadOnly<LocalTransform>(),
+                    ComponentType.ReadOnly<LocalToWorld>()
+                }
+            });
+            _colonyAnyQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<Space4XColony>(),
+                    ComponentType.ReadOnly<LocalTransform>(),
+                    ComponentType.ReadOnly<LocalToWorld>()
+                }
+            });
             _carrierRenderableQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
             {
                 All = new[]
@@ -1164,6 +1501,26 @@ namespace Space4X.UI
                     ComponentType.ReadOnly<MaterialMeshInfo>()
                 }
             });
+            _stationRenderableQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<StationId>(),
+                    ComponentType.ReadOnly<LocalTransform>(),
+                    ComponentType.ReadOnly<LocalToWorld>(),
+                    ComponentType.ReadOnly<MaterialMeshInfo>()
+                }
+            });
+            _colonyRenderableQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<Space4XColony>(),
+                    ComponentType.ReadOnly<LocalTransform>(),
+                    ComponentType.ReadOnly<LocalToWorld>(),
+                    ComponentType.ReadOnly<MaterialMeshInfo>()
+                }
+            });
             _fallbackRenderableQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
             {
                 All = new[]
@@ -1173,9 +1530,1093 @@ namespace Space4X.UI
                     ComponentType.ReadOnly<LocalToWorld>()
                 }
             });
+            _asteroidAnyQuery = _entityManager.CreateEntityQuery(new EntityQueryDesc
+            {
+                All = new[]
+                {
+                    ComponentType.ReadOnly<Asteroid>(),
+                    ComponentType.ReadOnly<LocalTransform>()
+                }
+            });
+            _physicsWorldQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<PhysicsWorldSingleton>());
 
             _queriesReady = true;
             return true;
+        }
+
+        private void HandleClickTargetingInput()
+        {
+            if (!IsValidTarget(_flagship) || !TryGetTargetingModeFlag(out var selectedInMode2))
+            {
+                return;
+            }
+
+            if (Space4XTargetSelectionRectangleOverlay.IsPointerCaptureActive ||
+                Space4XTargetSelectionRectangleOverlay.IsSelectionDragActive)
+            {
+                return;
+            }
+
+            var mouse = Mouse.current;
+            if (mouse == null || !mouse.leftButton.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            var keyboard = Keyboard.current;
+            if (keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed))
+            {
+                return;
+            }
+
+            var eventSystem = EventSystem.current;
+            if (eventSystem != null && eventSystem.IsPointerOverGameObject())
+            {
+                return;
+            }
+
+            var camera = ResolveDrivingCamera();
+            if (camera == null)
+            {
+                return;
+            }
+
+            var pointer = mouse.position.ReadValue();
+            var ray = camera.ScreenPointToRay(new Vector3(pointer.x, pointer.y, 0f));
+            if (TryResolveTargetFromScreenProxy(
+                    camera,
+                    pointer,
+                    math.max(10f, mode2TargetRaycastDistance),
+                    out var proxyTarget,
+                    out var proxyPoint) &&
+                proxyTarget != Entity.Null &&
+                proxyTarget != _flagship &&
+                IsValidTarget(proxyTarget))
+            {
+                ApplyClickTargetSelection(proxyTarget, proxyPoint, selectedInMode2);
+                return;
+            }
+
+            if (TryRaycastForEntity(ray, math.max(10f, mode2TargetRaycastDistance), out var target, out var hitPoint) &&
+                target != Entity.Null &&
+                target != _flagship &&
+                IsValidTarget(target))
+            {
+                ApplyClickTargetSelection(target, hitPoint, selectedInMode2);
+                return;
+            }
+
+            if (TryResolveNearestTargetFromPoint(hitPoint, math.max(1f, mode2TargetFallbackRadius), out var nearest) &&
+                nearest != Entity.Null &&
+                nearest != _flagship &&
+                IsValidTarget(nearest))
+            {
+                ApplyClickTargetSelection(nearest, hitPoint, selectedInMode2);
+                return;
+            }
+
+            ClearClickTargetSelection();
+        }
+
+        private bool HandleMultiTargetSelectionInput()
+        {
+            if (!enableMultiTargetSelection || !IsValidTarget(_flagship))
+            {
+                return false;
+            }
+
+            if (!Space4XTargetSelectionRectangleOverlay.TryConsumePendingSelection(out var screenRect, out var append))
+            {
+                return false;
+            }
+
+            if (!IsMultiTargetSelectionModeActive())
+            {
+                return false;
+            }
+
+            var camera = ResolveDrivingCamera();
+            if (camera == null)
+            {
+                return false;
+            }
+
+            _multiTargetCandidates.Clear();
+            var maxDistance = math.max(10f, multiTargetMaxDistance);
+            CollectMultiTargetCandidatesFromQuery(_fallbackRenderableQuery, camera, in screenRect, maxDistance);
+            if (multiTargetIncludeAsteroids)
+            {
+                CollectMultiTargetCandidatesFromQuery(_asteroidAnyQuery, camera, in screenRect, maxDistance);
+            }
+
+            if (_multiTargetCandidates.Count == 0)
+            {
+                if (!append)
+                {
+                    ClearClickTargetSelection();
+                }
+
+                return true;
+            }
+
+            _multiTargetCandidates.Sort((a, b) => a.Score.CompareTo(b.Score));
+            ApplyMultiTargetCandidates(_multiTargetCandidates, append);
+            _fighterLastRetargetTime = UTime.unscaledTime;
+            return true;
+        }
+
+        private static bool IsMultiTargetSelectionModeActive()
+        {
+            var mode = Space4XControlModeState.CurrentMode;
+            return mode == Space4XControlMode.CursorOrient || mode == Space4XControlMode.CruiseLook;
+        }
+
+        private void CollectMultiTargetCandidatesFromQuery(EntityQuery query, UCamera camera, in Rect screenRect, float maxDistance)
+        {
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            var cameraPosition = (float3)camera.transform.position;
+            var center = screenRect.center;
+            var hasSelfSide = _entityManager.HasComponent<ScenarioSide>(_flagship);
+            var selfSide = hasSelfSide ? _entityManager.GetComponentData<ScenarioSide>(_flagship).Side : (byte)0;
+            var distanceScale = math.max(0f, multiTargetDistanceScoreScale);
+
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var transforms = query.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            for (var i = 0; i < entities.Length; i++)
+            {
+                var candidate = entities[i];
+                if (candidate == Entity.Null || candidate == _flagship || !_entityManager.Exists(candidate))
+                {
+                    continue;
+                }
+
+                if (FindMultiTargetCandidateIndex(_multiTargetCandidates, candidate) >= 0)
+                {
+                    continue;
+                }
+
+                if (_entityManager.HasComponent<HullIntegrity>(candidate) &&
+                    _entityManager.GetComponentData<HullIntegrity>(candidate).Current <= 0f)
+                {
+                    continue;
+                }
+
+                var point = transforms[i].Position;
+                var toCandidate = point - cameraPosition;
+                var distance = math.length(toCandidate);
+                if (distance <= 0.01f || distance > maxDistance)
+                {
+                    continue;
+                }
+
+                var projected = camera.WorldToScreenPoint(new Vector3(point.x, point.y, point.z));
+                if (projected.z <= 0f)
+                {
+                    continue;
+                }
+
+                var projected2 = new Vector2(projected.x, projected.y);
+                if (!screenRect.Contains(projected2))
+                {
+                    continue;
+                }
+
+                var dx = projected2.x - center.x;
+                var dy = projected2.y - center.y;
+                var score = math.sqrt(dx * dx + dy * dy) + (distance * distanceScale);
+                score += ResolveMultiTargetRelationBias(candidate, hasSelfSide, selfSide);
+                _multiTargetCandidates.Add(new MultiTargetCandidate
+                {
+                    Entity = candidate,
+                    Point = point,
+                    Score = score
+                });
+            }
+        }
+
+        private float ResolveMultiTargetRelationBias(Entity candidate, bool hasSelfSide, byte selfSide)
+        {
+            if (!hasSelfSide || !_entityManager.HasComponent<ScenarioSide>(candidate))
+            {
+                return 0f;
+            }
+
+            var candidateSide = _entityManager.GetComponentData<ScenarioSide>(candidate).Side;
+            if (candidateSide == selfSide)
+            {
+                return math.max(0f, multiTargetFriendlyPenalty);
+            }
+
+            return -math.max(0f, multiTargetHostileBonus);
+        }
+
+        private void ApplyMultiTargetCandidates(IReadOnlyList<MultiTargetCandidate> candidates, bool append)
+        {
+            var maxLocks = math.max(1, multiTargetMaxLocks);
+            _multiTargetEntriesScratch.Clear();
+            if (append)
+            {
+                CollectExistingMultiTargetEntries(_multiTargetEntriesScratch, maxLocks);
+            }
+
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                if (_multiTargetEntriesScratch.Count >= maxLocks)
+                {
+                    break;
+                }
+
+                var candidate = candidates[i];
+                if (FindMultiTargetEntryIndex(_multiTargetEntriesScratch, candidate.Entity) >= 0)
+                {
+                    continue;
+                }
+
+                _multiTargetEntriesScratch.Add(new Space4XPlayerTargetLockEntry
+                {
+                    TargetEntity = candidate.Entity,
+                    LastKnownPoint = candidate.Point,
+                    Score = candidate.Score,
+                    PurposeMask = (byte)(Space4XPlayerTargetPurpose.Combat | Space4XPlayerTargetPurpose.Inspect),
+                    IsPrimary = 0
+                });
+            }
+
+            if (_multiTargetEntriesScratch.Count == 0)
+            {
+                if (!append)
+                {
+                    ClearClickTargetSelection();
+                }
+
+                return;
+            }
+
+            var selectedInMode2 = Space4XControlModeState.CurrentMode == Space4XControlMode.CruiseLook ? (byte)1 : (byte)0;
+            var preferredPrimary = Entity.Null;
+            if (append && TryGetCurrentTargetSelection(out var existingSelection))
+            {
+                preferredPrimary = existingSelection.TargetEntity;
+            }
+
+            var primaryIndex = 0;
+            if (preferredPrimary != Entity.Null)
+            {
+                var preferredIndex = FindMultiTargetEntryIndex(_multiTargetEntriesScratch, preferredPrimary);
+                if (preferredIndex >= 0)
+                {
+                    primaryIndex = preferredIndex;
+                }
+            }
+
+            for (var i = 0; i < _multiTargetEntriesScratch.Count; i++)
+            {
+                var entry = _multiTargetEntriesScratch[i];
+                entry.IsPrimary = (byte)(i == primaryIndex ? 1 : 0);
+                _multiTargetEntriesScratch[i] = entry;
+            }
+
+            if (!TryEnsureTargetLockBuffer(_flagship, out var buffer))
+            {
+                return;
+            }
+
+            buffer.Clear();
+            for (var i = 0; i < _multiTargetEntriesScratch.Count; i++)
+            {
+                buffer.Add(_multiTargetEntriesScratch[i]);
+            }
+
+            var primary = _multiTargetEntriesScratch[primaryIndex];
+            ApplyClickTargetSelection(primary.TargetEntity, primary.LastKnownPoint, selectedInMode2, syncMultiTargetLock: false);
+        }
+
+        private void CollectExistingMultiTargetEntries(List<Space4XPlayerTargetLockEntry> entries, int maxLocks)
+        {
+            if (!_entityManager.HasBuffer<Space4XPlayerTargetLockEntry>(_flagship))
+            {
+                return;
+            }
+
+            var buffer = _entityManager.GetBuffer<Space4XPlayerTargetLockEntry>(_flagship);
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                if (entries.Count >= maxLocks)
+                {
+                    return;
+                }
+
+                var entry = buffer[i];
+                if (!IsValidTarget(entry.TargetEntity) ||
+                    FindMultiTargetEntryIndex(entries, entry.TargetEntity) >= 0)
+                {
+                    continue;
+                }
+
+                entry.IsPrimary = 0;
+                entries.Add(entry);
+            }
+        }
+
+        private static int FindMultiTargetEntryIndex(List<Space4XPlayerTargetLockEntry> entries, Entity entity)
+        {
+            for (var i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].TargetEntity == entity)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static int FindMultiTargetCandidateIndex(List<MultiTargetCandidate> entries, Entity entity)
+        {
+            for (var i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].Entity == entity)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private void HandleFighterAutoTargetingInput(Keyboard keyboard)
+        {
+            if (!IsValidTarget(_flagship) || !IsFighterModeActive())
+            {
+                return;
+            }
+
+            if (Space4XTargetSelectionRectangleOverlay.IsPointerCaptureActive ||
+                Space4XTargetSelectionRectangleOverlay.IsSelectionDragActive)
+            {
+                return;
+            }
+
+            var mouse = Mouse.current;
+            if (mouse == null)
+            {
+                return;
+            }
+
+            var now = UTime.unscaledTime;
+            var middleTapped = mouse.middleButton.wasPressedThisFrame;
+            if (middleTapped && IsPointerOverUi())
+            {
+                return;
+            }
+
+            var clearByCtrlChord = middleTapped &&
+                                   fighterManualClearWithCtrlMmb &&
+                                   keyboard != null &&
+                                   (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed);
+
+            var clearByDoubleTap = false;
+            if (middleTapped)
+            {
+                var clearWindow = math.max(0.05f, fighterManualClearDoubleTapWindowSeconds);
+                clearByDoubleTap = now - _fighterLastMiddleTapTime <= clearWindow;
+                _fighterLastMiddleTapTime = now;
+            }
+
+            if (clearByCtrlChord || clearByDoubleTap)
+            {
+                ClearClickTargetSelection();
+                _fighterLastLockTime = float.NegativeInfinity;
+                _fighterLastRetargetTime = now;
+                return;
+            }
+
+            var camera = ResolveDrivingCamera();
+            if (camera == null)
+            {
+                return;
+            }
+
+            var maxDistance = math.max(10f, fighterAutoMaxDistance);
+            if (middleTapped)
+            {
+                if (TryFindBestFighterCenterTarget(
+                        camera,
+                        math.max(5f, fighterManualSnapConeDegrees),
+                        maxDistance,
+                        out var snapTarget,
+                        out var snapPoint))
+                {
+                    ApplyClickTargetSelection(snapTarget, snapPoint, selectedInMode2: 0);
+                    _fighterLastLockTime = now;
+                }
+
+                _fighterLastRetargetTime = now;
+                return;
+            }
+
+            if (!enableFighterAutoTargeting)
+            {
+                return;
+            }
+
+            var retargetCooldown = math.max(0f, fighterAutoRetargetCooldownSeconds);
+            if (now - _fighterLastRetargetTime < retargetCooldown)
+            {
+                return;
+            }
+
+            if (TryGetCurrentTargetSelection(out var selection))
+            {
+                var breakCone = math.max(math.max(2f, fighterAutoAcquireConeDegrees), fighterAutoBreakConeDegrees);
+                if (TryResolveCameraTargetAngleAndDistance(camera, selection.TargetEntity, out var angle, out var distance) &&
+                    angle <= breakCone &&
+                    distance <= maxDistance)
+                {
+                    return;
+                }
+
+                var minLock = math.max(0f, fighterAutoMinLockSeconds);
+                if (now - _fighterLastLockTime < minLock)
+                {
+                    return;
+                }
+            }
+
+            if (TryFindBestFighterCenterTarget(
+                    camera,
+                    math.max(1f, fighterAutoAcquireConeDegrees),
+                    maxDistance,
+                    out var autoTarget,
+                    out var autoPoint))
+            {
+                ApplyClickTargetSelection(autoTarget, autoPoint, selectedInMode2: 0);
+                _fighterLastLockTime = now;
+            }
+
+            _fighterLastRetargetTime = now;
+        }
+
+        private static bool IsPointerOverUi()
+        {
+            var eventSystem = EventSystem.current;
+            return eventSystem != null && eventSystem.IsPointerOverGameObject();
+        }
+
+        private static bool IsFighterModeActive()
+        {
+            return Space4XControlModeState.CurrentMode == Space4XControlMode.CursorOrient &&
+                   Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient);
+        }
+
+        private bool TryGetCurrentTargetSelection(out Space4XPlayerTargetSelection selection)
+        {
+            selection = Space4XPlayerTargetSelection.None;
+            if (!IsValidTarget(_flagship) || !_entityManager.HasComponent<Space4XPlayerTargetSelection>(_flagship))
+            {
+                return false;
+            }
+
+            selection = _entityManager.GetComponentData<Space4XPlayerTargetSelection>(_flagship);
+            return selection.HasSelection != 0 && IsValidTarget(selection.TargetEntity);
+        }
+
+        private bool TryResolveCameraTargetAngleAndDistance(UCamera camera, Entity target, out float angleDeg, out float distance)
+        {
+            angleDeg = 180f;
+            distance = float.MaxValue;
+            if (camera == null || !IsValidTarget(target))
+            {
+                return false;
+            }
+
+            var cameraForward = math.normalizesafe((float3)camera.transform.forward, new float3(0f, 0f, 1f));
+            var toTarget = _entityManager.GetComponentData<LocalTransform>(target).Position - (float3)camera.transform.position;
+            distance = math.length(toTarget);
+            if (distance <= 0.01f)
+            {
+                return false;
+            }
+
+            var dot = math.dot(cameraForward, toTarget / distance);
+            if (dot <= 0f)
+            {
+                return false;
+            }
+
+            angleDeg = math.degrees(math.acos(math.clamp(dot, -1f, 1f)));
+            return true;
+        }
+
+        private bool TryFindBestFighterCenterTarget(
+            UCamera camera,
+            float coneDegrees,
+            float maxDistance,
+            out Entity target,
+            out float3 worldPoint)
+        {
+            target = Entity.Null;
+            worldPoint = float3.zero;
+            if (camera == null || _fallbackRenderableQuery.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            var clampedCone = math.clamp(coneDegrees, 1f, 120f);
+            var maxDistanceSafe = math.max(10f, maxDistance);
+            var distanceScale = math.max(0f, fighterAutoDistanceScoreScale);
+            var hasSelfSide = _entityManager.HasComponent<ScenarioSide>(_flagship);
+            var selfSide = hasSelfSide ? _entityManager.GetComponentData<ScenarioSide>(_flagship).Side : (byte)0;
+            var cameraPosition = (float3)camera.transform.position;
+            var cameraForward = math.normalizesafe((float3)camera.transform.forward, new float3(0f, 0f, 1f));
+            var bestScore = float.MaxValue;
+
+            using var entities = _fallbackRenderableQuery.ToEntityArray(Allocator.Temp);
+            using var transforms = _fallbackRenderableQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            for (var i = 0; i < entities.Length; i++)
+            {
+                var candidate = entities[i];
+                if (candidate == Entity.Null || candidate == _flagship || !_entityManager.Exists(candidate))
+                {
+                    continue;
+                }
+
+                if (_entityManager.HasComponent<HullIntegrity>(candidate) &&
+                    _entityManager.GetComponentData<HullIntegrity>(candidate).Current <= 0f)
+                {
+                    continue;
+                }
+
+                var candidatePosition = transforms[i].Position;
+                var toCandidate = candidatePosition - cameraPosition;
+                var distance = math.length(toCandidate);
+                if (distance <= 0.01f || distance > maxDistanceSafe)
+                {
+                    continue;
+                }
+
+                var direction = toCandidate / distance;
+                var dot = math.dot(cameraForward, direction);
+                if (dot <= 0f)
+                {
+                    continue;
+                }
+
+                var angle = math.degrees(math.acos(math.clamp(dot, -1f, 1f)));
+                if (angle > clampedCone)
+                {
+                    continue;
+                }
+
+                var score = angle + (distance * distanceScale);
+                score += ResolveFighterRelationScoreBias(candidate, hasSelfSide, selfSide);
+                if (score >= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                target = candidate;
+                worldPoint = candidatePosition;
+            }
+
+            return target != Entity.Null;
+        }
+
+        private float ResolveFighterRelationScoreBias(Entity candidate, bool hasSelfSide, byte selfSide)
+        {
+            if (!hasSelfSide || !_entityManager.HasComponent<ScenarioSide>(candidate))
+            {
+                return 0f;
+            }
+
+            var candidateSide = _entityManager.GetComponentData<ScenarioSide>(candidate).Side;
+            if (candidateSide == selfSide)
+            {
+                return math.max(0f, fighterAutoFriendlyCenterPenaltyDegrees);
+            }
+
+            return -math.max(0f, fighterAutoHostileCenterBonusDegrees);
+        }
+
+        private bool TryGetTargetingModeFlag(out byte selectedInMode2)
+        {
+            selectedInMode2 = 0;
+
+            var mode = Space4XControlModeState.CurrentMode;
+            if (mode == Space4XControlMode.CruiseLook)
+            {
+                if (!enableMode2ClickTargeting)
+                {
+                    return false;
+                }
+
+                selectedInMode2 = 1;
+                return true;
+            }
+
+            if (mode == Space4XControlMode.CursorOrient &&
+                !Space4XControlModeState.IsVariantEnabled(Space4XControlMode.CursorOrient))
+            {
+                return enableMode1DefaultClickTargeting;
+            }
+
+            return false;
+        }
+
+        private void ApplyClickTargetSelection(Entity target, float3 hitPoint, byte selectedInMode2, bool syncMultiTargetLock = true)
+        {
+            if (!IsValidTarget(_flagship) || !IsValidTarget(target))
+            {
+                return;
+            }
+
+            UpsertTargetSelection(_flagship, new Space4XPlayerTargetSelection
+            {
+                TargetEntity = target,
+                TargetPoint = hitPoint,
+                HasSelection = 1,
+                SelectedInMode2 = selectedInMode2
+            });
+
+            if (_entityManager.HasComponent<TargetPriority>(_flagship))
+            {
+                var priority = _entityManager.GetComponentData<TargetPriority>(_flagship);
+                priority.CurrentTarget = target;
+                priority.EngagementDuration = 0f;
+                priority.ForceReevaluate = 0;
+                _entityManager.SetComponentData(_flagship, priority);
+            }
+
+            if (syncMultiTargetLock)
+            {
+                UpsertPrimaryTargetLock(target, hitPoint);
+            }
+        }
+
+        private void ClearClickTargetSelection()
+        {
+            if (!IsValidTarget(_flagship))
+            {
+                return;
+            }
+
+            UpsertTargetSelection(_flagship, Space4XPlayerTargetSelection.None);
+
+            if (_entityManager.HasComponent<TargetPriority>(_flagship))
+            {
+                var priority = _entityManager.GetComponentData<TargetPriority>(_flagship);
+                priority.CurrentTarget = Entity.Null;
+                priority.CurrentScore = 0f;
+                priority.EngagementDuration = 0f;
+                priority.ForceReevaluate = 1;
+                _entityManager.SetComponentData(_flagship, priority);
+            }
+
+            ClearMultiTargetLocks(_flagship);
+        }
+
+        private void UpsertPrimaryTargetLock(Entity target, float3 hitPoint)
+        {
+            if (!enableMultiTargetSelection || !IsValidTarget(_flagship) || !IsValidTarget(target))
+            {
+                return;
+            }
+
+            if (!TryEnsureTargetLockBuffer(_flagship, out var buffer))
+            {
+                return;
+            }
+
+            var maxLocks = math.max(1, multiTargetMaxLocks);
+            _multiTargetEntriesScratch.Clear();
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                var entry = buffer[i];
+                if (!IsValidTarget(entry.TargetEntity) ||
+                    FindMultiTargetEntryIndex(_multiTargetEntriesScratch, entry.TargetEntity) >= 0)
+                {
+                    continue;
+                }
+
+                entry.IsPrimary = 0;
+                _multiTargetEntriesScratch.Add(entry);
+                if (_multiTargetEntriesScratch.Count >= maxLocks)
+                {
+                    break;
+                }
+            }
+
+            var primaryIndex = FindMultiTargetEntryIndex(_multiTargetEntriesScratch, target);
+            if (primaryIndex < 0)
+            {
+                if (_multiTargetEntriesScratch.Count >= maxLocks)
+                {
+                    _multiTargetEntriesScratch.RemoveAt(_multiTargetEntriesScratch.Count - 1);
+                }
+
+                _multiTargetEntriesScratch.Insert(0, new Space4XPlayerTargetLockEntry
+                {
+                    TargetEntity = target,
+                    LastKnownPoint = hitPoint,
+                    Score = 0f,
+                    PurposeMask = (byte)(Space4XPlayerTargetPurpose.Combat | Space4XPlayerTargetPurpose.Inspect),
+                    IsPrimary = 1
+                });
+                primaryIndex = 0;
+            }
+            else
+            {
+                var primary = _multiTargetEntriesScratch[primaryIndex];
+                primary.LastKnownPoint = hitPoint;
+                primary.IsPrimary = 1;
+                primary.Score = 0f;
+                _multiTargetEntriesScratch[primaryIndex] = primary;
+            }
+
+            for (var i = 0; i < _multiTargetEntriesScratch.Count; i++)
+            {
+                var entry = _multiTargetEntriesScratch[i];
+                entry.IsPrimary = (byte)(i == primaryIndex ? 1 : 0);
+                _multiTargetEntriesScratch[i] = entry;
+            }
+
+            buffer.Clear();
+            for (var i = 0; i < _multiTargetEntriesScratch.Count; i++)
+            {
+                buffer.Add(_multiTargetEntriesScratch[i]);
+            }
+        }
+
+        private void ClearMultiTargetLocks(Entity entity)
+        {
+            if (!IsValidTarget(entity) || !_entityManager.HasBuffer<Space4XPlayerTargetLockEntry>(entity))
+            {
+                return;
+            }
+
+            var buffer = _entityManager.GetBuffer<Space4XPlayerTargetLockEntry>(entity);
+            buffer.Clear();
+        }
+
+        private bool TryEnsureTargetLockBuffer(Entity entity, out DynamicBuffer<Space4XPlayerTargetLockEntry> buffer)
+        {
+            buffer = default;
+            if (!IsValidTarget(entity))
+            {
+                return false;
+            }
+
+            if (_entityManager.HasBuffer<Space4XPlayerTargetLockEntry>(entity))
+            {
+                buffer = _entityManager.GetBuffer<Space4XPlayerTargetLockEntry>(entity);
+                return true;
+            }
+
+            if (_targetLockBufferOverflowEntity == entity)
+            {
+                return false;
+            }
+
+            try
+            {
+                buffer = _entityManager.AddBuffer<Space4XPlayerTargetLockEntry>(entity);
+                _targetLockBufferOverflowEntity = Entity.Null;
+                return true;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _targetLockBufferOverflowEntity = entity;
+                if (!_targetLockBufferCapacityWarned)
+                {
+                    _targetLockBufferCapacityWarned = true;
+                    UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] Space4XPlayerTargetLockEntry add skipped: entity archetype is at chunk capacity.");
+                }
+
+                return false;
+            }
+        }
+
+        private bool TryResolveTargetFromScreenProxy(
+            UCamera camera,
+            Vector2 pointer,
+            float maxDistance,
+            out Entity target,
+            out float3 worldPoint)
+        {
+            target = Entity.Null;
+            worldPoint = float3.zero;
+            if (!enableScreenSpaceTargetProxy || camera == null)
+            {
+                return false;
+            }
+
+            var radius = Mathf.Max(4f, targetProxyPixelRadius);
+            var radiusSq = radius * radius;
+            var bestScore = float.MaxValue;
+            var maxDepth = math.max(10f, maxDistance);
+            TryResolveTargetFromScreenProxyQuery(_fallbackRenderableQuery, camera, pointer, radiusSq, maxDepth, ref bestScore, ref target, ref worldPoint);
+            TryResolveTargetFromScreenProxyQuery(_asteroidAnyQuery, camera, pointer, radiusSq, maxDepth, ref bestScore, ref target, ref worldPoint);
+            return target != Entity.Null;
+        }
+
+        private void TryResolveTargetFromScreenProxyQuery(
+            EntityQuery query,
+            UCamera camera,
+            Vector2 pointer,
+            float radiusSq,
+            float maxDepth,
+            ref float bestScore,
+            ref Entity target,
+            ref float3 worldPoint)
+        {
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return;
+            }
+
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var transforms = query.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            for (var i = 0; i < entities.Length; i++)
+            {
+                var candidate = entities[i];
+                if (candidate == Entity.Null || candidate == _flagship || !_entityManager.Exists(candidate))
+                {
+                    continue;
+                }
+
+                var world = transforms[i].Position;
+                var projected = camera.WorldToScreenPoint(new Vector3(world.x, world.y, world.z));
+                if (projected.z <= 0f || projected.z > maxDepth)
+                {
+                    continue;
+                }
+
+                var dx = projected.x - pointer.x;
+                var dy = projected.y - pointer.y;
+                var pixelDistanceSq = dx * dx + dy * dy;
+                if (pixelDistanceSq > radiusSq)
+                {
+                    continue;
+                }
+
+                var score = pixelDistanceSq + (projected.z * Mathf.Max(0f, targetProxyDepthBias));
+                if (score >= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                target = candidate;
+                worldPoint = world;
+            }
+        }
+
+        private bool TryRaycastForEntity(UnityEngine.Ray ray, float maxDistance, out Entity entity, out float3 worldPoint)
+        {
+            entity = Entity.Null;
+            worldPoint = ResolveRayProjectionOnFlagshipPlane(ray, maxDistance);
+
+            if (_physicsWorldQuery.IsEmptyIgnoreFilter == false)
+            {
+                var physicsWorld = _physicsWorldQuery.GetSingleton<PhysicsWorldSingleton>();
+                var input = new RaycastInput
+                {
+                    Start = ray.origin,
+                    End = ray.origin + ray.direction * maxDistance,
+                    Filter = CollisionFilter.Default
+                };
+
+                if (physicsWorld.CastRay(input, out var hit))
+                {
+                    entity = hit.Entity;
+                    worldPoint = hit.Position;
+                    return true;
+                }
+            }
+
+            if (UnityEngine.Physics.Raycast(
+                    ray,
+                    out UnityEngine.RaycastHit hit3d,
+                    maxDistance,
+                    mode2TargetLayerMask.value,
+                    QueryTriggerInteraction.Ignore))
+            {
+                worldPoint = new float3(hit3d.point.x, hit3d.point.y, hit3d.point.z);
+                if (hit3d.collider != null)
+                {
+                    var bridge = hit3d.collider.GetComponent<IEntityBridge>();
+                    if (bridge != null && bridge.TryGetEntity(out var bridged))
+                    {
+                        entity = bridged;
+                    }
+                }
+
+                return entity != Entity.Null;
+            }
+
+            return false;
+        }
+
+        private float3 ResolveRayProjectionOnFlagshipPlane(UnityEngine.Ray ray, float maxDistance)
+        {
+            var fallbackY = 0f;
+            if (IsValidTarget(_flagship))
+            {
+                fallbackY = _entityManager.GetComponentData<LocalTransform>(_flagship).Position.y;
+            }
+
+            var plane = new UnityEngine.Plane(Vector3.up, new Vector3(0f, fallbackY, 0f));
+            if (plane.Raycast(ray, out var enter))
+            {
+                var distance = Mathf.Clamp(enter, 0f, maxDistance);
+                var point = ray.GetPoint(distance);
+                return new float3(point.x, point.y, point.z);
+            }
+
+            var clamped = ray.GetPoint(Mathf.Clamp(maxDistance * 0.25f, 1f, maxDistance));
+            return new float3(clamped.x, clamped.y, clamped.z);
+        }
+
+        private bool TryResolveNearestTargetFromPoint(float3 point, float radius, out Entity nearest)
+        {
+            nearest = Entity.Null;
+            var radiusSq = radius * radius;
+            var bestDistanceSq = radiusSq;
+
+            if (TryResolveNearestFromQuery(_fallbackRenderableQuery, point, ref bestDistanceSq, ref nearest))
+            {
+                return true;
+            }
+
+            if (TryResolveNearestFromQuery(_asteroidAnyQuery, point, ref bestDistanceSq, ref nearest))
+            {
+                return true;
+            }
+
+            return nearest != Entity.Null;
+        }
+
+        private bool TryResolveNearestFromQuery(EntityQuery query, float3 point, ref float bestDistanceSq, ref Entity nearest)
+        {
+            if (query.IsEmptyIgnoreFilter)
+            {
+                return false;
+            }
+
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var transforms = query.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+            var found = false;
+            for (var i = 0; i < entities.Length; i++)
+            {
+                var candidate = entities[i];
+                if (candidate == Entity.Null || candidate == _flagship || !_entityManager.Exists(candidate))
+                {
+                    continue;
+                }
+
+                var distanceSq = math.lengthsq(transforms[i].Position - point);
+                if (distanceSq > bestDistanceSq)
+                {
+                    continue;
+                }
+
+                bestDistanceSq = distanceSq;
+                nearest = candidate;
+                found = true;
+            }
+
+            return found;
+        }
+
+        private void UpsertTargetSelection(Entity entity, in Space4XPlayerTargetSelection selection)
+        {
+            if (!IsValidTarget(entity))
+            {
+                return;
+            }
+
+            if (_entityManager.HasComponent<Space4XPlayerTargetSelection>(entity))
+            {
+                _entityManager.SetComponentData(entity, selection);
+                return;
+            }
+
+            if (_targetSelectionOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, selection);
+                _targetSelectionOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _targetSelectionOverflowEntity = entity;
+                if (_targetSelectionCapacityWarned)
+                {
+                    return;
+                }
+
+                _targetSelectionCapacityWarned = true;
+                UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] Space4XPlayerTargetSelection add skipped: entity archetype is at chunk capacity.");
+            }
+        }
+
+        private Space4XPlayerWeaponControl ResolvePlayerWeaponControl(Entity entity)
+        {
+            if (_entityManager.HasComponent<Space4XPlayerWeaponControl>(entity))
+            {
+                return _entityManager.GetComponentData<Space4XPlayerWeaponControl>(entity);
+            }
+
+            return new Space4XPlayerWeaponControl
+            {
+                ManualAimMode = manualAimDefaultEnabled ? (byte)1 : (byte)0,
+                TriggerHeld = 0
+            };
+        }
+
+        private void UpsertPlayerWeaponControl(Entity entity, in Space4XPlayerWeaponControl control)
+        {
+            if (!IsValidTarget(entity))
+            {
+                return;
+            }
+
+            if (_entityManager.HasComponent<Space4XPlayerWeaponControl>(entity))
+            {
+                _entityManager.SetComponentData(entity, control);
+                return;
+            }
+
+            if (_playerWeaponControlOverflowEntity == entity)
+            {
+                return;
+            }
+
+            try
+            {
+                _entityManager.AddComponentData(entity, control);
+                _playerWeaponControlOverflowEntity = Entity.Null;
+            }
+            catch (InvalidOperationException ex) when (IsArchetypeCapacityException(ex))
+            {
+                _playerWeaponControlOverflowEntity = entity;
+                if (_playerWeaponControlCapacityWarned)
+                {
+                    return;
+                }
+
+                _playerWeaponControlCapacityWarned = true;
+                UnityEngine.Debug.LogWarning("[Space4XPlayerFlagshipController] Space4XPlayerWeaponControl add skipped: entity archetype is at chunk capacity.");
+            }
         }
 
         private bool IsValidTarget(Entity entity)
@@ -1418,6 +2859,93 @@ namespace Space4X.UI
             }
 
             return true;
+        }
+
+        private Space4XRunStartAnchor ResolveAutoAnchorPreference()
+        {
+            var presetId = Space4XRunStartSelection.ShipPresetId;
+            if (!string.IsNullOrWhiteSpace(presetId))
+            {
+                if (presetId.Contains("station", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Space4XRunStartAnchor.Station;
+                }
+
+                if (presetId.Contains("colony", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Space4XRunStartAnchor.Colony;
+                }
+            }
+
+            return Space4XRunStartAnchor.Ship;
+        }
+
+        private Entity PickCandidateByAnchor(Space4XRunStartAnchor anchor, bool preferCarrier)
+        {
+            return anchor switch
+            {
+                Space4XRunStartAnchor.Ship => PickShipCandidate(preferCarrier),
+                Space4XRunStartAnchor.Station => PickStationCandidate(),
+                Space4XRunStartAnchor.Colony => PickColonyCandidate(),
+                _ => PickShipCandidate(preferCarrier)
+            };
+        }
+
+        private Entity PickShipCandidate(bool preferCarrier)
+        {
+            var candidate = preferCarrier
+                ? PickNearestToCameraControllable(_carrierRenderableQuery)
+                : PickNearestToCameraControllable(_miningRenderableQuery);
+
+            if (candidate == Entity.Null)
+            {
+                candidate = preferCarrier
+                    ? PickNearestToCameraControllable(_carrierAnyQuery)
+                    : PickNearestToCameraControllable(_miningAnyQuery);
+            }
+
+            if (candidate == Entity.Null)
+            {
+                candidate = preferCarrier
+                    ? PickNearestToCameraControllable(_miningRenderableQuery)
+                    : PickNearestToCameraControllable(_carrierRenderableQuery);
+            }
+
+            if (candidate == Entity.Null)
+            {
+                candidate = preferCarrier
+                    ? PickNearestToCameraControllable(_miningAnyQuery)
+                    : PickNearestToCameraControllable(_carrierAnyQuery);
+            }
+
+            if (candidate == Entity.Null)
+            {
+                candidate = PickNearestToCameraControllable(_fallbackRenderableQuery);
+            }
+
+            return candidate;
+        }
+
+        private Entity PickStationCandidate()
+        {
+            var candidate = PickNearestToCameraControllable(_stationRenderableQuery);
+            if (candidate == Entity.Null)
+            {
+                candidate = PickNearestToCameraControllable(_stationAnyQuery);
+            }
+
+            return candidate;
+        }
+
+        private Entity PickColonyCandidate()
+        {
+            var candidate = PickNearestToCameraControllable(_colonyRenderableQuery);
+            if (candidate == Entity.Null)
+            {
+                candidate = PickNearestToCameraControllable(_colonyAnyQuery);
+            }
+
+            return candidate;
         }
 
         private void ApplyFlightTuningFromEntity(Entity entity)

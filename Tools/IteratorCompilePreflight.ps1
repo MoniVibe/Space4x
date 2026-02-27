@@ -10,13 +10,29 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($UnityExe)) {
-    if (-not [string]::IsNullOrWhiteSpace($env:UNITY_EXE)) {
-        $UnityExe = $env:UNITY_EXE
+    $resolverScript = Join-Path $PSScriptRoot "ResolveUnityEditor.ps1"
+    if (-not (Test-Path $resolverScript)) {
+        throw "Missing Unity resolver script: $resolverScript"
+    }
+
+    try {
+        $resolved = & $resolverScript -RepoPath $RepoPath -Quiet
+        if ($LASTEXITCODE -ne 0) {
+            throw "Resolver exited with code $LASTEXITCODE."
+        }
+
+        $resolvedLines = @($resolved | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($resolvedLines.Count -gt 0) {
+            $UnityExe = ($resolvedLines | Select-Object -Last 1).Trim()
+        }
+    }
+    catch {
+        throw "Missing Unity path and auto-resolution failed. Pass -UnityExe <path-to-Unity.exe> or set UNITY_EXE. Details: $($_.Exception.Message)"
     }
 }
 
 if ([string]::IsNullOrWhiteSpace($UnityExe)) {
-    throw "Missing Unity path. Pass -UnityExe <path-to-Unity.exe> or set UNITY_EXE."
+    throw "Missing Unity path. Pass -UnityExe <path-to-Unity.exe>, set UNITY_EXE, or ensure ProjectSettings/ProjectVersion.txt points to an installed editor."
 }
 
 if (-not (Test-Path $UnityExe)) {

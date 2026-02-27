@@ -270,7 +270,8 @@ namespace Space4X.Headless
                         !key.StartsWith("space4x.undock.", StringComparison.OrdinalIgnoreCase) &&
                         !key.StartsWith("space4x.sensor.", StringComparison.OrdinalIgnoreCase) &&
                         !key.StartsWith("space4x.comms.", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("space4x.combat.", StringComparison.OrdinalIgnoreCase))
+                        !key.StartsWith("space4x.combat.", StringComparison.OrdinalIgnoreCase) &&
+                        !key.StartsWith("space4x.spine.", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }

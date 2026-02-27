@@ -173,8 +173,6 @@ namespace Space4X.Registry
                 return;
             }
 
-            var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
-
             foreach (var (carrier, patrol, movement, vesselMovement, transform, entity) in SystemAPI
                          .Query<RefRO<Carrier>, RefRW<PatrolBehavior>, RefRW<MovementCommand>, RefRW<VesselMovement>, RefRW<LocalTransform>>()
                          .WithEntityAccess())
@@ -405,16 +403,10 @@ namespace Space4X.Registry
                     {
                         _deviationLookup[entity] = deviationState;
                     }
-                    else
-                    {
-                        ecb.AddComponent(entity, deviationState);
-                    }
                 }
 
                 patrol.ValueRW = patrolBehavior;
             }
-
-            ecb.Playback(state.EntityManager);
         }
 
         private static void AdvanceWaypoint(ref WaypointPath path, int count)
